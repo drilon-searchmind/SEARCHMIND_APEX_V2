@@ -1,0 +1,181 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100;200;300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+:root {
+	--color-primary-searchmind: #1E2B2B;
+	--color-primary-searchmind-lighter: #406969;
+	--color-primary-searchmind-hover: #344b4b;
+	--color-secondary-searchmind: #D6CDB6;
+	--color-secondary-searchmind-hover: #c0b8a3;
+
+	/* New palette colors */
+	--color-dark-green: #1E2928;
+	--color-lime: #C6ED62;
+	--color-natural: #FEFBF2;
+	--color-light-natural: #EAE3D1;
+	--color-dark-natural: #D6CDB6;
+	--color-light-green: #6A8F4D;
+	--color-green: #213834;
+	--color-black: #131313;
+
+	/* Font family */
+	--font-family: 'Outfit', sans-serif;
+}
+
+html, body {
+  height: 100%;
+}
+
+/* Global styles */
+* {
+	box-sizing: border-box;
+}
+
+html {
+	font-family: var(--font-family);
+	scroll-behavior: smooth;
+}
+
+body {
+	background-color: var(--background);
+	color: var(--foreground);
+	font-family: var(--font-family);
+	line-height: 1.6;
+	margin: 0;
+	padding: 0;
+}
+
+/* Headings */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	font-family: var(--font-family);
+	font-weight: 600;
+	line-height: 1.2;
+}
+
+h1 {
+	font-size: 2.5rem;
+	font-weight: 700;
+}
+
+h2 {
+	font-size: 2rem;
+	font-weight: 600;
+}
+
+h3 {
+	font-size: 1.75rem;
+	font-weight: 600;
+}
+
+h4 {
+	font-size: 1.5rem;
+	font-weight: 500;
+}
+
+h5 {
+	font-size: 1.25rem;
+	font-weight: 500;
+}
+
+h6 {
+	font-size: 1rem;
+	font-weight: 500;
+}
+
+/* Paragraphs */
+p {
+	font-size: 1rem;
+	line-height: 1.6;
+}
+
+/* Links */
+a {
+	color: var(--color-primary-searchmind);
+	text-decoration: none;
+	transition: color 0.2s ease;
+}
+
+a:hover {
+	color: var(--color-primary-searchmind-hover);
+	text-decoration: underline;
+}
+
+/* Lists */
+
+/* Buttons (base styles, can be overridden by components) */
+button {
+	font-family: var(--font-family);
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+/* Form elements */
+input,
+textarea,
+select {
+	font-family: var(--font-family);
+}
+
+/* Utility classes */
+.text-primary {
+	color: var(--color-primary-searchmind);
+}
+
+.text-secondary {
+	color: var(--color-secondary-searchmind);
+}
+
+.bg-primary {
+	background-color: var(--color-primary-searchmind);
+}
+
+.bg-secondary {
+	background-color: var(--color-secondary-searchmind);
+}
+
+/* Responsive typography */
+@media (max-width: 768px) {
+	h1 {
+		font-size: 2rem;
+	}
+
+	h2 {
+		font-size: 1.75rem;
+	}
+
+	h3 {
+		font-size: 1.5rem;
+	}
+}
+
+.glassmorphism1 {
+	/* From https://css.glass */
+	background: rgba(255, 255, 255, 0.2);
+	border-radius: 16px;
+	box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+	backdrop-filter: blur(11.2px);
+	-webkit-backdrop-filter: blur(11.2px);
+}
+
+.glassmorphism2 {
+	/* From https://css.glass */
+	background: rgba(59, 59, 59, 0.90);
+	border-radius: 0;
+	box-shadow: 100px 100px 30px rgba(0, 0, 0, 0.1);
+	backdrop-filter: blur(15.9px);
+	-webkit-backdrop-filter: blur(15.9px);
+}
+
+.glassmorphism3 {
+	/* From https://css.glass */
+	background-color: #1e2b2b4b;
+	border-radius: 0;
+	box-shadow: 100px 100px 30px rgba(0, 0, 0, 0.1);
+	backdrop-filter: blur(15.9px);
+	-webkit-backdrop-filter: blur(15.9px);
+}
