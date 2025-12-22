@@ -6,9 +6,42 @@ import FormButton from "@/components/form/FormButton";
 import FormLabel from "@/components/form/FormLabel";
 import Image from "next/image";
 import CustomerTable from "@/components/table/CustomerTable";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { signIn, useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import ErrorMessage from "@/components/ui/ErrorMessage";
 
 export default function LoginPage() {
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const { status } = useSession();
+
+    // Show error from NextAuth (e.g. ?error=CredentialsSignin)
+    useEffect(() => {
+        const errorParam = searchParams.get("error");
+        if (errorParam) {
+            setError("Invalid email or password");
+        }
+    }, [searchParams]);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError("");
+        const result = await signIn("credentials", {
+            redirect: false,
+            email,
+            password,
+        });
+        if (result?.error) {
+            setError("Invalid email or password");
+        } else if (result?.ok) {
+            router.push("/home");
+        }
+    };
+
     return (
         <div className="flex h-screen lg:flex-row flex-col">
             {/* Left Section */}
@@ -17,18 +50,32 @@ export default function LoginPage() {
                     <h1 className="text-3xl font-bold mb-4">Sign In</h1>
                     <p className="text-gray-400 mb-6">Enter your email and password to sign in!</p>
 
-                    <form>
+                    <ErrorMessage message={error} />
+
+                    <form onSubmit={handleSubmit}>
                         <div className="mb-4">
                             <FormLabel htmlFor="email" required={true}>Email</FormLabel>
-                            <FormInputText placeholder="Enter your email" required={true} />
+                            <FormInputText
+                                id="email"
+                                placeholder="Enter your email"
+                                required={true}
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                            />
                         </div>
 
                         <div className="mb-6">
                             <FormLabel htmlFor="password" required={true}>Password</FormLabel>
-                            <FormInputPassword placeholder="Enter your password" required={true} />
+                            <FormInputPassword
+                                id="password"
+                                placeholder="Enter your password"
+                                required={true}
+                                value={password}
+                                onChange={e => setPassword(e.target.value)}
+                            />
                         </div>
 
-                        <FormButton>Sign In</FormButton>
+                        <FormButton type="submit">Sign In</FormButton>
                     </form>
                 </div>
             </div>
@@ -62,6 +109,6 @@ export default function LoginPage() {
                     </p>
                 </div>
             </div>
-        </div >
+        </div>
     );
 }

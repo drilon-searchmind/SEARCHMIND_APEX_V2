@@ -8,13 +8,21 @@ import dummyCustomers from "@/app/api/dummyCustomers.json";
 import FormButton from "../form/FormButton";
 import { FiArrowRight } from "react-icons/fi";
 import { FiLogOut } from "react-icons/fi";
+import { useUser } from "@/contexts/UserContext";
+import { signOut } from "next-auth/react";
 
 export default function CustomerTable({ customers }) {
     const [searchTerm, setSearchTerm] = useState("");
+    const user = useUser();
 
     const filteredCustomers = dummyCustomers.filter((customer) =>
         customer.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const handleLogout = () => {    
+        console.log("Logging out...");
+        signOut({ callbackUrl: "/login" });
+    };
 
     return (
         <div className="fixed inset-0 flex items-center justify-center glassmorphism3">
@@ -23,10 +31,10 @@ export default function CustomerTable({ customers }) {
                     <span className="flex justify-between items-start">
                         <div>
                             <h1 className="text-2xl font-bold mb-4 text-black">Select a Property</h1>
-                            <p class="text-gray-400 mb-6">Welcome back, <span className="text-gray-600">USER!</span> A list of properties available to you</p>
+                            <p className="text-gray-400 mb-6">Welcome back, <span className="text-gray-600">{user?.name || "User"}!</span> A list of properties available to you</p>
                         </div>
-                        <div>
-                            <FormButton buttonSize="small">
+                        <div onClick={handleLogout}>
+                            <FormButton buttonSize="small" >
                                 Logout <FiLogOut />
                             </FormButton>
                         </div>
@@ -51,7 +59,7 @@ export default function CustomerTable({ customers }) {
                                             {customer.platform}
                                         </td>
                                         <td className="border-b border-gray-50 px-5 py-3 text-gray-500 ">
-                                            <Link href={`/dashboard/:CUSTOMER_ID`} className="hover:underline text-sm">
+                                            <Link href={`/dashboard/123/performance-dashboard`} className="hover:underline text-sm">
                                                 <FormButton buttonSize="small" borderType="outline">
                                                     View Dashboard <FiArrowRight />
                                                 </FormButton>
