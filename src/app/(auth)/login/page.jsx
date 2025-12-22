@@ -56,7 +56,7 @@ export default function LoginPage() {
                         height={30}
                         className="mb-2"
                     />
-                    <h1 className="text-4xl font-bold mb-0">Searchmind Apex</h1>
+                    <h1 className="text-4xl font-bold mb-0 tracking-[0.75rem] uppercase">Apex</h1>
                     <p className="text-lg text-gray-300 max-w-lg mt-5">
                         Streamline your marketing performance with comprehensive analytics, campaign management, and data visualization tools. Make data-driven decisions with confidence.
                     </p>
