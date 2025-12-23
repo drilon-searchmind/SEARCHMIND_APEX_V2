@@ -9,11 +9,14 @@ import {
     FiTool,
 } from "react-icons/fi";
 import Image from "next/image";
+import { useParams } from "next/navigation";
 
 const Sidebar = () => {
     const [dashboardOpen, setDashboardOpen] = useState(true);
     const [serviceOpen, setServiceOpen] = useState(true);
     const [isActiveMenu, setIsActiveMenu] = useState(true);
+    const params = useParams();
+    const activeCustomerId = params?.customerId;
 
     return (
         <aside className="flex flex-col xl:mt-0 top-0 px-5 left-0 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-full transition-all duration-300 ease-in-out z-50 border-r border-gray-200 w-[290px]">
@@ -51,22 +54,22 @@ const Sidebar = () => {
                             {dashboardOpen && (
                                 <ul className="mt-2 space-y-2 flex flex-col w-full">
                                     <li className="py-2 px-6 rounded-lg w-full bg-[var(--color-primary-searchmind-lighter)] text-white">
-                                        <Link href="/dashboard/performance" className="w-full">
+                                        <Link href={`/dashboard/${activeCustomerId}/performance-dashboard`} className="w-full">
                                             <span className="text-[0.9rem] text-white font-semibold">Performance Dashboard</span>
                                         </Link>
                                     </li>
                                     <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href="/dashboard/daily-overview">
+                                        <Link href={`/dashboard/${activeCustomerId}/daily-overview`}>
                                             <span className="text-[0.9rem] text-slate-600 font-semibold">Daily Overview</span>
                                         </Link>
                                     </li>
                                     <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href="/dashboard/pace-report">
+                                        <Link href={`/dashboard/${activeCustomerId}/pace-report`}>
                                             <span className="text-[0.9rem] text-slate-600 font-semibold">Pace Report</span>
                                         </Link>
                                     </li>
                                     <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href="/dashboard/pnl">
+                                        <Link href={`/dashboard/${activeCustomerId}/pnl`}>
                                             <span className="text-[0.9rem] text-slate-600 font-semibold">P&L</span>
                                         </Link>
                                     </li>
@@ -88,13 +91,13 @@ const Sidebar = () => {
                             {serviceOpen && (
                                 <ul className="mt-2 space-y-2 flex flex-col w-full">
                                     <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href="/service/seo"><span className="text-[0.9rem] text-slate-600 font-semibold">SEO</span></Link>
+                                        <Link href={`/dashboard/${activeCustomerId}/service-dashboard/seo`}><span className="text-[0.9rem] text-slate-600 font-semibold">SEO</span></Link>
                                     </li>
                                     <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href="/service/ppc"><span className="text-[0.9rem] text-slate-600 font-semibold">PPC</span></Link>
+                                        <Link href={`/dashboard/${activeCustomerId}/service-dashboard/ppc`}><span className="text-[0.9rem] text-slate-600 font-semibold">PPC</span></Link>
                                     </li>
                                     <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href="/service/ps"><span className="text-[0.9rem] text-slate-600 font-semibold">PS</span></Link>
+                                        <Link href={`/dashboard/${activeCustomerId}/service-dashboard/ps`}><span className="text-[0.9rem] text-slate-600 font-semibold">PS</span></Link>
                                     </li>
                                 </ul>
                             )}
@@ -114,10 +117,10 @@ const Sidebar = () => {
                             {serviceOpen && (
                                 <ul className="mt-2 space-y-2 flex flex-col w-full">
                                     <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href="/service/seo"><span className="text-[0.9rem] text-slate-600 font-semibold">Campaign Planner</span></Link>
+                                        <Link href={`/dashboard/${activeCustomerId}/tools/campaign-planner`}><span className="text-[0.9rem] text-slate-600 font-semibold">Campaign Planner</span></Link>
                                     </li>
                                     <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href="/service/ppc"><span className="text-[0.9rem] text-slate-600 font-semibold">Config</span></Link>
+                                        <Link href={`/dashboard/${activeCustomerId}/config`}><span className="text-[0.9rem] text-slate-600 font-semibold">Config</span></Link>
                                     </li>
                                 </ul>
                             )}
