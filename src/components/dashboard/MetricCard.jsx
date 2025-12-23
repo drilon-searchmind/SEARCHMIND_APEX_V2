@@ -6,7 +6,7 @@ export default function MetricCard({ label, value, unit, change, changeType, ico
     const changeIcon = changeType === "up" ? "▲" : changeType === "down" ? "▼" : null;
 
     return (
-        <div className="flex flex-col justify-between bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl px-6 py-5 min-w-[160px] min-h-[110px]">
+        <div className="flex flex-col justify-between bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-6 py-5 min-w-[160px] min-h-[110px]">
             <div className="flex items-center justify-between mb-4">
                 <span className="flex flex-col items-start gap-2 text-gray-400 text-sm font-medium">
                     <span className="bg-gray-50 rounded-lg p-4">{icon}</span>
