@@ -29,7 +29,7 @@ const Sidebar = () => {
                         height={100}
                         className="mb-0"
                     />
-                    <p className="text-slate-500 text-sm">Searchmind</p>
+                    <p className="text-slate-500 text-sm tracking-[0.17rem]">Searchmind</p>
                 </Link>
             </div>
 
