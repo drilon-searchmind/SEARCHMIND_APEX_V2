@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAllCustomers, createCustomer } from '@/lib/customerOperations.js';
+import { getAllCustomers, createCustomer } from '../../../../lib/customerOperations';
 
 // GET /api/customers - Get all customers
 export async function GET() {

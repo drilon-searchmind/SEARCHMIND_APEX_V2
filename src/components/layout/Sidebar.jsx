@@ -52,22 +52,22 @@ const Sidebar = () => {
                                 <ul className="mt-2 space-y-2 flex flex-col w-full">
                                     <li className="py-2 px-6 rounded-lg w-full bg-[var(--color-primary-searchmind-lighter)] text-white">
                                         <Link href="/dashboard/performance" className="w-full">
-                                            <span className="text-[0.8rem] text-white font-semibold">Performance Dashboard</span>
+                                            <span className="text-[0.9rem] text-white font-semibold">Performance Dashboard</span>
                                         </Link>
                                     </li>
                                     <li className="py-2 px-6 rounded-lg w-full">
                                         <Link href="/dashboard/daily-overview">
-                                            <span className="text-[0.8rem] text-slate-800 font-semibold">Daily Overview</span>
+                                            <span className="text-[0.9rem] text-slate-600 font-semibold">Daily Overview</span>
                                         </Link>
                                     </li>
                                     <li className="py-2 px-6 rounded-lg w-full">
                                         <Link href="/dashboard/pace-report">
-                                            <span className="text-[0.8rem] text-slate-800 font-semibold">Pace Report</span>
+                                            <span className="text-[0.9rem] text-slate-600 font-semibold">Pace Report</span>
                                         </Link>
                                     </li>
                                     <li className="py-2 px-6 rounded-lg w-full">
                                         <Link href="/dashboard/pnl">
-                                            <span className="text-[0.8rem] text-slate-800 font-semibold">P&L</span>
+                                            <span className="text-[0.9rem] text-slate-600 font-semibold">P&L</span>
                                         </Link>
                                     </li>
                                 </ul>
@@ -88,13 +88,13 @@ const Sidebar = () => {
                             {serviceOpen && (
                                 <ul className="mt-2 space-y-2 flex flex-col w-full">
                                     <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href="/service/seo"><span className="text-[0.8rem] text-slate-800 font-semibold">SEO</span></Link>
+                                        <Link href="/service/seo"><span className="text-[0.9rem] text-slate-600 font-semibold">SEO</span></Link>
                                     </li>
                                     <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href="/service/ppc"><span className="text-[0.8rem] text-slate-800 font-semibold">PPC</span></Link>
+                                        <Link href="/service/ppc"><span className="text-[0.9rem] text-slate-600 font-semibold">PPC</span></Link>
                                     </li>
                                     <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href="/service/ps"><span className="text-[0.8rem] text-slate-800 font-semibold">PS</span></Link>
+                                        <Link href="/service/ps"><span className="text-[0.9rem] text-slate-600 font-semibold">PS</span></Link>
                                     </li>
                                 </ul>
                             )}
@@ -114,10 +114,10 @@ const Sidebar = () => {
                             {serviceOpen && (
                                 <ul className="mt-2 space-y-2 flex flex-col w-full">
                                     <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href="/service/seo"><span className="text-[0.8rem] text-slate-800 font-semibold">Campaign Planner</span></Link>
+                                        <Link href="/service/seo"><span className="text-[0.9rem] text-slate-600 font-semibold">Campaign Planner</span></Link>
                                     </li>
                                     <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href="/service/ppc"><span className="text-[0.8rem] text-slate-800 font-semibold">Config</span></Link>
+                                        <Link href="/service/ppc"><span className="text-[0.9rem] text-slate-600 font-semibold">Config</span></Link>
                                     </li>
                                 </ul>
                             )}
