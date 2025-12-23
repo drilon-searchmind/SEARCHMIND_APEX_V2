@@ -37,7 +37,7 @@ const Topbar = () => {
     };
 
     return (
-        <div className="sticky top-0 bg-white flex items-center justify-between px-8 py-4 border-b border-gray-200">
+        <div className="sticky top-0 bg-white flex items-center justify-between px-20 py-5 border-b border-gray-200">
             <div className="flex items-center space-x-4">
                 <div className="relative">
                     <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />

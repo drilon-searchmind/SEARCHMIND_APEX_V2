@@ -1,13 +1,47 @@
-import React from 'react'
 
-const PerformanceDashboard = () => {
+"use client"
+
+
+import React from "react";
+import { useParams } from "next/navigation";
+import { useCustomers } from "@/hooks/useCustomers";
+import DashboardHeading from "@/components/dashboard/DashboardHeading";
+import DateRangePicker from "@/components/dashboard/DateRangePicker";
+import MetricCard from "@/components/dashboard/MetricCard";
+import { FiDollarSign, FiTrendingUp, FiShoppingCart, FiCreditCard, FiBarChart2, FiPieChart, FiShoppingBag, FiUserCheck } from "react-icons/fi";
+
+export default function PerformanceDashboard() {
+    const params = useParams();
+    const { customers } = useCustomers();
+    const customer = customers.find(c => c._id === params.customerId);
+
+    // Dummy data for now
+    const metrics = [
+        { label: "Revenue (inc vat)", value: "$20,000", change: 10, changeType: "up", icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
+        { label: "Gross Profit", value: "$8,000", change: 5, changeType: "up", icon: <FiTrendingUp className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
+        { label: "Orders", value: "1,200", change: -2, changeType: "down", icon: <FiShoppingCart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
+        { label: "Cost (Adspend)", value: "$5,000", change: 3, changeType: "up", icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
+        { label: "ROAS (inc vat)", value: "4.0", change: 1, changeType: "up", icon: <FiBarChart2 className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
+        { label: "POAS (inc vat)", value: "1.6", change: 0, changeType: undefined, icon: <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
+        { label: "AOV", value: "$16.67", change: 0, changeType: undefined, icon: <FiShoppingBag className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
+        { label: "CAC", value: "$4.17", change: -1, changeType: "down", icon: <FiUserCheck className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
+    ];
+
     return (
-        <div>
-            <p>
-                Lorem ipsum, dolor sit amet consectetur adipisicing elit. A, maiores? Dignissimos nulla aperiam blanditiis in culpa atque aliquid cupiditate deserunt ullam beatae, pariatur quia architecto id modi autem ipsa! Debitis quod veritatis exercitationem perferendis facilis distinctio aperiam possimus, voluptatum quisquam officia accusamus quasi autem, voluptatem delectus minus nostrum illo quo modi illum soluta? Dolore nobis labore a fugiat, voluptas, dolorum, iusto dolor repudiandae voluptatem sequi molestiae odio aspernatur vel veniam esse. Magnam, dolore totam, numquam explicabo vel officiis quibusdam tenetur alias soluta error neque quos pariatur veritatis ut iusto sed consectetur magni perferendis optio. Dicta debitis sapiente recusandae vel iusto ducimus exercitationem sed dolores odit! Et sint numquam perferendis obcaecati esse magnam voluptatum autem odit molestiae cum ipsa, ut facere harum voluptas atque quibusdam neque sapiente consequuntur itaque error deserunt distinctio! Ex delectus suscipit magni dolore voluptatem, alias, quidem quae vitae, enim autem expedita neque vero inventore quaerat repudiandae quibusdam sed explicabo. Neque sit natus odit sequi totam, ea dolore nulla. Ipsam, at. Voluptates veniam tempora doloremque, voluptatem aut ea iusto quos consectetur saepe, non voluptatum sapiente fuga assumenda iure accusantium ratione quae beatae eaque? Excepturi, quasi. Harum iste consectetur atque eligendi pariatur beatae fuga, enim non quidem ullam repellendus.
-            </p>
-        </div>
-    )
-}
+        <div className="w-full">
+            {/* Top Card */}
+            <DashboardHeading
+                title="Performance Dashboard"
+                label={customer ? customer.customerName : ""}
+                right={<DateRangePicker />}
+            />
 
-export default PerformanceDashboard
+            {/* Metrics Cards Section */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 w-full">
+                {metrics.map((metric, idx) => (
+                    <MetricCard key={idx} {...metric} />
+                ))}
+            </div>
+        </div>
+    );
+}

@@ -19,7 +19,7 @@ const Sidebar = () => {
     const activeCustomerId = params?.customerId;
 
     return (
-        <aside className="flex flex-col xl:mt-0 top-0 px-5 left-0 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-full transition-all duration-300 ease-in-out z-50 border-r border-gray-200 w-[290px]">
+        <aside className="flex flex-col xl:mt-0 top-0 px-8 left-0 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-full transition-all duration-300 ease-in-out z-50 border-r border-gray-200 w-[300px]">
             <div className="py-8 flex justify-start mb-10">
                 <Link href="/" className="flex flex-col gap-0">
                     <Image
@@ -55,22 +55,22 @@ const Sidebar = () => {
                                 <ul className="mt-2 space-y-2 flex flex-col w-full">
                                     <li className="py-2 px-6 rounded-lg w-full bg-[var(--color-primary-searchmind-lighter)] text-white">
                                         <Link href={`/dashboard/${activeCustomerId}/performance-dashboard`} className="w-full">
-                                            <span className="text-[0.9rem] text-white font-semibold">Performance Dashboard</span>
+                                            <span className="text-[0.8rem] text-white font-semibold">Performance Dashboard</span>
                                         </Link>
                                     </li>
                                     <li className="py-2 px-6 rounded-lg w-full">
                                         <Link href={`/dashboard/${activeCustomerId}/daily-overview`}>
-                                            <span className="text-[0.9rem] text-slate-600 font-semibold">Daily Overview</span>
+                                            <span className="text-[0.8rem] text-slate-600 font-semibold">Daily Overview</span>
                                         </Link>
                                     </li>
                                     <li className="py-2 px-6 rounded-lg w-full">
                                         <Link href={`/dashboard/${activeCustomerId}/pace-report`}>
-                                            <span className="text-[0.9rem] text-slate-600 font-semibold">Pace Report</span>
+                                            <span className="text-[0.8rem] text-slate-600 font-semibold">Pace Report</span>
                                         </Link>
                                     </li>
                                     <li className="py-2 px-6 rounded-lg w-full">
                                         <Link href={`/dashboard/${activeCustomerId}/pnl`}>
-                                            <span className="text-[0.9rem] text-slate-600 font-semibold">P&L</span>
+                                            <span className="text-[0.8rem] text-slate-600 font-semibold">P&L</span>
                                         </Link>
                                     </li>
                                 </ul>
@@ -91,13 +91,13 @@ const Sidebar = () => {
                             {serviceOpen && (
                                 <ul className="mt-2 space-y-2 flex flex-col w-full">
                                     <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href={`/dashboard/${activeCustomerId}/service-dashboard/seo`}><span className="text-[0.9rem] text-slate-600 font-semibold">SEO</span></Link>
+                                        <Link href={`/dashboard/${activeCustomerId}/service-dashboard/seo`}><span className="text-[0.8rem] text-slate-600 font-semibold">SEO</span></Link>
                                     </li>
                                     <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href={`/dashboard/${activeCustomerId}/service-dashboard/ppc`}><span className="text-[0.9rem] text-slate-600 font-semibold">PPC</span></Link>
+                                        <Link href={`/dashboard/${activeCustomerId}/service-dashboard/ppc`}><span className="text-[0.8rem] text-slate-600 font-semibold">PPC</span></Link>
                                     </li>
                                     <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href={`/dashboard/${activeCustomerId}/service-dashboard/ps`}><span className="text-[0.9rem] text-slate-600 font-semibold">PS</span></Link>
+                                        <Link href={`/dashboard/${activeCustomerId}/service-dashboard/ps`}><span className="text-[0.8rem] text-slate-600 font-semibold">PS</span></Link>
                                     </li>
                                 </ul>
                             )}
@@ -117,10 +117,10 @@ const Sidebar = () => {
                             {serviceOpen && (
                                 <ul className="mt-2 space-y-2 flex flex-col w-full">
                                     <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href={`/dashboard/${activeCustomerId}/tools/campaign-planner`}><span className="text-[0.9rem] text-slate-600 font-semibold">Campaign Planner</span></Link>
+                                        <Link href={`/dashboard/${activeCustomerId}/tools/campaign-planner`}><span className="text-[0.8rem] text-slate-600 font-semibold">Campaign Planner</span></Link>
                                     </li>
                                     <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href={`/dashboard/${activeCustomerId}/config`}><span className="text-[0.9rem] text-slate-600 font-semibold">Config</span></Link>
+                                        <Link href={`/dashboard/${activeCustomerId}/config`}><span className="text-[0.8rem] text-slate-600 font-semibold">Config</span></Link>
                                     </li>
                                 </ul>
                             )}
