@@ -4,12 +4,14 @@ import {
     updateCustomer,
     deleteCustomer,
     permanentlyDeleteCustomer
-} from '@/lib/customerOperations.js';
+} from '../../../../../lib/customerOperations';
 
 // GET /api/customers/[customerId] - Get a specific customer
 export async function GET(request, { params }) {
+    const resolvedParams = await params;
+    const customerId = resolvedParams.customerId;
+
     try {
-        const { customerId } = params;
         const customer = await getCustomerById(customerId);
         return NextResponse.json(customer);
     } catch (error) {
@@ -29,8 +31,10 @@ export async function GET(request, { params }) {
 
 // PUT /api/customers/[customerId] - Update a customer
 export async function PUT(request, { params }) {
+    const resolvedParams = await params;
+    const customerId = resolvedParams.customerId;
+    
     try {
-        const { customerId } = params;
         const updateData = await request.json();
         const customer = await updateCustomer(customerId, updateData);
         return NextResponse.json(customer);
@@ -50,7 +54,8 @@ export async function PUT(request, { params }) {
 }
 
 // DELETE /api/customers/[customerId] - Archive a customer (soft delete)
-export async function DELETE(request, { params }) {
+export async function DELETE(request, contextPromise) {
+    const { params } = await contextPromise;
     try {
         const { customerId } = params;
         const customer = await deleteCustomer(customerId);
