@@ -97,13 +97,12 @@ export default function LoginPage() {
                 {/* Text content */}
                 <div className="relative text-left">
                     <Image
-                        src="/images/icons/apex-icon.svg"
+                        src="/images/icons/logoapex2.png"
                         alt="Apex Icon"
-                        width={30}
-                        height={30}
-                        className="mb-2"
+                        width={200}
+                        height={200}
+                        className="mb-2 filter invert"
                     />
-                    <h1 className="text-4xl font-bold mb-0 tracking-[0.75rem] uppercase">Apex</h1>
                     <p className="text-lg text-gray-300 max-w-lg mt-5">
                         Streamline your marketing performance with comprehensive analytics, campaign management, and data visualization tools. Make data-driven decisions with confidence.
                     </p>

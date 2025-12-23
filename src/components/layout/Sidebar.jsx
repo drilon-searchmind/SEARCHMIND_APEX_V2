@@ -21,15 +21,15 @@ const Sidebar = () => {
     return (
         <aside className="flex flex-col xl:mt-0 top-0 px-5 left-0 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-full transition-all duration-300 ease-in-out z-50 border-r border-gray-200 w-[290px]">
             <div className="py-8 flex justify-start mb-10">
-                <Link href="/" className="flex items-center gap-2">
+                <Link href="/" className="flex flex-col gap-0">
                     <Image
-                        src="/images/icons/apex-icon.svg"
+                        src="/images/icons/logoapex2.png"
                         alt="Apex Icon"
-                        width={30}
-                        height={30}
-                        className="mb-2"
+                        width={100}
+                        height={100}
+                        className="mb-0"
                     />
-                    <h3 className="font-bold text-black tracking-[0.25rem] uppercase">Apex</h3>
+                    <p className="text-slate-500 text-sm">Searchmind</p>
                 </Link>
             </div>
 
