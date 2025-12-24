@@ -167,6 +167,12 @@ const Sidebar = () => {
                                         activeCustomerId={activeCustomerId}
                                         pathname={pathname}
                                     />
+                                    <NavItem
+                                        href={`/dashboard/${activeCustomerId}/test-page`}
+                                        label="Test Page"
+                                        activeCustomerId={activeCustomerId}
+                                        pathname={pathname}
+                                    />
                                 </ul>
                             )}
                         </li>
