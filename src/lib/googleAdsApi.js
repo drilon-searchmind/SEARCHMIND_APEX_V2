@@ -14,7 +14,6 @@ export async function fetchGoogleAdsMetrics(customerId, startDate, endDate) {
                 throw new Error('Google Ads customerId is missing or undefined');
         }
         const customerIdStr = String(customerId);
-        console.log('Using Google Ads customerId:', customerIdStr);
 
         // Use all credentials from .env
         const client = new GoogleAdsApi({
@@ -49,7 +48,6 @@ export async function fetchGoogleAdsMetrics(customerId, startDate, endDate) {
 
         try {
                 const res = await customer.query(query);
-                console.log('Google Ads API response:', res);
                 // Return raw rows for now
                 return Array.isArray(res) ? res : (res.results || []);
         } catch (err) {

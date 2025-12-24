@@ -9,13 +9,33 @@ import {
     FiTool,
 } from "react-icons/fi";
 import Image from "next/image";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
+
+const NavItem = ({ href, label, activeCustomerId, pathname }) => {
+    const isActive = pathname === href;
+    return (
+        <li
+            className={
+                `py-2 px-6 rounded-lg w-full ` +
+                (isActive ? "bg-[var(--color-primary-searchmind-lighter)] text-white" : "")
+            }
+        >
+            <Link href={href} className="w-full">
+                <span className={`text-[0.8rem] font-semibold ${isActive ? "text-white" : "text-slate-600"}`}>
+                    {label}
+                </span>
+            </Link>
+        </li>
+    );
+};
 
 const Sidebar = () => {
     const [dashboardOpen, setDashboardOpen] = useState(true);
     const [serviceOpen, setServiceOpen] = useState(true);
     const [isActiveMenu, setIsActiveMenu] = useState(true);
+
     const params = useParams();
+    const pathname = usePathname();
     const activeCustomerId = params?.customerId;
 
     return (
@@ -53,31 +73,36 @@ const Sidebar = () => {
                             </button>
                             {dashboardOpen && (
                                 <ul className="mt-2 space-y-2 flex flex-col w-full">
-                                    <li className="py-2 px-6 rounded-lg w-full bg-[var(--color-primary-searchmind-lighter)] text-white">
-                                        <Link href={`/dashboard/${activeCustomerId}/performance-dashboard`} className="w-full">
-                                            <span className="text-[0.8rem] text-white font-semibold">Performance Dashboard</span>
-                                        </Link>
-                                    </li>
-                                    <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href={`/dashboard/${activeCustomerId}/daily-overview`}>
-                                            <span className="text-[0.8rem] text-slate-600 font-semibold">Daily Overview</span>
-                                        </Link>
-                                    </li>
-                                    <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href={`/dashboard/${activeCustomerId}/pace-report`}>
-                                            <span className="text-[0.8rem] text-slate-600 font-semibold">Pace Report</span>
-                                        </Link>
-                                    </li>
-                                    <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href={`/dashboard/${activeCustomerId}/pnl`}>
-                                            <span className="text-[0.8rem] text-slate-600 font-semibold">P&L</span>
-                                        </Link>
-                                    </li>
-                                    <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href={`/dashboard/${activeCustomerId}/ecommerce`}>
-                                            <span className="text-[0.8rem] text-slate-600 font-semibold">Ecommerce</span>
-                                        </Link>
-                                    </li>
+                                    <NavItem
+                                        href={`/dashboard/${activeCustomerId}/performance-dashboard`}
+                                        label="Performance Dashboard"
+                                        activeCustomerId={activeCustomerId}
+                                        pathname={pathname}
+                                    />
+                                    <NavItem
+                                        href={`/dashboard/${activeCustomerId}/daily-overview`}
+                                        label="Daily Overview"
+                                        activeCustomerId={activeCustomerId}
+                                        pathname={pathname}
+                                    />
+                                    <NavItem
+                                        href={`/dashboard/${activeCustomerId}/pace-report`}
+                                        label="Pace Report"
+                                        activeCustomerId={activeCustomerId}
+                                        pathname={pathname}
+                                    />
+                                    <NavItem
+                                        href={`/dashboard/${activeCustomerId}/pnl`}
+                                        label="P&L"
+                                        activeCustomerId={activeCustomerId}
+                                        pathname={pathname}
+                                    />
+                                    <NavItem
+                                        href={`/dashboard/${activeCustomerId}/ecommerce`}
+                                        label="Ecommerce"
+                                        activeCustomerId={activeCustomerId}
+                                        pathname={pathname}
+                                    />
                                 </ul>
                             )}
                         </li>
@@ -95,15 +120,24 @@ const Sidebar = () => {
                             </button>
                             {serviceOpen && (
                                 <ul className="mt-2 space-y-2 flex flex-col w-full">
-                                    <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href={`/dashboard/${activeCustomerId}/service-dashboard/seo`}><span className="text-[0.8rem] text-slate-600 font-semibold">SEO</span></Link>
-                                    </li>
-                                    <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href={`/dashboard/${activeCustomerId}/service-dashboard/ppc`}><span className="text-[0.8rem] text-slate-600 font-semibold">PPC</span></Link>
-                                    </li>
-                                    <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href={`/dashboard/${activeCustomerId}/service-dashboard/ps`}><span className="text-[0.8rem] text-slate-600 font-semibold">PS</span></Link>
-                                    </li>
+                                    <NavItem
+                                        href={`/dashboard/${activeCustomerId}/service-dashboard/seo`}
+                                        label="SEO"
+                                        activeCustomerId={activeCustomerId}
+                                        pathname={pathname}
+                                    />
+                                    <NavItem
+                                        href={`/dashboard/${activeCustomerId}/service-dashboard/ppc`}
+                                        label="PPC"
+                                        activeCustomerId={activeCustomerId}
+                                        pathname={pathname}
+                                    />
+                                    <NavItem
+                                        href={`/dashboard/${activeCustomerId}/service-dashboard/ps`}
+                                        label="PS"
+                                        activeCustomerId={activeCustomerId}
+                                        pathname={pathname}
+                                    />
                                 </ul>
                             )}
                         </li>
@@ -121,12 +155,18 @@ const Sidebar = () => {
                             </button>
                             {serviceOpen && (
                                 <ul className="mt-2 space-y-2 flex flex-col w-full">
-                                    <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href={`/dashboard/${activeCustomerId}/tools/campaign-planner`}><span className="text-[0.8rem] text-slate-600 font-semibold">Campaign Planner</span></Link>
-                                    </li>
-                                    <li className="py-2 px-6 rounded-lg w-full">
-                                        <Link href={`/dashboard/${activeCustomerId}/config`}><span className="text-[0.8rem] text-slate-600 font-semibold">Config</span></Link>
-                                    </li>
+                                    <NavItem
+                                        href={`/dashboard/${activeCustomerId}/tools/campaign-planner`}
+                                        label="Campaign Planner"
+                                        activeCustomerId={activeCustomerId}
+                                        pathname={pathname}
+                                    />
+                                    <NavItem
+                                        href={`/dashboard/${activeCustomerId}/config`}
+                                        label="Config"
+                                        activeCustomerId={activeCustomerId}
+                                        pathname={pathname}
+                                    />
                                 </ul>
                             )}
                         </li>
