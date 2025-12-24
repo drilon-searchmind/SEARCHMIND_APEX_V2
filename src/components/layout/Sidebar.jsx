@@ -73,6 +73,11 @@ const Sidebar = () => {
                                             <span className="text-[0.8rem] text-slate-600 font-semibold">P&L</span>
                                         </Link>
                                     </li>
+                                    <li className="py-2 px-6 rounded-lg w-full">
+                                        <Link href={`/dashboard/${activeCustomerId}/ecommerce`}>
+                                            <span className="text-[0.8rem] text-slate-600 font-semibold">Ecommerce</span>
+                                        </Link>
+                                    </li>
                                 </ul>
                             )}
                         </li>
