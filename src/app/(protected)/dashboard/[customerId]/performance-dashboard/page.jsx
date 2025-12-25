@@ -12,6 +12,7 @@ import { FiDollarSign, FiTrendingUp, FiShoppingCart, FiCreditCard, FiBarChart2, 
 import GraphCard from "@/components/dashboard/GraphCard";
 // import { revenueData, spendAllocationData, roasData, aovData } from "@/data/dashboardCharts";
 import { useEffect, useState } from "react";
+import dayjs from "dayjs";
 import { getChartColors } from "@/components/dashboard/chartColors";
 import Spinner from "@/components/ui/Spinner";
 
@@ -45,16 +46,26 @@ export default function PerformanceDashboard() {
         (async () => {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-                const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`);
-                if (!res.ok) throw new Error('Failed to fetch merged data');
-
+                // Calculate previous period
+                const start = dayjs(dateRange.startDate);
+                const end = dayjs(dateRange.endDate);
+                const days = end.diff(start, 'day') + 1;
+                const prevEnd = start.subtract(1, 'day');
+                const prevStart = prevEnd.subtract(days - 1, 'day');
+                // Fetch current and previous period in parallel
+                const [res, resPrev] = await Promise.all([
+                    fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`),
+                    fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${prevStart.format('YYYY-MM-DD')}&endDate=${prevEnd.format('YYYY-MM-DD')}`)
+                ]);
+                if (!res.ok || !resPrev.ok) throw new Error('Failed to fetch merged data');
                 const merged = await res.json();
+                const mergedPrev = await resPrev.json();
                 // Save daily arrays for charts
                 setShopifyDaily(merged.shopifyDaily || []);
                 setFacebookDaily(merged.facebookDaily || []);
                 setGoogleDaily(merged.googleDaily || []);
 
-                // Aggregate for metric cards
+                // Aggregate for metric cards (current)
                 const shopify = merged.shopifyDaily || [];
                 const facebook = merged.facebookDaily || [];
                 const google = merged.googleDaily || [];
@@ -63,17 +74,81 @@ export default function PerformanceDashboard() {
                 const cost = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
                 const aov = orders > 0 ? revenue / orders : 0;
                 const roas = cost > 0 ? revenue / cost : null;
+
+                // Aggregate for metric cards (previous)
+                const shopifyPrev = mergedPrev.shopifyDaily || [];
+                const facebookPrev = mergedPrev.facebookDaily || [];
+                const googlePrev = mergedPrev.googleDaily || [];
+                const revenuePrev = shopifyPrev.reduce((sum, d) => sum + (d.total_sales || 0), 0);
+                const ordersPrev = shopifyPrev.reduce((sum, d) => sum + (d.orders || 0), 0);
+                const costPrev = [...facebookPrev, ...googlePrev].reduce((sum, d) => sum + (d.spend || 0), 0);
+                const aovPrev = ordersPrev > 0 ? revenuePrev / ordersPrev : 0;
+                const roasPrev = costPrev > 0 ? revenuePrev / costPrev : null;
+
+                // % change helpers
+                function percentChange(current, prev) {
+                    if (prev === 0 || prev === null || prev === undefined) return null;
+                    return ((current - prev) / Math.abs(prev)) * 100;
+                }
+                function changeType(val) {
+                    if (val === null) return undefined;
+                    return val > 0 ? "up" : val < 0 ? "down" : undefined;
+                }
+
                 // POAS and CAC are placeholders for now
-                const poas = null;
-                const cac = null;
+                const poas = null, poasPrev = null;
+                const cac = null, cacPrev = null;
+
                 setMetrics([
-                    { label: "Revenue (inc vat)", value: revenue ? revenue.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-', icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
-                    { label: "Orders", value: orders !== null ? orders.toLocaleString() : '-', icon: <FiShoppingCart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
-                    { label: "Cost (Adspend)", value: cost ? cost.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-', icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
-                    { label: "ROAS (inc vat)", value: roas !== null ? roas.toFixed(2) : '-', icon: <FiBarChart2 className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
-                    { label: "POAS (inc vat)", value: poas !== null ? poas.toFixed(2) : '-', icon: <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
-                    { label: "AOV", value: aov !== null ? aov.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-', icon: <FiShoppingBag className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
-                    { label: "CAC", value: cac !== null ? cac.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-', icon: <FiUserCheck className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
+                    {
+                        label: "Revenue (inc vat)",
+                        value: revenue ? revenue.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-',
+                        icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(revenue, revenuePrev) !== null ? Math.abs(percentChange(revenue, revenuePrev)).toFixed(1) : undefined,
+                        changeType: changeType(percentChange(revenue, revenuePrev)),
+                    },
+                    {
+                        label: "Orders",
+                        value: orders !== null ? orders.toLocaleString() : '-',
+                        icon: <FiShoppingCart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(orders, ordersPrev) !== null ? Math.abs(percentChange(orders, ordersPrev)).toFixed(1) : undefined,
+                        changeType: changeType(percentChange(orders, ordersPrev)),
+                    },
+                    {
+                        label: "Cost (Adspend)",
+                        value: cost ? cost.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-',
+                        icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(cost, costPrev) !== null ? Math.abs(percentChange(cost, costPrev)).toFixed(1) : undefined,
+                        changeType: changeType(percentChange(cost, costPrev)),
+                    },
+                    {
+                        label: "ROAS (inc vat)",
+                        value: roas !== null ? roas.toFixed(2) : '-',
+                        icon: <FiBarChart2 className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(roas, roasPrev) !== null ? Math.abs(percentChange(roas, roasPrev)).toFixed(1) : undefined,
+                        changeType: changeType(percentChange(roas, roasPrev)),
+                    },
+                    {
+                        label: "POAS (inc vat)",
+                        value: poas !== null ? poas.toFixed(2) : '-',
+                        icon: <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: undefined,
+                        changeType: undefined,
+                    },
+                    {
+                        label: "AOV",
+                        value: aov !== null ? aov.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-',
+                        icon: <FiShoppingBag className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(aov, aovPrev) !== null ? Math.abs(percentChange(aov, aovPrev)).toFixed(1) : undefined,
+                        changeType: changeType(percentChange(aov, aovPrev)),
+                    },
+                    {
+                        label: "CAC",
+                        value: cac !== null ? cac.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-',
+                        icon: <FiUserCheck className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: undefined,
+                        changeType: undefined,
+                    },
                 ]);
             } catch (err) {
                 setError(err.message);

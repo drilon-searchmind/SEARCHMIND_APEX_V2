@@ -16,6 +16,7 @@
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
     "google-ads-api": "^21.0.1",
     "lucide-react": "^0.562.0",
