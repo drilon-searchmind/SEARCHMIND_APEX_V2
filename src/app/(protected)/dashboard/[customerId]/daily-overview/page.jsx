@@ -182,7 +182,7 @@ const DailyOverviewPage = () => {
                     <div className="text-red-500 text-center">{error}</div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="min-w-full text-xs text-left border-collapse" style={{ fontSize: '14px' }}>
+                        <table className="min-w-full text-xs text-left border-collapse" style={{ fontSize: '12px' }}>
                             <thead>
                                 <tr className="bg-gray-50">
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">Date</th>
@@ -220,58 +220,58 @@ const DailyOverviewPage = () => {
                                     }
                                     return (
                                         <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                                            <td className="px-3 py-1.5 whitespace-nowrap">{row.date}</td>
-                                            <td className="px-3 py-1.5 whitespace-nowrap" style={{ ...((row.orders === max.orders) && { fontWeight: 600 }), ...(row.orders > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.orders / max.orders)})` } : {}) }}>{row.orders}</td>
-                                            <td className="px-3 py-1.5 whitespace-nowrap" style={{ ...((row.revenue === max.revenue) && { fontWeight: 600 }), ...(row.revenue > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.revenue / max.revenue)})` } : {}) }}>{row.revenue.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                            <td className="px-3 py-1.5 whitespace-nowrap" style={{ ...((row.revenueExTax === max.revenueExTax) && { fontWeight: 600 }), ...(row.revenueExTax > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.revenueExTax / max.revenueExTax)})` } : {}) }}>{row.revenueExTax.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                            <td className="px-3 py-1.5 whitespace-nowrap" style={{ ...((row.ppcCost === max.ppcCost) && { fontWeight: 600 }), ...(row.ppcCost > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.ppcCost / max.ppcCost)})` } : {}) }}>{row.ppcCost.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                            <td className="px-3 py-1.5 whitespace-nowrap" style={{ ...((row.psCost === max.psCost) && { fontWeight: 600 }), ...(row.psCost > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.psCost / max.psCost)})` } : {}) }}>{row.psCost.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                            <td className="px-3 py-1.5 whitespace-nowrap" style={{ ...((row.roas === max.roas) && { fontWeight: 600 }), ...(row.roas > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.roas / max.roas)})` } : {}) }}>{row.roas !== null ? row.roas.toFixed(2) : '-'}</td>
-                                            <td className="px-3 py-1.5 whitespace-nowrap" style={{ ...((row.poas === max.poas) && { fontWeight: 600 }), ...(row.poas > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.poas / max.poas)})` } : {}) }}>{row.poas !== null ? row.poas.toFixed(2) : '-'}</td>
-                                            <td className="px-3 py-1.5 whitespace-nowrap" style={{ ...((row.aov === max.aov) && { fontWeight: 600 }), ...(row.aov > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.aov / max.aov)})` } : {}) }}>{row.aov !== null ? row.aov.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-'}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap">{row.date}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap" style={{ ...((row.orders === max.orders) && { fontWeight: 600 }), ...(row.orders > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.orders / max.orders)})` } : {}) }}>{row.orders}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap" style={{ ...((row.revenue === max.revenue) && { fontWeight: 600 }), ...(row.revenue > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.revenue / max.revenue)})` } : {}) }}>{row.revenue.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap" style={{ ...((row.revenueExTax === max.revenueExTax) && { fontWeight: 600 }), ...(row.revenueExTax > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.revenueExTax / max.revenueExTax)})` } : {}) }}>{row.revenueExTax.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap" style={{ ...((row.ppcCost === max.ppcCost) && { fontWeight: 600 }), ...(row.ppcCost > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.ppcCost / max.ppcCost)})` } : {}) }}>{row.ppcCost.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap" style={{ ...((row.psCost === max.psCost) && { fontWeight: 600 }), ...(row.psCost > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.psCost / max.psCost)})` } : {}) }}>{row.psCost.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap" style={{ ...((row.roas === max.roas) && { fontWeight: 600 }), ...(row.roas > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.roas / max.roas)})` } : {}) }}>{row.roas !== null ? row.roas.toFixed(2) : '-'}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap" style={{ ...((row.poas === max.poas) && { fontWeight: 600 }), ...(row.poas > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.poas / max.poas)})` } : {}) }}>{row.poas !== null ? row.poas.toFixed(2) : '-'}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap" style={{ ...((row.aov === max.aov) && { fontWeight: 600 }), ...(row.aov > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.aov / max.aov)})` } : {}) }}>{row.aov !== null ? row.aov.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-'}</td>
                                         </tr>
                                     );
                                 })}
                                 {/* Totals row */}
                                 {rows.length > 0 && (
                                     <tr className="bg-gray-100 font-semibold">
-                                        <td className="px-3 py-1.5 whitespace-nowrap">Total</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{rows.reduce((sum, r) => sum + r.orders, 0)}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{rows.reduce((sum, r) => sum + r.revenue, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{rows.reduce((sum, r) => sum + r.revenueExTax, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{rows.reduce((sum, r) => sum + r.ppcCost, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{rows.reduce((sum, r) => sum + r.psCost, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{(() => { const c = rows.reduce((sum, r) => sum + (r.roas ?? 0), 0); return c > 0 ? (c / rows.length).toFixed(2) : '-'; })()}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{(() => { const c = rows.reduce((sum, r) => sum + (r.poas ?? 0), 0); return c > 0 ? (c / rows.length).toFixed(2) : '-'; })()}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{(() => { const c = rows.reduce((sum, r) => sum + (r.aov ?? 0), 0); return c > 0 ? (c / rows.length).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-'; })()}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">Total</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{rows.reduce((sum, r) => sum + r.orders, 0)}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{rows.reduce((sum, r) => sum + r.revenue, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{rows.reduce((sum, r) => sum + r.revenueExTax, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{rows.reduce((sum, r) => sum + r.ppcCost, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{rows.reduce((sum, r) => sum + r.psCost, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{(() => { const c = rows.reduce((sum, r) => sum + (r.roas ?? 0), 0); return c > 0 ? (c / rows.length).toFixed(2) : '-'; })()}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{(() => { const c = rows.reduce((sum, r) => sum + (r.poas ?? 0), 0); return c > 0 ? (c / rows.length).toFixed(2) : '-'; })()}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{(() => { const c = rows.reduce((sum, r) => sum + (r.aov ?? 0), 0); return c > 0 ? (c / rows.length).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-'; })()}</td>
                                     </tr>
                                 )}
                                 {/* Last period totals row */}
                                 {rowsPrev.length > 0 && (
                                     <tr className="bg-gray-50 font-semibold">
-                                        <td className="px-3 py-1.5 whitespace-nowrap">Last Period</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{rowsPrev.reduce((sum, r) => sum + r.orders, 0)}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{rowsPrev.reduce((sum, r) => sum + r.revenue, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{rowsPrev.reduce((sum, r) => sum + r.revenueExTax, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{rowsPrev.reduce((sum, r) => sum + r.ppcCost, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{rowsPrev.reduce((sum, r) => sum + r.psCost, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{(() => { const c = rowsPrev.reduce((sum, r) => sum + (r.roas ?? 0), 0); return c > 0 ? (c / rowsPrev.length).toFixed(2) : '-'; })()}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{(() => { const c = rowsPrev.reduce((sum, r) => sum + (r.poas ?? 0), 0); return c > 0 ? (c / rowsPrev.length).toFixed(2) : '-'; })()}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{(() => { const c = rowsPrev.reduce((sum, r) => sum + (r.aov ?? 0), 0); return c > 0 ? (c / rowsPrev.length).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-'; })()}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">Last Period</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{rowsPrev.reduce((sum, r) => sum + r.orders, 0)}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{rowsPrev.reduce((sum, r) => sum + r.revenue, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{rowsPrev.reduce((sum, r) => sum + r.revenueExTax, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{rowsPrev.reduce((sum, r) => sum + r.ppcCost, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{rowsPrev.reduce((sum, r) => sum + r.psCost, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{(() => { const c = rowsPrev.reduce((sum, r) => sum + (r.roas ?? 0), 0); return c > 0 ? (c / rowsPrev.length).toFixed(2) : '-'; })()}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{(() => { const c = rowsPrev.reduce((sum, r) => sum + (r.poas ?? 0), 0); return c > 0 ? (c / rowsPrev.length).toFixed(2) : '-'; })()}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{(() => { const c = rowsPrev.reduce((sum, r) => sum + (r.aov ?? 0), 0); return c > 0 ? (c / rowsPrev.length).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-'; })()}</td>
                                     </tr>
                                 )}
                                 {/* Difference row */}
                                 {rows.length > 0 && rowsPrev.length > 0 && (
                                     <tr className="bg-gray-200 font-semibold">
-                                        <td className="px-3 py-1.5 whitespace-nowrap">Difference</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{rows.reduce((sum, r) => sum + r.orders, 0) - rowsPrev.reduce((sum, r) => sum + r.orders, 0)}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{(rows.reduce((sum, r) => sum + r.revenue, 0) - rowsPrev.reduce((sum, r) => sum + r.revenue, 0)).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{(rows.reduce((sum, r) => sum + r.revenueExTax, 0) - rowsPrev.reduce((sum, r) => sum + r.revenueExTax, 0)).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{(rows.reduce((sum, r) => sum + r.ppcCost, 0) - rowsPrev.reduce((sum, r) => sum + r.ppcCost, 0)).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{(rows.reduce((sum, r) => sum + r.psCost, 0) - rowsPrev.reduce((sum, r) => sum + r.psCost, 0)).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{(() => { const c = rows.reduce((sum, r) => sum + (r.roas ?? 0), 0) - rowsPrev.reduce((sum, r) => sum + (r.roas ?? 0), 0); return c !== 0 ? c.toFixed(2) : '-'; })()}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{(() => { const c = rows.reduce((sum, r) => sum + (r.poas ?? 0), 0) - rowsPrev.reduce((sum, r) => sum + (r.poas ?? 0), 0); return c !== 0 ? c.toFixed(2) : '-'; })()}</td>
-                                        <td className="px-3 py-1.5 whitespace-nowrap">{(() => { const c = rows.reduce((sum, r) => sum + (r.aov ?? 0), 0) - rowsPrev.reduce((sum, r) => sum + (r.aov ?? 0), 0); return c !== 0 ? c.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-'; })()}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">Difference</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{rows.reduce((sum, r) => sum + r.orders, 0) - rowsPrev.reduce((sum, r) => sum + r.orders, 0)}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{(rows.reduce((sum, r) => sum + r.revenue, 0) - rowsPrev.reduce((sum, r) => sum + r.revenue, 0)).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{(rows.reduce((sum, r) => sum + r.revenueExTax, 0) - rowsPrev.reduce((sum, r) => sum + r.revenueExTax, 0)).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{(rows.reduce((sum, r) => sum + r.ppcCost, 0) - rowsPrev.reduce((sum, r) => sum + r.ppcCost, 0)).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{(rows.reduce((sum, r) => sum + r.psCost, 0) - rowsPrev.reduce((sum, r) => sum + r.psCost, 0)).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{(() => { const c = rows.reduce((sum, r) => sum + (r.roas ?? 0), 0) - rowsPrev.reduce((sum, r) => sum + (r.roas ?? 0), 0); return c !== 0 ? c.toFixed(2) : '-'; })()}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{(() => { const c = rows.reduce((sum, r) => sum + (r.poas ?? 0), 0) - rowsPrev.reduce((sum, r) => sum + (r.poas ?? 0), 0); return c !== 0 ? c.toFixed(2) : '-'; })()}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{(() => { const c = rows.reduce((sum, r) => sum + (r.aov ?? 0), 0) - rowsPrev.reduce((sum, r) => sum + (r.aov ?? 0), 0); return c !== 0 ? c.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-'; })()}</td>
                                     </tr>
                                 )}
                             </tbody>
