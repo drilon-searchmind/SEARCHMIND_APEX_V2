@@ -10,7 +10,7 @@ import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import MetricCard from "@/components/dashboard/MetricCard";
 import { FiDollarSign, FiTrendingUp, FiShoppingCart, FiCreditCard, FiBarChart2, FiPieChart, FiShoppingBag, FiUserCheck } from "react-icons/fi";
 import GraphCard from "@/components/dashboard/GraphCard";
-import { revenueData, spendAllocationData, roasData, aovData } from "@/data/dashboardCharts";
+// import { revenueData, spendAllocationData, roasData, aovData } from "@/data/dashboardCharts";
 import { useEffect, useState } from "react";
 import { getChartColors } from "@/components/dashboard/chartColors";
 import Spinner from "@/components/ui/Spinner";
@@ -34,7 +34,10 @@ export default function PerformanceDashboard() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // Fetch merged data
+    // Fetch merged data and prepare chart data
+    const [shopifyDaily, setShopifyDaily] = useState([]);
+    const [facebookDaily, setFacebookDaily] = useState([]);
+    const [googleDaily, setGoogleDaily] = useState([]);
     useEffect(() => {
         if (!customer) return;
         setLoading(true);
@@ -46,12 +49,19 @@ export default function PerformanceDashboard() {
                 if (!res.ok) throw new Error('Failed to fetch merged data');
 
                 const merged = await res.json();
-                console.log({merged})
-                const shopify = merged.shopify && merged.shopify[0] ? merged.shopify[0] : {};
-                const revenue = shopify.total_sales ? parseFloat(shopify.total_sales) : 0;
-                const orders = shopify.orders ? parseInt(shopify.orders) : null; // If available
-                const aov = shopify.total_sales / (shopify.orders || 1); // Fallback if orders is null
-                const cost = (merged.facebookAdspend || 0) + (merged.googleAdspend || 0);
+                // Save daily arrays for charts
+                setShopifyDaily(merged.shopifyDaily || []);
+                setFacebookDaily(merged.facebookDaily || []);
+                setGoogleDaily(merged.googleDaily || []);
+
+                // Aggregate for metric cards
+                const shopify = merged.shopifyDaily || [];
+                const facebook = merged.facebookDaily || [];
+                const google = merged.googleDaily || [];
+                const revenue = shopify.reduce((sum, d) => sum + (d.total_sales || 0), 0);
+                const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
+                const cost = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
+                const aov = orders > 0 ? revenue / orders : 0;
                 const roas = cost > 0 ? revenue / cost : null;
                 // POAS and CAC are placeholders for now
                 const poas = null;
@@ -83,9 +93,13 @@ export default function PerformanceDashboard() {
     // No fill/gradient for now
     const noFill = { type: 'solid', opacity: 0 };
 
+    // Prepare chart data from real daily arrays
+    // Revenue chart
+    const revenueCategories = shopifyDaily.map(d => d.period);
+    const revenueSeries = [{ name: 'Revenue', data: shopifyDaily.map(d => Number(d.total_sales).toFixed(2)) }];
     const revenueOptions = {
         chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
-        xaxis: { categories: revenueData.categories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
+        xaxis: { categories: revenueCategories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
         yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' } } },
         colors: [chartColors.lime || '#C6ED62'],
         stroke: { width: 2, curve: 'smooth' },
@@ -94,9 +108,21 @@ export default function PerformanceDashboard() {
         dataLabels: { enabled: false },
         tooltip: { theme: 'light' },
     };
+
+    // Spend Allocation chart
+    const spendCategories = shopifyDaily.map(d => d.period); // Use same x-axis as revenue
+    // Align facebook and google spend by date
+    const facebookSpendMap = Object.fromEntries(facebookDaily.map(d => [d.period, d.spend]));
+    const googleSpendMap = Object.fromEntries(googleDaily.map(d => [d.period, d.spend]));
+    const facebookSpendSeries = spendCategories.map(date => (facebookSpendMap[date] ? Number(facebookSpendMap[date]).toFixed(2) : '0.00'));
+    const googleSpendSeries = spendCategories.map(date => (googleSpendMap[date] ? Number(googleSpendMap[date]).toFixed(2) : '0.00'));
+    const spendAllocationSeries = [
+        { name: 'Facebook', data: facebookSpendSeries },
+        { name: 'Google', data: googleSpendSeries },
+    ];
     const spendOptions = {
         chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
-        xaxis: { categories: spendAllocationData.categories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
+        xaxis: { categories: spendCategories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
         yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' } } },
         colors: [chartColors.primaryLighter || '#406969', chartColors.lime || '#C6ED62'],
         stroke: { width: 2, curve: 'smooth' },
@@ -106,9 +132,19 @@ export default function PerformanceDashboard() {
         tooltip: { theme: 'light' },
         legend: { show: true, position: 'top', labels: { colors: chartColors.primary || '#1E2B2B' } },
     };
+
+    // ROAS chart
+    const roasCategories = shopifyDaily.map(d => d.period);
+    const roasSeries = [{
+        name: 'ROAS',
+        data: shopifyDaily.map((d, i) => {
+            const spend = (Number(facebookSpendMap[d.period]) || 0) + (Number(googleSpendMap[d.period]) || 0);
+            return spend > 0 ? (d.total_sales / spend).toFixed(2) : null;
+        })
+    }];
     const roasOptions = {
         chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
-        xaxis: { categories: roasData.categories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
+        xaxis: { categories: roasCategories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
         yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' } } },
         colors: [chartColors.green || '#213834'],
         stroke: { width: 2, curve: 'smooth' },
@@ -117,9 +153,16 @@ export default function PerformanceDashboard() {
         dataLabels: { enabled: false },
         tooltip: { theme: 'light' },
     };
+
+    // AOV chart
+    const aovCategories = shopifyDaily.map(d => d.period);
+    const aovSeries = [{
+        name: 'AOV',
+        data: shopifyDaily.map(d => d.orders > 0 ? (d.total_sales / d.orders).toFixed(2) : null)
+    }];
     const aovOptions = {
         chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
-        xaxis: { categories: aovData.categories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
+        xaxis: { categories: aovCategories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
         yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' } } },
         colors: [chartColors.secondary || '#D6CDB6'],
         stroke: { width: 2, curve: 'smooth' },
@@ -153,10 +196,33 @@ export default function PerformanceDashboard() {
 
             {/* Graphs Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-                <GraphCard title="Revenue (inc VAT)" chartOptions={revenueOptions} chartSeries={revenueData.series} />
-                <GraphCard title="Spend Allocation" chartOptions={spendOptions} chartSeries={spendAllocationData.series} />
-                <GraphCard title="ROAS" chartOptions={roasOptions} chartSeries={roasData.series} />
-                <GraphCard title="Average Order Value" chartOptions={aovOptions} chartSeries={aovData.series} />
+                {/* Revenue Graph */}
+                {loading && (!shopifyDaily.length) ? (
+                    <div className="flex items-center justify-center h-64"><Spinner size={40} color="#406969" /></div>
+                ) : (
+                    <GraphCard title="Revenue (inc VAT)" chartOptions={revenueOptions} chartSeries={revenueSeries} />
+                )}
+
+                {/* Spend Allocation Graph */}
+                {loading && (!facebookDaily.length && !googleDaily.length) ? (
+                    <div className="flex items-center justify-center h-64"><Spinner size={40} color="#406969" /></div>
+                ) : (
+                    <GraphCard title="Spend Allocation" chartOptions={spendOptions} chartSeries={spendAllocationSeries} />
+                )}
+
+                {/* ROAS Graph */}
+                {loading && (!shopifyDaily.length) ? (
+                    <div className="flex items-center justify-center h-64"><Spinner size={40} color="#406969" /></div>
+                ) : (
+                    <GraphCard title="ROAS" chartOptions={roasOptions} chartSeries={roasSeries} />
+                )}
+
+                {/* AOV Graph */}
+                {loading && (!shopifyDaily.length) ? (
+                    <div className="flex items-center justify-center h-64"><Spinner size={40} color="#406969" /></div>
+                ) : (
+                    <GraphCard title="Average Order Value" chartOptions={aovOptions} chartSeries={aovSeries} />
+                )}
             </div>
         </div>
     );

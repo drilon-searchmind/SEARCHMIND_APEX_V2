@@ -20,9 +20,8 @@ export async function GET(request, { params }) {
         const data = await res.json();
         const settings = data.CustomerSettings || {};
 
-        // Fetch merged sources
+        // Fetch merged sources (now returns daily arrays)
         const merged = await fetchMergedSources(settings, startDate, endDate);
-
         return Response.json(merged);
     } catch (error) {
         console.error('Error fetching merged sources:', error);

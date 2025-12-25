@@ -10,26 +10,29 @@ import { fetchGoogleAdsMetrics } from './googleAdsApi';
  * @param {string} endDate - End date (YYYY-MM-DD)
  * @returns {Promise<object>} - { revenue, facebookAdspend, googleAdspend }
  */
+
 export async function fetchMergedSources(settings, startDate, endDate) {
     const FACEBOOK_APP_TOKEN = process.env.FACEBOOK_APP_TOKEN;
-    // Shopify
-    let shopifyData = null;
+    // Shopify daily
+    let shopifyDaily = [];
     try {
         if (settings.shopifyUrl && settings.shopifyApiPassword) {
-            // Add orders and conversion rate to the query
-            const shopifyql = `FROM sales SHOW gross_sales, discounts, net_sales, taxes, total_sales, orders SINCE ${startDate} UNTIL ${endDate}`;
+            const shopifyql = `FROM sales SHOW total_sales, orders GROUP BY day SINCE ${startDate} UNTIL ${endDate}`;
             const shopifyRes = await shopifyqlQuery(settings.shopifyUrl, settings.shopifyApiPassword, shopifyql);
-            shopifyData = shopifyRes?.data?.shopifyqlQuery?.tableData?.rows || null;
-        } else {
-            console.log('Shopify branch skipped: missing shopifyUrl or shopifyApiPassword', settings.shopifyUrl, settings.shopifyApiPassword);
+            const rows = shopifyRes?.data?.shopifyqlQuery?.tableData?.rows || [];
+            shopifyDaily = rows.map(row => ({
+                period: row.day,
+                total_sales: parseFloat(row.total_sales) || 0,
+                orders: parseInt(row.orders) || 0,
+            })).sort((a, b) => a.period.localeCompare(b.period));
         }
     } catch (err) {
         console.error('Shopify error:', err);
-        shopifyData = null;
+        shopifyDaily = [];
     }
 
-    // Facebook
-    let facebookAdspend = null;
+    // Facebook daily
+    let facebookDaily = [];
     try {
         if (settings.facebookAdAccountId && FACEBOOK_APP_TOKEN) {
             const fbRes = await fetchFacebookAdsInsights(
@@ -39,19 +42,19 @@ export async function fetchMergedSources(settings, startDate, endDate) {
                 startDate,
                 endDate
             );
-            // Extract spend
             const fbRows = fbRes?.data || [];
-            facebookAdspend = fbRows.reduce((sum, row) => sum + (parseFloat(row.spend) || 0), 0);
-        } else {
-            console.log('Facebook branch skipped: missing facebookAdAccountId or FACEBOOK_APP_TOKEN', settings.facebookAdAccountId, FACEBOOK_APP_TOKEN);
+            facebookDaily = fbRows.map(row => ({
+                period: row.date_start,
+                spend: parseFloat(row.spend) || 0,
+            })).sort((a, b) => a.period.localeCompare(b.period));
         }
     } catch (err) {
         console.error('Facebook error:', err);
-        facebookAdspend = null;
+        facebookDaily = [];
     }
 
-    // Google Ads
-    let googleAdspend = null;
+    // Google daily
+    let googleDaily = [];
     try {
         if (settings.googleAdsCustomerId) {
             const googleRows = await fetchGoogleAdsMetrics(
@@ -59,19 +62,26 @@ export async function fetchMergedSources(settings, startDate, endDate) {
                 startDate,
                 endDate
             );
-
-            // Extract cost_micros (convert to standard currency)
-            googleAdspend = googleRows.reduce((sum, row) => sum + ((row.metrics?.cost_micros || 0) / 1e6), 0);
-        } else {
-            console.log('Google Ads branch skipped: missing googleAdsCustomerId', settings.googleAdsCustomerId);
+            const daily = {};
+            for (const row of googleRows) {
+                const date = row.segments?.date;
+                const cost = row.metrics?.cost_micros ? row.metrics.cost_micros / 1e6 : 0;
+                if (!date) continue;
+                if (!daily[date]) daily[date] = 0;
+                daily[date] += cost;
+            }
+            googleDaily = Object.entries(daily)
+                .map(([period, spend]) => ({ period, spend }))
+                .sort((a, b) => a.period.localeCompare(b.period));
         }
     } catch (err) {
-        googleAdspend = null;
+        console.error('Google Ads error:', err);
+        googleDaily = [];
     }
 
     return {
-        shopify: shopifyData,
-        facebookAdspend,
-        googleAdspend,
+        shopifyDaily,
+        facebookDaily,
+        googleDaily,
     };
 }
