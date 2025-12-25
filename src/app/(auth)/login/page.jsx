@@ -97,7 +97,7 @@ export default function LoginPage() {
                 {/* Text content */}
                 <div className="relative text-left">
                     <Image
-                        src="/images/icons/logoapex2.png"
+                        src="/images/icons/apexlogo-new1.png"
                         alt="Apex Icon"
                         width={200}
                         height={200}
