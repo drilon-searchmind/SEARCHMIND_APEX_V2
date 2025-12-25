@@ -2,8 +2,15 @@ import React, { useState } from "react";
 import FormButton from "../form/FormButton";
 
 export default function DateRangePicker({ onApply }) {
-    const [startDate, setStartDate] = useState("");
-    const [endDate, setEndDate] = useState("");
+    // Default: start = first of current month, end = today
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const defaultEnd = `${yyyy}-${mm}-${dd}`;
+    const defaultStart = `${yyyy}-${mm}-01`;
+    const [startDate, setStartDate] = useState(defaultStart);
+    const [endDate, setEndDate] = useState(defaultEnd);
 
     const handleApply = () => {
         if (onApply) onApply({ startDate, endDate });
