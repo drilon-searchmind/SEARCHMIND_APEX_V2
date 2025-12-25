@@ -79,19 +79,39 @@ export async function fetchMergedSources(settings, startDate, endDate) {
         googleDaily = [];
     }
 
-    // Calculate gross profit
-    // (total_sales * cogs_percentage) - (fb adspend + google adspend)
-    // Use sum of total_sales, cogsPercentage from settings.CustomerStaticExpenses, and sum of adspend
+    // Calculate aggregates for metrics
     const totalSales = shopifyDaily.reduce((sum, d) => sum + (d.total_sales || 0), 0);
+    const orders = shopifyDaily.reduce((sum, d) => sum + (d.orders || 0), 0);
     const cogsPercentage = settings?.CustomerStaticExpenses?.cogsPercentage || 0;
     const fbAdspend = facebookDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
     const googleAdspend = googleDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
     const grossProfitTotalSales = (totalSales * cogsPercentage) - (fbAdspend + googleAdspend);
+    const totalAdspend = fbAdspend + googleAdspend;
+    const POASTotalSales = totalAdspend !== 0 ? grossProfitTotalSales / totalAdspend : 0;
+
+    // Calculate number of days in range (inclusive)
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const days = Math.floor((end - start) / msPerDay) + 1;
+
+    // Marketing costs from static expenses (per day)
+    const marketingBureauCost = settings?.CustomerStaticExpenses?.marketingBureauCost || 0;
+    const marketingToolingCost = settings?.CustomerStaticExpenses?.marketingToolingCost || 0;
+    const marketingBureauCostTotal = days > 0 ? marketingBureauCost / days : 0;
+    const marketingToolingCostTotal = days > 0 ? marketingToolingCost / days : 0;
+
+    // Total marketing spend
+    const marketingSpend = fbAdspend + googleAdspend + marketingBureauCostTotal + marketingToolingCostTotal;
+    // CAC = marketingSpend / orders
+    const CACTotalSales = orders > 0 ? marketingSpend / orders : 0;
 
     return {
         shopifyDaily,
         facebookDaily,
         googleDaily,
         grossProfitTotalSales,
+        POASTotalSales,
+        CACTotalSales,
     };
 }

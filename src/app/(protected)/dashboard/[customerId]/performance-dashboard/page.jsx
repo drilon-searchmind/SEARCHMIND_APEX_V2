@@ -108,9 +108,12 @@ export default function PerformanceDashboard() {
                     return val > 0 ? "up" : val < 0 ? "down" : undefined;
                 }
 
-                // POAS and CAC are placeholders for now
-                const poas = null, poasPrev = null;
-                const cac = null, cacPrev = null;
+
+                // POAS and CAC
+                const poas = merged.POASTotalSales ?? null;
+                const poasPrev = mergedPrev.POASTotalSales ?? null;
+                const cac = merged.CACTotalSales ?? null;
+                const cacPrev = mergedPrev.CACTotalSales ?? null;
 
                 setMetrics([
                     {
@@ -152,8 +155,8 @@ export default function PerformanceDashboard() {
                         label: "POAS (inc vat)",
                         value: poas !== null ? poas.toFixed(2) : '-',
                         icon: <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: undefined,
-                        changeType: undefined,
+                        change: percentChange(poas, poasPrev) !== null ? Math.abs(percentChange(poas, poasPrev)).toFixed(1) : undefined,
+                        changeType: changeType(percentChange(poas, poasPrev)),
                     },
                     {
                         label: "AOV",
@@ -166,8 +169,8 @@ export default function PerformanceDashboard() {
                         label: "CAC",
                         value: cac !== null ? cac.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-',
                         icon: <FiUserCheck className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: undefined,
-                        changeType: undefined,
+                        change: percentChange(cac, cacPrev) !== null ? Math.abs(percentChange(cac, cacPrev)).toFixed(1) : undefined,
+                        changeType: changeType(percentChange(cac, cacPrev)),
                     },
                 ]);
             } catch (err) {
