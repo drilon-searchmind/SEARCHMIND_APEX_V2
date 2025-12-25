@@ -85,6 +85,7 @@ export default function PerformanceDashboard() {
                 const cost = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
                 const aov = orders > 0 ? revenue / orders : 0;
                 const roas = cost > 0 ? revenue / cost : null;
+                const gross_profit_total_sales = merged.grossProfitTotalSales || 0;
 
                 // Aggregate for metric cards (previous)
                 const shopifyPrev = mergedPrev.shopifyDaily || [];
@@ -95,6 +96,7 @@ export default function PerformanceDashboard() {
                 const costPrev = [...facebookPrev, ...googlePrev].reduce((sum, d) => sum + (d.spend || 0), 0);
                 const aovPrev = ordersPrev > 0 ? revenuePrev / ordersPrev : 0;
                 const roasPrev = costPrev > 0 ? revenuePrev / costPrev : null;
+                const gross_profit_total_salesPrev = mergedPrev.grossProfitTotalSales || 0; 
 
                 // % change helpers
                 function percentChange(current, prev) {
@@ -117,6 +119,13 @@ export default function PerformanceDashboard() {
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(revenue, revenuePrev) !== null ? Math.abs(percentChange(revenue, revenuePrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(revenue, revenuePrev)),
+                    },
+                    {
+                        label: "Gross Profit (inc vat)",
+                        value: gross_profit_total_sales ? gross_profit_total_sales.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-',
+                        icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(gross_profit_total_sales, gross_profit_total_salesPrev) !== null ? Math.abs(percentChange(gross_profit_total_sales, gross_profit_total_salesPrev)).toFixed(1) : undefined,
+                        changeType: changeType(percentChange(gross_profit_total_sales, gross_profit_total_salesPrev)),
                     },
                     {
                         label: "Orders",

@@ -79,9 +79,19 @@ export async function fetchMergedSources(settings, startDate, endDate) {
         googleDaily = [];
     }
 
+    // Calculate gross profit
+    // (total_sales * cogs_percentage) - (fb adspend + google adspend)
+    // Use sum of total_sales, cogsPercentage from settings.CustomerStaticExpenses, and sum of adspend
+    const totalSales = shopifyDaily.reduce((sum, d) => sum + (d.total_sales || 0), 0);
+    const cogsPercentage = settings?.CustomerStaticExpenses?.cogsPercentage || 0;
+    const fbAdspend = facebookDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
+    const googleAdspend = googleDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
+    const grossProfitTotalSales = (totalSales * cogsPercentage) - (fbAdspend + googleAdspend);
+
     return {
         shopifyDaily,
         facebookDaily,
         googleDaily,
+        grossProfitTotalSales,
     };
 }

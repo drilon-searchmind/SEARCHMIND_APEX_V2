@@ -18,7 +18,10 @@ export async function GET(request, { params }) {
         const res = await fetch(`${baseUrl}/api/customers/${customerId}`);
         if (!res.ok) throw new Error('Failed to fetch customer');
         const data = await res.json();
-        const settings = data.CustomerSettings || {};
+        const settings = {
+            ...(data.CustomerSettings || {}),
+            CustomerStaticExpenses: data.CustomerStaticExpenses || {},
+        };
 
         // Fetch merged sources (now returns daily arrays)
         const merged = await fetchMergedSources(settings, startDate, endDate);
