@@ -30,6 +30,17 @@ export default function PerformanceDashboard() {
     const defaultStart = `${yyyy}-${mm}-01`;
     const [dateRange, setDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
 
+    // Handlers for DateRangePicker (controlled)
+    const handleDateRangeApply = ({ startDate, endDate }) => {
+        setDateRange({ startDate, endDate });
+    };
+    const handleStartDateChange = (newStart) => {
+        setDateRange(dr => ({ ...dr, startDate: newStart }));
+    };
+    const handleEndDateChange = (newEnd) => {
+        setDateRange(dr => ({ ...dr, endDate: newEnd }));
+    };
+
     // Metrics state
     const [metrics, setMetrics] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -253,7 +264,15 @@ export default function PerformanceDashboard() {
             <DashboardHeading
                 title="Performance Dashboard"
                 label={customer ? customer.customerName : ""}
-                right={<DateRangePicker />}
+                right={
+                    <DateRangePicker
+                        onApply={handleDateRangeApply}
+                        startDate={dateRange.startDate}
+                        endDate={dateRange.endDate}
+                        onStartDateChange={handleStartDateChange}
+                        onEndDateChange={handleEndDateChange}
+                    />
+                }
             />
 
             {/* Metrics Cards Section */}
