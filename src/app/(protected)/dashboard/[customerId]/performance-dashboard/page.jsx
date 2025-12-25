@@ -13,23 +13,65 @@ import GraphCard from "@/components/dashboard/GraphCard";
 import { revenueData, spendAllocationData, roasData, aovData } from "@/data/dashboardCharts";
 import { useEffect, useState } from "react";
 import { getChartColors } from "@/components/dashboard/chartColors";
+import Spinner from "@/components/ui/Spinner";
 
 export default function PerformanceDashboard() {
     const params = useParams();
     const { customers } = useCustomers();
     const customer = customers.find(c => c._id === params.customerId);
 
-    // Dummy data for now
-    const metrics = [
-        { label: "Revenue (inc vat)", value: "$20,000", change: 10, changeType: "up", icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
-        { label: "Gross Profit", value: "$8,000", change: 5, changeType: "up", icon: <FiTrendingUp className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
-        { label: "Orders", value: "1,200", change: -2, changeType: "down", icon: <FiShoppingCart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
-        { label: "Cost (Adspend)", value: "$5,000", change: 3, changeType: "up", icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
-        { label: "ROAS (inc vat)", value: "4.0", change: 1, changeType: "up", icon: <FiBarChart2 className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
-        { label: "POAS (inc vat)", value: "1.6", change: 0, changeType: undefined, icon: <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
-        { label: "AOV", value: "$16.67", change: 0, changeType: undefined, icon: <FiShoppingBag className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
-        { label: "CAC", value: "$4.17", change: -1, changeType: "down", icon: <FiUserCheck className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
-    ];
+    // Date range state
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const defaultEnd = `${yyyy}-${mm}-${dd}`;
+    const defaultStart = `${yyyy}-${mm}-01`;
+    const [dateRange, setDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
+
+    // Metrics state
+    const [metrics, setMetrics] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    // Fetch merged data
+    useEffect(() => {
+        if (!customer) return;
+        setLoading(true);
+        setError(null);
+        (async () => {
+            try {
+                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+                const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`);
+                if (!res.ok) throw new Error('Failed to fetch merged data');
+
+                const merged = await res.json();
+                console.log({merged})
+                const shopify = merged.shopify && merged.shopify[0] ? merged.shopify[0] : {};
+                const revenue = shopify.total_sales ? parseFloat(shopify.total_sales) : 0;
+                const orders = shopify.orders ? parseInt(shopify.orders) : null; // If available
+                const aov = shopify.total_sales / (shopify.orders || 1); // Fallback if orders is null
+                const cost = (merged.facebookAdspend || 0) + (merged.googleAdspend || 0);
+                const roas = cost > 0 ? revenue / cost : null;
+                // POAS and CAC are placeholders for now
+                const poas = null;
+                const cac = null;
+                setMetrics([
+                    { label: "Revenue (inc vat)", value: revenue ? revenue.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-', icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
+                    { label: "Orders", value: orders !== null ? orders.toLocaleString() : '-', icon: <FiShoppingCart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
+                    { label: "Cost (Adspend)", value: cost ? cost.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-', icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
+                    { label: "ROAS (inc vat)", value: roas !== null ? roas.toFixed(2) : '-', icon: <FiBarChart2 className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
+                    { label: "POAS (inc vat)", value: poas !== null ? poas.toFixed(2) : '-', icon: <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
+                    { label: "AOV", value: aov !== null ? aov.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-', icon: <FiShoppingBag className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
+                    { label: "CAC", value: cac !== null ? cac.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-', icon: <FiUserCheck className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" /> },
+                ]);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, [customer, dateRange]);
 
     // Chart color palette from CSS variables
     const [chartColors, setChartColors] = useState({});
@@ -98,9 +140,15 @@ export default function PerformanceDashboard() {
 
             {/* Metrics Cards Section */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 w-full mb-8">
-                {metrics.map((metric, idx) => (
-                    <MetricCard key={idx} {...metric} />
-                ))}
+                {loading ? (
+                    <div className="col-span-4 text-center"><Spinner size={40} color="#406969" /></div>
+                ) : error ? (
+                    <div className="col-span-4 text-center text-red-500">{error}</div>
+                ) : (
+                    metrics.map((metric, idx) => (
+                        <MetricCard key={idx} {...metric} />
+                    ))
+                )}
             </div>
 
             {/* Graphs Section */}

@@ -16,8 +16,8 @@ export async function fetchMergedSources(settings, startDate, endDate) {
     let shopifyData = null;
     try {
         if (settings.shopifyUrl && settings.shopifyApiPassword) {
-            // Use the same query as in ecommerce/page.jsx (no quotes around dates)
-            const shopifyql = `FROM sales SHOW gross_sales, discounts, net_sales, taxes, total_sales, average_order_value SINCE ${startDate} UNTIL ${endDate}`;
+            // Add orders and conversion rate to the query
+            const shopifyql = `FROM sales SHOW gross_sales, discounts, net_sales, taxes, total_sales, orders SINCE ${startDate} UNTIL ${endDate}`;
             const shopifyRes = await shopifyqlQuery(settings.shopifyUrl, settings.shopifyApiPassword, shopifyql);
             shopifyData = shopifyRes?.data?.shopifyqlQuery?.tableData?.rows || null;
         } else {

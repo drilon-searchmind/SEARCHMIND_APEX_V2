@@ -5,7 +5,7 @@ const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false })
 
 export default function GraphCard({ title, chartOptions, chartSeries, chartType = "line", children }) {
     // Toggle state (YTD active by default)
-    const [toggle, setToggle] = React.useState("YTD");
+    const [toggle, setToggle] = React.useState("Period");
     return (
         <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col justify-between h-full min-h-[320px]">
             <div className="mb-2 flex justify-between items-center">
