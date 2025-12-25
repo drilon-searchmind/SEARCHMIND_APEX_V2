@@ -77,6 +77,32 @@ const CustomerSchema = new mongoose.Schema({
             type: String,
             default: ""
         },
+    },
+    CustomerStaticExpenses: {
+        cogsPercentage: {
+            type: Number,
+            default: 0,
+        },
+        shippingCostPerOrder: {
+            type: Number,
+            default: 0,
+        },
+        transactionCostPercentage: {
+            type: Number,
+            default: 0,
+        },
+        marketingBureauCost: {
+            type: Number,
+            default: 0,
+        },
+        marketingToolingCost: {
+            type: Number,
+            default: 0, 
+        },
+        fixedExpenses: {
+            type: Number,
+            default: 0,
+        }
     }
 });
 

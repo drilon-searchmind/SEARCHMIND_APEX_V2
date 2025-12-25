@@ -4,6 +4,7 @@
 :root {
 	--color-primary-searchmind: #1E2B2B;
 	--color-primary-searchmind-lighter: #406969;
+	--color-primary-searchmind-lighter-opacity: #4069698f;
 	--color-primary-searchmind-hover: #344b4b;
 	--color-secondary-searchmind: #D6CDB6;
 	--color-secondary-searchmind-hover: #c0b8a3;
@@ -58,32 +59,26 @@ h6 {
 }
 
 h1 {
-	font-size: 2.5rem;
 	font-weight: 700;
 }
 
 h2 {
-	font-size: 2rem;
 	font-weight: 600;
 }
 
 h3 {
-	font-size: 1.75rem;
 	font-weight: 600;
 }
 
 h4 {
-	font-size: 1.5rem;
 	font-weight: 500;
 }
 
 h5 {
-	font-size: 1.25rem;
 	font-weight: 500;
 }
 
 h6 {
-	font-size: 1rem;
 	font-weight: 500;
 }
 

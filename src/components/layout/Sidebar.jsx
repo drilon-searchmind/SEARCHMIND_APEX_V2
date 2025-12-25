@@ -17,11 +17,11 @@ const NavItem = ({ href, label, activeCustomerId, pathname }) => {
         <li
             className={
                 `py-2 px-6 rounded-lg w-full ` +
-                (isActive ? "bg-[var(--color-primary-searchmind-lighter)] text-white" : "")
+                (isActive ? "bg-[var(--color-primary-searchmind-lighter-opacity)]" : "")
             }
         >
             <Link href={href} className="w-full">
-                <span className={`text-[0.8rem] font-semibold ${isActive ? "text-white" : "text-slate-600"}`}>
+                <span className={`text-[0.8rem] font-semibold ${isActive ? "text-[var(--color-primary-searchmind)]" : "text-slate-600"}`}>
                     {label}
                 </span>
             </Link>
