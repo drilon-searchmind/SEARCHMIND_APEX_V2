@@ -103,6 +103,12 @@ const Sidebar = () => {
                                         activeCustomerId={activeCustomerId}
                                         pathname={pathname}
                                     />
+                                    <NavItem
+                                        href={`/dashboard/${activeCustomerId}/analytics`}
+                                        label="Analytics"
+                                        activeCustomerId={activeCustomerId}
+                                        pathname={pathname}
+                                    />
                                 </ul>
                             )}
                         </li>
