@@ -10,8 +10,9 @@ import {
 } from "react-icons/fi";
 import Image from "next/image";
 import { useParams, usePathname } from "next/navigation";
+import SmallLabel from "../ui/SmallLabel";
 
-const NavItem = ({ href, label, activeCustomerId, pathname }) => {
+const NavItem = ({ href, label, activeCustomerId, pathname, subLabel }) => {
     const isActive = pathname === href;
     return (
         <li
@@ -21,8 +22,12 @@ const NavItem = ({ href, label, activeCustomerId, pathname }) => {
             }
         >
             <Link href={href} className="w-full">
-                <span className={`text-[0.8rem] font-semibold ${isActive ? "text-[var(--color-primary-searchmind)]" : "text-slate-600"}`}>
+                <span className={`flex items-center justify-between text-[0.8rem] font-semibold ${isActive ? "text-[var(--color-primary-searchmind)]" : "text-slate-600"}`}>
                     {label}
+
+                    {subLabel && (
+                        <SmallLabel>{subLabel}</SmallLabel>
+                    )}
                 </span>
             </Link>
         </li>
@@ -90,24 +95,28 @@ const Sidebar = () => {
                                         label="Pace Report"
                                         activeCustomerId={activeCustomerId}
                                         pathname={pathname}
+                                        subLabel={"WIP"}
                                     />
                                     <NavItem
                                         href={`/dashboard/${activeCustomerId}/pnl`}
                                         label="P&L"
                                         activeCustomerId={activeCustomerId}
                                         pathname={pathname}
+                                        subLabel={"WIP"}
                                     />
                                     <NavItem
                                         href={`/dashboard/${activeCustomerId}/ecommerce`}
                                         label="Ecommerce"
                                         activeCustomerId={activeCustomerId}
                                         pathname={pathname}
+                                        subLabel={"WIP"}
                                     />
                                     <NavItem
                                         href={`/dashboard/${activeCustomerId}/analytics`}
                                         label="Analytics"
                                         activeCustomerId={activeCustomerId}
                                         pathname={pathname}
+                                        subLabel={"WIP"}
                                     />
                                 </ul>
                             )}
@@ -131,6 +140,7 @@ const Sidebar = () => {
                                         label="SEO"
                                         activeCustomerId={activeCustomerId}
                                         pathname={pathname}
+                                        subLabel={"WIP"}
                                     />
                                     <NavItem
                                         href={`/dashboard/${activeCustomerId}/service-dashboard/ppc`}
@@ -166,6 +176,7 @@ const Sidebar = () => {
                                         label="Campaign Planner"
                                         activeCustomerId={activeCustomerId}
                                         pathname={pathname}
+                                        subLabel={"WIP"}
                                     />
                                     <NavItem
                                         href={`/dashboard/${activeCustomerId}/config`}
