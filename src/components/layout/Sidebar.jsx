@@ -97,11 +97,10 @@ const Sidebar = () => {
                                         pathname={pathname}
                                     />
                                     <NavItem
-                                        href={`/dashboard/${activeCustomerId}/pnl`}
+                                        href={`/dashboard/${activeCustomerId}/tools/pnl`}
                                         label="P&L"
                                         activeCustomerId={activeCustomerId}
                                         pathname={pathname}
-                                        subLabel={"WIP"}
                                     />
                                     <NavItem
                                         href={`/dashboard/${activeCustomerId}/ecommerce`}
