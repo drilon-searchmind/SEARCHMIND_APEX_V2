@@ -13,7 +13,6 @@ import { fetchGoogleAdsMetrics } from './googleAdsApi';
 
 export async function fetchMergedSources(settings, startDate, endDate) {
     const FACEBOOK_APP_TOKEN = process.env.FACEBOOK_APP_TOKEN;
-    console.log({FACEBOOK_APP_TOKEN})
     // Shopify daily
     let shopifyDaily = [];
     try {

@@ -8,6 +8,7 @@ import VerticalTabs from './components/VerticalTabs';
 import GeneralSettingsForm from './components/GeneralSettingsForm';
 import CustomerSettingsForm from './components/CustomerSettingsForm';
 import StaticExpensesForm from './components/StaticExpensesForm';
+import PropertyObjectives from './components/PropertyObjectives';
 
 export default function ConfigPage() {
     const { customerId } = useParams();
@@ -38,6 +39,7 @@ export default function ConfigPage() {
     };
 
     const [form, setForm] = useState(defaultFormState);
+    const [objectives, setObjectives] = useState({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [activeTab, setActiveTab] = useState('general');
@@ -58,6 +60,7 @@ export default function ConfigPage() {
                         ...(data.CustomerStaticExpenses || {}),
                     },
                 });
+                setObjectives(data.CustomerPropertyObjectives || {});
             } catch (err) {
                 showToast({ message: 'Failed to load customer', type: 'error', position: 'top-center' });
             } finally {
@@ -83,6 +86,10 @@ export default function ConfigPage() {
                 [name]: type === 'checkbox' ? checked : value
             }));
         }
+    };
+
+    const handleObjectivesChange = (updated) => {
+        setObjectives(updated);
     };
 
     const handleSave = async (e) => {
@@ -130,6 +137,7 @@ export default function ConfigPage() {
                             googleAdsCustomerId,
                         },
                         CustomerStaticExpenses,
+                        CustomerPropertyObjectives: objectives,
                     })
                 });
             if (!res.ok) throw new Error('Failed to update customer');
@@ -152,8 +160,13 @@ export default function ConfigPage() {
             content: <GeneralSettingsForm form={form} onChange={handleChange} saving={saving} />,
         },
         {
+            key: 'objectives',
+            label: 'Property Objectives',
+            content: <PropertyObjectives objectives={objectives} onObjectivesChange={handleObjectivesChange} />,
+        },
+        {
             key: 'customer',
-            label: 'Customer Settings',
+            label: 'Property Settings',
             content: <CustomerSettingsForm form={form} onChange={handleChange} saving={saving} />,
         },
         {

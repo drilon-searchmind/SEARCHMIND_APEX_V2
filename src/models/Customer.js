@@ -103,6 +103,68 @@ const CustomerSchema = new mongoose.Schema({
             type: Number,
             default: 0,
         }
+    },
+    CustomerPropertyObjectives: {
+        january: {
+            period: { type: String, default: "january" },
+            revenueTarget: { type: Number, default: 0 },
+            marketingBudget: { type: Number, default: 0 }
+        },
+        february: {
+            period: { type: String, default: "february" },
+            revenueTarget: { type: Number, default: 0 },
+            marketingBudget: { type: Number, default: 0 }
+        },
+        march: {
+            period: { type: String, default: "march" },
+            revenueTarget: { type: Number, default: 0 },
+            marketingBudget: { type: Number, default: 0 }
+        },
+        april: {
+            period: { type: String, default: "april" },
+            revenueTarget: { type: Number, default: 0 },
+            marketingBudget: { type: Number, default: 0 }
+        },
+        may: {
+            period: { type: String, default: "may" },
+            revenueTarget: { type: Number, default: 0 },
+            marketingBudget: { type: Number, default: 0 }
+        },
+        june: {
+            period: { type: String, default: "june" },
+            revenueTarget: { type: Number, default: 0 },
+            marketingBudget: { type: Number, default: 0 }
+        },
+        july: {
+            period: { type: String, default: "july" },
+            revenueTarget: { type: Number, default: 0 },
+            marketingBudget: { type: Number, default: 0 }
+        },
+        august: {
+            period: { type: String, default: "august" },
+            revenueTarget: { type: Number, default: 0 },
+            marketingBudget: { type: Number, default: 0 }
+        },
+        september: {
+            period: { type: String, default: "september" },
+            revenueTarget: { type: Number, default: 0 },
+            marketingBudget: { type: Number, default: 0 }
+        },
+        october: {
+            period: { type: String, default: "october" },
+            revenueTarget: { type: Number, default: 0 },
+            marketingBudget: { type: Number, default: 0 }
+        },
+        november: {
+            period: { type: String, default: "november" },
+            revenueTarget: { type: Number, default: 0 },
+            marketingBudget: { type: Number, default: 0 }
+        },
+        december: {
+            period: { type: String, default: "december" },
+            revenueTarget: { type: Number, default: 0 },
+            marketingBudget: { type: Number, default: 0 }
+        }
     }
 });
 
