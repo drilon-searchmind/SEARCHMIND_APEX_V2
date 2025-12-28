@@ -77,6 +77,10 @@ const CustomerSchema = new mongoose.Schema({
             type: String,
             default: ""
         },
+        googleSearchConsoleProperty: {
+            type: String,
+            default: ""
+        }
     },
     CustomerStaticExpenses: {
         cogsPercentage: {

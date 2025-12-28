@@ -7,6 +7,7 @@ import { signOut } from "next-auth/react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useParams, useRouter } from "next/navigation";
 import Select from 'react-select';
+import TeamMembers from './TeamMembers';
 
 const Topbar = () => {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -38,8 +39,8 @@ const Topbar = () => {
 
     return (
         <div className="sticky top-0 bg-white flex items-center justify-between px-20 py-5 border-b border-gray-200">
-            <div className="flex items-center space-x-4">
-                <div className="relative">
+            <div className="flex items-center space-x-10">
+                <div className="relative hidden">
                     <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <input
                         type="text"
@@ -104,6 +105,9 @@ const Topbar = () => {
                             }}
                         />
                     </div>
+                </div>
+                <div id="teamMembers">
+                    <TeamMembers />
                 </div>
             </div>
             <div className="flex items-center space-x-4">

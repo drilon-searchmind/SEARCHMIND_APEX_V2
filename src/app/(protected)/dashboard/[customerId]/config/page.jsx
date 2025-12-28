@@ -28,6 +28,7 @@ export default function ConfigPage() {
         shopifyApiPassword: "",
         facebookAdAccountId: "",
         googleAdsCustomerId: "",
+        googleSearchConsoleProperty: "",
         CustomerStaticExpenses: {
             cogsPercentage: 0,
             shippingCostPerOrder: 0,
@@ -112,6 +113,7 @@ export default function ConfigPage() {
                 shopifyApiPassword,
                 facebookAdAccountId,
                 googleAdsCustomerId,
+                googleSearchConsoleProperty,
                 CustomerStaticExpenses,
             } = form;
             const res = await fetch(`/api/customers/${customerId}`,
@@ -135,6 +137,7 @@ export default function ConfigPage() {
                             shopifyApiPassword,
                             facebookAdAccountId,
                             googleAdsCustomerId,
+                            googleSearchConsoleProperty,
                         },
                         CustomerStaticExpenses,
                         CustomerPropertyObjectives: objectives,

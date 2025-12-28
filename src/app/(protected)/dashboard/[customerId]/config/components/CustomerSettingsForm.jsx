@@ -57,6 +57,10 @@ export default function CustomerSettingsForm({ form, onChange, saving }) {
                 <FormLabel htmlFor="googleAdsCustomerId">Google Ads Customer ID</FormLabel>
                 <FormInputText id="googleAdsCustomerId" name="googleAdsCustomerId" value={form.googleAdsCustomerId} onChange={onChange} />
             </div>
+            <div>
+                <FormLabel htmlFor="googleSearchConsoleProperty">Google Search Console Property</FormLabel>
+                <FormInputText id="googleSearchConsoleProperty" name="googleSearchConsoleProperty" value={form.googleSearchConsoleProperty} onChange={onChange} />
+            </div>
         </form>
     );
 }

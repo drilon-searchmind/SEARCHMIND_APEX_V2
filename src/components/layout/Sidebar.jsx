@@ -138,7 +138,6 @@ const Sidebar = () => {
                                         label="SEO"
                                         activeCustomerId={activeCustomerId}
                                         pathname={pathname}
-                                        subLabel={"WIP"}
                                     />
                                     <NavItem
                                         href={`/dashboard/${activeCustomerId}/service-dashboard/ppc`}
