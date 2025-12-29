@@ -53,6 +53,7 @@ const Sidebar = () => {
                         width={100}
                         height={100}
                         className="mb-0"
+                        id="logoApex"
                     />
                     <p className="text-gray-400">by Searchmind</p>
                 </Link>

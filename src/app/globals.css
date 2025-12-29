@@ -173,3 +173,92 @@ select {
 	backdrop-filter: blur(15.9px);
 	-webkit-backdrop-filter: blur(15.9px);
 }
+
+
+/* Modern, visually appealing dark mode palette overrides for Tailwind classes */
+.dark .bg-slate-50 {
+	background-color: #263036 !important; /* deep dark blue-gray */
+}
+.dark .bg-white,
+.dark .bg-gray-50 {
+	background-color: #181f23 !important; /* deep dark blue-gray */
+}
+.dark .bg-gray-100 {
+	background-color: #232a2f !important;
+}
+.dark .bg-gray-200 {
+	background-color: #2c353b !important;
+}
+.dark .bg-blue-100 {
+	background-color: #233a54 !important;
+}
+.dark .bg-green-100 {
+	background-color: #1e3a2a !important;
+}
+.dark .bg-red-100 {
+	background-color: #3a2323 !important;
+}
+.dark .bg-yellow-100 {
+	background-color: #3a3623 !important;
+}
+.dark .bg-gray-900 {
+	background-color: #101418 !important;
+}
+.dark .bg-blue-900 {
+	background-color: #1e293b !important;
+}
+.dark .bg-green-900 {
+	background-color: #193c2b !important;
+}
+.dark .text-gray-900,
+.dark .text-black {
+	color: #f3f6fa !important;
+}
+.dark .text-gray-700 {
+	color: #cbd5e1 !important;
+}
+.dark .text-gray-500 {
+	color: #94a3b8 !important;
+}
+.dark .text-gray-400 {
+	color: #64748b !important;
+}
+.dark .text-blue-800 {
+	color: #60a5fa !important;
+}
+.dark .text-blue-200 {
+	color: #bfdbfe !important;
+}
+.dark .text-green-800 {
+	color: #6ee7b7 !important;
+}
+.dark .text-green-200 {
+	color: #bbf7d0 !important;
+}
+.dark .border-gray-200 {
+	border-color: #232a2f !important;
+}
+.dark .border-gray-300 {
+	border-color: #2c353b !important;
+}
+.dark .border-gray-800 {
+	border-color: #334155 !important;
+}
+.dark .border-blue-500 {
+	border-color: #3b82f6 !important;
+}
+.dark .border-blue-900 {
+	border-color: #1e293b !important;
+}
+.dark .border-green-900 {
+	border-color: #193c2b !important;
+}
+.dark .border-red-400 {
+	border-color: #f87171 !important;
+}
+.dark .border-yellow-400 {
+	border-color: #facc15 !important;
+}
+.dark #logoApex {
+	filter: invert(1);
+}

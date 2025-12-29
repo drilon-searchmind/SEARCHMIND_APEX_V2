@@ -151,7 +151,7 @@ export default function SEODashboardPage() {
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="mx-auto">
             <DashboardHeading
                 title="SEO Dashboard"
                 label={siteUrl || 'No property set'}
