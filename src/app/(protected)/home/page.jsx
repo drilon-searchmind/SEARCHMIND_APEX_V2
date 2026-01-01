@@ -1,8 +1,20 @@
+"use client"
+
 import CustomerTable from '@/components/table/CustomerTable'
+import CustomerCreateForm from '@/components/form/CustomerCreateForm'
 import Image from 'next/image'
-import React from 'react'
+import React, { useState } from 'react'
+
 
 const HomePage = () => {
+    const [showCreate, setShowCreate] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
+
+    const handleCreated = () => {
+        setShowCreate(false);
+        setRefreshKey((k) => k + 1); // trigger CustomerTable refresh
+    };
+
     return (
         <div id='HomePage' className="flex h-screen lg:flex-row flex-col">
             <div className="relative flex-1 flex items-center justify-center bg-[var(--color-primary-searchmind-lighter)] text-white">
@@ -17,7 +29,7 @@ const HomePage = () => {
                     />
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[var(--color-primary-searchmind-lighter)]"></div>
                 </div>
-                <CustomerTable showCustomerTable={true} />
+                <CustomerTable key={refreshKey} showCustomerTable={true} />
             </div>
             <div className="flex-1 flex items-center justify-center bg-white"></div>
         </div>

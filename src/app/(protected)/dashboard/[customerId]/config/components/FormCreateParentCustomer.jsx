@@ -45,11 +45,11 @@ export default function FormCreateParentCustomer({ onCreate, onCancel, loading }
                 {error && <div className="text-red-500 text-sm">{error}</div>}
                 <div className="flex gap-2 justify-end mt-2">
                     <div
-  className="flex items-center justify-center text-center shadow-none border border-gray-200 text-gray-500 bg-white hover:bg-white hover:text-[var(--color-primary-searchmind)] rounded-lg cursor-pointer text-xs px-4 py-2"
-  onClick={onCancel}
->
-  Cancel
-</div>
+                        className="flex items-center justify-center text-center shadow-none border border-gray-200 text-gray-500 bg-white hover:bg-white hover:text-[var(--color-primary-searchmind)] rounded-lg cursor-pointer text-xs px-4 py-2"
+                        onClick={onCancel}
+                    >
+                        Cancel
+                    </div>
                     <FormButton buttonSize="small" type="submit" disabled={loading}>
                         {loading ? 'Creating...' : 'Create'}
                     </FormButton>
