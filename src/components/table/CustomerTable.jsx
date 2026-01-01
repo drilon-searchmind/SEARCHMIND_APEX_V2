@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import SearchInput from "@/components/search/SearchInput";
 import FormButton from "../form/FormButton";
-import { FiArrowRight, FiLogOut } from "react-icons/fi";
+import { FiArrowRight, FiLogOut, FiUsers, FiUser } from "react-icons/fi";
 import { useUser } from "@/contexts/UserContext";
 import { signOut } from "next-auth/react";
 import { useCustomers } from "@/hooks/useCustomers";
@@ -14,12 +14,46 @@ export default function CustomerTable() {
     const [searchTerm, setSearchTerm] = useState("");
     const [showCreate, setShowCreate] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [parentNames, setParentNames] = useState({});
     const user = useUser();
     const { customers, loading, error } = useCustomers(refreshKey);
 
+    // Group customers by parentCustomer
     const filteredCustomers = customers.filter((customer) =>
         customer.customerName.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    // Grouping logic
+    const groups = {};
+    filteredCustomers.forEach((customer) => {
+        const parent = customer.parentCustomer || "none";
+        if (!groups[parent]) groups[parent] = [];
+        groups[parent].push(customer);
+    });
+
+    // Fetch parent names for all parent IDs
+    useEffect(() => {
+        const parentIds = Object.keys(groups).filter((id) => id !== "none");
+        if (parentIds.length === 0) return;
+        let isMounted = true;
+        Promise.all(
+            parentIds.map((parentId) =>
+                fetch(`/api/parent-customers/${parentId}`)
+                    .then((res) => res.ok ? res.json() : null)
+                    .then((data) => ({ parentId, name: data?.name || parentId }))
+                    .catch(() => ({ parentId, name: parentId }))
+            )
+        ).then((results) => {
+            if (isMounted) {
+                const names = {};
+                results.forEach(({ parentId, name }) => {
+                    names[parentId] = name;
+                });
+                setParentNames(names);
+            }
+        });
+        return () => { isMounted = false; };
+    }, [customers, searchTerm]);
 
     const handleLogout = () => {
         signOut({ callbackUrl: "/login" });
@@ -97,32 +131,49 @@ export default function CustomerTable() {
                         <>
                             <SearchInput onSearch={setSearchTerm} placeholder="Search properties..." />
                             <div id="tableWrapper" className="border border-gray-200 mt-5 rounded-[0.5rem] overflow-hidden">
-                                <table className="min-w-full border-collapse">
-                                    <thead>
-                                        <tr className="bg-gray-50 border-b border-gray-200">
-                                            <th className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 text-xs px-5 py-3">Property Name</th>
-                                            <th className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 text-xs px-5 py-3">Platform</th>
-                                            <th className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 text-xs px-5 py-3">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredCustomers.map((customer) => (
-                                            <tr key={customer._id} className="hover:bg-gray-50">
-                                                <td className="border-b border-gray-50 px-5 py-3 text-black">{customer.customerName}</td>
-                                                <td className="border-b border-gray-50 px-5 py-3 text-gray-500 text-sm">
-                                                    {customer.customerType}
-                                                </td>
-                                                <td className="border-b border-gray-50 px-5 py-3 text-gray-500 ">
-                                                    <Link href={`/dashboard/${customer._id}/performance-dashboard`} className="hover:underline text-sm">
-                                                        <FormButton buttonSize="small" borderType="outline">
-                                                            View Dashboard <FiArrowRight />
-                                                        </FormButton>
-                                                    </Link>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                {Object.keys(groups).map((parentId, idx) => (
+                                    <div key={parentId} className="mb-8">
+                                        {parentId !== "none" && (
+                                            <div className="bg-gray-100 px-5 py-2 font-semibold text-gray-700 rounded-t-[0.5rem] underline">
+                                                <Link className="flex items-center gap-2" href={`/parent-property/${parentId}/home`}>
+                                                    <FiUsers /> View parent property ({parentNames[parentId] || parentId})
+                                                </Link>
+                                            </div>
+                                        )} 
+                                        
+                                        {parentId === "none" && (
+                                            <div className="flex items-center gap-2 bg-gray-100 px-5 py-2 font-semibold text-gray-700 rounded-t-[0.5rem] underline">
+                                                <FiUser />Rest
+                                            </div>
+                                        )}
+                                        <table className="min-w-full border-collapse">
+                                            <thead>
+                                                <tr className="bg-gray-50 border-b border-gray-200">
+                                                    <th className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 text-xs px-5 py-3">Property Name</th>
+                                                    <th className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 text-xs px-5 py-3">Platform</th>
+                                                    <th className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 text-xs px-5 py-3">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {groups[parentId].map((customer) => (
+                                                    <tr key={customer._id} className="hover:bg-gray-50">
+                                                        <td className="border-b border-gray-50 px-5 py-3 text-black">{customer.customerName}</td>
+                                                        <td className="border-b border-gray-50 px-5 py-3 text-gray-500 text-sm">
+                                                            {customer.customerType}
+                                                        </td>
+                                                        <td className="border-b border-gray-50 px-5 py-3 text-gray-500 ">
+                                                            <Link href={`/dashboard/${customer._id}/performance-dashboard`} className="hover:underline text-sm">
+                                                                <FormButton buttonSize="small" borderType="outline">
+                                                                    View Dashboard <FiArrowRight />
+                                                                </FormButton>
+                                                            </Link>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ))}
                                 {filteredCustomers.length === 0 && (
                                     <div className="text-center py-8 text-gray-500">
                                         {searchTerm ? 'No customers found matching your search.' : 'No customers available.'}

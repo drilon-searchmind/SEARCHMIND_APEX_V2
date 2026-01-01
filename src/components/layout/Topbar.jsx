@@ -1,15 +1,16 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { FaMoon, FaSun } from "react-icons/fa";
-import { FiChevronDown, FiUser, FiSettings, FiBarChart2, FiLogOut, FiSearch, FiUsers } from "react-icons/fi";
+import { FiChevronDown, FiHome, FiUser, FiSettings, FiBarChart2, FiLogOut, FiSearch, FiUsers } from "react-icons/fi";
 import { useUser } from "@/contexts/UserContext";
 import { signOut } from "next-auth/react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useParams, useRouter } from "next/navigation";
 import Select from 'react-select';
 import TeamMembers from './TeamMembers';
+import Link from "next/link";
 
-const Topbar = () => {
+const Topbar = ({ showLinks = true }) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const user = useUser();
     const [theme, setTheme] = useState(() => {
@@ -74,6 +75,12 @@ const Topbar = () => {
                         className="pl-10 pr-4 py-[5px] border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
                     />
                 </div>
+                <div className="relative">
+                    <Link href="/home" className="flex items-center space-x-2">
+                        <FiHome className="text-gray-400 dark:text-gray-200 h-4 w-4" />
+                        <span className="text-gray-900 dark:text-gray-100">Home</span>
+                    </Link>
+                </div>
                 <div className="flex items-center space-x-2">
                     <FiUsers className="text-gray-400 dark:text-gray-200 h-4 w-4" />
                     <div className="w-64">
@@ -132,9 +139,11 @@ const Topbar = () => {
                         />
                     </div>
                 </div>
-                <div id="teamMembers">
-                    <TeamMembers />
-                </div>
+                {showLinks && (
+                    <div id="teamMembers">
+                        <TeamMembers />
+                    </div>
+                )}
             </div>
             <div className="flex items-center space-x-4">
                 <button onClick={handleToggleTheme} className="p-2 rounded-full border border-gray-200 dark:border-[var(--color-primary-searchmind-lighter)] bg-white dark:bg-[var(--color-primary-searchmind)] text-gray-700 dark:text-gray-100 transition-colors duration-200">

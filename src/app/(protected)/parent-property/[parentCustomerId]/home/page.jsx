@@ -1,0 +1,257 @@
+"use client";
+
+
+import React, { useEffect, useState } from "react";
+import DashboardHeading from "@/components/dashboard/DashboardHeading";
+import DateRangePicker from "@/components/dashboard/DateRangePicker";
+import { useParams } from "next/navigation";
+import MetricCard from "@/components/dashboard/MetricCard";
+import Spinner from "@/components/ui/Spinner";
+import { FiTrendingUp, FiDollarSign, FiShoppingCart, FiPercent } from "react-icons/fi";
+import FormButton from "@/components/form/FormButton";
+import Link from "next/link";
+
+
+export default function ParentPropertyHome() {
+    const params = useParams();
+    const parentCustomerId = params.parentCustomerId;
+    const [parentCustomer, setParentCustomer] = useState(null);
+    const [childCustomers, setChildCustomers] = useState([]);
+    const [metrics, setMetrics] = useState({ revenue: 0, adspend: 0, orders: 0, roas: null });
+    const [metricsPrev, setMetricsPrev] = useState({ revenue: 0, adspend: 0, orders: 0, roas: null });
+    const [tableRows, setTableRows] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    // Date range state
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    const defaultEnd = `${yyyy}-${mm}-${dd}`;
+    const defaultStart = `${yyyy}-${mm}-01`;
+    const [dateRange, setDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
+
+    // Fetch parent customer and its child customers
+    useEffect(() => {
+        setLoading(true);
+        setError(null);
+        (async () => {
+            try {
+                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+                const res = await fetch(`${baseUrl}/api/parent-customers/${parentCustomerId}`);
+                if (!res.ok) throw new Error("Failed to fetch parent customer");
+                const parent = await res.json();
+                setParentCustomer(parent);
+                setChildCustomers(parent.customers || []);
+            } catch (err) {
+                setError(err.message);
+                setChildCustomers([]);
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, [parentCustomerId]);
+
+    // Helper for percent change
+    function percentChange(current, prev) {
+        if (prev === 0 || prev === null || prev === undefined) return null;
+        return ((current - prev) / Math.abs(prev)) * 100;
+    }
+
+    // Fetch metrics for all child customers in the date range
+    useEffect(() => {
+        if (!childCustomers.length) {
+            setMetrics({ revenue: 0, adspend: 0, orders: 0, roas: null });
+            setMetricsPrev({ revenue: 0, adspend: 0, orders: 0, roas: null });
+            setTableRows([]);
+            setLoading(false);
+            return;
+        }
+        setLoading(true);
+        setError(null);
+        (async () => {
+            try {
+                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+                // Calculate previous period
+                const start = new Date(dateRange.startDate);
+                const end = new Date(dateRange.endDate);
+                const days = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+                const prevEnd = new Date(start.getTime() - 24 * 60 * 60 * 1000);
+                const prevStart = new Date(prevEnd.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
+                const prevStartStr = prevStart.toISOString().slice(0, 10);
+                const prevEndStr = prevEnd.toISOString().slice(0, 10);
+                // Fetch merged data for all child customers in parallel, with date range
+                const [results, resultsPrev] = await Promise.all([
+                    Promise.all(
+                        childCustomers.map(async (customer) => {
+                            const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`);
+                            if (!res.ok) throw new Error("Failed to fetch data for " + customer.customerName);
+                            const merged = await res.json();
+                            // Calculate metrics for this customer
+                            const shopify = merged.shopifyDaily || [];
+                            const facebook = merged.facebookDaily || [];
+                            const google = merged.googleDaily || [];
+                            const revenue = shopify.reduce((sum, d) => sum + (d.total_sales || 0), 0);
+                            const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
+                            const adspend = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
+                            const aov = orders > 0 ? revenue / orders : 0;
+                            const roas = adspend > 0 ? revenue / adspend : null;
+                            return {
+                                _id: customer._id,
+                                customerName: customer.customerName,
+                                revenue,
+                                orders,
+                                adspend,
+                                roas,
+                                aov,
+                            };
+                        })
+                    ),
+                    Promise.all(
+                        childCustomers.map(async (customer) => {
+                            const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${prevStartStr}&endDate=${prevEndStr}`);
+                            if (!res.ok) return { revenue: 0, adspend: 0, orders: 0, roas: null };
+                            const merged = await res.json();
+                            const shopify = merged.shopifyDaily || [];
+                            const facebook = merged.facebookDaily || [];
+                            const google = merged.googleDaily || [];
+                            const revenue = shopify.reduce((sum, d) => sum + (d.total_sales || 0), 0);
+                            const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
+                            const adspend = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
+                            const roas = adspend > 0 ? revenue / adspend : null;
+                            return { revenue, adspend, orders, roas };
+                        })
+                    )
+                ]);
+                // Aggregate for metric cards
+                const totalRevenue = results.reduce((sum, r) => sum + r.revenue, 0);
+                const totalAdspend = results.reduce((sum, r) => sum + r.adspend, 0);
+                const totalOrders = results.reduce((sum, r) => sum + r.orders, 0);
+                const combinedRoas = totalAdspend > 0 ? totalRevenue / totalAdspend : null;
+                setMetrics({ revenue: totalRevenue, adspend: totalAdspend, orders: totalOrders, roas: combinedRoas });
+                // Aggregate previous period
+                const totalRevenuePrev = resultsPrev.reduce((sum, r) => sum + r.revenue, 0);
+                const totalAdspendPrev = resultsPrev.reduce((sum, r) => sum + r.adspend, 0);
+                const totalOrdersPrev = resultsPrev.reduce((sum, r) => sum + r.orders, 0);
+                const combinedRoasPrev = totalAdspendPrev > 0 ? totalRevenuePrev / totalAdspendPrev : null;
+                setMetricsPrev({ revenue: totalRevenuePrev, adspend: totalAdspendPrev, orders: totalOrdersPrev, roas: combinedRoasPrev });
+                setTableRows(results);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, [childCustomers, dateRange]);
+
+    // Metric cards config
+    const metricCards = [
+        {
+            label: "Combined Revenue",
+            value: metrics.revenue.toLocaleString("da-DK", { style: "currency", currency: "DKK" }),
+            change: percentChange(metrics.revenue, metricsPrev.revenue) !== null ? Math.abs(percentChange(metrics.revenue, metricsPrev.revenue)).toFixed(1) : undefined,
+            changeType: percentChange(metrics.revenue, metricsPrev.revenue) > 0 ? "up" : percentChange(metrics.revenue, metricsPrev.revenue) < 0 ? "down" : undefined,
+            icon: <FiDollarSign />,
+        },
+        {
+            label: "Total Adspend",
+            value: metrics.adspend.toLocaleString("da-DK", { style: "currency", currency: "DKK" }),
+            change: percentChange(metrics.adspend, metricsPrev.adspend) !== null ? Math.abs(percentChange(metrics.adspend, metricsPrev.adspend)).toFixed(1) : undefined,
+            changeType: percentChange(metrics.adspend, metricsPrev.adspend) > 0 ? "up" : percentChange(metrics.adspend, metricsPrev.adspend) < 0 ? "down" : undefined,
+            icon: <FiTrendingUp />,
+        },
+        {
+            label: "Total Orders",
+            value: metrics.orders.toLocaleString(),
+            change: percentChange(metrics.orders, metricsPrev.orders) !== null ? Math.abs(percentChange(metrics.orders, metricsPrev.orders)).toFixed(1) : undefined,
+            changeType: percentChange(metrics.orders, metricsPrev.orders) > 0 ? "up" : percentChange(metrics.orders, metricsPrev.orders) < 0 ? "down" : undefined,
+            icon: <FiShoppingCart />,
+        },
+        {
+            label: "Combined ROAS",
+            value: metrics.roas !== null ? metrics.roas.toFixed(2) : "-",
+            change: percentChange(metrics.roas, metricsPrev.roas) !== null ? Math.abs(percentChange(metrics.roas, metricsPrev.roas)).toFixed(1) : undefined,
+            changeType: percentChange(metrics.roas, metricsPrev.roas) > 0 ? "up" : percentChange(metrics.roas, metricsPrev.roas) < 0 ? "down" : undefined,
+            icon: <FiPercent />,
+        },
+    ];
+
+    return (
+        <div className="w-full">
+            <DashboardHeading
+                title="Parent Property Overview"
+                label={parentCustomer?.name || parentCustomerId}
+                right={
+                    <DateRangePicker
+                        startDate={dateRange.startDate}
+                        endDate={dateRange.endDate}
+                        onStartDateChange={d => setDateRange(dr => ({ ...dr, startDate: d }))}
+                        onEndDateChange={d => setDateRange(dr => ({ ...dr, endDate: d }))}
+                    />
+                }
+            />
+
+            {/* Metric Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 w-full mb-8">
+                {metricCards.map((card, idx) => (
+                    <MetricCard
+                        key={idx}
+                        label={card.label}
+                        value={card.value}
+                        icon={card.icon}
+                        change={card.change}
+                        changeType={card.changeType}
+                    />
+                ))}
+            </div>
+
+            {/* Table Section */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold mb-4">Child Properties</h3>
+                {loading ? (
+                    <div className="flex justify-center items-center min-h-[120px]"><Spinner size={40} /></div>
+                ) : error ? (
+                    <div className="text-red-500 text-center">{error}</div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full text-xs text-left border-collapse" style={{ fontSize: '13px' }}>
+                            <thead>
+                                <tr className="bg-gray-50">
+                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Property Name</th>
+                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Revenue</th>
+                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Orders</th>
+                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Ad Spend</th>
+                                    <th className="px-3 py-1.5 font-semibold text-gray-700">ROAS</th>
+                                    <th className="px-3 py-1.5 font-semibold text-gray-700">AOV</th>
+                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {tableRows.length === 0 ? (
+                                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">No child properties found.</td></tr>
+                                ) : tableRows.map((row, idx) => (
+                                    <tr key={row._id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                                        <td className="px-3 py-2 whitespace-nowrap">{row.customerName}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{row.revenue.toLocaleString("da-DK", { style: "currency", currency: "DKK" })}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{row.orders.toLocaleString()}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{row.adspend.toLocaleString("da-DK", { style: "currency", currency: "DKK" })}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{row.roas !== null ? row.roas.toFixed(2) : "-"}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">{row.aov ? row.aov.toLocaleString("da-DK", { style: "currency", currency: "DKK" }) : "-"}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap flex gap-2">
+                                            <Link href={`/dashboard/${row._id}/performance-dashboard`}>
+                                                <FormButton buttonSize="small" borderType="outline">View Dashboard</FormButton>
+                                            </Link>
+                                            <Link href={`/dashboard/${row._id}/config`}>
+                                                <FormButton buttonSize="small" borderType="outline">Config</FormButton>
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}

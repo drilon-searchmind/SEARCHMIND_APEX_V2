@@ -9,3 +9,8 @@
 
 IMPORTANT: Again, always make sure you use "copilot_prompts\start.md" as reference to what i'm trying to achieve with this project.
 IMPORTANT: Use the same styling as we are throughout the app, you can use some of the pages inside "C:\Users\Drili\DEV\SEARCHMIND\SEARCHMIND_APEX_V2\src\app\(protected)\dashboard" for reference.
+
+- You can use #file:performance-dashboard as reference, or some of the other dashboards:
+- #sym:SEODashboardPage 
+- #sym:FacebookPSPage 
+- #sym:GoogleAdsPPCPage 
