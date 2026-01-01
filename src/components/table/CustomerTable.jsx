@@ -70,6 +70,8 @@ export default function CustomerTable() {
                         <div>
                             <h1 className="text-2xl font-bold mb-4 text-black">{showCreate ? 'Create New Property' : 'Select a Property'}</h1>
                             {!showCreate && <p className="text-gray-400 mb-6">Welcome back, <span className="text-gray-600">{user?.name || "User"}!</span> A list of properties available to you</p>}
+
+                            {showCreate && <p className="text-gray-400 mb-6">Welcome back, <span className="text-gray-600">{user?.name || "User"}!</span> Fill out the form to create a new property</p>}
                         </div>
                         <div className="flex flex-col gap-2 items-end">
                             <div
