@@ -2,6 +2,7 @@
 import { shopifyqlQuery } from './shopifyApi';
 import { fetchFacebookAdsInsights } from './facebookApi';
 import { fetchGoogleAdsMetrics } from './googleAdsApi';
+import currencyApiValues from './static-data/currencyApiValues.json';
 
 /**
  * Fetches and merges revenue (Shopify), Facebook adspend, and Google Ads adspend for a customer.
@@ -20,9 +21,22 @@ export async function fetchMergedSources(settings, startDate, endDate) {
             const shopifyql = `FROM sales SHOW total_sales, orders GROUP BY day SINCE ${startDate} UNTIL ${endDate}`;
             const shopifyRes = await shopifyqlQuery(settings.shopifyUrl, settings.shopifyApiPassword, shopifyql);
             const rows = shopifyRes?.data?.shopifyqlQuery?.tableData?.rows || [];
+            // Currency conversion logic
+            const fromCode = settings?.customerStoreValutaCode || 'DKK';
+            const toCode = 'DKK';
+            const currencyData = currencyApiValues.data;
+            let conversionRate = 1;
+            if (fromCode !== toCode && currencyData[fromCode] && currencyData[toCode]) {
+                // Convert from source currency to USD, then USD to DKK
+                // All values are relative to USD, so: value_in_DKK = value_in_fromCode / fromCode.value * toCode.value
+                // But since value is "1 USD = value_in_currency", so to convert from X currency to DKK:
+                // value_in_DKK = value_in_fromCode / fromCode.value * toCode.value
+                // Or, more simply: value_in_DKK = value_in_fromCode * (toCode.value / fromCode.value)
+                conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
+            }
             shopifyDaily = rows.map(row => ({
                 period: row.day,
-                total_sales: parseFloat(row.total_sales) || 0,
+                total_sales: (parseFloat(row.total_sales) || 0) * conversionRate,
                 orders: parseInt(row.orders) || 0,
             })).sort((a, b) => a.period.localeCompare(b.period));
         }
