@@ -136,7 +136,7 @@ export default function CustomerTable() {
                                         {parentId !== "none" && (
                                             <div className="bg-gray-100 px-5 py-2 font-semibold text-gray-700 rounded-t-[0.5rem] underline">
                                                 <Link className="flex items-center gap-2" href={`/parent-property/${parentId}/home`}>
-                                                    <FiUsers /> View parent property ({parentNames[parentId] || parentId})
+                                                    <FiUsers /> View group property {parentNames[parentId] || parentId}
                                                 </Link>
                                             </div>
                                         )} 

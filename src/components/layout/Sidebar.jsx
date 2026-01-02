@@ -55,14 +55,14 @@ const Sidebar = ({ showLinks = true }) => {
                         className="mb-0"
                         id="logoApex"
                     />
-                    <p className="text-gray-400">by Searchmind</p>
+                    <p className="text-gray-400 text-xs">by Searchmind</p>
                 </Link>
             </div>
 
             {showLinks && (
                 <>
                     <div className="">
-                        <p className="text-gray-400 mb-6">Menu</p>
+                        <p className="text-gray-400 mb-6 uppercase text-xs">Menu</p>
                     </div>
 
 
