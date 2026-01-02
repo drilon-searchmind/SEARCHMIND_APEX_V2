@@ -1,20 +1,27 @@
 "use client";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 export default function AuthGuard({ children }) {
 	const { status } = useSession();
 	const router = useRouter();
+	const pathname = usePathname();
 
-	useEffect(() => {
-		if (status === "unauthenticated") {
-			router.push("/login");
-		}
-	}, [status, router]);
 
-	// Only show protected content when explicitly authenticated
-	if (status !== "authenticated") {
+		useEffect(() => {
+			// If unauthenticated and not already on /login, redirect to /login
+			if (status === "unauthenticated" && pathname !== "/login") {
+				router.push("/login");
+			}
+			// If authenticated and on / or /login, redirect to /home
+			if (status === "authenticated" && (pathname === "/" || pathname === "/login")) {
+				router.push("/home");
+			}
+		}, [status, router, pathname]);
+
+	// Show loading spinner only while loading
+	if (status === "loading") {
 		return (
 			<div className="flex items-center justify-center h-screen bg-white">
 				<div className="text-center">
@@ -25,5 +32,16 @@ export default function AuthGuard({ children }) {
 		);
 	}
 
-	return children;
+	// If unauthenticated and on /login, allow children (login page)
+	if (status === "unauthenticated" && pathname === "/login") {
+		return children;
+	}
+
+	// If authenticated, allow children
+	if (status === "authenticated") {
+		return children;
+	}
+
+	// Fallback (should not be reached)
+	return null;
 }
