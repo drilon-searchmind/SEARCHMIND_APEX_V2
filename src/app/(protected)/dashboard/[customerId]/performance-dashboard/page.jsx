@@ -76,11 +76,13 @@ export default function PerformanceDashboard() {
                 setFacebookDaily(merged.facebookDaily || []);
                 setGoogleDaily(merged.googleDaily || []);
 
+                // Revenue type logic
+                const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
                 // Aggregate for metric cards (current)
                 const shopify = merged.shopifyDaily || [];
                 const facebook = merged.facebookDaily || [];
                 const google = merged.googleDaily || [];
-                const revenue = shopify.reduce((sum, d) => sum + (d.total_sales || 0), 0);
+                const revenue = shopify.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
                 const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
                 const cost = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
                 const aov = orders > 0 ? revenue / orders : 0;
@@ -91,7 +93,7 @@ export default function PerformanceDashboard() {
                 const shopifyPrev = mergedPrev.shopifyDaily || [];
                 const facebookPrev = mergedPrev.facebookDaily || [];
                 const googlePrev = mergedPrev.googleDaily || [];
-                const revenuePrev = shopifyPrev.reduce((sum, d) => sum + (d.total_sales || 0), 0);
+                const revenuePrev = shopifyPrev.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
                 const ordersPrev = shopifyPrev.reduce((sum, d) => sum + (d.orders || 0), 0);
                 const costPrev = [...facebookPrev, ...googlePrev].reduce((sum, d) => sum + (d.spend || 0), 0);
                 const aovPrev = ordersPrev > 0 ? revenuePrev / ordersPrev : 0;
@@ -108,7 +110,6 @@ export default function PerformanceDashboard() {
                     return val > 0 ? "up" : val < 0 ? "down" : undefined;
                 }
 
-
                 // POAS and CAC
                 const poas = merged.POASTotalSales ?? null;
                 const poasPrev = mergedPrev.POASTotalSales ?? null;
@@ -117,11 +118,12 @@ export default function PerformanceDashboard() {
 
                 setMetrics([
                     {
-                        label: "Revenue (inc vat)",
+                        label: `Revenue (inc vat, ${revenueType === 'net_sales' ? 'net sales' : ''})`,
                         value: revenue ? revenue.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-',
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(revenue, revenuePrev) !== null ? Math.abs(percentChange(revenue, revenuePrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(revenue, revenuePrev)),
+                        tooltip: revenueType === 'net_sales' ? 'Net sales (after discounts, returns, etc.)' : undefined,
                     },
                     {
                         label: "Gross Profit (inc vat)",

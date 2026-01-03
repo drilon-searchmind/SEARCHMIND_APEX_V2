@@ -17,6 +17,7 @@ export default function PNLPage() {
     const { customers } = useCustomers();
     const customer = customers.find(c => c._id === params.customerId);
     const staticExpenses = customer?.CustomerStaticExpenses || {};
+    const [revenueTypeState, setRevenueTypeState] = useState(customer?.CustomerSettings?.customerRevenueType || 'total_sales');
 
     // Date range state
     const today = new Date();
@@ -72,7 +73,9 @@ export default function PNLPage() {
     const days = Math.floor((end - start) / msPerDay) + 1;
 
     if (merged && staticExpenses && days > 0) {
-        totalSales = merged.shopifyDaily?.reduce((sum, d) => sum + (d.total_sales || 0), 0) || 0;
+        // Revenue type logic
+        const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
+        totalSales = merged.shopifyDaily?.reduce((sum, d) => sum + (d[revenueType] || 0), 0) || 0;
         orders = merged.shopifyDaily?.reduce((sum, d) => sum + (d.orders || 0), 0) || 0;
         const cogsPercentage = staticExpenses.cogsPercentage || 0;
         cogs = totalSales * cogsPercentage;
@@ -142,7 +145,7 @@ export default function PNLPage() {
                                 <div className="flex justify-between border-b py-1 text-gray-400"><span>Taxes</span><span>-</span></div>
                                 <div className="flex justify-between border-b-2 font-bold py-1">
                                     <Tooltip content="Total sales = Gross turnover (Shopify total sales)">
-                                        <span>Total Sales</span>
+                                        <span>Total Sales ({customer?.CustomerSettings?.customerRevenueType})</span>
                                     </Tooltip>
                                     <span>{totalSales.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</span>
                                 </div>

@@ -18,7 +18,10 @@ export async function fetchMergedSources(settings, startDate, endDate) {
     let shopifyDaily = [];
     try {
         if (settings.shopifyUrl && settings.shopifyApiPassword) {
-            const shopifyql = `FROM sales SHOW total_sales, orders GROUP BY day SINCE ${startDate} UNTIL ${endDate}`;
+            const shopifyql = `
+                FROM sales 
+                SHOW orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales
+                GROUP BY day SINCE ${startDate} UNTIL ${endDate}`;
             const shopifyRes = await shopifyqlQuery(settings.shopifyUrl, settings.shopifyApiPassword, shopifyql);
             const rows = shopifyRes?.data?.shopifyqlQuery?.tableData?.rows || [];
             // Currency conversion logic
@@ -36,6 +39,7 @@ export async function fetchMergedSources(settings, startDate, endDate) {
             }
             shopifyDaily = rows.map(row => ({
                 period: row.day,
+                net_sales: (parseFloat(row.net_sales) || 0) * conversionRate,
                 total_sales: (parseFloat(row.total_sales) || 0) * conversionRate,
                 orders: parseInt(row.orders) || 0,
             })).sort((a, b) => a.period.localeCompare(b.period));

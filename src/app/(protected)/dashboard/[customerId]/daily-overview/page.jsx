@@ -13,6 +13,7 @@ const DailyOverviewPage = () => {
     const { customers } = useCustomers();
     const customer = customers.find(c => c._id === params.customerId);
     const [toggle, setToggle] = useState("Current Period");
+    const [revenueTypeState, setRevenueTypeState] = useState("customer?.CustomerSettings?.customerRevenueType || 'total_sales'");
 
     // Date range state
     const today = new Date();
@@ -81,10 +82,13 @@ const DailyOverviewPage = () => {
                     console.warn('cogsPercentage missing or 0, using 1.0 as fallback');
                     cogsPercentage = 1;
                 }
+                // Revenue type logic
+                const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
+                setRevenueTypeState(revenueType);
                 const dailyRows = shopify.map(d => {
                     const date = d.period;
                     const orders = d.orders || 0;
-                    const revenue = d.total_sales || 0;
+                    const revenue = d[revenueType] || 0;
                     const revenueExTax = revenue / 1.25;
                     const ppcCost = googleMap[date] || 0;
                     const psCost = fbMap[date] || 0;
@@ -118,7 +122,7 @@ const DailyOverviewPage = () => {
                 const dailyRowsPrev = shopifyPrev.map(d => {
                     const date = d.period;
                     const orders = d.orders || 0;
-                    const revenue = d.total_sales || 0;
+                    const revenue = d[revenueType] || 0;
                     const revenueExTax = revenue / 1.25;
                     const ppcCost = googleMapPrev[date] || 0;
                     const psCost = fbMapPrev[date] || 0;
@@ -187,7 +191,7 @@ const DailyOverviewPage = () => {
                                 <tr className="bg-gray-50">
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">Date</th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">Orders</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Revenue</th>
+                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Revenue {revenueTypeState === 'net_sales' ? `(${revenueTypeState})` : ''}</th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">Revenue ex tax</th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">PPC Cost</th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">PS Cost</th>

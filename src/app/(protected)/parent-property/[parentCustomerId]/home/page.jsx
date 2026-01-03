@@ -87,11 +87,12 @@ export default function ParentPropertyHome() {
                             const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`);
                             if (!res.ok) throw new Error("Failed to fetch data for " + customer.customerName);
                             const merged = await res.json();
-                            // Calculate metrics for this customer
+                            // Use customerRevenueType for revenue calculation
+                            const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
                             const shopify = merged.shopifyDaily || [];
                             const facebook = merged.facebookDaily || [];
                             const google = merged.googleDaily || [];
-                            const revenue = shopify.reduce((sum, d) => sum + (d.total_sales || 0), 0);
+                            const revenue = shopify.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
                             const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
                             const adspend = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
                             const aov = orders > 0 ? revenue / orders : 0;
@@ -104,6 +105,7 @@ export default function ParentPropertyHome() {
                                 adspend,
                                 roas,
                                 aov,
+                                revenueType, // for indicator in table
                             };
                         })
                     ),
@@ -112,10 +114,11 @@ export default function ParentPropertyHome() {
                             const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${prevStartStr}&endDate=${prevEndStr}`);
                             if (!res.ok) return { revenue: 0, adspend: 0, orders: 0, roas: null };
                             const merged = await res.json();
+                            const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
                             const shopify = merged.shopifyDaily || [];
                             const facebook = merged.facebookDaily || [];
                             const google = merged.googleDaily || [];
-                            const revenue = shopify.reduce((sum, d) => sum + (d.total_sales || 0), 0);
+                            const revenue = shopify.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
                             const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
                             const adspend = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
                             const roas = adspend > 0 ? revenue / adspend : null;
@@ -232,7 +235,12 @@ export default function ParentPropertyHome() {
                                 ) : tableRows.map((row, idx) => (
                                     <tr key={row._id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                                         <td className="px-3 py-2 whitespace-nowrap">{row.customerName}</td>
-                                        <td className="px-3 py-2 whitespace-nowrap">{row.revenue.toLocaleString("da-DK", { style: "currency", currency: "DKK" })}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">
+                                            {row.revenue.toLocaleString("da-DK", { style: "currency", currency: "DKK" })}
+                                            {row.revenueType === 'net_sales' && (
+                                                <span className="ml-1 text-xs text-gray-400">(net sales)</span>
+                                            )}
+                                        </td>
                                         <td className="px-3 py-2 whitespace-nowrap">{row.orders.toLocaleString()}</td>
                                         <td className="px-3 py-2 whitespace-nowrap">{row.adspend.toLocaleString("da-DK", { style: "currency", currency: "DKK" })}</td>
                                         <td className="px-3 py-2 whitespace-nowrap">{row.roas !== null ? row.roas.toFixed(2) : "-"}</td>
