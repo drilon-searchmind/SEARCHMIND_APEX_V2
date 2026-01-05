@@ -211,7 +211,8 @@ select {
 	background-color: #193c2b !important;
 }
 .dark .text-gray-900,
-.dark .text-black {
+.dark .text-black,
+.dark h3 {
 	color: #f3f6fa !important;
 }
 .dark .text-gray-700 {
@@ -261,4 +262,17 @@ select {
 }
 .dark #logoApex {
 	filter: invert(1);
+}
+.dark .text-slate-800 {
+	color: #475569 !important;
+}
+.dark .text-slate-600 {
+	color: #cbd5e1 !important;
+}
+.dark .text-\[var\(--color-primary-searchmind\)\],
+.dark input,
+.dark select,
+.dark table *,
+.dark span {
+	color: #f1f5f9 !important;
 }
