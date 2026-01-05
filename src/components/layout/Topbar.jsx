@@ -24,12 +24,33 @@ const Topbar = ({ showLinks = true }) => {
     const router = useRouter();
     const activeCustomerId = params?.customerId;
 
+    // FIXME: Remove this temporary hot-fix once role-based access control is implemented in the database
+    // Temporary filter: user "asw@rains.com" should only see Pompdelux properties
+    let accessibleCustomers = customers;
+    if (user?.email === "asw@rains.com") {
+        console.log('Filtering for asw@rains.com - user email:', user?.email);
+        console.log('All customers before filter:', customers.map(c => c.customerName));
+        accessibleCustomers = customers.filter(
+            (customer) => customer.customerName.toLowerCase().includes("rains")
+        );
+        console.log('Filtered customers:', accessibleCustomers.map(c => c.customerName));
+    }
+
     // Prepare options for react-select
-    const customerOptions = customers.map((customer) => ({
+    const customerOptions = accessibleCustomers.map((customer) => ({
         value: customer._id,
         label: `${customer.customerName}`,
         customer: customer
     }));
+
+    // Check if activeCustomerId is accessible, if not redirect to first accessible customer
+    const isActiveCustomerAccessible = accessibleCustomers.some(c => c._id === activeCustomerId);
+    React.useEffect(() => {
+        if (activeCustomerId && !isActiveCustomerAccessible && accessibleCustomers.length > 0) {
+            // Redirect to first accessible customer if current one is not accessible
+            router.push(`/dashboard/${accessibleCustomers[0]._id}/performance-dashboard`);
+        }
+    }, [activeCustomerId, isActiveCustomerAccessible, accessibleCustomers, router]);
 
     const selectedOption = customerOptions.find(option => option.value === activeCustomerId);
 
