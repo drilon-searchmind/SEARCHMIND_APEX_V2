@@ -94,7 +94,7 @@ export default function FacebookPSPage() {
                 const adAccountId = facebookAdAccountId.startsWith("act_") ? facebookAdAccountId : `act_${facebookAdAccountId}`;
 
                 // Fetch metrics from API route
-                const apiUrl = `/api/facebook-campaign-insights?adAccountId=${encodeURIComponent(adAccountId)}&metaCountryCode=${encodeURIComponent(customerMetaID)}&since=${encodeURIComponent(dateRange.startDate)}&until=${encodeURIComponent(dateRange.endDate)}`;
+                const apiUrl = `/api/facebook-campaign-insights?adAccountId=${encodeURIComponent(adAccountId)}&customerMetaID=${encodeURIComponent(customerMetaID)}&since=${encodeURIComponent(dateRange.startDate)}&until=${encodeURIComponent(dateRange.endDate)}`;
                 const fbRes = await fetch(apiUrl);
                 if (!fbRes.ok) throw new Error("Failed to fetch Facebook PS dashboard metrics");
                 const metrics = await fbRes.json();

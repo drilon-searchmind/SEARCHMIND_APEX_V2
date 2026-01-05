@@ -1,13 +1,13 @@
 /**
  * Fetches Facebook Ads Insights at the campaign level for a given ad account and country (Meta ID).
  * @param {string} adAccountId - Facebook Ad Account ID (with 'act_' prefix)
- * @param {string} metaCountryCode - Country code to filter (e.g., 'DK')
+ * @param {string} customerMetaID - Country code to filter (e.g., 'DK')
  * @param {string} accessToken - Facebook App Token
  * @param {string} since - Start date (YYYY-MM-DD)
  * @param {string} until - End date (YYYY-MM-DD)
  * @returns {Promise<object>} - The raw response from Facebook Graph API (campaign level)
  */
-export async function fetchFacebookCampaignInsights(adAccountId, metaCountryCode, accessToken, since, until) {
+export async function fetchFacebookCampaignInsights(adAccountId, customerMetaID, accessToken, since, until) {
     // Metrics to fetch at campaign level
     const fields = [
         'campaign_name',
@@ -33,13 +33,13 @@ export async function fetchFacebookCampaignInsights(adAccountId, metaCountryCode
         limit: '1000',
     });
 
-    // Add country filtering if metaCountryCode is provided
-    if (metaCountryCode) {
+    // Add country filtering if customerMetaID is provided
+    if (customerMetaID) {
         params.append('filtering', JSON.stringify([
             {
                 field: 'country',
                 operator: 'IN',
-                value: [metaCountryCode]
+                value: [customerMetaID]
             }
         ]));
     }
@@ -63,12 +63,12 @@ export async function fetchFacebookCampaignInsights(adAccountId, metaCountryCode
         throw new Error(`Facebook API error: ${JSON.stringify(data.error)}`);
     }
 
-    // Optionally, filter by country code (metaCountryCode) if not already filtered
+    // Optionally, filter by country code (customerMetaID) if not already filtered
     let filtered = data.data || [];
-    if (metaCountryCode) {
+    if (customerMetaID) {
         filtered = filtered.filter(row => {
             if (!row.country) return false;
-            return row.country.toUpperCase() === metaCountryCode.toUpperCase();
+            return row.country.toUpperCase() === customerMetaID.toUpperCase();
         });
     }
     return { ...data, data: filtered };
@@ -78,13 +78,13 @@ export async function fetchFacebookCampaignInsights(adAccountId, metaCountryCode
 /**
  * Fetches Facebook Ads Insights for a given ad account and country (Meta ID).
  * @param {string} adAccountId - Facebook Ad Account ID (with 'act_' prefix)
- * @param {string} metaCountryCode - Country code to filter (e.g., 'DK')
+ * @param {string} customerMetaID - Country code to filter (e.g., 'DK')
  * @param {string} accessToken - Facebook App Token
  * @param {string} since - Start date (YYYY-MM-DD)
  * @param {string} until - End date (YYYY-MM-DD)
  * @returns {Promise<object>} - The raw response from Facebook Graph API
  */
-export async function fetchFacebookAdsInsights(adAccountId, metaCountryCode, accessToken, since, until) {
+export async function fetchFacebookAdsInsights(adAccountId, customerMetaID, accessToken, since, until) {
     // Metrics to fetch
     const fields = [
         'spend',
@@ -111,13 +111,13 @@ export async function fetchFacebookAdsInsights(adAccountId, metaCountryCode, acc
         limit: '1000',
     });
 
-    // Add country filtering if metaCountryCode is provided
-    if (metaCountryCode) {
+    // Add country filtering if customerMetaID is provided
+    if (customerMetaID) {
         params.append('filtering', JSON.stringify([
             {
                 field: 'country',
                 operator: 'IN',
-                value: [metaCountryCode]
+                value: [customerMetaID]
             }
         ]));
     }
@@ -141,9 +141,9 @@ export async function fetchFacebookAdsInsights(adAccountId, metaCountryCode, acc
         throw new Error(`Facebook API error: ${JSON.stringify(data.error)}`);
     }
 
-    // Optionally, filter by country code (metaCountryCode) if not already filtered
+    // Optionally, filter by country code (customerMetaID) if not already filtered
     let filtered = data.data || [];
-    if (metaCountryCode) {
+    if (customerMetaID) {
         // Log row structure for debugging
         filtered.forEach((row, idx) => {
             // console.log(`Row ${idx}:`, row);
@@ -151,7 +151,7 @@ export async function fetchFacebookAdsInsights(adAccountId, metaCountryCode, acc
         
         filtered = filtered.filter(row => {
             if (!row.country) return false;
-            return row.country.toUpperCase() === metaCountryCode.toUpperCase();
+            return row.country.toUpperCase() === customerMetaID.toUpperCase();
         });
     }
     return { ...data, data: filtered };

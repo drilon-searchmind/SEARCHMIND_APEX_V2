@@ -6,11 +6,11 @@ export async function GET(req) {
     const FACEBOOK_APP_TOKEN = process.env.FACEBOOK_APP_TOKEN;
     const { searchParams } = new URL(req.url);
     const adAccountId = searchParams.get('adAccountId');
-    const metaCountryCode = searchParams.get('metaCountryCode');
+    const customerMetaID = searchParams.get('customerMetaID');
     const since = searchParams.get('since');
     const until = searchParams.get('until');
 
-    if (!adAccountId || !metaCountryCode || !since || !until) {
+    if (!adAccountId || !customerMetaID || !since || !until) {
         return new Response(JSON.stringify({ error: 'Missing required query parameters' }), { status: 400 });
     }
 
@@ -20,7 +20,7 @@ export async function GET(req) {
             adAccountId,
             startDate: since,
             endDate: until,
-            countryCode: metaCountryCode,
+            countryCode: customerMetaID,
         });
         return new Response(JSON.stringify(metrics), { status: 200 });
     } catch (err) {

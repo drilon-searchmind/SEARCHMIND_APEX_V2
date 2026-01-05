@@ -56,7 +56,7 @@ export async function fetchMergedSources(settings, startDate, endDate) {
         if (settings.facebookAdAccountId && FACEBOOK_APP_TOKEN) {
             const fbRes = await fetchFacebookAdsInsights(
                 settings.facebookAdAccountId,
-                settings.metaCountryCode,
+                settings.customerMetaID,
                 FACEBOOK_APP_TOKEN,
                 startDate,
                 endDate
