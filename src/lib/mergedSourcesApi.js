@@ -76,18 +76,30 @@ export async function fetchMergedSources(settings, startDate, endDate) {
     let googleDaily = [];
     try {
         if (settings.googleAdsCustomerId) {
-            const googleRows = await fetchGoogleAdsMetrics(
+            const googleResponse = await fetchGoogleAdsMetrics(
                 settings.googleAdsCustomerId,
                 startDate,
                 endDate
             );
+            // Destructure metrics and currency code from response
+            const googleRows = googleResponse.metrics;
+            const googleCurrencyCode = googleResponse.currencyCode;
+            
+            // Currency conversion logic for Google Ads using Google Ads native currency
+            const fromCode = googleCurrencyCode;
+            const toCode = 'DKK';
+            const currencyData = currencyApiValues.data;
+            let conversionRate = 1;
+            if (fromCode !== toCode && currencyData[fromCode] && currencyData[toCode]) {
+                conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
+            }
             const daily = {};
             for (const row of googleRows) {
                 const date = row.segments?.date;
                 const cost = row.metrics?.cost_micros ? row.metrics.cost_micros / 1e6 : 0;
                 if (!date) continue;
                 if (!daily[date]) daily[date] = 0;
-                daily[date] += cost;
+                daily[date] += cost * conversionRate;
             }
             googleDaily = Object.entries(daily)
                 .map(([period, spend]) => ({ period, spend }))

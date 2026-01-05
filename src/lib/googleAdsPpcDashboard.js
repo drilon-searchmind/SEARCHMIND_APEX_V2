@@ -1,5 +1,6 @@
 // src/lib/googleAdsPpcDashboard.js
 import { GoogleAdsApi } from 'google-ads-api';
+import currencyApiValues from './static-data/currencyApiValues.json';
 
 /**
  * Fetch comprehensive Google Ads PPC dashboard metrics
@@ -38,6 +39,16 @@ export async function fetchGoogleAdsPPCDashboardMetrics({
         const currencyQuery = `SELECT customer.currency_code FROM customer`;
         const currencyResponse = await customer.query(currencyQuery);
         const accountCurrency = currencyResponse[0]?.customer?.currency_code || 'USD';
+        
+        // Currency conversion logic
+        const fromCode = accountCurrency;
+        const toCode = 'DKK';
+        const currencyData = currencyApiValues.data;
+        let conversionRate = 1;
+        if (fromCode !== toCode && currencyData[fromCode] && currencyData[toCode]) {
+            conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
+        }
+        
         const query = `
             SELECT 
                 campaign.id,
@@ -61,7 +72,7 @@ export async function fetchGoogleAdsPPCDashboardMetrics({
             impressions: row.metrics.impressions || 0,
             conversions: row.metrics.conversions || 0,
             conversions_value: row.metrics.conversions_value || 0,
-            ad_spend: (row.metrics.cost_micros || 0) / 1_000_000,
+            ad_spend: ((row.metrics.cost_micros || 0) / 1_000_000) * conversionRate,
         }));
         const metricsByDateMap = {};
         rawData.forEach(row => {
