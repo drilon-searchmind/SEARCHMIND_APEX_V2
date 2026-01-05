@@ -174,14 +174,14 @@ const Topbar = ({ showLinks = true }) => {
                                             Admin
                                         </span>
                                     )}
+
+                                    {user?.isExternal && (
+                                        <span className="inline-block bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs px-2 py-1 rounded-full mt-1 ml-1">
+                                            External
+                                        </span>
+                                    )}
                                 </div>
                                 <p className="text-gray-400 dark:text-gray-200 text-xs">{user?.email}</p>
-
-                                {user?.isExternal && (
-                                    <span className="inline-block bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs px-2 py-1 rounded-full mt-1 ml-1">
-                                        External
-                                    </span>
-                                )}
                             </div>
 
                             <ul className="flex flex-col gap-4 py-2">
