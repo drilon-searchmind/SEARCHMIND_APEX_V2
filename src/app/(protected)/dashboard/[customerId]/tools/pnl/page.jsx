@@ -131,7 +131,7 @@ export default function PNLPage() {
                     ) : (
                         <>
                             {/* Section 1: Net turnover */}
-                            <div className="bg-white border border-gray-200 dark:border-gray-800 rounded-xl px-6 py-5 transition-shadow">
+                            <div className="bg-white border border-gray-200 rounded-xl px-6 py-5 transition-shadow">
                                 <div className="font-bold text-gray-700 mb-1">Net turnover (turnover - discount & return)</div>
                                 <div className="flex justify-between border-b py-1">
                                     <span>Gross turnover</span>
@@ -151,7 +151,7 @@ export default function PNLPage() {
                                 </div>
                             </div>
                             {/* Section 2: DB1 */}
-                            <div className="bg-white border border-gray-200 dark:border-gray-800 rounded-xl px-6 py-5 transition-shadow">
+                            <div className="bg-white border border-gray-200 rounded-xl px-6 py-5 transition-shadow">
                                 <div className="font-bold text-gray-700 mb-1">DB1 (turnover - cost of goods sold)</div>
                                 <div className="flex justify-between border-b py-1">
                                     <span>COGS</span>
@@ -167,7 +167,7 @@ export default function PNLPage() {
                                 </div>
                             </div>
                             {/* Section 3: DB2 */}
-                            <div className="bg-white border border-gray-200 dark:border-gray-800 rounded-xl px-6 py-5 transition-shadow">
+                            <div className="bg-white border border-gray-200 rounded-xl px-6 py-5 transition-shadow">
                                 <div className="font-bold text-gray-700 mb-1">DB2 (DB1 - direct selling costs)</div>
                                 <div className="flex justify-between border-b py-1">
                                     <span>Shipping</span>
@@ -189,7 +189,7 @@ export default function PNLPage() {
                                 </div>
                             </div>
                             {/* Section 4: DB3 */}
-                            <div className="bg-white border border-gray-200 dark:border-gray-800 rounded-xl px-6 py-5 transition-shadow">
+                            <div className="bg-white border border-gray-200 rounded-xl px-6 py-5 transition-shadow">
                                 <div className="font-bold text-gray-700 mb-1">DB3 (DB2 - marketing costs)</div>
                                 <div className="flex justify-between border-b py-1">
                                     <span>Marketing Spend</span>
@@ -217,7 +217,7 @@ export default function PNLPage() {
                                 </div>
                             </div>
                             {/* Section 5: Result */}
-                            <div className="bg-white border border-gray-200 dark:border-gray-800 rounded-xl px-6 py-5 transition-shadow">
+                            <div className="bg-white border border-gray-200 rounded-xl px-6 py-5 transition-shadow">
                                 <div className="font-bold text-gray-700 mb-1">Result</div>
                                 <div className="flex justify-between border-b py-1">
                                     <span>Fixed Expenses</span>
@@ -234,7 +234,7 @@ export default function PNLPage() {
                             </div>
                             {/* Bottom: ROAS */}
                             <div className="flex gap-4 mt-6">
-                                <div className="flex-1 bg-[var(--color-primary-searchmind)] text-white rounded-lg p-4 flex flex-col items-center border border-gray-200 dark:border-gray-800 rounded-xl px-6 py-5">
+                                <div className="flex-1 bg-[var(--color-primary-searchmind)] text-white rounded-lg p-4 flex flex-col items-center border border-gray-200 rounded-xl px-6 py-5">
                                     <Tooltip content="Realized ROAS = Net Sales / Marketing Spend">
                                         <span className="flex flex-col items-center">
                                             <div className="text-xs text-gray-500 mb-1">Realized ROAS</div>
@@ -242,7 +242,7 @@ export default function PNLPage() {
                                         </span>
                                     </Tooltip>
                                 </div>
-                                <div className="flex-1 bg-[var(--color-primary-searchmind)] rounded-lg p-4 flex flex-col items-center border border-gray-200 dark:border-gray-800 rounded-xl px-6 py-5">
+                                <div className="flex-1 bg-[var(--color-primary-searchmind)] rounded-lg p-4 flex flex-col items-center border border-gray-200 rounded-xl px-6 py-5">
                                     <Tooltip content="Break-even ROAS = Total Costs / Marketing Spend">
                                         <span className="flex flex-col items-center">
                                             <div className="text-xs text-gray-500 mb-1">Break-even ROAS</div>

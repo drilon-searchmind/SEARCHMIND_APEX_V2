@@ -27,7 +27,7 @@ export default function FormCreateParentCustomer({ onCreate, onCancel, loading }
     };
 
     return (
-        <div className="w-full max-w-md p-6 bg-white dark:bg-gray-900 rounded-xl shadow-xl">
+        <div className="w-full max-w-md p-6 bg-white rounded-xl shadow-xl">
             <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
                 <h5 className="text-lg font-semibold text-[var(--color-primary-searchmind)] mb-2">Create Parent Customer</h5>
                 <div>

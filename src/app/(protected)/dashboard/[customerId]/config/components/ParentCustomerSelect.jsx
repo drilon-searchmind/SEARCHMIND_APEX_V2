@@ -4,7 +4,7 @@ import React from "react";
 export default function ParentCustomerSelect({ parentCustomers, value, onChange, onCreateClick, disabled }) {
     return (
         <div className="flex flex-col gap-2">
-            <label htmlFor="parentCustomer" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+            <label htmlFor="parentCustomer" className="block text-sm font-medium text-gray-700">
                 Parent Customer
             </label>
             <div className="flex gap-2 flex-col">

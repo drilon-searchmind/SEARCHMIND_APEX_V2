@@ -86,7 +86,7 @@ const Topbar = ({ showLinks = true }) => {
     };
 
     return (
-        <div className="sticky top-0 bg-white dark:bg-black flex items-center justify-between px-20 py-5 border-b border-gray-200 dark:border-[var(--color-primary-searchmind-lighter)] transition-colors duration-200">
+        <div className="sticky top-0 bg-white flex items-center justify-between px-20 py-5 border-b border-gray-200 transition-colors duration-200">
             <div className="flex items-center space-x-10">
                 <div className="relative hidden">
                     <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -98,12 +98,12 @@ const Topbar = ({ showLinks = true }) => {
                 </div>
                 <div className="relative">
                     <Link href="/home" className="flex items-center space-x-2">
-                        <FiHome className="text-gray-400 dark:text-gray-200 h-4 w-4" />
-                        <span className="text-gray-900 dark:text-gray-100">Home</span>
+                        <FiHome className="text-gray-400 h-4 w-4" />
+                        <span className="text-gray-900">Home</span>
                     </Link>
                 </div>
                 <div className="flex items-center space-x-2">
-                    <FiUsers className="text-gray-400 dark:text-gray-200 h-4 w-4" />
+                    <FiUsers className="text-gray-400 h-4 w-4" />
                     <div className="w-64">
                         <Select
                             value={selectedOption}
@@ -167,7 +167,7 @@ const Topbar = ({ showLinks = true }) => {
                 )}
             </div>
             <div className="flex items-center space-x-4">
-                <button onClick={handleToggleTheme} className="p-2 rounded-full border border-gray-200 dark:border-[var(--color-primary-searchmind-lighter)] bg-white dark:bg-[var(--color-primary-searchmind)] text-gray-700 dark:text-gray-100 transition-colors duration-200">
+                <button onClick={handleToggleTheme} className="p-2 rounded-full border border-gray-200 bg-white text-gray-700 transition-colors duration-200">
                     {theme === "dark" ? <FaSun /> : <FaMoon />}
                 </button>
                 <div className="relative">
@@ -182,46 +182,46 @@ const Topbar = ({ showLinks = true }) => {
                             height={32}
                             className="rounded-full"
                         />
-                        <span className="text-gray-900 dark:text-gray-100">{user?.name || "User"}</span>
-                        <FiChevronDown className="ml-2 text-gray-700 dark:text-gray-100" />
+                        <span className="text-gray-900">{user?.name || "User"}</span>
+                        <FiChevronDown className="ml-2 text-gray-700" />
                     </button>
                     {menuOpen && (
-                        <div className="absolute right-0 mt-[22px] w-75 bg-white dark:bg-[var(--color-primary-searchmind)] shadow-xs rounded-[1rem] px-4 overflow-hidden z-50 py-4 border border-gray-200 dark:border-[var(--color-primary-searchmind-lighter)] transition-colors duration-200">
+                        <div className="absolute right-0 mt-[22px] w-75 bg-white shadow-xs rounded-[1rem] px-4 overflow-hidden z-50 py-4 border border-gray-200 transition-colors duration-200">
                             <div className="mb-4">
                                 <div className="flex items-center justify-between">
-                                    <p className="font-semibold text-gray-900 dark:text-gray-100">{user?.name}</p>
+                                    <p className="font-semibold text-gray-900">{user?.name}</p>
                                     {user?.isAdmin && (
-                                        <span className="inline-block bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-full mt-1">
+                                        <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mt-1">
                                             Admin
                                         </span>
                                     )}
 
                                     {user?.isExternal && (
-                                        <span className="inline-block bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs px-2 py-1 rounded-full mt-1 ml-1">
+                                        <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mt-1 ml-1">
                                             External
                                         </span>
                                     )}
                                 </div>
-                                <p className="text-gray-400 dark:text-gray-200 text-xs">{user?.email}</p>
+                                <p className="text-gray-400 text-xs">{user?.email}</p>
                             </div>
 
                             <ul className="flex flex-col gap-4 py-2">
                                 <li className="flex items-center gap-2">
                                     <FiUser />
-                                    <a href="/profile" className="text-sm text-slate-800 dark:text-gray-100 font-semibold">User Profile</a>
+                                    <a href="/profile" className="text-sm text-slate-800 font-semibold">User Profile</a>
                                 </li>
                                 <li className="flex items-center gap-2">
                                     <FiSettings />
-                                    <a href="/profile" className="text-sm text-slate-800 dark:text-gray-100 font-semibold">Admin</a>
+                                    <a href="/profile" className="text-sm text-slate-800 font-semibold">Admin</a>
                                 </li>
                                 <li className="flex items-center gap-2">
                                     <FiBarChart2 />
-                                    <a href="/profile" className="text-sm text-slate-800 dark:text-gray-100 font-semibold">Campaigns</a>
+                                    <a href="/profile" className="text-sm text-slate-800 font-semibold">Campaigns</a>
                                 </li>
-                                <hr className="text-gray-200 dark:text-gray-700" />
+                                <hr className="text-gray-200" />
                                 <li className="flex items-center gap-2">
                                     <FiLogOut />
-                                    <button onClick={() => signOut({ callbackUrl: "/login" })} className="text-sm text-slate-800 dark:text-gray-100 font-semibold">Sign Out</button>
+                                    <button onClick={() => signOut({ callbackUrl: "/login" })} className="text-sm text-slate-800 font-semibold">Sign Out</button>
                                 </li>
                             </ul>
                         </div>

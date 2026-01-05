@@ -6,13 +6,13 @@ export default function MetricCard({ label, value, unit, change, changeType, ico
     const changeIcon = changeType === "up" ? "▲" : changeType === "down" ? "▼" : null;
 
     const activeBg = isActive ? "#1E2B2B" : "";
-    const activeText = isActive ? "text-white" : "text-gray-900 dark:text-white";
+    const activeText = isActive ? "text-white" : "text-gray-900";
     const iconBg = isActive ? "bg-[#243636]" : "bg-gray-50";
     const labelText = isActive ? "text-white" : "text-gray-400";
 
     return (
         <div
-            className={`flex flex-col justify-between border border-gray-200 dark:border-gray-800 rounded-xl px-6 py-5 min-w-[160px] min-h-[110px] ${isActive ? 'shadow-md' : 'bg-white'}`}
+            className={`flex flex-col justify-between border border-gray-200 rounded-xl px-6 py-5 min-w-[160px] min-h-[110px] ${isActive ? 'shadow-md' : 'bg-white'}`}
             style={{ background: activeBg, transition: 'background 0.2s, color 0.2s' }}
         >
             <div className="flex items-center justify-between mb-4">

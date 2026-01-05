@@ -158,9 +158,9 @@ export default function CustomerTable() {
                                         <table className="min-w-full border-collapse">
                                             <thead>
                                                 <tr className="bg-gray-50 border-b border-gray-200">
-                                                    <th className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 text-xs px-5 py-3">Property Name</th>
-                                                    <th className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 text-xs px-5 py-3">Platform</th>
-                                                    <th className="font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400 text-xs px-5 py-3">Action</th>
+                                                    <th className="font-medium text-gray-500 text-start text-theme-xs text-xs px-5 py-3">Property Name</th>
+                                                    <th className="font-medium text-gray-500 text-start text-theme-xs text-xs px-5 py-3">Platform</th>
+                                                    <th className="font-medium text-gray-500 text-start text-theme-xs text-xs px-5 py-3">Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>

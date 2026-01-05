@@ -225,11 +225,11 @@ export default function SEODashboardPage() {
 
                     {/* Top Keywords */}
                     <div className="mb-8">
-                        <div className="border border-gray-200 dark:border-gray-800 rounded-xl bg-white dark:bg-gray-900 p-6">
+                        <div className="border border-gray-200 rounded-xl bg-white p-6">
                             <h2 className="text-lg font-semibold mb-2">Top Keywords</h2>
                             <div className="overflow-x-auto">
                                 <table className="min-w-full text-sm">
-                                    <thead className="bg-gray-50 dark:bg-gray-800">
+                                    <thead className="bg-gray-50">
                                         <tr>
                                             <th className="px-4 py-2 text-left">Keyword</th>
                                             <th className="px-4 py-2 text-right">Clicks</th>
@@ -258,11 +258,11 @@ export default function SEODashboardPage() {
 
                     {/* Top URLs */}
                     <div>
-                        <div className="border border-gray-200 dark:border-gray-800 rounded-xl bg-white dark:bg-gray-900 p-6">
+                        <div className="border border-gray-200 rounded-xl bg-white p-6">
                             <h2 className="text-lg font-semibold mb-2">Top URLs</h2>
                             <div className="overflow-x-auto">
                                 <table className="min-w-full text-sm">
-                                    <thead className="bg-gray-50 dark:bg-gray-800">
+                                    <thead className="bg-gray-50">
                                         <tr>
                                             <th className="px-4 py-2 text-left">URL</th>
                                             <th className="px-4 py-2 text-right">Clicks</th>

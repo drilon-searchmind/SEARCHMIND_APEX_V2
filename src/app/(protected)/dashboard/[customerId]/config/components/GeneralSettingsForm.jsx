@@ -91,7 +91,7 @@ export default function GeneralSettingsForm({ form, onChange, saving }) {
             </form>
             {showCreateModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-                    <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg w-full max-w-md">
+                    <div className="bg-white rounded-xl shadow-lg w-full max-w-md">
                         <FormCreateParentCustomer
                             onCreate={handleModalCreate}
                             onCancel={handleModalCancel}
