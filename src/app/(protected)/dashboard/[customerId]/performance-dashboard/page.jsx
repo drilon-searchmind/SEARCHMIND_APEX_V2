@@ -118,7 +118,7 @@ export default function PerformanceDashboard() {
 
                 setMetrics([
                     {
-                        label: `Revenue (inc vat, ${revenueType === 'net_sales' ? 'net sales' : ''})`,
+                        label: `Revenue (inc vat ${revenueType === 'net_sales' ? ', net sales' : ''})`,
                         value: revenue ? revenue.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-',
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(revenue, revenuePrev) !== null ? Math.abs(percentChange(revenue, revenuePrev)).toFixed(1) : undefined,

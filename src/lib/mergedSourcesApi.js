@@ -41,6 +41,7 @@ export async function fetchMergedSources(settings, startDate, endDate) {
                 period: row.day,
                 net_sales: (parseFloat(row.net_sales) || 0) * conversionRate,
                 total_sales: (parseFloat(row.total_sales) || 0) * conversionRate,
+                custom_1: ((parseFloat(row.net_sales) || 0) + (parseFloat(row.returns) || 0) + (parseFloat(row.shipping_charges) || 0)) * conversionRate,
                 orders: parseInt(row.orders) || 0,
             })).sort((a, b) => a.period.localeCompare(b.period));
         }

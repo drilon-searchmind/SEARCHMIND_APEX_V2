@@ -39,6 +39,7 @@ export default function CustomerSettingsForm({ form, onChange, saving }) {
                 <select id="customerRevenueType" name="customerRevenueType" value={form.customerRevenueType} onChange={onChange} className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20">
                     <option value="total_sales">Total Sales</option>
                     <option value="net_sales">Net Sales</option>
+                    <option value="custom_1">Custom 1 (Netto + Refunds + Delivery Fees)</option>
                 </select>
             </div>
             <div>

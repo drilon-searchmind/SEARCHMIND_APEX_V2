@@ -57,7 +57,7 @@ const CustomerSchema = new mongoose.Schema({
         },
         customerRevenueType: {
             type: String,
-            enum: ["total_sales", "net_sales"],
+            enum: ["total_sales", "net_sales", "custom_1"],
             required: false,
             default: "total_sales"
         },
