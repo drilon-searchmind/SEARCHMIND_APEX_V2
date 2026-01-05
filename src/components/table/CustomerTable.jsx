@@ -157,11 +157,11 @@ export default function CustomerTable() {
                                             <tbody>
                                                 {groups[parentId].map((customer) => (
                                                     <tr key={customer._id} className="hover:bg-gray-50">
-                                                        <td className="border-b border-gray-50 px-5 py-3 text-black">{customer.customerName}</td>
+                                                        <td className="border-b border-gray-50 px-5 py-3 text-black text-sm">{customer.customerName}</td>
                                                         <td className="border-b border-gray-50 px-5 py-3 text-gray-500 text-sm">
                                                             {customer.customerType}
                                                         </td>
-                                                        <td className="border-b border-gray-50 px-5 py-3 text-gray-500 ">
+                                                        <td className="border-b border-gray-50 px-5 py-3 text-gray-500 text-sm">
                                                             <Link href={`/dashboard/${customer._id}/performance-dashboard`} className="hover:underline text-sm">
                                                                 <FormButton buttonSize="small" borderType="outline">
                                                                     View Dashboard <FiArrowRight />
