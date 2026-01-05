@@ -34,6 +34,11 @@ const UserSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
+    sharedCustomers: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Customer',
+        default: [],
+    }],
 });
 
 UserSchema.pre('save', async function () {

@@ -18,13 +18,16 @@ export default function CustomerTable() {
     const user = useUser();
     const { customers, loading, error } = useCustomers(refreshKey);
 
-    // FIXME: Remove this temporary hot-fix once role-based access control is implemented in the database
-    // Temporary filter: user "asw@rains.com" should only see Pompdelux properties
+    // Dynamic access control: if user is external, only show shared customers; else show all
     let accessibleCustomers = customers;
-    if (user?.email === "asw@rains.com") {
-        accessibleCustomers = customers.filter(
-            (customer) => customer.customerName.toLowerCase().includes("rains")
+    console.log({user})
+    console.log({customers})
+    if (user?.isExternal) {
+        const sharedCustomerIds = (user.sharedCustomers || []).map(
+            id => typeof id === 'object' && id.$oid ? id.$oid : String(id)
         );
+        accessibleCustomers = customers.filter(c => sharedCustomerIds.includes(String(c._id)));
+        console.log("Accessible Customers for external user:", accessibleCustomers);
     }
 
     // Group customers by parentCustomer

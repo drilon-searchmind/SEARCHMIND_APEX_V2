@@ -49,6 +49,9 @@ export const authOptions = {
       return token;
     },
     async session({ session, token }) {
+      await connectToDatabase();
+      // Fetch user from DB to get sharedCustomers
+      const userFromDb = await User.findOne({ email: token.email });
       session.user = {
         id: token.id,
         name: token.name,
@@ -57,6 +60,7 @@ export const authOptions = {
         isAdmin: token.isAdmin,
         isArchived: token.isArchived,
         isExternal: token.isExternal,
+        sharedCustomers: userFromDb?.sharedCustomers || [],
       };
       return session;
     },
