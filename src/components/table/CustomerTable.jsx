@@ -43,29 +43,36 @@ export default function CustomerTable() {
         groups[parent].push(customer);
     });
 
-    // Fetch parent names for all parent IDs
+    // Fetch parent names for all parent IDs (optimized: only on customers change, with retry and caching)
     useEffect(() => {
-        const parentIds = Object.keys(groups).filter((id) => id !== "none");
+        const parentIds = Array.from(new Set((accessibleCustomers || []).map(c => c.parentCustomer).filter(id => id && id !== "none")));
         if (parentIds.length === 0) return;
         let isMounted = true;
-        Promise.all(
-            parentIds.map((parentId) =>
-                fetch(`/api/parent-customers/${parentId}`)
-                    .then((res) => res.ok ? res.json() : null)
-                    .then((data) => ({ parentId, name: data?.name || parentId }))
-                    .catch(() => ({ parentId, name: parentId }))
-            )
-        ).then((results) => {
-            if (isMounted) {
-                const names = {};
-                results.forEach(({ parentId, name }) => {
-                    names[parentId] = name;
-                });
-                setParentNames(names);
+        const cache = { ...parentNames };
+
+        // Helper: fetch with retry
+        const fetchWithRetry = async (url, retries = 3, delay = 300) => {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const res = await fetch(url);
+                    if (res.ok) return await res.json();
+                } catch {}
+                if (i < retries - 1) await new Promise(r => setTimeout(r, delay));
             }
-        });
+            return null;
+        };
+
+        (async () => {
+            for (const parentId of parentIds) {
+                if (!cache[parentId]) {
+                    const data = await fetchWithRetry(`/api/parent-customers/${parentId}`);
+                    cache[parentId] = data?.name || parentId;
+                }
+            }
+            if (isMounted) setParentNames(cache);
+        })();
         return () => { isMounted = false; };
-    }, [customers, searchTerm]);
+    }, [customers]);
 
     const handleLogout = () => {
         signOut({ callbackUrl: "/login" });
