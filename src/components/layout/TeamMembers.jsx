@@ -21,6 +21,9 @@ export default function TeamMembers({ members = [] }) {
                         width={35}
                         height={35}
                         className="rounded-full border-1 border-gray-200 hover:scale-105 transition-transform duration-150"
+                        style={{
+                            transform: `translateX(-${idx * 10}px)`,
+                        }}
                     />
                     {/* Optionally show name on hover */}
                     <span className="absolute left-1/2 -translate-x-1/2 mt-2 px-2 py-1 text-xs bg-gray-900 text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
