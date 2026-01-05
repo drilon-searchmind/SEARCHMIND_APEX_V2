@@ -18,8 +18,17 @@ export default function CustomerTable() {
     const user = useUser();
     const { customers, loading, error } = useCustomers(refreshKey);
 
+    // FIXME: Remove this temporary hot-fix once role-based access control is implemented in the database
+    // Temporary filter: user "asw@rains.com" should only see Pompdelux properties
+    let accessibleCustomers = customers;
+    if (user?.email === "asw@rains.com") {
+        accessibleCustomers = customers.filter(
+            (customer) => customer.customerName.toLowerCase().includes("rains")
+        );
+    }
+
     // Group customers by parentCustomer
-    const filteredCustomers = customers.filter((customer) =>
+    const filteredCustomers = accessibleCustomers.filter((customer) =>
         customer.customerName.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
