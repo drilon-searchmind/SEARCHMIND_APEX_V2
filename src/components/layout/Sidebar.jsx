@@ -44,11 +44,11 @@ const NavItem = ({ href, label, activeCustomerId, pathname, subLabel, isSmallScr
         <li
             className={`py-2 rounded-lg w-full group relative ` +
                 (isSmallScreen ? 'px-2' : 'px-6') +
-                (isActive ? " bg-[var(--color-primary-searchmind-lighter-opacity)]" : "")
+                (isActive ? " bg-[var(--color-primary-searchmind-lighter)]" : "")
             }
         >
             <Link href={href} className="w-full">
-                <span className={`flex items-center justify-between text-[0.8rem] font-semibold ${isActive ? "text-[var(--color-primary-searchmind)]" : "text-slate-600"}`}>
+                <span className={`flex items-center justify-between text-[0.85rem] font-medium ${isActive ? "text-white" : "text-slate-600"}`}>
                     {isSmallScreen ? (
                         <>
                             {icon}
@@ -94,7 +94,7 @@ const Sidebar = ({ showLinks = true }) => {
         <aside className={`flex flex-col xl:mt-0 top-0 left-0 bg-white text-gray-900 h-full transition-all duration-300 ease-in-out z-50 border-r border-gray-200 ${
             isSmallScreen ? 'w-[50px] px-2' : 'w-[300px] px-8'
         }`}>
-            <div className={`py-8 flex justify-start ${isSmallScreen ? 'mb-2' : 'mb-5'}`}>
+            <div className={`py-8 flex justify-start ${isSmallScreen ? 'mb-0' : 'mb-0'}`}>
                 <Link href="/" className="flex flex-col gap-0">
                     <Image
                         src="/images/icons/apexlogo-new1.png"
@@ -112,7 +112,7 @@ const Sidebar = ({ showLinks = true }) => {
                 <>
                     {!isSmallScreen && (
                         <div className="">
-                            <p className="text-gray-400 mb-6 uppercase text-xs">Menu</p>
+                            <p className="text-gray-400 mb-4 uppercase text-xs">Menu</p>
                         </div>
                     )}
 
@@ -122,11 +122,11 @@ const Sidebar = ({ showLinks = true }) => {
                                 {/* Dashboard */}
                                 <li>
                                     <button
-                                        className={`flex items-center justify-between w-full text-left text-gray-600 hover:text-gray-800 group ${isSmallScreen ? "hidden" : ""}` }
+                                        className={`mb-3 flex items-center justify-between w-full text-left text-gray-600 hover:text-gray-800 group ${isSmallScreen ? "hidden" : ""}` }
                                         onClick={() => setDashboardOpen(!dashboardOpen)}
                                         title={isSmallScreen ? "Dashboard" : ""}
                                     >
-                                        <span className="flex items-center text-slate-800 font-bold rounded-lg w-full">
+                                        <span className="flex items-center text-slate-800 font-medium rounded-lg w-full">
                                             <FiBarChart className={isSmallScreen ? "" : "mr-2"} /> 
                                             {!isSmallScreen && "Dashboard"}
                                         </span>
@@ -189,11 +189,11 @@ const Sidebar = ({ showLinks = true }) => {
                                 {/* Service Dashboard */}
                                 <li>
                                     <button
-                                        className={`flex items-center justify-between w-full text-left text-gray-600 hover:text-gray-800 group ${isSmallScreen ? "hidden" : ""}` }
+                                        className={`mb-3 flex items-center justify-between w-full text-left text-gray-600 hover:text-gray-800 group ${isSmallScreen ? "hidden" : ""}` }
                                         onClick={() => setServiceOpen(!serviceOpen)}
                                         title={isSmallScreen ? "Service Dashboard" : ""}
                                     >
-                                        <span className="flex items-center text-slate-800 font-bold rounded-lg">
+                                        <span className="flex items-center text-slate-800 font-medium rounded-lg">
                                             <FiTool className={isSmallScreen ? "" : "mr-2"} />
                                             {!isSmallScreen && "Service Dashboard"}
                                         </span>
@@ -234,11 +234,11 @@ const Sidebar = ({ showLinks = true }) => {
                                 {/* Misc */}
                                 <li>
                                     <button
-                                        className={`flex items-center justify-between w-full text-left text-gray-600 hover:text-gray-800 group ${isSmallScreen ? "hidden" : ""}` }
+                                        className={`mb-3 flex items-center justify-between w-full text-left text-gray-600 hover:text-gray-800 group ${isSmallScreen ? "hidden" : ""}` }
                                         onClick={() => setServiceOpen(!serviceOpen)}
                                         title={isSmallScreen ? "Misc" : ""}
                                     >
-                                        <span className="flex items-center text-slate-800 font-bold rounded-lg">
+                                        <span className="flex items-center text-slate-800 font-medium rounded-lg">
                                             <FiSettings className={isSmallScreen ? "" : "mr-2"} />
                                             {!isSmallScreen && "Misc"}
                                         </span>
