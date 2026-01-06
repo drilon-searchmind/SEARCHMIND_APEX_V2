@@ -12,7 +12,7 @@ import SharePropertyModal from '@/components/dashboard/SharePropertyModal';
 import Link from "next/link";
 import FormButton from "../form/FormButton";
 
-const Topbar = ({ showLinks = true }) => {
+const Topbar = ({ showLinks = true, showLogo = false }) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const user = useUser();
     const [theme, setTheme] = useState(() => {
@@ -140,6 +140,19 @@ const Topbar = ({ showLinks = true }) => {
                         />
                     </div>
                     <div className="relative">
+                        {showLogo && (
+                            <Link href="/dashboard">
+                                <Image
+                                    src="/images/icons/apexlogo-new1.png"
+                                    alt="SearchMind Apex Logo"
+                                    width={50}
+                                    height={50}
+                                    className="object-contain"
+                                />
+                            </Link>
+                        )}
+                    </div>
+                    <div className="relative">
                         <Link href="/home" className="flex items-center space-x-2">
                             <FiHome className="text-gray-400 h-4 w-4" />
                             <span className="text-gray-900">Home</span>
@@ -155,7 +168,7 @@ const Topbar = ({ showLinks = true }) => {
                                 placeholder="Select Customer"
                                 isSearchable={true}
                                 isClearable={false}
-                                className="react-select-container"
+                                className="react-select-container text-sm"
                                 classNamePrefix="react-select"
                                 styles={{
                                     control: (provided, state) => ({
