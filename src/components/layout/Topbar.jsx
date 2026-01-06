@@ -205,7 +205,7 @@ const Topbar = ({ showLinks = true }) => {
                     </div>
                     {showLinks && (
                         <div id="teamMembers">
-                            <TeamMembers />
+                            <TeamMembers customerId={activeCustomerId} />
                         </div>
                     )}
                 </div>
