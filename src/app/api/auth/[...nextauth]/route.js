@@ -36,7 +36,7 @@ export const authOptions = {
     strategy: "jwt",
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user._id;
         token.name = user.name;
@@ -45,6 +45,13 @@ export const authOptions = {
         token.isAdmin = user.isAdmin;
         token.isArchived = user.isArchived;
         token.isExternal = user.isExternal;
+      }
+      // Handle client-side session updates (useSession().update)
+      if (trigger === 'update' && session?.user) {
+        const u = session.user;
+        if (typeof u.name === 'string') token.name = u.name;
+        if (typeof u.email === 'string') token.email = u.email;
+        if (typeof u.image === 'string') token.image = u.image;
       }
       return token;
     },

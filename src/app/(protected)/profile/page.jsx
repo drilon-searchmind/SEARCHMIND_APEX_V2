@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
-import { useUser } from "@/contexts/UserContext";
+import { useUser, useSetUser } from "@/contexts/UserContext";
 import { showToast } from "@/components/ui/ToastProvider";
 import ProfileForm from "./components/ProfileForm";
 import SharedCustomersCard from "./components/SharedCustomersCard";
@@ -10,6 +10,7 @@ import { useSession } from "next-auth/react";
 
 export default function ProfilePage() {
     const sessionUser = useUser();
+    const setUser = useSetUser();
     const { update: updateSession } = useSession();
     const userId = sessionUser?._id || sessionUser?.id || sessionUser?.userId || null;
 
@@ -77,6 +78,15 @@ export default function ProfilePage() {
                             email: data?.email ?? form.email,
                             image: data?.image ?? form.image,
                         },
+                    });
+                } catch { }
+                // Also update local UserContext right away
+                try {
+                    setUser?.({
+                        ...(sessionUser || {}),
+                        name: data?.name ?? form.name,
+                        email: data?.email ?? form.email,
+                        image: data?.image ?? form.image,
                     });
                 } catch { }
             }
