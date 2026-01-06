@@ -9,6 +9,7 @@ import GraphCard from '@/components/dashboard/GraphCard';
 import Spinner from '@/components/ui/Spinner';
 import { FiShoppingCart, FiDollarSign, FiPackage, FiBarChart } from 'react-icons/fi';
 import ProductPerfomance from './components/ProductPerfomance';
+import CustomerPerformance from './components/CustomerPerformance';
 
 const METRIC_OPTIONS = [
     { key: 'total_sales', label: 'Total Sales', icon: FiShoppingCart, isCurrency: true, color: '#1E2B2B' },
@@ -215,6 +216,9 @@ export default function EcommercePage() {
                     <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
                         <div className="lg:col-span-2">
                             <ProductPerfomance />
+                        </div>
+                        <div className="lg:col-span-2">
+                            <CustomerPerformance />
                         </div>
                     </div>
                 </>
