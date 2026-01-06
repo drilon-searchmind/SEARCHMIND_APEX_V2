@@ -17,7 +17,7 @@ export default function ProfileForm({ form, onChange, onSubmit, saving }) {
                 <span className="flex flex-col w-full">
                     <div className="h-16 w-16 rounded-full overflow-hidden border border-gray-200 bg-gray-50">
                         <Image
-                            src={form.image || "/images/logo.png"}
+                            src={form.image || ""}
                             alt="Avatar"
                             width={64}
                             height={64}
