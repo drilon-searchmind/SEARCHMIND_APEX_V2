@@ -94,7 +94,7 @@ export default function ProductPerfomance() {
     };
 
     return (
-        <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="bg-white border border-gray-200 rounded-xl p-6 mt-10">
             <div className="flex items-start justify-between mb-4">
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900">Product Performance</h3>
