@@ -112,10 +112,14 @@ export default function CustomerPerformance() {
                     </div>
 
                     <div className="mt-4 md:mt-0 flex-1">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                                 <div className="flex flex-col items-start gap-2 text-sm font-medium text-gray-400">Total unique customers</div>
                                 <div className="font-semibold text-3xl mt-2">{segmentation.totalCustomers ?? segmentation.total ?? 0}</div>
+                            </div>
+                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                <div className="flex flex-col items-start gap-2 text-sm font-medium text-gray-400">Returning customers</div>
+                                <div className="font-semibold text-3xl mt-2">{segmentation.returningCustomers ?? segmentation.returningCount}</div>
                             </div>
                             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                                 <div className="flex flex-col items-start gap-2 text-sm font-medium text-gray-400">New customers</div>
