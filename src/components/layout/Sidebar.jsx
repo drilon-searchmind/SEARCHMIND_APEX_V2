@@ -167,7 +167,6 @@ const Sidebar = ({ showLinks = true }) => {
                                                 label="Ecommerce"
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
-                                                subLabel={"WIP"}
                                                 isSmallScreen={isSmallScreen}
                                             />
                                             <NavItem

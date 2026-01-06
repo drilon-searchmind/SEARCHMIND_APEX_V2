@@ -8,6 +8,7 @@ import MetricCard from '@/components/dashboard/MetricCard';
 import GraphCard from '@/components/dashboard/GraphCard';
 import Spinner from '@/components/ui/Spinner';
 import { FiShoppingCart, FiDollarSign, FiPackage, FiBarChart } from 'react-icons/fi';
+import ProductPerfomance from './components/ProductPerfomance';
 
 const METRIC_OPTIONS = [
     { key: 'total_sales', label: 'Total Sales', icon: FiShoppingCart, isCurrency: true, color: '#1E2B2B' },
@@ -186,8 +187,6 @@ export default function EcommercePage() {
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                         <div className="lg:col-span-2">
-
-
                             <GraphCard title={`${METRIC_OPTIONS.find(m => m.key === selectedMetric)?.label || selectedMetric} over time`} chartOptions={chartOptions} chartSeries={series} chartType="line" height={420} />
                         </div>
 
@@ -210,6 +209,12 @@ export default function EcommercePage() {
                                     <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(shopifyDaily, null, 2)}</pre>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
+                        <div className="lg:col-span-2">
+                            <ProductPerfomance />
                         </div>
                     </div>
                 </>
