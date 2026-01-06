@@ -139,8 +139,9 @@ const Topbar = ({ showLinks = true, showLogo = false }) => {
                             className="pl-10 pr-4 py-[5px] border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
                         />
                     </div>
-                    <div className="relative">
-                        {showLogo && (
+                    
+                    {showLogo && (
+                        <div className="relative">
                             <Link href="/dashboard">
                                 <Image
                                     src="/images/icons/apexlogo-new1.png"
@@ -150,8 +151,9 @@ const Topbar = ({ showLinks = true, showLogo = false }) => {
                                     className="object-contain"
                                 />
                             </Link>
-                        )}
-                    </div>
+                        </div>
+                    )}
+
                     <div className="relative">
                         <Link href="/home" className="flex items-center space-x-2">
                             <FiHome className="text-gray-400 h-4 w-4" />
