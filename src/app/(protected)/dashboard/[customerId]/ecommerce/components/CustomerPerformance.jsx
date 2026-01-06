@@ -126,30 +126,30 @@ export default function CustomerPerformance() {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                             <div className="text-xs text-gray-500">Total unique customers</div>
-                            <div className="font-semibold text-3xl mt-2">{formatNumber(segmentation.totalCustomers ?? segmentation.total ?? 0)}</div>
+                            <div className="font-semibold text-3xl mt-2 text-black">{formatNumber(segmentation.totalCustomers ?? segmentation.total ?? 0)}</div>
                         </div>
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                             <div className="text-xs text-gray-500">Returning customers</div>
-                            <div className="font-semibold text-3xl mt-2">{formatNumber(segmentation.returningCustomers ?? segmentation.returningCount ?? 0)} <span className="text-sm text-gray-400">({segmentation.returningPct ?? 0}%)</span></div>
+                            <div className="font-semibold text-3xl mt-2 text-black">{formatNumber(segmentation.returningCustomers ?? segmentation.returningCount ?? 0)} <span className="text-sm text-gray-400">({segmentation.returningPct ?? 0}%)</span></div>
                         </div>
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                             <div className="text-xs text-gray-500">New customers</div>
-                            <div className="font-semibold text-3xl mt-2">{formatNumber(segmentation.newCustomers ?? segmentation.newCount ?? 0)} <span className="text-sm text-gray-400">({segmentation.newPct ?? 0}%)</span></div>
+                            <div className="font-semibold text-3xl mt-2 text-black">{formatNumber(segmentation.newCustomers ?? segmentation.newCount ?? 0)} <span className="text-sm text-gray-400">({segmentation.newPct ?? 0}%)</span></div>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                             <div className="text-xs text-gray-500">Orders (period)</div>
-                            <div className="font-semibold text-2xl mt-2">{formatNumber(segmentation.totalOrders || 0)}</div>
+                            <div className="font-semibold text-2xl mt-2 text-black">{formatNumber(segmentation.totalOrders || 0)}</div>
                         </div>
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                             <div className="text-xs text-gray-500">Total Revenue (period)</div>
-                            <div className="font-semibold text-2xl mt-2">{formatCurrency(segmentation.totalRevenue ?? 0)}</div>
+                            <div className="font-semibold text-2xl mt-2 text-black">{formatCurrency(segmentation.totalRevenue ?? 0)}</div>
                         </div>
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                             <div className="text-xs text-gray-500">Estimated LTV</div>
-                            <div className="font-semibold text-2xl mt-2">{segmentation.ltvEstimate ? formatCurrency(segmentation.ltvEstimate) : '—'}</div>
+                            <div className="font-semibold text-2xl mt-2 text-black">{segmentation.ltvEstimate ? formatCurrency(segmentation.ltvEstimate) : '—'}</div>
                         </div>
                     </div>
 
