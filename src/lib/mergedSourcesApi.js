@@ -39,7 +39,14 @@ export async function fetchMergedSources(settings, startDate, endDate) {
             }
             shopifyDaily = rows.map(row => ({
                 period: row.day,
+                gross_sales: (parseFloat(row.gross_sales) || 0) * conversionRate,
+                discounts: (parseFloat(row.discounts) || 0) * conversionRate,
+                returns: (parseFloat(row.returns) || 0) * conversionRate,
                 net_sales: (parseFloat(row.net_sales) || 0) * conversionRate,
+                shipping_charges: (parseFloat(row.shipping_charges) || 0) * conversionRate,
+                duties: (parseFloat(row.duties) || 0) * conversionRate,
+                additional_fees: (parseFloat(row.additional_fees) || 0) * conversionRate,
+                taxes: (parseFloat(row.taxes) || 0) * conversionRate,
                 total_sales: (parseFloat(row.total_sales) || 0) * conversionRate,
                 custom_1: ((parseFloat(row.net_sales) || 0) + (parseFloat(row.returns) || 0) + (parseFloat(row.shipping_charges) || 0)) * conversionRate,
                 orders: parseInt(row.orders) || 0,

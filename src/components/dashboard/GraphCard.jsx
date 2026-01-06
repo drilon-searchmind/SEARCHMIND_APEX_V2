@@ -3,7 +3,7 @@ import dynamic from "next/dynamic";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-export default function GraphCard({ title, chartOptions, chartSeries, chartType = "line", children }) {
+export default function GraphCard({ title, chartOptions, chartSeries, chartType = "line", height = 300, children }) {
     // Toggle state (YTD active by default)
     const [toggle, setToggle] = React.useState("Period");
     return (
@@ -35,7 +35,7 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
                         options={chartOptions}
                         series={chartSeries}
                         type={chartType}
-                        height={300}
+                        height={height}
                         width="100%"
                     />
                 </div>
