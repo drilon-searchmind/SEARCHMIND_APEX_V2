@@ -99,8 +99,8 @@ const Sidebar = ({ showLinks = true }) => {
                     <Image
                         src="/images/icons/apexlogo-new1.png"
                         alt="Apex Icon"
-                        width={isSmallScreen ? 32 : 100}
-                        height={isSmallScreen ? 32 : 100}
+                        width={isSmallScreen ? 32 : 70}
+                        height={isSmallScreen ? 32 : 70}
                         className="mb-0"
                         id="logoApex"
                     />
