@@ -18,9 +18,9 @@ export const metadata = {
 	title: "Searchmind Apex",
 	description: "Searchmind Apex Dashboard Webapp",
 	icons: {
-		icon: "/images/icons/apexminilogo-small.png",
-		shortcut: "/images/icons/apexminilogo-small.png",
-		apple: "/images/icons/apexminilogo-small.png",
+		icon: "/images/icons/apexlogomini-nobg.png",
+		shortcut: "/images/icons/apexlogomini-nobg.png",
+		apple: "/images/icons/apexlogomini-nobg.png",
 	},
 };
 

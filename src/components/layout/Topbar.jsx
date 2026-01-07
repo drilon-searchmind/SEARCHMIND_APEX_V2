@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { FaMoon, FaSun } from "react-icons/fa";
 import { FiChevronDown, FiHome, FiUser, FiSettings, FiBarChart2, FiLogOut, FiSearch, FiUsers } from "react-icons/fi";
@@ -14,6 +14,7 @@ import FormButton from "../form/FormButton";
 
 const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true }) => {
     const [menuOpen, setMenuOpen] = useState(false);
+    const menuRef = useRef(null);
     const user = useUser();
     const [theme, setTheme] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -135,6 +136,18 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
             router.push(`/dashboard/${selectedOption.value}/performance-dashboard`);
         }
     };
+
+    // Close menu on outside click
+    useEffect(() => {
+        function handleDocumentClick(e) {
+            if (!menuOpen) return;
+            if (menuRef.current && !menuRef.current.contains(e.target)) {
+                setMenuOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleDocumentClick);
+        return () => document.removeEventListener('mousedown', handleDocumentClick);
+    }, [menuOpen]);
 
     return (
         <>
@@ -259,7 +272,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                     <button onClick={handleToggleTheme} className="p-2 rounded-full border border-gray-200 bg-white text-gray-700 transition-colors duration-200">
                         {theme === "dark" ? <FaSun /> : <FaMoon />}
                     </button>
-                    <div className="relative">
+                    <div className="relative" ref={menuRef}>
                         <button
                             className="flex items-center space-x-2"
                             onClick={() => setMenuOpen(!menuOpen)}
