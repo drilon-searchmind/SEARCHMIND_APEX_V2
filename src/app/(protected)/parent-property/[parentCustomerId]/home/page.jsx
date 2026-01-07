@@ -30,6 +30,8 @@ export default function ParentPropertyHome() {
     const defaultEnd = `${yyyy}-${mm}-${dd}`;
     const defaultStart = `${yyyy}-${mm}-01`;
     const [dateRange, setDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
+    // Comparison method state
+    const [comparisonMethod, setComparisonMethod] = useState("Last Period");
 
     // Fetch parent customer and its child customers
     useEffect(() => {
@@ -72,14 +74,27 @@ export default function ParentPropertyHome() {
         (async () => {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-                // Calculate previous period
+                // Calculate previous comparison range per method
                 const start = new Date(dateRange.startDate);
                 const end = new Date(dateRange.endDate);
-                const days = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
-                const prevEnd = new Date(start.getTime() - 24 * 60 * 60 * 1000);
-                const prevStart = new Date(prevEnd.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
+                const msDay = 24 * 60 * 60 * 1000;
+                const days = Math.floor((end - start) / msDay) + 1;
+
+                let prevStart, prevEnd;
+                if (comparisonMethod === "Last Year") {
+                    prevStart = new Date(start);
+                    prevStart.setFullYear(prevStart.getFullYear() - 1);
+                    prevEnd = new Date(end);
+                    prevEnd.setFullYear(prevEnd.getFullYear() - 1);
+                } else {
+                    const prevEndMs = start.getTime() - msDay;
+                    const prevStartMs = prevEndMs - (days - 1) * msDay;
+                    prevStart = new Date(prevStartMs);
+                    prevEnd = new Date(prevEndMs);
+                }
                 const prevStartStr = prevStart.toISOString().slice(0, 10);
                 const prevEndStr = prevEnd.toISOString().slice(0, 10);
+
                 // Fetch merged data for all child customers in parallel, with date range
                 const [results, resultsPrev] = await Promise.all([
                     Promise.all(
@@ -145,7 +160,7 @@ export default function ParentPropertyHome() {
                 setLoading(false);
             }
         })();
-    }, [childCustomers, dateRange]);
+    }, [childCustomers, dateRange, comparisonMethod]);
 
     // Metric cards config
     const metricCards = [
@@ -192,6 +207,9 @@ export default function ParentPropertyHome() {
                         onEndDateChange={d => setDateRange(dr => ({ ...dr, endDate: d }))}
                     />
                 }
+                showComparisonMethodToggler={true}
+                comparisonMethod={comparisonMethod}
+                onComparisonMethodChange={setComparisonMethod}
             />
 
             {/* Metric Cards */}
