@@ -62,6 +62,10 @@ export default function CustomerSettingsForm({ form, onChange, saving }) {
                 <FormLabel htmlFor="googleSearchConsoleProperty">Google Search Console Property</FormLabel>
                 <FormInputText id="googleSearchConsoleProperty" name="googleSearchConsoleProperty" value={form.googleSearchConsoleProperty} onChange={onChange} />
             </div>
+            <div>
+                <FormLabel htmlFor="ga4PropertyId">GA4 Property ID</FormLabel>
+                <FormInputText id="ga4PropertyId" name="ga4PropertyId" value={form.ga4PropertyId} onChange={onChange} />
+            </div>
         </form>
     );
 }

@@ -20,14 +20,11 @@ export default function CustomerTable() {
 
     // Dynamic access control: if user is external, only show shared customers; else show all
     let accessibleCustomers = customers;
-    console.log({user})
-    console.log({customers})
     if (user?.isExternal) {
         const sharedCustomerIds = (user.sharedCustomers || []).map(
             id => typeof id === 'object' && id.$oid ? id.$oid : String(id)
         );
         accessibleCustomers = customers.filter(c => sharedCustomerIds.includes(String(c._id)));
-        console.log("Accessible Customers for external user:", accessibleCustomers);
     }
 
     // Group customers by parentCustomer

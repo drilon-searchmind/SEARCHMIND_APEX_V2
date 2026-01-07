@@ -80,6 +80,10 @@ const CustomerSchema = new mongoose.Schema({
         googleSearchConsoleProperty: {
             type: String,
             default: ""
+        },
+        ga4PropertyId: {
+            type: String,
+            default: ""
         }
     },
     CustomerStaticExpenses: {

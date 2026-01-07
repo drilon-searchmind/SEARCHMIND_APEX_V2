@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
+import { useParams } from "next/navigation";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import Spinner from "@/components/ui/Spinner";
@@ -12,16 +13,14 @@ import ActiveUsersCard from "./components/ActiveUsersCard";
 function defaultRange() {
     const today = new Date();
     const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const dd = String(today.getDate()).padStart(2, "0");
-    const end = `${yyyy}-${mm}-${dd}`;
-    const startDateObj = new Date(today);
-    startDateObj.setDate(startDateObj.getDate() - 29);
-    const yyyyS = startDateObj.getFullYear();
-    const mmS = String(startDateObj.getMonth() + 1).padStart(2, "0");
-    const ddS = String(startDateObj.getDate()).padStart(2, "0");
-    const start = `${yyyyS}-${mmS}-${ddS}`;
-    return { startDate: start, endDate: end };
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const defaultEnd = `${yyyy}-${mm}-${dd}`;
+    const defaultStart = `${yyyy}-${mm}-01`;
+    return {
+        startDate: defaultStart,
+        endDate: defaultEnd,
+    };
 }
 
 function yyyymmddToIso(d) {
@@ -50,17 +49,44 @@ function mapReportToRows(json) {
 }
 
 export default function AnalyticsPage() {
+    const params = useParams();
+    const customerId = params.customerId;
+
     const [range, setRange] = useState(defaultRange());
     const [selectedKey, setSelectedKey] = useState("totalUsers");
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
+    const [ga4PropertyId, setGa4PropertyId] = useState("");
     const [timeseries, setTimeseries] = useState([]);
     const [channels, setChannels] = useState([]);
     const [pages, setPages] = useState([]);
 
+    useEffect(() => {
+        async function fetchCustomer() {
+            if (!customerId) return;
+            try {
+                const res = await fetch(`/api/customers/${customerId}`);
+                if (!res.ok) throw new Error('Failed to fetch customer');
+                const data = await res.json();
+                setGa4PropertyId(data?.CustomerSettings?.ga4PropertyId || "");
+            } catch {
+                setGa4PropertyId("");
+            }
+        }
+        fetchCustomer();
+    }, [customerId]);
+
     const fetchAll = useCallback(async () => {
+        if (!ga4PropertyId) {
+            // No property configured; clear data and skip fetch
+            setTimeseries([]);
+            setChannels([]);
+            setPages([]);
+            setError("");
+            return;
+        }
         setLoading(true);
         setError("");
         try {
@@ -70,17 +96,17 @@ export default function AnalyticsPage() {
                     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
                     .join("&");
 
-            // Timeseries: date x [totalUsers, screenPageViews, bounceRate, averageSessionDuration]
+            // Timeseries
             const tRes = await fetch(`/api/ga4?${qs({
                 startDate: range.startDate,
                 endDate: range.endDate,
                 metrics: ["totalUsers", "screenPageViews", "bounceRate", "averageSessionDuration"].join(","),
                 dimensions: "date",
-                propertyId: "460732795",
+                propertyId: ga4PropertyId,
             })}`);
             const tJson = await tRes.json();
             if (!tRes.ok) throw new Error(tJson?.error || "GA4 timeseries failed");
-            const tRows = mapReportToRows(tJson).map((r) => ({
+            const tRows = (tJson?.rows?.length ? mapReportToRows(tJson) : []).map((r) => ({
                 date: yyyymmddToIso(r.date),
                 totalUsers: Number(r.totalUsers) || 0,
                 screenPageViews: Number(r.screenPageViews) || 0,
@@ -88,14 +114,14 @@ export default function AnalyticsPage() {
                 averageSessionDuration: Number(r.averageSessionDuration) || 0,
             }));
 
-            // Top channels: sessionDefaultChannelGroup x sessions / totalUsers
+            // Top channels
             const cRes = await fetch(`/api/ga4?${qs({
                 startDate: range.startDate,
                 endDate: range.endDate,
                 metrics: ["sessions", "totalUsers"].join(","),
                 dimensions: "sessionDefaultChannelGroup",
                 limit: 10,
-                propertyId: "460732795",
+                propertyId: ga4PropertyId,
             })}`);
             const cJson = await cRes.json();
             if (!cRes.ok) throw new Error(cJson?.error || "GA4 channels failed");
@@ -109,14 +135,14 @@ export default function AnalyticsPage() {
                 .sort((a, b) => b.visitors - a.visitors)
                 .slice(0, 5);
 
-            // Top pages: pageTitle x screenPageViews
+            // Top pages
             const pRes = await fetch(`/api/ga4?${qs({
                 startDate: range.startDate,
                 endDate: range.endDate,
                 metrics: "screenPageViews",
                 dimensions: "pageTitle",
                 limit: 10,
-                propertyId: "460732795",
+                propertyId: ga4PropertyId,
             })}`);
             const pJson = await pRes.json();
             if (!pRes.ok) throw new Error(pJson?.error || "GA4 pages failed");
@@ -136,7 +162,7 @@ export default function AnalyticsPage() {
         } finally {
             setLoading(false);
         }
-    }, [range.startDate, range.endDate]);
+    }, [range.startDate, range.endDate, ga4PropertyId]);
 
     useEffect(() => {
         fetchAll();
@@ -158,7 +184,7 @@ export default function AnalyticsPage() {
         <div className="w-full">
             <DashboardHeading
                 title="Analytics"
-                label={`GA4 Property 460732795`}
+                label={ga4PropertyId || 'No property set'}
                 right={
                     <DateRangePicker
                         startDate={range.startDate}
@@ -175,15 +201,10 @@ export default function AnalyticsPage() {
                 <div className="text-red-500 text-center py-8">{error}</div>
             ) : (
                 <>
-                    {/* 2. Metric cards */}
                     <MetricCards totals={totals} selectedKey={selectedKey} onSelect={setSelectedKey} />
-
-                    {/* 3. Timeseries chart */}
                     <div className="mb-8">
                         <TimeseriesChart rows={timeseries} selectedKey={selectedKey} />
                     </div>
-
-                    {/* 4. Tables and active users */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <TableCard
                             title="Top Channels"
@@ -197,6 +218,9 @@ export default function AnalyticsPage() {
                         />
                         <ActiveUsersCard rows={timeseries} />
                     </div>
+                    {!ga4PropertyId && (
+                        <div className="mt-6 text-center text-gray-500 text-sm">Set GA4 Property ID in Config to view analytics.</div>
+                    )}
                 </>
             )}
         </div>

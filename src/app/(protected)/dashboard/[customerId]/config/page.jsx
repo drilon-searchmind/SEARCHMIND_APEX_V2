@@ -29,6 +29,7 @@ export default function ConfigPage() {
         facebookAdAccountId: "",
         googleAdsCustomerId: "",
         googleSearchConsoleProperty: "",
+        ga4PropertyId: "",
         CustomerStaticExpenses: {
             cogsPercentage: 0,
             shippingCostPerOrder: 0,
@@ -114,6 +115,7 @@ export default function ConfigPage() {
                 facebookAdAccountId,
                 googleAdsCustomerId,
                 googleSearchConsoleProperty,
+                ga4PropertyId,
                 CustomerStaticExpenses,
             } = form;
             const res = await fetch(`/api/customers/${customerId}`,
@@ -138,6 +140,7 @@ export default function ConfigPage() {
                             facebookAdAccountId,
                             googleAdsCustomerId,
                             googleSearchConsoleProperty,
+                            ga4PropertyId,
                         },
                         CustomerStaticExpenses,
                         CustomerPropertyObjectives: objectives,
