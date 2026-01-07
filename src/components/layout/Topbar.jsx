@@ -279,10 +279,12 @@ const Topbar = ({ showLinks = true, showLogo = false }) => {
                                         <FiUser />
                                         <a href="/profile" className="text-sm text-slate-800 font-semibold">User Profile</a>
                                     </li>
+                                    {user?.isAdmin && (
                                     <li className="flex items-center gap-2">
                                         <FiSettings />
-                                        <a href="/profile" className="text-sm text-slate-800 font-semibold">Admin</a>
+                                        <a href="/admin" className="text-sm text-slate-800 font-semibold">Admin</a>
                                     </li>
+                                    )}
                                     <li className="flex items-center gap-2">
                                         <FiBarChart2 />
                                         <a href="/profile" className="text-sm text-slate-800 font-semibold">Campaigns</a>
