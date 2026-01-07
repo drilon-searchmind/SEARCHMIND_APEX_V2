@@ -300,7 +300,7 @@ const Topbar = ({ showLinks = true, showLogo = false }) => {
             </div>
             {/* SharePropertyModal (only for non-external users) */}
             {showShareModal && !user?.isExternal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+                <div className="fixed inset-0 z-50 flex items-center justify-center glassmorphism2">
                     <div className="z-50">
                         <SharePropertyModal
                             customer={accessibleCustomers.find(c => c._id === activeCustomerId)}
