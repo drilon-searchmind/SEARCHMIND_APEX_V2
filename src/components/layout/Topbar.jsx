@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { FaMoon, FaSun } from "react-icons/fa";
 import { FiChevronDown, FiHome, FiUser, FiSettings, FiBarChart2, FiLogOut, FiSearch, FiUsers } from "react-icons/fi";
@@ -25,6 +25,15 @@ const Topbar = ({ showLinks = true, showLogo = false }) => {
     const params = useParams();
     const router = useRouter();
     const activeCustomerId = params?.customerId;
+    const [activeCustomer, setActiveCustomer] = useState([]);
+
+    useEffect(() => {
+        const currentActiveCustomer = customers.find(c => c._id === activeCustomerId);
+
+        console.log('Active Customer:', currentActiveCustomer);
+        console.log({currentActiveCustomer})
+        setActiveCustomer(currentActiveCustomer || null)
+    }, [activeCustomerId, customers])
 
     // Dynamic access control: if user is external, only show shared customers; else show all
     let accessibleCustomers = customers;
@@ -139,7 +148,7 @@ const Topbar = ({ showLinks = true, showLogo = false }) => {
                             className="pl-10 pr-4 py-[5px] border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
                         />
                     </div>
-                    
+
                     {showLogo && (
                         <div className="relative">
                             <Link href="/dashboard">
@@ -226,6 +235,13 @@ const Topbar = ({ showLinks = true, showLogo = false }) => {
                 </div>
                 <div className="flex items-center space-x-4">
                     <div>
+                        <Link href={`/parent-property/${activeCustomer?.parentCustomer || ""}/home`}>
+                            <FormButton buttonSize="small" type="button" borderType="">
+                                View Group Property
+                            </FormButton>
+                        </Link>
+                    </div>
+                    <div>
                         {!user?.isExternal && (
                             <span
                                 onClick={() => setShowShareModal(true)}
@@ -280,10 +296,10 @@ const Topbar = ({ showLinks = true, showLogo = false }) => {
                                         <a href="/profile" className="text-sm text-slate-800 font-semibold">User Profile</a>
                                     </li>
                                     {user?.isAdmin && (
-                                    <li className="flex items-center gap-2">
-                                        <FiSettings />
-                                        <a href="/admin" className="text-sm text-slate-800 font-semibold">Admin</a>
-                                    </li>
+                                        <li className="flex items-center gap-2">
+                                            <FiSettings />
+                                            <a href="/admin" className="text-sm text-slate-800 font-semibold">Admin</a>
+                                        </li>
                                     )}
                                     <li className="flex items-center gap-2">
                                         <FiBarChart2 />
