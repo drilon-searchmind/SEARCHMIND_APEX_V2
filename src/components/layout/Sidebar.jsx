@@ -174,7 +174,6 @@ const Sidebar = ({ showLinks = true }) => {
                                                 label="Analytics"
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
-                                                subLabel={"WIP"}
                                                 isSmallScreen={isSmallScreen}
                                             />
                                         </ul>

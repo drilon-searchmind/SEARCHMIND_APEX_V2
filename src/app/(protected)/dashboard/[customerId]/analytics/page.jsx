@@ -9,6 +9,8 @@ import MetricCards from "./components/MetricCards";
 import TimeseriesChart from "./components/TimeseriesChart";
 import TableCard from "./components/TableCard";
 import ActiveUsersCard from "./components/ActiveUsersCard";
+import AcquisitionChannelsChart from "./components/AcquisitionChannelsChart";
+import SessionsByDeviceChart from "./components/SessionsByDeviceChart";
 
 function defaultRange() {
     const today = new Date();
@@ -27,6 +29,14 @@ function yyyymmddToIso(d) {
     if (!d) return d;
     if (d.includes("-")) return d;
     return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+}
+
+function yyyymmToLabel(yyyymm) {
+    if (!yyyymm || yyyymm.length !== 6) return yyyymm;
+    const y = Number(yyyymm.slice(0, 4));
+    const m = Number(yyyymm.slice(4, 6));
+    const d = new Date(Date.UTC(y, m - 1, 1));
+    return d.toLocaleString(undefined, { month: 'short' });
 }
 
 function mapReportToRows(json) {
@@ -62,6 +72,9 @@ export default function AnalyticsPage() {
     const [timeseries, setTimeseries] = useState([]);
     const [channels, setChannels] = useState([]);
     const [pages, setPages] = useState([]);
+    const [acqCategories, setAcqCategories] = useState([]);
+    const [acqSeries, setAcqSeries] = useState([]);
+    const [deviceData, setDeviceData] = useState([]);
 
     useEffect(() => {
         async function fetchCustomer() {
@@ -85,6 +98,9 @@ export default function AnalyticsPage() {
             setChannels([]);
             setPages([]);
             setError("");
+            setAcqCategories([]);
+            setAcqSeries([]);
+            setDeviceData([]);
             return;
         }
         setLoading(true);
@@ -154,11 +170,76 @@ export default function AnalyticsPage() {
             setTimeseries(tRows);
             setChannels(cRows);
             setPages(pRows);
+
+            // Acquisition channels by month (stacked)
+            const acqRes = await fetch(`/api/ga4?${qs({
+                startDate: range.startDate,
+                endDate: range.endDate,
+                metrics: "sessions",
+                dimensions: "yearMonth,sessionDefaultChannelGroup",
+                limit: 1000,
+                propertyId: ga4PropertyId,
+            })}`);
+            const acqJson = await acqRes.json();
+            if (!acqRes.ok) throw new Error(acqJson?.error || "GA4 acquisition channels failed");
+            const acqRows = mapReportToRows(acqJson);
+            // Build month order
+            const months = Array.from(new Set(acqRows.map(r => r.yearMonth))).sort();
+            // Aggregate per channel per month
+            const normalizeChannel = (n) => {
+                if (!n) return "(not set)";
+                if (n.toLowerCase().includes("social")) return "Social";
+                return n;
+            };
+            const channelsSet = new Set(["Direct", "Referral", "Organic Search", "Social"]);
+            // Ensure known channels exist
+            const totalsByChannel = {};
+            const mapByChannelMonth = {};
+            months.forEach(m => { mapByChannelMonth[m] = {}; });
+            acqRows.forEach(r => {
+                const ch = normalizeChannel(r.sessionDefaultChannelGroup);
+                const m = r.yearMonth;
+                const v = Number(r.sessions) || 0;
+                mapByChannelMonth[m][ch] = (mapByChannelMonth[m][ch] || 0) + v;
+                totalsByChannel[ch] = (totalsByChannel[ch] || 0) + v;
+            });
+            const categories = months.map(yyyymmToLabel);
+            const seriesOrder = ["Direct", "Referral", "Organic Search", "Social"]; // fixed order like mock
+            const acqSer = seriesOrder.map(name => ({
+                name,
+                data: months.map(m => mapByChannelMonth[m][name] || 0),
+            }));
+            setAcqCategories(categories);
+            setAcqSeries(acqSer);
+
+            // Sessions by device (donut)
+            const devRes = await fetch(`/api/ga4?${qs({
+                startDate: range.startDate,
+                endDate: range.endDate,
+                metrics: "sessions",
+                dimensions: "deviceCategory",
+                limit: 100,
+                propertyId: ga4PropertyId,
+            })}`);
+            const devJson = await devRes.json();
+            if (!devRes.ok) throw new Error(devJson?.error || "GA4 devices failed");
+            const devRows = mapReportToRows(devJson);
+            const deviceOrder = ["desktop", "mobile", "tablet"];
+            const mapDev = Object.fromEntries(devRows.map(r => [String(r.deviceCategory).toLowerCase(), Number(r.sessions) || 0]));
+            const deviceDataArr = [
+                { label: "Desktop", value: mapDev.desktop || 0 },
+                { label: "Mobile", value: mapDev.mobile || 0 },
+                { label: "Tablet", value: mapDev.tablet || 0 },
+            ];
+            setDeviceData(deviceDataArr);
         } catch (e) {
             setError(e?.message || "Unexpected error");
             setTimeseries([]);
             setChannels([]);
             setPages([]);
+            setAcqCategories([]);
+            setAcqSeries([]);
+            setDeviceData([]);
         } finally {
             setLoading(false);
         }
@@ -205,6 +286,13 @@ export default function AnalyticsPage() {
                     <div className="mb-8">
                         <TimeseriesChart rows={timeseries} selectedKey={selectedKey} />
                     </div>
+
+                    {/* Acquisition & Devices */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <AcquisitionChannelsChart categories={acqCategories} series={acqSeries} />
+                        <SessionsByDeviceChart data={deviceData} />
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <TableCard
                             title="Top Channels"
