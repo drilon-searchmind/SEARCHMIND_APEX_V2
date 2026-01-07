@@ -6,7 +6,12 @@ import FormInputText from "@/components/form/FormInputText";
 import FormButton from "@/components/form/FormButton";
 
 export default function GeneralAppSettings() {
-    const [form, setForm] = React.useState({ appName: "Searchmind Apex", theme: "light", timezone: "Europe/Copenhagen" });
+    const [form, setForm] = React.useState({ 
+        appName: "Searchmind Apex", 
+        theme: "light", 
+        timezone: "Europe/Copenhagen",
+        gtmCode: "GTM-123123"
+    });
     const [saving, setSaving] = React.useState(false);
 
     const onChange = (e) => {
@@ -32,6 +37,10 @@ export default function GeneralAppSettings() {
                     <option value="light">Light</option>
                     <option value="dark">Dark</option>
                 </select>
+            </div>
+            <div>
+                <FormLabel htmlFor="gtmCode" required>GTM Code</FormLabel>
+                <FormInputText id="gtmCode" name="gtmCode" value={form.gtmCode} onChange={onChange} required={false} />
             </div>
             <div className="w-full md:w-40">
                 <FormButton>{saving ? "Saving..." : "Save"}</FormButton>

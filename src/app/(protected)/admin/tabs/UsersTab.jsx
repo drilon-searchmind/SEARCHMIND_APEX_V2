@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import FormButton from "@/components/form/FormButton";
 
 export default function UsersTab() {
     const [search, setSearch] = React.useState("");
@@ -38,6 +39,7 @@ export default function UsersTab() {
                             <th className="px-4 py-2 text-left">Email</th>
                             <th className="px-4 py-2 text-left">Role</th>
                             <th className="px-4 py-2 text-left">External</th>
+                            <th className="px-4 py-2 text-left">Edit</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -49,8 +51,27 @@ export default function UsersTab() {
                             <tr key={u._id} className="border-b last:border-b-0">
                                 <td className="px-4 py-2">{u.name}</td>
                                 <td className="px-4 py-2">{u.email}</td>
-                                <td className="px-4 py-2">{u.isAdmin ? 'Admin' : 'User'}</td>
-                                <td className="px-4 py-2">{u.isExternal ? 'Yes' : 'No'}</td>
+                                <td className="px-4 py-2">
+                                    <span
+                                        className={`
+                                            inline-block text-xs px-2 py-1 rounded-full mt-1
+                                            ${u.isAdmin ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"}
+                                        `}>
+                                        {u.isAdmin ? 'Admin' : 'User'}
+                                    </span>
+                                </td>
+                                <td className="px-4 py-2">
+                                    <span
+                                        className={`
+                                            inline-block text-xs px-2 py-1 rounded-full mt-1
+                                            ${u.isExternal ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}
+                                        `}>
+                                        {u.isExternal ? 'Yes' : 'No'}
+                                    </span>
+                                </td>
+                                <td className="px-4 py-2">
+                                    <FormButton borderType="outline" buttonSize="small">Edit</FormButton>
+                                </td>
                             </tr>
                         ))}
                     </tbody>
