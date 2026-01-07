@@ -1,6 +1,4 @@
-
 "use client"
-
 
 import React from "react";
 import { useParams } from "next/navigation";
@@ -41,6 +39,9 @@ export default function PerformanceDashboard() {
         setDateRange(dr => ({ ...dr, endDate: newEnd }));
     };
 
+    // Comparison method state
+    const [comparisonMethod, setComparisonMethod] = useState("Last Period");
+
     // Metrics state
     const [metrics, setMetrics] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -57,13 +58,22 @@ export default function PerformanceDashboard() {
         (async () => {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-                // Calculate previous period
+                // Calculate previous period based on comparisonMethod
                 const start = dayjs(dateRange.startDate);
                 const end = dayjs(dateRange.endDate);
                 const days = end.diff(start, 'day') + 1;
-                const prevEnd = start.subtract(1, 'day');
-                const prevStart = prevEnd.subtract(days - 1, 'day');
-                // Fetch current and previous period in parallel
+
+                let prevStart, prevEnd;
+                if (comparisonMethod === "Last Year") {
+                    // Same period last year
+                    prevStart = start.subtract(1, 'year');
+                    prevEnd = end.subtract(1, 'year');
+                } else {
+                    // Last Period (previous contiguous period of same length)
+                    prevEnd = start.subtract(1, 'day');
+                    prevStart = prevEnd.subtract(days - 1, 'day');
+                }
+
                 const [res, resPrev] = await Promise.all([
                     fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`),
                     fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${prevStart.format('YYYY-MM-DD')}&endDate=${prevEnd.format('YYYY-MM-DD')}`)
@@ -181,7 +191,7 @@ export default function PerformanceDashboard() {
                 setLoading(false);
             }
         })();
-    }, [customer, dateRange]);
+    }, [customer, dateRange, comparisonMethod]);
 
     // Chart color palette from CSS variables
     const [chartColors, setChartColors] = useState({});
@@ -287,6 +297,9 @@ export default function PerformanceDashboard() {
                         onEndDateChange={handleEndDateChange}
                     />
                 }
+                showComparisonMethodToggler={true}
+                comparisonMethod={comparisonMethod}
+                onComparisonMethodChange={setComparisonMethod}
             />
 
             {/* Metrics Cards Section */}
