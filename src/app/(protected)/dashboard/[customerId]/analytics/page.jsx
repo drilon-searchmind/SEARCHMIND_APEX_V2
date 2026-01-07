@@ -1,38 +1,204 @@
 "use client";
 
-import React from 'react'
+import React, { useEffect, useMemo, useState, useCallback } from "react";
+import DashboardHeading from "@/components/dashboard/DashboardHeading";
+import DateRangePicker from "@/components/dashboard/DateRangePicker";
+import Spinner from "@/components/ui/Spinner";
+import MetricCards from "./components/MetricCards";
+import TimeseriesChart from "./components/TimeseriesChart";
+import TableCard from "./components/TableCard";
+import ActiveUsersCard from "./components/ActiveUsersCard";
+
+function defaultRange() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    const end = `${yyyy}-${mm}-${dd}`;
+    const startDateObj = new Date(today);
+    startDateObj.setDate(startDateObj.getDate() - 29);
+    const yyyyS = startDateObj.getFullYear();
+    const mmS = String(startDateObj.getMonth() + 1).padStart(2, "0");
+    const ddS = String(startDateObj.getDate()).padStart(2, "0");
+    const start = `${yyyyS}-${mmS}-${ddS}`;
+    return { startDate: start, endDate: end };
+}
+
+function yyyymmddToIso(d) {
+    if (!d) return d;
+    if (d.includes("-")) return d;
+    return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+}
+
+function mapReportToRows(json) {
+    if (!json?.rows?.length) return [];
+    const dimHeaders = json.dimensionHeaders?.map((h) => h.name) || [];
+    const metHeaders = json.metricHeaders?.map((h) => h.name) || [];
+    return json.rows.map((row) => {
+        const dimObj = {};
+        row.dimensionValues?.forEach((v, i) => {
+            dimObj[dimHeaders[i]] = v.value;
+        });
+        const metObj = {};
+        row.metricValues?.forEach((v, i) => {
+            const key = metHeaders[i];
+            const num = Number(v.value);
+            metObj[key] = isNaN(num) ? v.value : num;
+        });
+        return { ...dimObj, ...metObj };
+    });
+}
 
 export default function AnalyticsPage() {
-    const [data, setData] = React.useState(null);
-    const [loading, setLoading] = React.useState(false);
-    const [error, setError] = React.useState("");
+    const [range, setRange] = useState(defaultRange());
+    const [selectedKey, setSelectedKey] = useState("totalUsers");
 
-    const fetchGa4 = React.useCallback(async () => {
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+
+    const [timeseries, setTimeseries] = useState([]);
+    const [channels, setChannels] = useState([]);
+    const [pages, setPages] = useState([]);
+
+    const fetchAll = useCallback(async () => {
         setLoading(true);
         setError("");
         try {
-            // Using default propertyId (460732795) configured in the API route
-            const res = await fetch('/api/ga4');
-            const json = await res.json();
-            if (!res.ok) throw new Error(json?.error || 'Failed to fetch GA4 data');
-            setData(json);
+            const qs = (params) =>
+                Object.entries(params)
+                    .filter(([, v]) => v != null && v !== "")
+                    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+                    .join("&");
+
+            // Timeseries: date x [totalUsers, screenPageViews, bounceRate, averageSessionDuration]
+            const tRes = await fetch(`/api/ga4?${qs({
+                startDate: range.startDate,
+                endDate: range.endDate,
+                metrics: ["totalUsers", "screenPageViews", "bounceRate", "averageSessionDuration"].join(","),
+                dimensions: "date",
+                propertyId: "460732795",
+            })}`);
+            const tJson = await tRes.json();
+            if (!tRes.ok) throw new Error(tJson?.error || "GA4 timeseries failed");
+            const tRows = mapReportToRows(tJson).map((r) => ({
+                date: yyyymmddToIso(r.date),
+                totalUsers: Number(r.totalUsers) || 0,
+                screenPageViews: Number(r.screenPageViews) || 0,
+                bounceRate: Number(r.bounceRate) || 0,
+                averageSessionDuration: Number(r.averageSessionDuration) || 0,
+            }));
+
+            // Top channels: sessionDefaultChannelGroup x sessions / totalUsers
+            const cRes = await fetch(`/api/ga4?${qs({
+                startDate: range.startDate,
+                endDate: range.endDate,
+                metrics: ["sessions", "totalUsers"].join(","),
+                dimensions: "sessionDefaultChannelGroup",
+                limit: 10,
+                propertyId: "460732795",
+            })}`);
+            const cJson = await cRes.json();
+            if (!cRes.ok) throw new Error(cJson?.error || "GA4 channels failed");
+            const cRowsRaw = mapReportToRows(cJson);
+            const cRows = cRowsRaw
+                .map((r) => ({
+                    source: r.sessionDefaultChannelGroup || "(not set)",
+                    visitors: Number(r.totalUsers) || 0,
+                    sessions: Number(r.sessions) || 0,
+                }))
+                .sort((a, b) => b.visitors - a.visitors)
+                .slice(0, 5);
+
+            // Top pages: pageTitle x screenPageViews
+            const pRes = await fetch(`/api/ga4?${qs({
+                startDate: range.startDate,
+                endDate: range.endDate,
+                metrics: "screenPageViews",
+                dimensions: "pageTitle",
+                limit: 10,
+                propertyId: "460732795",
+            })}`);
+            const pJson = await pRes.json();
+            if (!pRes.ok) throw new Error(pJson?.error || "GA4 pages failed");
+            const pRows = mapReportToRows(pJson)
+                .map((r) => ({ source: r.pageTitle || "(not set)", pageviews: Number(r.screenPageViews) || 0 }))
+                .sort((a, b) => b.pageviews - a.pageviews)
+                .slice(0, 5);
+
+            setTimeseries(tRows);
+            setChannels(cRows);
+            setPages(pRows);
         } catch (e) {
-            setError(e?.message || 'Unexpected error');
-            setData(null);
+            setError(e?.message || "Unexpected error");
+            setTimeseries([]);
+            setChannels([]);
+            setPages([]);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [range.startDate, range.endDate]);
 
-    React.useEffect(() => { fetchGa4(); }, [fetchGa4]);
+    useEffect(() => {
+        fetchAll();
+    }, [fetchAll]);
+
+    const totals = useMemo(() => {
+        if (!timeseries.length) return {};
+        const sum = (key) => timeseries.reduce((a, b) => a + (Number(b[key]) || 0), 0);
+        const avg = (key) => (timeseries.length ? sum(key) / timeseries.length : 0);
+        return {
+            totalUsers: sum("totalUsers"),
+            screenPageViews: sum("screenPageViews"),
+            bounceRate: avg("bounceRate"),
+            averageSessionDuration: avg("averageSessionDuration"),
+        };
+    }, [timeseries]);
 
     return (
-        <div>
-            <div style={{ fontSize: 14, color: 'black', background: '#eee', padding: 16 }}>
-                <pre>
-                    {loading ? 'Loading GA4 data...' : error ? `Error: ${error}` : JSON.stringify(data, null, 2)}
-                </pre>
-            </div>
+        <div className="w-full">
+            <DashboardHeading
+                title="Analytics"
+                label={`GA4 Property 460732795`}
+                right={
+                    <DateRangePicker
+                        startDate={range.startDate}
+                        endDate={range.endDate}
+                        onStartDateChange={(d) => setRange((r) => ({ ...r, startDate: d }))}
+                        onEndDateChange={(d) => setRange((r) => ({ ...r, endDate: d }))}
+                    />
+                }
+            />
+
+            {loading ? (
+                <div className="flex justify-center items-center h-64"><Spinner size={48} /></div>
+            ) : error ? (
+                <div className="text-red-500 text-center py-8">{error}</div>
+            ) : (
+                <>
+                    {/* 2. Metric cards */}
+                    <MetricCards totals={totals} selectedKey={selectedKey} onSelect={setSelectedKey} />
+
+                    {/* 3. Timeseries chart */}
+                    <div className="mb-8">
+                        <TimeseriesChart rows={timeseries} selectedKey={selectedKey} />
+                    </div>
+
+                    {/* 4. Tables and active users */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <TableCard
+                            title="Top Channels"
+                            columns={[{ key: "source", label: "Source" }, { key: "visitors", label: "Visitors", align: "right" }]}
+                            rows={channels.map((r) => ({ source: r.source, visitors: r.visitors.toLocaleString("da-DK") }))}
+                        />
+                        <TableCard
+                            title="Top Pages"
+                            columns={[{ key: "source", label: "Source" }, { key: "pageviews", label: "Pageviews", align: "right" }]}
+                            rows={pages.map((r) => ({ source: r.source, pageviews: r.pageviews.toLocaleString("da-DK") }))}
+                        />
+                        <ActiveUsersCard rows={timeseries} />
+                    </div>
+                </>
+            )}
         </div>
     );
 }

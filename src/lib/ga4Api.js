@@ -6,7 +6,12 @@ function getServiceAccountCredentials() {
     const raw = process.env.GOOGLE_ADS_SERVICE_ACCOUNT_CREDENTIALS;
     if (!raw) throw new Error("Missing GOOGLE_ADS_SERVICE_ACCOUNT_CREDENTIALS env var");
     try {
-        return JSON.parse(raw);
+        let text = raw.trim();
+        // Handle .env wrapping the JSON in single or double quotes
+        if ((text.startsWith("'") && text.endsWith("'")) || (text.startsWith('"') && text.endsWith('"'))) {
+            text = text.slice(1, -1);
+        }
+        return JSON.parse(text);
     } catch (e) {
         throw new Error("Invalid GOOGLE_ADS_SERVICE_ACCOUNT_CREDENTIALS JSON");
     }
@@ -14,11 +19,11 @@ function getServiceAccountCredentials() {
 
 export async function runGa4Report({
     propertyId,
-    startDate = "2024-01-01",
+    startDate = "30daysAgo",
     endDate = "today",
-    metrics = ["sessions", "totalUsers", "screenPageViews"],
+    metrics = ["totalUsers", "screenPageViews", "bounceRate", "averageSessionDuration"],
     dimensions = ["date"],
-    limit = 10,
+    limit = 100000,
 } = {}) {
     if (!propertyId) throw new Error("propertyId is required");
 
@@ -30,7 +35,7 @@ export async function runGa4Report({
     const body = {
         dateRanges: [{ startDate, endDate }],
         metrics: metrics.map((name) => ({ name })),
-        dimensions: dimensions.map((name) => ({ name })),
+        dimensions: (dimensions || []).map((name) => ({ name })),
         limit,
     };
 
