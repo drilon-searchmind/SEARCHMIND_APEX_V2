@@ -12,7 +12,7 @@ import SharePropertyModal from '@/components/dashboard/SharePropertyModal';
 import Link from "next/link";
 import FormButton from "../form/FormButton";
 
-const Topbar = ({ showLinks = true, showLogo = false }) => {
+const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true }) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const user = useUser();
     const [theme, setTheme] = useState(() => {
@@ -31,7 +31,7 @@ const Topbar = ({ showLinks = true, showLogo = false }) => {
         const currentActiveCustomer = customers.find(c => c._id === activeCustomerId);
 
         console.log('Active Customer:', currentActiveCustomer);
-        console.log({currentActiveCustomer})
+        console.log({ currentActiveCustomer })
         setActiveCustomer(currentActiveCustomer || null)
     }, [activeCustomerId, customers])
 
@@ -234,24 +234,28 @@ const Topbar = ({ showLinks = true, showLogo = false }) => {
                     )}
                 </div>
                 <div className="flex items-center space-x-4">
-                    <div>
-                        <Link href={`/parent-property/${activeCustomer?.parentCustomer || ""}/home`}>
-                            <FormButton buttonSize="small" type="button" borderType="">
-                                View Group Property
-                            </FormButton>
-                        </Link>
-                    </div>
-                    <div>
-                        {!user?.isExternal && (
-                            <span
-                                onClick={() => setShowShareModal(true)}
-                            >
-                                <FormButton buttonSize="small" type="button" borderType="outline">
-                                    Share property
-                                </FormButton>
-                            </span>
-                        )}
-                    </div>
+                    {showPropertySection && (
+                        <>
+                            <div>
+                                <Link href={`/parent-property/${activeCustomer?.parentCustomer || ""}/home`}>
+                                    <FormButton buttonSize="small" type="button" borderType="">
+                                        View Group Property
+                                    </FormButton>
+                                </Link>
+                            </div>
+                            <div>
+                                {!user?.isExternal && (
+                                    <span
+                                        onClick={() => setShowShareModal(true)}
+                                    >
+                                        <FormButton buttonSize="small" type="button" borderType="outline">
+                                            Share property
+                                        </FormButton>
+                                    </span>
+                                )}
+                            </div>
+                        </>
+                    )}
                     <button onClick={handleToggleTheme} className="p-2 rounded-full border border-gray-200 bg-white text-gray-700 transition-colors duration-200">
                         {theme === "dark" ? <FaSun /> : <FaMoon />}
                     </button>
