@@ -68,8 +68,8 @@ export default function CustomerPerformance() {
                 type: 'vertical',
                 shadeIntensity: 0.4,
                 inverseColors: false,
-                opacityFrom: 0.75,   // starting opacity
-                opacityTo: 0.25,      // end opacity (transparent)
+                opacityFrom: 0.45,   // starting opacity
+                opacityTo: 0.10,      // end opacity (transparent)
                 stops: [5, 80, 100] // <--- fade begins early (at 20%)
             }
         },
