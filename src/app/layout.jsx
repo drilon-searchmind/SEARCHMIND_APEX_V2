@@ -17,6 +17,11 @@ const geistMono = Geist_Mono({
 export const metadata = {
 	title: "Searchmind Apex",
 	description: "Searchmind Apex Dashboard Webapp",
+	icons: {
+		icon: "/images/icons/apexminilogo-small.png",
+		shortcut: "/images/icons/apexminilogo-small.png",
+		apple: "/images/icons/apexminilogo-small.png",
+	},
 };
 
 // Client-only theme sync component
