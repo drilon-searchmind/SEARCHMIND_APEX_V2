@@ -4,11 +4,11 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 
 const serviceConfig = {
-    "51ed563e-4a2c-489b-9506-be385c49a354": { label: "SEO", color: "#ff7800" },
-    "bee4b7c5-c9d0-4808-8a4f-b00ee6df311e": { label: "PPC", color: "#f9d900" },
-    "2df85265-d5eb-4e86-a111-5d55623851fa": { label: "PS", color: "#0231E8" },
-    "55b3e92d-5972-4246-8160-73d7ba04401a": { label: "EM", color: "#3397dd" },
-    "28b06356-6f19-4633-bfa4-416c150a562c": { label: "Client Lead", color: "#34c759" },
+    "51ed563e-4a2c-489b-9506-be385c49a354": { label: "SEO", color: "#1E2B2B" },
+    "bee4b7c5-c9d0-4808-8a4f-b00ee6df311e": { label: "PPC", color: "#2b3d3d" },
+    "2df85265-d5eb-4e86-a111-5d55623851fa": { label: "PS", color: "#3b5252" },
+    "55b3e92d-5972-4246-8160-73d7ba04401a": { label: "EM", color: "#4c6b6b" },
+    "28b06356-6f19-4633-bfa4-416c150a562c": { label: "Client Lead", color: "#5e8888" },
 };
 
 export default function TeamMembers({ customerId }) {
