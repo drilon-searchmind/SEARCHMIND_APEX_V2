@@ -246,7 +246,7 @@ const Sidebar = ({ showLinks = true }) => {
                                     {serviceOpen && (
                                         <ul className="mt-2 space-y-2 flex flex-col w-full">
                                             <NavItem
-                                                href={`/dashboard/${activeCustomerId}/tools/campaign-planner`}
+                                                href={`/dashboard/${activeCustomerId}/campaign-planner`}
                                                 label="Campaign Planner"
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
