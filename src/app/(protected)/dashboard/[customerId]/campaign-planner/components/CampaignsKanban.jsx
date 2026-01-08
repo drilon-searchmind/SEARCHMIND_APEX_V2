@@ -47,9 +47,11 @@ export default function CampaignsKanban({ customerId, campaigns = [], onStatusCh
     function onDragEnd(result) {
         const { source, destination, draggableId } = result;
         if (!destination || source.droppableId === destination.droppableId) return;
-        const campaign = campaigns.find((c) => c.id === draggableId);
+        // Find campaign by _id or id
+        const campaign = campaigns.find((c) => String(c._id) === draggableId || String(c.id) === draggableId);
         if (campaign && onStatusChange) {
-            onStatusChange(draggableId, destination.droppableId);
+            // Always pass _id if available
+            onStatusChange(campaign._id ? campaign._id : campaign.id, destination.droppableId);
         }
     }
 
@@ -84,35 +86,40 @@ export default function CampaignsKanban({ customerId, campaigns = [], onStatusCh
                                     {campaignsByStatus[status].length === 0 && (
                                         <div className="text-gray-400 py-8 text-center">No campaigns</div>
                                     )}
-                                    {campaignsByStatus[status].map((c, idx) => (
-                                        <Draggable draggableId={c.id} index={idx} key={c.id}>
-                                            {(provided, snapshot) => (
-                                                <div
-                                                    ref={provided.innerRef}
-                                                    {...provided.draggableProps}
-                                                    {...provided.dragHandleProps}
-                                                    className={`bg-gray-50 border border-gray-200 rounded-lg p-3 mb-2 flex flex-col gap-1 shadow-sm transition-shadow duration-150 ${snapshot.isDragging ? 'shadow-lg' : ''}`}
-                                                >
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{c.media}</span>
-                                                        <span className="text-xs text-gray-500">{c.campaignFormat}</span>
+                                    {campaignsByStatus[status].map((c, idx) => {
+                                        // Ensure draggableId and key are always unique strings
+                                        const draggableId = c._id ? String(c._id) : (c.id ? String(c.id) : `campaign-${status}-${idx}`);
+                                        const key = c._id ? String(c._id) : (c.id ? String(c.id) : `campaign-${status}-${idx}`);
+                                        return (
+                                            <Draggable draggableId={draggableId} index={idx} key={key}>
+                                                {(provided, snapshot) => (
+                                                    <div
+                                                        ref={provided.innerRef}
+                                                        {...provided.draggableProps}
+                                                        {...provided.dragHandleProps}
+                                                        className={`bg-gray-50 border border-gray-200 rounded-lg p-3 mb-2 flex flex-col gap-1 shadow-sm transition-shadow duration-150 ${snapshot.isDragging ? 'shadow-lg' : ''}`}
+                                                    >
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{c.media}</span>
+                                                            <span className="text-xs text-gray-500">{c.campaignFormat}</span>
+                                                        </div>
+                                                        <div className="font-bold text-base text-gray-900">{c.campaignName}</div>
+                                                        <div className="text-xs text-gray-500">{c.messageBrief}</div>
+                                                        <div className="flex flex-wrap gap-2 text-xs text-gray-400">
+                                                            <span>{c.countryCode}</span>
+                                                            <span>{c.b2bOrB2c}</span>
+                                                            <span>Budget: {typeof c.budget === 'number' ? c.budget.toLocaleString() + ' DKK' : '-'} </span>
+                                                            {c.readyForApproval && <span className="text-green-500 font-semibold">Ready for Approval</span>}
+                                                        </div>
+                                                        <div className="flex justify-between items-end mt-2">
+                                                            <span className="text-xs text-gray-300">Created: {c.createdAt}</span>
+                                                            <button className="text-xs text-[var(--color-primary-searchmind)] font-semibold hover:underline">View details</button>
+                                                        </div>
                                                     </div>
-                                                    <div className="font-bold text-base text-gray-900">{c.campaignName}</div>
-                                                    <div className="text-xs text-gray-500">{c.messageBrief}</div>
-                                                    <div className="flex flex-wrap gap-2 text-xs text-gray-400">
-                                                        <span>{c.countryCode}</span>
-                                                        <span>{c.b2bOrB2c}</span>
-                                                        <span>Budget: {typeof c.budget === 'number' ? c.budget.toLocaleString() + ' DKK' : '-'} </span>
-                                                        {c.readyForApproval && <span className="text-green-500 font-semibold">Ready for Approval</span>}
-                                                    </div>
-                                                    <div className="flex justify-between items-end mt-2">
-                                                        <span className="text-xs text-gray-300">Created: {c.createdAt}</span>
-                                                        <button className="text-xs text-[var(--color-primary-searchmind)] font-semibold hover:underline">View details</button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </Draggable>
-                                    ))}
+                                                )}
+                                            </Draggable>
+                                        );
+                                    })}
                                     {provided.placeholder}
                                 </div>
                             )}

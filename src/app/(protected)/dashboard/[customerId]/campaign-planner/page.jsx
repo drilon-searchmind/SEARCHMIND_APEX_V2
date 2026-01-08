@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState } from "react";
+import useCampaigns from "./hooks/useCampaigns";
 import { useParams } from "next/navigation";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import CampaignsKanban from "./components/CampaignsKanban";
@@ -19,44 +20,34 @@ export default function CampaignPlannerPage() {
         ];
     const params = useParams();
     const customerId = params.customerId;
-    const [campaigns, setCampaigns] = useState([]);
+    const {
+        campaigns,
+        loading,
+        error,
+        createCampaigns,
+        updateCampaign,
+        fetchCampaigns,
+    } = useCampaigns(customerId);
     const [showCreate, setShowCreate] = useState(false);
     const [view, setView] = useState("kanban");
 
     // Handle status change (drag-and-drop)
-    const handleStatusChange = (id, newStatus) => {
-        setCampaigns((prev) =>
-            prev.map((c) => (c.id === id ? { ...c, status: newStatus } : c))
-        );
+    const handleStatusChange = async (id, newStatus) => {
+        await updateCampaign(id, { status: newStatus });
+        await fetchCampaigns();
     };
 
     // Handle campaign creation (parent-child)
-    const handleCreateCampaign = (newCampaigns) => {
-        setCampaigns((prev) => [
-            ...newCampaigns
-                .filter((c) => !c.parent)
-                .map((c) => ({
-                    ...c,
-                    customerId,
-                    createdAt: c.createdAt || new Date().toISOString().slice(0, 10),
-                    status: c.status || "Pending",
-                    campaignName: c.campaignName,
-                })),
-            ...prev,
-        ]);
+    const handleCreateCampaign = async (newCampaigns) => {
+        // Only send children (actual campaigns) to backend
+        const campaignsToCreate = newCampaigns.filter((c) => !c.parent);
+        await createCampaigns(campaignsToCreate);
     };
 
     // View toggle UI
     // Merge static and dynamic campaigns, deduplicate by id
-    const mergedCampaigns = React.useMemo(() => {
-        const all = [...staticCampaigns, ...campaigns];
-        const seen = new Set();
-        return all.filter(c => {
-            if (seen.has(c.id)) return false;
-            seen.add(c.id);
-            return true;
-        });
-    }, [campaigns]);
+    // Only use campaigns from backend
+    const mergedCampaigns = campaigns;
 
     return (
         <div className="w-full">
