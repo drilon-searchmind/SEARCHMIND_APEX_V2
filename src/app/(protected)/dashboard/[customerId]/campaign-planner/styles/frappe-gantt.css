@@ -1,0 +1,60 @@
+/* frappe-gantt.css v0.6.0 - minimal required styles for Gantt chart rendering */
+.gantt-container {
+  position: relative;
+  overflow: auto;
+  width: 100%;
+  background: #fff;
+}
+.gantt .bar {
+  stroke: #333;
+  stroke-width: 1;
+  fill: #b3c2f2;
+  rx: 3;
+  ry: 3;
+}
+.gantt .bar-progress {
+  fill: #6a8afc;
+}
+.gantt .bar-label {
+  font-size: 12px;
+  fill: #222;
+  font-family: inherit;
+}
+.gantt .grid-header {
+  font-size: 12px;
+  fill: #888;
+  font-family: inherit;
+}
+.gantt .grid-row {
+  stroke: #eee;
+  stroke-width: 1;
+}
+.gantt .today-highlight {
+  fill: #ffeeba;
+  opacity: 0.5;
+}
+.gantt .arrow {
+  stroke: #333;
+  stroke-width: 1;
+  fill: none;
+}
+.gantt .handle {
+  fill: #fff;
+  stroke: #333;
+  stroke-width: 1;
+}
+.gantt .popup-wrapper {
+  position: absolute;
+  z-index: 10;
+  pointer-events: none;
+}
+.gantt .popup {
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #222;
+  font-family: inherit;
+}

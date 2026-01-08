@@ -17,26 +17,28 @@ export default function CampaignsKanban({ customerId, campaigns = [], onStatusCh
     // Filter campaigns by customer, date range, and search
     const filteredCampaigns = useMemo(() => {
         return campaigns.filter((c) => {
-            if (c.customerId !== customerId) return false;
-            if (search && !c.campaignName.toLowerCase().includes(search.toLowerCase())) return false;
+            if (search && !String(c.campaignName || "").toLowerCase().includes(search.toLowerCase())) return false;
             // Only show campaigns that overlap with selected date range
-            const campaignStart = new Date(c.startDate);
-            const campaignEnd = new Date(c.endDate);
+            const campaignStart = c.startDate ? new Date(c.startDate) : null;
+            const campaignEnd = c.endDate ? new Date(c.endDate) : null;
             const rangeStart = new Date(dateRange.startDate);
             const rangeEnd = new Date(dateRange.endDate);
             return (
-                (!c.startDate || campaignEnd >= rangeStart) &&
-                (!c.endDate || campaignStart <= rangeEnd)
+                (!campaignStart || campaignEnd >= rangeStart) &&
+                (!campaignEnd || campaignStart <= rangeEnd)
             );
         });
-    }, [campaigns, customerId, dateRange, search]);
+    }, [campaigns, dateRange, search]);
 
     // Group campaigns by status
     const campaignsByStatus = useMemo(() => {
         const map = {};
         CAMPAIGN_STATUSES.forEach((status) => { map[status] = []; });
         filteredCampaigns.forEach((c) => {
-            if (map[c.status]) map[c.status].push(c);
+            // Only group campaigns with valid status
+            if (CAMPAIGN_STATUSES.includes(c.status)) {
+                map[c.status].push(c);
+            }
         });
         return map;
     }, [filteredCampaigns]);
