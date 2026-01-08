@@ -3,7 +3,7 @@ import { CAMPAIGN_STATUSES } from "../static-data/statuses";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
-export default function CampaignsKanban({ customerId, campaigns = [], onStatusChange }) {
+export default function CampaignsKanban({ customerId, campaigns = [], onStatusChange, onViewDetails }) {
     // Default date range: first of month to today
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -113,7 +113,12 @@ export default function CampaignsKanban({ customerId, campaigns = [], onStatusCh
                                                         </div>
                                                         <div className="flex justify-between items-end mt-2">
                                                             <span className="text-xs text-gray-300">Created: {c.createdAt}</span>
-                                                            <button className="text-xs text-[var(--color-primary-searchmind)] font-semibold hover:underline">View details</button>
+                                                            <button
+                                                                className="text-xs text-[var(--color-primary-searchmind)] font-semibold hover:underline"
+                                                                onClick={() => onViewDetails && onViewDetails(c)}
+                                                            >
+                                                                View details
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 )}

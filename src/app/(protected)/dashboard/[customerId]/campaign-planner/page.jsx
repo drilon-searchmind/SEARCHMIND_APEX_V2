@@ -9,9 +9,11 @@ import CampaignsKanban from "./components/CampaignsKanban";
 import CampaignsCalendar from "./components/CampaignsCalendar";
 import CampaignsGantt from "./components/CampaignsGantt";
 import CreateCampaignModal from "./components/CreateCampaignModal";
+import ViewCampaignModal from "./components/ViewCampaignModal";
 import { campaigns as staticCampaigns } from "./static-data/campaigns";
 
 export default function CampaignPlannerPage() {
+            const [viewCampaign, setViewCampaign] = useState(null);
         // View options for toggling between Kanban, Calendar, and Gantt
         const viewOptions = [
             { label: "Kanban", value: "kanban" },
@@ -81,6 +83,7 @@ export default function CampaignPlannerPage() {
                     customerId={customerId}
                     campaigns={mergedCampaigns}
                     onStatusChange={handleStatusChange}
+                    onViewDetails={setViewCampaign}
                 />
             )}
             {view === "calendar" && (
@@ -97,6 +100,11 @@ export default function CampaignPlannerPage() {
                 open={showCreate}
                 onClose={() => setShowCreate(false)}
                 onCreate={handleCreateCampaign}
+            />
+            <ViewCampaignModal
+                open={!!viewCampaign}
+                onClose={() => setViewCampaign(null)}
+                campaign={viewCampaign}
             />
         </div>
     );

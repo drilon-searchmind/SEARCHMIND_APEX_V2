@@ -99,7 +99,7 @@ export default function CampaignsOverview({ customerId, campaigns = [] }) {
 						<div className="flex justify-between items-end mt-2">
 							<span className="text-xs text-gray-300">Created: {c.createdAt}</span>
 							{/* Placeholder for actions */}
-							<button className="text-xs text-[var(--color-primary-searchmind)] font-semibold hover:underline">View details</button>
+							<button className="text-xs text-[var(--color-primary-searchmind)] font-semibold hover:underline">View details 2</button>
 						</div>
 					</div>
 				))}
