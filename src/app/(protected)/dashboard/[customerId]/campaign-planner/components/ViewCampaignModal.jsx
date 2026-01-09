@@ -1,33 +1,8 @@
 import React from "react";
-import FormLabel from "@/components/form/FormLabel";
-import { FiX } from "react-icons/fi";
+import { FiX, FiInfo, FiCalendar, FiDollarSign, FiTag, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
 
 export default function ViewCampaignModal({ open, onClose, campaign }) {
 	if (!open || !campaign) return null;
-
-	const fields = [
-		{ label: "Service", value: campaign.service, span: 1, bold: true },
-		{ label: "Media", value: campaign.media, span: 1 },
-		{ label: "Campaign Format", value: campaign.campaignFormat, span: 1 },
-		{ label: "Country Code", value: campaign.countryCode, span: 1 },
-		{ label: "Start Date", value: campaign.startDate ? new Date(campaign.startDate).toLocaleDateString("da-DK") : "-", span: 1 },
-		{ label: "End Date", value: campaign.endDate ? new Date(campaign.endDate).toLocaleDateString("da-DK") : "-", span: 1 },
-		{ label: "Campaign Name", value: campaign.campaignName, span: 2, bold: true },
-		{ label: "Message Brief", value: campaign.messageBrief || "-", span: 2 },
-		{ label: "B2B or B2C", value: campaign.b2bOrB2c, span: 1 },
-		{ label: "Budget (DKK)", value: typeof campaign.budget === "number" ? campaign.budget.toLocaleString("da-DK") : "-", span: 1 },
-		{ label: "Landing Page", value: campaign.landingpage || "-", span: 2 },
-		{ label: "Material From Customer", value: campaign.materialFromCustomer || "-", span: 2 },
-		{ label: "Campaign Type", value: campaign.campaignType, span: 1 },
-		{ label: "Status", value: campaign.status, span: 1, badge: true },
-		{ label: "Campaign Dimensions", value: campaign.campaignDimensions || "-", span: 1 },
-		{ label: "Campaign Variation", value: campaign.campaignVariation || "-", span: 1 },
-		{ label: "Text To Creative", value: campaign.campaignTextToCreative || "-", span: 1 },
-		{ label: "Text To Creative Translation", value: campaign.campaignTextToCreativeTranslation || "-", span: 1 },
-		{ label: "Comment To Customer", value: campaign.commentToCustomer || "-", span: 2 },
-		{ label: "Ready For Approval", value: campaign.readyForApproval ? "Yes" : "No", span: 1 },
-		{ label: "Created At", value: campaign.createdAt ? new Date(campaign.createdAt).toLocaleDateString("da-DK") : "-", span: 1 },
-	];
 
 	const getStatusColor = (status) => {
 		switch (status) {
@@ -40,39 +15,175 @@ export default function ViewCampaignModal({ open, onClose, campaign }) {
 		}
 	};
 
+	const getStatusIcon = (status) => {
+		switch (status) {
+			case "Live": return <FiCheckCircle className="inline mr-1" />;
+			case "Approved": return <FiCheckCircle className="inline mr-1" />;
+			case "Pending": return <FiAlertCircle className="inline mr-1" />;
+			case "Pending Customer Approval": return <FiAlertCircle className="inline mr-1" />;
+			default: return null;
+		}
+	};
+
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center glassmorphism2">
-			<div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] relative overflow-hidden flex flex-col">
+			<div className="bg-white rounded-xl shadow-2xl w-[80vw] max-h-[90vh] relative overflow-hidden flex flex-col">
 				{/* Header */}
 				<div className="bg-[var(--color-primary-searchmind)] text-white px-8 py-6 flex items-center justify-between">
-					<div>
-						<p className="text-sm text-white/80">Campaign Details</p>
-						<h2 className="text-2xl font-bold mb-1">{campaign.campaignName}</h2>
+					<div className="flex-1">
+						<h2 className="text-2xl font-bold mb-1">Campaign Details</h2>
+						<p className="text-sm text-white/80">{campaign.campaignName}</p>
 					</div>
-					<button
-						className="text-white/80 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10"
-						onClick={onClose}
-						aria-label="Close"
-					>
-						<FiX size={24} />
-					</button>
+					<div className="flex items-center gap-3">
+						<span className={`px-4 py-2 rounded-full text-sm font-semibold ${getStatusColor(campaign.status)} flex items-center`}>
+							{getStatusIcon(campaign.status)}
+							{campaign.status}
+						</span>
+						<button
+							className="text-white/80 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10"
+							onClick={onClose}
+							aria-label="Close"
+						>
+							<FiX size={24} />
+						</button>
+					</div>
 				</div>
 
 				{/* Content */}
 				<div className="overflow-y-auto flex-1 p-8">
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-						{fields.map((field, idx) => (
-							<div key={idx} className={field.span === 2 ? "md:col-span-2" : ""}>
-								<FormLabel htmlFor={`field-${idx}`}>{field.label}</FormLabel>
-								<div
-									id={`field-${idx}`}
-									className={`mt-2 px-4 py-3 bg-gray-50 rounded-lg border border-gray-200 text-sm ${field.bold ? "font-semibold text-gray-900" : "text-gray-700"} ${field.badge && field.value !== "-" ? "inline-block px-3 py-1 rounded-full text-xs font-medium " + getStatusColor(field.value) : ""}`}
-									style={{ wordBreak: "break-word" }}
-								>
-									{field.value}
+					<div className="grid grid-cols-3 gap-8">
+						{/* Column 1: Campaign Information */}
+						<div className="space-y-4">
+							<div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-200">
+								<FiInfo className="text-[var(--color-primary-searchmind)]" size={18} />
+								<h3 className="text-base font-semibold text-gray-900">Campaign Information</h3>
+							</div>
+
+							<div>
+								<p className="text-xs font-medium text-gray-500 mb-1">Service</p>
+								<p className="text-sm font-semibold text-gray-900">{campaign.service}</p>
+							</div>
+
+							<div>
+								<p className="text-xs font-medium text-gray-500 mb-1">Media</p>
+								<p className="text-sm text-gray-700">{campaign.media}</p>
+							</div>
+
+							<div>
+								<p className="text-xs font-medium text-gray-500 mb-1">Campaign Format</p>
+								<p className="text-sm text-gray-700">{campaign.campaignFormat}</p>
+							</div>
+
+							<div>
+								<p className="text-xs font-medium text-gray-500 mb-1">Campaign Type</p>
+								<p className="text-sm text-gray-700">{campaign.campaignType}</p>
+							</div>
+
+							<div>
+								<p className="text-xs font-medium text-gray-500 mb-1">B2B or B2C</p>
+								<p className="text-sm text-gray-700">{campaign.b2bOrB2c}</p>
+							</div>
+
+							<div>
+								<p className="text-xs font-medium text-gray-500 mb-1">Country Code</p>
+								<p className="text-sm text-gray-700">{campaign.countryCode}</p>
+							</div>
+
+							<div>
+								<p className="text-xs font-medium text-gray-500 mb-1">Message Brief</p>
+								<p className="text-sm text-gray-700">{campaign.messageBrief || "-"}</p>
+							</div>
+						</div>
+
+						{/* Column 2: Timeline & Budget */}
+						<div className="space-y-4">
+							<div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-200">
+								<FiCalendar className="text-[var(--color-primary-searchmind)]" size={18} />
+								<h3 className="text-base font-semibold text-gray-900">Timeline & Budget</h3>
+							</div>
+
+							<div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+								<div className="grid grid-cols-2 gap-4">
+									<div>
+										<p className="text-xs font-medium text-gray-500 mb-1">Start Date</p>
+										<p className="text-sm font-semibold text-gray-900">
+											{campaign.startDate ? new Date(campaign.startDate).toLocaleDateString("da-DK") : "-"}
+										</p>
+									</div>
+									<div>
+										<p className="text-xs font-medium text-gray-500 mb-1">End Date</p>
+										<p className="text-sm font-semibold text-gray-900">
+											{campaign.endDate ? new Date(campaign.endDate).toLocaleDateString("da-DK") : "-"}
+										</p>
+									</div>
 								</div>
 							</div>
-						))}
+
+							<div className="bg-[var(--color-secondary-searchmind)]/10 rounded-lg p-4 border border-[var(--color-secondary-searchmind)]/30">
+								<div className="flex items-center gap-2 mb-2">
+									<FiDollarSign className="text-[var(--color-primary-searchmind)]" size={16} />
+									<p className="text-xs font-medium text-gray-500">Budget</p>
+								</div>
+								<p className="text-xl font-bold text-gray-900">
+									{typeof campaign.budget === "number" ? `${campaign.budget.toLocaleString("da-DK")} DKK` : "-"}
+								</p>
+							</div>
+
+							<div>
+								<p className="text-xs font-medium text-gray-500 mb-1">Landing Page</p>
+								<p className="text-sm text-gray-700 break-all">{campaign.landingpage || "-"}</p>
+							</div>
+
+							<div>
+								<p className="text-xs font-medium text-gray-500 mb-1">Material From Customer</p>
+								<p className="text-sm text-gray-700">{campaign.materialFromCustomer || "-"}</p>
+							</div>
+
+							<div>
+								<p className="text-xs font-medium text-gray-500 mb-1">Ready For Approval</p>
+								<p className="text-sm font-semibold text-gray-900">{campaign.readyForApproval ? "✓ Yes" : "✗ No"}</p>
+							</div>
+
+							<div>
+								<p className="text-xs font-medium text-gray-500 mb-1">Created At</p>
+								<p className="text-sm text-gray-700">
+									{campaign.createdAt ? new Date(campaign.createdAt).toLocaleDateString("da-DK") : "-"}
+								</p>
+							</div>
+						</div>
+
+						{/* Column 3: Creative Details */}
+						<div className="space-y-4">
+							<div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-200">
+								<FiTag className="text-[var(--color-primary-searchmind)]" size={18} />
+								<h3 className="text-base font-semibold text-gray-900">Creative Details</h3>
+							</div>
+
+							<div>
+								<p className="text-xs font-medium text-gray-500 mb-1">Campaign Dimensions</p>
+								<p className="text-sm text-gray-700">{campaign.campaignDimensions || "-"}</p>
+							</div>
+
+							<div>
+								<p className="text-xs font-medium text-gray-500 mb-1">Campaign Variation</p>
+								<p className="text-sm text-gray-700">{campaign.campaignVariation || "-"}</p>
+							</div>
+
+							<div>
+								<p className="text-xs font-medium text-gray-500 mb-1">Text To Creative</p>
+								<p className="text-sm text-gray-700">{campaign.campaignTextToCreative || "-"}</p>
+							</div>
+
+							<div>
+								<p className="text-xs font-medium text-gray-500 mb-1">Text To Creative Translation</p>
+								<p className="text-sm text-gray-700">{campaign.campaignTextToCreativeTranslation || "-"}</p>
+							</div>
+
+							<div className="bg-blue-50 rounded-lg p-4 border border-blue-200 mt-4">
+								<p className="text-xs font-medium text-blue-700 mb-2">Comment To Customer</p>
+								<p className="text-sm text-gray-700">{campaign.commentToCustomer || "No comments"}</p>
+							</div>
+						</div>
 					</div>
 				</div>
 
