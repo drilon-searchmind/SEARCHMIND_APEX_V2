@@ -56,7 +56,7 @@ export default function CampaignsKanban({ customerId, campaigns = [], onStatusCh
     }
 
     return (
-        <div className="w-full">
+        <div className="w-full bg-white border border-gray-200 rounded-xl p-6">
             <div className="flex flex-wrap gap-2 mb-4 items-center">
                 <DateRangePicker
                     startDate={dateRange.startDate}
@@ -73,16 +73,16 @@ export default function CampaignsKanban({ customerId, campaigns = [], onStatusCh
                 />
             </div>
             <DragDropContext onDragEnd={onDragEnd}>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 mt-10">
                     {CAMPAIGN_STATUSES.map((status) => (
                         <Droppable droppableId={status} key={status}>
                             {(provided) => (
                                 <div
                                     ref={provided.innerRef}
                                     {...provided.droppableProps}
-                                    className="bg-white border border-gray-200 rounded-xl p-4 min-h-[300px] flex flex-col gap-2 shadow-sm"
+                                    className="bg-white border border-gray-200 rounded-lg p-4 min-h-[200px] flex flex-col gap-1"
                                 >
-                                    <div className="font-bold text-lg text-gray-900 mb-2">{status}</div>
+                                    <div className="font-medium text-gray-900 mb-2">{status}</div>
                                     {campaignsByStatus[status].length === 0 && (
                                         <div className="text-gray-400 py-8 text-center">No campaigns</div>
                                     )}
@@ -97,7 +97,7 @@ export default function CampaignsKanban({ customerId, campaigns = [], onStatusCh
                                                         ref={provided.innerRef}
                                                         {...provided.draggableProps}
                                                         {...provided.dragHandleProps}
-                                                        className={`bg-gray-50 border border-gray-200 rounded-lg p-3 mb-2 flex flex-col gap-1 shadow-sm transition-shadow duration-150 ${snapshot.isDragging ? 'shadow-lg' : ''}`}
+                                                        className={`bg-gray-50 border border-gray-200 rounded-lg p-3 mb-2 flex flex-col gap-1 shadow-xs transition-all transition-shadow duration-150 ${snapshot.isDragging ? 'shadow-lg rotate-5' : ''}`}
                                                     >
                                                         <div className="flex items-center justify-between">
                                                             <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{c.media}</span>

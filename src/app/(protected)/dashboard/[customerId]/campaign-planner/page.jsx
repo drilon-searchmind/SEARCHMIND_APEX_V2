@@ -13,13 +13,13 @@ import ViewCampaignModal from "./components/ViewCampaignModal";
 import { campaigns as staticCampaigns } from "./static-data/campaigns";
 
 export default function CampaignPlannerPage() {
-            const [viewCampaign, setViewCampaign] = useState(null);
-        // View options for toggling between Kanban, Calendar, and Gantt
-        const viewOptions = [
-            { label: "Kanban", value: "kanban" },
-            { label: "Calendar", value: "calendar" },
-            { label: "Gantt", value: "gantt" },
-        ];
+    const [viewCampaign, setViewCampaign] = useState(null);
+    // View options for toggling between Kanban, Calendar, and Gantt
+    const viewOptions = [
+        { label: "Kanban", value: "kanban" },
+        { label: "Calendar", value: "calendar" },
+        { label: "Gantt", value: "gantt" },
+    ];
     const params = useParams();
     const customerId = params.customerId;
     const {
@@ -57,18 +57,7 @@ export default function CampaignPlannerPage() {
                 title="Campaign Planner"
                 label="Plan, create, and manage your campaigns"
                 right={
-                    <div className="flex items-center gap-4">
-                        <div className="flex gap-1 bg-gray-100 border border-gray-200 rounded-lg px-2 py-1">
-                            {viewOptions.map((opt) => (
-                                <button
-                                    key={opt.value}
-                                    className={`px-3 py-1 rounded font-medium text-xs transition-colors duration-150 ${view === opt.value ? 'bg-[var(--color-primary-searchmind)] text-white' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
-                                    onClick={() => setView(opt.value)}
-                                >
-                                    {opt.label}
-                                </button>
-                            ))}
-                        </div>
+                    <div className="flex items-center gap-4 h-full">
                         <button
                             className="bg-[var(--color-primary-searchmind)] text-white px-5 py-2 rounded-lg font-semibold shadow hover:bg-opacity-90 transition"
                             onClick={() => setShowCreate(true)}
@@ -78,6 +67,21 @@ export default function CampaignPlannerPage() {
                     </div>
                 }
             />
+
+            <div className="flex justify-end mb-4">
+                <div className="flex border border-gray-200 bg-gray-100 rounded-lg overflow-hidden">
+                    {viewOptions.map((opt) => (
+                        <button
+                            key={opt.value}
+                            className={`px-4 border-r border-gray-50 py-1 text-sm font-medium focus:outline-none transition-colors duration-150 text-gray-500 ${view === opt.value ? 'bg-[var(--color-primary-searchmind)] text-white' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                            onClick={() => setView(opt.value)}
+                        >
+                            {opt.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
             {view === "kanban" && (
                 <CampaignsKanban
                     customerId={customerId}
