@@ -141,20 +141,8 @@ export async function fetchFacebookAdsInsights(adAccountId, customerMetaID, acce
         throw new Error(`Facebook API error: ${JSON.stringify(data.error)}`);
     }
 
-    // Optionally, filter by country code (customerMetaID) if not already filtered
-    let filtered = data.data || [];
-    if (customerMetaID) {
-        // Log row structure for debugging
-        filtered.forEach((row, idx) => {
-            // console.log(`Row ${idx}:`, row);
-        });
-        
-        filtered = filtered.filter(row => {
-            if (!row.country) return false;
-            return row.country.toUpperCase() === customerMetaID.toUpperCase();
-        });
-    }
-    return { ...data, data: filtered };
+    // Return the data as-is - the API already filtered by country
+    return data;
 }
 
 /**
