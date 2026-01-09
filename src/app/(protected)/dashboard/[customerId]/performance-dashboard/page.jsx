@@ -88,6 +88,8 @@ export default function PerformanceDashboard() {
 
                 // Revenue type logic
                 const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
+                const customerMetricPreference = customer?.CustomerSettings?.metricPreference || 'ROAS/POAS';
+
                 // Aggregate for metric cards (current)
                 const shopify = merged.shopifyDaily || [];
                 const facebook = merged.facebookDaily || [];
@@ -97,6 +99,7 @@ export default function PerformanceDashboard() {
                 const cost = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
                 const aov = orders > 0 ? revenue / orders : 0;
                 const roas = cost > 0 ? revenue / cost : null;
+                const spendshare = cost / revenue;
                 const gross_profit_total_sales = merged.grossProfitTotalSales || 0;
 
                 // Aggregate for metric cards (previous)
@@ -108,6 +111,7 @@ export default function PerformanceDashboard() {
                 const costPrev = [...facebookPrev, ...googlePrev].reduce((sum, d) => sum + (d.spend || 0), 0);
                 const aovPrev = ordersPrev > 0 ? revenuePrev / ordersPrev : 0;
                 const roasPrev = costPrev > 0 ? revenuePrev / costPrev : null;
+                const spendsharePrev = costPrev / revenuePrev;
                 const gross_profit_total_salesPrev = mergedPrev.grossProfitTotalSales || 0; 
 
                 // % change helpers
@@ -126,7 +130,8 @@ export default function PerformanceDashboard() {
                 const cac = merged.CACTotalSales ?? null;
                 const cacPrev = mergedPrev.CACTotalSales ?? null;
 
-                setMetrics([
+                // Build metrics array conditionally
+                const metricsArray = [
                     {
                         label: `Revenue (inc vat ${revenueType === 'net_sales' ? ', net sales' : ''})`,
                         value: revenue ? revenue.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-',
@@ -156,13 +161,30 @@ export default function PerformanceDashboard() {
                         change: percentChange(cost, costPrev) !== null ? Math.abs(percentChange(cost, costPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(cost, costPrev)),
                     },
-                    {
+                ];
+
+                // Conditionally add ROAS or Spendshare based on preference
+                if (customerMetricPreference === 'Spendshare') {
+                    metricsArray.push({
+                        label: "Spendshare",
+                        value: spendshare !== null && !isNaN(spendshare) ? `${(spendshare * 100).toFixed(2)}%` : '-',
+                        icon: <FiBarChart2 className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(spendshare, spendsharePrev) !== null ? Math.abs(percentChange(spendshare, spendsharePrev)).toFixed(1) : undefined,
+                        changeType: changeType(percentChange(spendshare, spendsharePrev)),
+                    });
+                } else {
+                    // Default to ROAS/POAS
+                    metricsArray.push({
                         label: "ROAS (inc vat)",
                         value: roas !== null ? roas.toFixed(2) : '-',
                         icon: <FiBarChart2 className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(roas, roasPrev) !== null ? Math.abs(percentChange(roas, roasPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(roas, roasPrev)),
-                    },
+                    });
+                }
+
+                // Add remaining metrics
+                metricsArray.push(
                     {
                         label: "POAS (inc vat)",
                         value: poas !== null ? poas.toFixed(2) : '-',
@@ -184,7 +206,9 @@ export default function PerformanceDashboard() {
                         change: percentChange(cac, cacPrev) !== null ? Math.abs(percentChange(cac, cacPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(cac, cacPrev)),
                     },
-                ]);
+                );
+
+                setMetrics(metricsArray);
             } catch (err) {
                 setError(err.message);
             } finally {
@@ -243,18 +267,38 @@ export default function PerformanceDashboard() {
         legend: { show: true, position: 'top', labels: { colors: chartColors.primary || '#1E2B2B' } },
     };
 
-    // ROAS chart
-    const roasCategories = shopifyDaily.map(d => d.period);
-    const roasSeries = [{
-        name: 'ROAS',
-        data: shopifyDaily.map((d, i) => {
-            const spend = (Number(facebookSpendMap[d.period]) || 0) + (Number(googleSpendMap[d.period]) || 0);
-            return spend > 0 ? (d.total_sales / spend).toFixed(2) : null;
-        })
-    }];
-    const roasOptions = {
+    // Determine metric preference
+    const customerMetricPreference = customer?.CustomerSettings?.metricPreference || 'ROAS/POAS';
+
+    // ROAS or Spendshare chart (conditional)
+    const metricCategories = shopifyDaily.map(d => d.period);
+    let metricSeries, metricOptions, metricTitle;
+
+    if (customerMetricPreference === 'Spendshare') {
+        // Spendshare chart
+        metricSeries = [{
+            name: 'Spendshare',
+            data: shopifyDaily.map((d, i) => {
+                const spend = (Number(facebookSpendMap[d.period]) || 0) + (Number(googleSpendMap[d.period]) || 0);
+                return d.total_sales > 0 ? ((spend / d.total_sales) * 100).toFixed(2) : null;
+            })
+        }];
+        metricTitle = 'Spendshare (%)';
+    } else {
+        // ROAS chart (default)
+        metricSeries = [{
+            name: 'ROAS',
+            data: shopifyDaily.map((d, i) => {
+                const spend = (Number(facebookSpendMap[d.period]) || 0) + (Number(googleSpendMap[d.period]) || 0);
+                return spend > 0 ? (d.total_sales / spend).toFixed(2) : null;
+            })
+        }];
+        metricTitle = 'ROAS';
+    }
+
+    metricOptions = {
         chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
-        xaxis: { categories: roasCategories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
+        xaxis: { categories: metricCategories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
         yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' } } },
         colors: [chartColors.green || '#213834'],
         stroke: { width: 2, curve: 'smooth' },
@@ -331,11 +375,11 @@ export default function PerformanceDashboard() {
                     <GraphCard title="Spend Allocation" chartOptions={spendOptions} chartSeries={spendAllocationSeries} />
                 )}
 
-                {/* ROAS Graph */}
+                {/* ROAS or Spendshare Graph */}
                 {loading && (!shopifyDaily.length) ? (
                     <div className="flex items-center justify-center h-64"><Spinner size={40} color="#406969" /></div>
                 ) : (
-                    <GraphCard title="ROAS" chartOptions={roasOptions} chartSeries={roasSeries} />
+                    <GraphCard title={metricTitle} chartOptions={metricOptions} chartSeries={metricSeries} />
                 )}
 
                 {/* AOV Graph */}

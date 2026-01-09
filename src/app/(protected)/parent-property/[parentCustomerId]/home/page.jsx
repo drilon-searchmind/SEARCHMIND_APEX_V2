@@ -17,8 +17,8 @@ export default function ParentPropertyHome() {
     const parentCustomerId = params.parentCustomerId;
     const [parentCustomer, setParentCustomer] = useState(null);
     const [childCustomers, setChildCustomers] = useState([]);
-    const [metrics, setMetrics] = useState({ revenue: 0, adspend: 0, orders: 0, roas: null });
-    const [metricsPrev, setMetricsPrev] = useState({ revenue: 0, adspend: 0, orders: 0, roas: null });
+    const [metrics, setMetrics] = useState({ revenue: 0, adspend: 0, orders: 0, roas: null, spendshare: null });
+    const [metricsPrev, setMetricsPrev] = useState({ revenue: 0, adspend: 0, orders: 0, roas: null, spendshare: null });
     const [tableRows, setTableRows] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -32,6 +32,8 @@ export default function ParentPropertyHome() {
     const [dateRange, setDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
     // Comparison method state
     const [comparisonMethod, setComparisonMethod] = useState("Last Period");
+    // Determine the predominant metric preference from child customers
+    const [predominantMetricPreference, setPredominantMetricPreference] = useState('ROAS/POAS');
 
     // Fetch parent customer and its child customers
     useEffect(() => {
@@ -63,8 +65,8 @@ export default function ParentPropertyHome() {
     // Fetch metrics for all child customers in the date range
     useEffect(() => {
         if (!childCustomers.length) {
-            setMetrics({ revenue: 0, adspend: 0, orders: 0, roas: null });
-            setMetricsPrev({ revenue: 0, adspend: 0, orders: 0, roas: null });
+            setMetrics({ revenue: 0, adspend: 0, orders: 0, roas: null, spendshare: null });
+            setMetricsPrev({ revenue: 0, adspend: 0, orders: 0, roas: null, spendshare: null });
             setTableRows([]);
             setLoading(false);
             return;
@@ -104,6 +106,7 @@ export default function ParentPropertyHome() {
                             const merged = await res.json();
                             // Use customerRevenueType for revenue calculation
                             const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
+                            const metricPreference = customer?.CustomerSettings?.metricPreference || 'ROAS/POAS';
                             const shopify = merged.shopifyDaily || [];
                             const facebook = merged.facebookDaily || [];
                             const google = merged.googleDaily || [];
@@ -112,6 +115,7 @@ export default function ParentPropertyHome() {
                             const adspend = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
                             const aov = orders > 0 ? revenue / orders : 0;
                             const roas = adspend > 0 ? revenue / adspend : null;
+                            const spendshare = revenue > 0 ? adspend / revenue : null;
                             return {
                                 _id: customer._id,
                                 customerName: customer.customerName,
@@ -119,15 +123,17 @@ export default function ParentPropertyHome() {
                                 orders,
                                 adspend,
                                 roas,
+                                spendshare,
                                 aov,
-                                revenueType, // for indicator in table
+                                revenueType,
+                                metricPreference,
                             };
                         })
                     ),
                     Promise.all(
                         childCustomers.map(async (customer) => {
                             const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${prevStartStr}&endDate=${prevEndStr}`);
-                            if (!res.ok) return { revenue: 0, adspend: 0, orders: 0, roas: null };
+                            if (!res.ok) return { revenue: 0, adspend: 0, orders: 0, roas: null, spendshare: null };
                             const merged = await res.json();
                             const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
                             const shopify = merged.shopifyDaily || [];
@@ -137,22 +143,36 @@ export default function ParentPropertyHome() {
                             const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
                             const adspend = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
                             const roas = adspend > 0 ? revenue / adspend : null;
-                            return { revenue, adspend, orders, roas };
+                            const spendshare = revenue > 0 ? adspend / revenue : null;
+                            return { revenue, adspend, orders, roas, spendshare };
                         })
                     )
                 ]);
+                
+                // Determine predominant metric preference
+                const preferenceCounts = results.reduce((acc, r) => {
+                    acc[r.metricPreference] = (acc[r.metricPreference] || 0) + 1;
+                    return acc;
+                }, {});
+                const predominant = Object.keys(preferenceCounts).reduce((a, b) => 
+                    preferenceCounts[a] > preferenceCounts[b] ? a : b, 'ROAS/POAS'
+                );
+                setPredominantMetricPreference(predominant);
+                
                 // Aggregate for metric cards
                 const totalRevenue = results.reduce((sum, r) => sum + r.revenue, 0);
                 const totalAdspend = results.reduce((sum, r) => sum + r.adspend, 0);
                 const totalOrders = results.reduce((sum, r) => sum + r.orders, 0);
                 const combinedRoas = totalAdspend > 0 ? totalRevenue / totalAdspend : null;
-                setMetrics({ revenue: totalRevenue, adspend: totalAdspend, orders: totalOrders, roas: combinedRoas });
+                const combinedSpendshare = totalRevenue > 0 ? totalAdspend / totalRevenue : null;
+                setMetrics({ revenue: totalRevenue, adspend: totalAdspend, orders: totalOrders, roas: combinedRoas, spendshare: combinedSpendshare });
                 // Aggregate previous period
                 const totalRevenuePrev = resultsPrev.reduce((sum, r) => sum + r.revenue, 0);
                 const totalAdspendPrev = resultsPrev.reduce((sum, r) => sum + r.adspend, 0);
                 const totalOrdersPrev = resultsPrev.reduce((sum, r) => sum + r.orders, 0);
                 const combinedRoasPrev = totalAdspendPrev > 0 ? totalRevenuePrev / totalAdspendPrev : null;
-                setMetricsPrev({ revenue: totalRevenuePrev, adspend: totalAdspendPrev, orders: totalOrdersPrev, roas: combinedRoasPrev });
+                const combinedSpendsharePrev = totalRevenuePrev > 0 ? totalAdspendPrev / totalRevenuePrev : null;
+                setMetricsPrev({ revenue: totalRevenuePrev, adspend: totalAdspendPrev, orders: totalOrdersPrev, roas: combinedRoasPrev, spendshare: combinedSpendsharePrev });
                 setTableRows(results);
             } catch (err) {
                 setError(err.message);
@@ -162,7 +182,7 @@ export default function ParentPropertyHome() {
         })();
     }, [childCustomers, dateRange, comparisonMethod]);
 
-    // Metric cards config
+    // Metric cards config - conditionally show either ROAS or Spendshare
     const metricCards = [
         {
             label: "Combined Revenue",
@@ -185,14 +205,26 @@ export default function ParentPropertyHome() {
             changeType: percentChange(metrics.orders, metricsPrev.orders) > 0 ? "up" : percentChange(metrics.orders, metricsPrev.orders) < 0 ? "down" : undefined,
             icon: <FiShoppingCart />,
         },
-        {
+    ];
+
+    // Add either Combined ROAS or Spendshare based on predominant preference
+    if (predominantMetricPreference === 'Spendshare') {
+        metricCards.push({
+            label: "Combined Spendshare",
+            value: metrics.spendshare !== null ? (metrics.spendshare * 100).toFixed(2) + "%" : "-",
+            change: percentChange(metrics.spendshare, metricsPrev.spendshare) !== null ? Math.abs(percentChange(metrics.spendshare, metricsPrev.spendshare)).toFixed(1) : undefined,
+            changeType: percentChange(metrics.spendshare, metricsPrev.spendshare) > 0 ? "up" : percentChange(metrics.spendshare, metricsPrev.spendshare) < 0 ? "down" : undefined,
+            icon: <FiPercent />,
+        });
+    } else {
+        metricCards.push({
             label: "Combined ROAS",
             value: metrics.roas !== null ? metrics.roas.toFixed(2) : "-",
             change: percentChange(metrics.roas, metricsPrev.roas) !== null ? Math.abs(percentChange(metrics.roas, metricsPrev.roas)).toFixed(1) : undefined,
             changeType: percentChange(metrics.roas, metricsPrev.roas) > 0 ? "up" : percentChange(metrics.roas, metricsPrev.roas) < 0 ? "down" : undefined,
             icon: <FiPercent />,
-        },
-    ];
+        });
+    }
 
     return (
         <div className="w-full">
@@ -242,7 +274,9 @@ export default function ParentPropertyHome() {
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">Revenue</th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">Orders</th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">Ad Spend</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">ROAS</th>
+                                    <th className="px-3 py-1.5 font-semibold text-gray-700">
+                                        {predominantMetricPreference === 'Spendshare' ? 'Spendshare' : 'ROAS'}
+                                    </th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">AOV</th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">Actions</th>
                                 </tr>
@@ -261,7 +295,13 @@ export default function ParentPropertyHome() {
                                         </td>
                                         <td className="px-3 py-2 whitespace-nowrap">{row.orders.toLocaleString()}</td>
                                         <td className="px-3 py-2 whitespace-nowrap">{row.adspend.toLocaleString("da-DK", { style: "currency", currency: "DKK" })}</td>
-                                        <td className="px-3 py-2 whitespace-nowrap">{row.roas !== null ? row.roas.toFixed(2) : "-"}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">
+                                            {row.metricPreference === 'Spendshare' ? (
+                                                row.spendshare !== null ? `${(row.spendshare * 100).toFixed(2)}%` : "-"
+                                            ) : (
+                                                row.roas !== null ? row.roas.toFixed(2) : "-"
+                                            )}
+                                        </td>
                                         <td className="px-3 py-2 whitespace-nowrap">{row.aov ? row.aov.toLocaleString("da-DK", { style: "currency", currency: "DKK" }) : "-"}</td>
                                         <td className="px-3 py-2 whitespace-nowrap flex gap-2">
                                             <Link href={`/dashboard/${row._id}/performance-dashboard`}>

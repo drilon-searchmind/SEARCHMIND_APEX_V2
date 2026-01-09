@@ -14,6 +14,7 @@ const DailyOverviewPage = () => {
     const customer = customers.find(c => c._id === params.customerId);
     const [toggle, setToggle] = useState("Current Period");
     const [revenueTypeState, setRevenueTypeState] = useState("customer?.CustomerSettings?.customerRevenueType || 'total_sales'");
+    const [customerMetricPreference, setCustomerMetricPreference] = useState('ROAS/POAS');
 
     // Date range state
     const today = new Date();
@@ -53,6 +54,11 @@ const DailyOverviewPage = () => {
 
     useEffect(() => {
         if (!customer) return;
+        
+        // Set metric preference from customer settings
+        const metricPref = customer?.CustomerSettings?.metricPreference || 'ROAS/POAS';
+        setCustomerMetricPreference(metricPref);
+        
         setLoading(true);
         setError(null);
         (async () => {
@@ -94,6 +100,7 @@ const DailyOverviewPage = () => {
                     const psCost = fbMap[date] || 0;
                     const cost = ppcCost + psCost;
                     const roas = cost > 0 ? revenue / cost : null;
+                    const spendshare = revenue > 0 ? cost / revenue : null;
                     let poas = null;
                     if (cost > 0) {
                         const grossProfit = (revenue * cogsPercentage) - cost;
@@ -101,7 +108,7 @@ const DailyOverviewPage = () => {
                     }
                     const cac = merged.CACTotalSales ?? null;
                     const aov = orders > 0 ? revenue / orders : null;
-                    return { date, orders, revenue, revenueExTax, ppcCost, psCost, roas, poas, aov, cac };
+                    return { date, orders, revenue, revenueExTax, ppcCost, psCost, roas, spendshare, poas, aov, cac };
                 });
                 setRows(dailyRows);
 
@@ -128,10 +135,11 @@ const DailyOverviewPage = () => {
                     const psCost = fbMapPrev[date] || 0;
                     const cost = ppcCost + psCost;
                     const roas = cost > 0 ? revenue / cost : null;
+                    const spendshare = revenue > 0 ? cost / revenue : null;
                     const poas = mergedPrev.POASTotalSales ?? null;
                     const cac = mergedPrev.CACTotalSales ?? null;
                     const aov = orders > 0 ? revenue / orders : null;
-                    return { date, orders, revenue, revenueExTax, ppcCost, psCost, roas, poas, aov, cac };
+                    return { date, orders, revenue, revenueExTax, ppcCost, psCost, roas, spendshare, poas, aov, cac };
                 });
                 setRowsPrev(dailyRowsPrev);
             } catch (err) {
@@ -195,7 +203,9 @@ const DailyOverviewPage = () => {
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">Revenue ex tax</th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">PPC Cost</th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">PS Cost</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">ROAS</th>
+                                    <th className="px-3 py-1.5 font-semibold text-gray-700">
+                                        {customerMetricPreference === 'Spendshare' ? 'Spendshare' : 'ROAS'}
+                                    </th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">POAS</th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">AOV</th>
                                 </tr>
@@ -212,6 +222,7 @@ const DailyOverviewPage = () => {
                                         ppcCost: Math.max(...rows.map(r => r.ppcCost)),
                                         psCost: Math.max(...rows.map(r => r.psCost)),
                                         roas: Math.max(...rows.map(r => r.roas ?? 0)),
+                                        spendshare: Math.max(...rows.map(r => r.spendshare ?? 0)),
                                         poas: Math.max(...rows.map(r => r.poas ?? 0)),
                                         aov: Math.max(...rows.map(r => r.aov ?? 0)),
                                         cac: Math.max(...rows.map(r => r.cac ?? 0)),
@@ -230,7 +241,18 @@ const DailyOverviewPage = () => {
                                             <td className="px-3 py-2 whitespace-nowrap" style={{ ...((row.revenueExTax === max.revenueExTax) && { fontWeight: 600 }), ...(row.revenueExTax > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.revenueExTax / max.revenueExTax)})` } : {}) }}>{row.revenueExTax.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
                                             <td className="px-3 py-2 whitespace-nowrap" style={{ ...((row.ppcCost === max.ppcCost) && { fontWeight: 600 }), ...(row.ppcCost > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.ppcCost / max.ppcCost)})` } : {}) }}>{row.ppcCost.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
                                             <td className="px-3 py-2 whitespace-nowrap" style={{ ...((row.psCost === max.psCost) && { fontWeight: 600 }), ...(row.psCost > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.psCost / max.psCost)})` } : {}) }}>{row.psCost.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                            <td className="px-3 py-2 whitespace-nowrap" style={{ ...((row.roas === max.roas) && { fontWeight: 600 }), ...(row.roas > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.roas / max.roas)})` } : {}) }}>{row.roas !== null ? row.roas.toFixed(2) : '-'}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap" style={{ 
+                                                ...((customerMetricPreference === 'Spendshare' ? row.spendshare === max.spendshare : row.roas === max.roas) && { fontWeight: 600 }), 
+                                                ...(customerMetricPreference === 'Spendshare' 
+                                                    ? (row.spendshare > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.spendshare / max.spendshare)})` } : {})
+                                                    : (row.roas > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.roas / max.roas)})` } : {})
+                                                )
+                                            }}>
+                                                {customerMetricPreference === 'Spendshare' 
+                                                    ? (row.spendshare !== null ? `${(row.spendshare * 100).toFixed(2)}%` : '-')
+                                                    : (row.roas !== null ? row.roas.toFixed(2) : '-')
+                                                }
+                                            </td>
                                             <td className="px-3 py-2 whitespace-nowrap" style={{ ...((row.poas === max.poas) && { fontWeight: 600 }), ...(row.poas > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.poas / max.poas)})` } : {}) }}>{row.poas !== null ? row.poas.toFixed(2) : '-'}</td>
                                             <td className="px-3 py-2 whitespace-nowrap" style={{ ...((row.aov === max.aov) && { fontWeight: 600 }), ...(row.aov > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.aov / max.aov)})` } : {}) }}>{row.aov !== null ? row.aov.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-'}</td>
                                         </tr>
@@ -245,7 +267,12 @@ const DailyOverviewPage = () => {
                                         <td className="px-3 py-2 whitespace-nowrap">{rows.reduce((sum, r) => sum + r.revenueExTax, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
                                         <td className="px-3 py-2 whitespace-nowrap">{rows.reduce((sum, r) => sum + r.ppcCost, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
                                         <td className="px-3 py-2 whitespace-nowrap">{rows.reduce((sum, r) => sum + r.psCost, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                        <td className="px-3 py-2 whitespace-nowrap">{(() => { const c = rows.reduce((sum, r) => sum + (r.roas ?? 0), 0); return c > 0 ? (c / rows.length).toFixed(2) : '-'; })()}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">
+                                            {customerMetricPreference === 'Spendshare' 
+                                                ? (() => { const c = rows.reduce((sum, r) => sum + (r.spendshare ?? 0), 0); return c > 0 ? `${((c / rows.length) * 100).toFixed(2)}%` : '-'; })()
+                                                : (() => { const c = rows.reduce((sum, r) => sum + (r.roas ?? 0), 0); return c > 0 ? (c / rows.length).toFixed(2) : '-'; })()
+                                            }
+                                        </td>
                                         <td className="px-3 py-2 whitespace-nowrap">{(() => { const c = rows.reduce((sum, r) => sum + (r.poas ?? 0), 0); return c > 0 ? (c / rows.length).toFixed(2) : '-'; })()}</td>
                                         <td className="px-3 py-2 whitespace-nowrap">{(() => { const c = rows.reduce((sum, r) => sum + (r.aov ?? 0), 0); return c > 0 ? (c / rows.length).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-'; })()}</td>
                                     </tr>
@@ -259,7 +286,12 @@ const DailyOverviewPage = () => {
                                         <td className="px-3 py-2 whitespace-nowrap">{rowsPrev.reduce((sum, r) => sum + r.revenueExTax, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
                                         <td className="px-3 py-2 whitespace-nowrap">{rowsPrev.reduce((sum, r) => sum + r.ppcCost, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
                                         <td className="px-3 py-2 whitespace-nowrap">{rowsPrev.reduce((sum, r) => sum + r.psCost, 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                        <td className="px-3 py-2 whitespace-nowrap">{(() => { const c = rowsPrev.reduce((sum, r) => sum + (r.roas ?? 0), 0); return c > 0 ? (c / rowsPrev.length).toFixed(2) : '-'; })()}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">
+                                            {customerMetricPreference === 'Spendshare' 
+                                                ? (() => { const c = rowsPrev.reduce((sum, r) => sum + (r.spendshare ?? 0), 0); return c > 0 ? `${((c / rowsPrev.length) * 100).toFixed(2)}%` : '-'; })()
+                                                : (() => { const c = rowsPrev.reduce((sum, r) => sum + (r.roas ?? 0), 0); return c > 0 ? (c / rowsPrev.length).toFixed(2) : '-'; })()
+                                            }
+                                        </td>
                                         <td className="px-3 py-2 whitespace-nowrap">{(() => { const c = rowsPrev.reduce((sum, r) => sum + (r.poas ?? 0), 0); return c > 0 ? (c / rowsPrev.length).toFixed(2) : '-'; })()}</td>
                                         <td className="px-3 py-2 whitespace-nowrap">{(() => { const c = rowsPrev.reduce((sum, r) => sum + (r.aov ?? 0), 0); return c > 0 ? (c / rowsPrev.length).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-'; })()}</td>
                                     </tr>
@@ -273,7 +305,22 @@ const DailyOverviewPage = () => {
                                         <td className="px-3 py-2 whitespace-nowrap">{(rows.reduce((sum, r) => sum + r.revenueExTax, 0) - rowsPrev.reduce((sum, r) => sum + r.revenueExTax, 0)).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
                                         <td className="px-3 py-2 whitespace-nowrap">{(rows.reduce((sum, r) => sum + r.ppcCost, 0) - rowsPrev.reduce((sum, r) => sum + r.ppcCost, 0)).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
                                         <td className="px-3 py-2 whitespace-nowrap">{(rows.reduce((sum, r) => sum + r.psCost, 0) - rowsPrev.reduce((sum, r) => sum + r.psCost, 0)).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</td>
-                                        <td className="px-3 py-2 whitespace-nowrap">{(() => { const c = rows.reduce((sum, r) => sum + (r.roas ?? 0), 0) - rowsPrev.reduce((sum, r) => sum + (r.roas ?? 0), 0); return c !== 0 ? c.toFixed(2) : '-'; })()}</td>
+                                        <td className="px-3 py-2 whitespace-nowrap">
+                                            {customerMetricPreference === 'Spendshare' 
+                                                ? (() => { 
+                                                    const curr = rows.reduce((sum, r) => sum + (r.spendshare ?? 0), 0) / rows.length;
+                                                    const prev = rowsPrev.reduce((sum, r) => sum + (r.spendshare ?? 0), 0) / rowsPrev.length;
+                                                    const diff = curr - prev;
+                                                    return diff !== 0 ? `${(diff * 100).toFixed(2)}%` : '-';
+                                                })()
+                                                : (() => { 
+                                                    const curr = rows.reduce((sum, r) => sum + (r.roas ?? 0), 0) / rows.length;
+                                                    const prev = rowsPrev.reduce((sum, r) => sum + (r.roas ?? 0), 0) / rowsPrev.length;
+                                                    const diff = curr - prev;
+                                                    return diff !== 0 ? diff.toFixed(2) : '-';
+                                                })()
+                                            }
+                                        </td>
                                         <td className="px-3 py-2 whitespace-nowrap">{(() => { const c = rows.reduce((sum, r) => sum + (r.poas ?? 0), 0) - rowsPrev.reduce((sum, r) => sum + (r.poas ?? 0), 0); return c !== 0 ? c.toFixed(2) : '-'; })()}</td>
                                         <td className="px-3 py-2 whitespace-nowrap">{(() => { const c = rows.reduce((sum, r) => sum + (r.aov ?? 0), 0) - rowsPrev.reduce((sum, r) => sum + (r.aov ?? 0), 0); return c !== 0 ? c.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-'; })()}</td>
                                     </tr>
