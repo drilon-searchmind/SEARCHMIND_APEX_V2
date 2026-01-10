@@ -14,7 +14,9 @@ import FormButton from "../form/FormButton";
 
 const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true }) => {
     const [menuOpen, setMenuOpen] = useState(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const menuRef = useRef(null);
+    const mobileMenuRef = useRef(null);
     const user = useUser();
     const [theme, setTheme] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -149,21 +151,26 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
         return () => document.removeEventListener('mousedown', handleDocumentClick);
     }, [menuOpen]);
 
+    // Close mobile menu on outside click
+    useEffect(() => {
+        function handleDocumentClick(e) {
+            if (!mobileMenuOpen) return;
+            if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target)) {
+                // setMobileMenuOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleDocumentClick);
+        return () => document.removeEventListener('mousedown', handleDocumentClick);
+    }, [mobileMenuOpen]);
+
     return (
         <>
-            <div className="sticky top-0 bg-white flex items-center justify-between px-20 py-5 border-b border-gray-200 transition-colors duration-200">
-                <div className="flex items-center space-x-10">
-                    <div className="relative hidden">
-                        <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            className="pl-10 pr-4 py-[5px] border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
-                        />
-                    </div>
-
+            <div className="sticky top-0 bg-white flex items-center justify-between px-4 xl:px-20 py-4 xl:py-5 border-b border-gray-200 transition-colors duration-200 z-40">
+                {/* Left Section */}
+                <div className="flex items-center space-x-4 xl:space-x-10 flex-1 xl:flex-none">
+                    {/* Logo - Hidden on mobile */}
                     {showLogo && (
-                        <div className="relative">
+                        <div className="relative hidden xl:block">
                             <Link href="/dashboard">
                                 <Image
                                     src="/images/icons/apexlogo-new1.png"
@@ -176,23 +183,26 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                         </div>
                     )}
 
-                    <div className="relative">
+                    {/* Home Link - Hidden on mobile */}
+                    <div className="relative hidden xl:block">
                         <Link href="/home" className="flex items-center space-x-2">
                             <FiHome className="text-gray-400 h-4 w-4" />
-                            <span className="text-gray-900">Home</span>
+                            <span className="text-gray-900 text-sm">Home</span>
                         </Link>
                     </div>
-                    <div className="flex items-center space-x-2">
-                        <FiUsers className="text-gray-400 h-4 w-4" />
-                        <div className="w-64">
+
+                    {/* Customer Selector - Visible on mobile and desktop */}
+                    <div className="flex items-center space-x-2 flex-1 xl:flex-none">
+                        <FiUsers className="text-gray-400 h-4 w-4 hidden xl:block" />
+                        <div className="w-32 xl:w-64">
                             <Select
                                 value={selectedOption}
                                 onChange={handleCustomerChange}
                                 options={customerOptions}
-                                placeholder="Select Customer"
+                                placeholder="Select"
                                 isSearchable={true}
                                 isClearable={false}
-                                className="react-select-container text-sm"
+                                className="react-select-container text-xs xl:text-sm"
                                 classNamePrefix="react-select"
                                 styles={{
                                     control: (provided, state) => ({
@@ -240,13 +250,17 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                             />
                         </div>
                     </div>
+
+                    {/* Team Members - Hidden on mobile */}
                     {showLinks && (
-                        <div id="teamMembers">
+                        <div id="teamMembers" className="hidden xl:block">
                             <TeamMembers customerId={activeCustomerId} />
                         </div>
                     )}
                 </div>
-                <div className="flex items-center space-x-4">
+
+                {/* Right Section - Desktop Layout */}
+                <div className="hidden xl:flex items-center space-x-4">
                     {showPropertySection && (
                         <>
                             <div>
@@ -269,12 +283,12 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                             </div>
                         </>
                     )}
-                    <button onClick={handleToggleTheme} className="p-2 rounded-full border border-gray-200 bg-white text-gray-700 transition-colors duration-200">
+                    <button onClick={handleToggleTheme} className="p-2 rounded-full border border-gray-200 bg-white text-gray-700 transition-colors duration-200 hover:bg-gray-50">
                         {theme === "dark" ? <FaSun /> : <FaMoon />}
                     </button>
                     <div className="relative" ref={menuRef}>
                         <button
-                            className="flex items-center space-x-2"
+                            className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
                             onClick={() => setMenuOpen(!menuOpen)}
                         >
                             <Image
@@ -284,7 +298,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                 height={32}
                                 className="rounded-full"
                             />
-                            <span className="text-gray-900">{user?.name || "User"}</span>
+                            <span className="text-gray-900 text-sm">{user?.name || "User"}</span>
                             <FiChevronDown className="ml-2 text-gray-700" />
                         </button>
                         {menuOpen && (
@@ -332,7 +346,154 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                         )}
                     </div>
                 </div>
+
+                {/* Mobile Menu Toggle + Theme */}
+                <div className="flex xl:hidden items-center space-x-3 ml-auto">
+                    <button onClick={handleToggleTheme} className="p-2 rounded-full border border-gray-200 bg-white text-gray-700 transition-colors duration-200 hover:bg-gray-50">
+                        {theme === "dark" ? <FaSun size={18} /> : <FaMoon size={18} />}
+                    </button>
+                    <button 
+                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                        className="p-2 rounded-lg border border-gray-200 bg-white text-gray-700 transition-colors duration-200 hover:bg-gray-50"
+                        aria-label="Toggle menu"
+                    >
+                        {mobileMenuOpen ? (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        ) : (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                        )}
+                    </button>
+                </div>
             </div>
+
+            {/* Mobile Menu - Slides down on mobile */}
+            {mobileMenuOpen && (
+                <div 
+                    ref={mobileMenuRef}
+                    className="fixed xl:hidden top-16 left-0 right-0 bg-white border-b border-gray-200 shadow-lg z-40 max-h-[calc(100vh-64px)] overflow-y-auto"
+                >
+                    <div className="px-4 py-4 space-y-4 ml-[50px]">
+                        {/* Home Link */}
+                        <Link 
+                            href="/home" 
+                            className="flex items-center space-x-3 py-1 rounded-lg hover:bg-gray-50 transition-colors"
+                            onClick={() => setMobileMenuOpen(false)}
+                        >
+                            <FiHome className="text-gray-400 h-5 w-5" />
+                            <span className="text-gray-900 font-medium">Home</span>
+                        </Link>
+
+                        {/* Team Members - Mobile */}
+                        {showLinks && (
+                            <div id="teamMembers-mobile" className="py-2 border-b border-gray-200">
+                                <TeamMembers customerId={activeCustomerId} />
+                            </div>
+                        )}
+
+                        {/* Property Actions - Mobile */}
+                        {showPropertySection && (
+                            <>
+                                <div className="py-2">
+                                    <p className="text-xs font-semibold text-gray-500 px-3 mb-2">PROPERTY</p>
+                                    <Link 
+                                        href={`/parent-property/${activeCustomer?.parentCustomer || ""}/home`}
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
+                                    >
+                                        <FiHome className="text-gray-400 h-5 w-5" />
+                                        <span className="text-gray-900 font-medium text-sm">View Group Property</span>
+                                    </Link>
+                                    {!user?.isExternal && (
+                                        <button
+                                            onClick={() => {
+                                                setShowShareModal(true);
+                                                setMobileMenuOpen(false);
+                                            }}
+                                            className="w-full flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors mt-2"
+                                        >
+                                            <FiUsers className="text-gray-400 h-5 w-5" />
+                                            <span className="text-gray-900 font-medium text-sm">Share property</span>
+                                        </button>
+                                    )}
+                                </div>
+                            </>
+                        )}
+
+                        {/* User Menu Items - Mobile */}
+                        <div className="border-t border-gray-200 pt-4">
+                            <p className="text-xs font-semibold text-gray-500 px-3 mb-3">ACCOUNT</p>
+                            <div className="mb-3">
+                                <div className="flex items-center space-x-3 px-3 py-2">
+                                    <Image
+                                        src={user?.image || "/images/users/66beeaec47a55.jpg"}
+                                        alt="User"
+                                        width={32}
+                                        height={32}
+                                        className="rounded-full"
+                                    />
+                                    <div>
+                                        <p className="font-semibold text-gray-900 text-sm">{user?.name || "User"}</p>
+                                        <p className="text-gray-400 text-xs">{user?.email}</p>
+                                    </div>
+                                </div>
+                                {user?.isAdmin && (
+                                    <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full ml-11">
+                                        Admin
+                                    </span>
+                                )}
+                                {user?.isExternal && (
+                                    <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full ml-11 ml-1">
+                                        External
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Link 
+                                    href="/profile"
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    <FiUser className="text-gray-400 h-5 w-5" />
+                                    <span className="text-gray-900 font-medium text-sm">User Profile</span>
+                                </Link>
+                                {user?.isAdmin && (
+                                    <Link 
+                                        href="/admin"
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
+                                    >
+                                        <FiSettings className="text-gray-400 h-5 w-5" />
+                                        <span className="text-gray-900 font-medium text-sm">Admin</span>
+                                    </Link>
+                                )}
+                                <Link 
+                                    href="/profile"
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    <FiBarChart2 className="text-gray-400 h-5 w-5" />
+                                    <span className="text-gray-900 font-medium text-sm">Campaigns</span>
+                                </Link>
+                                <button
+                                    onClick={() => {
+                                        signOut({ callbackUrl: "/login" });
+                                        setMobileMenuOpen(false);
+                                    }}
+                                    className="w-full flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors text-red-600"
+                                >
+                                    <FiLogOut className="h-5 w-5" />
+                                    <span className="font-medium text-sm">Sign Out</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* SharePropertyModal (only for non-external users) */}
             {showShareModal && !user?.isExternal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center glassmorphism2">
