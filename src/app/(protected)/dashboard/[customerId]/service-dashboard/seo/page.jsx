@@ -52,7 +52,9 @@ const defaultRange = () => {
 export default function SEODashboardPage() {
     const params = useParams();
     const customerId = params.customerId;
-    const [range, setRange] = useState(defaultRange());
+    const defaultRangeValue = defaultRange();
+    const [tempRange, setTempRange] = useState(defaultRangeValue);
+    const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [metrics, setMetrics] = useState(null);
@@ -60,6 +62,10 @@ export default function SEODashboardPage() {
     const [urls, setUrls] = useState([]);
     const [selectedMetric, setSelectedMetric] = useState('clicks');
     const [siteUrl, setSiteUrl] = useState('');
+
+    const handleDateRangeApply = ({ startDate, endDate }) => {
+        setAppliedRange({ startDate, endDate });
+    };
 
     useEffect(() => {
         // Fetch customer settings
@@ -81,7 +87,7 @@ export default function SEODashboardPage() {
         if (!siteUrl) return;
         fetchData();
         // eslint-disable-next-line
-    }, [range.startDate, range.endDate, siteUrl]);
+    }, [appliedRange.startDate, appliedRange.endDate, siteUrl]);
 
     async function fetchData() {
         setLoading(true);
@@ -90,7 +96,7 @@ export default function SEODashboardPage() {
             const res = await fetch('/api/seo-dashboard/metrics', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ siteUrl, startDate: range.startDate, endDate: range.endDate }),
+                body: JSON.stringify({ siteUrl, startDate: appliedRange.startDate, endDate: appliedRange.endDate }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error?.message || 'API error');
@@ -157,10 +163,11 @@ export default function SEODashboardPage() {
                 label={siteUrl || 'No property set'}
                 right={
                     <DateRangePicker
-                        startDate={range.startDate}
-                        endDate={range.endDate}
-                        onStartDateChange={d => setRange(r => ({ ...r, startDate: d }))}
-                        onEndDateChange={d => setRange(r => ({ ...r, endDate: d }))}
+                        onApply={handleDateRangeApply}
+                        startDate={tempRange.startDate}
+                        endDate={tempRange.endDate}
+                        onStartDateChange={d => setTempRange(r => ({ ...r, startDate: d }))}
+                        onEndDateChange={d => setTempRange(r => ({ ...r, endDate: d }))}
                     />
                 }
             />

@@ -23,17 +23,20 @@ const DailyOverviewPage = () => {
     const dd = String(today.getDate()).padStart(2, '0');
     const defaultEnd = `${yyyy}-${mm}-${dd}`;
     const defaultStart = `${yyyy}-${mm}-01`;
-    const [dateRange, setDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
+    
+    // Separate temp (input) and applied (fetch-triggered) date ranges
+    const [tempDateRange, setTempDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
+    const [appliedDateRange, setAppliedDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
 
     // Handlers for DateRangePicker (controlled)
     const handleDateRangeApply = ({ startDate, endDate }) => {
-        setDateRange({ startDate, endDate });
+        setAppliedDateRange({ startDate, endDate });
     };
     const handleStartDateChange = (newStart) => {
-        setDateRange(dr => ({ ...dr, startDate: newStart }));
+        setTempDateRange(dr => ({ ...dr, startDate: newStart }));
     };
     const handleEndDateChange = (newEnd) => {
-        setDateRange(dr => ({ ...dr, endDate: newEnd }));
+        setTempDateRange(dr => ({ ...dr, endDate: newEnd }));
     };
 
     // Table data state
@@ -63,12 +66,12 @@ const DailyOverviewPage = () => {
         setError(null);
         (async () => {
             try {
-                let startDate = dateRange.startDate;
-                let endDate = dateRange.endDate;
+                let startDate = appliedDateRange.startDate;
+                let endDate = appliedDateRange.endDate;
                 if (toggle === 'Last Year Period') {
                     // Shift period to last year
-                    const start = new Date(dateRange.startDate);
-                    const end = new Date(dateRange.endDate);
+                    const start = new Date(appliedDateRange.startDate);
+                    const end = new Date(appliedDateRange.endDate);
                     startDate = new Date(start.setFullYear(start.getFullYear() - 1)).toISOString().slice(0, 10);
                     endDate = new Date(end.setFullYear(end.getFullYear() - 1)).toISOString().slice(0, 10);
                 }
@@ -113,8 +116,8 @@ const DailyOverviewPage = () => {
                 setRows(dailyRows);
 
                 // Always fetch previous period for summary rows
-                const start = new Date(dateRange.startDate);
-                const end = new Date(dateRange.endDate);
+                const start = new Date(appliedDateRange.startDate);
+                const end = new Date(appliedDateRange.endDate);
                 const days = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
                 const prevEnd = new Date(start.getTime() - 1000 * 60 * 60 * 24);
                 const prevStart = new Date(prevEnd.getTime() - (days - 1) * 1000 * 60 * 60 * 24);
@@ -148,7 +151,7 @@ const DailyOverviewPage = () => {
                 setLoading(false);
             }
         })();
-    }, [customer, dateRange, toggle]);
+    }, [customer, appliedDateRange, toggle]);
 
     return (
         <div id='DailyOverviewPage' className="w-full">
@@ -158,8 +161,8 @@ const DailyOverviewPage = () => {
                 right={
                     <DateRangePicker
                         onApply={handleDateRangeApply}
-                        startDate={dateRange.startDate}
-                        endDate={dateRange.endDate}
+                        startDate={tempDateRange.startDate}
+                        endDate={tempDateRange.endDate}
                         onStartDateChange={handleStartDateChange}
                         onEndDateChange={handleEndDateChange}
                     />

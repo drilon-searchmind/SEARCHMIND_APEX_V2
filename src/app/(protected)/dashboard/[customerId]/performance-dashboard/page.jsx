@@ -26,17 +26,20 @@ export default function PerformanceDashboard() {
     const dd = String(today.getDate()).padStart(2, '0');
     const defaultEnd = `${yyyy}-${mm}-${dd}`;
     const defaultStart = `${yyyy}-${mm}-01`;
-    const [dateRange, setDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
+    
+    // Separate temp (input) and applied (fetch-triggered) date ranges
+    const [tempDateRange, setTempDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
+    const [appliedDateRange, setAppliedDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
 
     // Handlers for DateRangePicker (controlled)
     const handleDateRangeApply = ({ startDate, endDate }) => {
-        setDateRange({ startDate, endDate });
+        setAppliedDateRange({ startDate, endDate });
     };
     const handleStartDateChange = (newStart) => {
-        setDateRange(dr => ({ ...dr, startDate: newStart }));
+        setTempDateRange(dr => ({ ...dr, startDate: newStart }));
     };
     const handleEndDateChange = (newEnd) => {
-        setDateRange(dr => ({ ...dr, endDate: newEnd }));
+        setTempDateRange(dr => ({ ...dr, endDate: newEnd }));
     };
 
     // Comparison method state
@@ -59,8 +62,8 @@ export default function PerformanceDashboard() {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
                 // Calculate previous period based on comparisonMethod
-                const start = dayjs(dateRange.startDate);
-                const end = dayjs(dateRange.endDate);
+                const start = dayjs(appliedDateRange.startDate);
+                const end = dayjs(appliedDateRange.endDate);
                 const days = end.diff(start, 'day') + 1;
 
                 let prevStart, prevEnd;
@@ -75,7 +78,7 @@ export default function PerformanceDashboard() {
                 }
 
                 const [res, resPrev] = await Promise.all([
-                    fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`),
+                    fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}`),
                     fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${prevStart.format('YYYY-MM-DD')}&endDate=${prevEnd.format('YYYY-MM-DD')}`)
                 ]);
                 if (!res.ok || !resPrev.ok) throw new Error('Failed to fetch merged data');
@@ -215,7 +218,7 @@ export default function PerformanceDashboard() {
                 setLoading(false);
             }
         })();
-    }, [customer, dateRange, comparisonMethod]);
+    }, [customer, appliedDateRange, comparisonMethod]);
 
     // Chart color palette from CSS variables
     const [chartColors, setChartColors] = useState({});
@@ -335,8 +338,8 @@ export default function PerformanceDashboard() {
                 right={
                     <DateRangePicker
                         onApply={handleDateRangeApply}
-                        startDate={dateRange.startDate}
-                        endDate={dateRange.endDate}
+                        startDate={tempDateRange.startDate}
+                        endDate={tempDateRange.endDate}
                         onStartDateChange={handleStartDateChange}
                         onEndDateChange={handleEndDateChange}
                     />

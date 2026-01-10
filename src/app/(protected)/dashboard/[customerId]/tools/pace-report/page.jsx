@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useCustomers } from "@/hooks/useCustomers";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
+import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import dayjs from "dayjs";
 import GraphCard from "@/components/dashboard/GraphCard";
 import Spinner from "@/components/ui/Spinner";
@@ -26,14 +27,20 @@ export default function PaceReportPage() {
     const dd = String(today.getDate()).padStart(2, '0');
     const defaultEnd = `${yyyy}-${mm}-${dd}`;
     const defaultStart = `${yyyy}-${mm}-01`;
-    const [dateRange, setDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
+    
+    // Separate temp (input) and applied (fetch-triggered) date ranges
+    const [tempDateRange, setTempDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
+    const [appliedDateRange, setAppliedDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
 
     // Handlers for DateRangePicker (controlled)
+    const handleDateRangeApply = ({ startDate, endDate }) => {
+        setAppliedDateRange({ startDate, endDate });
+    };
     const handleStartDateChange = (newStart) => {
-        setDateRange(dr => ({ ...dr, startDate: newStart }));
+        setTempDateRange(dr => ({ ...dr, startDate: newStart }));
     };
     const handleEndDateChange = (newEnd) => {
-        setDateRange(dr => ({ ...dr, endDate: newEnd }));
+        setTempDateRange(dr => ({ ...dr, endDate: newEnd }));
     };
 
     // Metrics state
@@ -50,7 +57,7 @@ export default function PaceReportPage() {
         (async () => {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-                const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`);
+                const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}`);
                 if (!res.ok) throw new Error('Failed to fetch merged data');
                 const merged = await res.json();
                 // Aggregate cost per day
@@ -69,8 +76,8 @@ export default function PaceReportPage() {
                 setCostData(costDaily);
 
                 // Aggregate objectives for all months in the selected range
-                const startDateObj = dayjs(dateRange.startDate);
-                const endDateObj = dayjs(dateRange.endDate);
+                const startDateObj = dayjs(appliedDateRange.startDate);
+                const endDateObj = dayjs(appliedDateRange.endDate);
                 const totalDays = endDateObj.diff(startDateObj, 'day') + 1;
                 // Find all months in the selected range
                 let monthsInRange = [];
@@ -131,7 +138,7 @@ export default function PaceReportPage() {
                 setLoading(false);
             }
         })();
-    }, [customer, objectives, dateRange]);
+    }, [customer, objectives, appliedDateRange]);
 
     // Prepare chart data for cost vs budget
     const chartCategories = costData.map(d => d.period);
@@ -157,21 +164,13 @@ export default function PaceReportPage() {
                 title="Marketing Pace Report"
                 label={customer ? customer.customerName : ""}
                 right={
-                    <div className="flex gap-2 items-center">
-                        <input
-                            type="date"
-                            value={dateRange.startDate}
-                            onChange={e => handleStartDateChange(e.target.value)}
-                            className="border rounded px-2 py-1 text-xs"
-                        />
-                        <span className="mx-1">to</span>
-                        <input
-                            type="date"
-                            value={dateRange.endDate}
-                            onChange={e => handleEndDateChange(e.target.value)}
-                            className="border rounded px-2 py-1 text-xs"
-                        />
-                    </div>
+                    <DateRangePicker
+                        onApply={handleDateRangeApply}
+                        startDate={tempDateRange.startDate}
+                        endDate={tempDateRange.endDate}
+                        onStartDateChange={handleStartDateChange}
+                        onEndDateChange={handleEndDateChange}
+                    />
                 }
             />
             <div className="flex flex-col md:flex-row gap-8 mt-4">

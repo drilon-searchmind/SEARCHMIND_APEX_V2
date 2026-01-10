@@ -31,20 +31,26 @@ const defaultRange = () => {
 export default function EcommercePage() {
     const params = useParams();
     const customerId = params?.customerId;
-    const [range, setRange] = useState(defaultRange());
+    const defaultRangeValue = defaultRange();
+    const [tempRange, setTempRange] = useState(defaultRangeValue);
+    const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [shopifyDaily, setShopifyDaily] = useState([]);
     const [selectedMetric, setSelectedMetric] = useState('total_sales');
 
+    const handleDateRangeApply = ({ startDate, endDate }) => {
+        setAppliedRange({ startDate, endDate });
+    };
+
     useEffect(() => {
-        if (!customerId || !range.startDate || !range.endDate) return;
+        if (!customerId || !appliedRange.startDate || !appliedRange.endDate) return;
         let cancelled = false;
         async function fetchData() {
             setLoading(true);
             setError(null);
             try {
-                const res = await fetch(`/api/merged-sources/${customerId}?startDate=${range.startDate}&endDate=${range.endDate}`);
+                const res = await fetch(`/api/merged-sources/${customerId}?startDate=${appliedRange.startDate}&endDate=${appliedRange.endDate}`);
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Failed to fetch merged sources');
                 if (!cancelled) {
@@ -58,7 +64,7 @@ export default function EcommercePage() {
         }
         fetchData();
         return () => { cancelled = true; };
-    }, [customerId, range.startDate, range.endDate]);
+    }, [customerId, appliedRange.startDate, appliedRange.endDate]);
 
     // Aggregate metrics
     const totalSales = shopifyDaily.reduce((s, r) => s + (r.total_sales || 0), 0);
@@ -134,10 +140,11 @@ export default function EcommercePage() {
                 label="Shopify"
                 right={(
                     <DateRangePicker
-                        startDate={range.startDate}
-                        endDate={range.endDate}
-                        onStartDateChange={d => setRange(r => ({ ...r, startDate: d }))}
-                        onEndDateChange={d => setRange(r => ({ ...r, endDate: d }))}
+                        onApply={handleDateRangeApply}
+                        startDate={tempRange.startDate}
+                        endDate={tempRange.endDate}
+                        onStartDateChange={d => setTempRange(r => ({ ...r, startDate: d }))}
+                        onEndDateChange={d => setTempRange(r => ({ ...r, endDate: d }))}
                     />
                 )}
             />

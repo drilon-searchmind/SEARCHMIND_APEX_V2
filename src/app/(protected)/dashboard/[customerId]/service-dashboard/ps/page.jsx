@@ -57,17 +57,19 @@ export default function FacebookPSPage() {
     const dd = String(today.getDate()).padStart(2, "0");
     const defaultEnd = `${yyyy}-${mm}-${dd}`;
     const defaultStart = `${yyyy}-${mm}-01`;
-    const [dateRange, setDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
+    const defaultRangeValue = { startDate: defaultStart, endDate: defaultEnd };
+    const [tempRange, setTempRange] = useState(defaultRangeValue);
+    const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
 
     // Handlers for DateRangePicker (controlled)
     const handleDateRangeApply = ({ startDate, endDate }) => {
-        setDateRange({ startDate, endDate });
+        setAppliedRange({ startDate, endDate });
     };
     const handleStartDateChange = (newStart) => {
-        setDateRange((dr) => ({ ...dr, startDate: newStart }));
+        setTempRange((dr) => ({ ...dr, startDate: newStart }));
     };
     const handleEndDateChange = (newEnd) => {
-        setDateRange((dr) => ({ ...dr, endDate: newEnd }));
+        setTempRange((dr) => ({ ...dr, endDate: newEnd }));
     };
 
     // Facebook data state
@@ -94,7 +96,7 @@ export default function FacebookPSPage() {
                 const adAccountId = facebookAdAccountId.startsWith("act_") ? facebookAdAccountId : `act_${facebookAdAccountId}`;
 
                 // Fetch metrics from API route
-                const apiUrl = `/api/facebook-campaign-insights?adAccountId=${encodeURIComponent(adAccountId)}&customerMetaID=${encodeURIComponent(customerMetaID)}&since=${encodeURIComponent(dateRange.startDate)}&until=${encodeURIComponent(dateRange.endDate)}`;
+                const apiUrl = `/api/facebook-campaign-insights?adAccountId=${encodeURIComponent(adAccountId)}&customerMetaID=${encodeURIComponent(customerMetaID)}&since=${encodeURIComponent(appliedRange.startDate)}&until=${encodeURIComponent(appliedRange.endDate)}`;
                 const fbRes = await fetch(apiUrl);
                 if (!fbRes.ok) throw new Error("Failed to fetch Facebook PS dashboard metrics");
                 const metrics = await fbRes.json();
@@ -107,7 +109,7 @@ export default function FacebookPSPage() {
                 setLoading(false);
             }
         })();
-    }, [customer, dateRange]);
+    }, [customer, appliedRange]);
 
     // Metrics cards (aggregate for period)
     const metrics = useMemo(() => {
@@ -176,8 +178,8 @@ export default function FacebookPSPage() {
                 right={
                     <DateRangePicker
                         onApply={handleDateRangeApply}
-                        startDate={dateRange.startDate}
-                        endDate={dateRange.endDate}
+                        startDate={tempRange.startDate}
+                        endDate={tempRange.endDate}
                         onStartDateChange={handleStartDateChange}
                         onEndDateChange={handleEndDateChange}
                     />

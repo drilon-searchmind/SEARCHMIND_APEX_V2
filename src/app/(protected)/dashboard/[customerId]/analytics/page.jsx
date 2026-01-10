@@ -62,7 +62,9 @@ export default function AnalyticsPage() {
     const params = useParams();
     const customerId = params.customerId;
 
-    const [range, setRange] = useState(defaultRange());
+    const defaultRangeValue = defaultRange();
+    const [tempRange, setTempRange] = useState(defaultRangeValue);
+    const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
     const [selectedKey, setSelectedKey] = useState("totalUsers");
 
     const [loading, setLoading] = useState(false);
@@ -75,6 +77,10 @@ export default function AnalyticsPage() {
     const [acqCategories, setAcqCategories] = useState([]);
     const [acqSeries, setAcqSeries] = useState([]);
     const [deviceData, setDeviceData] = useState([]);
+
+    const handleDateRangeApply = ({ startDate, endDate }) => {
+        setAppliedRange({ startDate, endDate });
+    };
 
     useEffect(() => {
         async function fetchCustomer() {
@@ -114,8 +120,8 @@ export default function AnalyticsPage() {
 
             // Timeseries
             const tRes = await fetch(`/api/ga4?${qs({
-                startDate: range.startDate,
-                endDate: range.endDate,
+                startDate: appliedRange.startDate,
+                endDate: appliedRange.endDate,
                 metrics: ["totalUsers", "screenPageViews", "bounceRate", "averageSessionDuration"].join(","),
                 dimensions: "date",
                 propertyId: ga4PropertyId,
@@ -132,8 +138,8 @@ export default function AnalyticsPage() {
 
             // Top channels
             const cRes = await fetch(`/api/ga4?${qs({
-                startDate: range.startDate,
-                endDate: range.endDate,
+                startDate: appliedRange.startDate,
+                endDate: appliedRange.endDate,
                 metrics: ["sessions", "totalUsers"].join(","),
                 dimensions: "sessionDefaultChannelGroup",
                 limit: 10,
@@ -153,8 +159,8 @@ export default function AnalyticsPage() {
 
             // Top pages
             const pRes = await fetch(`/api/ga4?${qs({
-                startDate: range.startDate,
-                endDate: range.endDate,
+                startDate: appliedRange.startDate,
+                endDate: appliedRange.endDate,
                 metrics: "screenPageViews",
                 dimensions: "pageTitle",
                 limit: 10,
@@ -173,8 +179,8 @@ export default function AnalyticsPage() {
 
             // Acquisition channels by month (stacked)
             const acqRes = await fetch(`/api/ga4?${qs({
-                startDate: range.startDate,
-                endDate: range.endDate,
+                startDate: appliedRange.startDate,
+                endDate: appliedRange.endDate,
                 metrics: "sessions",
                 dimensions: "yearMonth,sessionDefaultChannelGroup",
                 limit: 1000,
@@ -214,8 +220,8 @@ export default function AnalyticsPage() {
 
             // Sessions by device (donut)
             const devRes = await fetch(`/api/ga4?${qs({
-                startDate: range.startDate,
-                endDate: range.endDate,
+                startDate: appliedRange.startDate,
+                endDate: appliedRange.endDate,
                 metrics: "sessions",
                 dimensions: "deviceCategory",
                 limit: 100,
@@ -243,7 +249,7 @@ export default function AnalyticsPage() {
         } finally {
             setLoading(false);
         }
-    }, [range.startDate, range.endDate, ga4PropertyId]);
+    }, [appliedRange.startDate, appliedRange.endDate, ga4PropertyId]);
 
     useEffect(() => {
         fetchAll();
@@ -265,13 +271,14 @@ export default function AnalyticsPage() {
         <div className="w-full">
             <DashboardHeading
                 title="Analytics"
-                label={ga4PropertyId || 'No property set'}
+                label={`Property ID: ${ga4PropertyId}` || 'No property set'}
                 right={
                     <DateRangePicker
-                        startDate={range.startDate}
-                        endDate={range.endDate}
-                        onStartDateChange={(d) => setRange((r) => ({ ...r, startDate: d }))}
-                        onEndDateChange={(d) => setRange((r) => ({ ...r, endDate: d }))}
+                        onApply={handleDateRangeApply}
+                        startDate={tempRange.startDate}
+                        endDate={tempRange.endDate}
+                        onStartDateChange={(d) => setTempRange((r) => ({ ...r, startDate: d }))}
+                        onEndDateChange={(d) => setTempRange((r) => ({ ...r, endDate: d }))}
                     />
                 }
             />

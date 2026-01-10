@@ -5,7 +5,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useCustomers } from "@/hooks/useCustomers";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
-
+import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import Spinner from "@/components/ui/Spinner";
 import { Tooltip } from "@/components/ui/Tooltip";
 import dynamic from "next/dynamic";
@@ -26,14 +26,20 @@ export default function PNLPage() {
     const dd = String(today.getDate()).padStart(2, '0');
     const defaultEnd = `${yyyy}-${mm}-${dd}`;
     const defaultStart = `${yyyy}-${mm}-01`;
-    const [dateRange, setDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
+    
+    // Separate temp (input) and applied (fetch-triggered) date ranges
+    const [tempDateRange, setTempDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
+    const [appliedDateRange, setAppliedDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
 
     // Handlers for DateRangePicker (controlled)
+    const handleDateRangeApply = ({ startDate, endDate }) => {
+        setAppliedDateRange({ startDate, endDate });
+    };
     const handleStartDateChange = (newStart) => {
-        setDateRange(dr => ({ ...dr, startDate: newStart }));
+        setTempDateRange(dr => ({ ...dr, startDate: newStart }));
     };
     const handleEndDateChange = (newEnd) => {
-        setDateRange(dr => ({ ...dr, endDate: newEnd }));
+        setTempDateRange(dr => ({ ...dr, endDate: newEnd }));
     };
 
     // Metrics state
@@ -48,7 +54,7 @@ export default function PNLPage() {
         (async () => {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-                const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`);
+                const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}`);
                 if (!res.ok) throw new Error('Failed to fetch merged data');
                 const mergedData = await res.json();
                 setMerged(mergedData);
@@ -58,7 +64,7 @@ export default function PNLPage() {
                 setLoading(false);
             }
         })();
-    }, [customer, dateRange]);
+    }, [customer, appliedDateRange]);
 
     // Calculations
     let totalSales = 0, orders = 0, cogs = 0, db1 = 0, shipping = 0, transactionCosts = 0, db2 = 0;
@@ -67,8 +73,8 @@ export default function PNLPage() {
     // For circle charts (as % of total sales)
     let db1Pct = 0, db2Pct = 0, db3Pct = 0;
     // Days in picker
-    const start = new Date(dateRange.startDate);
-    const end = new Date(dateRange.endDate);
+    const start = new Date(appliedDateRange.startDate);
+    const end = new Date(appliedDateRange.endDate);
     const msPerDay = 1000 * 60 * 60 * 24;
     const days = Math.floor((end - start) / msPerDay) + 1;
 
@@ -104,21 +110,13 @@ export default function PNLPage() {
                 title="P&L Report"
                 label={customer ? customer.customerName : ""}
                 right={
-                    <div className="flex gap-2 items-center">
-                        <input
-                            type="date"
-                            value={dateRange.startDate}
-                            onChange={e => handleStartDateChange(e.target.value)}
-                            className="border rounded px-2 py-1 text-xs"
-                        />
-                        <span className="mx-1">to</span>
-                        <input
-                            type="date"
-                            value={dateRange.endDate}
-                            onChange={e => handleEndDateChange(e.target.value)}
-                            className="border rounded px-2 py-1 text-xs"
-                        />
-                    </div>
+                    <DateRangePicker
+                        onApply={handleDateRangeApply}
+                        startDate={tempDateRange.startDate}
+                        endDate={tempDateRange.endDate}
+                        onStartDateChange={handleStartDateChange}
+                        onEndDateChange={handleEndDateChange}
+                    />
                 }
             />
             <div className="flex flex-col md:flex-row gap-8 mt-4">
@@ -255,11 +253,12 @@ export default function PNLPage() {
                     )}
                 </div>
                 {/* Right: Circle charts */}
-                <div className="w-full md:w-1/3 flex flex-col gap-4">
+                <div className="w-full md:w-1/3 flex flex-col gap-4" key={`charts-${appliedDateRange.startDate}-${appliedDateRange.endDate}`}>
                     {/* DB1 Card */}
                     <div className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center">
                         <h6 class="text-[var(--color-primary-searchmind)] mb-2 font-bold">DB1</h6>
                         <ReactApexChart
+                            key={`db1-${appliedDateRange.startDate}-${appliedDateRange.endDate}`}
                             options={{
                                 chart: { type: 'radialBar', sparkline: { enabled: true } },
                                 plotOptions: {
@@ -295,6 +294,7 @@ export default function PNLPage() {
                     <div className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center">
                         <h6 class="text-[var(--color-primary-searchmind)] mb-2 font-bold">DB2</h6>
                         <ReactApexChart
+                            key={`db2-${appliedDateRange.startDate}-${appliedDateRange.endDate}`}
                             options={{
                                 chart: { type: 'radialBar', sparkline: { enabled: true } },
                                 plotOptions: {
@@ -330,6 +330,7 @@ export default function PNLPage() {
                     <div className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col items-center">
                         <h6 class="text-[var(--color-primary-searchmind)] mb-2 font-bold">DB3</h6>
                         <ReactApexChart
+                            key={`db3-${appliedDateRange.startDate}-${appliedDateRange.endDate}`}
                             options={{
                                 chart: { type: 'radialBar', sparkline: { enabled: true } },
                                 plotOptions: {
