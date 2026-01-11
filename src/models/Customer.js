@@ -55,6 +55,10 @@ const CustomerSchema = new mongoose.Schema({
             type: Boolean,
             default: true
         },
+        changeCurrencyShopifyBillingCountryName: {
+            type: String,
+            default: ""
+        },
         customerRevenueType: {
             type: String,
             enum: ["total_sales", "net_sales", "custom_1"],

@@ -57,8 +57,8 @@ export default function TeamMembers({ customerId }) {
             {displayMembers.map((member, idx) => {
                 const serviceInfo = serviceConfig[member.service] || { label: member.service, color: "#999" };
                 return (
-                    <div key={member.id || idx} className="relative group">
-                        <div
+                    <div key={`${member.id + idx || idx}`} className="relative group" id={`${member.id + idx || idx}`}>
+                        <div    
                             className="rounded-full border-2 hover:scale-105 transition-transform duration-150 flex items-center justify-center"
                             style={{
                                 width: "35px",

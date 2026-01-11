@@ -35,6 +35,10 @@ export default function CustomerSettingsForm({ form, onChange, saving }) {
                 <FormLabel htmlFor="changeCurrency">Change Currency</FormLabel>
             </div>
             <div>
+                <FormLabel htmlFor="changeCurrencyShopifyBillingCountryName">Change Currency Shopify Billing Country Name</FormLabel>
+                <FormInputText id="changeCurrencyShopifyBillingCountryName" name="changeCurrencyShopifyBillingCountryName" value={form.changeCurrencyShopifyBillingCountryName} onChange={onChange} />
+            </div>
+            <div>
                 <FormLabel htmlFor="customerRevenueType">Revenue Type</FormLabel>
                 <select id="customerRevenueType" name="customerRevenueType" value={form.customerRevenueType} onChange={onChange} className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20">
                     <option value="total_sales">Total Sales</option>

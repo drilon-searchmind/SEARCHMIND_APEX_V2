@@ -15,6 +15,7 @@ const initialState = {
         customerMetaID: "DK",
         customerMetaIDExclude: "",
         changeCurrency: true,
+        changeCurrencyShopifyBillingCountryName: "",
         customerRevenueType: "total_sales",
         shopifyUrl: "",
         shopifyApiPassword: "",
@@ -141,6 +142,10 @@ export default function CustomerCreateForm({ onSuccess }) {
             <div className="flex items-center gap-2">
                 <input id="changeCurrency" name="changeCurrency" type="checkbox" checked={form.CustomerSettings.changeCurrency} onChange={handleChange} className="rounded border-gray-300" />
                 <FormLabel htmlFor="changeCurrency">Change Currency</FormLabel>
+            </div>
+            <div>
+                <FormLabel htmlFor="changeCurrencyShopifyBillingCountryName">Change Currency Shopify Billing Country Name</FormLabel>
+                <FormInputText id="changeCurrencyShopifyBillingCountryName" name="changeCurrencyShopifyBillingCountryName" value={form.CustomerSettings.changeCurrencyShopifyBillingCountryName} onChange={handleChange} />
             </div>
             <div>
                 <FormLabel htmlFor="customerRevenueType">Revenue Type</FormLabel>

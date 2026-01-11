@@ -1,5 +1,5 @@
 // src/lib/mergedSourcesApi.js
-import { shopifyqlQuery } from './shopifyApi';
+import { shopifyqlQuery, discoverSalesFields } from './shopifyApi';
 import { fetchFacebookAdsInsights } from './facebookApi';
 import { fetchGoogleAdsMetrics } from './googleAdsApi';
 import currencyApiValues from './static-data/currencyApiValues.json';
@@ -18,12 +18,27 @@ export async function fetchMergedSources(settings, startDate, endDate) {
     let shopifyDaily = [];
     try {
         if (settings.shopifyUrl && settings.shopifyApiPassword) {
-            const shopifyql = `
-                FROM sales 
-                SHOW orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales
-                GROUP BY day SINCE ${startDate} UNTIL ${endDate}`;
+            // Build ShopifyQL query with optional currency grouping for multi-domain Shopify stores
+            let shopifyql;
+            
+            // If changeCurrency is true, include currency in results so we can filter by it
+            if (settings.changeCurrency === true && settings.customerStoreValutaCode) {
+                shopifyql = `
+                    FROM sales 
+                    SHOW orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales
+                    WHERE billing_country = '${settings.changeCurrencyShopifyBillingCountryName}'
+                    GROUP BY day SINCE ${startDate} UNTIL ${endDate}`;
+            } else {
+                // If changeCurrency is false, fetch all currencies without grouping by currency
+                shopifyql = `
+                    FROM sales 
+                    SHOW orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales
+                    GROUP BY day SINCE ${startDate} UNTIL ${endDate}`;
+            }
+            
             const shopifyRes = await shopifyqlQuery(settings.shopifyUrl, settings.shopifyApiPassword, shopifyql);
-            const rows = shopifyRes?.data?.shopifyqlQuery?.tableData?.rows || [];
+            let rows = shopifyRes?.data?.shopifyqlQuery?.tableData?.rows || [];
+            
             // Currency conversion logic
             const fromCode = settings?.customerStoreValutaCode || 'DKK';
             const toCode = 'DKK';

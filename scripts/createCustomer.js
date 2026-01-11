@@ -16,6 +16,7 @@ async function createCustomer() {
             customerMetaID: 'DK',
             customerMetaIDExclude: '',
             changeCurrency: true,
+            changeCurrencyShopifyBillingCountryName: 'Denmark',
             customerRevenueType: 'total_sales',
             shopifyUrl: 'https://test-customer.myshopify.com',
             shopifyApiPassword: 'your-shopify-api-password',
