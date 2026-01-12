@@ -39,6 +39,11 @@ const UserSchema = new mongoose.Schema({
         ref: 'Customer',
         default: [],
     }],
+    favoritedCustomers: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Customer',
+        default: [],
+    }],
 });
 
 UserSchema.pre('save', async function () {

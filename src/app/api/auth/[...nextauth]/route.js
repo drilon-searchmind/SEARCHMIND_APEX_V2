@@ -68,6 +68,7 @@ export const authOptions = {
 				isArchived: token.isArchived,
 				isExternal: token.isExternal,
 				sharedCustomers: userFromDb?.sharedCustomers || [],
+				favoritedCustomers: userFromDb?.favoritedCustomers || [],
 			};
 			return session;
 		},
