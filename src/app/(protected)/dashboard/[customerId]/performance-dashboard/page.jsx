@@ -357,7 +357,7 @@ export default function PerformanceDashboard() {
                     <div className="col-span-4 text-center text-red-500">{error}</div>
                 ) : (
                     metrics.map((metric, idx) => (
-                        <MetricCard key={idx} {...metric} />
+                        <MetricCard key={idx} {...metric} comparisonMethod={comparisonMethod} />
                     ))
                 )}
             </div>

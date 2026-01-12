@@ -328,6 +328,7 @@ export default function ParentPropertyHome() {
                         icon={card.icon}
                         change={card.change}
                         changeType={card.changeType}
+                        comparisonMethod={comparisonMethod}
                     />
                 ))}
             </div>

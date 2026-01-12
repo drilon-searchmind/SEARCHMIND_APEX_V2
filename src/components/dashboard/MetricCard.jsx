@@ -1,6 +1,8 @@
 import React from "react";
+import { FiTrendingUp, FiTrendingDown } from "react-icons/fi";
 
-export default function MetricCard({ label, value, unit, change, changeType, icon, children, isActive }) {
+export default function MetricCard({ label, value, unit, change, changeType, icon, children, isActive, comparisonMethod }) {
+
     // changeType: "up" | "down" | undefined
     const changeColor = changeType === "up" ? "text-green-500" : changeType === "down" ? "text-red-500" : "text-gray-400";
     const changeIcon = changeType === "up" ? "▲" : changeType === "down" ? "▼" : null;
@@ -9,6 +11,7 @@ export default function MetricCard({ label, value, unit, change, changeType, ico
     const activeText = isActive ? "text-white" : "text-gray-900";
     const iconBg = isActive ? "bg-[#243636]" : "bg-gray-50";
     const labelText = isActive ? "text-white" : "text-gray-400";
+    const comparisonMethodValue = comparisonMethod === "Last Period" ? "LP" : comparisonMethod === "Last Year" ? "LY" : ""; 
 
     return (
         <div
@@ -23,19 +26,27 @@ export default function MetricCard({ label, value, unit, change, changeType, ico
                 {children}
             </div>
             <div className="flex justify-between items-end gap-2">
-                <span className={`text-3xl font-bold ${activeText}`}>
+                <span className={`text-2xl font-bold ${activeText}`}>
                     {value}
-                    {unit && 
+                    {unit &&
                         <span className="text-base font-normal ml-1">
                             {unit}
                         </span>
                     }
                 </span>
+
                 {change !== undefined && (
-                    <span className={`ml-2 text-xs font-semibold flex items-center gap-1 ${changeColor}`}>
-                        {changeIcon && <span>{changeIcon}</span>}
-                        {change}%
-                    </span>
+                    <div className="flex items-center gap-1">
+                        <span className={`text-[0.65rem] rounded-sm font-medium flex items-center gap-1 px-2 py-1 ${changeType === "up" ? "text-green-600 bg-green-50" : "text-red-600 bg-red-50"}`}>
+                            {changeType === "up" ? <FiTrendingUp className="text-sm" /> : <FiTrendingDown className="text-sm" />}
+                            {change}%
+                        </span>
+                        {comparisonMethod && (
+                            <span className="text-xs text-gray-400 ml-1 font-medium">
+                                {comparisonMethodValue}
+                            </span>
+                        )}
+                    </div>
                 )}
             </div>
         </div>
