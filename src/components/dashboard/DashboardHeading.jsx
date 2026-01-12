@@ -1,15 +1,34 @@
 import React, { useState } from "react";
+import { LuBrainCircuit } from "react-icons/lu";
+import AiAnalysisModal from "../ai-analysis/AiAnalysisModal";
 
-export default function DashboardHeading({ title, label, right, showComparisonMethodToggler = false, comparisonMethod, onComparisonMethodChange }) {
+export default function DashboardHeading({
+    title,
+    label,
+    right,
+    showComparisonMethodToggler = false,
+    comparisonMethod,
+    onComparisonMethodChange,
+    showAnalyzeWithAi = true,
+}) {
     const [toggleComparisonMethod, setToggleComparisonMethod] = useState("Last Period");
+    const [showAnalyzeWithAiModal, setShowAnalyzeWithAiModal] = useState(false);
 
     const currentMethod = comparisonMethod || toggleComparisonMethod;
     const setMethod = onComparisonMethodChange || setToggleComparisonMethod;
 
+    const handleOpenAiModal = () => {
+        setShowAnalyzeWithAiModal(true);
+    };
+
+    const handleCloseAiModal = () => {
+        setShowAnalyzeWithAiModal(false);
+    };
+
     return (
         <div className="w-full bg-white border border-gray-200 rounded-xl px-4 py-4 md:px-8 md:py-6 mb-8 flex flex-col gap-4 md:gap-6">
             {/* Header and Right Content */}
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 md:gap-6">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-6">
                 {/* Title Section */}
                 <div className="flex-1">
                     {label && <span className="mb-2 inline-block text-xs text-gray-400 bg-gray-50 rounded px-2 py-1">{label}</span>}
@@ -40,12 +59,27 @@ export default function DashboardHeading({ title, label, right, showComparisonMe
                             </div>
                         )}
                         {/* Right Component (DateRangePicker, buttons, etc.) */}
-                        <div className="order-1 md:order-2">
+                        <div className="order-1 md:order-2 flex gap-2">
+                            {showAnalyzeWithAi && (
+                                <div className="w-full h-full">
+                                    <button 
+                                        onClick={handleOpenAiModal}
+                                        className="w-full shadow-none bg-purple-50 border border-purple-500 text-purple-700 py-2 px-4 text-xs rounded-lg flex items-center gap-2 hover:bg-purple-100 transition-colors"
+                                    >
+                                        <LuBrainCircuit className="text-base" />
+                                        Analyze with AI
+                                    </button>
+                                </div>
+                            )}
                             {right}
                         </div>
                     </div>
                 )}
             </div>
+
+            {showAnalyzeWithAiModal && (
+                <AiAnalysisModal onClose={handleCloseAiModal} />
+            )}
         </div>
     );
 }

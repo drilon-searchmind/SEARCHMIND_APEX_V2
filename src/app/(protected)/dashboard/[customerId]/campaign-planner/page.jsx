@@ -11,6 +11,7 @@ import CampaignsGantt from "./components/CampaignsGantt";
 import CreateCampaignModal from "./components/CreateCampaignModal";
 import ViewCampaignModal from "./components/ViewCampaignModal";
 import { campaigns as staticCampaigns } from "./static-data/campaigns";
+import FormButton from "@/components/form/FormButton";
 
 export default function CampaignPlannerPage() {
     const [viewCampaign, setViewCampaign] = useState(null);
@@ -57,15 +58,13 @@ export default function CampaignPlannerPage() {
                 title="Campaign Planner"
                 label="Plan, create, and manage your campaigns"
                 right={
-                    <div className="flex items-center gap-4 h-full">
-                        <button
-                            className="bg-[var(--color-primary-searchmind)] text-white px-5 py-2 rounded-lg font-semibold shadow hover:bg-opacity-90 transition"
-                            onClick={() => setShowCreate(true)}
-                        >
+                    <span onClick={() => setShowCreate(true)}>
+                        <FormButton buttonSize="small">
                             + Create Campaign
-                        </button>
-                    </div>
+                        </FormButton>
+                    </span>
                 }
+                showAnalyzeWithAi={false}
             />
 
             <div className="flex justify-end mb-4">
