@@ -1,54 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import React from 'react';
 import dynamic from 'next/dynamic';
-import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import Spinner from '@/components/ui/Spinner';
-import { Tooltip } from '@/components/ui/Tooltip';
 import GraphCard from '@/components/dashboard/GraphCard';
 
 const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
-const defaultRange = () => {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    const defaultEnd = `${yyyy}-${mm}-${dd}`;
-    const defaultStart = `${yyyy}-${mm}-01`;
-    return { startDate: defaultStart, endDate: defaultEnd };
-};
-
-export default function CustomerPerformance() {
-    const params = useParams();
-    const customerId = params?.customerId;
-    const [range, setRange] = useState(defaultRange());
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [segmentation, setSegmentation] = useState(null);
-
-    useEffect(() => {
-        if (!customerId || !range.startDate || !range.endDate) return;
-        let cancelled = false;
-        async function fetchSegmentation() {
-            setLoading(true);
-            setError(null);
-            try {
-                const res = await fetch(`/api/customer-segmentation/${customerId}?startDate=${range.startDate}&endDate=${range.endDate}`);
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Failed to fetch segmentation');
-                if (!cancelled) setSegmentation(data);
-            } catch (err) {
-                if (!cancelled) setError(err.message || String(err));
-            } finally {
-                if (!cancelled) setLoading(false);
-            }
-        }
-        fetchSegmentation();
-        return () => { cancelled = true; };
-    }, [customerId, range.startDate, range.endDate]);
-
+export default function CustomerPerformance({ segmentation = null, loading = false }) {
     const formatNumber = (n) => (n === undefined || n === null ? '—' : Number(n).toLocaleString());
     const formatCurrency = (v) => (v === undefined || v === null ? '—' : `${Number(v).toLocaleString()} kr`);
 
@@ -60,7 +19,7 @@ export default function CustomerPerformance() {
     const timeSeriesChartOptions = {
         chart: { id: 'segmentation-timeseries', toolbar: { show: false }, fontFamily: 'Outfit, sans-serif' },
         stroke: { curve: 'smooth', width: 2 },
-        colors: ['#406969', '#C6ED62'], // returning, new
+        colors: ['#406969', '#C6ED62'],
         fill: {
             type: 'gradient',
             gradient: {
@@ -68,9 +27,9 @@ export default function CustomerPerformance() {
                 type: 'vertical',
                 shadeIntensity: 0.4,
                 inverseColors: false,
-                opacityFrom: 0.45,   // starting opacity
-                opacityTo: 0.10,      // end opacity (transparent)
-                stops: [5, 80, 100] // <--- fade begins early (at 20%)
+                opacityFrom: 0.45,
+                opacityTo: 0.10,
+                stops: [5, 80, 100]
             }
         },
         xaxis: { categories, labels: { rotate: -45 } },
@@ -97,26 +56,16 @@ export default function CustomerPerformance() {
     };
 
     return (
-        <div className="bg-white border border-gray-200 rounded-xl p-6 mt-10">
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
             <div className="flex items-start justify-between mb-4">
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900">Customer Segmentation</h3>
                     <p className="text-sm text-gray-400">New vs returning customers</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <DateRangePicker
-                        startDate={range.startDate}
-                        endDate={range.endDate}
-                        onStartDateChange={d => setRange(r => ({ ...r, startDate: d }))}
-                        onEndDateChange={d => setRange(r => ({ ...r, endDate: d }))}
-                    />
-                </div>
             </div>
 
             {loading ? (
                 <div className="flex justify-center items-center h-40"><Spinner size={36} /></div>
-            ) : error ? (
-                <div className="text-red-500">{error}</div>
             ) : !segmentation ? (
                 <div className="text-sm text-gray-500">No segmentation data available</div>
             ) : (

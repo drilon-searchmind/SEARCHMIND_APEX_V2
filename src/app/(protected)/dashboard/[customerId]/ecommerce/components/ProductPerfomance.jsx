@@ -1,54 +1,14 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from 'react';
-import { useParams } from 'next/navigation';
-import DateRangePicker from '@/components/dashboard/DateRangePicker';
+import React, { useState, useMemo } from 'react';
 import Spinner from '@/components/ui/Spinner';
 import Image from 'next/image';
 
-const defaultRange = () => {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    const defaultEnd = `${yyyy}-${mm}-${dd}`;
-    const defaultStart = `${yyyy}-${mm}-01`;
-    return { startDate: defaultStart, endDate: defaultEnd };
-};
-
-export default function ProductPerfomance() {
-    const params = useParams();
-    const customerId = params?.customerId;
-    const [range, setRange] = useState(defaultRange());
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [products, setProducts] = useState([]);
-
+export default function ProductPerfomance({ products = [], loading = false }) {
     // Table controls
     const [query, setQuery] = useState('');
     const [sortKey, setSortKey] = useState('totalRevenue'); // default sort by revenue
     const [sortDir, setSortDir] = useState('desc'); // 'asc' | 'desc'
-
-    useEffect(() => {
-        if (!customerId || !range.startDate || !range.endDate) return;
-        let cancelled = false;
-        async function fetchProducts() {
-            setLoading(true);
-            setError(null);
-            try {
-                const res = await fetch(`/api/shopify-products/${customerId}?startDate=${range.startDate}&endDate=${range.endDate}`);
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Failed to fetch product metrics');
-                if (!cancelled) setProducts(data.products || []);
-            } catch (e) {
-                if (!cancelled) setError(e.message || String(e));
-            } finally {
-                if (!cancelled) setLoading(false);
-            }
-        }
-        fetchProducts();
-        return () => { cancelled = true; };
-    }, [customerId, range.startDate, range.endDate]);
 
     const formatCurrency = (v) => (v === undefined ? '—' : `${Number(v).toLocaleString()} kr`);
     const formatNumber = (n) => (n === undefined ? '—' : Number(n).toLocaleString());
@@ -94,20 +54,11 @@ export default function ProductPerfomance() {
     };
 
     return (
-        <div className="bg-white border border-gray-200 rounded-xl p-6 mt-10">
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
             <div className="flex items-start justify-between mb-4">
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900">Product Performance</h3>
                     <p className="text-sm text-gray-400">Top products by revenue</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <DateRangePicker
-                        startDate={range.startDate}
-                        endDate={range.endDate}
-                        onStartDateChange={d => setRange(r => ({ ...r, startDate: d }))}
-                        onEndDateChange={d => setRange(r => ({ ...r, endDate: d }))}
-                    />
-                    <button className="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs hover:bg-gray-50">See all</button>
                 </div>
             </div>
 
@@ -145,8 +96,6 @@ export default function ProductPerfomance() {
 
             {loading ? (
                 <div className="flex justify-center items-center h-48"><Spinner size={40} /></div>
-            ) : error ? (
-                <div className="text-red-500">{error}</div>
             ) : filteredProducts.length === 0 ? (
                 <div className="text-center text-sm text-gray-500 py-8">No product data for the selected range</div>
             ) : (
