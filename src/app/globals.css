@@ -275,3 +275,9 @@ select {
 .dark span {
 	color: #f1f5f9 !important;
 }
+.dark .bg-green-50 {
+	background-color: #22c55e !important;
+}
+.dark .bg-red-50 {
+	background-color: #ef4444 !important;
+}
