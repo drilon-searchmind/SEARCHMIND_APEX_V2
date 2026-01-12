@@ -10,7 +10,9 @@ import Spinner from "@/components/ui/Spinner";
 import { FiTrendingUp, FiDollarSign, FiShoppingCart, FiPercent } from "react-icons/fi";
 import FormButton from "@/components/form/FormButton";
 import Link from "next/link";
-
+import ParentRevenueOrdersChart from "./components/ParentRevenueOrdersChart";
+import ParenteAdspendChart from "./components/ParentAdspendChart";
+import ParentROASChart from "./components/ParentROASChart";
 
 export default function ParentPropertyHome() {
     const params = useParams();
@@ -22,18 +24,34 @@ export default function ParentPropertyHome() {
     const [tableRows, setTableRows] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    // Date range state
+    const [dailyChartData, setDailyChartData] = useState([]);
+    const [chartLoading, setChartLoading] = useState(false);
+    
+    // Separate temp (input) and applied (fetch-triggered) date ranges
     const today = new Date();
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, "0");
     const dd = String(today.getDate()).padStart(2, "0");
     const defaultEnd = `${yyyy}-${mm}-${dd}`;
     const defaultStart = `${yyyy}-${mm}-01`;
-    const [dateRange, setDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
+    const [tempDateRange, setTempDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
+    const [appliedDateRange, setAppliedDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
+    
     // Comparison method state
     const [comparisonMethod, setComparisonMethod] = useState("Last Period");
     // Determine the predominant metric preference from child customers
     const [predominantMetricPreference, setPredominantMetricPreference] = useState('ROAS/POAS');
+
+    // Handlers for DateRangePicker (controlled)
+    const handleDateRangeApply = ({ startDate, endDate }) => {
+        setAppliedDateRange({ startDate, endDate });
+    };
+    const handleStartDateChange = (newStart) => {
+        setTempDateRange(dr => ({ ...dr, startDate: newStart }));
+    };
+    const handleEndDateChange = (newEnd) => {
+        setTempDateRange(dr => ({ ...dr, endDate: newEnd }));
+    };
 
     // Fetch parent customer and its child customers
     useEffect(() => {
@@ -68,17 +86,20 @@ export default function ParentPropertyHome() {
             setMetrics({ revenue: 0, adspend: 0, orders: 0, roas: null, spendshare: null });
             setMetricsPrev({ revenue: 0, adspend: 0, orders: 0, roas: null, spendshare: null });
             setTableRows([]);
+            setDailyChartData([]);
             setLoading(false);
             return;
         }
         setLoading(true);
+        setChartLoading(true);
         setError(null);
         (async () => {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-                // Calculate previous comparison range per method
-                const start = new Date(dateRange.startDate);
-                const end = new Date(dateRange.endDate);
+                // ...existing code for fetching results and resultsPrev...
+                
+                const start = new Date(appliedDateRange.startDate);
+                const end = new Date(appliedDateRange.endDate);
                 const msDay = 24 * 60 * 60 * 1000;
                 const days = Math.floor((end - start) / msDay) + 1;
 
@@ -97,14 +118,13 @@ export default function ParentPropertyHome() {
                 const prevStartStr = prevStart.toISOString().slice(0, 10);
                 const prevEndStr = prevEnd.toISOString().slice(0, 10);
 
-                // Fetch merged data for all child customers in parallel, with date range
-                const [results, resultsPrev] = await Promise.all([
+                // Fetch merged data for all child customers in parallel
+                const [results, resultsPrev, dailyResults] = await Promise.all([
                     Promise.all(
                         childCustomers.map(async (customer) => {
-                            const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`);
+                            const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}`);
                             if (!res.ok) throw new Error("Failed to fetch data for " + customer.customerName);
                             const merged = await res.json();
-                            // Use customerRevenueType for revenue calculation
                             const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
                             const metricPreference = customer?.CustomerSettings?.metricPreference || 'ROAS/POAS';
                             const shopify = merged.shopifyDaily || [];
@@ -146,8 +166,58 @@ export default function ParentPropertyHome() {
                             const spendshare = revenue > 0 ? adspend / revenue : null;
                             return { revenue, adspend, orders, roas, spendshare };
                         })
+                    ),
+                    // Fetch daily data for charts
+                    Promise.all(
+                        childCustomers.map(async (customer) => {
+                            const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}`);
+                            if (!res.ok) return null;
+                            const merged = await res.json();
+                            const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
+                            return {
+                                shopifyDaily: merged.shopifyDaily || [],
+                                facebookDaily: merged.facebookDaily || [],
+                                googleDaily: merged.googleDaily || [],
+                                revenueType,
+                            };
+                        })
                     )
                 ]);
+                
+                // Aggregate daily data for charts
+                const dailyMap = {};
+                dailyResults.forEach(result => {
+                    if (!result) return;
+                    const { shopifyDaily, facebookDaily, googleDaily, revenueType } = result;
+                    
+                    // Aggregate Shopify data
+                    shopifyDaily.forEach(d => {
+                        if (!dailyMap[d.period]) {
+                            dailyMap[d.period] = { period: d.period, revenue: 0, orders: 0, facebookSpend: 0, googleSpend: 0 };
+                        }
+                        dailyMap[d.period].revenue += d[revenueType] || 0;
+                        dailyMap[d.period].orders += d.orders || 0;
+                    });
+                    
+                    // Aggregate Facebook spend
+                    facebookDaily.forEach(d => {
+                        if (!dailyMap[d.period]) {
+                            dailyMap[d.period] = { period: d.period, revenue: 0, orders: 0, facebookSpend: 0, googleSpend: 0 };
+                        }
+                        dailyMap[d.period].facebookSpend += d.spend || 0;
+                    });
+                    
+                    // Aggregate Google spend
+                    googleDaily.forEach(d => {
+                        if (!dailyMap[d.period]) {
+                            dailyMap[d.period] = { period: d.period, revenue: 0, orders: 0, facebookSpend: 0, googleSpend: 0 };
+                        }
+                        dailyMap[d.period].googleSpend += d.spend || 0;
+                    });
+                });
+                
+                const aggregatedDailyData = Object.values(dailyMap).sort((a, b) => a.period.localeCompare(b.period));
+                setDailyChartData(aggregatedDailyData);
                 
                 // Determine predominant metric preference
                 const preferenceCounts = results.reduce((acc, r) => {
@@ -166,6 +236,7 @@ export default function ParentPropertyHome() {
                 const combinedRoas = totalAdspend > 0 ? totalRevenue / totalAdspend : null;
                 const combinedSpendshare = totalRevenue > 0 ? totalAdspend / totalRevenue : null;
                 setMetrics({ revenue: totalRevenue, adspend: totalAdspend, orders: totalOrders, roas: combinedRoas, spendshare: combinedSpendshare });
+                
                 // Aggregate previous period
                 const totalRevenuePrev = resultsPrev.reduce((sum, r) => sum + r.revenue, 0);
                 const totalAdspendPrev = resultsPrev.reduce((sum, r) => sum + r.adspend, 0);
@@ -173,14 +244,16 @@ export default function ParentPropertyHome() {
                 const combinedRoasPrev = totalAdspendPrev > 0 ? totalRevenuePrev / totalAdspendPrev : null;
                 const combinedSpendsharePrev = totalRevenuePrev > 0 ? totalAdspendPrev / totalRevenuePrev : null;
                 setMetricsPrev({ revenue: totalRevenuePrev, adspend: totalAdspendPrev, orders: totalOrdersPrev, roas: combinedRoasPrev, spendshare: combinedSpendsharePrev });
+                
                 setTableRows(results);
             } catch (err) {
                 setError(err.message);
             } finally {
                 setLoading(false);
+                setChartLoading(false);
             }
         })();
-    }, [childCustomers, dateRange, comparisonMethod]);
+    }, [childCustomers, appliedDateRange, comparisonMethod]);
 
     // Metric cards config - conditionally show either ROAS or Spendshare
     const metricCards = [
@@ -233,10 +306,11 @@ export default function ParentPropertyHome() {
                 label={parentCustomer?.name || parentCustomerId}
                 right={
                     <DateRangePicker
-                        startDate={dateRange.startDate}
-                        endDate={dateRange.endDate}
-                        onStartDateChange={d => setDateRange(dr => ({ ...dr, startDate: d }))}
-                        onEndDateChange={d => setDateRange(dr => ({ ...dr, endDate: d }))}
+                        startDate={tempDateRange.startDate}
+                        endDate={tempDateRange.endDate}
+                        onStartDateChange={handleStartDateChange}
+                        onEndDateChange={handleEndDateChange}
+                        onApply={handleDateRangeApply}
                     />
                 }
                 showComparisonMethodToggler={true}
@@ -259,7 +333,7 @@ export default function ParentPropertyHome() {
             </div>
 
             {/* Table Section */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
                 <h3 className="text-lg font-semibold mb-4">Child Properties</h3>
                 {loading ? (
                     <div className="flex justify-center items-center min-h-[120px]"><Spinner size={40} /></div>
@@ -317,6 +391,16 @@ export default function ParentPropertyHome() {
                         </table>
                     </div>
                 )}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
+                <ParentRevenueOrdersChart dailyData={dailyChartData} loading={chartLoading} />
+                <ParenteAdspendChart dailyData={dailyChartData} loading={chartLoading} />
+                <ParentROASChart 
+                    dailyData={dailyChartData} 
+                    loading={chartLoading}
+                    metricPreference={predominantMetricPreference}
+                />
             </div>
         </div>
     );
