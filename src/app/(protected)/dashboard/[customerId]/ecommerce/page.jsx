@@ -156,6 +156,21 @@ export default function EcommercePage() {
             <DashboardHeading
                 title="Ecommerce"
                 label="Shopify"
+                customerId={customerId}
+                dateRange={appliedRange}
+                loading={loading}
+                dashboardType="ecommerce"
+                dataSnapshot={{
+                    shopifyDaily,
+                    products,
+                    segmentation,
+                    selectedMetric,
+                    totalSales,
+                    netSales,
+                    orders,
+                    summaryRows,
+                    activeTab
+                }}
                 right={(
                     <DateRangePicker
                         onApply={handleDateRangeApply}

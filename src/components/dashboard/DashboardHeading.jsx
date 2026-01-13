@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { LuBrainCircuit } from "react-icons/lu";
 import AiAnalysisModal from "../ai-analysis/AiAnalysisModal";
+import { useUser } from "@/contexts/UserContext";
 
 export default function DashboardHeading({
     title,
@@ -10,7 +11,13 @@ export default function DashboardHeading({
     comparisonMethod,
     onComparisonMethodChange,
     showAnalyzeWithAi = true,
+    customerId,
+    dateRange,
+    dataSnapshot = {},
+    dashboardType = 'other',
+    loading = false,
 }) {
+    const user = useUser();
     const [toggleComparisonMethod, setToggleComparisonMethod] = useState("Last Period");
     const [showAnalyzeWithAiModal, setShowAnalyzeWithAiModal] = useState(false);
 
@@ -60,11 +67,16 @@ export default function DashboardHeading({
                         )}
                         {/* Right Component (DateRangePicker, buttons, etc.) */}
                         <div className="order-1 md:order-2 flex gap-2">
-                            {showAnalyzeWithAi && (
+                            {showAnalyzeWithAi && user?.isAdmin && (
                                 <div className="w-full h-full">
                                     <button 
                                         onClick={handleOpenAiModal}
-                                        className="w-full shadow-none bg-purple-50 border border-purple-500 text-purple-700 py-2 px-4 text-xs rounded-lg flex items-center gap-2 hover:bg-purple-100 transition-colors"
+                                        disabled={loading}
+                                        className={`w-full shadow-none bg-purple-50 border border-purple-500 text-purple-700 py-2 px-4 text-xs rounded-lg flex items-center gap-2 transition-colors ${
+                                            loading 
+                                                ? 'opacity-50 cursor-not-allowed hover:bg-purple-50' 
+                                                : 'hover:bg-purple-100'
+                                        }`}
                                     >
                                         <LuBrainCircuit className="text-base" />
                                         Analyze with AI
@@ -78,7 +90,14 @@ export default function DashboardHeading({
             </div>
 
             {showAnalyzeWithAiModal && (
-                <AiAnalysisModal onClose={handleCloseAiModal} />
+                <AiAnalysisModal 
+                    onClose={handleCloseAiModal}
+                    customerId={customerId}
+                    dateRange={dateRange}
+                    comparisonMethod={currentMethod}
+                    dataSnapshot={dataSnapshot}
+                    dashboardType={dashboardType}
+                />
             )}
         </div>
     );

@@ -163,6 +163,15 @@ export default function PaceReportPage() {
             <DashboardHeading
                 title="Marketing Pace Report"
                 label={customer ? customer.customerName : ""}
+                customerId={params.customerId}
+                dateRange={appliedDateRange}
+                loading={loading}
+                dashboardType="pace-report"
+                dataSnapshot={{
+                    paceAnalysis: paceAnalysis,
+                    costData: costData,
+                    budget: budget
+                }}
                 right={
                     <DateRangePicker
                         onApply={handleDateRangeApply}

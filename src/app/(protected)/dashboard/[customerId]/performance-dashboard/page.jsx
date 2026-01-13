@@ -335,6 +335,26 @@ export default function PerformanceDashboard() {
             <DashboardHeading
                 title="Performance Dashboard"
                 label={customer ? customer.customerName : ""}
+                customerId={params.customerId}
+                dateRange={appliedDateRange}
+                comparisonMethod={comparisonMethod}
+                loading={loading}
+                dashboardType="performance-dashboard"
+                dataSnapshot={{
+                    metrics: metrics,
+                    dailyData: {
+                        shopify: shopifyDaily,
+                        facebook: facebookDaily,
+                        google: googleDaily
+                    },
+                    aggregates: {
+                        revenue: shopifyDaily.reduce((sum, d) => sum + (d.total_sales || 0), 0),
+                        orders: shopifyDaily.reduce((sum, d) => sum + (d.orders || 0), 0),
+                        cost: [...facebookDaily, ...googleDaily].reduce((sum, d) => sum + (d.spend || 0), 0),
+                    },
+                    revenueType: customer?.CustomerSettings?.customerRevenueType || 'total_sales',
+                    metricPreference: customer?.CustomerSettings?.metricPreference || 'ROAS/POAS'
+                }}
                 right={
                     <DateRangePicker
                         onApply={handleDateRangeApply}
@@ -345,7 +365,6 @@ export default function PerformanceDashboard() {
                     />
                 }
                 showComparisonMethodToggler={true}
-                comparisonMethod={comparisonMethod}
                 onComparisonMethodChange={setComparisonMethod}
             />
 

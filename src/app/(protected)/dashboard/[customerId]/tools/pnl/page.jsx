@@ -109,6 +109,33 @@ export default function PNLPage() {
             <DashboardHeading
                 title="P&L Report"
                 label={customer ? customer.customerName : ""}
+                customerId={params.customerId}
+                dateRange={appliedDateRange}
+                loading={loading}
+                dashboardType="pnl"
+                dataSnapshot={{
+                    totalSales,
+                    orders,
+                    cogs,
+                    db1,
+                    db2,
+                    db3,
+                    shipping,
+                    transactionCosts,
+                    marketingSpend,
+                    marketingBureau,
+                    marketingTooling,
+                    fixedExpenses,
+                    result,
+                    realizedROAS,
+                    breakEvenROAS,
+                    totalCosts,
+                    db1Pct,
+                    db2Pct,
+                    db3Pct,
+                    staticExpenses,
+                    days
+                }}
                 right={
                     <DateRangePicker
                         onApply={handleDateRangeApply}

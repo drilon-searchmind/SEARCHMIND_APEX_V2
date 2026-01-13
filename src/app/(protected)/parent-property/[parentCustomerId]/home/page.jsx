@@ -304,6 +304,11 @@ export default function ParentPropertyHome() {
             <DashboardHeading
                 title="Parent Property Overview"
                 label={parentCustomer?.name || parentCustomerId}
+                customerId={parentCustomerId}
+                dateRange={appliedDateRange}
+                loading={loading}
+                dashboardType="parent-property"
+                dataSnapshot={{ metrics, metricsPrev, tableRows, dailyChartData, predominantMetricPreference }}
                 right={
                     <DateRangePicker
                         startDate={tempDateRange.startDate}

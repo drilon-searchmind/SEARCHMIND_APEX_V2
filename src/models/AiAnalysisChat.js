@@ -60,18 +60,10 @@ const AiAnalysisChatSchema = new mongoose.Schema({
         enum: ['Last Period', 'Last Year'],
         default: 'Last Period'
     },
-    // Data snapshot at time of analysis (optional, for context preservation)
+    // Data snapshot at time of analysis - flexible array structure
     dataSnapshot: {
-        revenue: { type: Number, default: 0 },
-        adspend: { type: Number, default: 0 },
-        orders: { type: Number, default: 0 },
-        roas: { type: Number, default: null },
-        spendshare: { type: Number, default: null },
-        // Store additional metrics as needed
-        additionalMetrics: {
-            type: mongoose.Schema.Types.Mixed,
-            default: {}
-        }
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
     },
     // Messages in the conversation
     messages: {
@@ -113,6 +105,13 @@ const AiAnalysisChatSchema = new mongoose.Schema({
     aiModelVersion: {
         type: String,
         default: 'gpt-4'
+    },
+    // Dashboard type this chat belongs to (e.g., 'performance-dashboard', 'daily-overview', 'seo-dashboard', etc.)
+    dashboardType: {
+        type: String,
+        enum: ['performance-dashboard', 'daily-overview', 'seo-dashboard', 'ppc-dashboard', 'ps-dashboard', 'pace-report', 'pnl', 'ecommerce', 'analytics', 'parent-property', 'other'],
+        default: 'other',
+        index: true
     }
 }, {
     timestamps: true
@@ -122,9 +121,10 @@ const AiAnalysisChatSchema = new mongoose.Schema({
 AiAnalysisChatSchema.index({ userId: 1, createdAt: -1 });
 AiAnalysisChatSchema.index({ customerId: 1, createdAt: -1 });
 AiAnalysisChatSchema.index({ userId: 1, customerId: 1, status: 1 });
+AiAnalysisChatSchema.index({ customerId: 1, dashboardType: 1, status: 1 });
 
 // Pre-save middleware to update lastMessage and totalTokensUsed
-AiAnalysisChatSchema.pre('save', function(next) {
+AiAnalysisChatSchema.pre('save', function() {
     if (this.messages && this.messages.length > 0) {
         const lastMsg = this.messages[this.messages.length - 1];
         this.lastMessage = lastMsg.content.substring(0, 100); // First 100 chars
@@ -134,7 +134,6 @@ AiAnalysisChatSchema.pre('save', function(next) {
             return sum + (msg.tokensUsed || 0);
         }, 0);
     }
-    next();
 });
 
 // Method to add a message to the chat

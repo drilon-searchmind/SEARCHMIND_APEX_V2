@@ -161,6 +161,21 @@ export default function SEODashboardPage() {
             <DashboardHeading
                 title="SEO Dashboard"
                 label={siteUrl || 'No property set'}
+                customerId={customerId}
+                dateRange={appliedRange}
+                loading={loading}
+                dashboardType="seo-dashboard"
+                dataSnapshot={{
+                    metrics,
+                    keywords,
+                    urls,
+                    selectedMetric,
+                    totalClicks,
+                    totalImpressions,
+                    avgCtr,
+                    avgPosition,
+                    siteUrl
+                }}
                 right={
                     <DateRangePicker
                         onApply={handleDateRangeApply}

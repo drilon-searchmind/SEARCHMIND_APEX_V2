@@ -175,6 +175,11 @@ export default function FacebookPSPage() {
             <DashboardHeading
                 title="Facebook PS Dashboard"
                 label={customer ? customer.customerName : ""}
+                customerId={params.customerId}
+                dateRange={appliedRange}
+                loading={loading}
+                dashboardType="ps-dashboard"
+                dataSnapshot={{ fbMetricsByDate, fbTopCampaigns, fbCampaignsByDate, selectedMetric, METRIC_OPTIONS }}
                 right={
                     <DateRangePicker
                         onApply={handleDateRangeApply}

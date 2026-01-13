@@ -1,41 +1,146 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiX, FiSearch, FiSend, FiPlus, FiMessageSquare } from 'react-icons/fi';
+import { useSession } from 'next-auth/react';
+import Spinner from '@/components/ui/Spinner';
 
-const AiAnalysisModal = ({ onClose, dateRange = { startDate: '', endDate: '' } }) => {
+const AiAnalysisModal = ({ 
+    onClose, 
+    customerId,
+    dateRange = { startDate: '', endDate: '' },
+    comparisonMethod = 'Last Period',
+    dataSnapshot = {},
+    dashboardType = 'other'
+}) => {
+    const { data: session } = useSession();
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedChat, setSelectedChat] = useState(null);
     const [message, setMessage] = useState('');
+    const [chatHistory, setChatHistory] = useState([]);
+    const [messages, setMessages] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [sending, setSending] = useState(false);
+    const [error, setError] = useState(null);
 
-    // Mock chat history data
-    const [chatHistory] = useState([
-        { id: 1, title: 'Revenue Analysis Q4 2024', date: '2024-12-15', lastMessage: 'What factors contributed to...', period: '2024-10-01 to 2024-12-31' },
-        { id: 2, title: 'Customer Segmentation Insights', date: '2024-12-10', lastMessage: 'Analyze customer behavior...', period: '2024-11-01 to 2024-11-30' },
-        { id: 3, title: 'Product Performance Review', date: '2024-12-05', lastMessage: 'Which products had the highest...', period: '2024-11-01 to 2024-11-30' },
-    ]);
+    // Fetch chat history on mount
+    useEffect(() => {
+        if (customerId && session?.user?.id) {
+            fetchChatHistory();
+        }
+    }, [customerId, session, dashboardType]);
 
-    // Mock messages for selected chat
-    const [messages] = useState([
-        { id: 1, type: 'user', content: 'Can you analyze the revenue trends for this period?', timestamp: '10:30 AM' },
-        { id: 2, type: 'ai', content: 'Based on the data from the selected period, I can see several key trends:\n\n1. Revenue increased by 23% compared to the previous period\n2. Orders grew by 18%\n3. Average order value (AOV) increased by 4.2%\n\nThe main drivers appear to be:\n- Improved conversion rates on product pages\n- Successful promotional campaigns\n- Higher engagement from returning customers', timestamp: '10:31 AM' },
-        { id: 3, type: 'user', content: 'What about customer acquisition costs?', timestamp: '10:35 AM' },
-        { id: 4, type: 'ai', content: 'Customer Acquisition Cost (CAC) analysis:\n\n- Current CAC: 245 DKK\n- Previous period CAC: 289 DKK\n- Improvement: -15.2%\n\nThis improvement suggests your marketing spend is being used more efficiently. The decrease in CAC while maintaining growth indicates strong campaign optimization.', timestamp: '10:36 AM' },
-    ]);
+    // Fetch messages when chat is selected
+    useEffect(() => {
+        if (selectedChat) {
+            fetchChatMessages(selectedChat._id);
+        }
+    }, [selectedChat]);
 
-    const filteredChats = chatHistory.filter(chat =>
-        chat.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    const handleSendMessage = () => {
-        if (message.trim()) {
-            // Handle sending message
-            console.log('Sending message:', message);
-            setMessage('');
+    const fetchChatHistory = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const res = await fetch(`/api/ai-analysis?customerId=${customerId}&dashboardType=${dashboardType}`);
+            if (!res.ok) throw new Error('Failed to fetch chat history');
+            const chats = await res.json();
+            setChatHistory(chats);
+        } catch (err) {
+            console.error('Error fetching chats:', err);
+            setError(err.message);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const handleNewChat = () => {
-        // Handle creating new chat
-        setSelectedChat(null);
+    const fetchChatMessages = async (chatId) => {
+        try {
+            const res = await fetch(`/api/ai-analysis/${chatId}`);
+            if (!res.ok) throw new Error('Failed to fetch chat');
+            const chat = await res.json();
+            setMessages(chat.messages || []);
+        } catch (err) {
+            console.error('Error fetching chat messages:', err);
+            setError(err.message);
+        }
+    };
+
+    const filteredChats = chatHistory.filter(chat =>
+        chat.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        chat.lastMessage?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const handleSendMessage = async () => {
+        if (!message.trim() || !selectedChat || sending) return;
+
+        const userMessage = message.trim();
+        setMessage('');
+        setSending(true);
+
+        // Optimistically add user message
+        const tempUserMsg = {
+            _id: Date.now().toString(),
+            type: 'user',
+            content: userMessage,
+            timestamp: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, tempUserMsg]);
+
+        try {
+            const res = await fetch(`/api/ai-analysis/${selectedChat._id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: userMessage })
+            });
+
+            if (!res.ok) throw new Error('Failed to send message');
+            const aiMessage = await res.json();
+
+            // Add AI response
+            setMessages(prev => [...prev, aiMessage]);
+            
+            // Refresh chat history to update lastMessage
+            fetchChatHistory();
+        } catch (err) {
+            console.error('Error sending message:', err);
+            setError(err.message);
+            // Remove optimistic user message on error
+            setMessages(prev => prev.filter(m => m._id !== tempUserMsg._id));
+        } finally {
+            setSending(false);
+        }
+    };
+
+    const handleNewChat = async () => {
+        if (!customerId || !session?.user?.id) return;
+
+        try {
+            setLoading(true);
+            const title = `Analysis - ${dateRange.startDate} to ${dateRange.endDate}`;
+            const res = await fetch('/api/ai-analysis', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customerId,
+                    title,
+                    dateRange,
+                    comparisonMethod,
+                    dataSnapshot,
+                    dashboardType
+                })
+            });
+
+            if (!res.ok) throw new Error('Failed to create chat');
+            const newChat = await res.json();
+            
+            // Add to chat history and select it
+            setChatHistory(prev => [newChat, ...prev]);
+            setSelectedChat(newChat);
+            setMessages([]);
+        } catch (err) {
+            console.error('Error creating chat:', err);
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -79,16 +184,24 @@ const AiAnalysisModal = ({ onClose, dateRange = { startDate: '', endDate: '' } }
 
                     {/* Chat List */}
                     <div className="flex-1 overflow-y-auto">
-                        {filteredChats.length === 0 ? (
+                        {loading ? (
+                            <div className="flex items-center justify-center p-8">
+                                <Spinner />
+                            </div>
+                        ) : error ? (
+                            <div className="p-4 text-center text-sm text-red-500">
+                                Error loading chats
+                            </div>
+                        ) : filteredChats.length === 0 ? (
                             <div className="p-4 text-center text-sm text-gray-400">
-                                No chats found
+                                {searchQuery ? 'No chats found' : 'No chats yet. Click + to start.'}
                             </div>
                         ) : (
                             filteredChats.map((chat) => (
                                 <div
-                                    key={chat.id}
+                                    key={chat._id}
                                     onClick={() => setSelectedChat(chat)}
-                                    className={`p-4 border-b border-gray-200 cursor-pointer transition-colors hover:bg-white ${selectedChat?.id === chat.id ? 'bg-white border-l-4 border-l-[var(--color-primary-searchmind)]' : ''
+                                    className={`p-4 border-b border-gray-200 cursor-pointer transition-colors hover:bg-white ${selectedChat?._id === chat._id ? 'bg-white border-l-4 border-l-[var(--color-primary-searchmind)]' : ''
                                         }`}
                                 >
                                     <div className="flex items-start gap-3">
@@ -100,9 +213,11 @@ const AiAnalysisModal = ({ onClose, dateRange = { startDate: '', endDate: '' } }
                                                 {chat.title}
                                             </h4>
                                             <p className="text-xs text-gray-500 truncate mb-1">
-                                                {chat.lastMessage}
+                                                {chat.lastMessage || 'New chat'}
                                             </p>
-                                            <p className="text-xs text-gray-400">{chat.date}</p>
+                                            <p className="text-xs text-gray-400">
+                                                {new Date(chat.updatedAt).toLocaleDateString()}
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -137,33 +252,49 @@ const AiAnalysisModal = ({ onClose, dateRange = { startDate: '', endDate: '' } }
                                 <h2 className="text-base font-semibold text-gray-900 mb-1">{selectedChat.title}</h2>
                                 <div className="flex items-center gap-2 text-xs text-gray-500">
                                     <span className="px-2 py-1 bg-purple-50 text-purple-500 rounded">
-                                        Period: {selectedChat.period}
+                                        Period: {selectedChat.dateRange?.startDate} to {selectedChat.dateRange?.endDate}
+                                    </span>
+                                    <span className="px-2 py-1 bg-blue-50 text-blue-500 rounded">
+                                        {selectedChat.comparisonMethod}
                                     </span>
                                 </div>
                             </div>
 
                             {/* Messages Area */}
                             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                                {messages.map((msg) => (
-                                    <div
-                                        key={msg.id}
-                                        className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                                    >
-                                        <div className={`max-w-[70%] ${msg.type === 'user' ? 'order-2' : 'order-1'}`}>
-                                            <div
-                                                className={`rounded-lg px-4 py-3 ${msg.type === 'user'
-                                                        ? 'bg-[var(--color-primary-searchmind)] text-white'
-                                                        : 'bg-gray-100 text-gray-900'
-                                                    }`}
-                                            >
-                                                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                {messages.length === 0 ? (
+                                    <div className="flex items-center justify-center h-full">
+                                        <p className="text-sm text-gray-400">Start the conversation by asking a question...</p>
+                                    </div>
+                                ) : (
+                                    messages.map((msg, idx) => (
+                                        <div
+                                            key={msg._id || idx}
+                                            className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                                        >
+                                            <div className={`max-w-[70%] ${msg.type === 'user' ? 'order-2' : 'order-1'}`}>
+                                                <div
+                                                    className={`rounded-lg px-4 py-3 ${msg.type === 'user'
+                                                            ? 'bg-[var(--color-primary-searchmind)] text-white'
+                                                            : 'bg-gray-100 text-gray-900'
+                                                        }`}
+                                                >
+                                                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                                </div>
+                                                <p className={`text-xs text-gray-400 mt-1 ${msg.type === 'user' ? 'text-right' : 'text-left'}`}>
+                                                    {new Date(msg.timestamp).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })}
+                                                </p>
                                             </div>
-                                            <p className={`text-xs text-gray-400 mt-1 ${msg.type === 'user' ? 'text-right' : 'text-left'}`}>
-                                                {msg.timestamp}
-                                            </p>
+                                        </div>
+                                    ))
+                                )}
+                                {sending && (
+                                    <div className="flex justify-start">
+                                        <div className="bg-gray-100 rounded-lg px-4 py-3">
+                                            <Spinner />
                                         </div>
                                     </div>
-                                ))}
+                                )}
                             </div>
 
                             {/* Input Area */}

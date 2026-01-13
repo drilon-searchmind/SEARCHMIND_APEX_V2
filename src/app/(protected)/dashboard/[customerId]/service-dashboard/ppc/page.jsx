@@ -172,6 +172,11 @@ export default function GoogleAdsPPCPage() {
       <DashboardHeading
         title="Google Ads PPC Dashboard"
         label={customer ? customer.customerName : ""}
+        customerId={params.customerId}
+        dateRange={appliedRange}
+        loading={loading}
+        dashboardType="ppc-dashboard"
+        dataSnapshot={{ metricsByDate, topCampaigns, campaignsByDate, selectedMetric, METRIC_OPTIONS }}
         right={
           <DateRangePicker
             onApply={handleDateRangeApply}

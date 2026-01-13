@@ -158,6 +158,17 @@ const DailyOverviewPage = () => {
             <DashboardHeading
                 title="Daily Overview"
                 label={customer ? customer.customerName : ""}
+                customerId={params.customerId}
+                dateRange={appliedDateRange}
+                loading={loading}
+                dashboardType="daily-overview"
+                dataSnapshot={{
+                    dailyRows: rows,
+                    previousPeriodRows: rowsPrev,
+                    toggleState: toggle,
+                    metricPreference: customerMetricPreference,
+                    revenueType: revenueTypeState
+                }}
                 right={
                     <DateRangePicker
                         onApply={handleDateRangeApply}

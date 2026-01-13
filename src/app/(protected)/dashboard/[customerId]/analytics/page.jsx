@@ -272,6 +272,21 @@ export default function AnalyticsPage() {
             <DashboardHeading
                 title="Analytics"
                 label={`Property ID: ${ga4PropertyId}` || 'No property set'}
+                customerId={customerId}
+                dateRange={appliedRange}
+                loading={loading}
+                dashboardType="analytics"
+                dataSnapshot={{
+                    timeseries,
+                    channels,
+                    pages,
+                    acqCategories,
+                    acqSeries,
+                    deviceData,
+                    totals,
+                    selectedKey,
+                    ga4PropertyId
+                }}
                 right={
                     <DateRangePicker
                         onApply={handleDateRangeApply}
