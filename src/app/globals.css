@@ -281,6 +281,18 @@ select {
 .dark .bg-red-50 {
 	background-color: #ef4444 !important;
 }
+.dark #messageArea .text-gray-800 {
+	color: #d1d5db !important;
+}
+.dark .text-purple-500 {
+	color: #a78bfa !important;
+}
+.dark .text-blue-500 {
+	color: #3b82f6 !important;
+}
+.dark textarea {
+	color: #f1f5f9 !important;
+}
 
 /* AI Chat */
 #chatAiMessage * {
