@@ -1,7 +1,6 @@
 "use client";
 
-
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import { useParams } from "next/navigation";
@@ -19,14 +18,13 @@ export default function ParentPropertyHome() {
     const parentCustomerId = params.parentCustomerId;
     const [parentCustomer, setParentCustomer] = useState(null);
     const [childCustomers, setChildCustomers] = useState([]);
-    const [metrics, setMetrics] = useState({ revenue: 0, adspend: 0, orders: 0, roas: null, spendshare: null });
-    const [metricsPrev, setMetricsPrev] = useState({ revenue: 0, adspend: 0, orders: 0, roas: null, spendshare: null });
-    const [tableRows, setTableRows] = useState([]);
+    const [allTableRows, setAllTableRows] = useState([]); // Store all fetched data
+    const [enabledProperties, setEnabledProperties] = useState({}); // Track which properties are enabled
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [dailyChartData, setDailyChartData] = useState([]);
+    const [allDailyChartData, setAllDailyChartData] = useState([]); // Store all daily data
     const [chartLoading, setChartLoading] = useState(false);
-    
+
     // Separate temp (input) and applied (fetch-triggered) date ranges
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -36,7 +34,7 @@ export default function ParentPropertyHome() {
     const defaultStart = `${yyyy}-${mm}-01`;
     const [tempDateRange, setTempDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
     const [appliedDateRange, setAppliedDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
-    
+
     // Comparison method state
     const [comparisonMethod, setComparisonMethod] = useState("Last Period");
     // Determine the predominant metric preference from child customers
@@ -52,6 +50,25 @@ export default function ParentPropertyHome() {
     const handleEndDateChange = (newEnd) => {
         setTempDateRange(dr => ({ ...dr, endDate: newEnd }));
     };
+
+    // Toggle property enable/disable
+    const toggleProperty = (customerId, newState) => {
+        setEnabledProperties(prev => ({
+            ...prev,
+            [customerId]: newState
+        }));
+    };
+
+    // Initialize enabled properties when child customers are loaded
+    useEffect(() => {
+        if (childCustomers.length > 0) {
+            const initialEnabled = {};
+            childCustomers.forEach(customer => {
+                initialEnabled[customer._id] = true; // All enabled by default
+            });
+            setEnabledProperties(initialEnabled);
+        }
+    }, [childCustomers]);
 
     // Fetch parent customer and its child customers
     useEffect(() => {
@@ -80,13 +97,11 @@ export default function ParentPropertyHome() {
         return ((current - prev) / Math.abs(prev)) * 100;
     }
 
-    // Fetch metrics for all child customers in the date range
+    // Fetch metrics for all child customers (store all data)
     useEffect(() => {
         if (!childCustomers.length) {
-            setMetrics({ revenue: 0, adspend: 0, orders: 0, roas: null, spendshare: null });
-            setMetricsPrev({ revenue: 0, adspend: 0, orders: 0, roas: null, spendshare: null });
-            setTableRows([]);
-            setDailyChartData([]);
+            setAllTableRows([]);
+            setAllDailyChartData([]);
             setLoading(false);
             return;
         }
@@ -96,8 +111,7 @@ export default function ParentPropertyHome() {
         (async () => {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-                // ...existing code for fetching results and resultsPrev...
-                
+
                 const start = new Date(appliedDateRange.startDate);
                 const end = new Date(appliedDateRange.endDate);
                 const msDay = 24 * 60 * 60 * 1000;
@@ -164,7 +178,7 @@ export default function ParentPropertyHome() {
                             const adspend = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
                             const roas = adspend > 0 ? revenue / adspend : null;
                             const spendshare = revenue > 0 ? adspend / revenue : null;
-                            return { revenue, adspend, orders, roas, spendshare };
+                            return { _id: customer._id, revenue, adspend, orders, roas, spendshare };
                         })
                     ),
                     // Fetch daily data for charts
@@ -175,6 +189,7 @@ export default function ParentPropertyHome() {
                             const merged = await res.json();
                             const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
                             return {
+                                _id: customer._id,
                                 shopifyDaily: merged.shopifyDaily || [],
                                 facebookDaily: merged.facebookDaily || [],
                                 googleDaily: merged.googleDaily || [],
@@ -183,69 +198,27 @@ export default function ParentPropertyHome() {
                         })
                     )
                 ]);
-                
-                // Aggregate daily data for charts
-                const dailyMap = {};
-                dailyResults.forEach(result => {
-                    if (!result) return;
-                    const { shopifyDaily, facebookDaily, googleDaily, revenueType } = result;
-                    
-                    // Aggregate Shopify data
-                    shopifyDaily.forEach(d => {
-                        if (!dailyMap[d.period]) {
-                            dailyMap[d.period] = { period: d.period, revenue: 0, orders: 0, facebookSpend: 0, googleSpend: 0 };
-                        }
-                        dailyMap[d.period].revenue += d[revenueType] || 0;
-                        dailyMap[d.period].orders += d.orders || 0;
-                    });
-                    
-                    // Aggregate Facebook spend
-                    facebookDaily.forEach(d => {
-                        if (!dailyMap[d.period]) {
-                            dailyMap[d.period] = { period: d.period, revenue: 0, orders: 0, facebookSpend: 0, googleSpend: 0 };
-                        }
-                        dailyMap[d.period].facebookSpend += d.spend || 0;
-                    });
-                    
-                    // Aggregate Google spend
-                    googleDaily.forEach(d => {
-                        if (!dailyMap[d.period]) {
-                            dailyMap[d.period] = { period: d.period, revenue: 0, orders: 0, facebookSpend: 0, googleSpend: 0 };
-                        }
-                        dailyMap[d.period].googleSpend += d.spend || 0;
-                    });
-                });
-                
-                const aggregatedDailyData = Object.values(dailyMap).sort((a, b) => a.period.localeCompare(b.period));
-                setDailyChartData(aggregatedDailyData);
-                
-                // Determine predominant metric preference
+
+                // Store all fetched data
+                const rowsWithPrev = results.map((row, idx) => ({
+                    ...row,
+                    prevData: resultsPrev[idx]
+                }));
+                setAllTableRows(rowsWithPrev);
+
+                // Store all daily data with customer ID
+                setAllDailyChartData(dailyResults.filter(r => r !== null));
+
+                // Determine predominant metric preference from all results
                 const preferenceCounts = results.reduce((acc, r) => {
                     acc[r.metricPreference] = (acc[r.metricPreference] || 0) + 1;
                     return acc;
                 }, {});
-                const predominant = Object.keys(preferenceCounts).reduce((a, b) => 
+                const predominant = Object.keys(preferenceCounts).reduce((a, b) =>
                     preferenceCounts[a] > preferenceCounts[b] ? a : b, 'ROAS/POAS'
                 );
                 setPredominantMetricPreference(predominant);
-                
-                // Aggregate for metric cards
-                const totalRevenue = results.reduce((sum, r) => sum + r.revenue, 0);
-                const totalAdspend = results.reduce((sum, r) => sum + r.adspend, 0);
-                const totalOrders = results.reduce((sum, r) => sum + r.orders, 0);
-                const combinedRoas = totalAdspend > 0 ? totalRevenue / totalAdspend : null;
-                const combinedSpendshare = totalRevenue > 0 ? totalAdspend / totalRevenue : null;
-                setMetrics({ revenue: totalRevenue, adspend: totalAdspend, orders: totalOrders, roas: combinedRoas, spendshare: combinedSpendshare });
-                
-                // Aggregate previous period
-                const totalRevenuePrev = resultsPrev.reduce((sum, r) => sum + r.revenue, 0);
-                const totalAdspendPrev = resultsPrev.reduce((sum, r) => sum + r.adspend, 0);
-                const totalOrdersPrev = resultsPrev.reduce((sum, r) => sum + r.orders, 0);
-                const combinedRoasPrev = totalAdspendPrev > 0 ? totalRevenuePrev / totalAdspendPrev : null;
-                const combinedSpendsharePrev = totalRevenuePrev > 0 ? totalAdspendPrev / totalRevenuePrev : null;
-                setMetricsPrev({ revenue: totalRevenuePrev, adspend: totalAdspendPrev, orders: totalOrdersPrev, roas: combinedRoasPrev, spendshare: combinedSpendsharePrev });
-                
-                setTableRows(results);
+
             } catch (err) {
                 setError(err.message);
             } finally {
@@ -254,6 +227,63 @@ export default function ParentPropertyHome() {
             }
         })();
     }, [childCustomers, appliedDateRange, comparisonMethod]);
+
+    // Filter data based on enabled properties
+    const { filteredTableRows, filteredDailyData, metrics, metricsPrev } = useMemo(() => {
+        const filtered = allTableRows.filter(row => enabledProperties[row._id]);
+
+        // Aggregate filtered daily data
+        const dailyMap = {};
+        allDailyChartData
+            .filter(result => enabledProperties[result._id])
+            .forEach(result => {
+                const { shopifyDaily, facebookDaily, googleDaily, revenueType } = result;
+
+                shopifyDaily.forEach(d => {
+                    if (!dailyMap[d.period]) {
+                        dailyMap[d.period] = { period: d.period, revenue: 0, orders: 0, facebookSpend: 0, googleSpend: 0 };
+                    }
+                    dailyMap[d.period].revenue += d[revenueType] || 0;
+                    dailyMap[d.period].orders += d.orders || 0;
+                });
+
+                facebookDaily.forEach(d => {
+                    if (!dailyMap[d.period]) {
+                        dailyMap[d.period] = { period: d.period, revenue: 0, orders: 0, facebookSpend: 0, googleSpend: 0 };
+                    }
+                    dailyMap[d.period].facebookSpend += d.spend || 0;
+                });
+
+                googleDaily.forEach(d => {
+                    if (!dailyMap[d.period]) {
+                        dailyMap[d.period] = { period: d.period, revenue: 0, orders: 0, facebookSpend: 0, googleSpend: 0 };
+                    }
+                    dailyMap[d.period].googleSpend += d.spend || 0;
+                });
+            });
+
+        const aggregatedDaily = Object.values(dailyMap).sort((a, b) => a.period.localeCompare(b.period));
+
+        // Calculate metrics from filtered data
+        const totalRevenue = filtered.reduce((sum, r) => sum + r.revenue, 0);
+        const totalAdspend = filtered.reduce((sum, r) => sum + r.adspend, 0);
+        const totalOrders = filtered.reduce((sum, r) => sum + r.orders, 0);
+        const combinedRoas = totalAdspend > 0 ? totalRevenue / totalAdspend : null;
+        const combinedSpendshare = totalRevenue > 0 ? totalAdspend / totalRevenue : null;
+
+        const totalRevenuePrev = filtered.reduce((sum, r) => sum + (r.prevData?.revenue || 0), 0);
+        const totalAdspendPrev = filtered.reduce((sum, r) => sum + (r.prevData?.adspend || 0), 0);
+        const totalOrdersPrev = filtered.reduce((sum, r) => sum + (r.prevData?.orders || 0), 0);
+        const combinedRoasPrev = totalAdspendPrev > 0 ? totalRevenuePrev / totalAdspendPrev : null;
+        const combinedSpendsharePrev = totalRevenuePrev > 0 ? totalAdspendPrev / totalRevenuePrev : null;
+
+        return {
+            filteredTableRows: filtered,
+            filteredDailyData: aggregatedDaily,
+            metrics: { revenue: totalRevenue, adspend: totalAdspend, orders: totalOrders, roas: combinedRoas, spendshare: combinedSpendshare },
+            metricsPrev: { revenue: totalRevenuePrev, adspend: totalAdspendPrev, orders: totalOrdersPrev, roas: combinedRoasPrev, spendshare: combinedSpendsharePrev }
+        };
+    }, [allTableRows, allDailyChartData, enabledProperties]);
 
     // Metric cards config - conditionally show either ROAS or Spendshare
     const metricCards = [
@@ -308,7 +338,7 @@ export default function ParentPropertyHome() {
                 dateRange={appliedDateRange}
                 loading={loading}
                 dashboardType="parent-property"
-                dataSnapshot={{ metrics, metricsPrev, tableRows, dailyChartData, predominantMetricPreference }}
+                dataSnapshot={{ metrics, metricsPrev, tableRows: filteredTableRows, dailyChartData: filteredDailyData, predominantMetricPreference }}
                 right={
                     <DateRangePicker
                         startDate={tempDateRange.startDate}
@@ -338,9 +368,11 @@ export default function ParentPropertyHome() {
                 ))}
             </div>
 
-            {/* Table Section */}
+            {/* Table Section with Property Toggles */}
             <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
-                <h3 className="text-lg font-semibold mb-4">Child Properties</h3>
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold">Child Properties</h3>
+                </div>
                 {loading ? (
                     <div className="flex justify-center items-center min-h-[120px]"><Spinner size={40} /></div>
                 ) : error ? (
@@ -359,40 +391,63 @@ export default function ParentPropertyHome() {
                                     </th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">AOV</th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">Actions</th>
+                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Filter</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {tableRows.length === 0 ? (
-                                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">No child properties found.</td></tr>
-                                ) : tableRows.map((row, idx) => (
-                                    <tr key={row._id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                                        <td className="px-3 py-2 whitespace-nowrap">{row.customerName}</td>
-                                        <td className="px-3 py-2 whitespace-nowrap">
-                                            {row.revenue.toLocaleString("da-DK", { style: "currency", currency: "DKK" })}
-                                            {row.revenueType === 'net_sales' && (
-                                                <span className="ml-1 text-xs text-gray-400">(net sales)</span>
-                                            )}
-                                        </td>
-                                        <td className="px-3 py-2 whitespace-nowrap">{row.orders.toLocaleString()}</td>
-                                        <td className="px-3 py-2 whitespace-nowrap">{row.adspend.toLocaleString("da-DK", { style: "currency", currency: "DKK" })}</td>
-                                        <td className="px-3 py-2 whitespace-nowrap">
-                                            {row.metricPreference === 'Spendshare' ? (
-                                                row.spendshare !== null ? `${(row.spendshare * 100).toFixed(2)}%` : "-"
-                                            ) : (
-                                                row.roas !== null ? row.roas.toFixed(2) : "-"
-                                            )}
-                                        </td>
-                                        <td className="px-3 py-2 whitespace-nowrap">{row.aov ? row.aov.toLocaleString("da-DK", { style: "currency", currency: "DKK" }) : "-"}</td>
-                                        <td className="px-3 py-2 whitespace-nowrap flex gap-2">
-                                            <Link href={`/dashboard/${row._id}/performance-dashboard`}>
-                                                <FormButton buttonSize="small" borderType="outline">View Dashboard</FormButton>
-                                            </Link>
-                                            <Link href={`/dashboard/${row._id}/config`}>
-                                                <FormButton buttonSize="small" borderType="outline">Config</FormButton>
-                                            </Link>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {allTableRows.length === 0 ? (
+                                    <tr><td colSpan={8} className="text-center py-8 text-gray-400">No child properties found.</td></tr>
+                                ) : allTableRows.map((row, idx) => {
+                                    const isEnabled = enabledProperties[row._id];
+                                    return (
+                                        <tr 
+                                            key={row._id} 
+                                            className={`${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${!isEnabled ? 'opacity-40' : ''} transition-opacity`}
+                                        >
+                                            <td className="px-3 py-2 whitespace-nowrap">{row.customerName}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                {row.revenue.toLocaleString("da-DK", { style: "currency", currency: "DKK" })}
+                                                {row.revenueType === 'net_sales' && (
+                                                    <span className="ml-1 text-xs text-gray-400">(net sales)</span>
+                                                )}
+                                            </td>
+                                            <td className="px-3 py-2 whitespace-nowrap">{row.orders.toLocaleString()}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap">{row.adspend.toLocaleString("da-DK", { style: "currency", currency: "DKK" })}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                {row.metricPreference === 'Spendshare' ? (
+                                                    row.spendshare !== null ? `${(row.spendshare * 100).toFixed(2)}%` : "-"
+                                                ) : (
+                                                    row.roas !== null ? row.roas.toFixed(2) : "-"
+                                                )}
+                                            </td>
+                                            <td className="px-3 py-2 whitespace-nowrap">{row.aov ? row.aov.toLocaleString("da-DK", { style: "currency", currency: "DKK" }) : "-"}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap flex gap-2">
+                                                <Link href={`/dashboard/${row._id}/performance-dashboard`}>
+                                                    <FormButton buttonSize="small" borderType="outline">View Dashboard</FormButton>
+                                                </Link>
+                                                <Link href={`/dashboard/${row._id}/config`}>
+                                                    <FormButton buttonSize="small" borderType="outline">Config</FormButton>
+                                                </Link>
+                                            </td>
+                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                <div className="flex border border-gray-200 bg-gray-100 rounded-lg overflow-hidden w-fit">
+                                                    <button
+                                                        className={`px-3 py-1 text-xs font-medium focus:outline-none transition-colors duration-150 ${!isEnabled ? 'bg-white text-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                                        onClick={() => toggleProperty(row._id, false)}
+                                                    >
+                                                        Off
+                                                    </button>
+                                                    <button
+                                                        className={`px-3 py-1 text-xs font-medium focus:outline-none transition-colors duration-150 ${isEnabled ? 'bg-white text-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                                        onClick={() => toggleProperty(row._id, true)}
+                                                    >
+                                                        On
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -400,10 +455,10 @@ export default function ParentPropertyHome() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
-                <ParentRevenueOrdersChart dailyData={dailyChartData} loading={chartLoading} />
-                <ParenteAdspendChart dailyData={dailyChartData} loading={chartLoading} />
-                <ParentROASChart 
-                    dailyData={dailyChartData} 
+                <ParentRevenueOrdersChart dailyData={filteredDailyData} loading={chartLoading} />
+                <ParenteAdspendChart dailyData={filteredDailyData} loading={chartLoading} />
+                <ParentROASChart
+                    dailyData={filteredDailyData}
                     loading={chartLoading}
                     metricPreference={predominantMetricPreference}
                 />
