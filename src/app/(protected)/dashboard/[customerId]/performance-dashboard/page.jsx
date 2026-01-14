@@ -117,6 +117,16 @@ export default function PerformanceDashboard() {
                 const spendsharePrev = costPrev / revenuePrev;
                 const gross_profit_total_salesPrev = mergedPrev.grossProfitTotalSales || 0; 
 
+                // Calculations
+                const grossProfitCalculation = merged.calculationsData?.grossProfitCalculation || '';
+                const totalAdspendCalculation = merged.calculationsData?.totalAdspendCalculation || '';
+                const roasCalculation = `Revenue / Cost \n
+                    = ${revenue.toFixed(2)} / ${cost.toFixed(2)} \n
+                    = ${roas !== null ? roas.toFixed(2) : 'N/A'}
+                `;
+                const poasCalculation = merged.calculationsData?.poasCalculation || '';
+                const cacCalculation = merged.calculationsData?.cacCalculation || '';
+
                 // % change helpers
                 function percentChange(current, prev) {
                     if (prev === 0 || prev === null || prev === undefined) return null;
@@ -142,6 +152,7 @@ export default function PerformanceDashboard() {
                         change: percentChange(revenue, revenuePrev) !== null ? Math.abs(percentChange(revenue, revenuePrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(revenue, revenuePrev)),
                         tooltip: revenueType === 'net_sales' ? 'Net sales (after discounts, returns, etc.)' : undefined,
+                        popOverContent: null,
                     },
                     {
                         label: "Gross Profit (inc vat)",
@@ -149,6 +160,7 @@ export default function PerformanceDashboard() {
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(gross_profit_total_sales, gross_profit_total_salesPrev) !== null ? Math.abs(percentChange(gross_profit_total_sales, gross_profit_total_salesPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(gross_profit_total_sales, gross_profit_total_salesPrev)),
+                        popOverContent: grossProfitCalculation,
                     },
                     {
                         label: "Orders",
@@ -156,6 +168,7 @@ export default function PerformanceDashboard() {
                         icon: <FiShoppingCart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(orders, ordersPrev) !== null ? Math.abs(percentChange(orders, ordersPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(orders, ordersPrev)),
+                        popOverContent: null,
                     },
                     {
                         label: "Cost (Adspend)",
@@ -163,6 +176,7 @@ export default function PerformanceDashboard() {
                         icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(cost, costPrev) !== null ? Math.abs(percentChange(cost, costPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(cost, costPrev)),
+                        popOverContent: totalAdspendCalculation,
                     },
                 ];
 
@@ -174,6 +188,7 @@ export default function PerformanceDashboard() {
                         icon: <FiBarChart2 className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(spendshare, spendsharePrev) !== null ? Math.abs(percentChange(spendshare, spendsharePrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(spendshare, spendsharePrev)),
+                        popOverContent: null,
                     });
                 } else {
                     // Default to ROAS/POAS
@@ -183,6 +198,7 @@ export default function PerformanceDashboard() {
                         icon: <FiBarChart2 className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(roas, roasPrev) !== null ? Math.abs(percentChange(roas, roasPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(roas, roasPrev)),
+                        popOverContent: roasCalculation,
                     });
                 }
 
@@ -194,6 +210,7 @@ export default function PerformanceDashboard() {
                         icon: <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(poas, poasPrev) !== null ? Math.abs(percentChange(poas, poasPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(poas, poasPrev)),
+                        popOverContent: poasCalculation,
                     },
                     {
                         label: "AOV",
@@ -201,6 +218,7 @@ export default function PerformanceDashboard() {
                         icon: <FiShoppingBag className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(aov, aovPrev) !== null ? Math.abs(percentChange(aov, aovPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(aov, aovPrev)),
+                        popOverContent: null,
                     },
                     {
                         label: "CAC",
@@ -208,6 +226,7 @@ export default function PerformanceDashboard() {
                         icon: <FiUserCheck className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(cac, cacPrev) !== null ? Math.abs(percentChange(cac, cacPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(cac, cacPrev)),
+                        popOverContent: cacCalculation,
                     },
                 );
 

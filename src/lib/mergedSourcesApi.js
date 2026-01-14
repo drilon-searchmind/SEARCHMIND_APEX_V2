@@ -159,6 +159,24 @@ export async function fetchMergedSources(settings, startDate, endDate) {
     // CAC = marketingSpend / orders
     const CACTotalSales = orders > 0 ? marketingSpend / orders : 0;
 
+    // Calculated metrics
+    const grossProfitCalculation = `(Cogs Percentage x Total Sales) - (Facebook Adspend + Google Adspend) \n
+        = (${cogsPercentage} x ${totalSales.toFixed(2)}) - (${fbAdspend.toFixed(2)} + ${googleAdspend.toFixed(2)}) \n
+        = ${grossProfitTotalSales.toFixed(2)}
+    `;
+    const totalAdspendCalculation = `Facebook Adspend + Google Adspend \n
+        = ${fbAdspend.toFixed(2)} + ${googleAdspend.toFixed(2)} \n
+        = ${totalAdspend.toFixed(2)}
+    `;
+    const poasCalculation = totalAdspend !== 0 ? `(Gross Profit / Cost) \n
+        = ${grossProfitTotalSales.toFixed(2)} / ${totalAdspend.toFixed(2)} \n
+        = ${POASTotalSales.toFixed(2)}
+    ` : 'N/A';
+    const cacCalculation = orders > 0 ? `(Marketing Spend / Orders) \n
+        = ${marketingSpend.toFixed(2)} / ${orders} \n
+        = ${CACTotalSales.toFixed(2)}
+    ` : 'N/A';
+
     return {
         shopifyDaily,
         facebookDaily,
@@ -166,5 +184,11 @@ export async function fetchMergedSources(settings, startDate, endDate) {
         grossProfitTotalSales,
         POASTotalSales,
         CACTotalSales,
+        calculationsData: {
+            grossProfitCalculation,
+            totalAdspendCalculation,
+            poasCalculation,
+            cacCalculation,
+        }
     };
 }
