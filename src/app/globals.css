@@ -281,3 +281,8 @@ select {
 .dark .bg-red-50 {
 	background-color: #ef4444 !important;
 }
+
+/* AI Chat */
+#chatAiMessage * {
+	font-size: 14px;
+}

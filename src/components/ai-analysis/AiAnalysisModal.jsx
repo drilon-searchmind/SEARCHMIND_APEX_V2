@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FiX, FiSearch, FiSend, FiPlus, FiMessageSquare } from 'react-icons/fi';
 import { useSession } from 'next-auth/react';
 import Spinner from '@/components/ui/Spinner';
+import ReactMarkdown from 'react-markdown';
 
 const AiAnalysisModal = ({ 
     onClose, 
@@ -20,6 +21,16 @@ const AiAnalysisModal = ({
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
     const [error, setError] = useState(null);
+    
+    // Ref for messages area
+    const messagesEndRef = useRef(null);
+
+    // Auto-scroll to bottom when messages change
+    useEffect(() => {
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [messages, sending]);
 
     // Fetch chat history on mount
     useEffect(() => {
@@ -261,7 +272,7 @@ const AiAnalysisModal = ({
                             </div>
 
                             {/* Messages Area */}
-                            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                            <div id='messageArea' className="flex-1 overflow-y-auto p-6 space-y-4">
                                 {messages.length === 0 ? (
                                     <div className="flex items-center justify-center h-full">
                                         <p className="text-sm text-gray-400">Start the conversation by asking a question...</p>
@@ -271,6 +282,7 @@ const AiAnalysisModal = ({
                                         <div
                                             key={msg._id || idx}
                                             className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                                            id='chatAiMessage'
                                         >
                                             <div className={`max-w-[70%] ${msg.type === 'user' ? 'order-2' : 'order-1'}`}>
                                                 <div
@@ -279,7 +291,31 @@ const AiAnalysisModal = ({
                                                             : 'bg-gray-100 text-gray-900'
                                                         }`}
                                                 >
-                                                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                                    {msg.type === 'ai' ? (
+                                                        <ReactMarkdown
+                                                            components={{
+                                                                h1: ({ node, ...props }) => <h1 className="text-lg font-bold mb-2 text-gray-900" {...props} />,
+                                                                h2: ({ node, ...props }) => <h2 className="text-base font-bold mb-2 text-gray-900" {...props} />,
+                                                                h3: ({ node, ...props }) => <h3 className="text-base font-bold mb-2 text-gray-900" {...props} />,
+                                                                h4: ({ node, ...props }) => <h4 className="text-sm font-semibold mb-1 text-gray-900" {...props} />,
+                                                                p: ({ node, ...props }) => <p className="mb-2 last:mb-0 text-gray-800" {...props} />,
+                                                                strong: ({ node, ...props }) => <strong className="font-semibold text-gray-900" {...props} />,
+                                                                ul: ({ node, ...props }) => <ul className="list-disc list-inside mb-2 space-y-1" {...props} />,
+                                                                ol: ({ node, ...props }) => <ol className="list-decimal list-inside mb-2 space-y-1" {...props} />,
+                                                                li: ({ node, ...props }) => <li className="text-gray-800" {...props} />,
+                                                                code: ({ node, inline, ...props }) => 
+                                                                    inline ? (
+                                                                        <code className="bg-gray-200 px-1 py-0.5 rounded text-xs font-mono" {...props} />
+                                                                    ) : (
+                                                                        <code className="block bg-gray-200 p-2 rounded text-xs font-mono mb-2" {...props} />
+                                                                    ),
+                                                            }}
+                                                        >
+                                                            {msg.content}
+                                                        </ReactMarkdown>
+                                                    ) : (
+                                                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                                    )}
                                                 </div>
                                                 <p className={`text-xs text-gray-400 mt-1 ${msg.type === 'user' ? 'text-right' : 'text-left'}`}>
                                                     {new Date(msg.timestamp).toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' })}
@@ -295,6 +331,7 @@ const AiAnalysisModal = ({
                                         </div>
                                     </div>
                                 )}
+                                <div ref={messagesEndRef} />
                             </div>
 
                             {/* Input Area */}
