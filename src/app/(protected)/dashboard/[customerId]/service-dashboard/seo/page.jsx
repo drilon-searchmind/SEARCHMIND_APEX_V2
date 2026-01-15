@@ -88,36 +88,46 @@ export default function SEODashboardPage() {
     // Fetch keyword groups for filtering
     useEffect(() => {
         if (!customerId) return;
-        
-        async function fetchKeywordGroups() {
-            try {
-                // Fetch brand keywords
-                const brandRes = await fetch(`/api/seo-keywords/brand/${customerId}`);
-                const brandData = await brandRes.json();
-                if (brandData.success && brandData.data?.keywords) {
-                    setBrandKeywords(brandData.data.keywords);
-                }
-
-                // Fetch exact groups
-                const exactRes = await fetch(`/api/seo-keywords/exact/${customerId}`);
-                const exactData = await exactRes.json();
-                if (exactData.success) {
-                    setExactGroups(exactData.data);
-                }
-
-                // Fetch partial groups
-                const partialRes = await fetch(`/api/seo-keywords/partial/${customerId}`);
-                const partialData = await partialRes.json();
-                if (partialData.success) {
-                    setPartialGroups(partialData.data);
-                }
-            } catch (error) {
-                console.error('Error fetching keyword groups:', error);
-            }
-        }
-        
         fetchKeywordGroups();
     }, [customerId]);
+
+    async function fetchKeywordGroups() {
+        try {
+            // Fetch brand keywords
+            const brandRes = await fetch(`/api/seo-keywords/brand/${customerId}`);
+            const brandData = await brandRes.json();
+            if (brandData.success && brandData.data?.keywords) {
+                setBrandKeywords(brandData.data.keywords);
+            } else {
+                setBrandKeywords([]);
+            }
+
+            // Fetch exact groups
+            const exactRes = await fetch(`/api/seo-keywords/exact/${customerId}`);
+            const exactData = await exactRes.json();
+            if (exactData.success) {
+                setExactGroups(exactData.data);
+            } else {
+                setExactGroups([]);
+            }
+
+            // Fetch partial groups
+            const partialRes = await fetch(`/api/seo-keywords/partial/${customerId}`);
+            const partialData = await partialRes.json();
+            if (partialData.success) {
+                setPartialGroups(partialData.data);
+            } else {
+                setPartialGroups([]);
+            }
+        } catch (error) {
+            console.error('Error fetching keyword groups:', error);
+        }
+    }
+
+    // Callback to refresh keyword groups when they're updated
+    const handleKeywordGroupsUpdate = () => {
+        fetchKeywordGroups();
+    };
 
     useEffect(() => {
         if (!siteUrl) return;
@@ -423,7 +433,7 @@ export default function SEODashboardPage() {
                     </div>
 
                     {/* SEO Keyword Settings */}
-                    <SEOKeywordSettings customerId={customerId} />
+                    <SEOKeywordSettings customerId={customerId} onKeywordsUpdate={handleKeywordGroupsUpdate} />
                 </>
             )}
         </div>
