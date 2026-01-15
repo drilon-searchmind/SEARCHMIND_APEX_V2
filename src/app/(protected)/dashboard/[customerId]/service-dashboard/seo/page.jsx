@@ -51,7 +51,7 @@ export default function SEODashboardPage() {
     const defaultRangeValue = defaultRange();
     const [tempRange, setTempRange] = useState(defaultRangeValue);
     const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [metrics, setMetrics] = useState(null);
     const [keywords, setKeywords] = useState([]);

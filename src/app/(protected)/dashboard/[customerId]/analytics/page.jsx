@@ -67,7 +67,7 @@ export default function AnalyticsPage() {
     const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
     const [selectedKey, setSelectedKey] = useState("totalUsers");
 
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
     const [ga4PropertyId, setGa4PropertyId] = useState("");

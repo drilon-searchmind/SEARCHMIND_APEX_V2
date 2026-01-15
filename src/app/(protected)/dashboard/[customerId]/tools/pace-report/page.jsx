@@ -44,7 +44,7 @@ export default function PaceReportPage() {
     };
 
     // Metrics state
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [costData, setCostData] = useState([]);
     const [budget, setBudget] = useState(0);

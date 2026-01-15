@@ -41,7 +41,7 @@ const DailyOverviewPage = () => {
 
     // Table data state
     const [rows, setRows] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     // Helper for fetching period data

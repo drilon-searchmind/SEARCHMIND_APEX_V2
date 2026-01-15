@@ -47,7 +47,7 @@ export default function PerformanceDashboard() {
 
     // Metrics state
     const [metrics, setMetrics] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     // Fetch merged data and prepare chart data

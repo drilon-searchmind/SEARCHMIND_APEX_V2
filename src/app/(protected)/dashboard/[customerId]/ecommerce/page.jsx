@@ -41,7 +41,7 @@ export default function EcommercePage() {
     const defaultRangeValue = defaultRange();
     const [tempRange, setTempRange] = useState(defaultRangeValue);
     const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [shopifyDaily, setShopifyDaily] = useState([]);
     const [products, setProducts] = useState([]);

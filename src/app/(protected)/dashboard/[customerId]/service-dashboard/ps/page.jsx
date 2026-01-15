@@ -76,7 +76,7 @@ export default function FacebookPSPage() {
         const [fbMetricsByDate, setFbMetricsByDate] = useState([]);
         const [fbTopCampaigns, setFbTopCampaigns] = useState([]);
         const [fbCampaignsByDate, setFbCampaignsByDate] = useState([]);
-        const [loading, setLoading] = useState(false);
+        const [loading, setLoading] = useState(true);
         const [error, setError] = useState(null);
         const [selectedMetric, setSelectedMetric] = useState("conversion_value");
 
