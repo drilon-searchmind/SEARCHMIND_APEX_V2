@@ -159,10 +159,11 @@ select {
 
 .glassmorphism2 {
 	/* From https://css.glass */
-	background: rgba(59, 59, 59, 0.90);
+	/* background: rgba(165, 165, 165, 0.25); */
+	background: linear-gradient(to right, rgba(30, 43, 43, 0.35), rgba(64, 105, 105, 0.35));
 	border-radius: 0;
 	box-shadow: 100px 100px 30px rgba(0, 0, 0, 0.1);
-	backdrop-filter: blur(10px);
+	backdrop-filter: blur(50px);
 }
 
 .glassmorphism3 {

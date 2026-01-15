@@ -1,6 +1,4 @@
-
 "use client";
-
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -9,9 +7,8 @@ import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import MetricCard from '@/components/dashboard/MetricCard';
 import GraphCard from '@/components/dashboard/GraphCard';
 import Spinner from '@/components/ui/Spinner';
+import SEOKeywordSettings from '@/components/seo/SEOKeywordSettings';
 import { FiMousePointer, FiEye, FiPercent, FiTrendingUp } from 'react-icons/fi';
-
-
 
 const METRIC_OPTIONS = [
     { key: 'clicks', label: 'Clicks', icon: FiMousePointer },
@@ -48,7 +45,6 @@ const defaultRange = () => {
     };
 };
 
-
 export default function SEODashboardPage() {
     const params = useParams();
     const customerId = params.customerId;
@@ -62,6 +58,12 @@ export default function SEODashboardPage() {
     const [urls, setUrls] = useState([]);
     const [selectedMetric, setSelectedMetric] = useState('clicks');
     const [siteUrl, setSiteUrl] = useState('');
+
+    // Keyword filtering state
+    const [keywordFilter, setKeywordFilter] = useState('all'); // 'all', 'brand', 'exact:id', 'partial:id'
+    const [brandKeywords, setBrandKeywords] = useState([]);
+    const [exactGroups, setExactGroups] = useState([]);
+    const [partialGroups, setPartialGroups] = useState([]);
 
     const handleDateRangeApply = ({ startDate, endDate }) => {
         setAppliedRange({ startDate, endDate });
@@ -81,6 +83,40 @@ export default function SEODashboardPage() {
             }
         }
         fetchCustomer();
+    }, [customerId]);
+
+    // Fetch keyword groups for filtering
+    useEffect(() => {
+        if (!customerId) return;
+        
+        async function fetchKeywordGroups() {
+            try {
+                // Fetch brand keywords
+                const brandRes = await fetch(`/api/seo-keywords/brand/${customerId}`);
+                const brandData = await brandRes.json();
+                if (brandData.success && brandData.data?.keywords) {
+                    setBrandKeywords(brandData.data.keywords);
+                }
+
+                // Fetch exact groups
+                const exactRes = await fetch(`/api/seo-keywords/exact/${customerId}`);
+                const exactData = await exactRes.json();
+                if (exactData.success) {
+                    setExactGroups(exactData.data);
+                }
+
+                // Fetch partial groups
+                const partialRes = await fetch(`/api/seo-keywords/partial/${customerId}`);
+                const partialData = await partialRes.json();
+                if (partialData.success) {
+                    setPartialGroups(partialData.data);
+                }
+            } catch (error) {
+                console.error('Error fetching keyword groups:', error);
+            }
+        }
+        
+        fetchKeywordGroups();
     }, [customerId]);
 
     useEffect(() => {
@@ -115,6 +151,42 @@ export default function SEODashboardPage() {
     const totalImpressions = metrics?.reduce((acc, r) => acc + (r.impressions || 0), 0) || 0;
     const avgCtr = calcCtr(totalClicks, totalImpressions);
     const avgPosition = calcAvgPosition(metrics);
+
+    // Filter keywords based on selected group
+    const filteredKeywords = React.useMemo(() => {
+        if (keywordFilter === 'all') return keywords;
+
+        if (keywordFilter === 'brand') {
+            if (brandKeywords.length === 0) return [];
+            return keywords.filter(row => {
+                const keyword = (row.keys?.[0] || '').toLowerCase();
+                return brandKeywords.some(brand => keyword.includes(brand.toLowerCase()));
+            });
+        }
+
+        if (keywordFilter.startsWith('exact:')) {
+            const groupId = keywordFilter.split(':')[1];
+            const group = exactGroups.find(g => g._id === groupId);
+            if (!group || !group.keywords.length) return [];
+            const groupKeywordsLower = group.keywords.map(k => k.toLowerCase());
+            return keywords.filter(row => {
+                const keyword = (row.keys?.[0] || '').toLowerCase();
+                return groupKeywordsLower.includes(keyword);
+            });
+        }
+
+        if (keywordFilter.startsWith('partial:')) {
+            const groupId = keywordFilter.split(':')[1];
+            const group = partialGroups.find(g => g._id === groupId);
+            if (!group || !group.keywords.length) return [];
+            return keywords.filter(row => {
+                const keyword = (row.keys?.[0] || '').toLowerCase();
+                return group.keywords.some(partial => keyword.includes(partial.toLowerCase()));
+            });
+        }
+
+        return keywords;
+    }, [keywords, keywordFilter, brandKeywords, exactGroups, partialGroups]);
 
     // Chart data for toggling
     const chartDataMap = {
@@ -248,7 +320,44 @@ export default function SEODashboardPage() {
                     {/* Top Keywords */}
                     <div className="mb-8">
                         <div className="border border-gray-200 rounded-xl bg-white p-6">
-                            <h2 className="text-lg font-semibold mb-2">Top Keywords</h2>
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-lg font-semibold">Top Keywords</h2>
+                                
+                                {/* Keyword Filter Dropdown */}
+                                <div className="flex items-center gap-2">
+                                    <label htmlFor="keyword-filter" className="text-sm text-gray-600">Filter by:</label>
+                                    <select
+                                        id="keyword-filter"
+                                        value={keywordFilter}
+                                        onChange={(e) => setKeywordFilter(e.target.value)}
+                                        className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                    >
+                                        <option value="all">All Keywords</option>
+                                        {brandKeywords.length > 0 && (
+                                            <option value="brand">Brand Keywords ({brandKeywords.length})</option>
+                                        )}
+                                        {exactGroups.length > 0 && (
+                                            <optgroup label="Exact Match Groups">
+                                                {exactGroups.map(group => (
+                                                    <option key={group._id} value={`exact:${group._id}`}>
+                                                        {group.name} ({group.keywords.length})
+                                                    </option>
+                                                ))}
+                                            </optgroup>
+                                        )}
+                                        {partialGroups.length > 0 && (
+                                            <optgroup label="Partial Match Groups">
+                                                {partialGroups.map(group => (
+                                                    <option key={group._id} value={`partial:${group._id}`}>
+                                                        {group.name} ({group.keywords.length})
+                                                    </option>
+                                                ))}
+                                            </optgroup>
+                                        )}
+                                    </select>
+                                </div>
+                            </div>
+                            
                             <div className="overflow-x-auto">
                                 <table className="min-w-full text-sm">
                                     <thead className="bg-gray-50">
@@ -261,9 +370,11 @@ export default function SEODashboardPage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {keywords.length === 0 ? (
-                                            <tr><td colSpan={5} className="text-center py-4">No data</td></tr>
-                                        ) : keywords.map((row, i) => (
+                                        {filteredKeywords.length === 0 ? (
+                                            <tr><td colSpan={5} className="text-center py-4">
+                                                {keywordFilter === 'all' ? 'No data' : 'No keywords match this filter'}
+                                            </td></tr>
+                                        ) : filteredKeywords.map((row, i) => (
                                             <tr key={i} className="border-b last:border-b-0">
                                                 <td className="px-4 py-2">{row.keys?.[0]}</td>
                                                 <td className="px-4 py-2 text-right">{formatNumber(row.clicks)}</td>
@@ -310,6 +421,9 @@ export default function SEODashboardPage() {
                             </div>
                         </div>
                     </div>
+
+                    {/* SEO Keyword Settings */}
+                    <SEOKeywordSettings customerId={customerId} />
                 </>
             )}
         </div>
