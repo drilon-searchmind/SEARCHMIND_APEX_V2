@@ -60,6 +60,7 @@ export default function ParentAdspendChart({ dailyData, loading }) {
             }
         },
         xaxis: {
+            type: 'category',
             categories,
             labels: {
                 rotate: -45,
@@ -81,6 +82,7 @@ export default function ParentAdspendChart({ dailyData, loading }) {
         },
         tooltip: {
             shared: true,
+            intersect: false,
             theme: 'light',
             y: {
                 formatter: (val) => `${Number(val).toLocaleString()} kr`

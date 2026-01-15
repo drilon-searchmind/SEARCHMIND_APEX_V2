@@ -4,8 +4,124 @@ import dynamic from "next/dynamic";
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 export default function GraphCard({ title, chartOptions, chartSeries, chartType = "line", height = 300, children }) {
-    // Toggle state (YTD active by default)
+    // Toggle state (Period active by default)
     const [toggle, setToggle] = React.useState("Period");
+
+    // Function to aggregate data by month
+    const aggregateByMonth = React.useCallback((categories, seriesData) => {
+        if (!categories || !seriesData || categories.length === 0) {
+            return { categories: [], data: [] };
+        }
+
+        if (seriesData.length === 0) {
+            return { categories: [], data: [] };
+        }
+
+        const monthlyData = {};
+
+        categories.forEach((category, index) => {
+            let monthKey;
+            let sortKey;
+            try {
+                const date = new Date(category);
+                if (!isNaN(date.getTime())) {
+                    monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                    sortKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                } else {
+                    monthKey = category;
+                    sortKey = category;
+                }
+            } catch (e) {
+                monthKey = category;
+                sortKey = category;
+            }
+
+            if (!monthlyData[sortKey]) {
+                monthlyData[sortKey] = {
+                    label: monthKey,
+                    values: []
+                };
+            }
+            const value = Number(seriesData[index]) || 0;
+            monthlyData[sortKey].values.push(value);
+        });
+
+        const sortedKeys = Object.keys(monthlyData).sort();
+        const aggregatedCategories = sortedKeys.map(key => monthlyData[key].label);
+        const aggregatedData = sortedKeys.map(key => {
+            const values = monthlyData[key].values;
+            const sum = values.reduce((acc, val) => acc + val, 0);
+            return sum;
+        });
+
+        return { categories: aggregatedCategories, data: aggregatedData };
+    }, []);
+
+    // Process chart data based on toggle - always create fresh copies
+    const processedData = React.useMemo(() => {
+        // Create deep copies to prevent mutation
+        const optionsCopy = JSON.parse(JSON.stringify(chartOptions));
+        const seriesCopy = JSON.parse(JSON.stringify(chartSeries));
+        
+        if (toggle === "Monthly") {
+            const categories = optionsCopy?.xaxis?.categories;
+            const hasValidCategories = categories && Array.isArray(categories) && categories.length > 0;
+            
+            if (hasValidCategories && seriesCopy && seriesCopy.length > 0) {
+                // Aggregate all series
+                const aggregatedSeries = seriesCopy.map((series) => {
+                    const result = aggregateByMonth(categories, series.data || []);
+                    return {
+                        ...series,
+                        data: result.data
+                    };
+                });
+
+                // Get aggregated categories from first series
+                const aggregatedCategories = aggregateByMonth(categories, seriesCopy[0].data || []).categories;
+
+                const processedOptions = {
+                    ...optionsCopy,
+                    chart: {
+                        ...optionsCopy.chart,
+                        type: 'bar',
+                    },
+                    xaxis: {
+                        ...optionsCopy.xaxis,
+                        categories: aggregatedCategories,
+                        labels: {
+                            ...optionsCopy.xaxis?.labels,
+                            rotate: -45,
+                        }
+                    },
+                    plotOptions: {
+                        bar: {
+                            borderRadius: 4,
+                            columnWidth: '60%',
+                        }
+                    },
+                    tooltip: {
+                        ...optionsCopy.tooltip,
+                        intersect: false,
+                    }
+                };
+
+                return {
+                    options: processedOptions,
+                    series: aggregatedSeries,
+                    type: 'bar'
+                };
+            }
+        }
+        
+        // Return copies for Period view
+        return {
+            options: optionsCopy,
+            series: seriesCopy,
+            type: chartType
+        };
+    }, [toggle, chartOptions, chartSeries, chartType, aggregateByMonth]);
+
     return (
         <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col justify-between h-full min-h-[320px]">
             <div className="mb-2 flex justify-between items-center">
@@ -13,11 +129,11 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
                 <div id="chartToggler">
                     <div className="flex border border-gray-200 bg-gray-100 rounded-lg overflow-hidden">
                         <button
-                            className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors duration-150 ${toggle === 'YTD' ? 'bg-white text-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500 hover:text-[var(--color-primary-searchmind)]'}`}
+                            className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors duration-150 ${toggle === 'Monthly' ? 'bg-white text-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500 hover:text-[var(--color-primary-searchmind)]'}`}
                             style={{ borderRadius: '8px 0 0 8px' }}
-                            onClick={() => setToggle('YTD')}
+                            onClick={() => setToggle('Monthly')}
                         >
-                            YTD
+                            Monthly
                         </button>
                         <button
                             className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors duration-150 ${toggle === 'Period' ? 'bg-white text-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500 hover:text-[var(--color-primary-searchmind)]'}`}
@@ -32,9 +148,10 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
             <div className="flex-1 flex items-center justify-center w-full">
                 <div style={{ width: '100%' }}>
                     <ReactApexChart
-                        options={chartOptions}
-                        series={chartSeries}
-                        type={chartType}
+                        key={`chart-${toggle}`}
+                        options={processedData.options}
+                        series={processedData.series}
+                        type={processedData.type}
                         height={height}
                         width="100%"
                     />

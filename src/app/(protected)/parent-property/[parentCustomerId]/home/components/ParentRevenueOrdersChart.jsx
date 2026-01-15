@@ -60,6 +60,7 @@ export default function ParentRevenueOrdersChart({ dailyData, loading }) {
             }
         },
         xaxis: {
+            type: 'category',
             categories,
             labels: {
                 rotate: -45,
@@ -91,6 +92,7 @@ export default function ParentRevenueOrdersChart({ dailyData, loading }) {
         },
         tooltip: {
             shared: true,
+            intersect: false,
             theme: 'light',
             y: {
                 formatter: (val, { seriesIndex }) => {

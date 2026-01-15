@@ -78,6 +78,7 @@ export default function ParentROASChart({ dailyData, loading, metricPreference =
             }
         },
         xaxis: {
+            type: 'category',
             categories,
             labels: {
                 rotate: -45,
@@ -103,6 +104,8 @@ export default function ParentROASChart({ dailyData, loading, metricPreference =
             labels: { colors: '#1E2B2B' }
         },
         tooltip: {
+            shared: true,
+            intersect: false,
             theme: 'light',
             y: {
                 formatter: (val) => {
