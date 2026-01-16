@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { FaMoon, FaSun } from "react-icons/fa";
+import { FiBell } from "react-icons/fi";
 import { FiChevronDown, FiHome, FiUser, FiSettings, FiBarChart2, FiLogOut, FiSearch, FiUsers } from "react-icons/fi";
 import { useUser } from "@/contexts/UserContext";
 import { signOut } from "next-auth/react";
@@ -11,12 +12,15 @@ import TeamMembers from './TeamMembers';
 import SharePropertyModal from '@/components/dashboard/SharePropertyModal';
 import Link from "next/link";
 import FormButton from "../form/FormButton";
+import { LuRadar } from "react-icons/lu";
 
 const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true }) => {
     const [menuOpen, setMenuOpen] = useState(false);
+    const [bellMenuOpen, setBellMenuOpen] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const menuRef = useRef(null);
     const mobileMenuRef = useRef(null);
+    const menuBellRef = useRef(null);
     const user = useUser();
     const [theme, setTheme] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -151,6 +155,17 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
         return () => document.removeEventListener('mousedown', handleDocumentClick);
     }, [menuOpen]);
 
+    useEffect(() => {
+        function handleDocumentClick(e) {
+            if (!bellMenuOpen) return;
+            if (menuBellRef.current && !menuBellRef.current.contains(e.target)) {
+                setBellMenuOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleDocumentClick);
+        return () => document.removeEventListener('mousedown', handleDocumentClick);
+    }, [bellMenuOpen]);
+
     // Close mobile menu on outside click
     useEffect(() => {
         function handleDocumentClick(e) {
@@ -283,9 +298,31 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                             </div>
                         </>
                     )}
-                    <button onClick={handleToggleTheme} className="p-2 rounded-full border border-gray-200 bg-white text-gray-700 transition-colors duration-200 hover:bg-gray-50">
-                        {theme === "dark" ? <FaSun /> : <FaMoon />}
-                    </button>
+
+                    <div>
+                        <button onClick={handleToggleTheme} className="p-2 rounded-full border border-gray-200 bg-white text-gray-700 transition-colors duration-200 hover:bg-gray-50">
+                            {theme === "dark" ? <FaSun /> : <FaMoon />}
+                        </button>
+                    </div>
+
+                    <div className="relative" ref={menuBellRef}>
+                        <button 
+                            onClick={() => setBellMenuOpen(!bellMenuOpen)}
+                            className="p-2 rounded-full border border-gray-200 bg-white text-gray-700 transition-colors duration-200 hover:bg-gray-50 relative">
+                            <span className="absolute text-xs bg-[var(--color-lime)] rounded-full h-[20px] w-[20px] flex items-center justify-center top-[-7px] right-[-7px] text-slate-800">1</span>
+                            <FiBell />
+                        </button>
+
+                        {bellMenuOpen && (
+                             <div className="absolute right-0 mt-[22px] w-75 bg-white shadow-xs rounded-[1rem] px-4 overflow-hidden z-50 py-4 border border-gray-200 transition-colors duration-200">
+                                <div className="mb-4">
+                                    <p className="font-semibold text-gray-900">Notifications</p>
+                                    <p className="mt-5 text-center text-[0.75rem] text-[var(--color-primary-searchmind)] bg-gray-200 rounded px-3 py-1">WIP</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     <div className="relative" ref={menuRef}>
                         <button
                             className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
@@ -324,18 +361,25 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                 <ul className="flex flex-col gap-4 py-2">
                                     <li className="flex items-center gap-2">
                                         <FiUser />
-                                        <a href="/profile" className="text-sm text-slate-800 font-semibold">User Profile</a>
+                                        <Link href="/profile" className="text-sm text-slate-800 font-semibold">My Account</Link>
                                     </li>
-                                    {user?.isAdmin && (
-                                        <li className="flex items-center gap-2">
-                                            <FiSettings />
-                                            <a href="/admin" className="text-sm text-slate-800 font-semibold">Admin</a>
-                                        </li>
-                                    )}
                                     <li className="flex items-center gap-2">
                                         <FiBarChart2 />
-                                        <a href="/profile" className="text-sm text-slate-800 font-semibold">Campaigns</a>
+                                        <Link href="#" className="text-sm text-slate-800 font-semibold">My Campaigns</Link>
                                     </li>
+                                    {user?.isAdmin && (
+                                        <>
+                                            <li className="flex items-center gap-2">
+                                                <FiSettings />
+                                                <Link href="/admin" className="text-sm text-slate-800 font-semibold">Admin</Link>
+                                            </li>
+                                            <li
+                                                id="apexRadar-link"
+                                                className="flex items-center gap-2 bg-[var(--color-primary-searchmind-lighter)] text-white rounded py-2 px-3">
+                                                <Link href="#" className="text-sm font-semibold">Apex Radar</Link>
+                                            </li>
+                                        </>
+                                    )}
                                     <hr className="text-gray-200" />
                                     <li className="flex items-center gap-2">
                                         <FiLogOut />
@@ -352,7 +396,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                     <button onClick={handleToggleTheme} className="p-2 rounded-full border border-gray-200 bg-white text-gray-700 transition-colors duration-200 hover:bg-gray-50">
                         {theme === "dark" ? <FaSun size={18} /> : <FaMoon size={18} />}
                     </button>
-                    <button 
+                    <button
                         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                         className="p-2 rounded-lg border border-gray-200 bg-white text-gray-700 transition-colors duration-200 hover:bg-gray-50"
                         aria-label="Toggle menu"
@@ -372,14 +416,14 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
 
             {/* Mobile Menu - Slides down on mobile */}
             {mobileMenuOpen && (
-                <div 
+                <div
                     ref={mobileMenuRef}
                     className="fixed xl:hidden top-16 left-0 right-0 bg-white border-b border-gray-200 shadow-lg z-40 max-h-[calc(100vh-64px)] overflow-y-auto"
                 >
                     <div className="px-4 py-4 space-y-4 ml-[50px]">
                         {/* Home Link */}
-                        <Link 
-                            href="/home" 
+                        <Link
+                            href="/home"
                             className="flex items-center space-x-3 py-1 rounded-lg hover:bg-gray-50 transition-colors"
                             onClick={() => setMobileMenuOpen(false)}
                         >
@@ -399,7 +443,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                             <>
                                 <div className="py-2">
                                     <p className="text-xs font-semibold text-gray-500 px-3 mb-2">PROPERTY</p>
-                                    <Link 
+                                    <Link
                                         href={`/parent-property/${activeCustomer?.parentCustomer || ""}/home`}
                                         onClick={() => setMobileMenuOpen(false)}
                                         className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
@@ -453,7 +497,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                             </div>
 
                             <div className="space-y-2">
-                                <Link 
+                                <Link
                                     href="/profile"
                                     onClick={() => setMobileMenuOpen(false)}
                                     className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
@@ -462,7 +506,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                     <span className="text-gray-900 font-medium text-sm">User Profile</span>
                                 </Link>
                                 {user?.isAdmin && (
-                                    <Link 
+                                    <Link
                                         href="/admin"
                                         onClick={() => setMobileMenuOpen(false)}
                                         className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
@@ -471,7 +515,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                         <span className="text-gray-900 font-medium text-sm">Admin</span>
                                     </Link>
                                 )}
-                                <Link 
+                                <Link
                                     href="/profile"
                                     onClick={() => setMobileMenuOpen(false)}
                                     className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"

@@ -299,3 +299,7 @@ select {
 #chatAiMessage * {
 	font-size: 14px;
 }
+
+#apexRadar-link * {
+	color: white;
+}
