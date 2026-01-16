@@ -377,6 +377,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                                 id="apexRadar-link"
                                                 className="flex items-center gap-2 bg-[var(--color-primary-searchmind-lighter)] text-white rounded py-2 px-3">
                                                 <Link href="#" className="text-sm font-semibold">Apex Radar</Link>
+                                                <span class="text-[0.5rem] text-black bg-gray-200 rounded px-3 py-1">WIP</span>
                                             </li>
                                         </>
                                     )}

@@ -300,6 +300,6 @@ select {
 	font-size: 14px;
 }
 
-#apexRadar-link * {
+#apexRadar-link a {
 	color: white;
 }

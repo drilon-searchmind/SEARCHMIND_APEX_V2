@@ -45,6 +45,8 @@ export const authOptions = {
 				token.isAdmin = user.isAdmin;
 				token.isArchived = user.isArchived;
 				token.isExternal = user.isExternal;
+				token.slackId = user.slackId;
+				token.clickupId = user.clickupId;
 			}
 			// Handle client-side session updates (useSession().update)
 			if (trigger === 'update' && session?.user) {
@@ -69,6 +71,8 @@ export const authOptions = {
 				isExternal: token.isExternal,
 				sharedCustomers: userFromDb?.sharedCustomers || [],
 				favoritedCustomers: userFromDb?.favoritedCustomers || [],
+				slackId: token.slackId,
+				clickupId: token.clickupId,
 			};
 			return session;
 		},

@@ -44,6 +44,14 @@ const UserSchema = new mongoose.Schema({
         ref: 'Customer',
         default: [],
     }],
+    slackId: {
+        type: String,
+        default: '',
+    },
+    clickupId: {
+        type: String,
+        default: '',
+    },
 });
 
 UserSchema.pre('save', async function () {
