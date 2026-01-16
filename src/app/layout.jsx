@@ -1,8 +1,10 @@
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
 import AuthProvider from "@/contexts/AuthProvider";
 import { UserProvider } from "@/contexts/UserContext";
 import AuthGuard from "@/contexts/AuthGuard";
+import { GoogleTagManager } from '@next/third-parties/google';
+
+import "./globals.css";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -37,6 +39,8 @@ function ThemeScript() {
 	return null;
 }
 export default function RootLayout({ children }) {
+    const gtmId = "GTM-MWM37VKJ"
+	
 	return (
 		<html lang="en">
 			<body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
@@ -49,6 +53,8 @@ export default function RootLayout({ children }) {
 						</AuthGuard>
 					</UserProvider>
 				</AuthProvider>
+
+				<GoogleTagManager gtmId={gtmId} />
 			</body>
 		</html>
 	);
