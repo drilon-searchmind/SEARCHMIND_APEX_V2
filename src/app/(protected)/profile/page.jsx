@@ -11,6 +11,7 @@ import { useSession } from "next-auth/react";
 import { pushGTMEvent } from "../../../../lib/gtmFunctions";
 
 export default function ProfilePage() {
+    // TODO: Test Cursor
     const sessionUser = useUser();
     const setUser = useSetUser();
     const { update: updateSession } = useSession();
