@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 
 const TABS = [
@@ -21,6 +21,21 @@ export default function CampaignsOverview({ customerId, campaigns = [] }) {
 	const [activeTab, setActiveTab] = useState(TABS[0].value);
 	const [search, setSearch] = useState("");
 	const [statusFilter, setStatusFilter] = useState("");
+	const [users, setUsers] = useState([]);
+
+	useEffect(() => {
+		const fetchUsers = async () => {
+			try {
+				const response = await fetch('/api/users');
+				const userData = await response.json();
+				setUsers(userData.filter(user => !user.isArchived));
+			} catch (error) {
+				console.error('Error fetching users:', error);
+			}
+		};
+
+		fetchUsers();
+	}, []);
 
 	const filteredCampaigns = campaigns.filter(
 		(c) =>
@@ -95,6 +110,21 @@ export default function CampaignsOverview({ customerId, campaigns = [] }) {
 							<span>{c.b2bOrB2c}</span>
 							<span>Budget: {c.budget.toLocaleString()} DKK</span>
 							{c.readyForApproval && <span className="text-green-500 font-semibold">Ready for Approval</span>}
+						</div>
+						<div className="mt-2">
+							<p className="text-xs text-gray-500 mb-1">
+								Assigned Users: {c.assignedUsers && c.assignedUsers.length > 0 ? (
+									c.assignedUsers
+										.map((userId) => {
+											const user = users.find(u => u._id === userId);
+											return user && !user.isExternal ? user.name : null;
+										})
+										.filter(name => name !== null)
+										.join(', ') || <span className="text-gray-400">No assigned users</span>
+								) : (
+									<span className="text-gray-400">No assigned users</span>
+								)}
+							</p>
 						</div>
 						<div className="flex justify-between items-end mt-2">
 							<span className="text-xs text-gray-300">Created: {c.createdAt}</span>

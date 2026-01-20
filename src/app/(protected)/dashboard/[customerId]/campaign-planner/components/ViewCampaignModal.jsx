@@ -1,7 +1,29 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { FiX, FiInfo, FiCalendar, FiDollarSign, FiTag, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
 
 export default function ViewCampaignModal({ open, onClose, campaign }) {
+	const [users, setUsers] = useState([]);
+	const [loadingUsers, setLoadingUsers] = useState(false);
+
+	useEffect(() => {
+		const fetchUsers = async () => {
+			setLoadingUsers(true);
+			try {
+				const response = await fetch('/api/users');
+				const userData = await response.json();
+				setUsers(userData.filter(user => !user.isArchived));
+			} catch (error) {
+				console.error('Error fetching users:', error);
+			} finally {
+				setLoadingUsers(false);
+			}
+		};
+
+		if (open) {
+			fetchUsers();
+		}
+	}, [open]);
+
 	if (!open || !campaign) return null;
 
 	const getStatusColor = (status) => {
@@ -92,6 +114,47 @@ export default function ViewCampaignModal({ open, onClose, campaign }) {
 							<div>
 								<p className="text-xs font-medium text-gray-500 mb-1">Message Brief</p>
 								<p className="text-sm text-gray-700">{campaign.messageBrief || "-"}</p>
+							</div>
+
+							<div>
+								<p className="text-xs font-medium text-gray-500 mb-1">Assigned Users</p>
+								<div className="flex flex-wrap gap-2">
+									{loadingUsers ? (
+										<span className="text-sm text-gray-500">Loading...</span>
+									) : campaign.assignedUsers && campaign.assignedUsers.length > 0 ? (
+										campaign.assignedUsers.map((userId) => {
+											const user = users.find(u => u._id === userId);
+											const isInternal = !user?.isExternal;
+											if (!isInternal) return null; // Skip external users
+
+											return (
+												<div
+													key={userId}
+													className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-1"
+												>
+													<div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
+														{user?.image ? (
+															<img
+																src={user.image}
+																alt={user.name}
+																className="w-6 h-6 rounded-full object-cover"
+															/>
+														) : (
+															<span className="text-xs font-medium text-gray-600">
+																{user?.name.charAt(0).toUpperCase() || '?'}
+															</span>
+														)}
+													</div>
+													<span className="text-sm text-gray-700">
+														{user?.name || `User ${userId.slice(-4)}`}
+													</span>
+												</div>
+											);
+										})
+									) : (
+										<span className="text-sm text-gray-500">No assigned users</span>
+									)}
+								</div>
 							</div>
 						</div>
 

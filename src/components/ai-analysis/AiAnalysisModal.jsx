@@ -1,3 +1,5 @@
+"use client"
+
 import React, { useState, useEffect, useRef } from 'react';
 import { FiX, FiSearch, FiSend, FiPlus, FiMessageSquare } from 'react-icons/fi';
 import { useSession } from 'next-auth/react';

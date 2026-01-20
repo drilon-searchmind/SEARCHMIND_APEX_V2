@@ -24,7 +24,11 @@ const CampaignSchema = new mongoose.Schema({
     campaignDimensions: { type: String },
     campaignVariation: { type: String },
     campaignTextToCreative: { type: String },
-    campaignTextToCreativeTranslation: { type: String }
+    campaignTextToCreativeTranslation: { type: String },
+    assignedUsers: {
+        type: [String],
+        default: []
+    }
 });
 
 export default mongoose.models.Campaign || mongoose.model("Campaign", CampaignSchema);

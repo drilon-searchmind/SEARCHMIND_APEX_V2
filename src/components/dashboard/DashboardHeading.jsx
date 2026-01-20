@@ -1,3 +1,5 @@
+"use client"
+
 import React, { useState } from "react";
 import { LuBrainCircuit } from "react-icons/lu";
 import AiAnalysisModal from "../ai-analysis/AiAnalysisModal";

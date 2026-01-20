@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import FormButton from "@/components/form/FormButton";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
@@ -31,8 +31,34 @@ export default function CreateCampaignModal({ open, onClose, onCreate }) {
 		campaignDimensions: "",
 		campaignVariation: "",
 		campaignTextToCreative: "",
-		campaignTextToCreativeTranslation: ""
+		campaignTextToCreativeTranslation: "",
+		assignedUsers: []
 	});
+
+	const [users, setUsers] = useState([]);
+	const [loadingUsers, setLoadingUsers] = useState(false);
+	const [userSearch, setUserSearch] = useState("");
+
+	useEffect(() => {
+		const fetchUsers = async () => {
+			setLoadingUsers(true);
+			try {
+				const response = await fetch('/api/users');
+				const userData = await response.json();
+				// Filter out archived users
+				const activeUsers = userData.filter(user => !user.isArchived);
+				setUsers(activeUsers);
+			} catch (error) {
+				console.error('Error fetching users:', error);
+			} finally {
+				setLoadingUsers(false);
+			}
+		};
+
+		if (open) {
+			fetchUsers();
+		}
+	}, [open]);
 
 	const handleChange = (e) => {
 		const { name, value, type, checked } = e.target;
@@ -45,6 +71,15 @@ export default function CreateCampaignModal({ open, onClose, onCreate }) {
 				[name]: type === "checkbox" ? checked : value,
 			}));
 		}
+	};
+
+	const handleUserToggle = (userId) => {
+		setForm((prev) => ({
+			...prev,
+			assignedUsers: prev.assignedUsers.includes(userId)
+				? prev.assignedUsers.filter(id => id !== userId)
+				: [...prev.assignedUsers, userId]
+		}));
 	};
 
 	const handleSubmit = (e) => {
@@ -65,6 +100,7 @@ export default function CreateCampaignModal({ open, onClose, onCreate }) {
 			customerId: form.customerId,
 			campaignName: form.campaignName,
 			services: form.services,
+			assignedUsers: form.assignedUsers,
 			createdAt: new Date().toISOString().slice(0, 10),
 			parent: true,
 		};
@@ -98,6 +134,88 @@ export default function CreateCampaignModal({ open, onClose, onCreate }) {
 						>
 							{SERVICES.map((s) => <option key={s} value={s}>{s}</option>)}
 						</select>
+					</div>
+
+					<div className="md:col-span-2">
+						<FormLabel htmlFor="assignedUsers">Assigned Users</FormLabel>
+						<input
+							type="text"
+							placeholder="Search users by name or email..."
+							value={userSearch}
+							onChange={(e) => setUserSearch(e.target.value)}
+							className="mt-2 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20"
+						/>
+						<div className="mt-2 p-4 border border-gray-300 rounded-lg bg-gray-50 max-h-40 overflow-y-auto">
+							{loadingUsers ? (
+								<div className="text-sm text-gray-500">Loading users...</div>
+							) : users.length === 0 ? (
+								<div className="text-sm text-gray-500">No users available</div>
+							) : (() => {
+								const filteredUsers = users.filter((user) => {
+									const isInternal = user.isExternal === false || user.isExternal === undefined || user.isExternal === "false";
+									const matchesSearch = user.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+										user.email.toLowerCase().includes(userSearch.toLowerCase());
+									return isInternal && matchesSearch;
+								});
+								return filteredUsers.length === 0 ? (
+									<div className="text-sm text-gray-500">No users match your search</div>
+								) : (
+								<div className="grid grid-cols-1 gap-2">
+									{filteredUsers.map((user) => (
+										<div
+											key={user._id}
+											className={`flex items-center p-2 rounded-md cursor-pointer transition-colors ${
+												form.assignedUsers.includes(user._id)
+													? 'bg-brand-100 border border-brand-300'
+													: 'hover:bg-gray-100 border border-transparent'
+											}`}
+											onClick={() => handleUserToggle(user._id)}
+										>
+											<div className="flex items-center flex-1 min-w-0">
+												<div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center mr-3">
+													{user.image ? (
+														<img
+															src={user.image}
+															alt={user.name}
+															className="w-8 h-8 rounded-full object-cover"
+														/>
+													) : (
+														<span className="text-xs font-medium text-gray-600">
+															{user.name.charAt(0).toUpperCase()}
+														</span>
+													)}
+												</div>
+												<div className="min-w-0 flex-1">
+													<p className="text-sm font-medium text-gray-900 truncate">
+														{user.name}
+													</p>
+													<p className="text-xs text-gray-500 truncate">
+														{user.email}
+													</p>
+												</div>
+											</div>
+											<div className="flex-shrink-0 ml-2">
+												<div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+													form.assignedUsers.includes(user._id)
+														? 'border-brand-500 bg-black'
+														: 'border-gray-300'
+												}`}>
+													{form.assignedUsers.includes(user._id) && (
+														<></>
+													)}
+												</div>
+											</div>
+										</div>
+									))}
+								</div>
+								);
+							})()}
+						</div>
+						{form.assignedUsers.length > 0 && (
+							<div className="mt-2 text-sm text-gray-600">
+								{form.assignedUsers.length} user{form.assignedUsers.length !== 1 ? 's' : ''} assigned
+							</div>
+						)}
 					</div>
 
 					<div>

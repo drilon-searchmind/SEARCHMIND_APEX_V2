@@ -365,7 +365,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                     </li>
                                     <li className="flex items-center gap-2">
                                         <FiBarChart2 />
-                                        <Link href="#" className="text-sm text-slate-800 font-semibold">My Campaigns</Link>
+                                        <Link href="/my-campaigns" className="text-sm text-slate-800 font-semibold">My Campaigns</Link>
                                     </li>
                                     {user?.isAdmin && (
                                         <>

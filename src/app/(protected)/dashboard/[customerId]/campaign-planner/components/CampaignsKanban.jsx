@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { CAMPAIGN_STATUSES } from "../static-data/statuses";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
@@ -13,6 +13,21 @@ export default function CampaignsKanban({ customerId, campaigns = [], onStatusCh
     const defaultStart = `${yyyy}-${mm}-01`;
     const [dateRange, setDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
     const [search, setSearch] = useState("");
+    const [users, setUsers] = useState([]);
+
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                const response = await fetch('/api/users');
+                const userData = await response.json();
+                setUsers(userData.filter(user => !user.isArchived));
+            } catch (error) {
+                console.error('Error fetching users:', error);
+            }
+        };
+
+        fetchUsers();
+    }, []);
 
     // Filter campaigns by customer, date range, and search
     const filteredCampaigns = useMemo(() => {
@@ -111,6 +126,60 @@ export default function CampaignsKanban({ customerId, campaigns = [], onStatusCh
                                                             <span>Budget: {typeof c.budget === 'number' ? c.budget.toLocaleString() + ' DKK' : '-'} </span>
                                                             {c.readyForApproval && <span className="text-green-500 font-semibold">Ready for Approval</span>}
                                                         </div>
+                                                        {c.assignedUsers && c.assignedUsers.length > 0 && (
+                                                            <div className="flex items-center gap-1 mt-1 relative">
+                                                                {c.assignedUsers
+                                                                    .filter((userId) => {
+                                                                        const user = users.find(u => u._id === userId);
+                                                                        return user && !user.isExternal;
+                                                                    })
+                                                                    .slice(0, 3)
+                                                                    .map((userId, idx) => {
+                                                                        const user = users.find(u => u._id === userId);
+                                                                        return (
+                                                                            <div
+                                                                                key={userId}
+                                                                                className="w-5 h-5 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0"
+                                                                                title={user?.name || `User ${userId.slice(-4)}`}
+                                                                                style={{
+                                                                                    transform: `translateX(-${idx * 10}px)`,
+                                                                                }}
+                                                                            >
+                                                                                {user?.image ? (
+                                                                                    <img
+                                                                                        src={user.image}
+                                                                                        alt={user.name}
+                                                                                        className="w-5 h-5 rounded-full object-cover"
+                                                                                    />
+                                                                                ) : (
+                                                                                    <span className="text-xs font-medium text-gray-600">
+                                                                                        {user?.name.charAt(0).toUpperCase() || '?'}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                {c.assignedUsers.filter((userId) => {
+                                                                    const user = users.find(u => u._id === userId);
+                                                                    return user && !user.isExternal;
+                                                                }).length > 3 && (
+                                                                    <div
+                                                                    style={{
+                                                                        transform: `translateX(-${3 * 10}px)`,
+                                                                    }}
+                                                                    className="w-5 h-5 rounded-full bg-[var(--color-primary-searchmind-lighter)] flex items-center justify-center flex-shrink-0">
+                                                                        <span 
+                                                                            className="text-[0.65rem] font-light text-gray-50"
+                                                                        >
+                                                                            +{c.assignedUsers.filter((userId) => {
+                                                                                const user = users.find(u => u._id === userId);
+                                                                                return user && !user.isExternal;
+                                                                            }).length - 3}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                         <div className="flex justify-between items-end mt-2">
                                                             <span className="text-xs text-gray-300">Created: {c.createdAt}</span>
                                                             <button
