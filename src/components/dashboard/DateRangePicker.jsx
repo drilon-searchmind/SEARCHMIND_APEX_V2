@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import FormButton from "../form/FormButton";
 
 
-export default function DateRangePicker({ onApply, startDate, endDate, onStartDateChange, onEndDateChange }) {
+export default function DateRangePicker({ onApply, startDate, endDate, onStartDateChange, onEndDateChange, loading }) {
     // Controlled: startDate, endDate, and their change handlers come from parent
     const handleApply = () => {
         if (onApply) onApply({ startDate, endDate });
@@ -23,8 +23,8 @@ export default function DateRangePicker({ onApply, startDate, endDate, onStartDa
                 onChange={e => onEndDateChange && onEndDateChange(e.target.value)}
                 className="border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             />
-            <span onClick={handleApply}>
-                <FormButton buttonSize="small">Apply</FormButton>
+            <span onClick={handleApply} disabled={loading}>
+                <FormButton buttonSize="small" disabled={loading}>Apply</FormButton>
             </span>
         </div>
     );

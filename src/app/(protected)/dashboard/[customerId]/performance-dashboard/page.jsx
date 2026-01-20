@@ -381,6 +381,7 @@ export default function PerformanceDashboard() {
                         endDate={tempDateRange.endDate}
                         onStartDateChange={handleStartDateChange}
                         onEndDateChange={handleEndDateChange}
+                        loading={loading}
                     />
                 }
                 showComparisonMethodToggler={true}
