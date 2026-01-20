@@ -54,6 +54,10 @@ export default function PerformanceDashboard() {
     const [shopifyDaily, setShopifyDaily] = useState([]);
     const [facebookDaily, setFacebookDaily] = useState([]);
     const [googleDaily, setGoogleDaily] = useState([]);
+    // Previous period data for comparison
+    const [shopifyDailyPrev, setShopifyDailyPrev] = useState([]);
+    const [facebookDailyPrev, setFacebookDailyPrev] = useState([]);
+    const [googleDailyPrev, setGoogleDailyPrev] = useState([]);
     useEffect(() => {
         if (!customer) return;
         setLoading(true);
@@ -88,6 +92,11 @@ export default function PerformanceDashboard() {
                 setShopifyDaily(merged.shopifyDaily || []);
                 setFacebookDaily(merged.facebookDaily || []);
                 setGoogleDaily(merged.googleDaily || []);
+
+                // Save previous period data for comparison
+                setShopifyDailyPrev(mergedPrev.shopifyDaily || []);
+                setFacebookDailyPrev(mergedPrev.facebookDaily || []);
+                setGoogleDailyPrev(mergedPrev.googleDaily || []);
 
                 // Revenue type logic
                 const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
@@ -252,37 +261,90 @@ export default function PerformanceDashboard() {
     // Prepare chart data from real daily arrays
     // Revenue chart
     const revenueCategories = shopifyDaily.map(d => d.period);
-    const revenueSeries = [{ name: 'Revenue', data: shopifyDaily.map(d => Number(d.total_sales).toFixed(2)) }];
+    const revenueSeries = [
+        { name: 'Revenue (Current)', data: shopifyDaily.map(d => Number(d.total_sales).toFixed(2)) },
+        { name: `Revenue (${comparisonMethod})`, data: shopifyDailyPrev.map(d => Number(d.total_sales).toFixed(2)) }
+    ];
     const revenueOptions = {
         chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
         xaxis: { categories: revenueCategories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
         yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' } } },
-        colors: [chartColors.lime || '#C6ED62'],
-        stroke: { width: 2, curve: 'smooth' },
-        fill: { type: 'solid', opacity: 1 },
+        colors: [chartColors.lime || '#C6ED62', '#94a3b8'],
+        stroke: { width: [2, 1], curve: 'smooth', dashArray: [0, 5] },
+        fill: { type: 'solid', opacity: [1, 0.5] },
         grid: { borderColor: '#e5e7eb', strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
         dataLabels: { enabled: false },
         tooltip: { theme: 'light' },
+        legend: { show: true, position: 'top', labels: { colors: chartColors.primary || '#1E2B2B' } },
     };
 
     // Spend Allocation chart
     const spendCategories = shopifyDaily.map(d => d.period); // Use same x-axis as revenue
-    // Align facebook and google spend by date
+    // Align facebook and google spend by date (current)
     const facebookSpendMap = Object.fromEntries(facebookDaily.map(d => [d.period, d.spend]));
     const googleSpendMap = Object.fromEntries(googleDaily.map(d => [d.period, d.spend]));
     const facebookSpendSeries = spendCategories.map(date => (facebookSpendMap[date] ? Number(facebookSpendMap[date]).toFixed(2) : '0.00'));
     const googleSpendSeries = spendCategories.map(date => (googleSpendMap[date] ? Number(googleSpendMap[date]).toFixed(2) : '0.00'));
+
+    // Align facebook and google spend by date (previous)
+    const facebookSpendMapPrev = Object.fromEntries(facebookDailyPrev.map(d => [d.period, d.spend]));
+    const googleSpendMapPrev = Object.fromEntries(googleDailyPrev.map(d => [d.period, d.spend]));
+
+    // Map current period dates to corresponding previous period dates
+    const facebookSpendSeriesPrev = spendCategories.map(date => {
+        let prevDate;
+        if (comparisonMethod === "Last Year") {
+            // Same date last year
+            const currentDate = dayjs(date);
+            prevDate = currentDate.subtract(1, 'year').format('YYYY-MM-DD');
+        } else {
+            // Last Period - same date in previous contiguous period
+            const currentDate = dayjs(date);
+            const periodStart = dayjs(appliedDateRange.startDate);
+            const periodEnd = dayjs(appliedDateRange.endDate);
+            const daysDiff = currentDate.diff(periodStart, 'day');
+            const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, 'day') + 1, 'day');
+            prevDate = prevPeriodStart.add(daysDiff, 'day').format('YYYY-MM-DD');
+        }
+        return facebookSpendMapPrev[prevDate] ? Number(facebookSpendMapPrev[prevDate]).toFixed(2) : '0.00';
+    });
+
+    const googleSpendSeriesPrev = spendCategories.map(date => {
+        let prevDate;
+        if (comparisonMethod === "Last Year") {
+            // Same date last year
+            const currentDate = dayjs(date);
+            prevDate = currentDate.subtract(1, 'year').format('YYYY-MM-DD');
+        } else {
+            // Last Period - same date in previous contiguous period
+            const currentDate = dayjs(date);
+            const periodStart = dayjs(appliedDateRange.startDate);
+            const periodEnd = dayjs(appliedDateRange.endDate);
+            const daysDiff = currentDate.diff(periodStart, 'day');
+            const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, 'day') + 1, 'day');
+            prevDate = prevPeriodStart.add(daysDiff, 'day').format('YYYY-MM-DD');
+        }
+        return googleSpendMapPrev[prevDate] ? Number(googleSpendMapPrev[prevDate]).toFixed(2) : '0.00';
+    });
+
     const spendAllocationSeries = [
-        { name: 'Facebook', data: facebookSpendSeries },
-        { name: 'Google', data: googleSpendSeries },
+        { name: 'Facebook (Current)', data: facebookSpendSeries },
+        { name: 'Google (Current)', data: googleSpendSeries },
+        { name: `Facebook (${comparisonMethod})`, data: facebookSpendSeriesPrev },
+        { name: `Google (${comparisonMethod})`, data: googleSpendSeriesPrev },
     ];
     const spendOptions = {
         chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
         xaxis: { categories: spendCategories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
         yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' } } },
-        colors: [chartColors.primaryLighter || '#406969', chartColors.lime || '#C6ED62'],
-        stroke: { width: 2, curve: 'smooth' },
-        fill: { type: 'solid', opacity: 1 },
+        colors: [
+            chartColors.primaryLighter || '#406969',  // Facebook Current
+            chartColors.lime || '#C6ED62',            // Google Current
+            '#94a3b8',                                // Facebook Previous (muted)
+            '#cbd5e1'                                 // Google Previous (muted)
+        ],
+        stroke: { width: [2, 2, 1, 1], curve: 'smooth', dashArray: [0, 0, 5, 5] },
+        fill: { type: 'solid', opacity: [1, 1, 0.5, 0.5] },
         grid: { borderColor: '#e5e7eb', strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
         dataLabels: { enabled: false },
         tooltip: { theme: 'light' },
@@ -298,23 +360,73 @@ export default function PerformanceDashboard() {
 
     if (customerMetricPreference === 'Spendshare') {
         // Spendshare chart
-        metricSeries = [{
-            name: 'Spendshare',
-            data: shopifyDaily.map((d, i) => {
-                const spend = (Number(facebookSpendMap[d.period]) || 0) + (Number(googleSpendMap[d.period]) || 0);
-                return d.total_sales > 0 ? ((spend / d.total_sales) * 100).toFixed(2) : null;
-            })
-        }];
+        metricSeries = [
+            {
+                name: 'Spendshare (Current)',
+                data: shopifyDaily.map((d, i) => {
+                    const spend = (Number(facebookSpendMap[d.period]) || 0) + (Number(googleSpendMap[d.period]) || 0);
+                    return d.total_sales > 0 ? ((spend / d.total_sales) * 100).toFixed(2) : null;
+                })
+            },
+            {
+                name: `Spendshare (${comparisonMethod})`,
+                data: shopifyDaily.map((d, i) => {
+                    let prevDate;
+                    if (comparisonMethod === "Last Year") {
+                        const currentDate = dayjs(d.period);
+                        prevDate = currentDate.subtract(1, 'year').format('YYYY-MM-DD');
+                    } else {
+                        const currentDate = dayjs(d.period);
+                        const periodStart = dayjs(appliedDateRange.startDate);
+                        const periodEnd = dayjs(appliedDateRange.endDate);
+                        const daysDiff = currentDate.diff(periodStart, 'day');
+                        const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, 'day') + 1, 'day');
+                        prevDate = prevPeriodStart.add(daysDiff, 'day').format('YYYY-MM-DD');
+                    }
+
+                    // Find corresponding previous period data
+                    const prevShopifyData = shopifyDailyPrev.find(pd => pd.period === prevDate);
+                    const prevSpend = (Number(facebookSpendMapPrev[prevDate]) || 0) + (Number(googleSpendMapPrev[prevDate]) || 0);
+
+                    return prevShopifyData && prevShopifyData.total_sales > 0 ? ((prevSpend / prevShopifyData.total_sales) * 100).toFixed(2) : null;
+                })
+            }
+        ];
         metricTitle = 'Spendshare (%)';
     } else {
         // ROAS chart (default)
-        metricSeries = [{
-            name: 'ROAS',
-            data: shopifyDaily.map((d, i) => {
-                const spend = (Number(facebookSpendMap[d.period]) || 0) + (Number(googleSpendMap[d.period]) || 0);
-                return spend > 0 ? (d.total_sales / spend).toFixed(2) : null;
-            })
-        }];
+        metricSeries = [
+            {
+                name: 'ROAS (Current)',
+                data: shopifyDaily.map((d, i) => {
+                    const spend = (Number(facebookSpendMap[d.period]) || 0) + (Number(googleSpendMap[d.period]) || 0);
+                    return spend > 0 ? (d.total_sales / spend).toFixed(2) : null;
+                })
+            },
+            {
+                name: `ROAS (${comparisonMethod})`,
+                data: shopifyDaily.map((d, i) => {
+                    let prevDate;
+                    if (comparisonMethod === "Last Year") {
+                        const currentDate = dayjs(d.period);
+                        prevDate = currentDate.subtract(1, 'year').format('YYYY-MM-DD');
+                    } else {
+                        const currentDate = dayjs(d.period);
+                        const periodStart = dayjs(appliedDateRange.startDate);
+                        const periodEnd = dayjs(appliedDateRange.endDate);
+                        const daysDiff = currentDate.diff(periodStart, 'day');
+                        const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, 'day') + 1, 'day');
+                        prevDate = prevPeriodStart.add(daysDiff, 'day').format('YYYY-MM-DD');
+                    }
+
+                    // Find corresponding previous period data
+                    const prevShopifyData = shopifyDailyPrev.find(pd => pd.period === prevDate);
+                    const prevSpend = (Number(facebookSpendMapPrev[prevDate]) || 0) + (Number(googleSpendMapPrev[prevDate]) || 0);
+
+                    return prevShopifyData && prevSpend > 0 ? (prevShopifyData.total_sales / prevSpend).toFixed(2) : null;
+                })
+            }
+        ];
         metricTitle = 'ROAS';
     }
 
@@ -322,30 +434,55 @@ export default function PerformanceDashboard() {
         chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
         xaxis: { categories: metricCategories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
         yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' } } },
-        colors: [chartColors.green || '#213834'],
-        stroke: { width: 2, curve: 'smooth' },
-        fill: { type: 'solid', opacity: 1 },
+        colors: [chartColors.green || '#213834', '#94a3b8'],
+        stroke: { width: [2, 1], curve: 'smooth', dashArray: [0, 5] },
+        fill: { type: 'solid', opacity: [1, 0.5] },
         grid: { borderColor: '#e5e7eb', strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
         dataLabels: { enabled: false },
         tooltip: { theme: 'light' },
+        legend: { show: true, position: 'top', labels: { colors: chartColors.primary || '#1E2B2B' } },
     };
 
     // AOV chart
     const aovCategories = shopifyDaily.map(d => d.period);
-    const aovSeries = [{
-        name: 'AOV',
-        data: shopifyDaily.map(d => d.orders > 0 ? (d.total_sales / d.orders).toFixed(2) : null)
-    }];
+    const aovSeries = [
+        {
+            name: 'AOV (Current)',
+            data: shopifyDaily.map(d => d.orders > 0 ? (d.total_sales / d.orders).toFixed(2) : null)
+        },
+        {
+            name: `AOV (${comparisonMethod})`,
+            data: shopifyDaily.map((d, i) => {
+                let prevDate;
+                if (comparisonMethod === "Last Year") {
+                    const currentDate = dayjs(d.period);
+                    prevDate = currentDate.subtract(1, 'year').format('YYYY-MM-DD');
+                } else {
+                    const currentDate = dayjs(d.period);
+                    const periodStart = dayjs(appliedDateRange.startDate);
+                    const periodEnd = dayjs(appliedDateRange.endDate);
+                    const daysDiff = currentDate.diff(periodStart, 'day');
+                    const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, 'day') + 1, 'day');
+                    prevDate = prevPeriodStart.add(daysDiff, 'day').format('YYYY-MM-DD');
+                }
+
+                // Find corresponding previous period data
+                const prevShopifyData = shopifyDailyPrev.find(pd => pd.period === prevDate);
+                return prevShopifyData && prevShopifyData.orders > 0 ? (prevShopifyData.total_sales / prevShopifyData.orders).toFixed(2) : null;
+            })
+        }
+    ];
     const aovOptions = {
         chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
         xaxis: { categories: aovCategories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
         yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' } } },
-        colors: [chartColors.secondary || '#D6CDB6'],
-        stroke: { width: 2, curve: 'smooth' },
-        fill: { type: 'solid', opacity: 1 },
+        colors: [chartColors.secondary || '#D6CDB6', '#94a3b8'],
+        stroke: { width: [2, 1], curve: 'smooth', dashArray: [0, 5] },
+        fill: { type: 'solid', opacity: [1, 0.5] },
         grid: { borderColor: '#e5e7eb', strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
         dataLabels: { enabled: false },
         tooltip: { theme: 'light' },
+        legend: { show: true, position: 'top', labels: { colors: chartColors.primary || '#1E2B2B' } },
     };
 
     return (
