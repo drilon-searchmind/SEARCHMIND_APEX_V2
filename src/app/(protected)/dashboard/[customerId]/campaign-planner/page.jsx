@@ -92,11 +92,13 @@ export default function CampaignPlannerPage() {
             {view === "calendar" && (
                 <CampaignsCalendar
                     campaigns={mergedCampaigns}
+                    onViewDetails={setViewCampaign}
                 />
             )}
             {view === "gantt" && (
                 <CampaignsGantt
                     campaigns={mergedCampaigns}
+                    onViewDetails={setViewCampaign}
                 />
             )}
             <CreateCampaignModal
