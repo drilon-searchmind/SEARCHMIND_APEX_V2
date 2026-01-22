@@ -1,23 +1,35 @@
 // src/lib/mergedSourcesApi.js
 import { shopifyqlQuery, discoverSalesFields } from './shopifyApi';
+import { fetchWooCommerceOrders } from './wooCommerceApi';
 import { fetchFacebookAdsInsights } from './facebookApi';
 import { fetchGoogleAdsMetrics } from './googleAdsApi';
 import currencyApiValues from './static-data/currencyApiValues.json';
 
 /**
- * Fetches and merges revenue (Shopify), Facebook adspend, and Google Ads adspend for a customer.
- * @param {object} settings - Customer settings object containing all required credentials.
+ * Fetches and merges revenue (Shopify/WooCommerce), Facebook adspend, and Google Ads adspend for a customer.
+ * @param {object} settings - Customer settings object containing all required credentials and customerType.
  * @param {string} startDate - Start date (YYYY-MM-DD)
  * @param {string} endDate - End date (YYYY-MM-DD)
- * @returns {Promise<object>} - { revenue, facebookAdspend, googleAdspend }
+ * @returns {Promise<object>} - { shopifyDaily, facebookDaily, googleDaily, ... }
  */
 
 export async function fetchMergedSources(settings, startDate, endDate) {
     const FACEBOOK_APP_TOKEN = process.env.FACEBOOK_APP_TOKEN;
-    // Shopify daily
+
+    // Determine customer type and fetch appropriate e-commerce data
     let shopifyDaily = [];
+    const customerType = settings.customerType || 'Shopify'; // Default to Shopify for backward compatibility
+
+    console.log('fetchMergedSources called with:', { customerType, startDate, endDate });
+    console.log('WooCommerce settings check:', {
+        customerType: customerType === 'WooCommerce',
+        hasApiKey: !!settings.wooCommerceApiKey,
+        hasApiSecret: !!settings.wooCommerceApiSecret,
+        hasApiUrl: !!settings.wooCommerceApiUrl
+    });
+
     try {
-        if (settings.shopifyUrl && settings.shopifyApiPassword) {
+        if (customerType === 'Shopify' && settings.shopifyUrl && settings.shopifyApiPassword) {
             // Build ShopifyQL query with optional currency grouping for multi-domain Shopify stores
             let shopifyql;
             
@@ -66,9 +78,46 @@ export async function fetchMergedSources(settings, startDate, endDate) {
                 custom_1: ((parseFloat(row.net_sales) || 0) + (parseFloat(row.returns) || 0) + (parseFloat(row.shipping_charges) || 0)) * conversionRate,
                 orders: parseInt(row.orders) || 0,
             })).sort((a, b) => a.period.localeCompare(b.period));
+        } else if (customerType === 'WooCommerce' && settings.wooCommerceApiKey && settings.wooCommerceApiSecret) {
+            console.log('🎯 WooCommerce condition met, fetching data...');
+            // Fetch WooCommerce data
+            const wooCommerceData = await fetchWooCommerceOrders(
+                settings.wooCommerceApiUrl,
+                settings.wooCommerceApiKey,
+                settings.wooCommerceApiSecret,
+                startDate,
+                endDate,
+                settings.customerStoreValutaCode || 'DKK'
+            );
+            console.log('WooCommerce data fetched:', wooCommerceData);
+
+            // Currency conversion logic (same as Shopify)
+            const fromCode = settings?.customerStoreValutaCode || 'DKK';
+            const toCode = 'DKK';
+            const currencyData = currencyApiValues.data;
+            let conversionRate = 1;
+            if (fromCode !== toCode && currencyData[fromCode] && currencyData[toCode]) {
+                conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
+            }
+
+            // Apply currency conversion to WooCommerce data
+            shopifyDaily = wooCommerceData.map(row => ({
+                period: row.period,
+                gross_sales: (parseFloat(row.gross_sales) || 0) * conversionRate,
+                discounts: (parseFloat(row.discounts) || 0) * conversionRate,
+                returns: (parseFloat(row.returns) || 0) * conversionRate, // Will be 0 for WooCommerce
+                net_sales: (parseFloat(row.net_sales) || 0) * conversionRate,
+                shipping_charges: (parseFloat(row.shipping_charges) || 0) * conversionRate,
+                duties: (parseFloat(row.duties) || 0) * conversionRate, // Will be 0 for WooCommerce
+                additional_fees: (parseFloat(row.additional_fees) || 0) * conversionRate, // Will be 0 for WooCommerce
+                taxes: (parseFloat(row.taxes) || 0) * conversionRate,
+                total_sales: (parseFloat(row.total_sales) || 0) * conversionRate,
+                custom_1: (parseFloat(row.custom_1) || 0) * conversionRate,
+                orders: parseInt(row.orders) || 0,
+            })).sort((a, b) => a.period.localeCompare(b.period));
         }
     } catch (err) {
-        console.error('Shopify error:', err);
+        console.error(`${customerType} error:`, err);
         shopifyDaily = [];
     }
 

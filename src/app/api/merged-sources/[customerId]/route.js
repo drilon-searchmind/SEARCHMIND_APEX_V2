@@ -19,6 +19,7 @@ export async function GET(request, { params }) {
         if (!res.ok) throw new Error('Failed to fetch customer');
         const data = await res.json();
         const settings = {
+            customerType: data.customerType || 'Shopify', // Include customer type
             ...(data.CustomerSettings || {}),
             CustomerStaticExpenses: data.CustomerStaticExpenses || {},
         };

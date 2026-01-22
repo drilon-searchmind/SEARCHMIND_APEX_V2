@@ -9,6 +9,8 @@ import { useUser } from "@/contexts/UserContext";
 import { signOut } from "next-auth/react";
 import { useCustomers } from "@/hooks/useCustomers";
 import CustomerCreateForm from "../form/CustomerCreateForm";
+import { SiShopify, SiWordpress } from "react-icons/si";
+
 
 export default function CustomerTable() {
     const [searchTerm, setSearchTerm] = useState("");
@@ -215,6 +217,7 @@ export default function CustomerTable() {
                                                         <th className="font-medium text-gray-500 text-start text-theme-xs text-xs px-5 py-3">Platform</th>
                                                         <th className="font-medium text-gray-500 text-center text-theme-xs text-xs px-5 py-3">Favorite</th>
                                                         <th className="font-medium text-gray-500 text-start text-theme-xs text-xs px-5 py-3">Action</th>
+                                                        <th className="font-medium text-gray-500 text-start text-theme-xs text-xs px-5 py-3">Platform</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -242,6 +245,9 @@ export default function CustomerTable() {
                                                                         View Dashboard <FiArrowRight />
                                                                     </FormButton>
                                                                 </Link>
+                                                            </td>
+                                                            <td className="border-b border-gray-50 px-5 py-3 text-gray-500 text-sm">
+                                                                {customer.customerType === "Shopify" ? <SiShopify /> : customer.customerType === "WooCommerce" ? <SiWordpress /> : <FiServer />}
                                                             </td>
                                                         </tr>
                                                     ))}
