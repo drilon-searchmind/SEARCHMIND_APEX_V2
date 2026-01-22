@@ -1,7 +1,7 @@
 // src/lib/wooCommerceApi.js
 
 /**
- * Fetch WooCommerce orders and aggregate them into daily sales data
+ * Fetch WooCommerce sales report data
  * Returns the same field structure as Shopify for compatibility
  * @param {string} apiUrl - WooCommerce API URL (e.g., https://yourdomain.com/wp-json/wc/v3/)
  * @param {string} consumerKey - WooCommerce API Consumer Key
@@ -12,11 +12,13 @@
  * @returns {Promise<Array>} - Array of daily sales data with Shopify-compatible fields
  */
 export async function fetchWooCommerceOrders(apiUrl, consumerKey, consumerSecret, startDate, endDate, storeCurrency = 'DKK') {
+    console.log("::: FETCHING WOOCCOMMERCE SALES REPORT :::");
+    console.log({ apiUrl, startDate, endDate });
 
     try {
         // Build WooCommerce API URL with authentication
         const baseUrl = apiUrl.replace(/\/$/, ''); // Remove trailing slash
-        const ordersUrl = `${baseUrl}/orders`;
+        const salesUrl = `${baseUrl}/reports/sales`;
 
         // Validate date range - don't fetch future dates
         const now = new Date();
@@ -24,102 +26,108 @@ export async function fetchWooCommerceOrders(apiUrl, consumerKey, consumerSecret
         const end = new Date(endDate);
 
         if (start > now) {
+            console.log("Start date is in the future, returning empty data");
             return [];
         }
 
         // Limit end date to today if it's in the future
         const effectiveEndDate = end > now ? now.toISOString().split('T')[0] : endDate;
 
-        // Add date filters - WooCommerce expects ISO 8601 format
+        console.log({ effectiveEndDate });
+
+        // Build query parameters for sales report
         const params = new URLSearchParams({
             consumer_key: consumerKey,
             consumer_secret: consumerSecret,
-            after: `${startDate}T00:00:00`,
-            before: `${effectiveEndDate}T23:59:59`,
-            per_page: '50', // Reduce to avoid timeouts
-            // Remove status filter initially to see all orders
+            date_min: startDate,  // WooCommerce sales report uses date_min/date_max
+            date_max: effectiveEndDate,
         });
 
-        const fullUrl = `${ordersUrl}?${params.toString()}`;
+        const fullUrl = `${salesUrl}?${params.toString()}`;
+        console.log(`Fetching WooCommerce sales report...`);
+        console.log({ fullUrl });
 
         const response = await fetch(fullUrl);
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('WooCommerce API Error Response:', errorText);
+            console.error('WooCommerce Sales Report API Error Response:', errorText);
             throw new Error(`WooCommerce API error: ${response.status} ${response.statusText}`);
         }
 
-        const orders = await response.json();
+        const salesReport = await response.json();
+        console.log('WooCommerce sales report response:', salesReport);
 
-        // If no orders found, try again with all statuses (not just completed)
-        if (orders.length === 0) {
-            const paramsAll = new URLSearchParams({
-                consumer_key: consumerKey,
-                consumer_secret: consumerSecret,
-                after: `${startDate}T00:00:00`,
-                before: `${effectiveEndDate}T23:59:59`,
-                per_page: '50',
+        // WooCommerce sales report returns data in this format (as an array):
+        // [
+        //   {
+        //     "total_sales": "9.00",
+        //     "net_sales": "9.00",
+        //     "average_sales": "9.00",
+        //     "total_orders": 1,
+        //     "total_items": 1,
+        //     "total_tax": "0.00",
+        //     "total_shipping": "0.00",
+        //     "total_refunds": 0,
+        //     "total_discount": "0.00",
+        //     "totals_grouped_by": "day",
+        //     "totals": {
+        //       "2023-05-19": {
+        //         "sales": "9.00",
+        //         "orders": 1,
+        //         "items": 1,
+        //         "tax": "0.00",
+        //         "shipping": "0.00",
+        //         "discount": "0.00",
+        //         "customers": 1
+        //       }
+        //     }
+        //   }
+        // ]
+
+        // Get the first (and only) report object from the array
+        const reportData = salesReport[0] || salesReport;
+        const totals = reportData.totals || {};
+
+        console.log(`Processing ${Object.keys(totals).length} days of sales data...`);
+
+        // Convert the daily totals to our Shopify-compatible format
+        const dailyData = [];
+
+        for (const [date, dayData] of Object.entries(totals)) {
+            // Skip if no orders for this day
+            if (parseInt(dayData.orders) === 0) continue;
+
+            const sales = parseFloat(dayData.sales || 0);
+            const orders = parseInt(dayData.orders || 0);
+            const tax = parseFloat(dayData.tax || 0);
+            const shipping = parseFloat(dayData.shipping || 0);
+            const discount = parseFloat(dayData.discount || 0);
+
+            dailyData.push({
+                period: date,
+                gross_sales: sales + tax + shipping, // sales already includes line items + shipping, add tax
+                discounts: discount,
+                returns: 0, // WooCommerce sales report doesn't track returns separately
+                net_sales: sales, // WooCommerce sales report already provides net sales
+                shipping_charges: shipping,
+                duties: 0, // Not typically used in WooCommerce
+                additional_fees: 0, // Not typically used in WooCommerce
+                taxes: tax,
+                total_sales: sales, // Use the sales figure which is net sales
+                orders: orders,
+                custom_1: sales + shipping, // net_sales + shipping_charges (same as Shopify calculation)
             });
-
-            const fullUrlAll = `${ordersUrl}?${paramsAll.toString()}`;
-
-            const responseAll = await fetch(fullUrlAll);
-            if (responseAll.ok) {
-                const ordersAll = await responseAll.json();
-                orders.push(...ordersAll);
-            }
         }
-
-        // Group orders by date and aggregate
-        const dailyData = {};
-
-        for (const order of orders) {
-            const orderDate = new Date(order.date_created).toISOString().split('T')[0]; // YYYY-MM-DD format
-
-            if (!dailyData[orderDate]) {
-                dailyData[orderDate] = {
-                    period: orderDate,
-                    gross_sales: 0,
-                    discounts: 0,
-                    returns: 0, // WooCommerce doesn't have returns in the same way
-                    net_sales: 0,
-                    shipping_charges: 0,
-                    duties: 0, // Not typically used in WooCommerce
-                    additional_fees: 0, // Not typically used in WooCommerce
-                    taxes: 0,
-                    total_sales: 0,
-                    orders: 0,
-                };
-            }
-
-            // Aggregate order data
-            const lineItemsTotal = order.line_items.reduce((sum, item) => sum + parseFloat(item.total || 0), 0);
-            const shippingTotal = parseFloat(order.shipping_total || 0);
-            const taxTotal = parseFloat(order.total_tax || 0);
-            const discountTotal = parseFloat(order.discount_total || 0);
-            const total = parseFloat(order.total || 0);
-
-            dailyData[orderDate].gross_sales += lineItemsTotal + shippingTotal + taxTotal;
-            dailyData[orderDate].discounts += discountTotal;
-            dailyData[orderDate].net_sales += lineItemsTotal - discountTotal;
-            dailyData[orderDate].shipping_charges += shippingTotal;
-            dailyData[orderDate].taxes += taxTotal;
-            dailyData[orderDate].total_sales += total;
-            dailyData[orderDate].orders += 1;
-        }
-
-        // Convert to array and calculate custom_1 (net_sales + returns + shipping_charges)
-        const result = Object.values(dailyData).map(day => ({
-            ...day,
-            custom_1: day.net_sales + day.returns + day.shipping_charges, // Same calculation as Shopify
-        }));
 
         // Sort by date
-        return result.sort((a, b) => a.period.localeCompare(b.period));
+        const result = dailyData.sort((a, b) => a.period.localeCompare(b.period));
+        console.log(`Processed ${result.length} days of sales data`);
+
+        return result;
 
     } catch (error) {
-        console.error('WooCommerce API error:', error);
+        console.error('WooCommerce Sales Report API error:', error);
         throw error;
     }
 }
