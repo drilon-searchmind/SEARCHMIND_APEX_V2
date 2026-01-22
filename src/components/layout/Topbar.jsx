@@ -37,8 +37,6 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
     useEffect(() => {
         const currentActiveCustomer = customers.find(c => c._id === activeCustomerId);
 
-        console.log('Active Customer:', currentActiveCustomer);
-        console.log({ currentActiveCustomer })
         setActiveCustomer(currentActiveCustomer || null)
     }, [activeCustomerId, customers])
 

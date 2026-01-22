@@ -88,6 +88,18 @@ const CustomerSchema = new mongoose.Schema({
         ga4PropertyId: {
             type: String,
             default: ""
+        },
+        wooCommerceApiKey: {
+            type: String,
+            default: ""
+        },
+        wooCommerceApiSecret: {
+            type: String,
+            default: ""
+        },
+        wooCommerceApiUrl: {
+            type: String,
+            default: ""
         }
     },
     CustomerStaticExpenses: {

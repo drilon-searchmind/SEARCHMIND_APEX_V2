@@ -31,6 +31,7 @@ export default function TeamMembers({ customerId }) {
                     throw new Error("Failed to fetch team members");
                 }
                 const data = await response.json();
+                console.log({data})
                 setMembers(data.members || []);
             } catch (err) {
                 console.error("Error fetching team members:", err);

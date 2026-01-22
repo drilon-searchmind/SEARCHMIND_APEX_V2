@@ -3,7 +3,7 @@ import FormButton from '@/components/form/FormButton';
 import FormInputText from '@/components/form/FormInputText';
 import FormLabel from '@/components/form/FormLabel';
 
-export default function CustomerSettingsForm({ form, onChange, saving }) {
+export default function CustomerSettingsForm({ form, onChange, saving, customerType }) {
     return (
         <form className="flex flex-col gap-4" onSubmit={e => { e.preventDefault(); }}>
             <h5 className="text-lg font-semibold text-[var(--color-primary-searchmind)] mb-2">Customer Settings</h5>
@@ -46,14 +46,36 @@ export default function CustomerSettingsForm({ form, onChange, saving }) {
                     <option value="custom_1">Custom 1 (Netto + Refunds + Delivery Fees)</option>
                 </select>
             </div>
-            <div>
-                <FormLabel htmlFor="shopifyUrl">Shopify URL</FormLabel>
-                <FormInputText id="shopifyUrl" name="shopifyUrl" value={form.shopifyUrl} onChange={onChange} />
-            </div>
-            <div>
-                <FormLabel htmlFor="shopifyApiPassword">Shopify API Password</FormLabel>
-                <FormInputText id="shopifyApiPassword" name="shopifyApiPassword" value={form.shopifyApiPassword} onChange={onChange} />
-            </div>
+            {/* Conditional fields based on customer type */}
+            {customerType === "Shopify" && (
+                <>
+                    <div>
+                        <FormLabel htmlFor="shopifyUrl">Shopify URL</FormLabel>
+                        <FormInputText id="shopifyUrl" name="shopifyUrl" value={form.shopifyUrl} onChange={onChange} />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="shopifyApiPassword">Shopify API Password</FormLabel>
+                        <FormInputText id="shopifyApiPassword" name="shopifyApiPassword" value={form.shopifyApiPassword} onChange={onChange} />
+                    </div>
+                </>
+            )}
+
+            {customerType === "WooCommerce" && (
+                <>
+                    <div>
+                        <FormLabel htmlFor="wooCommerceApiKey">WooCommerce API Key</FormLabel>
+                        <FormInputText id="wooCommerceApiKey" name="wooCommerceApiKey" value={form.wooCommerceApiKey} onChange={onChange} />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="wooCommerceApiSecret">WooCommerce API Secret</FormLabel>
+                        <FormInputText id="wooCommerceApiSecret" name="wooCommerceApiSecret" value={form.wooCommerceApiSecret} onChange={onChange} />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="wooCommerceApiUrl">WooCommerce API URL</FormLabel>
+                        <FormInputText id="wooCommerceApiUrl" name="wooCommerceApiUrl" value={form.wooCommerceApiUrl} onChange={onChange} placeholder="https://yourdomain.com/wp-json/wc/v3/" />
+                    </div>
+                </>
+            )}
             <div>
                 <FormLabel htmlFor="facebookAdAccountId">Facebook Ad Account ID</FormLabel>
                 <FormInputText id="facebookAdAccountId" name="facebookAdAccountId" value={form.facebookAdAccountId} onChange={onChange} />

@@ -19,6 +19,9 @@ const initialState = {
         customerRevenueType: "total_sales",
         shopifyUrl: "",
         shopifyApiPassword: "",
+        wooCommerceApiKey: "",
+        wooCommerceApiSecret: "",
+        wooCommerceApiUrl: "",
         facebookAdAccountId: "",
         googleAdsCustomerId: "",
         googleSearchConsoleProperty: ""
@@ -54,15 +57,30 @@ export default function CustomerCreateForm({ onSuccess }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
+
+        // Only validate that customerName is required
+        if (!form.customerName.trim()) {
+            setError("Customer Name is required");
+            return;
+        }
+
         setSaving(true);
         try {
             // Only send required and filled fields, match schema
             const payload = {
-                customerName: form.customerName,
+                customerName: form.customerName.trim(),
                 customerType: form.customerType,
                 isArchived: form.isArchived,
                 CustomerSettings: { ...form.CustomerSettings }
             };
+
+            // Remove empty strings from CustomerSettings to avoid sending empty values
+            Object.keys(payload.CustomerSettings).forEach(key => {
+                if (payload.CustomerSettings[key] === "") {
+                    delete payload.CustomerSettings[key];
+                }
+            });
+
             const res = await fetch("/api/customers", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -92,43 +110,67 @@ export default function CustomerCreateForm({ onSuccess }) {
                 <FormInputText id="customerName" name="customerName" value={form.customerName} onChange={handleChange} required />
             </div>
             <div>
-                <FormLabel htmlFor="customerType" required>Customer Type</FormLabel>
+                <FormLabel htmlFor="customerType">Customer Type</FormLabel>
                 <select id="customerType" name="customerType" value={form.customerType} onChange={handleChange} className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20">
                     <option value="Shopify">Shopify</option>
                     <option value="WooCommerce">WooCommerce</option>
                     <option value="Other">Other</option>
                 </select>
             </div>
+
+            {/* Conditional fields based on customer type */}
+            {form.customerType === "Shopify" && (
+                <>
+                    <div>
+                        <FormLabel htmlFor="shopifyUrl">Shopify URL</FormLabel>
+                        <FormInputText id="shopifyUrl" name="shopifyUrl" value={form.CustomerSettings.shopifyUrl} onChange={handleChange} />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="shopifyApiPassword">Shopify API Password</FormLabel>
+                        <FormInputText id="shopifyApiPassword" name="shopifyApiPassword" value={form.CustomerSettings.shopifyApiPassword} onChange={handleChange} />
+                    </div>
+                </>
+            )}
+
+            {form.customerType === "WooCommerce" && (
+                <>
+                    <div>
+                        <FormLabel htmlFor="wooCommerceApiKey">WooCommerce API Key</FormLabel>
+                        <FormInputText id="wooCommerceApiKey" name="wooCommerceApiKey" value={form.CustomerSettings.wooCommerceApiKey} onChange={handleChange} />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="wooCommerceApiSecret">WooCommerce API Secret</FormLabel>
+                        <FormInputText id="wooCommerceApiSecret" name="wooCommerceApiSecret" value={form.CustomerSettings.wooCommerceApiSecret} onChange={handleChange} />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="wooCommerceApiUrl">WooCommerce API URL</FormLabel>
+                        <FormInputText id="wooCommerceApiUrl" name="wooCommerceApiUrl" value={form.CustomerSettings.wooCommerceApiUrl} onChange={handleChange} placeholder="https://yourdomain.com/wp-json/wc/v3/" />
+                    </div>
+                </>
+            )}
+
             <div>
-                <FormLabel htmlFor="metricPreference" required>Metric Preference</FormLabel>
+                <FormLabel htmlFor="metricPreference">Metric Preference</FormLabel>
                 <select id="metricPreference" name="metricPreference" value={form.CustomerSettings.metricPreference} onChange={handleChange} className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20">
                     <option value="ROAS/POAS">ROAS/POAS</option>
                     <option value="Spendshare">Spendshare</option>
                 </select>
             </div>
             <div>
-                <FormLabel htmlFor="customerStoreValutaCode" required>Store Valuta Code</FormLabel>
-                <FormInputText id="customerStoreValutaCode" name="customerStoreValutaCode" value={form.CustomerSettings.customerStoreValutaCode} onChange={handleChange} required />
+                <FormLabel htmlFor="customerStoreValutaCode">Store Valuta Code</FormLabel>
+                <FormInputText id="customerStoreValutaCode" name="customerStoreValutaCode" value={form.CustomerSettings.customerStoreValutaCode} onChange={handleChange} />
             </div>
             <div>
-                <FormLabel htmlFor="customerMetaID" required>Meta ID</FormLabel>
-                <FormInputText id="customerMetaID" name="customerMetaID" value={form.CustomerSettings.customerMetaID} onChange={handleChange} required />
+                <FormLabel htmlFor="customerMetaID">Meta ID</FormLabel>
+                <FormInputText id="customerMetaID" name="customerMetaID" value={form.CustomerSettings.customerMetaID} onChange={handleChange} />
             </div>
             <div>
-                <FormLabel htmlFor="shopifyUrl" required>Shopify URL</FormLabel>
-                <FormInputText id="shopifyUrl" name="shopifyUrl" value={form.CustomerSettings.shopifyUrl} onChange={handleChange} required />
+                <FormLabel htmlFor="facebookAdAccountId">Facebook Ad Account ID</FormLabel>
+                <FormInputText id="facebookAdAccountId" name="facebookAdAccountId" value={form.CustomerSettings.facebookAdAccountId} onChange={handleChange} />
             </div>
             <div>
-                <FormLabel htmlFor="shopifyApiPassword" required>Shopify API Password</FormLabel>
-                <FormInputText id="shopifyApiPassword" name="shopifyApiPassword" value={form.CustomerSettings.shopifyApiPassword} onChange={handleChange} required />
-            </div>
-            <div>
-                <FormLabel htmlFor="facebookAdAccountId" required>Facebook Ad Account ID</FormLabel>
-                <FormInputText id="facebookAdAccountId" name="facebookAdAccountId" value={form.CustomerSettings.facebookAdAccountId} onChange={handleChange} required />
-            </div>
-            <div>
-                <FormLabel htmlFor="googleAdsCustomerId" required>Google Ads Customer ID</FormLabel>
-                <FormInputText id="googleAdsCustomerId" name="googleAdsCustomerId" value={form.CustomerSettings.googleAdsCustomerId} onChange={handleChange} required />
+                <FormLabel htmlFor="googleAdsCustomerId">Google Ads Customer ID</FormLabel>
+                <FormInputText id="googleAdsCustomerId" name="googleAdsCustomerId" value={form.CustomerSettings.googleAdsCustomerId} onChange={handleChange} />
             </div>
             {/* Optional fields */}
             <div>
@@ -152,6 +194,7 @@ export default function CustomerCreateForm({ onSuccess }) {
                 <select id="customerRevenueType" name="customerRevenueType" value={form.CustomerSettings.customerRevenueType} onChange={handleChange} className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20">
                     <option value="total_sales">Total Sales</option>
                     <option value="net_sales">Net Sales</option>
+                    <option value="custom_1">Custom 1</option>
                 </select>
             </div>
             <div className="flex items-center gap-2">
