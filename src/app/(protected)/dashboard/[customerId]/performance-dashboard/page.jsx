@@ -93,6 +93,9 @@ export default function PerformanceDashboard() {
                 setFacebookDaily(merged.facebookDaily || []);
                 setGoogleDaily(merged.googleDaily || []);
 
+                console.log("::: MERGED DATA :::");
+                console.log({ merged });
+
                 // Save previous period data for comparison
                 setShopifyDailyPrev(mergedPrev.shopifyDaily || []);
                 setFacebookDailyPrev(mergedPrev.facebookDaily || []);
@@ -101,6 +104,8 @@ export default function PerformanceDashboard() {
                 // Revenue type logic
                 const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
                 const customerMetricPreference = customer?.CustomerSettings?.metricPreference || 'ROAS/POAS';
+                console.log("::: REVENUE TYPE :::");
+                console.log({ revenueType });
 
                 // Aggregate for metric cards (current)
                 const shopify = merged.shopifyDaily || [];

@@ -12,9 +12,6 @@
  * @returns {Promise<Array>} - Array of daily sales data with Shopify-compatible fields
  */
 export async function fetchWooCommerceOrders(apiUrl, consumerKey, consumerSecret, startDate, endDate, storeCurrency = 'DKK') {
-    console.log("::: FETCHING WOOCCOMMERCE SALES REPORT :::");
-    console.log({ apiUrl, startDate, endDate });
-
     try {
         // Build WooCommerce API URL with authentication
         const baseUrl = apiUrl.replace(/\/$/, ''); // Remove trailing slash
@@ -33,8 +30,6 @@ export async function fetchWooCommerceOrders(apiUrl, consumerKey, consumerSecret
         // Limit end date to today if it's in the future
         const effectiveEndDate = end > now ? now.toISOString().split('T')[0] : endDate;
 
-        console.log({ effectiveEndDate });
-
         // Build query parameters for sales report
         const params = new URLSearchParams({
             consumer_key: consumerKey,
@@ -44,8 +39,6 @@ export async function fetchWooCommerceOrders(apiUrl, consumerKey, consumerSecret
         });
 
         const fullUrl = `${salesUrl}?${params.toString()}`;
-        console.log(`Fetching WooCommerce sales report...`);
-        console.log({ fullUrl });
 
         const response = await fetch(fullUrl);
 
@@ -56,7 +49,6 @@ export async function fetchWooCommerceOrders(apiUrl, consumerKey, consumerSecret
         }
 
         const salesReport = await response.json();
-        console.log('WooCommerce sales report response:', salesReport);
 
         // WooCommerce sales report returns data in this format (as an array):
         // [
@@ -89,8 +81,6 @@ export async function fetchWooCommerceOrders(apiUrl, consumerKey, consumerSecret
         const reportData = salesReport[0] || salesReport;
         const totals = reportData.totals || {};
 
-        console.log(`Processing ${Object.keys(totals).length} days of sales data...`);
-
         // Convert the daily totals to our Shopify-compatible format
         const dailyData = [];
 
@@ -106,23 +96,22 @@ export async function fetchWooCommerceOrders(apiUrl, consumerKey, consumerSecret
 
             dailyData.push({
                 period: date,
-                gross_sales: sales + tax + shipping, // sales already includes line items + shipping, add tax
+                gross_sales: sales + tax + shipping, // Complete gross sales
                 discounts: discount,
                 returns: 0, // WooCommerce sales report doesn't track returns separately
-                net_sales: sales, // WooCommerce sales report already provides net sales
+                net_sales: sales - tax - shipping, // Net sales (gross sales minus tax and shipping)
                 shipping_charges: shipping,
                 duties: 0, // Not typically used in WooCommerce
                 additional_fees: 0, // Not typically used in WooCommerce
                 taxes: tax,
-                total_sales: sales, // Use the sales figure which is net sales
+                total_sales: sales, // Gross sales (same as WooCommerce 'sales' field)
                 orders: orders,
-                custom_1: sales + shipping, // net_sales + shipping_charges (same as Shopify calculation)
+                custom_1: (sales - tax - shipping) + shipping, // net_sales + shipping_charges
             });
         }
 
         // Sort by date
         const result = dailyData.sort((a, b) => a.period.localeCompare(b.period));
-        console.log(`Processed ${result.length} days of sales data`);
 
         return result;
 
