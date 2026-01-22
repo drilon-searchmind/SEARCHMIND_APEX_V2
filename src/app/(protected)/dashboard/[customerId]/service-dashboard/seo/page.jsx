@@ -56,7 +56,14 @@ export default function SEODashboardPage() {
     const [metrics, setMetrics] = useState(null);
     const [keywords, setKeywords] = useState([]);
     const [urls, setUrls] = useState([]);
-    const [selectedMetric, setSelectedMetric] = useState('clicks');
+    const [selectedMetrics, setSelectedMetrics] = useState(['clicks']);
+
+    // Ensure at least one metric is always selected
+    useEffect(() => {
+        if (selectedMetrics.length === 0) {
+            setSelectedMetrics(['clicks']);
+        }
+    }, [selectedMetrics]);
     const [siteUrl, setSiteUrl] = useState('');
 
     // Keyword filtering state
@@ -221,7 +228,7 @@ export default function SEODashboardPage() {
             color: '#C6ED62',
         },
     };
-    const chartSeries = [chartDataMap[selectedMetric]];
+    const chartSeries = selectedMetrics.map(metricKey => chartDataMap[metricKey]);
     const chartOptions = {
         chart: { id: 'seo-metrics', toolbar: { show: false }, fontFamily: 'Outfit, sans-serif' },
         xaxis: {
@@ -230,9 +237,9 @@ export default function SEODashboardPage() {
             axisTicks: { show: true },
             axisBorder: { show: true },
         },
-        colors: [chartDataMap[selectedMetric].color],
+        colors: selectedMetrics.map(metricKey => chartDataMap[metricKey].color),
         stroke: { curve: 'smooth', width: 2 },
-        legend: { position: 'top' },
+        legend: { show: true, position: 'top' },
         tooltip: { shared: true },
         grid: { borderColor: '#e5e7eb', strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
         dataLabels: { enabled: false },
@@ -251,7 +258,7 @@ export default function SEODashboardPage() {
                     metrics,
                     keywords,
                     urls,
-                    selectedMetric,
+                    selectedMetrics,
                     totalClicks,
                     totalImpressions,
                     avgCtr,
@@ -290,9 +297,23 @@ export default function SEODashboardPage() {
                                     className="cursor-pointer"
                                     tabIndex={0}
                                     role="button"
-                                    aria-pressed={selectedMetric === opt.key}
-                                    onClick={() => setSelectedMetric(opt.key)}
-                                    onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setSelectedMetric(opt.key)}
+                                    aria-pressed={selectedMetrics.includes(opt.key)}
+                                    onClick={() => setSelectedMetrics(prev => {
+                                        if (prev.includes(opt.key)) {
+                                            // Don't allow deselecting if it's the only selected metric
+                                            return prev.length > 1 ? prev.filter(m => m !== opt.key) : prev;
+                                        } else {
+                                            return [...prev, opt.key];
+                                        }
+                                    })}
+                                    onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setSelectedMetrics(prev => {
+                                        if (prev.includes(opt.key)) {
+                                            // Don't allow deselecting if it's the only selected metric
+                                            return prev.length > 1 ? prev.filter(m => m !== opt.key) : prev;
+                                        } else {
+                                            return [...prev, opt.key];
+                                        }
+                                    })}
                                     style={{ outline: 'none' }}
                                 >
                                     <MetricCard
@@ -300,7 +321,7 @@ export default function SEODashboardPage() {
                                         value={value}
                                         unit={unit}
                                         icon={<Icon className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
-                                        isActive={selectedMetric === opt.key}
+                                        isActive={selectedMetrics.includes(opt.key)}
                                     />
                                 </div>
                             );
@@ -313,15 +334,22 @@ export default function SEODashboardPage() {
                             {METRIC_OPTIONS.map(opt => (
                                 <button
                                     key={opt.key}
-                                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 ${selectedMetric === opt.key ? 'bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'}`}
-                                    onClick={() => setSelectedMetric(opt.key)}
+                                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 ${selectedMetrics.includes(opt.key) ? 'bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'}`}
+                                    onClick={() => setSelectedMetrics(prev => {
+                                        if (prev.includes(opt.key)) {
+                                            // Don't allow deselecting if it's the only selected metric
+                                            return prev.length > 1 ? prev.filter(m => m !== opt.key) : prev;
+                                        } else {
+                                            return [...prev, opt.key];
+                                        }
+                                    })}
                                 >
                                     {opt.label}
                                 </button>
                             ))}
                         </div>
                         <GraphCard
-                            title={chartDataMap[selectedMetric].name + ' Over Time'}
+                            title={selectedMetrics.length === 1 ? chartDataMap[selectedMetrics[0]].name + ' Over Time' : 'Multiple SEO Metrics Over Time'}
                             chartOptions={chartOptions}
                             chartSeries={chartSeries}
                         />

@@ -16,7 +16,6 @@ async function createUser() {
 
     try {
         const savedUser = await newUser.save();
-        console.log('User created successfully:', savedUser);
     } catch (error) {
         console.error('Error creating user:', error);
     }

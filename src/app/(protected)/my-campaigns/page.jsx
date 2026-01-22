@@ -163,7 +163,6 @@ export default function MyCampaigns() {
     };
 
     const handleViewCampaign = (campaign) => {
-        console.log({ campaign });
         setSelectedCampaign(campaign);
         setViewModalOpen(true);
     };

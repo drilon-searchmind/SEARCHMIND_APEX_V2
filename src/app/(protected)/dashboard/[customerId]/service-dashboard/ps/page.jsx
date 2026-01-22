@@ -78,7 +78,14 @@ export default function FacebookPSPage() {
         const [fbCampaignsByDate, setFbCampaignsByDate] = useState([]);
         const [loading, setLoading] = useState(true);
         const [error, setError] = useState(null);
-        const [selectedMetric, setSelectedMetric] = useState("conversion_value");
+        const [selectedMetrics, setSelectedMetrics] = useState(["conversion_value"]);
+
+        // Ensure at least one metric is always selected
+        useEffect(() => {
+            if (selectedMetrics.length === 0) {
+                setSelectedMetrics(["conversion_value"]);
+            }
+        }, [selectedMetrics]);
 
     useEffect(() => {
         if (!customer) return;
@@ -140,28 +147,32 @@ export default function FacebookPSPage() {
         }));
     }, [fbMetricsByDate]);
 
-    // Graph data for selected metric
+    // Graph data for selected metrics
     const chartCategories = fbMetricsByDate.map(row => row.date);
-    const chartSeries = [{
-        name: METRIC_OPTIONS.find(opt => opt.key === selectedMetric)?.label || "Metric",
-        data: fbMetricsByDate.map(row => {
-            const val = row[selectedMetric];
-            if (typeof val === 'number' && !isNaN(val)) {
-                return Number(val.toFixed(2));
-            }
-            return val ?? null;
-        }),
-    }];
+    const chartSeries = selectedMetrics.map(metricKey => {
+        const metricOption = METRIC_OPTIONS.find(opt => opt.key === metricKey);
+        return {
+            name: metricOption?.label || "Metric",
+            data: fbMetricsByDate.map(row => {
+                const val = row[metricKey];
+                if (typeof val === 'number' && !isNaN(val)) {
+                    return Number(val.toFixed(2));
+                }
+                return val ?? null;
+            }),
+        };
+    });
     const chartOptions = {
         chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
         xaxis: { categories: chartCategories },
         yaxis: {},
-        colors: ["#406969"],
+        colors: ["#406969", "#1E2B2B", "#4F46E5", "#06B6D4", "#C6ED62", "#D6CDB6", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#10B981"],
         stroke: { width: 2, curve: 'smooth' },
         fill: { type: 'solid', opacity: 1 },
         grid: { borderColor: '#e5e7eb', strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
         dataLabels: { enabled: false },
         tooltip: { theme: 'light' },
+        legend: { show: true, position: 'top' },
     };
 
     // Top campaigns table: sort by clicks desc
@@ -179,7 +190,7 @@ export default function FacebookPSPage() {
                 dateRange={appliedRange}
                 loading={loading}
                 dashboardType="ps-dashboard"
-                dataSnapshot={{ fbMetricsByDate, fbTopCampaigns, fbCampaignsByDate, selectedMetric, METRIC_OPTIONS }}
+                dataSnapshot={{ fbMetricsByDate, fbTopCampaigns, fbCampaignsByDate, selectedMetrics, METRIC_OPTIONS }}
                 right={
                     <DateRangePicker
                         onApply={handleDateRangeApply}
@@ -200,11 +211,19 @@ export default function FacebookPSPage() {
                 ) : (
                     metrics.map((metric, idx) => {
                         const Icon = METRIC_OPTIONS.find(opt => opt.label === metric.label)?.icon;
-                        const isActive = selectedMetric === METRIC_OPTIONS[idx].key;
+                        const isActive = selectedMetrics.includes(METRIC_OPTIONS[idx].key);
                         return (
                             <div
                                 key={idx}
-                                onClick={() => setSelectedMetric(METRIC_OPTIONS[idx].key)}
+                                onClick={() => setSelectedMetrics(prev => {
+                                    const metricKey = METRIC_OPTIONS[idx].key;
+                                    if (prev.includes(metricKey)) {
+                                        // Don't allow deselecting if it's the only selected metric
+                                        return prev.length > 1 ? prev.filter(m => m !== metricKey) : prev;
+                                    } else {
+                                        return [...prev, metricKey];
+                                    }
+                                })}
                                 style={{ cursor: 'pointer' }}
                             >
                                 <MetricCard
@@ -236,8 +255,15 @@ export default function FacebookPSPage() {
                         {METRIC_OPTIONS.map(opt => (
                             <button
                                 key={opt.key}
-                                className={`px-3 py-1 rounded text-xs font-medium border transition-colors duration-150 ${selectedMetric === opt.key ? 'bg-white text-[var(--color-primary-searchmind)] border-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500 border-gray-200 hover:text-[var(--color-primary-searchmind)]'}`}
-                                onClick={() => setSelectedMetric(opt.key)}
+                                className={`px-3 py-1 rounded text-xs font-medium border transition-colors duration-150 ${selectedMetrics.includes(opt.key) ? 'bg-white text-[var(--color-primary-searchmind)] border-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500 border-gray-200 hover:text-[var(--color-primary-searchmind)]'}`}
+                                onClick={() => setSelectedMetrics(prev => {
+                                    if (prev.includes(opt.key)) {
+                                        // Don't allow deselecting if it's the only selected metric
+                                        return prev.length > 1 ? prev.filter(m => m !== opt.key) : prev;
+                                    } else {
+                                        return [...prev, opt.key];
+                                    }
+                                })}
                             >
                                 {opt.label}
                             </button>
@@ -247,7 +273,11 @@ export default function FacebookPSPage() {
                 {loading ? (
                     <div className="flex items-center justify-center h-64"><Spinner size={40} color="#406969" /></div>
                 ) : (
-                    <GraphCard title={METRIC_OPTIONS.find(opt => opt.key === selectedMetric)?.label || "Metric"} chartOptions={chartOptions} chartSeries={chartSeries} />
+                    <GraphCard title={
+                        (selectedMetrics || []).length === 1 && (selectedMetrics || [])[0]
+                            ? (METRIC_OPTIONS.find(opt => opt.key === (selectedMetrics || [])[0])?.label ?? "Metric")
+                            : "Multiple Facebook PS Metrics"
+                    } chartOptions={chartOptions} chartSeries={chartSeries} />
                 )}
             </div>
 

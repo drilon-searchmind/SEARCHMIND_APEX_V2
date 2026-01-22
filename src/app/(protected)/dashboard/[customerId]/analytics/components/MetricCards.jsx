@@ -23,14 +23,24 @@ function formatValue(key, value) {
   return Number(value).toLocaleString("da-DK");
 }
 
-export default function MetricCards({ totals = {}, selectedKey, onSelect }) {
+export default function MetricCards({ totals = {}, selectedKeys = [], onSelect }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 gap-6 mb-8">
       {METRICS.map((m) => {
         const Icon = m.icon;
-        const isActive = selectedKey === m.key;
+        const isActive = selectedKeys.includes(m.key);
         return (
-          <div key={m.key} className="cursor-pointer" onClick={() => onSelect?.(m.key)}>
+          <div key={m.key} className="cursor-pointer" onClick={() => {
+            if (onSelect) {
+              const newSelected = isActive
+                ? selectedKeys.filter(k => k !== m.key) // Remove if already selected
+                : [...selectedKeys, m.key]; // Add if not selected
+              // Ensure at least one metric is always selected
+              if (newSelected.length > 0) {
+                onSelect(newSelected);
+              }
+            }
+          }}>
             <MetricCard
               label={m.label}
               value={formatValue(m.key, totals[m.key])}

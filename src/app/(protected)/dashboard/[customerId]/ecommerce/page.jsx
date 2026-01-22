@@ -46,7 +46,7 @@ export default function EcommercePage() {
     const [shopifyDaily, setShopifyDaily] = useState([]);
     const [products, setProducts] = useState([]);
     const [segmentation, setSegmentation] = useState(null);
-    const [selectedMetric, setSelectedMetric] = useState('total_sales');
+    const [selectedMetrics, setSelectedMetrics] = useState(['total_sales']);
     const [activeTab, setActiveTab] = useState('overview');
 
     const handleDateRangeApply = ({ startDate, endDate }) => {
@@ -89,6 +89,13 @@ export default function EcommercePage() {
         return () => { cancelled = true; };
     }, [customerId, appliedRange.startDate, appliedRange.endDate]);
 
+    // Ensure at least one metric is always selected
+    useEffect(() => {
+        if (selectedMetrics.length === 0) {
+            setSelectedMetrics(['total_sales']);
+        }
+    }, [selectedMetrics]);
+
     const totalSales = shopifyDaily.reduce((s, r) => s + (r.total_sales || 0), 0);
     const netSales = shopifyDaily.reduce((s, r) => s + (r.net_sales || 0), 0);
     const orders = shopifyDaily.reduce((s, r) => s + (r.orders || 0), 0);
@@ -96,23 +103,32 @@ export default function EcommercePage() {
 
     const categories = shopifyDaily.map(d => d.period);
 
-    const metricSeriesData = shopifyDaily.map(d => {
-        const v = d[selectedMetric];
-        return (typeof v === 'number') ? v : (v ? Number(v) : 0);
+    const series = selectedMetrics.map(metricKey => {
+        const metricData = shopifyDaily.map(d => {
+            const v = d[metricKey];
+            return (typeof v === 'number') ? v : (v ? Number(v) : 0);
+        });
+        const metricOption = METRIC_OPTIONS.find(m => m.key === metricKey);
+        return {
+            name: metricOption?.label || metricKey,
+            data: metricData
+        };
     });
 
-    const series = [{ name: METRIC_OPTIONS.find(m => m.key === selectedMetric)?.label || selectedMetric, data: metricSeriesData }];
-
-    const selectedColor = METRIC_OPTIONS.find(m => m.key === selectedMetric)?.color || '#1E2B2B';
+    const colors = selectedMetrics.map(metricKey => {
+        const metricOption = METRIC_OPTIONS.find(m => m.key === metricKey);
+        return metricOption?.color || '#1E2B2B';
+    });
 
     const chartOptions = {
         chart: { id: 'ecom-sales', toolbar: { show: false } },
         stroke: { curve: 'smooth', width: 2 },
         markers: { size: 3 },
-        colors: [selectedColor],
+        colors: colors,
         xaxis: { categories, labels: { rotate: -45 } },
         grid: { strokeDashArray: 4 },
-        tooltip: { y: { formatter: (val) => val !== undefined ? Number(val).toLocaleString() : val } }
+        tooltip: { y: { formatter: (val) => val !== undefined ? Number(val).toLocaleString() : val } },
+        legend: { show: true, position: 'top' }
     };
 
     const sumForKeys = (keys) => {
@@ -155,7 +171,7 @@ export default function EcommercePage() {
         <div className="space-y-6">
             <DashboardHeading
                 title="Ecommerce"
-                label="Shopify"
+                label="Ecommerce Dashboard"
                 customerId={customerId}
                 dateRange={appliedRange}
                 loading={loading}
@@ -164,7 +180,6 @@ export default function EcommercePage() {
                     shopifyDaily,
                     products,
                     segmentation,
-                    selectedMetric,
                     totalSales,
                     netSales,
                     orders,
@@ -221,14 +236,28 @@ export default function EcommercePage() {
                                             className="cursor-pointer"
                                             tabIndex={0}
                                             role="button"
-                                            onClick={() => setSelectedMetric(opt.key)}
-                                            onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setSelectedMetric(opt.key)}
+                                            onClick={() => setSelectedMetrics(prev => {
+                                                if (prev.includes(opt.key)) {
+                                                    // Don't allow deselecting if it's the only selected metric
+                                                    return prev.length > 1 ? prev.filter(m => m !== opt.key) : prev;
+                                                } else {
+                                                    return [...prev, opt.key];
+                                                }
+                                            })}
+                                            onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setSelectedMetrics(prev => {
+                                                if (prev.includes(opt.key)) {
+                                                    // Don't allow deselecting if it's the only selected metric
+                                                    return prev.length > 1 ? prev.filter(m => m !== opt.key) : prev;
+                                                } else {
+                                                    return [...prev, opt.key];
+                                                }
+                                            })}
                                         >
                                             <MetricCard
                                                 label={opt.label}
                                                 value={metricDisplayValue(opt.key)}
                                                 icon={<Icon className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
-                                                isActive={selectedMetric === opt.key}
+                                                isActive={selectedMetrics.includes(opt.key)}
                                             />
                                         </div>
                                     );
@@ -241,8 +270,15 @@ export default function EcommercePage() {
                                         {METRIC_OPTIONS.map(opt => (
                                             <button
                                                 key={opt.key}
-                                                className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 ${selectedMetric === opt.key ? 'bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'}`}
-                                                onClick={() => setSelectedMetric(opt.key)}
+                                                className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 ${selectedMetrics.includes(opt.key) ? 'bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'}`}
+                                                onClick={() => setSelectedMetrics(prev => {
+                                                    if (prev.includes(opt.key)) {
+                                                        // Don't allow deselecting if it's the only selected metric
+                                                        return prev.length > 1 ? prev.filter(m => m !== opt.key) : prev;
+                                                    } else {
+                                                        return [...prev, opt.key];
+                                                    }
+                                                })}
                                             >
                                                 {opt.label}
                                             </button>
@@ -253,7 +289,7 @@ export default function EcommercePage() {
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                                 <div className="lg:col-span-2">
-                                    <GraphCard title={`${METRIC_OPTIONS.find(m => m.key === selectedMetric)?.label || selectedMetric} over time`} chartOptions={chartOptions} chartSeries={series} chartType="line" height={420} />
+                                    <GraphCard title={`${selectedMetrics.length === 1 ? METRIC_OPTIONS.find(m => m.key === selectedMetrics[0])?.label || selectedMetrics[0] : 'Multiple Metrics'} over time`} chartOptions={chartOptions} chartSeries={series} chartType="line" height={420} />
                                 </div>
 
                                 <div className="space-y-4">

@@ -20,14 +20,6 @@ export async function fetchMergedSources(settings, startDate, endDate) {
     let shopifyDaily = [];
     const customerType = settings.customerType || 'Shopify'; // Default to Shopify for backward compatibility
 
-    console.log('fetchMergedSources called with:', { customerType, startDate, endDate });
-    console.log('WooCommerce settings check:', {
-        customerType: customerType === 'WooCommerce',
-        hasApiKey: !!settings.wooCommerceApiKey,
-        hasApiSecret: !!settings.wooCommerceApiSecret,
-        hasApiUrl: !!settings.wooCommerceApiUrl
-    });
-
     try {
         if (customerType === 'Shopify' && settings.shopifyUrl && settings.shopifyApiPassword) {
             // Build ShopifyQL query with optional currency grouping for multi-domain Shopify stores
@@ -79,7 +71,6 @@ export async function fetchMergedSources(settings, startDate, endDate) {
                 orders: parseInt(row.orders) || 0,
             })).sort((a, b) => a.period.localeCompare(b.period));
         } else if (customerType === 'WooCommerce' && settings.wooCommerceApiKey && settings.wooCommerceApiSecret) {
-            console.log('🎯 WooCommerce condition met, fetching data...');
             // Fetch WooCommerce data
             const wooCommerceData = await fetchWooCommerceOrders(
                 settings.wooCommerceApiUrl,
@@ -89,7 +80,6 @@ export async function fetchMergedSources(settings, startDate, endDate) {
                 endDate,
                 settings.customerStoreValutaCode || 'DKK'
             );
-            console.log('WooCommerce data fetched:', wooCommerceData);
 
             // Currency conversion logic (same as Shopify)
             const fromCode = settings?.customerStoreValutaCode || 'DKK';

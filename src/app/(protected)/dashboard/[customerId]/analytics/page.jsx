@@ -65,7 +65,14 @@ export default function AnalyticsPage() {
     const defaultRangeValue = defaultRange();
     const [tempRange, setTempRange] = useState(defaultRangeValue);
     const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
-    const [selectedKey, setSelectedKey] = useState("totalUsers");
+    const [selectedKeys, setSelectedKeys] = useState(["totalUsers"]);
+
+    // Ensure at least one metric is always selected
+    useEffect(() => {
+        if (selectedKeys.length === 0) {
+            setSelectedKeys(["totalUsers"]);
+        }
+    }, [selectedKeys]);
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -284,7 +291,7 @@ export default function AnalyticsPage() {
                     acqSeries,
                     deviceData,
                     totals,
-                    selectedKey,
+                    selectedKeys,
                     ga4PropertyId
                 }}
                 right={
@@ -304,9 +311,9 @@ export default function AnalyticsPage() {
                 <div className="text-red-500 text-center py-8">{error}</div>
             ) : (
                 <>
-                    <MetricCards totals={totals} selectedKey={selectedKey} onSelect={setSelectedKey} />
+                    <MetricCards totals={totals} selectedKeys={selectedKeys} onSelect={setSelectedKeys} />
                     <div className="mb-8">
-                        <TimeseriesChart rows={timeseries} selectedKey={selectedKey} />
+                        <TimeseriesChart rows={timeseries} selectedKeys={selectedKeys} />
                     </div>
 
                     {/* Acquisition & Devices */}

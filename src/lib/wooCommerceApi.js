@@ -12,8 +12,6 @@
  * @returns {Promise<Array>} - Array of daily sales data with Shopify-compatible fields
  */
 export async function fetchWooCommerceOrders(apiUrl, consumerKey, consumerSecret, startDate, endDate, storeCurrency = 'DKK') {
-    console.log("::: FETCHING WOOCCOMMERCE ORDERS :::");
-    console.log({ apiUrl, startDate, endDate });
 
     try {
         // Build WooCommerce API URL with authentication
@@ -26,14 +24,11 @@ export async function fetchWooCommerceOrders(apiUrl, consumerKey, consumerSecret
         const end = new Date(endDate);
 
         if (start > now) {
-            console.log("Start date is in the future, returning empty data");
             return [];
         }
 
         // Limit end date to today if it's in the future
         const effectiveEndDate = end > now ? now.toISOString().split('T')[0] : endDate;
-
-        console.log({ effectiveEndDate });
 
         // Add date filters - WooCommerce expects ISO 8601 format
         const params = new URLSearchParams({
@@ -46,7 +41,6 @@ export async function fetchWooCommerceOrders(apiUrl, consumerKey, consumerSecret
         });
 
         const fullUrl = `${ordersUrl}?${params.toString()}`;
-        console.log({fullUrl})
 
         const response = await fetch(fullUrl);
 
@@ -57,11 +51,9 @@ export async function fetchWooCommerceOrders(apiUrl, consumerKey, consumerSecret
         }
 
         const orders = await response.json();
-        console.log(`Fetched ${orders.length} orders from WooCommerce`);
 
         // If no orders found, try again with all statuses (not just completed)
         if (orders.length === 0) {
-            console.log("No completed orders found, trying with all order statuses...");
             const paramsAll = new URLSearchParams({
                 consumer_key: consumerKey,
                 consumer_secret: consumerSecret,
@@ -71,12 +63,10 @@ export async function fetchWooCommerceOrders(apiUrl, consumerKey, consumerSecret
             });
 
             const fullUrlAll = `${ordersUrl}?${paramsAll.toString()}`;
-            console.log({fullUrlAll});
 
             const responseAll = await fetch(fullUrlAll);
             if (responseAll.ok) {
                 const ordersAll = await responseAll.json();
-                console.log(`Fetched ${ordersAll.length} orders with all statuses`);
                 orders.push(...ordersAll);
             }
         }
@@ -84,10 +74,7 @@ export async function fetchWooCommerceOrders(apiUrl, consumerKey, consumerSecret
         // Group orders by date and aggregate
         const dailyData = {};
 
-        console.log(`Processing ${orders.length} orders...`);
-
         for (const order of orders) {
-            console.log(`Processing order ${order.id}, status: ${order.status}, date: ${order.date_created}`);
             const orderDate = new Date(order.date_created).toISOString().split('T')[0]; // YYYY-MM-DD format
 
             if (!dailyData[orderDate]) {
@@ -113,8 +100,6 @@ export async function fetchWooCommerceOrders(apiUrl, consumerKey, consumerSecret
             const discountTotal = parseFloat(order.discount_total || 0);
             const total = parseFloat(order.total || 0);
 
-            console.log(`Order ${order.id}: lineItems=${lineItemsTotal}, shipping=${shippingTotal}, tax=${taxTotal}, discount=${discountTotal}, total=${total}`);
-
             dailyData[orderDate].gross_sales += lineItemsTotal + shippingTotal + taxTotal;
             dailyData[orderDate].discounts += discountTotal;
             dailyData[orderDate].net_sales += lineItemsTotal - discountTotal;
@@ -123,8 +108,6 @@ export async function fetchWooCommerceOrders(apiUrl, consumerKey, consumerSecret
             dailyData[orderDate].total_sales += total;
             dailyData[orderDate].orders += 1;
         }
-
-        console.log('Daily data aggregated:', dailyData);
 
         // Convert to array and calculate custom_1 (net_sales + returns + shipping_charges)
         const result = Object.values(dailyData).map(day => ({

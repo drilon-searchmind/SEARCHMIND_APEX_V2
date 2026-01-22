@@ -27,7 +27,6 @@ async function createCustomer() {
 
     try {
         const savedCustomer = await newCustomer.save();
-        console.log('Customer created successfully:', savedCustomer);
     } catch (error) {
         console.error('Error creating customer:', error);
     }
