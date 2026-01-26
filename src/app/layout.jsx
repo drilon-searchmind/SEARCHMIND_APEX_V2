@@ -50,6 +50,7 @@ export default function RootLayout({ children }) {
 					<UserProvider>
 						<AuthGuard>
 							{children}
+							
 						</AuthGuard>
 					</UserProvider>
 				</AuthProvider>
