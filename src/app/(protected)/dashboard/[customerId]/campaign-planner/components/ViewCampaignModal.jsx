@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { FiX, FiInfo, FiCalendar, FiDollarSign, FiTag, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
+import { FiX, FiInfo, FiCalendar, FiDollarSign, FiTag, FiCheckCircle, FiAlertCircle, FiEdit2, FiUsers, FiTrash2 } from "react-icons/fi";
+import CreateChildCampaignModal from "./CreateChildCampaignModal";
 
-export default function ViewCampaignModal({ open, onClose, campaign }) {
+export default function ViewCampaignModal({ open, onClose, campaign, campaigns = [], customerId, onUpdate, onRefresh, onCreateCampaign, onDelete }) {
 	const [users, setUsers] = useState([]);
 	const [loadingUsers, setLoadingUsers] = useState(false);
+	const [isEditing, setIsEditing] = useState(false);
+	const [editForm, setEditForm] = useState({});
+	const [showCreateDwarf, setShowCreateDwarf] = useState(false);
 
+	// Fetch users only when modal opens
 	useEffect(() => {
 		const fetchUsers = async () => {
 			setLoadingUsers(true);
@@ -24,7 +29,112 @@ export default function ViewCampaignModal({ open, onClose, campaign }) {
 		}
 	}, [open]);
 
+	// Initialize edit form when campaign changes
+	useEffect(() => {
+		if (!open || !campaign) return;
+
+		// Initialize edit form with campaign data
+		setEditForm({
+			campaignName: campaign.campaignName || "",
+			service: campaign.service || "",
+			media: campaign.media || "",
+			campaignFormat: campaign.campaignFormat || "",
+			budget: campaign.budget || "",
+			status: campaign.status || "Pending",
+			landingpage: campaign.landingpage || "",
+			messageBrief: campaign.messageBrief || "",
+			commentToCustomer: campaign.commentToCustomer || "",
+			assignedUsers: campaign.assignedUsers || [],
+			materialFromCustomer: campaign.materialFromCustomer || "",
+			campaignDimensions: campaign.campaignDimensions || "",
+			campaignVariation: campaign.campaignVariation || "",
+			campaignTextToCreative: campaign.campaignTextToCreative || "",
+			campaignTextToCreativeTranslation: campaign.campaignTextToCreativeTranslation || "",
+			readyForApproval: campaign.readyForApproval || false,
+		});
+	}, [open, campaign?._id || campaign?.id]);
+
+	// Compute dwarf campaigns directly from props (no state needed) - using same logic as ParentCampaignsList
+	const dwarfCampaigns = React.useMemo(() => {
+		if (!campaign || !campaigns || campaigns.length === 0) return [];
+		if (campaign.campaignLevel === "child" || (!campaign.campaignLevel && campaign.parentCampaignId)) {
+			const childId = campaign._id || campaign.id;
+			const childIdStr = String(childId || "");
+			
+			// Get all dwarf campaigns first
+			const allDwarfs = campaigns.filter(c => c.campaignLevel === "dwarf");
+			
+			// Filter by parentCampaignId - try multiple comparison methods
+			const dwarfs = allDwarfs.filter(c => {
+				const parentId = c.parentCampaignId;
+				const parentIdStr = String(parentId || "");
+				
+				// Try multiple comparison methods
+				const matches = 
+					parentId === childId ||
+					parentId === childIdStr ||
+					parentIdStr === childId ||
+					parentIdStr === childIdStr;
+				
+				return matches;
+			});
+			
+			// Debug logging
+			if (dwarfs.length === 0 && allDwarfs.length > 0) {
+				console.log("Dwarf campaigns not matching:", {
+					childCampaignId: childId,
+					childCampaignIdStr: childIdStr,
+					totalDwarfs: allDwarfs.length,
+					dwarfParentIds: allDwarfs.map(d => ({
+						name: d.campaignName,
+						parentId: d.parentCampaignId,
+						parentIdStr: String(d.parentCampaignId || ""),
+						matches: String(d.parentCampaignId || "") === childIdStr
+					}))
+				});
+			}
+			
+			return dwarfs;
+		}
+		return [];
+	}, [campaign?._id || campaign?.id, campaigns]);
+
 	if (!open || !campaign) return null;
+
+	// Check if this is a parent campaign (should use ViewParentCampaignModal instead)
+	if (campaign.campaignLevel === "parent" || (!campaign.campaignLevel && !campaign.parentCampaignId && campaign.services)) {
+		// This should be handled by ViewParentCampaignModal, but fallback to show basic info
+		return (
+			<div className="fixed inset-0 z-50 flex items-center justify-center glassmorphism2">
+				<div className="bg-white rounded-xl shadow-2xl w-[80vw] max-h-[90vh] relative overflow-hidden flex flex-col">
+					<div className="bg-[var(--color-primary-searchmind)] text-white px-8 py-6 flex items-center justify-between">
+						<div className="flex-1">
+							<h2 className="text-2xl font-bold mb-1">Parent Campaign</h2>
+							<p className="text-sm text-white/80">{campaign.campaignName}</p>
+						</div>
+						<button
+							className="text-white/80 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10"
+							onClick={onClose}
+							aria-label="Close"
+						>
+							<FiX size={24} />
+						</button>
+					</div>
+					<div className="p-8">
+						<p className="text-gray-600">Please use the Parent Campaigns view to see full details.</p>
+					</div>
+					<div className="border-t border-gray-200 px-8 py-4 bg-gray-50 flex justify-end">
+						<button
+							onClick={onClose}
+							className="px-6 py-2 rounded-lg font-semibold border border-gray-200 text-gray-700 hover:bg-gray-100 transition-colors"
+						>
+							Close
+						</button>
+					</div>
+				</div>
+			</div>
+		);
+	}
 
 	const getStatusColor = (status) => {
 		switch (status) {
@@ -48,19 +158,44 @@ export default function ViewCampaignModal({ open, onClose, campaign }) {
 	};
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center glassmorphism2">
-			<div className="bg-white rounded-xl shadow-2xl w-[80vw] max-h-[90vh] relative overflow-hidden flex flex-col">
+		<>
+			<div className="fixed inset-0 z-50 flex items-center justify-center glassmorphism2">
+				<div className="bg-white rounded-xl shadow-2xl w-[80vw] max-h-[90vh] relative overflow-hidden flex flex-col">
 				{/* Header */}
 				<div className="bg-[var(--color-primary-searchmind)] text-white px-8 py-6 flex items-center justify-between">
 					<div className="flex-1">
 						<h2 className="text-2xl font-bold mb-1">Campaign Details</h2>
-						<p className="text-sm text-white/80">{campaign.campaignName}</p>
+						{isEditing ? (
+							<input
+								type="text"
+								value={editForm.campaignName || ""}
+								onChange={(e) => setEditForm({...editForm, campaignName: e.target.value})}
+								className="mt-1 w-full bg-white/10 border border-white/20 rounded px-3 py-1 text-sm text-white placeholder-white/60"
+								placeholder="Campaign Name"
+							/>
+						) : (
+							<p className="text-sm text-white/80">{campaign.campaignName}</p>
+						)}
 					</div>
 					<div className="flex items-center gap-3">
-						<span className={`px-4 py-2 rounded-full text-sm font-semibold ${getStatusColor(campaign.status)} flex items-center`}>
-							{getStatusIcon(campaign.status)}
-							{campaign.status}
-						</span>
+						{isEditing ? (
+							<select
+								value={editForm.status || "Pending"}
+								onChange={(e) => setEditForm({...editForm, status: e.target.value})}
+								className="px-4 py-2 rounded-full text-sm font-semibold border border-white/20 bg-white/10 text-white"
+							>
+								<option value="Pending">Pending</option>
+								<option value="Pending Customer Approval">Pending Customer Approval</option>
+								<option value="Approved">Approved</option>
+								<option value="Live">Live</option>
+								<option value="Ended">Ended</option>
+							</select>
+						) : (
+							<span className={`px-4 py-2 rounded-full text-sm font-semibold ${getStatusColor(campaign.status)} flex items-center`}>
+								{getStatusIcon(campaign.status)}
+								{campaign.status}
+							</span>
+						)}
 						<button
 							className="text-white/80 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10"
 							onClick={onClose}
@@ -83,17 +218,66 @@ export default function ViewCampaignModal({ open, onClose, campaign }) {
 
 							<div>
 								<p className="text-xs font-medium text-gray-500 mb-1">Service</p>
-								<p className="text-sm font-semibold text-gray-900">{campaign.service}</p>
+								{isEditing ? (
+									<select
+										value={editForm.service || ""}
+										onChange={(e) => setEditForm({...editForm, service: e.target.value})}
+										className="mt-1 w-full rounded-lg border px-3 py-2 text-sm border-gray-300"
+									>
+										<option value="Paid Social">Paid Social</option>
+										<option value="Paid Search">Paid Search</option>
+										<option value="Email Marketing">Email Marketing</option>
+										<option value="SEO">SEO</option>
+									</select>
+								) : (
+									<p className="text-sm font-semibold text-gray-900">{campaign.service}</p>
+								)}
 							</div>
 
 							<div>
 								<p className="text-xs font-medium text-gray-500 mb-1">Media</p>
-								<p className="text-sm text-gray-700">{campaign.media}</p>
+								{isEditing ? (
+									<select
+										value={editForm.media || ""}
+										onChange={(e) => setEditForm({...editForm, media: e.target.value})}
+										className="mt-1 w-full rounded-lg border px-3 py-2 text-sm border-gray-300"
+									>
+										<option value="META">META</option>
+										<option value="LinkedIn">LinkedIn</option>
+										<option value="Pinterest">Pinterest</option>
+										<option value="TikTok">TikTok</option>
+										<option value="YouTube">YouTube</option>
+										<option value="Google">Google</option>
+										<option value="Email">Email</option>
+										<option value="Website">Website</option>
+										<option value="Other">Other</option>
+									</select>
+								) : (
+									<p className="text-sm text-gray-700">{campaign.media}</p>
+								)}
 							</div>
 
 							<div>
 								<p className="text-xs font-medium text-gray-500 mb-1">Campaign Format</p>
-								<p className="text-sm text-gray-700">{campaign.campaignFormat}</p>
+								{isEditing ? (
+									<select
+										value={editForm.campaignFormat || ""}
+										onChange={(e) => setEditForm({...editForm, campaignFormat: e.target.value})}
+										className="mt-1 w-full rounded-lg border px-3 py-2 text-sm border-gray-300"
+									>
+										<option value="Video">Video</option>
+										<option value="Picture">Picture</option>
+										<option value="Carousel">Carousel</option>
+										<option value="Display Ad">Display Ad</option>
+										<option value="Search Ad">Search Ad</option>
+										<option value="Newsletter">Newsletter</option>
+										<option value="Email Flow">Email Flow</option>
+										<option value="Landingpage">Landingpage</option>
+										<option value="Collection">Collection</option>
+									</select>
+								) : (
+									<p className="text-sm text-gray-700">{campaign.campaignFormat}</p>
+								)}
 							</div>
 
 							<div>
@@ -187,14 +371,34 @@ export default function ViewCampaignModal({ open, onClose, campaign }) {
 									<FiDollarSign className="text-[var(--color-primary-searchmind)]" size={16} />
 									<p className="text-xs font-medium text-gray-500">Budget</p>
 								</div>
-								<p className="text-xl font-bold text-gray-900">
-									{typeof campaign.budget === "number" ? `${campaign.budget.toLocaleString("da-DK")} DKK` : "-"}
-								</p>
+								{isEditing ? (
+									<input
+										type="number"
+										value={editForm.budget || ""}
+										onChange={(e) => setEditForm({...editForm, budget: e.target.value})}
+										className="w-full rounded-lg border px-3 py-2 text-sm border-gray-300"
+										placeholder="Budget in DKK"
+									/>
+								) : (
+									<p className="text-xl font-bold text-gray-900">
+										{typeof campaign.budget === "number" ? `${campaign.budget.toLocaleString("da-DK")} DKK` : "-"}
+									</p>
+								)}
 							</div>
 
 							<div>
-								<p className="text-xs font-medium text-gray-500 mb-1">Landing Page</p>
-								<p className="text-sm text-gray-700 break-all">{campaign.landingpage || "-"}</p>
+								<p className="text-xs font-medium text-gray-500 mb-1">Link to Material</p>
+								{isEditing ? (
+									<input
+										type="text"
+										value={editForm.landingpage || ""}
+										onChange={(e) => setEditForm({...editForm, landingpage: e.target.value})}
+										className="mt-1 w-full rounded-lg border px-3 py-2 text-sm border-gray-300"
+										placeholder="Link to material"
+									/>
+								) : (
+									<p className="text-sm text-gray-700 break-all">{campaign.landingpage || "-"}</p>
+								)}
 							</div>
 
 							<div>
@@ -250,16 +454,126 @@ export default function ViewCampaignModal({ open, onClose, campaign }) {
 					</div>
 				</div>
 
+				{/* Dwarf Campaigns Section - Only for child campaigns */}
+				{(campaign.campaignLevel === "child" || (!campaign.campaignLevel && campaign.parentCampaignId)) && (
+					<div className="border-t border-gray-200 px-8 py-6">
+						<div className="flex items-center justify-between mb-4">
+							<div className="flex items-center gap-2">
+								<FiUsers className="text-[var(--color-primary-searchmind)]" size={18} />
+								<h3 className="text-base font-semibold text-gray-900">
+									Dwarf Campaigns ({dwarfCampaigns.length})
+								</h3>
+							</div>
+							<button
+								onClick={() => setShowCreateDwarf(true)}
+								className="px-3 py-1 text-sm bg-[var(--color-primary-searchmind)] text-white hover:bg-[var(--color-primary-searchmind-lighter)] rounded flex items-center gap-1"
+							>
+								+ Add Dwarf Campaign
+							</button>
+						</div>
+						{dwarfCampaigns.length === 0 ? (
+							<div className="text-center py-4 text-gray-500 text-sm">
+								No dwarf campaigns created yet.
+							</div>
+						) : (
+							<div className="space-y-2">
+								{dwarfCampaigns.map((dwarf) => (
+									<div key={dwarf._id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+										<div className="flex items-start justify-between">
+											<div className="flex-1">
+												<h4 className="font-medium text-gray-900 text-sm mb-1">{dwarf.campaignName}</h4>
+												<div className="flex items-center gap-4 text-xs text-gray-600">
+													<span>Media: {dwarf.media || "N/A"}</span>
+													<span>Format: {dwarf.campaignFormat || "N/A"}</span>
+													<span>Link: {dwarf.landingpage ? (
+														<a href={dwarf.landingpage} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+															{dwarf.landingpage}
+														</a>
+													) : "N/A"}</span>
+												</div>
+											</div>
+											<button
+												onClick={async () => {
+													if (window.confirm(`Are you sure you want to delete "${dwarf.campaignName}"?`)) {
+														try {
+															if (onDelete) {
+																await onDelete(dwarf._id || dwarf.id);
+																if (onRefresh) await onRefresh();
+															}
+														} catch (error) {
+															console.error("Error deleting dwarf campaign:", error);
+															alert("Failed to delete dwarf campaign");
+														}
+													}
+												}}
+												className="px-2 py-1 text-xs text-red-600 hover:text-red-900 hover:bg-red-50 rounded flex items-center gap-1"
+											>
+												<FiTrash2 size={12} />
+												Delete
+											</button>
+										</div>
+									</div>
+								))}
+							</div>
+						)}
+					</div>
+				)}
+
 				{/* Footer */}
-				<div className="border-t border-gray-200 px-8 py-4 bg-gray-50 flex justify-end">
+				<div className="border-t border-gray-200 px-8 py-4 bg-gray-50 flex justify-between items-center">
 					<button
-						onClick={onClose}
-						className="px-6 py-2 rounded-lg font-semibold border border-gray-200 text-gray-700 hover:bg-gray-100 transition-colors"
+						onClick={() => setIsEditing(!isEditing)}
+						className="px-4 py-2 rounded-lg font-semibold border border-gray-200 text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-2"
 					>
-						Close
+						<FiEdit2 size={16} />
+						{isEditing ? "Cancel Edit" : "Edit Campaign"}
 					</button>
+					<div className="flex gap-2">
+						{isEditing && (
+							<button
+								onClick={async () => {
+									try {
+										await onUpdate(campaign._id || campaign.id, editForm);
+										if (onRefresh) await onRefresh();
+										setIsEditing(false);
+									} catch (error) {
+										console.error("Error updating campaign:", error);
+										alert("Failed to update campaign");
+									}
+								}}
+								className="px-6 py-2 rounded-lg font-semibold bg-[var(--color-primary-searchmind)] text-white hover:bg-[var(--color-primary-searchmind-lighter)] transition-colors"
+							>
+								Save Changes
+							</button>
+						)}
+						<button
+							onClick={onClose}
+							className="px-6 py-2 rounded-lg font-semibold border border-gray-200 text-gray-700 hover:bg-gray-100 transition-colors"
+						>
+							Close
+						</button>
+					</div>
 				</div>
 			</div>
 		</div>
+		
+		{/* Create Dwarf Campaign Modal */}
+		{showCreateDwarf && campaign && (
+			<CreateChildCampaignModal
+				open={showCreateDwarf}
+				onClose={() => setShowCreateDwarf(false)}
+				onCreate={async (dwarfCampaign) => {
+					if (onCreateCampaign) {
+						await onCreateCampaign(dwarfCampaign);
+						if (onRefresh) await onRefresh();
+						setShowCreateDwarf(false);
+					}
+				}}
+				parentCampaignId={campaign._id || campaign.id}
+				customerId={customerId}
+				isDwarf={true}
+			/>
+		)}
+		</>
 	);
 }

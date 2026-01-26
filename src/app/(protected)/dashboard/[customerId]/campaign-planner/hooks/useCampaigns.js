@@ -31,10 +31,16 @@ export default function useCampaigns(customerId) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newCampaigns),
       });
-      if (!res.ok) throw new Error("Failed to create campaign(s)");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to create campaign(s)");
+      }
+      const created = await res.json();
       await fetchCampaigns();
+      return created; // Return created campaigns
     } catch (err) {
       setError(err.message);
+      throw err; // Re-throw so caller can handle
     } finally {
       setLoading(false);
     }
