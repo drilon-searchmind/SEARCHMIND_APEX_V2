@@ -9,16 +9,18 @@ import dayjs from "dayjs";
 import GraphCard from "@/components/dashboard/GraphCard";
 import Spinner from "@/components/ui/Spinner";
 import dynamic from "next/dynamic";
-import Link from "next/link";
-import { FiSettings } from "react-icons/fi";
+import { FiSettings, FiX } from "react-icons/fi";
+import PropertyObjectivesTable from "@/app/(protected)/dashboard/[customerId]/config/components/PropertyObjectivesTable";
+import ToastProvider, { showToast } from "@/components/ui/ToastProvider";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 export default function PaceReportPage() {
     const params = useParams();
-    const { customers } = useCustomers();
+    const { customers, fetchCustomers } = useCustomers();
     const customer = customers.find(c => c._id === params.customerId);
-    const objectives = customer?.CustomerPropertyObjectives || {};
+    const [updatedObjectives, setUpdatedObjectives] = useState(null);
+    const objectives = updatedObjectives || customer?.CustomerPropertyObjectives || {};
 
     // Date range state
     const today = new Date();
@@ -49,6 +51,11 @@ export default function PaceReportPage() {
     const [costData, setCostData] = useState([]);
     const [budget, setBudget] = useState(0);
     const [paceAnalysis, setPaceAnalysis] = useState(null);
+    
+    // Sidebar state
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [localObjectives, setLocalObjectives] = useState({});
+    const [savingObjectives, setSavingObjectives] = useState(false);
 
     useEffect(() => {
         if (!customer) return;
@@ -101,21 +108,57 @@ export default function PaceReportPage() {
                     budgetCumulative += dailyTarget;
                     return { period: d.period, budget: Number(budgetCumulative.toFixed(2)) };
                 });
-                const idealSpendToDate = dailyTarget * totalDays;
+                
+                // Calculate pace according to formula: Pace = a / (b * c)
+                // a = Cost til sidste dag (Cost until last day, excluding today)
+                // b = Total budget for perioden / Antal dage i perioden (dailyTarget)
+                // c = Today - 1 (Days passed excluding today)
+                
+                const todayObj = dayjs();
+                const todayStr = todayObj.format('YYYY-MM-DD');
+                
+                // Find cost until last day (exclude today if it exists in data)
+                let costUntilLastDay = 0;
+                if (costDaily.length > 0) {
+                    // Check if last entry is today
+                    const lastEntry = costDaily[costDaily.length - 1];
+                    if (lastEntry.period === todayStr) {
+                        // If today exists, use second-to-last entry (yesterday)
+                        if (costDaily.length > 1) {
+                            costUntilLastDay = costDaily[costDaily.length - 2].spend;
+                        } else {
+                            costUntilLastDay = 0; // Only today exists, no previous day
+                        }
+                    } else {
+                        // Last entry is before today, use it
+                        costUntilLastDay = lastEntry.spend;
+                    }
+                }
+                
+                // Calculate days passed excluding today (c = Today - 1)
+                // This is days from startDate to yesterday (or endDate if before today)
+                const effectiveEndDate = todayObj.isBefore(endDateObj) ? todayObj.subtract(1, 'day') : endDateObj;
+                const daysPassedExcludingToday = Math.max(0, effectiveEndDate.diff(startDateObj, 'day') + 1);
+                
+                // Calculate ideal spend to date (b * c)
+                const idealSpendToDate = dailyTarget * daysPassedExcludingToday;
+                
+                // Calculate pace: a / (b * c)
+                const pace = idealSpendToDate > 0 ? costUntilLastDay / idealSpendToDate : 0;
+                
+                // For display purposes, also calculate actual spend including today
                 const actualSpendToDate = costDaily.length > 0 ? costDaily[costDaily.length - 1].spend : 0;
-                const pace = idealSpendToDate > 0 ? actualSpendToDate / idealSpendToDate : 0;
 
-                // Suggested daily adjustment: (Remaining Budget) / (Days left in the month after the selected period)
-                // daysLeft = totalDaysInCurrentMonth - totalDays
-                const totalDaysInCurrentMonth = endDateObj.daysInMonth();
+                // Suggested daily adjustment: (Remaining Budget) / (Days left in the period)
+                // Days left = remaining days from today (or endDate if before today) to endDate
+                const currentDate = todayObj.isBefore(endDateObj) ? todayObj : endDateObj;
+                const daysLeftInPeriod = Math.max(0, endDateObj.diff(currentDate, 'day'));
                 const remainingBudget = budgetValue - actualSpendToDate;
-                let daysLeft = totalDaysInCurrentMonth - totalDays;
-                if (daysLeft < 0) daysLeft = 0;
                 let suggestedDailyAdjustment = 0;
-                if (daysLeft > 0) {
-                    suggestedDailyAdjustment = remainingBudget / daysLeft;
-                } else if (daysLeft === 0 && remainingBudget > 0) {
-                    // If only one day left, adjustment is just the remaining budget
+                if (daysLeftInPeriod > 0) {
+                    suggestedDailyAdjustment = remainingBudget / daysLeftInPeriod;
+                } else if (daysLeftInPeriod === 0 && remainingBudget > 0) {
+                    // If period ends today, adjustment is just the remaining budget
                     suggestedDailyAdjustment = remainingBudget;
                 } else {
                     // If over budget or past the period, show 0
@@ -128,6 +171,8 @@ export default function PaceReportPage() {
                     dailyTarget,
                     idealSpendToDate,
                     actualSpendToDate,
+                    costUntilLastDay, // Cost until last day (excluding today)
+                    daysPassedExcludingToday, // Days passed excluding today
                     pace,
                     suggestedDailyAdjustment,
                     budgetDaily,
@@ -139,6 +184,47 @@ export default function PaceReportPage() {
             }
         })();
     }, [customer, objectives, appliedDateRange]);
+
+    // Initialize local objectives when sidebar opens
+    useEffect(() => {
+        if (sidebarOpen && customer) {
+            setLocalObjectives(customer.CustomerPropertyObjectives || {});
+        }
+    }, [sidebarOpen, customer]);
+
+    // Handle objectives change
+    const handleObjectivesChange = (updated) => {
+        setLocalObjectives(updated);
+    };
+
+    // Save objectives
+    const handleSaveObjectives = async () => {
+        if (!customer) return;
+        setSavingObjectives(true);
+        try {
+            const res = await fetch(`/api/customers/${customer._id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    CustomerPropertyObjectives: localObjectives,
+                }),
+            });
+            if (!res.ok) throw new Error('Failed to update objectives');
+            
+            // Update local objectives state immediately
+            setUpdatedObjectives(localObjectives);
+            
+            // Refetch customers to update the hook's state
+            await fetchCustomers();
+            
+            showToast({ message: 'Property objectives updated successfully!', type: 'success', position: 'top-center' });
+            setSidebarOpen(false);
+        } catch (err) {
+            showToast({ message: err.message || 'Failed to update objectives', type: 'error', position: 'top-center' });
+        } finally {
+            setSavingObjectives(false);
+        }
+    };
 
     // Prepare chart data for cost vs budget
     const chartCategories = costData.map(d => d.period);
@@ -160,6 +246,61 @@ export default function PaceReportPage() {
 
     return (
         <div className="w-full">
+            <ToastProvider />
+            {/* Sidebar Overlay */}
+            {sidebarOpen && (
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-end glassmorphism2"
+                    onClick={() => setSidebarOpen(false)}
+                >
+                    {/* Sidebar */}
+                    <div 
+                        className="bg-white h-full w-full max-w-2xl shadow-2xl flex flex-col relative"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="bg-[var(--color-primary-searchmind)] text-white px-8 py-6 flex items-center justify-between border-b border-gray-200">
+                            <div className="flex-1">
+                                <h2 className="text-2xl font-bold mb-1">Property Objectives</h2>
+                                <p className="text-sm text-white/80">Adjust marketing budgets for each month</p>
+                            </div>
+                            <button
+                                className="text-white/80 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10"
+                                onClick={() => setSidebarOpen(false)}
+                                aria-label="Close"
+                            >
+                                <FiX size={24} />
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="overflow-y-auto flex-1 p-8">
+                            <PropertyObjectivesTable 
+                                objectives={localObjectives} 
+                                onObjectivesChange={handleObjectivesChange} 
+                            />
+                        </div>
+
+                        {/* Footer */}
+                        <div className="border-t border-gray-200 px-8 py-6 bg-gray-50 flex justify-end gap-3">
+                            <button
+                                className="px-6 py-2 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                                onClick={() => setSidebarOpen(false)}
+                                disabled={savingObjectives}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="px-6 py-2 bg-[var(--color-primary-searchmind)] text-white rounded-lg font-semibold shadow-sm hover:bg-[var(--color-primary-searchmind-lighter)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={handleSaveObjectives}
+                                disabled={savingObjectives}
+                            >
+                                {savingObjectives ? 'Saving...' : 'Save Objectives'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <DashboardHeading
                 title="Marketing Pace Report"
                 label={customer ? customer.customerName : ""}
@@ -267,11 +408,14 @@ export default function PaceReportPage() {
                                     <span>{paceAnalysis.totalDays}</span>
                                 </div>
                             </div>
-                            <Link href={`/dashboard/${customer._id}/config`} className="mt-4 text-sm underline hover:text-[var(--color-primary-searchmind-lighter)] text-center flex items-center justify-center gap-1 text-blue-500">
+                            <button
+                                onClick={() => setSidebarOpen(true)}
+                                className="mt-4 text-sm underline hover:text-[var(--color-primary-searchmind-lighter)] text-center flex items-center justify-center gap-1 text-blue-500 w-full"
+                            >
                                 <span className="text-gray-500 flex items-center gap-1">
                                     <FiSettings /> Adjust your property budgets here.
                                 </span>
-                            </Link>
+                            </button>
                         </>
                     ) : (
                         <div className="text-gray-400">No analysis available.</div>
