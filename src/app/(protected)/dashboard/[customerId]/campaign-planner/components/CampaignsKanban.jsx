@@ -35,7 +35,7 @@ export default function CampaignsKanban({ customerId, campaigns = [], onStatusCh
     const [clickupUsers, setClickupUsers] = useState([]);
     const [statusFilter, setStatusFilter] = useState("");
     const [serviceFilter, setServiceFilter] = useState("");
-    const [mediaFilter, setMediaFilter] = useState("");
+    const [parentFilter, setParentFilter] = useState("");
     const [formatFilter, setFormatFilter] = useState("");
     const [viewMode, setViewMode] = useState("full"); // "full" or "compact"
 
@@ -82,8 +82,8 @@ export default function CampaignsKanban({ customerId, campaigns = [], onStatusCh
             // Service filter
             if (serviceFilter && c.service !== serviceFilter) return false;
 
-            // Media filter
-            if (mediaFilter && c.media !== mediaFilter) return false;
+            // Parent campaign filter
+            if (parentFilter && c.parentCampaignId !== parentFilter) return false;
 
             // Format filter
             if (formatFilter && c.campaignFormat !== formatFilter) return false;
@@ -98,7 +98,12 @@ export default function CampaignsKanban({ customerId, campaigns = [], onStatusCh
                 (!campaignEnd || campaignStart <= rangeEnd)
             );
         });
-    }, [campaigns, dateRange, search, statusFilter, serviceFilter, mediaFilter, formatFilter]);
+    }, [campaigns, dateRange, search, statusFilter, serviceFilter, parentFilter, formatFilter]);
+
+    // Get parent campaigns for filtering
+    const parentCampaigns = useMemo(() => {
+        return campaigns.filter(c => c.campaignLevel === "parent" || (!c.campaignLevel && !c.parentCampaignId && c.services));
+    }, [campaigns]);
 
     // Group campaigns by status
     const campaignsByStatus = useMemo(() => {
@@ -166,14 +171,14 @@ export default function CampaignsKanban({ customerId, campaigns = [], onStatusCh
                     ))}
                 </select>
                 <select
-                    value={mediaFilter}
-                    onChange={(e) => setMediaFilter(e.target.value)}
+                    value={parentFilter}
+                    onChange={(e) => setParentFilter(e.target.value)}
                     className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)]"
                 >
-                    <option value="">All Media</option>
-                    {MEDIA.map((media) => (
-                        <option key={media} value={media}>
-                            {media}
+                    <option value="">All Parent Campaigns</option>
+                    {parentCampaigns.map((parent) => (
+                        <option key={parent._id || parent.id} value={parent._id || parent.id}>
+                            {parent.campaignName}
                         </option>
                     ))}
                 </select>

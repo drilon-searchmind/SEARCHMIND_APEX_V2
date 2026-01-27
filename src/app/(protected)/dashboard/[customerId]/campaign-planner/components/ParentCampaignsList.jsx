@@ -170,7 +170,16 @@ export default function ParentCampaignsList({
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-4">
+                                            <div className="text-xs text-gray-500 flex items-center gap-2">
+                                                <span>
+                                                    {parent.startDate ? new Date(parent.startDate).toLocaleDateString('da-DK') : 'No start'}
+                                                </span>
+                                                <span>-</span>
+                                                <span>
+                                                    {parent.alwaysOn ? 'Always On' : (parent.endDate ? new Date(parent.endDate).toLocaleDateString('da-DK') : 'No end')}
+                                                </span>
+                                            </div>
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
