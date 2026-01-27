@@ -14,6 +14,14 @@ const SERVICE_MEDIA_MAP = {
     "SEO": ["Website"]
 };
 
+// Mapping ClickUp service IDs to campaign service names
+const CLICKUP_TO_CAMPAIGN_SERVICES = {
+    "51ed563e-4a2c-489b-9506-be385c49a354": "SEO", // SEO
+    "bee4b7c5-c9d0-4808-8a4f-b00ee6df311e": "Paid Search", // PPC
+    "2df85265-d5eb-4e86-a111-5d55623851fa": "Paid Social", // PS
+    "55b3e92d-5972-4246-8160-73d7ba04401a": "Email Marketing", // EM
+};
+
 export default function CreateParentCampaignModal({ open, onClose, onCreate, customerId }) {
     const [form, setForm] = useState({
         campaignName: "",
@@ -26,11 +34,37 @@ export default function CreateParentCampaignModal({ open, onClose, onCreate, cus
         alwaysOn: false,
         totalBudget: "",
         comment: "",
+        assignedUsers: []
     });
 
     const [availableMedia, setAvailableMedia] = useState([]);
+    const [clickupUsers, setClickupUsers] = useState([]);
+    const [loadingUsers, setLoadingUsers] = useState(false);
 
-    // Update available media when services change
+    // Fetch ClickUp users on modal open
+    useEffect(() => {
+        const fetchClickupUsers = async () => {
+            if (!open || !customerId) return;
+            setLoadingUsers(true);
+            try {
+                const response = await fetch(`/api/clickup-team-members/${customerId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setClickupUsers(data.members || []);
+                }
+            } catch (error) {
+                console.error('Error fetching ClickUp users:', error);
+            } finally {
+                setLoadingUsers(false);
+            }
+        };
+
+        if (open) {
+            fetchClickupUsers();
+        }
+    }, [open, customerId]);
+
+    // Update available media and auto-assign users when services change
     useEffect(() => {
         if (form.services.length > 0) {
             const mediaSet = new Set();
@@ -39,16 +73,31 @@ export default function CreateParentCampaignModal({ open, onClose, onCreate, cus
                 mediaForService.forEach(m => mediaSet.add(m));
             });
             setAvailableMedia(Array.from(mediaSet));
+
             // Remove media that are no longer available
             setForm(prev => ({
                 ...prev,
                 media: prev.media.filter(m => mediaSet.has(m))
             }));
+
+            // Auto-assign users based on selected services
+            const relevantUsers = clickupUsers.filter(user => {
+                const campaignService = CLICKUP_TO_CAMPAIGN_SERVICES[user.service];
+                return campaignService && form.services.includes(campaignService);
+            });
+
+            // Extract unique user IDs
+            const userIds = [...new Set(relevantUsers.map(user => user.id))];
+
+            setForm(prev => ({
+                ...prev,
+                assignedUsers: userIds
+            }));
         } else {
             setAvailableMedia([]);
-            setForm(prev => ({ ...prev, media: [] }));
+            setForm(prev => ({ ...prev, media: [], assignedUsers: [] }));
         }
-    }, [form.services]);
+    }, [form.services, clickupUsers]);
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -110,6 +159,7 @@ export default function CreateParentCampaignModal({ open, onClose, onCreate, cus
             alwaysOn: false,
             totalBudget: "",
             comment: "",
+            assignedUsers: []
         });
     };
 
@@ -155,6 +205,43 @@ export default function CreateParentCampaignModal({ open, onClose, onCreate, cus
                         </select>
                         <p className="mt-1 text-xs text-gray-500">Hold Ctrl/Cmd to select multiple</p>
                     </div>
+
+                    {/* Assigned Users Display */}
+                    {form.assignedUsers.length > 0 && (
+                        <div className="md:col-span-2">
+                            <FormLabel>Assigned Team Members</FormLabel>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                {form.assignedUsers.map(userId => {
+                                    const user = clickupUsers.find(u => u.id === userId);
+                                    const serviceInfo = user ? CLICKUP_TO_CAMPAIGN_SERVICES[user.service] : null;
+                                    return (
+                                        <div key={userId} className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg">
+                                            <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
+                                                {user?.avatar ? (
+                                                    <img
+                                                        src={user.avatar}
+                                                        alt={user.username}
+                                                        className="w-6 h-6 rounded-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <span className="text-white text-xs font-medium">
+                                                        {user?.username?.charAt(0).toUpperCase() || '?'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="text-sm">
+                                                <span className="font-medium">{user?.username || `User ${userId.slice(-4)}`}</span>
+                                                {serviceInfo && (
+                                                    <span className="text-gray-500 ml-1">({serviceInfo})</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">Users are automatically assigned based on selected services</p>
+                        </div>
+                    )}
 
                     <div>
                         <FormLabel htmlFor="responsible" required>Responsible</FormLabel>

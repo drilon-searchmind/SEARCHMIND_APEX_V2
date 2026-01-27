@@ -9,6 +9,14 @@ const MEDIA = ["META", "LinkedIn", "Pinterest", "TikTok", "YouTube", "Google", "
 const FORMATS = ["Video", "Picture", "Carousel", "Display Ad", "Search Ad", "Newsletter", "Email Flow", "Landingpage", "Collection"];
 const STATUS = ["Pending", "Pending Customer Approval", "Approved", "Live", "Ended"];
 
+// Mapping ClickUp service IDs to campaign service names
+const CLICKUP_TO_CAMPAIGN_SERVICES = {
+    "51ed563e-4a2c-489b-9506-be385c49a354": "SEO", // SEO
+    "bee4b7c5-c9d0-4808-8a4f-b00ee6df311e": "Paid Search", // PPC
+    "2df85265-d5eb-4e86-a111-5d55623851fa": "Paid Social", // PS
+    "55b3e92d-5972-4246-8160-73d7ba04401a": "Email Marketing", // EM
+};
+
 export default function CreateChildCampaignModal({ 
     open, 
     onClose, 
@@ -39,22 +47,23 @@ export default function CreateChildCampaignModal({
         assignedUsers: []
     });
 
-    const [users, setUsers] = useState([]);
+    const [clickupUsers, setClickupUsers] = useState([]);
     const [loadingUsers, setLoadingUsers] = useState(false);
-    const [userSearch, setUserSearch] = useState("");
     const [parentCampaign, setParentCampaign] = useState(null);
     const [loadingParent, setLoadingParent] = useState(false);
 
     useEffect(() => {
-        const fetchUsers = async () => {
+        const fetchClickupUsers = async () => {
+            if (!customerId) return;
             setLoadingUsers(true);
             try {
-                const response = await fetch('/api/users');
-                const userData = await response.json();
-                const activeUsers = userData.filter(user => !user.isArchived);
-                setUsers(activeUsers);
+                const response = await fetch(`/api/clickup-team-members/${customerId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setClickupUsers(data.members || []);
+                }
             } catch (error) {
-                console.error('Error fetching users:', error);
+                console.error('Error fetching ClickUp users:', error);
             } finally {
                 setLoadingUsers(false);
             }
@@ -125,25 +134,35 @@ export default function CreateChildCampaignModal({
         };
 
         if (open) {
-            fetchUsers();
+            fetchClickupUsers();
             fetchParentCampaign();
         }
     }, [open, parentCampaignId, customerId]);
+
+    // Auto-assign users when service changes
+    useEffect(() => {
+        if (form.service && clickupUsers.length > 0) {
+            // Find users that match the selected service
+            const relevantUsers = clickupUsers.filter(user => {
+                const campaignService = CLICKUP_TO_CAMPAIGN_SERVICES[user.service];
+                return campaignService === form.service;
+            });
+
+            // Extract unique user IDs
+            const userIds = [...new Set(relevantUsers.map(user => user.id))];
+
+            setForm(prev => ({
+                ...prev,
+                assignedUsers: userIds
+            }));
+        }
+    }, [form.service, clickupUsers]);
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         setForm((prev) => ({
             ...prev,
             [name]: type === "checkbox" ? checked : value,
-        }));
-    };
-
-    const handleUserToggle = (userId) => {
-        setForm((prev) => ({
-            ...prev,
-            assignedUsers: prev.assignedUsers.includes(userId)
-                ? prev.assignedUsers.filter(id => id !== userId)
-                : [...prev.assignedUsers, userId]
         }));
     };
 
@@ -252,13 +271,6 @@ export default function CreateChildCampaignModal({
     const budgetError = parentCampaign?.totalBudget && form.budget && Number(form.budget) > parentCampaign.totalBudget
         ? `Budget cannot exceed parent campaign's total budget of ${parentCampaign.totalBudget.toLocaleString('da-DK')} DKK`
         : null;
-
-    const filteredUsers = users.filter((user) => {
-        const isInternal = user.isExternal === false || user.isExternal === undefined || user.isExternal === "false";
-        const matchesSearch = user.name.toLowerCase().includes(userSearch.toLowerCase()) ||
-            user.email.toLowerCase().includes(userSearch.toLowerCase());
-        return isInternal && matchesSearch;
-    });
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center glassmorphism2">
@@ -436,77 +448,42 @@ export default function CreateChildCampaignModal({
                                 />
                             </div>
 
-                            <div className="md:col-span-2">
-                                <FormLabel htmlFor="assignedUsers">Assigned Users</FormLabel>
-                        <input
-                            type="text"
-                            placeholder="Search users by name or email..."
-                            value={userSearch}
-                            onChange={(e) => setUserSearch(e.target.value)}
-                            className="mt-2 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20"
-                        />
-                        <div className="mt-2 p-4 border border-gray-300 rounded-lg bg-gray-50 max-h-40 overflow-y-auto">
-                            {loadingUsers ? (
-                                <div className="text-sm text-gray-500">Loading users...</div>
-                            ) : filteredUsers.length === 0 ? (
-                                <div className="text-sm text-gray-500">No users match your search</div>
-                            ) : (
-                                <div className="grid grid-cols-1 gap-2">
-                                    {filteredUsers.map((user) => (
-                                        <div
-                                            key={user._id}
-                                            className={`flex items-center p-2 rounded-md cursor-pointer transition-colors ${
-                                                form.assignedUsers.includes(user._id)
-                                                    ? 'bg-brand-100 border border-brand-300'
-                                                    : 'hover:bg-gray-100 border border-transparent'
-                                            }`}
-                                            onClick={() => handleUserToggle(user._id)}
-                                        >
-                                            <div className="flex items-center flex-1 min-w-0">
-                                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center mr-3">
-                                                    {user.image ? (
-                                                        <img
-                                                            src={user.image}
-                                                            alt={user.name}
-                                                            className="w-8 h-8 rounded-full object-cover"
-                                                        />
-                                                    ) : (
-                                                        <span className="text-xs font-medium text-gray-600">
-                                                            {user.name.charAt(0).toUpperCase()}
-                                                        </span>
-                                                    )}
+                            {/* Assigned Users Display */}
+                            {form.assignedUsers.length > 0 && (
+                                <div className="md:col-span-2">
+                                    <FormLabel>Assigned Team Members</FormLabel>
+                                    <div className="flex flex-wrap gap-2 mt-2">
+                                        {form.assignedUsers.map(userId => {
+                                            const user = clickupUsers.find(u => u.id === userId);
+                                            const serviceInfo = user ? CLICKUP_TO_CAMPAIGN_SERVICES[user.service] : null;
+                                            return (
+                                                <div key={userId} className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg">
+                                                    <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
+                                                        {user?.avatar ? (
+                                                            <img
+                                                                src={user.avatar}
+                                                                alt={user.username}
+                                                                className="w-6 h-6 rounded-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            <span className="text-white text-xs font-medium">
+                                                                {user?.username?.charAt(0).toUpperCase() || '?'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-sm">
+                                                        <span className="font-medium">{user?.username || `User ${userId.slice(-4)}`}</span>
+                                                        {serviceInfo && (
+                                                            <span className="text-gray-500 ml-1">({serviceInfo})</span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="text-sm font-medium text-gray-900 truncate">
-                                                        {user.name}
-                                                    </p>
-                                                    <p className="text-xs text-gray-500 truncate">
-                                                        {user.email}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="flex-shrink-0 ml-2">
-                                                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                                                    form.assignedUsers.includes(user._id)
-                                                        ? 'border-brand-500 bg-black'
-                                                        : 'border-gray-300'
-                                                }`}>
-                                                    {form.assignedUsers.includes(user._id) && (
-                                                        <span className="text-white text-xs">✓</span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
+                                            );
+                                        })}
+                                    </div>
+                                    <p className="mt-1 text-xs text-gray-500">Users are automatically assigned based on selected service</p>
                                 </div>
                             )}
-                        </div>
-                        {form.assignedUsers.length > 0 && (
-                            <div className="mt-2 text-sm text-gray-600">
-                                {form.assignedUsers.length} user{form.assignedUsers.length !== 1 ? 's' : ''} assigned
-                            </div>
-                        )}
-                    </div>
 
                     <div className="md:col-span-2">
                         <FormLabel htmlFor="materialFromCustomer">Material From Customer</FormLabel>

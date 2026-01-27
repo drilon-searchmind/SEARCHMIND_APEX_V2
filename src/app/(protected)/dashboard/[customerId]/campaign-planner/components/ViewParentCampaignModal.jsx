@@ -1,8 +1,56 @@
-import React from "react";
-import { FiX, FiInfo, FiCalendar, FiDollarSign, FiUsers } from "react-icons/fi";
+import React, { useState, useEffect } from "react";
+import { FiX, FiInfo, FiCalendar, FiDollarSign, FiUsers, FiTrash2 } from "react-icons/fi";
 
-export default function ViewParentCampaignModal({ open, onClose, campaign, childCampaigns = [] }) {
+// Mapping ClickUp service IDs to campaign service names
+const CLICKUP_TO_CAMPAIGN_SERVICES = {
+    "51ed563e-4a2c-489b-9506-be385c49a354": "SEO", // SEO
+    "bee4b7c5-c9d0-4808-8a4f-b00ee6df311e": "Paid Search", // PPC
+    "2df85265-d5eb-4e86-a111-5d55623851fa": "Paid Social", // PS
+    "55b3e92d-5972-4246-8160-73d7ba04401a": "Email Marketing", // EM
+};
+
+export default function ViewParentCampaignModal({ open, onClose, campaign, childCampaigns = [], onDelete }) {
+    const [clickupUsers, setClickupUsers] = useState([]);
+    const [loadingUsers, setLoadingUsers] = useState(false);
+
     if (!open || !campaign) return null;
+
+    // Fetch ClickUp users when modal opens
+    useEffect(() => {
+        const fetchClickupUsers = async () => {
+            if (!campaign.customerId) return;
+            setLoadingUsers(true);
+            try {
+                const response = await fetch(`/api/clickup-team-members/${campaign.customerId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setClickupUsers(data.members || []);
+                }
+            } catch (error) {
+                console.error('Error fetching ClickUp users:', error);
+            } finally {
+                setLoadingUsers(false);
+            }
+        };
+
+        if (open) {
+            fetchClickupUsers();
+        }
+    }, [open, campaign.customerId]);
+
+    // Helper function to get users for a campaign
+    const getCampaignUsers = (campaign) => {
+        if (campaign.assignedUsers && campaign.assignedUsers.length > 0) {
+            return campaign.assignedUsers;
+        }
+        // Fallback: find users based on service
+        return clickupUsers
+            .filter(user => {
+                const campaignService = CLICKUP_TO_CAMPAIGN_SERVICES[user.service];
+                return campaignService === campaign.service;
+            })
+            .map(user => user.id);
+    };
 
     const formatDate = (date) => {
         if (!date) return "N/A";
@@ -130,9 +178,15 @@ export default function ViewParentCampaignModal({ open, onClose, campaign, child
                                     <FiDollarSign className="text-[var(--color-primary-searchmind)]" size={16} />
                                     <p className="text-xs font-medium text-gray-500">Total Budget</p>
                                 </div>
-                                <p className="text-xl font-bold text-gray-900">
+                                <p className="text-xl font-bold text-gray-900 mb-2">
                                     {formatCurrency(campaign.totalBudget)}
                                 </p>
+                                <div className="border-t border-gray-200 pt-2">
+                                    <p className="text-sm text-gray-600">Allocated Budget</p>
+                                    <p className="text-sm font-medium text-gray-800">
+                                        {formatCurrency(childCampaigns.reduce((sum, child) => sum + (child.budget || 0), 0))}
+                                    </p>
+                                </div>
                             </div>
 
                             <div>
@@ -166,7 +220,7 @@ export default function ViewParentCampaignModal({ open, onClose, campaign, child
                                 No child campaigns created yet.
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="space-y-2">
                                 {childCampaigns.map((child) => {
                                     const getStatusColor = (status) => {
                                         switch (status) {
@@ -178,7 +232,7 @@ export default function ViewParentCampaignModal({ open, onClose, campaign, child
                                             default: return "bg-gray-100 text-gray-800";
                                         }
                                     };
-                                    
+
                                     return (
                                         <div
                                             key={child._id}
@@ -186,15 +240,87 @@ export default function ViewParentCampaignModal({ open, onClose, campaign, child
                                         >
                                             <div className="flex items-start justify-between mb-2">
                                                 <h4 className="font-semibold text-gray-900 text-sm">{child.campaignName}</h4>
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(child.status)}`}>
-                                                    {child.status}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(child.status)}`}>
+                                                        {child.status}
+                                                    </span>
+                                                    {onDelete && (
+                                                        <button
+                                                            onClick={async () => {
+                                                                if (window.confirm(`Are you sure you want to delete "${child.campaignName}"? This will also delete any related dwarf campaigns.`)) {
+                                                                    try {
+                                                                        await onDelete(child._id || child.id);
+                                                                    } catch (error) {
+                                                                        console.error("Error deleting child campaign:", error);
+                                                                        alert("Failed to delete child campaign");
+                                                                    }
+                                                                }
+                                                            }}
+                                                            className="px-2 py-1 text-xs text-red-600 hover:text-red-900 hover:bg-red-50 rounded flex items-center gap-1"
+                                                        >
+                                                            <FiTrash2 size={12} />
+                                                            Delete
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div className="text-xs text-gray-600 space-y-1">
-                                                <p>Service: {child.service || "N/A"}</p>
-                                                <p>Media: {child.media || "N/A"}</p>
-                                                <p>Budget: {formatCurrency(child.budget)}</p>
+                                            <div className="flex items-center gap-6 text-xs text-gray-600">
+                                                <div className="flex items-center gap-1">
+                                                    <span className="font-medium">Service:</span>
+                                                    <span>{child.service || "N/A"}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <span className="font-medium">Media:</span>
+                                                    <span>{child.media || "N/A"}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <span className="font-medium">Budget:</span>
+                                                    <span>{formatCurrency(child.budget)}</span>
+                                                </div>
                                             </div>
+
+                                            {/* Assigned Users for this child campaign */}
+                                            {child.service && (() => {
+                                                const campaignUsers = getCampaignUsers(child);
+                                                return campaignUsers.length > 0 ? (
+                                                    <div className="mt-2">
+                                                        <div className="flex items-center gap-1 text-xs text-gray-600 mb-1">
+                                                            <span className="font-medium">Assigned:</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            {campaignUsers.slice(0, 3).map((userId) => {
+                                                                const user = clickupUsers.find(u => u.id === userId);
+                                                                return (
+                                                                    <div
+                                                                        key={userId}
+                                                                        className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0"
+                                                                        title={user?.username || `User ${userId.slice(-4)}`}
+                                                                    >
+                                                                        {user?.avatar ? (
+                                                                            <img
+                                                                                src={user.avatar}
+                                                                                alt={user.username}
+                                                                                className="w-5 h-5 rounded-full object-cover"
+                                                                            />
+                                                                        ) : (
+                                                                            <span className="text-xs font-medium text-white">
+                                                                                {user?.username?.charAt(0).toUpperCase() || '?'}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                            {campaignUsers.length > 3 && (
+                                                                <div className="w-5 h-5 rounded-full bg-[var(--color-primary-searchmind-lighter)] flex items-center justify-center flex-shrink-0">
+                                                                    <span className="text-xs font-light text-gray-50">
+                                                                        +{campaignUsers.length - 3}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ) : null;
+                                            })()}
                                         </div>
                                     );
                                 })}

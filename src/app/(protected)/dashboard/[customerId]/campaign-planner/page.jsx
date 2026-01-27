@@ -16,6 +16,14 @@ import ViewCampaignModal from "./components/ViewCampaignModal";
 import ViewParentCampaignModal from "./components/ViewParentCampaignModal";
 import FormButton from "@/components/form/FormButton";
 
+// Media mapping based on service (must match CreateParentCampaignModal)
+const SERVICE_MEDIA_MAP = {
+    "Paid Social": ["META", "LinkedIn", "Pinterest", "TikTok", "YouTube"],
+    "Paid Search": ["Google"],
+    "Email Marketing": ["Email"],
+    "SEO": ["Website"]
+};
+
 export default function CampaignPlannerPage() {
     const [viewCampaign, setViewCampaign] = useState(null);
     const [viewParentCampaign, setViewParentCampaign] = useState(null);
@@ -61,15 +69,21 @@ export default function CampaignPlannerPage() {
         }
 
         // Auto-create child campaigns for each service+media combination
-        // Create a child campaign for each service + each selected media
+        // Only create campaigns for valid service-media combinations
         const childCampaigns = [];
         const parentServices = parentCampaign.services || [];
         const parentMedia = parentCampaign.media || [];
 
-        // For each service, create a child campaign for each selected media
+        // For each service, create a child campaign only for media that are valid for that service
         parentServices.forEach(service => {
-            if (parentMedia.length === 0) {
-                // If no media selected, create one child with just the service
+            // Get valid media for this service
+            const validMediaForService = SERVICE_MEDIA_MAP[service] || [];
+            
+            // Filter selected media to only include those valid for this service
+            const validSelectedMedia = parentMedia.filter(media => validMediaForService.includes(media));
+            
+            if (validSelectedMedia.length === 0) {
+                // If no valid media selected for this service, create one child with just the service
                 childCampaigns.push({
                     customerId,
                     campaignLevel: "child",
@@ -81,10 +95,11 @@ export default function CampaignPlannerPage() {
                     startDate: parentCampaign.startDate,
                     endDate: parentCampaign.alwaysOn ? null : parentCampaign.endDate,
                     status: "Pending",
+                    assignedUsers: parentCampaign.assignedUsers || [], // Inherit assigned users from parent
                 });
             } else {
-                // Create one child campaign per media for this service
-                parentMedia.forEach(media => {
+                // Create one child campaign per valid media for this service
+                validSelectedMedia.forEach(media => {
                     childCampaigns.push({
                         customerId,
                         campaignLevel: "child",
@@ -96,6 +111,7 @@ export default function CampaignPlannerPage() {
                         startDate: parentCampaign.startDate,
                         endDate: parentCampaign.alwaysOn ? null : parentCampaign.endDate,
                         status: "Pending",
+                        assignedUsers: parentCampaign.assignedUsers || [], // Inherit assigned users from parent
                     });
                 });
             }
@@ -113,8 +129,8 @@ export default function CampaignPlannerPage() {
             console.log("handleCreateChildCampaign called with:", childCampaign);
             // Ensure parentCampaignId is a string
             if (childCampaign.parentCampaignId) {
-                childCampaign.parentCampaignId = typeof childCampaign.parentCampaignId === 'string' 
-                    ? childCampaign.parentCampaignId 
+                childCampaign.parentCampaignId = typeof childCampaign.parentCampaignId === 'string'
+                    ? childCampaign.parentCampaignId
                     : childCampaign.parentCampaignId.toString();
             }
             // Ensure status is set for child/dwarf campaigns
@@ -128,6 +144,31 @@ export default function CampaignPlannerPage() {
         } catch (error) {
             console.error("Error creating child campaign:", error);
             throw error; // Re-throw so modal can show error
+        }
+    };
+
+    // Handle child campaign deletion (including related dwarf campaigns)
+    const handleDeleteChildCampaign = async (childCampaignId) => {
+        try {
+            // Find all dwarf campaigns that belong to this child campaign
+            const dwarfCampaigns = campaigns.filter(c =>
+                c.campaignLevel === "dwarf" &&
+                (c.parentCampaignId === childCampaignId || c.parentCampaignId?.toString() === childCampaignId?.toString())
+            );
+
+            // Delete all dwarf campaigns first
+            for (const dwarf of dwarfCampaigns) {
+                await deleteCampaign(dwarf._id || dwarf.id);
+            }
+
+            // Delete the child campaign
+            await deleteCampaign(childCampaignId);
+
+            // Refresh campaigns
+            await fetchCampaigns();
+        } catch (error) {
+            console.error("Error deleting child campaign:", error);
+            throw error;
         }
     };
 
@@ -265,6 +306,7 @@ export default function CampaignPlannerPage() {
                     onClose={() => setViewParentCampaign(null)}
                     campaign={viewParentCampaign}
                     childCampaigns={getChildCampaignsForParent(viewParentCampaign._id || viewParentCampaign.id)}
+                    onDelete={handleDeleteChildCampaign}
                 />
             )}
             <ViewCampaignModal

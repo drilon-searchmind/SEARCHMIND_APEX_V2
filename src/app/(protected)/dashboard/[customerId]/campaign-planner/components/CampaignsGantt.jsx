@@ -8,6 +8,13 @@ const STATUS_COLORS = {
     Ended: "#e5e7eb",
 };
 
+const SERVICE_COLORS = {
+    "Paid Social": "#dbeafe", // light blue
+    "Paid Search": "#dcfce7", // light green
+    "Email Marketing": "#e9d5ff", // light purple
+    "SEO": "#fed7aa", // light orange
+};
+
 const SERVICES = ["Paid Social", "Paid Search", "Email Marketing", "SEO"];
 const MEDIA = ["META", "LinkedIn", "Pinterest", "TikTok", "YouTube", "Google", "Email", "Website", "Other"];
 const FORMATS = ["Video", "Picture", "Carousel", "Display Ad", "Search Ad", "Newsletter", "Email Flow", "Landingpage", "Collection"];
@@ -265,7 +272,7 @@ export default function CampaignsGantt({ campaigns = [], onViewDetails }) {
                                                         className="absolute top-2 h-6 rounded cursor-pointer hover:opacity-80 transition-opacity"
                                                         style={{
                                                             ...getBarStyle(c),
-                                                            backgroundColor: STATUS_COLORS[c.status] || 'var(--color-primary-searchmind)',
+                                                            backgroundColor: SERVICE_COLORS[c.service] || 'var(--color-primary-searchmind)',
                                                             minWidth: '8px'
                                                         }}
                                                         onClick={() => onViewDetails && onViewDetails(c)}
@@ -355,7 +362,7 @@ export default function CampaignsGantt({ campaigns = [], onViewDetails }) {
                                                             className="absolute top-4 h-8 rounded-lg shadow-sm border-2 border-white cursor-pointer hover:shadow-md transition-shadow"
                                                             style={{
                                                                 ...getBarStyle(c),
-                                                                backgroundColor: STATUS_COLORS[c.status] || 'var(--color-primary-searchmind)',
+                                                                backgroundColor: SERVICE_COLORS[c.service] || 'var(--color-primary-searchmind)',
                                                                 minWidth: '12px'
                                                             }}
                                                             onClick={() => onViewDetails && onViewDetails(c)}
