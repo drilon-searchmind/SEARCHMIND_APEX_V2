@@ -246,6 +246,7 @@ export default function CampaignsGantt({ campaigns = [], onViewDetails }) {
                                 </div>
                             ) : (
                                 filteredCampaigns.map((c) => (
+                                    console.log({c}),
                                     viewMode === 'compact' ? (
                                         // Compact View - Only campaign title
                                         <div key={c.id || c._id} className="flex items-center bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-shadow">
@@ -255,7 +256,13 @@ export default function CampaignsGantt({ campaigns = [], onViewDetails }) {
                                                     onClick={() => onViewDetails && onViewDetails(c)}
                                                     title="Click to view details"
                                                 >
-                                                    {c.campaignName}
+                                                    <span className={`
+                                                        ${c.campaignLevel === 'parent' ? 'text-xs' : ''}
+                                                        ${c.campaignLevel === 'child' ? 'pl-2 text-xs' : ''}
+                                                        ${c.campaignLevel === 'dwarf' ? 'pl-4 text-gray-500 text-xs' : ''}
+                                                    `}>
+                                                        {c.campaignName}
+                                                    </span>
                                                 </div>
                                             </div>
                                             <div className="flex-1 relative bg-gray-50 min-h-[40px]">
@@ -269,7 +276,10 @@ export default function CampaignsGantt({ campaigns = [], onViewDetails }) {
 
                                                     {/* Campaign bar */}
                                                     <div
-                                                        className="absolute top-2 h-6 rounded cursor-pointer hover:opacity-80 transition-opacity"
+                                                        className={`
+                                                            absolute top-2 rounded cursor-pointer hover:opacity-80 transition-opacity
+                                                            ${c.campaignLevel === 'parent' ? 'h-2' : 'h-6'}
+                                                            `}
                                                         style={{
                                                             ...getBarStyle(c),
                                                             backgroundColor: SERVICE_COLORS[c.service] || 'var(--color-primary-searchmind)',
