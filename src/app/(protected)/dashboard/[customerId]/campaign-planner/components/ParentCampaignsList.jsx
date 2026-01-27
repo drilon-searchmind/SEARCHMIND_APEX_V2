@@ -142,7 +142,7 @@ export default function ParentCampaignsList({
                             const children = getChildrenForParent(parent._id);
                             
                             return (
-                                <div key={parent._id} className="hover:bg-gray-50 transition-colors">
+                                <div key={parent._id} className="hover:bg-gray-50 transition-colors border-b-2 border-gray-300 border-dotted">
                                     {/* Parent Campaign Row */}
                                     <div 
                                         className="px-6 py-4 flex items-center justify-between cursor-pointer"
@@ -209,7 +209,7 @@ export default function ParentCampaignsList({
 
                                     {/* Expanded Children - Table Format */}
                                     {isExpanded && (
-                                        <div className="bg-gray-50 border-t border-gray-200 overflow-x-auto">
+                                        <div className="bg-gray-50 border-t border-gray-200 overflow-x-auto py-4">
                                             {children.length === 0 ? (
                                                 <div className="px-12 py-4 text-sm text-gray-500">
                                                     No child campaigns yet. Click "Add Child" to create one.
@@ -217,7 +217,7 @@ export default function ParentCampaignsList({
                                             ) : (
                                                 <div className="px-6 py-4">
                                                     {/* Table Header */}
-                                                    <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-white border-b-2 border-gray-300 font-semibold text-[0.65rem] text-gray-700 uppercase tracking-wide">
+                                                    <div className="grid grid-cols-12 gap-4 px-4 py-3 font-semibold text-[0.65rem] uppercase tracking-wide bg-[#406969] text-white rounded">
                                                         <div className="col-span-3">Campaign Name</div>
                                                         <div className="col-span-1">Service</div>
                                                         <div className="col-span-1 flex items-center gap-1">
@@ -321,8 +321,8 @@ export default function ParentCampaignsList({
                                                                         <div className="px-4 py-2 bg-gray-50 border-t border-gray-100">
                                                                             <div className="ml-4 space-y-0.5">
                                                                                 {dwarfs.map((dwarf) => (
-                                                                                    <div key={dwarf._id} className="text-xs text-gray-800 bg-white px-2 py-2 rounded">
-                                                                                        • {dwarf.campaignName}
+                                                                                    <div key={dwarf._id} className="text-xs text-gray-800  px-2 py-2 rounded bg-gray-100">
+                                                                                        ㄴ {dwarf.campaignName}
                                                                                     </div>
                                                                                 ))}
                                                                             </div>
