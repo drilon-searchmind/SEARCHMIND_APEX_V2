@@ -10,7 +10,7 @@ const CLICKUP_TO_CAMPAIGN_SERVICES = {
     "55b3e92d-5972-4246-8160-73d7ba04401a": "Email Marketing", // EM
 };
 
-export default function ViewCampaignModal({ open, onClose, campaign, campaigns = [], customerId, onUpdate, onRefresh, onCreateCampaign, onDelete }) {
+export default function ViewCampaignModal({ open, onClose, campaign, campaigns = [], customerId, onUpdate, onRefresh, onCreateCampaign, onDelete, onViewParent }) {
 	const [clickupUsers, setClickupUsers] = useState([]);
 	const [loadingUsers, setLoadingUsers] = useState(false);
 	const [isEditing, setIsEditing] = useState(false);
@@ -252,6 +252,28 @@ export default function ViewCampaignModal({ open, onClose, campaign, campaigns =
 						)}
 					</div>
 					<div className="flex items-center gap-3">
+						{/* Back to Parent Button - only show for child campaigns */}
+						{(campaign.campaignLevel === "child" || campaign.parentCampaignId) && onViewParent && (
+							<button
+								className="text-white/80 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10"
+								onClick={() => {
+									// Find the parent campaign
+									const parent = campaigns.find(c =>
+										(c.campaignLevel === "parent" || (!c.campaignLevel && !c.parentCampaignId && c.services)) &&
+										(c._id === campaign.parentCampaignId || c._id?.toString() === campaign.parentCampaignId?.toString())
+									);
+									if (parent) {
+										onViewParent(parent);
+									}
+								}}
+								aria-label="Back to Parent Campaign"
+								title="Back to Parent Campaign"
+							>
+								<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+								</svg>
+							</button>
+						)}
 						{isEditing ? (
 							<select
 								value={editForm.status || "Pending"}
@@ -558,7 +580,7 @@ export default function ViewCampaignModal({ open, onClose, campaign, campaigns =
 					</div>
 				</div>
 
-				{/* Dwarf Campaigns Section - Only for child campaigns */}
+				{/* Line Items Section - Only for child campaigns */}
 				{(campaign.campaignLevel === "child" || (!campaign.campaignLevel && campaign.parentCampaignId)) && (
 					<div className="border-t border-gray-200 px-8 py-6">
 						<div className="flex items-center justify-between mb-4">
@@ -573,21 +595,21 @@ export default function ViewCampaignModal({ open, onClose, campaign, campaigns =
 								)}
 								<FiUsers className="text-[var(--color-primary-searchmind)]" size={18} />
 								<h3 className="text-base font-semibold text-gray-900">
-									Dwarf Campaigns ({dwarfCampaigns.length})
+									Line Items ({dwarfCampaigns.length})
 								</h3>
 							</button>
 							<button
 								onClick={() => setShowCreateDwarf(true)}
 								className="px-3 py-1 text-sm bg-[var(--color-primary-searchmind)] text-white hover:bg-[var(--color-primary-searchmind-lighter)] rounded flex items-center gap-1"
 							>
-								+ Add Dwarf Campaign
+								+ Add Line Item
 							</button>
 						</div>
 						{dwarfSectionExpanded && (
 							<>
 								{dwarfCampaigns.length === 0 ? (
 									<div className="text-center py-4 text-gray-500 text-sm">
-										No dwarf campaigns created yet.
+										No line items created yet.
 									</div>
 								) : (
 									<div className="space-y-2">

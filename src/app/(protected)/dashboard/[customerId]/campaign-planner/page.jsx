@@ -50,6 +50,7 @@ export default function CampaignPlannerPage() {
     const [showCreateChild, setShowCreateChild] = useState(null);
     const [view, setView] = useState("parents");
     const [showDwarfCampaigns, setShowDwarfCampaigns] = useState(false);
+    const [showChildCampaigns, setShowChildCampaigns] = useState(true);
 
     // Handle status change (drag-and-drop)
     const handleStatusChange = async (id, newStatus) => {
@@ -73,17 +74,19 @@ export default function CampaignPlannerPage() {
         const childCampaigns = [];
         const parentServices = parentCampaign.services || [];
         const parentMedia = parentCampaign.media || [];
+        const budgetAllocations = parentCampaign.budgetAllocations || {};
 
         // For each service, create a child campaign only for media that are valid for that service
         parentServices.forEach(service => {
             // Get valid media for this service
             const validMediaForService = SERVICE_MEDIA_MAP[service] || [];
-            
+
             // Filter selected media to only include those valid for this service
             const validSelectedMedia = parentMedia.filter(media => validMediaForService.includes(media));
-            
+
             if (validSelectedMedia.length === 0) {
                 // If no valid media selected for this service, create one child with just the service
+                const childKey = `${service}`;
                 childCampaigns.push({
                     customerId,
                     campaignLevel: "child",
@@ -95,11 +98,13 @@ export default function CampaignPlannerPage() {
                     startDate: parentCampaign.startDate,
                     endDate: parentCampaign.alwaysOn ? null : parentCampaign.endDate,
                     status: "Pending",
+                    budget: budgetAllocations[childKey] || undefined,
                     assignedUsers: parentCampaign.assignedUsers || [], // Inherit assigned users from parent
                 });
             } else {
                 // Create one child campaign per valid media for this service
                 validSelectedMedia.forEach(media => {
+                    const childKey = `${service}-${media}`;
                     childCampaigns.push({
                         customerId,
                         campaignLevel: "child",
@@ -111,6 +116,7 @@ export default function CampaignPlannerPage() {
                         startDate: parentCampaign.startDate,
                         endDate: parentCampaign.alwaysOn ? null : parentCampaign.endDate,
                         status: "Pending",
+                        budget: budgetAllocations[childKey] || undefined,
                         assignedUsers: parentCampaign.assignedUsers || [], // Inherit assigned users from parent
                     });
                 });
@@ -180,10 +186,19 @@ export default function CampaignPlannerPage() {
         );
     };
 
-    // Filter campaigns based on dwarf toggle
+    // Filter campaigns based on toggles
     const getFilteredCampaigns = () => {
-        if (showDwarfCampaigns) return campaigns;
-        return campaigns.filter(c => c.campaignLevel !== "dwarf");
+        let filtered = campaigns;
+
+        if (!showChildCampaigns) {
+            filtered = filtered.filter(c => c.campaignLevel !== "child");
+        }
+
+        if (!showDwarfCampaigns) {
+            filtered = filtered.filter(c => c.campaignLevel !== "dwarf");
+        }
+
+        return filtered;
     };
 
     // Get child campaigns for a parent
@@ -222,15 +237,26 @@ export default function CampaignPlannerPage() {
                     ))}
                 </div>
                 {(view === "calendar" || view === "gantt") && (
-                    <label className="flex items-center gap-2 text-sm text-gray-600">
-                        <input
-                            type="checkbox"
-                            checked={showDwarfCampaigns}
-                            onChange={(e) => setShowDwarfCampaigns(e.target.checked)}
-                            className="rounded border-gray-300"
-                        />
-                        Show Dwarf Campaigns
-                    </label>
+                    <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-2 text-sm text-gray-600">
+                            <input
+                                type="checkbox"
+                                checked={showChildCampaigns}
+                                onChange={(e) => setShowChildCampaigns(e.target.checked)}
+                                className="rounded border-gray-300"
+                            />
+                            Show Child Campaigns
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-600">
+                            <input
+                                type="checkbox"
+                                checked={showDwarfCampaigns}
+                                onChange={(e) => setShowDwarfCampaigns(e.target.checked)}
+                                className="rounded border-gray-300"
+                            />
+                            Show Line Items
+                        </label>
+                    </div>
                 )}
             </div>
 
@@ -248,9 +274,9 @@ export default function CampaignPlannerPage() {
                     onCreateChild={(childData) => {
                         if (typeof childData === 'string') {
                             // Legacy support - just parentCampaignId string
-                            setShowCreateChild({ parentCampaignId: childData, isDwarf: false });
+                            setShowCreateChild({ parentCampaignId: childData, isLineItem: false });
                         } else {
-                            // New format - object with parentCampaignId and isDwarf
+                            // New format - object with parentCampaignId and isLineItem
                             setShowCreateChild(childData);
                         }
                     }}
@@ -297,7 +323,7 @@ export default function CampaignPlannerPage() {
                     onCreate={handleCreateChildCampaign}
                     parentCampaignId={typeof showCreateChild === 'string' ? showCreateChild : showCreateChild.parentCampaignId}
                     customerId={customerId}
-                    isDwarf={typeof showCreateChild === 'object' ? showCreateChild.isDwarf : false}
+                    isLineItem={typeof showCreateChild === 'object' ? showCreateChild.isDwarf : false}
                 />
             )}
             {viewParentCampaign && (
@@ -307,6 +333,10 @@ export default function CampaignPlannerPage() {
                     campaign={viewParentCampaign}
                     childCampaigns={getChildCampaignsForParent(viewParentCampaign._id || viewParentCampaign.id)}
                     onDelete={handleDeleteChildCampaign}
+                    onViewChild={(campaign) => {
+                        setViewParentCampaign(null); // Close parent modal
+                        setViewCampaign(campaign); // Open child modal
+                    }}
                 />
             )}
             <ViewCampaignModal
@@ -319,6 +349,10 @@ export default function CampaignPlannerPage() {
                 onRefresh={fetchCampaigns}
                 onCreateCampaign={handleCreateChildCampaign}
                 onDelete={deleteCampaign}
+                onViewParent={(campaign) => {
+                    setViewCampaign(null); // Close child modal
+                    setViewParentCampaign(campaign); // Open parent modal
+                }}
             />
         </div>
     );

@@ -16,13 +16,15 @@ const SERVICE_COLORS = {
     "SEO": "#fed7aa", // light orange
 };
 
-export default function ParentCampaignsList({ 
-    campaigns, 
-    onViewDetails, 
+export default function ParentCampaignsList({
+    campaigns,
+    onViewDetails,
     onCreateChild,
-    customerId 
+    customerId
 }) {
     const [expandedParents, setExpandedParents] = useState({});
+    const [sortBy, setSortBy] = useState('name'); // 'name', 'startDate', 'endDate'
+    const [sortOrder, setSortOrder] = useState('asc'); // 'asc', 'desc'
 
     // Separate campaigns by level
     const parentCampaigns = campaigns.filter(c => c.campaignLevel === "parent" || (!c.campaignLevel && !c.parentCampaignId));
@@ -76,11 +78,58 @@ export default function ParentCampaignsList({
         return new Intl.NumberFormat('da-DK', { style: 'currency', currency: 'DKK' }).format(amount);
     };
 
+    // Sort parent campaigns
+    const sortedParentCampaigns = [...parentCampaigns].sort((a, b) => {
+        let aValue, bValue;
+
+        switch (sortBy) {
+            case 'startDate':
+                aValue = a.startDate ? new Date(a.startDate) : new Date(0);
+                bValue = b.startDate ? new Date(b.startDate) : new Date(0);
+                break;
+            case 'endDate':
+                aValue = a.endDate ? new Date(a.endDate) : new Date(0);
+                bValue = b.endDate ? new Date(b.endDate) : new Date(0);
+                break;
+            case 'name':
+            default:
+                aValue = a.campaignName || '';
+                bValue = b.campaignName || '';
+                break;
+        }
+
+        if (sortOrder === 'asc') {
+            return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+        } else {
+            return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+        }
+    });
+
     return (
         <div className="w-full">
             <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                    <h3 className="text-lg font-semibold text-gray-900">Parent Campaigns</h3>
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-gray-900">Parent Campaigns</h3>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600">Sort by:</span>
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value)}
+                                className="text-sm border border-gray-300 rounded px-2 py-1"
+                            >
+                                <option value="name">Name</option>
+                                <option value="startDate">Start Date</option>
+                                <option value="endDate">End Date</option>
+                            </select>
+                            <button
+                                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                                className="text-sm border border-gray-300 rounded px-2 py-1 hover:bg-gray-100"
+                            >
+                                {sortOrder === 'asc' ? '↑' : '↓'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div className="divide-y divide-gray-200">
                     {parentCampaigns.length === 0 ? (
@@ -88,7 +137,7 @@ export default function ParentCampaignsList({
                             No parent campaigns found. Create one to get started.
                         </div>
                     ) : (
-                        parentCampaigns.map((parent) => {
+                        sortedParentCampaigns.map((parent) => {
                             const isExpanded = expandedParents[parent._id];
                             const children = getChildrenForParent(parent._id);
                             
@@ -107,7 +156,12 @@ export default function ParentCampaignsList({
                                             )}
                                             <div className="flex-1">
                                                 <div className="mb-1">
-                                                    <h4 className="font-semibold text-gray-900 text-base">{parent.campaignName}</h4>
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="font-semibold text-gray-900 text-base cursor-pointer hover:text-blue-600 transition-colors" onClick={(e) => { e.stopPropagation(); onViewDetails(parent); }} title="Click to view campaign details">{parent.campaignName}</h4>
+                                                        <svg className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-500 transition-colors" onClick={(e) => { e.stopPropagation(); onViewDetails(parent); }} title="Click to view campaign details" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                        </svg>
+                                                    </div>
                                                 </div>
                                                 <div className="flex items-center gap-4 text-sm text-gray-800">
                                                     <span>Services: {parent.services?.join(", ") || "N/A"}</span>
@@ -248,7 +302,7 @@ export default function ParentCampaignsList({
                                                                                 className="px-3 py-1.5 text-xs bg-gray-300 text-gray-700 hover:bg-gray-300 rounded flex items-center gap-1 transition-colors"
                                                                             >
                                                                                 <FiPlus size={12} />
-                                                                                Add Dwarf
+                                                                                Add Line Item
                                                                             </button>
                                                                         </div>
                                                                     </div>
@@ -259,7 +313,7 @@ export default function ParentCampaignsList({
                                                                             <div className="ml-4 space-y-0.5">
                                                                                 {dwarfs.map((dwarf) => (
                                                                                     <div key={dwarf._id} className="text-xs text-gray-800 bg-white px-2 py-2 rounded">
-                                                                                        ㄴ {dwarf.campaignName}
+                                                                                        • {dwarf.campaignName}
                                                                                     </div>
                                                                                 ))}
                                                                             </div>

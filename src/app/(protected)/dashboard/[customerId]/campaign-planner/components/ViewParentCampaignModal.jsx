@@ -9,7 +9,7 @@ const CLICKUP_TO_CAMPAIGN_SERVICES = {
     "55b3e92d-5972-4246-8160-73d7ba04401a": "Email Marketing", // EM
 };
 
-export default function ViewParentCampaignModal({ open, onClose, campaign, childCampaigns = [], onDelete }) {
+export default function ViewParentCampaignModal({ open, onClose, campaign, childCampaigns = [], onDelete, onViewChild }) {
     const [clickupUsers, setClickupUsers] = useState([]);
     const [loadingUsers, setLoadingUsers] = useState(false);
 
@@ -236,18 +236,25 @@ export default function ViewParentCampaignModal({ open, onClose, campaign, child
                                     return (
                                         <div
                                             key={child._id}
-                                            className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                                            className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group"
+                                            onClick={() => onViewChild && onViewChild(child)}
+                                            title="Click to view campaign details"
                                         >
                                             <div className="flex items-start justify-between mb-2">
-                                                <h4 className="font-semibold text-gray-900 text-sm">{child.campaignName}</h4>
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                    <h4 className="font-semibold text-gray-900 text-sm group-hover:text-blue-600 transition-colors truncate">{child.campaignName}</h4>
+                                                    <svg className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                    </svg>
+                                                </div>
+                                                <div className="flex items-center gap-2 flex-shrink-0">
                                                     <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(child.status)}`}>
                                                         {child.status}
                                                     </span>
                                                     {onDelete && (
                                                         <button
                                                             onClick={async () => {
-                                                                if (window.confirm(`Are you sure you want to delete "${child.campaignName}"? This will also delete any related dwarf campaigns.`)) {
+                                                                if (window.confirm(`Are you sure you want to delete "${child.campaignName}"? This will also delete any related line items.`)) {
                                                                     try {
                                                                         await onDelete(child._id || child.id);
                                                                     } catch (error) {

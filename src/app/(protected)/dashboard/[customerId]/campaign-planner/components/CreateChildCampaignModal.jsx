@@ -17,13 +17,13 @@ const CLICKUP_TO_CAMPAIGN_SERVICES = {
     "55b3e92d-5972-4246-8160-73d7ba04401a": "Email Marketing", // EM
 };
 
-export default function CreateChildCampaignModal({ 
-    open, 
-    onClose, 
-    onCreate, 
-    parentCampaignId, 
+export default function CreateChildCampaignModal({
+    open,
+    onClose,
+    onCreate,
+    parentCampaignId,
     customerId,
-    isDwarf = false // If true, creates a dwarf campaign (child of a child)
+    isLineItem = false // If true, creates a line item (child of a child)
 }) {
     const [form, setForm] = useState({
         campaignName: "",
@@ -77,7 +77,7 @@ export default function CreateChildCampaignModal({
                     ? parentCampaignId 
                     : (parentCampaignId?._id || parentCampaignId?.toString() || '');
                 
-                console.log("Fetching parent campaign data, parentCampaignId:", parentId, "isDwarf:", isDwarf);
+                console.log("Fetching parent campaign data, parentCampaignId:", parentId, "isLineItem:", isLineItem);
                 
                 // Fetch all campaigns
                 const response = await fetch(`/api/campaigns/${customerId}`);
@@ -86,7 +86,7 @@ export default function CreateChildCampaignModal({
                     
                     let parent = null;
                     
-                    if (isDwarf) {
+                    if (isLineItem) {
                         // For dwarf campaigns, parentCampaignId is actually a child campaign ID
                         // We need to find the child campaign, then get its parent campaign
                         const childCampaign = campaigns.find(c => 
@@ -102,7 +102,7 @@ export default function CreateChildCampaignModal({
                                  c.id === childCampaign.parentCampaignId) &&
                                 (c.campaignLevel === "parent" || (!c.campaignLevel && !c.parentCampaignId))
                             );
-                            console.log("Dwarf: Found child campaign:", childCampaign, "Found parent:", parent);
+                            console.log("Line Item: Found child campaign:", childCampaign, "Found parent:", parent);
                         }
                     } else {
                         // For child campaigns, parentCampaignId is the parent campaign ID
@@ -196,7 +196,7 @@ export default function CreateChildCampaignModal({
         const childCampaign = {
             customerId,
             parentCampaignId: parentId,
-            campaignLevel: isDwarf ? "dwarf" : "child",
+            campaignLevel: isLineItem ? "dwarf" : "child",
             campaignName: form.campaignName,
             service: form.service,
             media: form.media,
@@ -283,7 +283,7 @@ export default function CreateChildCampaignModal({
                     <FiX size={24} />
                 </button>
                 <h2 className="text-xl font-bold mb-6 text-gray-900">
-                    Create {isDwarf ? "Dwarf" : "Child"} Campaign
+                    Create {isLineItem ? "Line Item" : "Child"} Campaign
                 </h2>
                 {loadingParent && (
                     <div className="mb-4 text-sm text-gray-500">Loading parent campaign data...</div>
@@ -300,8 +300,8 @@ export default function CreateChildCampaignModal({
                         />
                     </div>
 
-                    {/* For dwarf campaigns, only show: Name, Date, Media, Format, Link to material */}
-                    {!isDwarf && (
+                    {/* For line items, only show: Name, Date, Media, Format, Link to material */}
+                    {!isLineItem && (
                         <>
                             <div>
                                 <FormLabel htmlFor="service" required>Service</FormLabel>
@@ -353,7 +353,7 @@ export default function CreateChildCampaignModal({
                         </select>
                     </div>
 
-                    {!isDwarf && (
+                    {!isLineItem && (
                         <>
                             <div>
                                 <FormLabel htmlFor="countryCode" required>Country Code</FormLabel>
@@ -396,7 +396,7 @@ export default function CreateChildCampaignModal({
                         />
                     </div>
 
-                    {!isDwarf && (
+                    {!isLineItem && (
                         <>
                             <div>
                                 <FormLabel htmlFor="budget" required>
@@ -559,7 +559,7 @@ export default function CreateChildCampaignModal({
                 </>
             )}
 
-            {/* Link to material - shown for both child and dwarf */}
+            {/* Link to material - shown for both child and line item */}
             <div className="md:col-span-2">
                 <FormLabel htmlFor="landingpage">Link to Material</FormLabel>
                 <FormInputText 
@@ -586,7 +586,7 @@ export default function CreateChildCampaignModal({
                             }}
                             className="px-6 py-2 rounded-lg font-semibold bg-[var(--color-primary-searchmind)] text-white hover:bg-[var(--color-primary-searchmind-lighter)] transition"
                         >
-                            Create {isDwarf ? "Dwarf" : "Child"} Campaign
+                            Create {isLineItem ? "Line Item" : "Child"} Campaign
                         </button>
                     </div>
                 </form>
