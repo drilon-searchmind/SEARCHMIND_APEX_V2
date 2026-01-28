@@ -56,8 +56,10 @@ export default function TeamMembers({ customerId }) {
             <p className="text-gray-500 mr-1">Your team</p>
             {displayMembers.map((member, idx) => {
                 const serviceInfo = serviceConfig[member.service] || { label: member.service, color: "#999" };
+                // Create unique key combining member ID and index to ensure uniqueness
+                const uniqueKey = `member-${member.id || `placeholder-${idx}`}-${idx}`;
                 return (
-                    <div key={`${member.id + idx || idx}`} className="relative group" id={`${member.id + idx || idx}`}>
+                    <div key={uniqueKey} className="relative group" id={uniqueKey}>
                         <div    
                             className="rounded-full border-2 hover:scale-105 transition-transform duration-150 flex items-center justify-center"
                             style={{

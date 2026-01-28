@@ -55,7 +55,7 @@ export async function GET(request, { params }) {
             "28b06356-6f19-4633-bfa4-416c150a562c": "Client Lead",
         };
 
-        const members = [];
+        const membersMap = new Map(); // Use Map to deduplicate by user ID
 
         if (clickupData.custom_fields) {
             clickupData.custom_fields.forEach(field => {
@@ -68,35 +68,46 @@ export async function GET(request, { params }) {
                             option => option.orderindex === field.value
                         );
                         if (matchedOption) {
-                            members.push({
-                                id: matchedOption.id,
-                                username: matchedOption.name,
-                                service: field.id,
-                                avatar: null
-                            });
+                            const userId = matchedOption.id;
+                            if (!membersMap.has(userId)) {
+                                membersMap.set(userId, {
+                                    id: userId,
+                                    username: matchedOption.name,
+                                    service: field.id,
+                                    avatar: null
+                                });
+                            }
                         }
                     } else if (Array.isArray(field.value)) {
                         // Handle array of users
                         field.value.forEach(user => {
-                            members.push({
-                                id: user.id,
-                                username: user.username,
-                                service: field.id,
-                                avatar: user.avatar || null
-                            });
+                            const userId = user.id;
+                            if (!membersMap.has(userId)) {
+                                membersMap.set(userId, {
+                                    id: userId,
+                                    username: user.username,
+                                    service: field.id,
+                                    avatar: user.avatar || null
+                                });
+                            }
                         });
                     } else {
                         // Handle single user value
-                        members.push({
-                            id: field.value,
-                            username: field.name,
-                            service: field.id,
-                            avatar: null
-                        });
+                        const userId = field.value;
+                        if (!membersMap.has(userId)) {
+                            membersMap.set(userId, {
+                                id: userId,
+                                username: field.name,
+                                service: field.id,
+                                avatar: null
+                            });
+                        }
                     }
                 }
             });
         }
+
+        const members = Array.from(membersMap.values());
 
         return Response.json({ members }, { status: 200 });
     } catch (error) {

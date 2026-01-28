@@ -71,6 +71,9 @@ export async function fetchMergedSources(settings, startDate, endDate) {
                 orders: parseInt(row.orders) || 0,
             })).sort((a, b) => a.period.localeCompare(b.period));
         } else if (customerType === 'WooCommerce' && settings.wooCommerceApiKey && settings.wooCommerceApiSecret) {
+            console.log("::: FETCHING WOOCOMMERCE DATA :::");
+            console.log("Customer:", settings.customerName || 'Unknown', "- Date range:", { startDate, endDate });
+
             // Fetch WooCommerce data
             const wooCommerceData = await fetchWooCommerceOrders(
                 settings.wooCommerceApiUrl,
@@ -80,6 +83,8 @@ export async function fetchMergedSources(settings, startDate, endDate) {
                 endDate,
                 settings.customerStoreValutaCode || 'DKK'
             );
+
+            console.log("::: WOOCOMMERCE RESULT :::", wooCommerceData.length, "days with data");
 
             // Currency conversion logic (same as Shopify)
             const fromCode = settings?.customerStoreValutaCode || 'DKK';
