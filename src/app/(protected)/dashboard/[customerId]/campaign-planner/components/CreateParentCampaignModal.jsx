@@ -34,6 +34,7 @@ export default function CreateParentCampaignModal({ open, onClose, onCreate, cus
         alwaysOn: false,
         totalBudget: "",
         comment: "",
+        messageBrief: "",
         assignedUsers: []
     });
 
@@ -258,6 +259,7 @@ export default function CreateParentCampaignModal({ open, onClose, onCreate, cus
             alwaysOn: false,
             totalBudget: "",
             comment: "",
+            messageBrief: "",
             assignedUsers: []
         });
         setBudgetAllocations({});
@@ -555,6 +557,17 @@ export default function CreateParentCampaignModal({ open, onClose, onCreate, cus
                             </div>
                         ) : null;
                     })()}
+
+                    <div>
+                        <FormLabel htmlFor="messageBrief">Message Brief (Budskab)</FormLabel>
+                        <FormInputText
+                            id="messageBrief"
+                            name="messageBrief"
+                            value={form.messageBrief}
+                            onChange={handleChange}
+                            placeholder="Enter the campaign message brief..."
+                        />
+                    </div>
 
                     <div className="md:col-span-2">
                         <FormLabel htmlFor="comment">Comment</FormLabel>

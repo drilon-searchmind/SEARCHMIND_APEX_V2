@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FiX, FiInfo, FiCalendar, FiDollarSign, FiTag, FiCheckCircle, FiAlertCircle, FiEdit2, FiUsers, FiTrash2, FiChevronDown, FiChevronRight } from "react-icons/fi";
+import { FiX, FiInfo, FiCalendar, FiDollarSign, FiTag, FiCheckCircle, FiAlertCircle, FiEdit2, FiUsers, FiTrash2, FiChevronDown, FiChevronRight, FiAlertTriangle  } from "react-icons/fi";
 import CreateChildCampaignModal from "./CreateChildCampaignModal";
 
 // Mapping ClickUp service IDs to campaign service names
@@ -17,6 +17,19 @@ export default function ViewCampaignModal({ open, onClose, campaign, campaigns =
 	const [editForm, setEditForm] = useState({});
 	const [showCreateDwarf, setShowCreateDwarf] = useState(false);
 	const [dwarfSectionExpanded, setDwarfSectionExpanded] = useState(false);
+
+	// Check if child campaign has missing required fields
+	const getMissingFieldsForChild = (campaign) => {
+		const missing = [];
+		if (!campaign.service) missing.push("Service");
+		if (!campaign.media) missing.push("Media");
+		if (!campaign.campaignFormat) missing.push("Campaign Format");
+		if (!campaign.countryCode) missing.push("Country Code");
+		if (!campaign.startDate) missing.push("Start Date");
+		if (!campaign.endDate && !campaign.alwaysOn) missing.push("End Date");
+		if (!campaign.budget) missing.push("Budget");
+		return missing;
+	};
 
 	// Helper function to get users for a campaign
 	const getCampaignUsers = (campaign) => {
@@ -311,6 +324,24 @@ export default function ViewCampaignModal({ open, onClose, campaign, campaigns =
 								<FiInfo className="text-[var(--color-primary-searchmind)]" size={18} />
 								<h3 className="text-base font-semibold text-gray-900">Campaign Information</h3>
 							</div>
+
+							{/* Missing Fields Warning */}
+							{(() => {
+								const childMissingFields = getMissingFieldsForChild(campaign);
+								return childMissingFields.length > 0 && (
+									<div className="bg-red-50 border border-red-200 rounded-lg p-3">
+										<div className="flex items-center gap-2 mb-2">
+											<FiAlertTriangle className="text-red-500" size={16} />
+											<span className="text-sm font-medium text-red-800">Missing Required Fields</span>
+										</div>
+										<ul className="text-sm text-red-700 space-y-1">
+											{childMissingFields.map((field, idx) => (
+												<li key={idx}>• {field}</li>
+											))}
+										</ul>
+									</div>
+								);
+							})()}
 
 							<div>
 								<p className="text-xs font-medium text-gray-500 mb-1">Service</p>

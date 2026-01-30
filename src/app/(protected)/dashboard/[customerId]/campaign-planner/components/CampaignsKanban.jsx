@@ -22,21 +22,29 @@ const SERVICES = ["Paid Social", "Paid Search", "Email Marketing", "SEO"];
 const MEDIA = ["META", "LinkedIn", "Pinterest", "TikTok", "YouTube", "Google", "Email", "Website", "Other"];
 const FORMATS = ["Video", "Picture", "Carousel", "Display Ad", "Search Ad", "Newsletter", "Email Flow", "Landingpage", "Collection"];
 
-export default function CampaignsKanban({ customerId, campaigns = [], onStatusChange, onViewDetails }) {
-    // Default date range: first of month to today
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const dd = String(today.getDate()).padStart(2, "0");
-    const defaultEnd = `${yyyy}-${mm}-${dd}`;
-    const defaultStart = `${yyyy}-${mm}-01`;
-    const [dateRange, setDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
-    const [search, setSearch] = useState("");
+export default function CampaignsKanban({
+    customerId,
+    campaigns = [],
+    onStatusChange,
+    onViewDetails,
+    showChildCampaigns = true,
+    showDwarfCampaigns = true,
+    dateRange,
+    setDateRange,
+    search,
+    setSearch,
+    statusFilter,
+    setStatusFilter,
+    serviceFilter,
+    setServiceFilter,
+    parentFilter,
+    setParentFilter,
+    availableStatuses,
+    availableServices,
+    parentCampaigns,
+    filterCampaigns
+}) {
     const [clickupUsers, setClickupUsers] = useState([]);
-    const [statusFilter, setStatusFilter] = useState("");
-    const [serviceFilter, setServiceFilter] = useState("");
-    const [parentFilter, setParentFilter] = useState("");
-    const [formatFilter, setFormatFilter] = useState("");
     const [viewMode, setViewMode] = useState("full"); // "full" or "compact"
 
     // Helper function to get users for a campaign
@@ -70,40 +78,22 @@ export default function CampaignsKanban({ customerId, campaigns = [], onStatusCh
         fetchClickupUsers();
     }, [customerId]);
 
-    // Filter campaigns by customer, date range, search, and filters
+    // Filter campaigns using shared filter function and toggle filters
     const filteredCampaigns = useMemo(() => {
-        return campaigns.filter((c) => {
-            // Search filter
-            if (search && !String(c.campaignName || "").toLowerCase().includes(search.toLowerCase())) return false;
+        let filtered = filterCampaigns(campaigns);
 
-            // Status filter
-            if (statusFilter && c.status !== statusFilter) return false;
+        // Apply toggle filters
+        if (!showChildCampaigns) {
+            filtered = filtered.filter(c => c.campaignLevel !== "child");
+        }
 
-            // Service filter
-            if (serviceFilter && c.service !== serviceFilter) return false;
+        if (!showDwarfCampaigns) {
+            filtered = filtered.filter(c => c.campaignLevel !== "dwarf");
+        }
 
-            // Parent campaign filter
-            if (parentFilter && c.parentCampaignId !== parentFilter) return false;
+        return filtered;
+    }, [filterCampaigns, campaigns, showChildCampaigns, showDwarfCampaigns]);
 
-            // Format filter
-            if (formatFilter && c.campaignFormat !== formatFilter) return false;
-
-            // Date range filter - only show campaigns that overlap with selected date range
-            const campaignStart = c.startDate ? new Date(c.startDate) : null;
-            const campaignEnd = c.endDate ? new Date(c.endDate) : null;
-            const rangeStart = new Date(dateRange.startDate);
-            const rangeEnd = new Date(dateRange.endDate);
-            return (
-                (!campaignStart || campaignEnd >= rangeStart) &&
-                (!campaignEnd || campaignStart <= rangeEnd)
-            );
-        });
-    }, [campaigns, dateRange, search, statusFilter, serviceFilter, parentFilter, formatFilter]);
-
-    // Get parent campaigns for filtering
-    const parentCampaigns = useMemo(() => {
-        return campaigns.filter(c => c.campaignLevel === "parent" || (!c.campaignLevel && !c.parentCampaignId && c.services));
-    }, [campaigns]);
 
     // Group campaigns by status
     const campaignsByStatus = useMemo(() => {
@@ -132,71 +122,10 @@ export default function CampaignsKanban({ customerId, campaigns = [], onStatusCh
 
     return (
         <div className="w-full bg-white border border-gray-200 rounded-xl p-6">
-            <div className="flex flex-wrap gap-4 mb-4 items-center">
-                <DateRangePicker
-                    startDate={dateRange.startDate}
-                    endDate={dateRange.endDate}
-                    onStartDateChange={(d) => setDateRange((r) => ({ ...r, startDate: d }))}
-                    onEndDateChange={(d) => setDateRange((r) => ({ ...r, endDate: d }))}
-                />
-                <input
-                    type="text"
-                    placeholder="Search campaign name..."
-                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)]"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                />
-                <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)]"
-                >
-                    <option value="">All Statuses</option>
-                    {CAMPAIGN_STATUSES.map((status) => (
-                        <option key={status} value={status}>
-                            {status}
-                        </option>
-                    ))}
-                </select>
-                <select
-                    value={serviceFilter}
-                    onChange={(e) => setServiceFilter(e.target.value)}
-                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)]"
-                >
-                    <option value="">All Services</option>
-                    {SERVICES.map((service) => (
-                        <option key={service} value={service}>
-                            {service}
-                        </option>
-                    ))}
-                </select>
-                <select
-                    value={parentFilter}
-                    onChange={(e) => setParentFilter(e.target.value)}
-                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)]"
-                >
-                    <option value="">All Parent Campaigns</option>
-                    {parentCampaigns.map((parent) => (
-                        <option key={parent._id || parent.id} value={parent._id || parent.id}>
-                            {parent.campaignName}
-                        </option>
-                    ))}
-                </select>
-                <select
-                    value={formatFilter}
-                    onChange={(e) => setFormatFilter(e.target.value)}
-                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)]"
-                >
-                    <option value="">All Formats</option>
-                    {FORMATS.map((format) => (
-                        <option key={format} value={format}>
-                            {format}
-                        </option>
-                    ))}
-                </select>
-
-                {/* View Mode Toggle */}
-                <div className="flex items-center gap-2 ml-auto">
+            {/* View Mode Toggle */}
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">Child Campaigns Overview</h3>
+            <div className="flex items-center justify-end mb-4">
+                <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-600">View:</span>
                     <div className="flex bg-gray-100 rounded-lg p-1">
                         <button
@@ -247,17 +176,15 @@ export default function CampaignsKanban({ customerId, campaigns = [], onStatusCh
                                                             ref={provided.innerRef}
                                                             {...provided.draggableProps}
                                                             {...provided.dragHandleProps}
-                                                            className={`bg-gray-50 border border-gray-200 rounded-lg p-2 mb-1 flex items-center gap-2 shadow-xs transition-all transition-shadow duration-150 cursor-pointer hover:bg-gray-100 ${snapshot.isDragging ? 'shadow-lg rotate-5' : ''}`}
+                                                            className={`border border-gray-200 rounded-lg p-2 mb-1 flex items-center gap-2 shadow-xs transition-all transition-shadow duration-150 cursor-pointer hover:bg-gray-100 ${snapshot.isDragging ? 'shadow-lg rotate-5' : ''}`}
                                                             onClick={() => onViewDetails && onViewDetails(c)}
                                                         >
-                                                            <div className="flex-1 min-w-0">
+                                                            <div 
+                                                                style={{ backgroundColor: SERVICE_COLORS[c.service] || '#6b7280' }}
+                                                                className="flex-1 min-w-0 rounded-lg p-2">
                                                                 <div className="font-semibold text-sm text-gray-900 truncate">{c.campaignName}</div>
                                                                 <div className="flex items-center gap-2 text-xs text-gray-700">
                                                                     <div className="flex items-center gap-1">
-                                                                        <div
-                                                                            className="w-2 h-2 rounded-full"
-                                                                            style={{ backgroundColor: SERVICE_COLORS[c.service] || '#6b7280' }}
-                                                                        ></div>
                                                                         <span>{c.service}</span>
                                                                     </div>
                                                                     {c.budget && (
@@ -313,18 +240,15 @@ export default function CampaignsKanban({ customerId, campaigns = [], onStatusCh
                                                             ref={provided.innerRef}
                                                             {...provided.draggableProps}
                                                             {...provided.dragHandleProps}
-                                                            className={`bg-gray-50 border border-gray-200 rounded-lg p-3 mb-2 flex flex-col gap-1 shadow-xs transition-all transition-shadow duration-150 ${snapshot.isDragging ? 'shadow-lg rotate-5' : ''}`}
+                                                            className={`cursor-pointer bg-gray-50 border border-gray-200 rounded-lg p-3 mb-2 flex flex-col gap-1 shadow-xs transition-all transition-shadow duration-150 ${snapshot.isDragging ? 'shadow-lg rotate-5' : ''}`}
                                                         >
-                                                            <div className="flex items-center justify-between">
+                                                            <div 
+                                                            
+                                                                style={{ backgroundColor: SERVICE_COLORS[c.service] || '#000' }}
+                                                                className="flex items-center justify-between rounded-lg p-2">
                                                                 <div className="flex items-center gap-2">
-                                                                    <div
-                                                                        className="w-2 h-2 rounded-full"
-                                                                        style={{ backgroundColor: SERVICE_COLORS[c.service] || '#6b7280' }}
-                                                                        title={c.service}
-                                                                    ></div>
-                                                                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{c.media}</span>
+                                                                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{c.service}</span>
                                                                 </div>
-                                                                <span className="text-xs text-gray-500">{c.campaignFormat}</span>
                                                             </div>
                                                             <div className="font-bold text-base text-gray-900">{c.campaignName}</div>
                                                             <div className="flex flex-wrap gap-2 text-xs text-gray-800">
@@ -385,7 +309,7 @@ export default function CampaignsKanban({ customerId, campaigns = [], onStatusCh
                                                                     <span className="text-xs text-gray-700">{c.endDate ? new Date(c.endDate).toLocaleDateString('da-DK') : '-'}</span>
                                                                 </div>
                                                                 <button
-                                                                    className="text-xs text-[var(--color-primary-searchmind)] font-semibold hover:underline bg-gray-200 px-2 py-1 rounded"
+                                                                    className="text-xs bg-[var(--color-primary-searchmind)] font-semibold hover:underline text-white px-2 py-1 rounded"
                                                                     onClick={() => onViewDetails && onViewDetails(c)}
                                                                 >
                                                                     View details

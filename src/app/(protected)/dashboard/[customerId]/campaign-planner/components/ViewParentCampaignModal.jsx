@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FiX, FiInfo, FiCalendar, FiDollarSign, FiUsers, FiTrash2 } from "react-icons/fi";
+import { FiX, FiInfo, FiCalendar, FiDollarSign, FiUsers, FiTrash2, FiAlertTriangle } from "react-icons/fi";
 
 // Mapping ClickUp service IDs to campaign service names
 const CLICKUP_TO_CAMPAIGN_SERVICES = {
@@ -14,6 +14,20 @@ export default function ViewParentCampaignModal({ open, onClose, campaign, child
     const [loadingUsers, setLoadingUsers] = useState(false);
 
     if (!open || !campaign) return null;
+
+    // Check if parent campaign has missing required fields
+    const getMissingFieldsForParent = (campaign) => {
+        const missing = [];
+        if (!campaign.campaignName) missing.push("Campaign Name");
+        if (!campaign.services || campaign.services.length === 0) missing.push("Services");
+        if (!campaign.countryCode) missing.push("Country Code");
+        if (!campaign.totalBudget) missing.push("Total Budget");
+        if (!campaign.startDate) missing.push("Start Date");
+        if (!campaign.endDate && !campaign.alwaysOn) missing.push("End Date");
+        return missing;
+    };
+
+    const parentMissingFields = getMissingFieldsForParent(campaign);
 
     // Fetch ClickUp users when modal opens
     useEffect(() => {
@@ -89,6 +103,21 @@ export default function ViewParentCampaignModal({ open, onClose, campaign, child
                                 <FiInfo className="text-[var(--color-primary-searchmind)]" size={18} />
                                 <h3 className="text-base font-semibold text-gray-900">Campaign Information</h3>
                             </div>
+
+                            {/* Missing Fields Warning */}
+                            {parentMissingFields.length > 0 && (
+                                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <FiAlertTriangle className="text-red-500" size={16} />
+                                        <span className="text-sm font-medium text-red-800">Missing Required Fields</span>
+                                    </div>
+                                    <ul className="text-sm text-red-700 space-y-1">
+                                        {parentMissingFields.map((field, idx) => (
+                                            <li key={idx}>• {field}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
 
                             <div>
                                 <p className="text-xs font-medium text-gray-500 mb-1">Campaign Name</p>

@@ -3,6 +3,7 @@
 
 import React, { useState } from "react";
 import useCampaigns from "./hooks/useCampaigns";
+import useCampaignFilters from "./hooks/useCampaignFilters";
 import { useParams } from "next/navigation";
 import { useUser } from "@/contexts/UserContext";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
@@ -28,10 +29,9 @@ export default function CampaignPlannerPage() {
     const [viewCampaign, setViewCampaign] = useState(null);
     const [viewParentCampaign, setViewParentCampaign] = useState(null);
     const user = useUser();
-    // View options for toggling between Parent Campaigns, Overview, Calendar, and Gantt
+    // View options for toggling between Overview, Calendar, and Gantt
     const viewOptions = [
         { label: "Overview", value: "parents" },
-        { label: "Kanban", value: "kanban" },
         { label: "Calendar", value: "calendar" },
         { label: "Gantt", value: "gantt" },
     ];
@@ -46,6 +46,10 @@ export default function CampaignPlannerPage() {
         deleteCampaign,
         fetchCampaigns,
     } = useCampaigns(customerId);
+
+    // Shared filter state
+    const campaignFilters = useCampaignFilters(campaigns);
+
     const [showCreateParent, setShowCreateParent] = useState(false);
     const [showCreateChild, setShowCreateChild] = useState(null);
     const [view, setView] = useState("parents");
@@ -261,27 +265,44 @@ export default function CampaignPlannerPage() {
             </div>
 
             {view === "parents" && (
-                <ParentCampaignsList
-                    campaigns={campaigns}
-                    onViewDetails={(campaign) => {
-                        // Check if it's a parent campaign
-                        if (campaign.campaignLevel === "parent" || (!campaign.campaignLevel && !campaign.parentCampaignId && campaign.services)) {
-                            setViewParentCampaign(campaign);
-                        } else {
-                            setViewCampaign(campaign);
-                        }
-                    }}
-                    onCreateChild={(childData) => {
-                        if (typeof childData === 'string') {
-                            // Legacy support - just parentCampaignId string
-                            setShowCreateChild({ parentCampaignId: childData, isLineItem: false });
-                        } else {
-                            // New format - object with parentCampaignId and isLineItem
-                            setShowCreateChild(childData);
-                        }
-                    }}
-                    customerId={customerId}
-                />
+                <div className="space-y-8">
+                    {/* Parent Campaigns List */}
+                    <ParentCampaignsList
+                        campaigns={campaigns}
+                        onViewDetails={(campaign) => {
+                            // Check if it's a parent campaign
+                            if (campaign.campaignLevel === "parent" || (!campaign.campaignLevel && !campaign.parentCampaignId && campaign.services)) {
+                                setViewParentCampaign(campaign);
+                            } else {
+                                setViewCampaign(campaign);
+                            }
+                        }}
+                        onCreateChild={(childData) => {
+                            if (typeof childData === 'string') {
+                                // Legacy support - just parentCampaignId string
+                                setShowCreateChild({ parentCampaignId: childData, isLineItem: false });
+                            } else {
+                                // New format - object with parentCampaignId and isLineItem
+                                setShowCreateChild(childData);
+                            }
+                        }}
+                        customerId={customerId}
+                        {...campaignFilters}
+                    />
+
+                    {/* Child Campaigns Kanban Board */}
+                    <div className="mt-8">
+                        <CampaignsKanban
+                            customerId={customerId}
+                            campaigns={campaigns}
+                            onStatusChange={handleStatusChange}
+                            onViewDetails={setViewCampaign}
+                            showChildCampaigns={showChildCampaigns}
+                            showDwarfCampaigns={showDwarfCampaigns}
+                            {...campaignFilters}
+                        />
+                    </div>
+                </div>
             )}
             {view === "kanban" && (
                 <div className="space-y-6">
@@ -289,9 +310,12 @@ export default function CampaignPlannerPage() {
                     <div>
                         <CampaignsKanban
                             customerId={customerId}
-                            campaigns={getFilteredCampaigns()}
+                            campaigns={campaigns}
                             onStatusChange={handleStatusChange}
                             onViewDetails={setViewCampaign}
+                            showChildCampaigns={showChildCampaigns}
+                            showDwarfCampaigns={showDwarfCampaigns}
+                            {...campaignFilters}
                         />
                     </div>
                 </div>
