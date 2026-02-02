@@ -238,7 +238,9 @@ export default function CreateParentCampaignModal({ open, onClose, onCreate, cus
             alwaysOn: form.alwaysOn,
             totalBudget: form.totalBudget ? Number(form.totalBudget) : null,
             comment: form.comment,
+            messageBrief: form.messageBrief,
             budgetAllocations: budgetAllocations, // Include budget allocations
+            assignedUsers: form.assignedUsers, // Include assigned users
             // No status for parent campaigns
         };
         
@@ -467,6 +469,18 @@ export default function CreateParentCampaignModal({ open, onClose, onCreate, cus
                         />
                     </div>
 
+                    <div className="flex items-center gap-2 md:col-span-2">
+                        <input
+                            id="alwaysOn"
+                            type="checkbox"
+                            name="alwaysOn"
+                            checked={form.alwaysOn}
+                            onChange={handleChange}
+                            className="rounded border-gray-300"
+                        />
+                        <FormLabel htmlFor="alwaysOn">Always On</FormLabel>
+                    </div>
+
                     <div>
                         <FormLabel htmlFor="countryCode">Country Code</FormLabel>
                         <FormInputText
@@ -487,18 +501,6 @@ export default function CreateParentCampaignModal({ open, onClose, onCreate, cus
                             onChange={handleChange}
                             min="0"
                         />
-                    </div>
-
-                    <div className="md:col-span-2 flex items-center gap-2">
-                        <input
-                            id="alwaysOn"
-                            type="checkbox"
-                            name="alwaysOn"
-                            checked={form.alwaysOn}
-                            onChange={handleChange}
-                            className="rounded border-gray-300"
-                        />
-                        <FormLabel htmlFor="alwaysOn">Always On</FormLabel>
                     </div>
 
                     {/* Budget Allocation Sliders */}
@@ -559,7 +561,7 @@ export default function CreateParentCampaignModal({ open, onClose, onCreate, cus
                     })()}
 
                     <div>
-                        <FormLabel htmlFor="messageBrief">Message Brief (Budskab)</FormLabel>
+                        <FormLabel htmlFor="messageBrief">Message Brief</FormLabel>
                         <FormInputText
                             id="messageBrief"
                             name="messageBrief"

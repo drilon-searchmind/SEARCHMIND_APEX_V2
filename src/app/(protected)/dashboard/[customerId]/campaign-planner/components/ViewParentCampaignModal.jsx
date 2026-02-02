@@ -219,6 +219,15 @@ export default function ViewParentCampaignModal({ open, onClose, campaign, child
                             </div>
 
                             <div>
+                                <p className="text-xs font-medium text-gray-500 mb-1">Message Brief</p>
+                                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 mt-1">
+                                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                                        {campaign.messageBrief || "No message brief"}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div>
                                 <p className="text-xs font-medium text-gray-500 mb-1">Comment</p>
                                 <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 mt-1">
                                     <p className="text-sm text-gray-700 whitespace-pre-wrap">

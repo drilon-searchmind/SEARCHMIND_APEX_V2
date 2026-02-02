@@ -163,7 +163,7 @@ export default function CampaignsKanban({
     return (
         <div className="w-full bg-white border border-gray-200 rounded-xl p-6">
             {/* View Mode Toggle */}
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Child Campaigns Overview</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">Campaign Workflow</h3>
             <div className="flex items-center justify-end mb-4">
                 <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-600">View:</span>

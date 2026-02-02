@@ -5,13 +5,13 @@ async function createUser() {
     await connectToDatabase();
 
     const newUser = new User({
-        name: 'John Doe',
-        email: 'johndoe@example.com',
+        name: 'Searchmind External Test Dev',
+        email: 'searchmindexternaltestdev@gmail.com',
         password: 'securepassword', // In a real-world app, hash the password before saving
-        image: 'https://example.com/image.jpg',
+        image: '',
         isAdmin: false,
         isArchived: false,
-        isExternal: false,
+        isExternal: true,
     });
 
     try {

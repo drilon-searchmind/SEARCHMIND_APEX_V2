@@ -78,6 +78,8 @@ export default function ViewCampaignModal({ open, onClose, campaign, campaigns =
 			service: campaign.service || "",
 			media: campaign.media || "",
 			campaignFormat: campaign.campaignFormat || "",
+			campaignType: campaign.campaignType || "",
+			b2bOrB2c: campaign.b2bOrB2c || "",
 			budget: campaign.budget || "",
 			status: campaign.status || "Pending",
 			landingpage: campaign.landingpage || "",
@@ -409,12 +411,41 @@ export default function ViewCampaignModal({ open, onClose, campaign, campaigns =
 
 							<div>
 								<p className="text-xs font-medium text-gray-500 mb-1">Campaign Type</p>
-								<p className="text-sm text-gray-700">{campaign.campaignType}</p>
+								{isEditing ? (
+									<select
+										value={editForm.campaignType || ""}
+										onChange={(e) => setEditForm({...editForm, campaignType: e.target.value})}
+										className="mt-1 w-full rounded-lg border px-3 py-2 text-sm border-gray-300"
+									>
+										<option value="">Select Campaign Type</option>
+										<option value="Brand Awareness">Brand Awareness</option>
+										<option value="Lead Generation">Lead Generation</option>
+										<option value="Sales">Sales</option>
+										<option value="Traffic">Traffic</option>
+										<option value="Engagement">Engagement</option>
+										<option value="Retention">Retention</option>
+									</select>
+								) : (
+									<p className="text-sm text-gray-700">{campaign.campaignType || "-"}</p>
+								)}
 							</div>
 
 							<div>
 								<p className="text-xs font-medium text-gray-500 mb-1">B2B or B2C</p>
-								<p className="text-sm text-gray-700">{campaign.b2bOrB2c}</p>
+								{isEditing ? (
+									<select
+										value={editForm.b2bOrB2c || ""}
+										onChange={(e) => setEditForm({...editForm, b2bOrB2c: e.target.value})}
+										className="mt-1 w-full rounded-lg border px-3 py-2 text-sm border-gray-300"
+									>
+										<option value="">Select B2B or B2C</option>
+										<option value="B2B">B2B</option>
+										<option value="B2C">B2C</option>
+										<option value="Both">Both</option>
+									</select>
+								) : (
+									<p className="text-sm text-gray-700">{campaign.b2bOrB2c || "-"}</p>
+								)}
 							</div>
 
 							<div>
@@ -424,7 +455,17 @@ export default function ViewCampaignModal({ open, onClose, campaign, campaigns =
 
 							<div>
 								<p className="text-xs font-medium text-gray-500 mb-1">Message Brief</p>
-								<p className="text-sm text-gray-700">{campaign.messageBrief || "-"}</p>
+								{isEditing ? (
+									<textarea
+										value={editForm.messageBrief || ""}
+										onChange={(e) => setEditForm({...editForm, messageBrief: e.target.value})}
+										rows={3}
+										className="mt-1 w-full rounded-lg border px-3 py-2 text-sm border-gray-300"
+										placeholder="Enter message brief..."
+									/>
+								) : (
+									<p className="text-sm text-gray-700 whitespace-pre-wrap">{campaign.messageBrief || "-"}</p>
+								)}
 							</div>
 
 							<div>
@@ -585,27 +626,77 @@ export default function ViewCampaignModal({ open, onClose, campaign, campaigns =
 
 							<div>
 								<p className="text-xs font-medium text-gray-500 mb-1">Campaign Dimensions</p>
-								<p className="text-sm text-gray-700">{campaign.campaignDimensions || "-"}</p>
+								{isEditing ? (
+									<input
+										type="text"
+										value={editForm.campaignDimensions || ""}
+										onChange={(e) => setEditForm({...editForm, campaignDimensions: e.target.value})}
+										className="mt-1 w-full rounded-lg border px-3 py-2 text-sm border-gray-300"
+										placeholder="e.g., 1080x1080, 1200x628"
+									/>
+								) : (
+									<p className="text-sm text-gray-700">{campaign.campaignDimensions || "-"}</p>
+								)}
 							</div>
 
 							<div>
 								<p className="text-xs font-medium text-gray-500 mb-1">Campaign Variation</p>
-								<p className="text-sm text-gray-700">{campaign.campaignVariation || "-"}</p>
+								{isEditing ? (
+									<input
+										type="text"
+										value={editForm.campaignVariation || ""}
+										onChange={(e) => setEditForm({...editForm, campaignVariation: e.target.value})}
+										className="mt-1 w-full rounded-lg border px-3 py-2 text-sm border-gray-300"
+										placeholder="e.g., A/B Test, Hero Image"
+									/>
+								) : (
+									<p className="text-sm text-gray-700">{campaign.campaignVariation || "-"}</p>
+								)}
 							</div>
 
 							<div>
 								<p className="text-xs font-medium text-gray-500 mb-1">Text To Creative</p>
-								<p className="text-sm text-gray-700">{campaign.campaignTextToCreative || "-"}</p>
+								{isEditing ? (
+									<textarea
+										value={editForm.campaignTextToCreative || ""}
+										onChange={(e) => setEditForm({...editForm, campaignTextToCreative: e.target.value})}
+										rows={3}
+										className="mt-1 w-full rounded-lg border px-3 py-2 text-sm border-gray-300"
+										placeholder="Creative text content..."
+									/>
+								) : (
+									<p className="text-sm text-gray-700 whitespace-pre-wrap">{campaign.campaignTextToCreative || "-"}</p>
+								)}
 							</div>
 
 							<div>
 								<p className="text-xs font-medium text-gray-500 mb-1">Text To Creative Translation</p>
-								<p className="text-sm text-gray-700">{campaign.campaignTextToCreativeTranslation || "-"}</p>
+								{isEditing ? (
+									<textarea
+										value={editForm.campaignTextToCreativeTranslation || ""}
+										onChange={(e) => setEditForm({...editForm, campaignTextToCreativeTranslation: e.target.value})}
+										rows={3}
+										className="mt-1 w-full rounded-lg border px-3 py-2 text-sm border-gray-300"
+										placeholder="Translated creative text..."
+									/>
+								) : (
+									<p className="text-sm text-gray-700 whitespace-pre-wrap">{campaign.campaignTextToCreativeTranslation || "-"}</p>
+								)}
 							</div>
 
-							<div className="bg-blue-50 rounded-lg p-4 border border-blue-200 mt-4">
+							<div className={isEditing ? "bg-blue-50 rounded-lg p-4 border border-blue-200 mt-4" : "bg-blue-50 rounded-lg p-4 border border-blue-200 mt-4"}>
 								<p className="text-xs font-medium text-blue-700 mb-2">Comment To Customer</p>
-								<p className="text-sm text-gray-700">{campaign.commentToCustomer || "No comments"}</p>
+								{isEditing ? (
+									<textarea
+										value={editForm.commentToCustomer || ""}
+										onChange={(e) => setEditForm({...editForm, commentToCustomer: e.target.value})}
+										rows={3}
+										className="w-full rounded-lg border px-3 py-2 text-sm border-blue-300 bg-white"
+										placeholder="Comments for customer..."
+									/>
+								) : (
+									<p className="text-sm text-gray-700 whitespace-pre-wrap">{campaign.commentToCustomer || "No comments"}</p>
+								)}
 							</div>
 						</div>
 					</div>
