@@ -3,5 +3,6 @@ export const CAMPAIGN_STATUSES = [
   "Pending",
   "Pending Customer Approval",
   "Approved",
-  "Live"
+  "Live",
+  "Ended"
 ];

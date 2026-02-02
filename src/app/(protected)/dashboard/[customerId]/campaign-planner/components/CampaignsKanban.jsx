@@ -82,6 +82,13 @@ export default function CampaignsKanban({
     const filteredCampaigns = useMemo(() => {
         let filtered = filterCampaigns(campaigns);
 
+        // Exclude parent campaigns from kanban board (they don't have statuses)
+        filtered = filtered.filter(c =>
+            c.campaignLevel === "child" ||
+            c.campaignLevel === "dwarf" ||
+            (!c.campaignLevel && c.parentCampaignId) // Legacy child campaigns
+        );
+
         // Apply toggle filters
         if (!showChildCampaigns) {
             filtered = filtered.filter(c => c.campaignLevel !== "child");
@@ -94,24 +101,57 @@ export default function CampaignsKanban({
         return filtered;
     }, [filterCampaigns, campaigns, showChildCampaigns, showDwarfCampaigns]);
 
+    // Separate ended campaigns from active campaigns
+    const { activeCampaigns, endedCampaigns } = useMemo(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Start of today
 
-    // Group campaigns by status
+        const active = [];
+        const ended = [];
+
+        filteredCampaigns.forEach((c) => {
+            // Check if campaign has ended (endDate is before today)
+            const endDate = c.endDate ? new Date(c.endDate) : null;
+            const hasEnded = endDate && endDate < today;
+
+            if (hasEnded && c.status !== "Ended") {
+                // Mark as ended if end date has passed and status isn't already "Ended"
+                ended.push({ ...c, status: "Ended" });
+            } else if (c.status === "Ended") {
+                // Include campaigns that are already marked as Ended
+                ended.push(c);
+            } else if (CAMPAIGN_STATUSES.includes(c.status)) {
+                // Include active campaigns with valid statuses
+                active.push(c);
+            }
+        });
+
+        return { activeCampaigns: active, endedCampaigns: ended };
+    }, [filteredCampaigns]);
+
+    // Group active campaigns by status (excluding Ended)
     const campaignsByStatus = useMemo(() => {
         const map = {};
-        CAMPAIGN_STATUSES.forEach((status) => { map[status] = []; });
-        filteredCampaigns.forEach((c) => {
-            // Only group campaigns with valid status
-            if (CAMPAIGN_STATUSES.includes(c.status)) {
+        const activeStatuses = CAMPAIGN_STATUSES.filter(status => status !== "Ended");
+        activeStatuses.forEach((status) => { map[status] = []; });
+
+        activeCampaigns.forEach((c) => {
+            if (activeStatuses.includes(c.status)) {
                 map[c.status].push(c);
             }
         });
+
         return map;
-    }, [filteredCampaigns]);
+    }, [activeCampaigns]);
 
     // Drag and drop handlers
     function onDragEnd(result) {
         const { source, destination, draggableId } = result;
         if (!destination || source.droppableId === destination.droppableId) return;
+
+        // Prevent dragging to "Ended" status - it should only be set automatically
+        if (destination.droppableId === "Ended") return;
+
         // Find campaign by _id or id
         const campaign = campaigns.find((c) => String(c._id) === draggableId || String(c.id) === draggableId);
         if (campaign && onStatusChange) {
@@ -150,8 +190,9 @@ export default function CampaignsKanban({
                 </div>
             </div>
             <DragDropContext onDragEnd={onDragEnd}>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 mt-10">
-                    {CAMPAIGN_STATUSES.map((status) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2 mt-10">
+                    {/* Active status columns (draggable) */}
+                    {CAMPAIGN_STATUSES.filter(status => status !== "Ended").map((status) => (
                         <Droppable droppableId={status} key={status}>
                             {(provided) => (
                                 <div
@@ -326,6 +367,81 @@ export default function CampaignsKanban({
                             )}
                         </Droppable>
                     ))}
+
+                    {/* Ended campaigns section (non-draggable) */}
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 min-h-[200px] flex flex-col gap-1">
+                        <div className="font-medium text-gray-900 mb-2">Ended</div>
+                        {endedCampaigns.length === 0 ? (
+                            <div className="text-gray-400 py-8 text-center">No ended campaigns</div>
+                        ) : (
+                            endedCampaigns.map((c, idx) => {
+                                const key = c._id ? String(c._id) : (c.id ? String(c.id) : `ended-campaign-${idx}`);
+                                return (
+                                    <div
+                                        key={key}
+                                        className="border border-gray-200 rounded-lg p-2 mb-1 flex items-center gap-2 shadow-xs cursor-pointer hover:bg-gray-100 bg-white"
+                                        onClick={() => onViewDetails && onViewDetails(c)}
+                                    >
+                                        <div
+                                            style={{ backgroundColor: SERVICE_COLORS[c.service] || '#6b7280' }}
+                                            className="flex-1 min-w-0 rounded-lg p-2 opacity-75"
+                                        >
+                                            <div className="font-semibold text-sm text-gray-900 truncate">{c.campaignName}</div>
+                                            <div className="flex items-center gap-2 text-xs text-gray-700">
+                                                <div className="flex items-center gap-1">
+                                                    <span>{c.service}</span>
+                                                </div>
+                                                {c.budget && (
+                                                    <>
+                                                        <span>•</span>
+                                                        <span>{c.budget.toLocaleString()} DKK</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                            {c.service && (() => {
+                                                const campaignUsers = getCampaignUsers(c);
+                                                return campaignUsers.length > 0 ? (
+                                                    <div className="flex items-center gap-1 mt-1">
+                                                        {campaignUsers
+                                                            .slice(0, 2)
+                                                            .map((userId) => {
+                                                                const user = clickupUsers.find(u => u.id === userId);
+                                                                return (
+                                                                    <div
+                                                                        key={userId}
+                                                                        className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0"
+                                                                        title={user?.username || `User ${userId.slice(-4)}`}
+                                                                    >
+                                                                        {user?.avatar ? (
+                                                                            <img
+                                                                                src={user.avatar}
+                                                                                alt={user.username}
+                                                                                className="w-4 h-4 rounded-full object-cover"
+                                                                            />
+                                                                        ) : (
+                                                                            <span className="text-xs font-medium text-white">
+                                                                                {user?.username?.charAt(0).toUpperCase() || '?'}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        {campaignUsers.length > 2 && (
+                                                            <div className="w-4 h-4 rounded-full bg-[var(--color-primary-searchmind-lighter)] flex items-center justify-center flex-shrink-0">
+                                                                <span className="text-xs font-light text-gray-50">
+                                                                    +{campaignUsers.length - 2}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : null;
+                                            })()}
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
                 </div>
             </DragDropContext>
         </div>

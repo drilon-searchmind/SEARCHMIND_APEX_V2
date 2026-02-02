@@ -172,21 +172,6 @@ export default function PaceReportPage() {
                 const bcForPace = idealSpendToDate; // b * c
                 const pace = bcForPace > 0 ? a / bcForPace : 0;
                 
-                console.log('Pace Calculation:', {
-                    'a (cost til sidste dag)': a,
-                    'b (total budget / antal dage)': b,
-                    'c (today - 1)': c,
-                    'b × c': bcForPace,
-                    'Pace = a / (b × c)': pace,
-                    'todayDayNumber': todayDayNumber,
-                    'todayStr': todayStr,
-                    'costDaily entries': costDaily.length,
-                    'costDaily[0]': costDaily[0],
-                    'costDaily[1]': costDaily[1],
-                    'lastEntry period': costDaily.length > 0 ? costDaily[costDaily.length - 1].period : 'none',
-                    'isLastEntryToday': costDaily.length > 0 ? dayjs(costDaily[costDaily.length - 1].period).isSame(todayObj, 'day') : false
-                });
-                
                 // For display purposes, also calculate actual spend including today
                 const actualSpendToDate = costDaily.length > 0 ? costDaily[costDaily.length - 1].spend : 0;
 
