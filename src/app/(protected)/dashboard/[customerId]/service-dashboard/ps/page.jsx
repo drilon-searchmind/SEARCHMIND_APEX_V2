@@ -51,12 +51,16 @@ export default function FacebookPSPage() {
     const customer = customers.find((c) => c._id === params.customerId);
 
     // Date range state
+    // Date range state
     const today = new Date();
     const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const dd = String(today.getDate()).padStart(2, "0");
-    const defaultEnd = `${yyyy}-${mm}-${dd}`;
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+
+    // If today is the 1st of the month, use 1st as both start and end
+    // Otherwise, use 1st as start and yesterday as end
+    const isFirstOfMonth = today.getDate() === 1;
     const defaultStart = `${yyyy}-${mm}-01`;
+    const defaultEnd = isFirstOfMonth ? `${yyyy}-${mm}-01` : `${yyyy}-${mm}-${String(today.getDate() - 1).padStart(2, '0')}`;
     const defaultRangeValue = { startDate: defaultStart, endDate: defaultEnd };
     const [tempRange, setTempRange] = useState(defaultRangeValue);
     const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
