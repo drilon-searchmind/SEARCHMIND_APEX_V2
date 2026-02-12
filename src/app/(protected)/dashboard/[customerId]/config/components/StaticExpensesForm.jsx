@@ -119,7 +119,7 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
 
     return (
         <form className="flex flex-col gap-4" onSubmit={e => { e.preventDefault(); }}>
-            <h5 className="text-lg font-semibold text-[var(--color-primary-searchmind)] mb-2">Static Expenses</h5>
+            <h5 className="text-lg font-semibold text-[var(--color-primary-searchmind)] mb-2">Expenses</h5>
             
             <div>
                 <FormLabel htmlFor="cogsPercentage">COGS %</FormLabel>

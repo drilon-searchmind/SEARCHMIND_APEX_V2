@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -29,7 +28,7 @@ export default function PNLPage() {
     const isFirstOfMonth = today.getDate() === 1;
     const defaultStart = `${yyyy}-${mm}-01`;
     const defaultEnd = isFirstOfMonth ? `${yyyy}-${mm}-01` : `${yyyy}-${mm}-${String(today.getDate() - 1).padStart(2, '0')}`;
-    
+
     // Separate temp (input) and applied (fetch-triggered) date ranges
     const [tempDateRange, setTempDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
     const [appliedDateRange, setAppliedDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
@@ -84,14 +83,12 @@ export default function PNLPage() {
     // ***
     // Calculations
     // ***
-    // *** FIELD: totalSales
-    // *** TYPE: Revenue Metric (Non-calculated aggregation)
-    // *** EXPLANATION: Sum of all Shopify daily revenue values for the selected period
-    // *** FORMULA: Σ(shopifyDaily[revenueType]) where revenueType is from CustomerSettings (default: 'total_sales')
-    // *** SOURCE: Aggregated from merged.shopifyDaily array
+    // *** FIELD: totalSales (calculation)
+    // *** FORMULA: Σ(shopifyDaily.net_sales) for all days in period
+    // *** NOTE: Always uses net_sales regardless of customer settings
     // ***
     let totalSales = 0, orders = 0, cogs = 0, db1 = 0, shipping = 0, transactionCosts = 0, db2 = 0;
-    
+
     // ***
     // *** FIELD: orders
     // *** TYPE: Count Metric (Non-calculated aggregation)
@@ -100,14 +97,14 @@ export default function PNLPage() {
     // *** SOURCE: Aggregated from merged.shopifyDaily array
     // ***
     let marketingSpend = 0, marketingBureau = 0, marketingTooling = 0, db3 = 0, fixedExpenses = 0, result = 0;
-    
+
     // ***
     // *** FIELD: realizedROAS, breakEvenROAS, totalCosts
     // *** TYPE: Performance Metrics (Calculated ratios)
     // *** EXPLANATION: ROAS metrics and total cost aggregation (see individual calculations below)
     // ***
     let realizedROAS = 0, breakEvenROAS = 0, totalCosts = 0;
-    
+
     // ***
     // *** FIELD: db1Pct, db2Pct, db3Pct
     // *** TYPE: Percentage Metrics (For circle charts visualization)
@@ -116,7 +113,7 @@ export default function PNLPage() {
     // *** PURPOSE: Visual representation in radial bar charts
     // ***
     let db1Pct = 0, db2Pct = 0, db3Pct = 0;
-    
+
     // ***
     // *** FIELD: days
     // *** TYPE: Period Calculation
@@ -131,22 +128,22 @@ export default function PNLPage() {
     const days = Math.floor((end - start) / msPerDay) + 1;
 
     if (merged && staticExpenses && days > 0) {
-        // Revenue type logic
-        const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
-        
+        // Revenue type logic - always use net_sales
+        const revenueType = 'net_sales';
+
         // ***
         // *** FIELD: totalSales (calculation)
         // *** FORMULA: Σ(shopifyDaily[revenueType]) for all days in period
         // *** NOTE: revenueType can be 'total_sales', 'net_sales', or other Shopify revenue field
         // ***
         totalSales = merged.shopifyDaily?.reduce((sum, d) => sum + (d[revenueType] || 0), 0) || 0;
-        
+
         // ***
         // *** FIELD: orders (calculation)
         // *** FORMULA: Σ(shopifyDaily.orders) for all days in period
         // ***
         orders = merged.shopifyDaily?.reduce((sum, d) => sum + (d.orders || 0), 0) || 0;
-        
+
         // ***
         // *** FIELD: cogs (Cost of Goods Sold)
         // *** TYPE: Calculated Cost
@@ -157,7 +154,7 @@ export default function PNLPage() {
         // ***
         const cogsPercentage = staticExpenses.cogsPercentage || 0;
         cogs = totalSales * cogsPercentage;
-        
+
         // ***
         // *** FIELD: db1 (Deckungsbeitrag 1 / Contribution Margin 1)
         // *** TYPE: Calculated Profitability Metric
@@ -166,7 +163,7 @@ export default function PNLPage() {
         // *** INTERPRETATION: Revenue remaining after direct product costs
         // ***
         db1 = totalSales - cogs;
-        
+
         // ***
         // *** FIELD: shipping
         // *** TYPE: Calculated Cost
@@ -176,7 +173,7 @@ export default function PNLPage() {
         // *** SOURCE: shippingCostPerOrder from CustomerStaticExpenses
         // ***
         shipping = orders * (staticExpenses.shippingCostPerOrder || 0);
-        
+
         // ***
         // *** FIELD: transactionCosts
         // *** TYPE: Calculated Cost
@@ -186,7 +183,7 @@ export default function PNLPage() {
         // *** SOURCE: transactionCostPercentage from CustomerStaticExpenses (stored as decimal)
         // ***
         transactionCosts = totalSales * (staticExpenses.transactionCostPercentage || 0);
-        
+
         // ***
         // *** FIELD: db2 (Deckungsbeitrag 2 / Contribution Margin 2)
         // *** TYPE: Calculated Profitability Metric
@@ -195,7 +192,7 @@ export default function PNLPage() {
         // *** INTERPRETATION: Revenue remaining after COGS and direct selling expenses
         // ***
         db2 = db1 - shipping - transactionCosts;
-        
+
         // ***
         // *** FIELD: marketingSpend
         // *** TYPE: Calculated Cost (Aggregated from multiple sources)
@@ -205,7 +202,7 @@ export default function PNLPage() {
         // *** NOTE: This is actual ad spend, not including agency/tooling costs
         // ***
         marketingSpend = (merged.facebookDaily?.reduce((sum, d) => sum + (d.spend || 0), 0) || 0) + (merged.googleDaily?.reduce((sum, d) => sum + (d.spend || 0), 0) || 0);
-        
+
         // ***
         // *** FIELD: marketingBureau
         // *** TYPE: Calculated Cost (Prorated)
@@ -216,7 +213,7 @@ export default function PNLPage() {
         // *** PURPOSE: Allocates fixed monthly costs proportionally to the selected period
         // ***
         marketingBureau = (staticExpenses.marketingBureauCost || 0) / days;
-        
+
         // ***
         // *** FIELD: marketingTooling
         // *** TYPE: Calculated Cost (Prorated)
@@ -227,7 +224,7 @@ export default function PNLPage() {
         // *** PURPOSE: Allocates fixed monthly costs proportionally to the selected period
         // ***
         marketingTooling = (staticExpenses.marketingToolingCost || 0) / days;
-        
+
         // ***
         // *** FIELD: db3 (Deckungsbeitrag 3 / Contribution Margin 3)
         // *** TYPE: Calculated Profitability Metric
@@ -237,7 +234,7 @@ export default function PNLPage() {
         // *** NOTE: Can be negative if marketing costs exceed db2
         // ***
         db3 = db2 - marketingSpend - marketingBureau - marketingTooling;
-        
+
         // ***
         // *** FIELD: fixedExpenses
         // *** TYPE: Calculated Cost (Prorated)
@@ -248,7 +245,7 @@ export default function PNLPage() {
         // *** PURPOSE: Allocates fixed monthly costs proportionally to the selected period
         // ***
         fixedExpenses = (staticExpenses.fixedExpenses || 0) / days;
-        
+
         // ***
         // *** FIELD: result (Net Profit/Loss)
         // *** TYPE: Calculated Profitability Metric (Final)
@@ -258,7 +255,7 @@ export default function PNLPage() {
         // *** NOTE: Can be negative (loss) if total costs exceed revenue
         // ***
         result = db3 - fixedExpenses;
-        
+
         // ***
         // *** FIELD: totalCosts
         // *** TYPE: Calculated Cost (Aggregation)
@@ -267,7 +264,7 @@ export default function PNLPage() {
         // *** PURPOSE: Used for break-even ROAS calculation
         // ***
         totalCosts = cogs + shipping + transactionCosts + marketingSpend + marketingBureau + marketingTooling + fixedExpenses;
-        
+
         // ***
         // *** FIELD: realizedROAS (Return on Ad Spend)
         // *** TYPE: Calculated Performance Ratio
@@ -278,7 +275,7 @@ export default function PNLPage() {
         // *** NOTE: Only calculated when marketingSpend > 0 to avoid division by zero
         // ***
         realizedROAS = marketingSpend !== 0 ? totalSales / marketingSpend : 0;
-        
+
         // ***
         // *** FIELD: breakEvenROAS
         // *** TYPE: Calculated Performance Ratio
@@ -290,7 +287,7 @@ export default function PNLPage() {
         // *** NOTE: Only calculated when marketingSpend > 0 to avoid division by zero
         // ***
         breakEvenROAS = marketingSpend !== 0 ? totalCosts / marketingSpend : 0;
-        
+
         // ***
         // *** FIELD: db1Pct, db2Pct, db3Pct (Circle chart percentages)
         // *** TYPE: Calculated Percentage Metrics
@@ -304,6 +301,24 @@ export default function PNLPage() {
         db2Pct = totalSales !== 0 ? (db2 / totalSales) * 100 : 0;
         db3Pct = totalSales !== 0 ? (db3 / totalSales) * 100 : 0;
     }
+
+    // Cost-to-sales ratio numeric values (fractions) and display strings
+    const db1CTS = totalSales ? (cogs / totalSales) : 0;
+    const db2CTS = totalSales ? ((shipping + transactionCosts) / totalSales) : 0;
+    const db3CTS = totalSales ? ((marketingSpend + marketingBureau + marketingTooling) / totalSales) : 0;
+
+    const db1CTSDisplay = totalSales ? `${(db1CTS * 100).toFixed(2)}%` : '—';
+    const db2CTSDisplay = totalSales ? `${(db2CTS * 100).toFixed(2)}%` : '—';
+    const db3CTSDisplay = totalSales ? `${(db3CTS * 100).toFixed(2)}%` : '—';
+
+    // DG-% calculations (fractions) and display strings
+    const db1DG = totalSales ? (1 - db1CTS) : 0; // 1 - DB1 CTS
+    const db2DG = totalSales ? (db1DG - db2CTS) : 0; // DB1 DG-% - DB2 CTS
+    const db3DG = totalSales ? (db2DG - db3CTS) : 0; // DB2 DG-% - DB3 CTS
+
+    const db1DGDisplay = totalSales ? `${(db1DG * 100).toFixed(2)}%` : '—';
+    const db2DGDisplay = totalSales ? `${(db2DG * 100).toFixed(2)}%` : '—';
+    const db3DGDisplay = totalSales ? `${(db3DG * 100).toFixed(2)}%` : '—';
 
     return (
         <div className="w-full">
@@ -371,7 +386,7 @@ export default function PNLPage() {
                                 <div className="flex justify-between border-b py-1 text-gray-400"><span>Taxes</span><span>-</span></div>
                                 <div className="flex justify-between border-b-2 font-bold py-1">
                                     <Tooltip content="Total sales = Gross turnover (Shopify total sales)">
-                                        <span>Total Sales ({customer?.CustomerSettings?.customerRevenueType})</span>
+                                        <span>Total Sales (net_sales)</span>
                                     </Tooltip>
                                     <span>{totalSales.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</span>
                                 </div>
@@ -390,6 +405,16 @@ export default function PNLPage() {
                                         <span>Total, DB1</span>
                                     </Tooltip>
                                     <span>{db1.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</span>
+                                </div>
+                                <div className="flex justify-between text-sm text-gray-500 mt-1 bg-gray">
+                                    <span>Cost To Sales Ratio</span>
+                                    <span>{db1CTSDisplay}</span>
+                                </div>
+                                <div className="flex justify-between text-sm text-gray-500">
+                                    <Tooltip content={`DG-% = 1 - (COGS / net_sales) — i.e. 100% - DB1 CTS`}>
+                                        <span>DG-%</span>
+                                    </Tooltip>
+                                    <span>{db1DGDisplay}</span>
                                 </div>
                             </div>
                             {/* Section 3: DB2 */}
@@ -412,6 +437,16 @@ export default function PNLPage() {
                                         <span>Total, DB2</span>
                                     </Tooltip>
                                     <span>{db2.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</span>
+                                </div>
+                                <div className="flex justify-between text-sm text-gray-500 mt-1">
+                                    <span>Cost To Sales Ratio</span>
+                                    <span>{db2CTSDisplay}</span>
+                                </div>
+                                <div className="flex justify-between text-sm text-gray-500">
+                                    <Tooltip content={`DG-% = DB1 DG-% - DB2 CTS — i.e. previous DG% minus (Shipping + Transaction Costs)/net_sales`}>
+                                        <span>DG-%</span>
+                                    </Tooltip>
+                                    <span>{db2DGDisplay}</span>
                                 </div>
                             </div>
                             {/* Section 4: DB3 */}
@@ -440,6 +475,16 @@ export default function PNLPage() {
                                         <span>Total, DB3</span>
                                     </Tooltip>
                                     <span>{db3.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</span>
+                                </div>
+                                <div className="flex justify-between text-sm text-gray-500 mt-1">
+                                    <span>Cost To Sales Ratio</span>
+                                    <span>{db3CTSDisplay}</span>
+                                </div>
+                                <div className="flex justify-between text-sm text-gray-500">
+                                    <Tooltip content={`DG-% = DB2 DG-% - DB3 CTS — i.e. previous DG% minus (Marketing Spend + Marketing Bureau + Marketing Tooling)/net_sales`}>
+                                        <span>DG-%</span>
+                                    </Tooltip>
+                                    <span>{db3DGDisplay}</span>
                                 </div>
                             </div>
                             {/* Section 5: Result */}

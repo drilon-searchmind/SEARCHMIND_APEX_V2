@@ -235,7 +235,7 @@ export default function ConfigPage() {
         },
         {
             key: 'expenses',
-            label: 'Static Expenses',
+            label: 'Expenses',
             content: <StaticExpensesForm form={form} onChange={handleChange} saving={saving} />,
         },
     ];
