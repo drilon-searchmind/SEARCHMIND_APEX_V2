@@ -18,6 +18,7 @@ export default function ConfigPage() {
         customerType: "Shopify",
         isArchived: false,
         metricPreference: "ROAS/POAS",
+        fetchCogsFromStore: false,
         customerStoreValutaCode: "DKK",
         customerClickupID: "",
         customerMetaID: "DK",
@@ -39,8 +40,11 @@ export default function ConfigPage() {
             shippingCostPerOrder: 0,
             transactionCostPercentage: 0,
             marketingBureauCost: 0,
+            marketingBureauCostLineItems: [],
             marketingToolingCost: 0,
+            marketingToolingCostLineItems: [],
             fixedExpenses: 0,
+            fixedExpensesLineItems: [],
         },
     };
 
@@ -64,6 +68,10 @@ export default function ConfigPage() {
                     CustomerStaticExpenses: {
                         ...defaultFormState.CustomerStaticExpenses,
                         ...(data.CustomerStaticExpenses || {}),
+                        // Ensure line items arrays exist
+                        marketingBureauCostLineItems: data.CustomerStaticExpenses?.marketingBureauCostLineItems || [],
+                        marketingToolingCostLineItems: data.CustomerStaticExpenses?.marketingToolingCostLineItems || [],
+                        fixedExpensesLineItems: data.CustomerStaticExpenses?.fixedExpensesLineItems || [],
                     },
                 });
                 setObjectives(data.CustomerPropertyObjectives || {});
@@ -83,7 +91,7 @@ export default function ConfigPage() {
                 ...prev,
                 CustomerStaticExpenses: {
                     ...prev.CustomerStaticExpenses,
-                    [name]: type === 'number' ? Number(value) : value
+                    [name]: type === 'number' ? Number(value) : (Array.isArray(value) ? value : value)
                 }
             }));
         } else {
@@ -108,6 +116,7 @@ export default function ConfigPage() {
                 customerType,
                 isArchived,
                 metricPreference,
+                fetchCogsFromStore,
                 customerStoreValutaCode,
                 customerClickupID,
                 customerMetaID,
@@ -126,6 +135,42 @@ export default function ConfigPage() {
                 ga4PropertyId,
                 CustomerStaticExpenses,
             } = form;
+            
+            // Calculate sums from line items and update main fields
+            const updatedExpenses = { ...CustomerStaticExpenses };
+            
+            // Filter out incomplete line items (those without names) before saving
+            const filterCompleteLineItems = (items) => {
+                if (!items || !Array.isArray(items)) return [];
+                return items.filter(item => item && item.name && item.name.trim() !== '');
+            };
+            
+            // Filter and update marketing bureau cost line items
+            updatedExpenses.marketingBureauCostLineItems = filterCompleteLineItems(updatedExpenses.marketingBureauCostLineItems || []);
+            if (updatedExpenses.marketingBureauCostLineItems.length > 0) {
+                updatedExpenses.marketingBureauCost = updatedExpenses.marketingBureauCostLineItems.reduce(
+                    (sum, item) => sum + (parseFloat(item.amount) || 0), 0
+                );
+            }
+            // If no line items but main field has value, keep it (backward compatibility)
+            
+            // Filter and update marketing tooling cost line items
+            updatedExpenses.marketingToolingCostLineItems = filterCompleteLineItems(updatedExpenses.marketingToolingCostLineItems || []);
+            if (updatedExpenses.marketingToolingCostLineItems.length > 0) {
+                updatedExpenses.marketingToolingCost = updatedExpenses.marketingToolingCostLineItems.reduce(
+                    (sum, item) => sum + (parseFloat(item.amount) || 0), 0
+                );
+            }
+            // If no line items but main field has value, keep it (backward compatibility)
+            
+            // Filter and update fixed expenses line items
+            updatedExpenses.fixedExpensesLineItems = filterCompleteLineItems(updatedExpenses.fixedExpensesLineItems || []);
+            if (updatedExpenses.fixedExpensesLineItems.length > 0) {
+                updatedExpenses.fixedExpenses = updatedExpenses.fixedExpensesLineItems.reduce(
+                    (sum, item) => sum + (parseFloat(item.amount) || 0), 0
+                );
+            }
+            // If no line items but main field has value, keep it (backward compatibility)
             const res = await fetch(`/api/customers/${customerId}`,
                 {
                     method: 'PUT',
@@ -137,6 +182,7 @@ export default function ConfigPage() {
                         isArchived,
                         CustomerSettings: {
                             metricPreference,
+                            fetchCogsFromStore,
                             customerStoreValutaCode,
                             customerClickupID,
                             customerMetaID,
@@ -154,7 +200,7 @@ export default function ConfigPage() {
                             googleSearchConsoleProperty,
                             ga4PropertyId,
                         },
-                        CustomerStaticExpenses,
+                        CustomerStaticExpenses: updatedExpenses,
                         CustomerPropertyObjectives: objectives,
                     })
                 });

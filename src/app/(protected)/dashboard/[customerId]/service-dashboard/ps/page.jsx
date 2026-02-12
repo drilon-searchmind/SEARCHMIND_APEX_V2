@@ -76,13 +76,18 @@ export default function FacebookPSPage() {
         setTempRange((dr) => ({ ...dr, endDate: newEnd }));
     };
 
+    // Comparison method state
+    const [comparisonMethod, setComparisonMethod] = useState("Last Period");
+
     // Facebook data state
-        const [fbMetricsByDate, setFbMetricsByDate] = useState([]);
-        const [fbTopCampaigns, setFbTopCampaigns] = useState([]);
-        const [fbCampaignsByDate, setFbCampaignsByDate] = useState([]);
-        const [loading, setLoading] = useState(true);
-        const [error, setError] = useState(null);
-        const [selectedMetrics, setSelectedMetrics] = useState(["conversion_value"]);
+    const [fbMetricsByDate, setFbMetricsByDate] = useState([]);
+    const [fbTopCampaigns, setFbTopCampaigns] = useState([]);
+    const [fbCampaignsByDate, setFbCampaignsByDate] = useState([]);
+    // Previous period data for comparison
+    const [fbMetricsByDatePrev, setFbMetricsByDatePrev] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [selectedMetrics, setSelectedMetrics] = useState(["conversion_value"]);
 
         // Ensure at least one metric is always selected
         useEffect(() => {
@@ -106,73 +111,178 @@ export default function FacebookPSPage() {
                 if (!facebookAdAccountId || !customerMetaID) throw new Error("Missing Facebook credentials");
                 const adAccountId = facebookAdAccountId.startsWith("act_") ? facebookAdAccountId : `act_${facebookAdAccountId}`;
 
-                // Fetch metrics from API route
-                const apiUrl = `/api/facebook-campaign-insights?adAccountId=${encodeURIComponent(adAccountId)}&customerMetaID=${encodeURIComponent(customerMetaID)}&since=${encodeURIComponent(appliedRange.startDate)}&until=${encodeURIComponent(appliedRange.endDate)}`;
-                const fbRes = await fetch(apiUrl);
+                // Calculate previous period based on comparisonMethod
+                const start = dayjs(appliedRange.startDate);
+                const end = dayjs(appliedRange.endDate);
+                const days = end.diff(start, 'day') + 1;
+
+                let prevStart, prevEnd;
+                if (comparisonMethod === "Last Year") {
+                    // Same period last year
+                    prevStart = start.subtract(1, 'year');
+                    prevEnd = end.subtract(1, 'year');
+                } else {
+                    // Last Period (previous contiguous period of same length)
+                    prevEnd = start.subtract(1, 'day');
+                    prevStart = prevEnd.subtract(days - 1, 'day');
+                }
+
+                // Fetch current and previous period data in parallel
+                const [fbRes, fbResPrev] = await Promise.all([
+                    fetch(`/api/facebook-campaign-insights?adAccountId=${encodeURIComponent(adAccountId)}&customerMetaID=${encodeURIComponent(customerMetaID)}&since=${encodeURIComponent(appliedRange.startDate)}&until=${encodeURIComponent(appliedRange.endDate)}`),
+                    fetch(`/api/facebook-campaign-insights?adAccountId=${encodeURIComponent(adAccountId)}&customerMetaID=${encodeURIComponent(customerMetaID)}&since=${encodeURIComponent(prevStart.format('YYYY-MM-DD'))}&until=${encodeURIComponent(prevEnd.format('YYYY-MM-DD'))}`)
+                ]);
+                
                 if (!fbRes.ok) throw new Error("Failed to fetch Facebook PS dashboard metrics");
                 const metrics = await fbRes.json();
                 setFbMetricsByDate(metrics.metrics_by_date || []);
                 setFbTopCampaigns(metrics.top_campaigns || []);
                 setFbCampaignsByDate(metrics.campaigns_by_date || []);
+
+                // Set previous period data (even if fetch fails, we'll just have empty array)
+                if (fbResPrev.ok) {
+                    const metricsPrev = await fbResPrev.json();
+                    setFbMetricsByDatePrev(metricsPrev.metrics_by_date || []);
+                } else {
+                    setFbMetricsByDatePrev([]);
+                }
             } catch (err) {
                 setError(err.message);
             } finally {
                 setLoading(false);
             }
         })();
-    }, [customer, appliedRange]);
+    }, [customer, appliedRange, comparisonMethod]);
+
+    // % change helpers
+    const percentChange = (current, prev) => {
+        if (prev === 0 || prev === null || prev === undefined) return null;
+        return ((current - prev) / Math.abs(prev)) * 100;
+    };
+    const changeType = (val) => {
+        if (val === null) return undefined;
+        return val > 0 ? "up" : val < 0 ? "down" : undefined;
+    };
 
     // Metrics cards (aggregate for period)
     const metrics = useMemo(() => {
         if (!fbMetricsByDate.length) return [];
-        const agg = (key) => {
+        
+        const agg = (key, data) => {
             if (key === "conversion_value") {
-                return fbMetricsByDate.reduce((sum, row) => sum + (row.conversion_value || 0), 0);
+                return data.reduce((sum, row) => sum + (row.conversion_value || 0), 0);
             }
             if (key === "conversions") {
-                return fbMetricsByDate.reduce((sum, row) => sum + (row.conversions || 0), 0);
+                return data.reduce((sum, row) => sum + (row.conversions || 0), 0);
             }
             if (key === "aov") {
-                const totalValue = fbMetricsByDate.reduce((sum, row) => sum + (row.conversion_value || 0), 0);
-                const totalConv = fbMetricsByDate.reduce((sum, row) => sum + (row.conversions || 0), 0);
+                const totalValue = data.reduce((sum, row) => sum + (row.conversion_value || 0), 0);
+                const totalConv = data.reduce((sum, row) => sum + (row.conversions || 0), 0);
                 return totalConv > 0 ? totalValue / totalConv : null;
             }
             if (key === "roas") {
-                const totalSpend = fbMetricsByDate.reduce((sum, row) => sum + (row.ad_spend || 0), 0);
-                const totalValue = fbMetricsByDate.reduce((sum, row) => sum + (row.conversion_value || 0), 0);
+                const totalSpend = data.reduce((sum, row) => sum + (row.ad_spend || 0), 0);
+                const totalValue = data.reduce((sum, row) => sum + (row.conversion_value || 0), 0);
                 return totalSpend > 0 ? totalValue / totalSpend : null;
             }
             // Default: sum
-            return fbMetricsByDate.reduce((sum, row) => sum + (row[key] || 0), 0);
+            return data.reduce((sum, row) => sum + (row[key] || 0), 0);
         };
-        return METRIC_OPTIONS.map(opt => ({
-            label: opt.label,
-            value: agg(opt.key),
-        }));
-    }, [fbMetricsByDate]);
+        
+        return METRIC_OPTIONS.map(opt => {
+            const currentValue = agg(opt.key, fbMetricsByDate);
+            const prevValue = fbMetricsByDatePrev.length > 0 ? agg(opt.key, fbMetricsByDatePrev) : null;
+            const change = percentChange(currentValue, prevValue);
+            
+            return {
+                label: opt.label,
+                value: currentValue,
+                change: change !== null ? Math.abs(change).toFixed(1) : undefined,
+                changeType: changeType(change),
+            };
+        });
+    }, [fbMetricsByDate, fbMetricsByDatePrev]);
 
     // Graph data for selected metrics
     const chartCategories = fbMetricsByDate.map(row => row.date);
-    const chartSeries = selectedMetrics.map(metricKey => {
+    
+    // Create a map for previous period data by date
+    const fbMetricsByDatePrevMap = Object.fromEntries(
+        fbMetricsByDatePrev.map(row => [row.date, row])
+    );
+
+    // Build chart series with current and previous period data
+    const chartSeries = [];
+    
+    // Add current period series
+    selectedMetrics.forEach(metricKey => {
         const metricOption = METRIC_OPTIONS.find(opt => opt.key === metricKey);
-        return {
-            name: metricOption?.label || "Metric",
-            data: fbMetricsByDate.map(row => {
+        chartSeries.push({
+            name: `${metricOption?.label || "Metric"} (Current)`,
+            data: chartCategories.map(date => {
+                const row = fbMetricsByDate.find(r => r.date === date);
+                if (!row) return null;
                 const val = row[metricKey];
                 if (typeof val === 'number' && !isNaN(val)) {
                     return Number(val.toFixed(2));
                 }
                 return val ?? null;
             }),
-        };
+        });
     });
+
+    // Add previous period series
+    selectedMetrics.forEach(metricKey => {
+        const metricOption = METRIC_OPTIONS.find(opt => opt.key === metricKey);
+        chartSeries.push({
+            name: `${metricOption?.label || "Metric"} (${comparisonMethod})`,
+            data: chartCategories.map(date => {
+                // Map current period date to corresponding previous period date
+                let prevDate;
+                if (comparisonMethod === "Last Year") {
+                    const currentDate = dayjs(date);
+                    prevDate = currentDate.subtract(1, 'year').format('YYYY-MM-DD');
+                } else {
+                    // Last Period - same date in previous contiguous period
+                    const currentDate = dayjs(date);
+                    const periodStart = dayjs(appliedRange.startDate);
+                    const periodEnd = dayjs(appliedRange.endDate);
+                    const daysDiff = currentDate.diff(periodStart, 'day');
+                    const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, 'day') + 1, 'day');
+                    prevDate = prevPeriodStart.add(daysDiff, 'day').format('YYYY-MM-DD');
+                }
+
+                const row = fbMetricsByDatePrevMap[prevDate];
+                if (!row) return null;
+                const val = row[metricKey];
+                if (typeof val === 'number' && !isNaN(val)) {
+                    return Number(val.toFixed(2));
+                }
+                return val ?? null;
+            }),
+        });
+    });
+
+    // Prepare stroke and fill arrays for current and previous series
+    const selectedMetricsCount = selectedMetrics.length;
+    const strokeWidths = [...Array(selectedMetricsCount).fill(2), ...Array(selectedMetricsCount).fill(1)];
+    const strokeDashArrays = [...Array(selectedMetricsCount).fill(0), ...Array(selectedMetricsCount).fill(5)];
+    const fillOpacities = [...Array(selectedMetricsCount).fill(1), ...Array(selectedMetricsCount).fill(0.5)];
+
     const chartOptions = {
         chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
         xaxis: { categories: chartCategories },
         yaxis: {},
         colors: ["#406969", "#1E2B2B", "#4F46E5", "#06B6D4", "#C6ED62", "#D6CDB6", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#10B981"],
-        stroke: { width: 2, curve: 'smooth' },
-        fill: { type: 'solid', opacity: 1 },
+        stroke: { 
+            width: strokeWidths, 
+            curve: 'smooth',
+            dashArray: strokeDashArrays
+        },
+        fill: { 
+            type: 'solid', 
+            opacity: fillOpacities
+        },
         grid: { borderColor: '#e5e7eb', strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
         dataLabels: { enabled: false },
         tooltip: { theme: 'light' },
@@ -192,6 +302,7 @@ export default function FacebookPSPage() {
                 label={customer ? customer.customerName : ""}
                 customerId={params.customerId}
                 dateRange={appliedRange}
+                comparisonMethod={comparisonMethod}
                 loading={loading}
                 dashboardType="ps-dashboard"
                 dataSnapshot={{ fbMetricsByDate, fbTopCampaigns, fbCampaignsByDate, selectedMetrics, METRIC_OPTIONS }}
@@ -202,8 +313,11 @@ export default function FacebookPSPage() {
                         endDate={tempRange.endDate}
                         onStartDateChange={handleStartDateChange}
                         onEndDateChange={handleEndDateChange}
+                        loading={loading}
                     />
                 }
+                showComparisonMethodToggler={true}
+                onComparisonMethodChange={setComparisonMethod}
             />
 
             {/* Metrics Cards Section */}
@@ -244,6 +358,9 @@ export default function FacebookPSPage() {
                                     }
                                     icon={Icon ? <Icon size={22} color={isActive ? '#fff' : undefined} /> : null}
                                     isActive={isActive}
+                                    change={metric.change}
+                                    changeType={metric.changeType}
+                                    comparisonMethod={comparisonMethod}
                                 />
                             </div>
                         );
@@ -279,8 +396,8 @@ export default function FacebookPSPage() {
                 ) : (
                     <GraphCard title={
                         (selectedMetrics || []).length === 1 && (selectedMetrics || [])[0]
-                            ? (METRIC_OPTIONS.find(opt => opt.key === (selectedMetrics || [])[0])?.label ?? "Metric")
-                            : "Multiple Facebook PS Metrics"
+                            ? `${METRIC_OPTIONS.find(opt => opt.key === (selectedMetrics || [])[0])?.label ?? "Metric"} vs ${comparisonMethod}`
+                            : `Multiple Facebook PS Metrics vs ${comparisonMethod}`
                     } chartOptions={chartOptions} chartSeries={chartSeries} />
                 )}
             </div>

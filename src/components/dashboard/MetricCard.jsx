@@ -54,11 +54,6 @@ export default function MetricCard({ label, value, unit, change, changeType, ico
                                 {changeType === "up" ? <FiTrendingUp className="text-sm" /> : <FiTrendingDown className="text-sm" />}
                                 {change}%
                             </span>
-                            {comparisonMethod && (
-                                <span className="text-xs text-gray-400 ml-1 font-medium">
-                                    {comparisonMethodValue}
-                                </span>
-                            )}
                         </div>
                     )}
                 </div>

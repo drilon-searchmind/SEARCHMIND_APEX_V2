@@ -13,6 +13,7 @@ import SharePropertyModal from '@/components/dashboard/SharePropertyModal';
 import Link from "next/link";
 import FormButton from "../form/FormButton";
 import { LuRadar } from "react-icons/lu";
+import { RiToolsFill } from "react-icons/ri";
 
 const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true }) => {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -370,6 +371,10 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                             <li className="flex items-center gap-2">
                                                 <FiSettings />
                                                 <Link href="/admin" className="text-sm text-slate-800 font-semibold">Admin</Link>
+                                            </li>
+                                            <li className="flex items-center gap-2">
+                                                <RiToolsFill />
+                                                <Link href="#" className="text-sm text-slate-800 font-semibold">Tools</Link>
                                             </li>
                                             <li
                                                 id="apexRadar-link"

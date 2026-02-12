@@ -34,6 +34,10 @@ const CustomerSchema = new mongoose.Schema({
             required: true,
             default: "ROAS/POAS"
         },
+        fetchCogsFromStore: {
+            type: Boolean,
+            default: false
+        },
         customerStoreValutaCode: {
             type: String,
             required: false,
@@ -119,13 +123,34 @@ const CustomerSchema = new mongoose.Schema({
             type: Number,
             default: 0,
         },
+        marketingBureauCostLineItems: {
+            type: [{
+                name: { type: String, required: true },
+                amount: { type: Number, required: true }
+            }],
+            default: []
+        },
         marketingToolingCost: {
             type: Number,
             default: 0, 
         },
+        marketingToolingCostLineItems: {
+            type: [{
+                name: { type: String, required: true },
+                amount: { type: Number, required: true }
+            }],
+            default: []
+        },
         fixedExpenses: {
             type: Number,
             default: 0,
+        },
+        fixedExpensesLineItems: {
+            type: [{
+                name: { type: String, required: true },
+                amount: { type: Number, required: true }
+            }],
+            default: []
         }
     },
     CustomerPropertyObjectives: {

@@ -69,13 +69,62 @@ export default function PNLPage() {
         })();
     }, [customer, appliedDateRange]);
 
+    // ***
+    // *** P&L CALCULATION STRUCTURE
+    // ***
+    // *** This section calculates a Profit & Loss statement using a multi-level contribution margin approach:
+    // ***
+    // *** LEVEL 1 (DB1): Revenue - Cost of Goods Sold
+    // *** LEVEL 2 (DB2): DB1 - Direct Selling Costs (Shipping + Transaction Fees)
+    // *** LEVEL 3 (DB3): DB2 - Marketing Costs (Ad Spend + Bureau + Tooling)
+    // *** RESULT: DB3 - Fixed Expenses (Net Profit/Loss)
+    // ***
+    // *** All calculations are performed for the selected date range period.
+    // *** Monthly/annual static expenses are prorated to daily amounts based on days in period.
+    // ***
     // Calculations
+    // ***
+    // *** FIELD: totalSales
+    // *** TYPE: Revenue Metric (Non-calculated aggregation)
+    // *** EXPLANATION: Sum of all Shopify daily revenue values for the selected period
+    // *** FORMULA: Σ(shopifyDaily[revenueType]) where revenueType is from CustomerSettings (default: 'total_sales')
+    // *** SOURCE: Aggregated from merged.shopifyDaily array
+    // ***
     let totalSales = 0, orders = 0, cogs = 0, db1 = 0, shipping = 0, transactionCosts = 0, db2 = 0;
+    
+    // ***
+    // *** FIELD: orders
+    // *** TYPE: Count Metric (Non-calculated aggregation)
+    // *** EXPLANATION: Total number of orders from Shopify in the selected period
+    // *** FORMULA: Σ(shopifyDaily.orders)
+    // *** SOURCE: Aggregated from merged.shopifyDaily array
+    // ***
     let marketingSpend = 0, marketingBureau = 0, marketingTooling = 0, db3 = 0, fixedExpenses = 0, result = 0;
+    
+    // ***
+    // *** FIELD: realizedROAS, breakEvenROAS, totalCosts
+    // *** TYPE: Performance Metrics (Calculated ratios)
+    // *** EXPLANATION: ROAS metrics and total cost aggregation (see individual calculations below)
+    // ***
     let realizedROAS = 0, breakEvenROAS = 0, totalCosts = 0;
-    // For circle charts (as % of total sales)
+    
+    // ***
+    // *** FIELD: db1Pct, db2Pct, db3Pct
+    // *** TYPE: Percentage Metrics (For circle charts visualization)
+    // *** EXPLANATION: Each DB level expressed as percentage of total sales
+    // *** FORMULA: (DBx / totalSales) × 100
+    // *** PURPOSE: Visual representation in radial bar charts
+    // ***
     let db1Pct = 0, db2Pct = 0, db3Pct = 0;
-    // Days in picker
+    
+    // ***
+    // *** FIELD: days
+    // *** TYPE: Period Calculation
+    // *** EXPLANATION: Number of days in the selected date range (inclusive)
+    // *** FORMULA: (endDate - startDate) + 1
+    // *** PURPOSE: Used to prorate monthly static expenses to daily amounts
+    // *** EXAMPLE: Jan 1 to Jan 5 = 5 days (not 4)
+    // ***
     const start = new Date(appliedDateRange.startDate);
     const end = new Date(appliedDateRange.endDate);
     const msPerDay = 1000 * 60 * 60 * 24;
@@ -84,24 +133,173 @@ export default function PNLPage() {
     if (merged && staticExpenses && days > 0) {
         // Revenue type logic
         const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
+        
+        // ***
+        // *** FIELD: totalSales (calculation)
+        // *** FORMULA: Σ(shopifyDaily[revenueType]) for all days in period
+        // *** NOTE: revenueType can be 'total_sales', 'net_sales', or other Shopify revenue field
+        // ***
         totalSales = merged.shopifyDaily?.reduce((sum, d) => sum + (d[revenueType] || 0), 0) || 0;
+        
+        // ***
+        // *** FIELD: orders (calculation)
+        // *** FORMULA: Σ(shopifyDaily.orders) for all days in period
+        // ***
         orders = merged.shopifyDaily?.reduce((sum, d) => sum + (d.orders || 0), 0) || 0;
+        
+        // ***
+        // *** FIELD: cogs (Cost of Goods Sold)
+        // *** TYPE: Calculated Cost
+        // *** EXPLANATION: Direct costs attributable to production of goods sold
+        // *** FORMULA: totalSales × cogsPercentage
+        // *** EXAMPLE: If totalSales = 100,000 DKK and COGS% = 0.40 (40%), then cogs = 40,000 DKK
+        // *** SOURCE: cogsPercentage from CustomerStaticExpenses (stored as decimal, e.g., 0.40 = 40%)
+        // ***
         const cogsPercentage = staticExpenses.cogsPercentage || 0;
         cogs = totalSales * cogsPercentage;
+        
+        // ***
+        // *** FIELD: db1 (Deckungsbeitrag 1 / Contribution Margin 1)
+        // *** TYPE: Calculated Profitability Metric
+        // *** EXPLANATION: Gross profit after subtracting cost of goods sold
+        // *** FORMULA: totalSales - cogs
+        // *** INTERPRETATION: Revenue remaining after direct product costs
+        // ***
         db1 = totalSales - cogs;
+        
+        // ***
+        // *** FIELD: shipping
+        // *** TYPE: Calculated Cost
+        // *** EXPLANATION: Total shipping costs based on number of orders
+        // *** FORMULA: orders × shippingCostPerOrder
+        // *** EXAMPLE: If 100 orders × 25 DKK/order = 2,500 DKK
+        // *** SOURCE: shippingCostPerOrder from CustomerStaticExpenses
+        // ***
         shipping = orders * (staticExpenses.shippingCostPerOrder || 0);
+        
+        // ***
+        // *** FIELD: transactionCosts
+        // *** TYPE: Calculated Cost
+        // *** EXPLANATION: Payment processing fees (e.g., credit card fees, PayPal fees)
+        // *** FORMULA: totalSales × transactionCostPercentage
+        // *** EXAMPLE: If totalSales = 100,000 DKK and transaction% = 0.025 (2.5%), then transactionCosts = 2,500 DKK
+        // *** SOURCE: transactionCostPercentage from CustomerStaticExpenses (stored as decimal)
+        // ***
         transactionCosts = totalSales * (staticExpenses.transactionCostPercentage || 0);
+        
+        // ***
+        // *** FIELD: db2 (Deckungsbeitrag 2 / Contribution Margin 2)
+        // *** TYPE: Calculated Profitability Metric
+        // *** EXPLANATION: Profit after direct selling costs (shipping + transaction fees)
+        // *** FORMULA: db1 - shipping - transactionCosts
+        // *** INTERPRETATION: Revenue remaining after COGS and direct selling expenses
+        // ***
         db2 = db1 - shipping - transactionCosts;
+        
+        // ***
+        // *** FIELD: marketingSpend
+        // *** TYPE: Calculated Cost (Aggregated from multiple sources)
+        // *** EXPLANATION: Total advertising spend across Facebook and Google Ads
+        // *** FORMULA: Σ(facebookDaily.spend) + Σ(googleDaily.spend)
+        // *** SOURCE: Aggregated from merged.facebookDaily and merged.googleDaily arrays
+        // *** NOTE: This is actual ad spend, not including agency/tooling costs
+        // ***
         marketingSpend = (merged.facebookDaily?.reduce((sum, d) => sum + (d.spend || 0), 0) || 0) + (merged.googleDaily?.reduce((sum, d) => sum + (d.spend || 0), 0) || 0);
+        
+        // ***
+        // *** FIELD: marketingBureau
+        // *** TYPE: Calculated Cost (Prorated)
+        // *** EXPLANATION: Daily prorated marketing agency/bureau costs
+        // *** FORMULA: marketingBureauCost / days
+        // *** EXAMPLE: If monthly bureau cost = 30,000 DKK and period = 15 days, then marketingBureau = 2,000 DKK/day
+        // *** SOURCE: marketingBureauCost from CustomerStaticExpenses (typically monthly/annual amount)
+        // *** PURPOSE: Allocates fixed monthly costs proportionally to the selected period
+        // ***
         marketingBureau = (staticExpenses.marketingBureauCost || 0) / days;
+        
+        // ***
+        // *** FIELD: marketingTooling
+        // *** TYPE: Calculated Cost (Prorated)
+        // *** EXPLANATION: Daily prorated marketing tool costs (e.g., analytics tools, ad platforms)
+        // *** FORMULA: marketingToolingCost / days
+        // *** EXAMPLE: If monthly tooling cost = 5,000 DKK and period = 10 days, then marketingTooling = 500 DKK/day
+        // *** SOURCE: marketingToolingCost from CustomerStaticExpenses (typically monthly/annual amount)
+        // *** PURPOSE: Allocates fixed monthly costs proportionally to the selected period
+        // ***
         marketingTooling = (staticExpenses.marketingToolingCost || 0) / days;
+        
+        // ***
+        // *** FIELD: db3 (Deckungsbeitrag 3 / Contribution Margin 3)
+        // *** TYPE: Calculated Profitability Metric
+        // *** EXPLANATION: Profit after all marketing costs (ad spend + bureau + tooling)
+        // *** FORMULA: db2 - marketingSpend - marketingBureau - marketingTooling
+        // *** INTERPRETATION: Revenue remaining after COGS, direct selling costs, and all marketing expenses
+        // *** NOTE: Can be negative if marketing costs exceed db2
+        // ***
         db3 = db2 - marketingSpend - marketingBureau - marketingTooling;
+        
+        // ***
+        // *** FIELD: fixedExpenses
+        // *** TYPE: Calculated Cost (Prorated)
+        // *** EXPLANATION: Daily prorated fixed overhead costs (rent, salaries, utilities, etc.)
+        // *** FORMULA: fixedExpenses / days
+        // *** EXAMPLE: If monthly fixed expenses = 50,000 DKK and period = 20 days, then fixedExpenses = 2,500 DKK/day
+        // *** SOURCE: fixedExpenses from CustomerStaticExpenses (typically monthly/annual amount)
+        // *** PURPOSE: Allocates fixed monthly costs proportionally to the selected period
+        // ***
         fixedExpenses = (staticExpenses.fixedExpenses || 0) / days;
+        
+        // ***
+        // *** FIELD: result (Net Profit/Loss)
+        // *** TYPE: Calculated Profitability Metric (Final)
+        // *** EXPLANATION: Final profit or loss after all costs and expenses
+        // *** FORMULA: db3 - fixedExpenses
+        // *** INTERPRETATION: Bottom line profit/loss for the selected period
+        // *** NOTE: Can be negative (loss) if total costs exceed revenue
+        // ***
         result = db3 - fixedExpenses;
+        
+        // ***
+        // *** FIELD: totalCosts
+        // *** TYPE: Calculated Cost (Aggregation)
+        // *** EXPLANATION: Sum of all costs and expenses
+        // *** FORMULA: cogs + shipping + transactionCosts + marketingSpend + marketingBureau + marketingTooling + fixedExpenses
+        // *** PURPOSE: Used for break-even ROAS calculation
+        // ***
         totalCosts = cogs + shipping + transactionCosts + marketingSpend + marketingBureau + marketingTooling + fixedExpenses;
+        
+        // ***
+        // *** FIELD: realizedROAS (Return on Ad Spend)
+        // *** TYPE: Calculated Performance Ratio
+        // *** EXPLANATION: Revenue generated per 1 DKK spent on marketing
+        // *** FORMULA: totalSales / marketingSpend (if marketingSpend > 0, else 0)
+        // *** EXAMPLE: If totalSales = 100,000 DKK and marketingSpend = 20,000 DKK, then realizedROAS = 5.0
+        // *** INTERPRETATION: A ROAS of 5.0 means 5 DKK revenue per 1 DKK ad spend
+        // *** NOTE: Only calculated when marketingSpend > 0 to avoid division by zero
+        // ***
         realizedROAS = marketingSpend !== 0 ? totalSales / marketingSpend : 0;
+        
+        // ***
+        // *** FIELD: breakEvenROAS
+        // *** TYPE: Calculated Performance Ratio
+        // *** EXPLANATION: Minimum ROAS needed to break even (cover all costs)
+        // *** FORMULA: totalCosts / marketingSpend (if marketingSpend > 0, else 0)
+        // *** EXAMPLE: If totalCosts = 80,000 DKK and marketingSpend = 20,000 DKK, then breakEvenROAS = 4.0
+        // *** INTERPRETATION: A break-even ROAS of 4.0 means you need 4 DKK revenue per 1 DKK ad spend to break even
+        // *** PURPOSE: Helps determine if current marketing spend is profitable
+        // *** NOTE: Only calculated when marketingSpend > 0 to avoid division by zero
+        // ***
         breakEvenROAS = marketingSpend !== 0 ? totalCosts / marketingSpend : 0;
-        // Circle chart percentages (all as % of total sales)
+        
+        // ***
+        // *** FIELD: db1Pct, db2Pct, db3Pct (Circle chart percentages)
+        // *** TYPE: Calculated Percentage Metrics
+        // *** EXPLANATION: Each DB level expressed as percentage of total sales for visualization
+        // *** FORMULA: (DBx / totalSales) × 100 (if totalSales > 0, else 0)
+        // *** EXAMPLE: If db1 = 60,000 DKK and totalSales = 100,000 DKK, then db1Pct = 60%
+        // *** PURPOSE: Used in radial bar charts to show DB margins as % of revenue
+        // *** NOTE: Only calculated when totalSales > 0 to avoid division by zero
+        // ***
         db1Pct = totalSales !== 0 ? (db1 / totalSales) * 100 : 0;
         db2Pct = totalSales !== 0 ? (db2 / totalSales) * 100 : 0;
         db3Pct = totalSales !== 0 ? (db3 / totalSales) * 100 : 0;
@@ -393,13 +591,27 @@ export default function PNLPage() {
                         <p className="mt-5 text-gray-500">Total DB3: {db3.toFixed(2)}</p>
                     </div>
                     {/* Static Expenses Card */}
+                    {/* ***
+                        *** SECTION: Static Expenses Display
+                        *** TYPE: Configuration Values (Non-calculated)
+                        *** EXPLANATION: Shows the raw static expense values from CustomerStaticExpenses
+                        *** PURPOSE: Allows users to see what expense rates/amounts are being used in calculations
+                        *** SOURCE: customer.CustomerStaticExpenses object
+                        *** NOTE: These are the base values used in calculations above (prorated for period)
+                        *** */}
                     <div className="bg-white border border-gray-200 rounded-xl p-6 flex flex-col gap-2">
                         <div className="text-xs font-semibold mb-2 text-gray-500">Static Expenses</div>
+                        {/* *** FIELD: COGS % (display) - Percentage used in cogs calculation *** */}
                         <div className="flex justify-between text-sm"><span>COGS %</span><span>{((staticExpenses.cogsPercentage || 0) * 100).toFixed(2)}%</span></div>
+                        {/* *** FIELD: Shipping/order (display) - Cost per order used in shipping calculation *** */}
                         <div className="flex justify-between text-sm"><span>Shipping/order</span><span>{(staticExpenses.shippingCostPerOrder || 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</span></div>
+                        {/* *** FIELD: Transaction % (display) - Percentage used in transactionCosts calculation *** */}
                         <div className="flex justify-between text-sm"><span>Transaction %</span><span>{((staticExpenses.transactionCostPercentage || 0) * 100).toFixed(2)}%</span></div>
+                        {/* *** FIELD: Marketing Bureau (display) - Monthly/annual cost, prorated in marketingBureau calculation *** */}
                         <div className="flex justify-between text-sm"><span>Marketing Bureau</span><span>{(staticExpenses.marketingBureauCost || 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</span></div>
+                        {/* *** FIELD: Marketing Tooling (display) - Monthly/annual cost, prorated in marketingTooling calculation *** */}
                         <div className="flex justify-between text-sm"><span>Marketing Tooling</span><span>{(staticExpenses.marketingToolingCost || 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</span></div>
+                        {/* *** FIELD: Fixed Expenses (display) - Monthly/annual cost, prorated in fixedExpenses calculation *** */}
                         <div className="flex justify-between text-sm"><span>Fixed Expenses</span><span>{(staticExpenses.fixedExpenses || 0).toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })}</span></div>
                         <div className="pt-2">
                             <a href={`/dashboard/${customer?._id}/config`} className="mt-4 text-sm underline hover:text-[var(--color-primary-searchmind-lighter)] text-center flex items-center justify-center gap-1 text-blue-500">

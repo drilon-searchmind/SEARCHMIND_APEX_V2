@@ -14,6 +14,10 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
                     <option value="Spendshare">Spendshare</option>
                 </select>
             </div>
+            <div className="flex items-center gap-2">
+                <input id="fetchCogsFromStore" name="fetchCogsFromStore" type="checkbox" checked={form.fetchCogsFromStore || false} onChange={onChange} className="rounded border-gray-300" />
+                <FormLabel htmlFor="fetchCogsFromStore">Fetch COGS From Store</FormLabel>
+            </div>
             <div>
                 <FormLabel htmlFor="customerStoreValutaCode">Store Valuta Code</FormLabel>
                 <FormInputText id="customerStoreValutaCode" name="customerStoreValutaCode" value={form.customerStoreValutaCode} onChange={onChange} />

@@ -120,7 +120,18 @@ export default function PerformanceDashboard() {
                 const aov = orders > 0 ? revenue / orders : 0;
                 const roas = cost > 0 ? revenue / cost : null;
                 const spendshare = cost / revenue;
-                const gross_profit_total_sales = merged.grossProfitTotalSales || 0;
+                
+                // Calculate Gross Profit: use fetched COGS if enabled, otherwise use merged value
+                const fetchCogs = customer?.CustomerSettings?.fetchCogsFromStore === true;
+                let gross_profit_total_sales = 0;
+                if (fetchCogs) {
+                    // Calculate COGS from fetched cost_of_goods_sold and use Revenue - COGS formula
+                    const totalCogs = shopify.reduce((sum, d) => sum + (d.cost_of_goods_sold || 0), 0);
+                    gross_profit_total_sales = revenue - totalCogs;
+                } else {
+                    // Use the value from merged (calculated using percentage)
+                    gross_profit_total_sales = merged.grossProfitTotalSales || 0;
+                }
 
                 // Aggregate for metric cards (previous)
                 const shopifyPrev = mergedPrev.shopifyDaily || [];
@@ -163,7 +174,7 @@ export default function PerformanceDashboard() {
                 // Build metrics array conditionally
                 const metricsArray = [
                     {
-                        label: `Revenue (inc vat ${revenueType === 'net_sales' ? ', net sales' : ''})`,
+                        label: `Revenue (${revenueType === 'net_sales' ? ', net sales' : 'total sales'})`,
                         value: revenue ? revenue.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-',
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(revenue, revenuePrev) !== null ? Math.abs(percentChange(revenue, revenuePrev)).toFixed(1) : undefined,
@@ -210,7 +221,7 @@ export default function PerformanceDashboard() {
                 } else {
                     // Default to ROAS/POAS
                     metricsArray.push({
-                        label: "ROAS (inc vat)",
+                        label: "ROAS",
                         value: roas !== null ? roas.toFixed(2) : '-',
                         icon: <FiBarChart2 className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(roas, roasPrev) !== null ? Math.abs(percentChange(roas, roasPrev)).toFixed(1) : undefined,
@@ -222,7 +233,7 @@ export default function PerformanceDashboard() {
                 // Add remaining metrics
                 metricsArray.push(
                     {
-                        label: "POAS (inc vat)",
+                        label: "POAS",
                         value: poas !== null ? poas.toFixed(2) : '-',
                         icon: <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(poas, poasPrev) !== null ? Math.abs(percentChange(poas, poasPrev)).toFixed(1) : undefined,

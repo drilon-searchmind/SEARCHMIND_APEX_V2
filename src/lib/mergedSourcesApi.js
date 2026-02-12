@@ -25,18 +25,26 @@ export async function fetchMergedSources(settings, startDate, endDate) {
             // Build ShopifyQL query with optional currency grouping for multi-domain Shopify stores
             let shopifyql;
             
+            // Check if fetchCogsFromStore is enabled
+            const fetchCogs = settings.fetchCogsFromStore === true;
+            
+            // Build the SHOW clause - include cost_of_goods_sold if fetchCogs is enabled
+            const showFields = fetchCogs 
+                ? 'orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales, cost_of_goods_sold'
+                : 'orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales';
+            
             // If changeCurrency is true, include currency in results so we can filter by it
             if (settings.changeCurrency === true && settings.customerStoreValutaCode) {
                 shopifyql = `
                     FROM sales 
-                    SHOW orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales
+                    SHOW ${showFields}
                     WHERE billing_country = '${settings.changeCurrencyShopifyBillingCountryName}'
                     GROUP BY day SINCE ${startDate} UNTIL ${endDate}`;
             } else {
                 // If changeCurrency is false, fetch all currencies without grouping by currency
                 shopifyql = `
                     FROM sales 
-                    SHOW orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales
+                    SHOW ${showFields}
                     GROUP BY day SINCE ${startDate} UNTIL ${endDate}`;
             }
             
@@ -56,20 +64,29 @@ export async function fetchMergedSources(settings, startDate, endDate) {
                 // Or, more simply: value_in_DKK = value_in_fromCode * (toCode.value / fromCode.value)
                 conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
             }
-            shopifyDaily = rows.map(row => ({
-                period: row.day,
-                gross_sales: (parseFloat(row.gross_sales) || 0) * conversionRate,
-                discounts: (parseFloat(row.discounts) || 0) * conversionRate,
-                returns: (parseFloat(row.returns) || 0) * conversionRate,
-                net_sales: (parseFloat(row.net_sales) || 0) * conversionRate,
-                shipping_charges: (parseFloat(row.shipping_charges) || 0) * conversionRate,
-                duties: (parseFloat(row.duties) || 0) * conversionRate,
-                additional_fees: (parseFloat(row.additional_fees) || 0) * conversionRate,
-                taxes: (parseFloat(row.taxes) || 0) * conversionRate,
-                total_sales: (parseFloat(row.total_sales) || 0) * conversionRate,
-                custom_1: ((parseFloat(row.net_sales) || 0) + (parseFloat(row.returns) || 0) + (parseFloat(row.shipping_charges) || 0)) * conversionRate,
-                orders: parseInt(row.orders) || 0,
-            })).sort((a, b) => a.period.localeCompare(b.period));
+            shopifyDaily = rows.map(row => {
+                const baseData = {
+                    period: row.day,
+                    gross_sales: (parseFloat(row.gross_sales) || 0) * conversionRate,
+                    discounts: (parseFloat(row.discounts) || 0) * conversionRate,
+                    returns: (parseFloat(row.returns) || 0) * conversionRate,
+                    net_sales: (parseFloat(row.net_sales) || 0) * conversionRate,
+                    shipping_charges: (parseFloat(row.shipping_charges) || 0) * conversionRate,
+                    duties: (parseFloat(row.duties) || 0) * conversionRate,
+                    additional_fees: (parseFloat(row.additional_fees) || 0) * conversionRate,
+                    taxes: (parseFloat(row.taxes) || 0) * conversionRate,
+                    total_sales: (parseFloat(row.total_sales) || 0) * conversionRate,
+                    custom_1: ((parseFloat(row.net_sales) || 0) + (parseFloat(row.returns) || 0) + (parseFloat(row.shipping_charges) || 0)) * conversionRate,
+                    orders: parseInt(row.orders) || 0,
+                };
+                
+                // Add cost_of_goods_sold if fetchCogsFromStore is enabled
+                if (fetchCogs && row.cost_of_goods_sold !== undefined) {
+                    baseData.cost_of_goods_sold = (parseFloat(row.cost_of_goods_sold) || 0) * conversionRate;
+                }
+                
+                return baseData;
+            }).sort((a, b) => a.period.localeCompare(b.period));
         } else if (customerType === 'WooCommerce' && settings.wooCommerceApiKey && settings.wooCommerceApiSecret) {
             console.log("::: FETCHING WOOCOMMERCE DATA :::");
             console.log("Customer:", settings.customerName || 'Unknown', "- Date range:", { startDate, endDate });
@@ -180,9 +197,22 @@ export async function fetchMergedSources(settings, startDate, endDate) {
     const totalSales = shopifyDaily.reduce((sum, d) => sum + (d.total_sales || 0), 0);
     const orders = shopifyDaily.reduce((sum, d) => sum + (d.orders || 0), 0);
     const cogsPercentage = settings?.CustomerStaticExpenses?.cogsPercentage || 0;
+    const fetchCogs = settings.fetchCogsFromStore === true;
+    
+    // Calculate COGS: use fetched cost_of_goods_sold if enabled, otherwise use percentage
+    let totalCogs = 0;
+    if (fetchCogs) {
+        totalCogs = shopifyDaily.reduce((sum, d) => sum + (d.cost_of_goods_sold || 0), 0);
+    } else {
+        totalCogs = totalSales * cogsPercentage;
+    }
+    
     const fbAdspend = facebookDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
     const googleAdspend = googleDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
-    const grossProfitTotalSales = (totalSales * cogsPercentage) - (fbAdspend + googleAdspend);
+    // Gross Profit = Revenue - COGS (not COGS - Adspend)
+    // Note: The original calculation was (totalSales * cogsPercentage) - (fbAdspend + googleAdspend)
+    // which seems incorrect. Using standard formula: Revenue - COGS
+    const grossProfitTotalSales = totalSales - totalCogs;
     const totalAdspend = fbAdspend + googleAdspend;
     const POASTotalSales = totalAdspend !== 0 ? grossProfitTotalSales / totalAdspend : 0;
 
@@ -204,8 +234,14 @@ export async function fetchMergedSources(settings, startDate, endDate) {
     const CACTotalSales = orders > 0 ? marketingSpend / orders : 0;
 
     // Calculated metrics
-    const grossProfitCalculation = `(Cogs Percentage x Total Sales) - (Facebook Adspend + Google Adspend) \n
-        = (${cogsPercentage} x ${totalSales.toFixed(2)}) - (${fbAdspend.toFixed(2)} + ${googleAdspend.toFixed(2)}) \n
+    const grossProfitCalculation = fetchCogs 
+        ? `Total Sales - COGS (from Store) \n
+        = ${totalSales.toFixed(2)} - ${totalCogs.toFixed(2)} \n
+        = ${grossProfitTotalSales.toFixed(2)}
+    `
+        : `Total Sales - (Cogs Percentage x Total Sales) \n
+        = ${totalSales.toFixed(2)} - (${cogsPercentage} x ${totalSales.toFixed(2)}) \n
+        = ${totalSales.toFixed(2)} - ${totalCogs.toFixed(2)} \n
         = ${grossProfitTotalSales.toFixed(2)}
     `;
     const totalAdspendCalculation = `Facebook Adspend + Google Adspend \n
