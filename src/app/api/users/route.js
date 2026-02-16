@@ -36,3 +36,21 @@ export async function PUT(req) {
         return new Response(JSON.stringify({ error: err.message }), { status: 500 });
     }
 }
+
+export async function POST(req) {
+    try {
+        await connectToDatabase();
+        const body = await req.json();
+        const { name, email, password } = body;
+        if (!name || !email) {
+            return new Response(JSON.stringify({ error: 'Missing name or email' }), { status: 400 });
+        }
+
+        // Use the userService helper to create the external user
+        const { createExternalUser } = await import('../../../../lib/userService');
+        const created = await createExternalUser({ name, email, password });
+        return new Response(JSON.stringify(created), { status: 201 });
+    } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    }
+}

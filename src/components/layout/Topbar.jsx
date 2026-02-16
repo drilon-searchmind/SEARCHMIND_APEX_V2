@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { FaMoon, FaSun } from "react-icons/fa";
 import { FiBell } from "react-icons/fi";
-import { FiChevronDown, FiHome, FiUser, FiSettings, FiBarChart2, FiLogOut, FiSearch, FiUsers } from "react-icons/fi";
+import { FiChevronDown, FiHome, FiUser, FiSettings, FiBarChart2, FiLogOut, FiSearch, FiUsers, FiBookOpen } from "react-icons/fi";
 import { useUser } from "@/contexts/UserContext";
 import { signOut } from "next-auth/react";
 import { useCustomers } from "@/hooks/useCustomers";
@@ -365,6 +365,10 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                     <li className="flex items-center gap-2">
                                         <FiBarChart2 />
                                         <Link href="/my-campaigns" className="text-sm text-slate-800 font-semibold">My Campaigns</Link>
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <FiBookOpen />
+                                        <Link href="/lib/guides" className="text-sm text-slate-800 font-semibold">Guides</Link>
                                     </li>
                                     {user?.isAdmin && (
                                         <>
