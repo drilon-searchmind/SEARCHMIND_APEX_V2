@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react';
+import dayjs from 'dayjs';
+
+const DANISH_VAT = 1.25;
 
 async function fetchPeriodData(customerId, startDate, endDate) {
 	const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -25,27 +28,23 @@ function buildDailyRows(merged, customer, revenueType) {
 	}
 
 	const shippingCostPerOrder =
-		(customer?.CustomerStaticExpenses?.shippingCostPerOrder ?? 0) || 35;
+		customer?.CustomerStaticExpenses?.shippingCostPerOrder ?? 0;
 	const transactionCostPercentage =
-		(customer?.CustomerStaticExpenses?.transactionCostPercentage ?? 0.015) ||
-		0.015;
+		customer?.CustomerStaticExpenses?.transactionCostPercentage ?? 0.015;
+	const fixedExpensesMonthly = Number(customer?.CustomerStaticExpenses?.fixedExpenses) || 0;
 	const fetchCogs = customer?.CustomerSettings?.fetchCogsFromStore === true;
 
 	return shopify.map((d) => {
 		const date = d.period;
 		const orders = d.orders || 0;
-		const revenue = d.total_sales || d[revenueType] || 0;
-		const revenueExTax =
-			typeof d.net_sales === 'number'
-				? d.net_sales
-				: revenue
-					? revenue / 1.25
-					: 0;
+		const totalSales = d.total_sales || 0;
+		const netRevenue = d.net_sales || 0;
+		const revenueExTax = (d.net_sales || d.total_sales || 0) / DANISH_VAT;
 		const ppcCost = googleMap[date] || 0;
 		const psCost = fbMap[date] || 0;
 		const cost = ppcCost + psCost;
 		const roas = cost > 0 ? revenueExTax / cost : null;
-		const spendshare = revenue > 0 ? cost / revenue : null;
+		const spendshare = revenueExTax > 0 ? cost / revenueExTax : null;
 
 		let cogs = 0;
 		if (fetchCogs) {
@@ -62,15 +61,19 @@ function buildDailyRows(merged, customer, revenueType) {
 
     const cac = merged.CACTotalSales ?? null;
     const aov = orders > 0 ? revenueExTax / orders : null;
+		// Variable costs: shipping + transaction fees only (excludes ad spend, matches performance-dashboard)
 		const variableExpense =
-			cost +
 			shippingCostPerOrder * orders +
-			revenue * transactionCostPercentage;
+			revenueExTax * transactionCostPercentage;
+		// Fixed costs: prorate by actual days in month (matches performance-dashboard)
+		const daysInMonth = dayjs(date).daysInMonth();
+		const fixedExpense = fixedExpensesMonthly / daysInMonth;
 
 		return {
 			date,
 			orders,
-			revenue,
+			totalSales,
+			netRevenue,
 			revenueExTax,
 			ppcCost,
 			psCost,
@@ -81,6 +84,7 @@ function buildDailyRows(merged, customer, revenueType) {
 			cac,
 			cogs,
 			variableExpense,
+			fixedExpense,
 		};
 	});
 }

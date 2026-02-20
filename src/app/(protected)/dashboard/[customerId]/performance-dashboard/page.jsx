@@ -15,6 +15,8 @@ import { getChartColors } from "@/components/dashboard/chartColors";
 import Spinner from "@/components/ui/Spinner";
 import Custom from "./components/Custom";
 
+const DANISH_VAT = 1.25;
+
 export default function PerformanceDashboard() {
     const params = useParams();
     const { customers } = useCustomers();
@@ -65,6 +67,11 @@ export default function PerformanceDashboard() {
     const [shopifyDailyPrev, setShopifyDailyPrev] = useState([]);
     const [facebookDailyPrev, setFacebookDailyPrev] = useState([]);
     const [googleDailyPrev, setGoogleDailyPrev] = useState([]);
+    // Cached merged responses for metrics rebuild
+    const [merged, setMerged] = useState(null);
+    const [mergedPrev, setMergedPrev] = useState(null);
+
+    // Main fetch: merged data
     useEffect(() => {
         if (!customer) return;
         setLoading(true);
@@ -72,18 +79,15 @@ export default function PerformanceDashboard() {
         (async () => {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-                // Calculate previous period based on comparisonMethod
                 const start = dayjs(appliedDateRange.startDate);
                 const end = dayjs(appliedDateRange.endDate);
                 const days = end.diff(start, 'day') + 1;
 
                 let prevStart, prevEnd;
                 if (comparisonMethod === "Last Year") {
-                    // Same period last year
                     prevStart = start.subtract(1, 'year');
                     prevEnd = end.subtract(1, 'year');
                 } else {
-                    // Last Period (previous contiguous period of same length)
                     prevEnd = start.subtract(1, 'day');
                     prevStart = prevEnd.subtract(days - 1, 'day');
                 }
@@ -95,6 +99,8 @@ export default function PerformanceDashboard() {
                 if (!res.ok || !resPrev.ok) throw new Error('Failed to fetch merged data');
                 const merged = await res.json();
                 const mergedPrev = await resPrev.json();
+                setMerged(merged);
+                setMergedPrev(mergedPrev);
                 // Save daily arrays for charts
                 setShopifyDaily(merged.shopifyDaily || []);
                 setFacebookDaily(merged.facebookDaily || []);
@@ -108,82 +114,125 @@ export default function PerformanceDashboard() {
                 setFacebookDailyPrev(mergedPrev.facebookDaily || []);
                 setGoogleDailyPrev(mergedPrev.googleDaily || []);
 
-                // Revenue type logic
-                const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
-                const customerMetricPreference = customer?.CustomerSettings?.metricPreference || 'ROAS/POAS';
-                console.log("::: REVENUE TYPE :::");
-                console.log({ revenueType });
+                setLoading(false);
+            } catch (err) {
+                setError(err.message);
+                setLoading(false);
+            }
+        })();
+    }, [customer, appliedDateRange, comparisonMethod]);
 
-                // Aggregate for metric cards (current)
-                const shopify = merged.shopifyDaily || [];
-                const facebook = merged.facebookDaily || [];
-                const google = merged.googleDaily || [];
-                const revenue = shopify.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
-                const totalSales = shopify.reduce((sum, d) => sum + (d.total_sales || 0), 0);
-                const netRevenue = shopify.reduce((sum, d) => sum + (d.net_sales || 0), 0);
-                const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
-                const returns = shopify.reduce((sum, d) => sum + (d.returns || 0), 0);
-                const cost = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
-                const aov = orders > 0 ? netRevenue / orders : 0;
-                const roas = cost > 0 ? netRevenue / cost : null;
-                const spendshare = cost / revenue;
-                
-                // Calculate Gross Profit (force using net_sales): subtract COGS from netRevenue
-                const cogsPercentage = customer?.CustomerStaticExpenses?.cogsPercentage || 0;
-                const fetchCogs = customer?.CustomerSettings?.fetchCogsFromStore === true;
-                const totalCogs = fetchCogs
-                    ? shopify.reduce((sum, d) => sum + (d.cost_of_goods_sold || 0), 0)
-                    : netRevenue * cogsPercentage;
-                let gross_profit_total_sales = netRevenue - totalCogs;
+    // Build metrics when merged data is available
+    useEffect(() => {
+        if (!customer || !merged || !mergedPrev) return;
+        const start = dayjs(appliedDateRange.startDate);
+        const end = dayjs(appliedDateRange.endDate);
+        const daysInRange = end.diff(start, 'day') + 1;
 
-                // Aggregate for metric cards (previous)
-                const shopifyPrev = mergedPrev.shopifyDaily || [];
-                const facebookPrev = mergedPrev.facebookDaily || [];
-                const googlePrev = mergedPrev.googleDaily || [];
-                const revenuePrev = shopifyPrev.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
-                const totalSalesPrev = shopifyPrev.reduce((sum, d) => sum + (d.total_sales || 0), 0);
-                const netRevenuePrev = shopifyPrev.reduce((sum, d) => sum + (d.net_sales || 0), 0);
-                const ordersPrev = shopifyPrev.reduce((sum, d) => sum + (d.orders || 0), 0);
-                const returnsPrev = shopifyPrev.reduce((sum, d) => sum + (d.returns || 0), 0);
-                const costPrev = [...facebookPrev, ...googlePrev].reduce((sum, d) => sum + (d.spend || 0), 0);
-                const aovPrev = ordersPrev > 0 ? netRevenuePrev / ordersPrev : 0;
-                const roasPrev = costPrev > 0 ? netRevenuePrev / costPrev : null;
-                const spendsharePrev = costPrev / revenuePrev;
-                const prevTotalCogs = fetchCogs
-                    ? shopifyPrev.reduce((sum, d) => sum + (d.cost_of_goods_sold || 0), 0)
-                    : netRevenuePrev * cogsPercentage;
-                const gross_profit_total_salesPrev = netRevenuePrev - prevTotalCogs;
+        const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
+        const customerMetricPreference = customer?.CustomerSettings?.metricPreference || 'ROAS/POAS';
 
-                // Calculations
-                const grossProfitCalculation = merged.calculationsData?.grossProfitCalculation || '';
-                const totalAdspendCalculation = merged.calculationsData?.totalAdspendCalculation || '';
-                const roasCalculation = `Net Revenue / Cost \n
-                    = ${netRevenue.toFixed(2)} / ${cost.toFixed(2)} \n
-                    = ${roas !== null ? roas.toFixed(2) : 'N/A'}
+        const shopify = merged.shopifyDaily || [];
+        const facebook = merged.facebookDaily || [];
+        const google = merged.googleDaily || [];
+        const shopifyPrev = mergedPrev.shopifyDaily || [];
+        const facebookPrev = mergedPrev.facebookDaily || [];
+        const googlePrev = mergedPrev.googleDaily || [];
+
+        const revenue = shopify.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
+        const totalSales = shopify.reduce((sum, d) => sum + (d.total_sales || 0), 0);
+        const netRevenue = shopify.reduce((sum, d) => sum + (d.net_sales || 0), 0);
+        const netRevenueExTax = netRevenue / DANISH_VAT;
+        const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
+        const returns = shopify.reduce((sum, d) => sum + (d.returns || 0), 0);
+        const cost = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
+        const aov = orders > 0 ? netRevenueExTax / orders : 0;
+        const roas = cost > 0 ? netRevenueExTax / cost : null;
+        const spendshare = netRevenueExTax > 0 ? cost / netRevenueExTax : 0;
+
+        const revenuePrev = shopifyPrev.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
+        const totalSalesPrev = shopifyPrev.reduce((sum, d) => sum + (d.total_sales || 0), 0);
+        const netRevenuePrev = shopifyPrev.reduce((sum, d) => sum + (d.net_sales || 0), 0);
+        const netRevenueExTaxPrev = netRevenuePrev / DANISH_VAT;
+        const ordersPrev = shopifyPrev.reduce((sum, d) => sum + (d.orders || 0), 0);
+        const returnsPrev = shopifyPrev.reduce((sum, d) => sum + (d.returns || 0), 0);
+        const costPrev = [...facebookPrev, ...googlePrev].reduce((sum, d) => sum + (d.spend || 0), 0);
+        const aovPrev = ordersPrev > 0 ? netRevenueExTaxPrev / ordersPrev : 0;
+        const roasPrev = costPrev > 0 ? netRevenueExTaxPrev / costPrev : null;
+        const spendsharePrev = netRevenueExTaxPrev > 0 ? costPrev / netRevenueExTaxPrev : 0;
+
+        const cogsPercentage = customer?.CustomerStaticExpenses?.cogsPercentage || 0;
+        const fetchCogs = customer?.CustomerSettings?.fetchCogsFromStore === true;
+        const totalCogs = fetchCogs
+            ? shopify.reduce((sum, d) => sum + (d.cost_of_goods_sold || 0), 0)
+            : netRevenueExTax * cogsPercentage;
+        const prevTotalCogs = fetchCogs
+            ? shopifyPrev.reduce((sum, d) => sum + (d.cost_of_goods_sold || 0), 0)
+            : netRevenueExTaxPrev * cogsPercentage;
+        let gross_profit_total_sales = netRevenueExTax - totalCogs;
+        const gross_profit_total_salesPrev = netRevenueExTaxPrev - prevTotalCogs;
+
+        // Fixed costs: fixedExpenses is the monthly total. Prorate by actual days in each month (handles multi-month spans).
+        const staticExp = customer?.CustomerStaticExpenses || {};
+        const fixedExpensesMonthly = Number(staticExp.fixedExpenses) || 0;
+        const calcFixedForRange = (rangeStart, rangeEnd) => {
+            let total = 0;
+            let d = dayjs(rangeStart);
+            const end = dayjs(rangeEnd);
+            while (!d.isAfter(end)) {
+                total += fixedExpensesMonthly / d.daysInMonth();
+                d = d.add(1, 'day');
+            }
+            return total;
+        };
+        const fixedCosts = calcFixedForRange(start, end);
+        const prevPeriodEnd = comparisonMethod === "Last Year" ? end.subtract(1, 'year') : start.subtract(1, 'day');
+        const prevPeriodStart = prevPeriodEnd.subtract(daysInRange - 1, 'day');
+        const fixedCostsPrev = calcFixedForRange(prevPeriodStart, prevPeriodEnd);
+
+        // Variable costs: costs that scale with volume (shipping + transaction fees). Excludes ad spend.
+        const shippingCostPerOrder = staticExp.shippingCostPerOrder ?? 0;
+        const transactionCostPct = staticExp.transactionCostPercentage ?? 0.015;
+        const variableCosts = shippingCostPerOrder * orders + netRevenueExTax * transactionCostPct;
+        const variableCostsPrev = shippingCostPerOrder * ordersPrev + netRevenueExTaxPrev * transactionCostPct;
+
+        // EBIT = Net Revenue Ex Tax - All costs = Net Revenue Ex Tax - COGS - Fixed costs - Variable costs - Spend
+        const allCosts = totalCogs + fixedCosts + variableCosts + cost;
+        const allCostsPrev = prevTotalCogs + fixedCostsPrev + variableCostsPrev + costPrev;
+        const ebit = netRevenueExTax - allCosts;
+        const ebitPrev = netRevenueExTaxPrev - allCostsPrev;
+        const ebitPct = netRevenueExTax > 0 ? (ebit / netRevenueExTax) * 100 : null;
+        const ebitPctPrev = netRevenueExTaxPrev > 0 ? (ebitPrev / netRevenueExTaxPrev) * 100 : null;
+
+        const fmt = (n, d = 0) => (n ?? 0).toLocaleString('da-DK', { maximumFractionDigits: d });
+        const grossProfitCalculation = merged.calculationsData?.grossProfitCalculation || '';
+        const totalAdspendCalculation = merged.calculationsData?.totalAdspendCalculation || '';
+        const roasCalculation = `Net Revenue Ex Tax / Cost \n
+                    = ${fmt(netRevenueExTax)} / ${fmt(cost)} \n
+                    = ${roas !== null ? roas.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}
                 `;
-                const poasCalculation = cost > 0 ? `(Net Profit / Cost) \n
-                    = ${gross_profit_total_sales.toFixed(2)} / ${cost.toFixed(2)} \n
-                    = ${ (cost > 0 && gross_profit_total_sales !== null) ? ( (gross_profit_total_sales / cost).toFixed(2) ) : 'N/A'}
+        const poasCalculation = cost > 0 ? `(Net Profit / Cost) \n
+                    = ${fmt(gross_profit_total_sales)} / ${fmt(cost)} \n
+                    = ${ (cost > 0 && gross_profit_total_sales !== null) ? (gross_profit_total_sales / cost).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}
                 ` : merged.calculationsData?.poasCalculation || '';
-                const cacCalculation = merged.calculationsData?.cacCalculation || '';
+        const cacCalculation = merged.calculationsData?.cacCalculation || '';
+        const apiValueLabels = merged.calculationsData?.valueLabels || {};
 
-                // % change helpers
-                function percentChange(current, prev) {
-                    if (prev === 0 || prev === null || prev === undefined) return null;
-                    return ((current - prev) / Math.abs(prev)) * 100;
-                }
-                function changeType(val) {
-                    if (val === null) return undefined;
-                    return val > 0 ? "up" : val < 0 ? "down" : undefined;
-                }
+        function percentChange(current, prev) {
+            if (prev === 0 || prev === null || prev === undefined) return null;
+            return ((current - prev) / Math.abs(prev)) * 100;
+        }
+        function changeType(val) {
+            if (val === null) return undefined;
+            return val > 0 ? "up" : val < 0 ? "down" : undefined;
+        }
 
-                // POAS and CAC
-                const poas = cost > 0 ? (gross_profit_total_sales / cost) : null;
-                const poasPrev = costPrev > 0 ? (gross_profit_total_salesPrev / costPrev) : null;
-                const cac = merged.CACTotalSales ?? null;
-                const cacPrev = mergedPrev.CACTotalSales ?? null;
+        const poas = cost > 0 ? (gross_profit_total_sales / cost) : null;
+        const poasPrev = costPrev > 0 ? (gross_profit_total_salesPrev / costPrev) : null;
+        const cac = merged.CACTotalSales ?? null;
+        const cacPrev = mergedPrev.CACTotalSales ?? null;
 
-                // Build metrics array conditionally
+        // Build metrics array conditionally
                 const metricsArray = [
                     {
                         key: 'total_sales',
@@ -201,18 +250,38 @@ export default function PerformanceDashboard() {
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(netRevenue, netRevenuePrev) !== null ? Math.abs(percentChange(netRevenue, netRevenuePrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(netRevenue, netRevenuePrev)),
-                        tooltip: 'Net sales (after discounts, returns, etc.)',
+                        tooltip: 'Net sales including VAT (after discounts, returns, etc.)',
+                        popOverContent: null,
+                    },
+                    {
+                        key: 'revenue_ex_tax',
+                        label: 'Net Revenue Ex Tax',
+                        value: netRevenueExTax ? netRevenueExTax.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
+                        icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(netRevenueExTax, netRevenueExTaxPrev) !== null ? Math.abs(percentChange(netRevenueExTax, netRevenueExTaxPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(netRevenueExTax, netRevenueExTaxPrev)),
+                        tooltip: 'Net sales excluding VAT (Danish 25% removed)',
+                        popOverContent: null,
+                    },
+                    {
+                        key: 'cogs',
+                        label: "COGS",
+                        value: totalCogs ? totalCogs.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
+                        icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(totalCogs, prevTotalCogs) !== null ? Math.abs(percentChange(totalCogs, prevTotalCogs)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(totalCogs, prevTotalCogs)),
                         popOverContent: null,
                     },
                     {
                         key: 'gross_profit',
                         label: "Net Profit",
-                        // prefer merged net-sales based gross profit when available
-                        value: (merged.grossProfitNetSales ?? gross_profit_total_sales) ? ( (merged.grossProfitNetSales ?? gross_profit_total_sales).toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) ) : '-',
+                        value: gross_profit_total_sales ? gross_profit_total_sales.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange((merged.grossProfitNetSales ?? gross_profit_total_sales), (mergedPrev.grossProfitNetSales ?? gross_profit_total_salesPrev)) !== null ? Math.abs(percentChange((merged.grossProfitNetSales ?? gross_profit_total_sales), (mergedPrev.grossProfitNetSales ?? gross_profit_total_salesPrev))).toFixed(0) : undefined,
-                        changeType: changeType(percentChange((merged.grossProfitNetSales ?? gross_profit_total_sales), (mergedPrev.grossProfitNetSales ?? gross_profit_total_salesPrev))),
+                        change: percentChange(gross_profit_total_sales, gross_profit_total_salesPrev) !== null ? Math.abs(percentChange(gross_profit_total_sales, gross_profit_total_salesPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(gross_profit_total_sales, gross_profit_total_salesPrev)),
+                        tooltip: 'Net Revenue Ex Tax - COGS',
                         popOverContent: grossProfitCalculation,
+                        calcValueLabels: apiValueLabels.grossProfit,
                     },
                     {
                         key: 'orders',
@@ -240,6 +309,37 @@ export default function PerformanceDashboard() {
                         change: percentChange(cost, costPrev) !== null ? Math.abs(percentChange(cost, costPrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(cost, costPrev)),
                         popOverContent: totalAdspendCalculation,
+                        calcValueLabels: apiValueLabels.spend,
+                    },
+                    {
+                        key: 'fixed_costs',
+                        label: "Fixed Costs",
+                        value: fixedCosts ? fixedCosts.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
+                        icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(fixedCosts, fixedCostsPrev) !== null ? Math.abs(percentChange(fixedCosts, fixedCostsPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(fixedCosts, fixedCostsPrev)),
+                        popOverContent: `Fixed costs (prorated for period):\nfixedExpenses (monthly) × sum over each day of (1 / days in that month)\n= ${fmt(fixedExpensesMonthly)} prorated over ${daysInRange} days\n= ${fmt(fixedCosts)}`,
+                        calcValueLabels: `Fixed expenses (monthly): ${fmt(fixedExpensesMonthly)}\nDays in range: ${daysInRange}`,
+                    },
+                    {
+                        key: 'variable_costs',
+                        label: "Variable Costs",
+                        value: variableCosts ? variableCosts.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
+                        icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(variableCosts, variableCostsPrev) !== null ? Math.abs(percentChange(variableCosts, variableCostsPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(variableCosts, variableCostsPrev)),
+                        popOverContent: `Variable costs (scale with volume):\n(shippingCostPerOrder × orders) + (Net Revenue Ex Tax × transactionCost%)\n= (${fmt(shippingCostPerOrder)} × ${orders}) + (${fmt(netRevenueExTax)} × ${fmt(transactionCostPct * 100)}%)\n= ${fmt(variableCosts)}`,
+                        calcValueLabels: `Shipping per order: ${fmt(shippingCostPerOrder)}\nOrders: ${orders}\nNet Revenue Ex Tax: ${fmt(netRevenueExTax)}\nTransaction cost %: ${fmt(transactionCostPct * 100)}%`,
+                    },
+                    {
+                        key: 'ebit_pct',
+                        label: "EBIT%",
+                        value: ebitPct !== null ? `${ebitPct.toFixed(1)}%` : '-',
+                        icon: <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(ebitPct, ebitPctPrev) !== null ? Math.abs(percentChange(ebitPct, ebitPctPrev)).toFixed(1) : undefined,
+                        changeType: changeType(percentChange(ebitPct, ebitPctPrev)),
+                        popOverContent: `EBIT = Net Revenue Ex Tax - All costs\n= ${fmt(netRevenueExTax)} - ${fmt(allCosts)}\n= ${fmt(ebit)}\nEBIT% = (EBIT / Net Revenue Ex Tax) × 100\n= (${fmt(ebit)} / ${fmt(netRevenueExTax)}) × 100\n= ${ebitPct != null ? ebitPct.toFixed(1) : 'N/A'}%`,
+                        calcValueLabels: `Net Revenue Ex Tax: ${fmt(netRevenueExTax)}\nAll costs (COGS + Fixed + Variable + Spend): ${fmt(allCosts)}`,
                     },
                 ];
 
@@ -264,6 +364,7 @@ export default function PerformanceDashboard() {
                         change: percentChange(roas, roasPrev) !== null ? Math.abs(percentChange(roas, roasPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(roas, roasPrev)),
                         popOverContent: roasCalculation,
+                        calcValueLabels: `Net Revenue Ex Tax: ${fmt(netRevenueExTax)}\nCost: ${fmt(cost)}`,
                     });
                 }
 
@@ -277,6 +378,7 @@ export default function PerformanceDashboard() {
                         change: percentChange(poas, poasPrev) !== null ? Math.abs(percentChange(poas, poasPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(poas, poasPrev)),
                         popOverContent: poasCalculation,
+                        calcValueLabels: apiValueLabels.poas || `Net Profit: ${fmt(gross_profit_total_sales)}\nCost: ${fmt(cost)}`,
                     },
                     {
                         key: 'aov',
@@ -295,33 +397,30 @@ export default function PerformanceDashboard() {
                         change: percentChange(cac, cacPrev) !== null ? Math.abs(percentChange(cac, cacPrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(cac, cacPrev)),
                         popOverContent: cacCalculation,
+                        calcValueLabels: apiValueLabels.cac,
                     },
                 );
 
-                setMetrics(metricsArray);
+        setMetrics(metricsArray);
 
-                // Raw numeric values for Custom KPI formulas
-                const gprofit = merged.grossProfitNetSales ?? gross_profit_total_sales;
-                setMetricsData({
-                    total_sales: totalSales,
-                    revenue: netRevenue,
-                    gross_profit: gprofit,
-                    orders,
-                    returns,
-                    cost,
-                    roas: roas ?? 0,
-                    poas: poas ?? 0,
-                    aov,
-                    cac: cac ?? 0,
-                    spendshare: revenue > 0 ? cost / revenue : 0,
-                });
-            } catch (err) {
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        })();
-    }, [customer, appliedDateRange, comparisonMethod]);
+        setMetricsData({
+            total_sales: totalSales,
+            revenue: netRevenueExTax,
+            gross_profit: gross_profit_total_sales,
+            orders,
+            returns,
+            cost,
+            roas: roas ?? 0,
+            poas: poas ?? 0,
+            aov,
+            cac: cac ?? 0,
+            spendshare: netRevenueExTax > 0 ? cost / netRevenueExTax : 0,
+            cogs: totalCogs,
+            ebit_pct: ebitPct ?? 0,
+                    fixed_costs: fixedCosts,
+            variable_costs: variableCosts,
+        });
+    }, [customer, appliedDateRange, comparisonMethod, merged, mergedPrev]);
 
     // Chart color palette from CSS variables
     const [chartColors, setChartColors] = useState({});
@@ -331,12 +430,16 @@ export default function PerformanceDashboard() {
 
     // Graph controls: metric toggles and aggregation (period vs monthly)
     const METRIC_OPTIONS = [
-        { key: 'revenue', label: 'Net Revenue', icon: FiDollarSign },
+        { key: 'revenue', label: 'Net Revenue Ex Tax', icon: FiDollarSign },
         { key: 'total_sales', label: 'Total Sales', icon: FiDollarSign },
+        { key: 'cogs', label: 'COGS', icon: FiDollarSign },
         { key: 'gross_profit', label: 'Net Profit', icon: FiDollarSign },
         { key: 'returns', label: 'Refunds', icon: FiTrendingUp },
         { key: 'orders', label: 'Orders', icon: FiShoppingCart },
         { key: 'cost', label: 'Cost', icon: FiCreditCard },
+        { key: 'fixed_costs', label: 'Fixed Costs', icon: FiCreditCard },
+        { key: 'variable_costs', label: 'Variable Costs', icon: FiCreditCard },
+        { key: 'ebit_pct', label: 'EBIT%', icon: FiPieChart },
         { key: 'roas', label: 'Blended ROAS', icon: FiTrendingUp },
         { key: 'poas', label: 'Blended POAS', icon: FiPieChart },
         { key: 'aov', label: 'Net AOV', icon: FiShoppingBag },
@@ -345,15 +448,16 @@ export default function PerformanceDashboard() {
     const [selectedMetrics, setSelectedMetrics] = useState(['revenue']); // revenue default
     const [aggregateBy, setAggregateBy] = useState('period'); // 'period' | 'monthly'
     const [viewMode, setViewMode] = useState('standard'); // 'standard' | 'custom'
+    const [showCalcs, setShowCalcs] = useState(false);
 
     // Helper to aggregate daily arrays by keyFn (period or month)
     const aggregateDaily = (shopifyArr, facebookArr, googleArr, keyFn) => {
         const map = {};
         const push = (k, obj) => {
             if (!map[k]) map[k] = { revenue: 0, totalRevenue: 0, orders: 0, cost: 0, cogs: 0, returns: 0 };
-            // totalRevenue = total_sales, revenue = net_sales when available (fallback to total_sales)
+            // totalRevenue = total_sales, revenue = net_sales ex tax (Danish VAT removed)
             map[k].totalRevenue += Number(obj.total_sales || 0);
-            map[k].revenue += Number(obj.net_sales || obj.total_sales || 0);
+            map[k].revenue += Number((obj.net_sales || obj.total_sales || 0) / DANISH_VAT);
             map[k].orders += Number(obj.orders || 0);
             map[k].cogs += Number(obj.cost_of_goods_sold || 0);
             map[k].returns += Number(obj.returns || 0);
@@ -400,6 +504,19 @@ export default function PerformanceDashboard() {
             return prevStart.add(idx, 'day').format('YYYY-MM-DD');
         };
 
+        const staticExp = customer?.CustomerStaticExpenses || {};
+        const fixedBase = Number(staticExp.fixedExpenses) || 0;
+        const shippingPerOrder = staticExp.shippingCostPerOrder ?? 0;
+        const txCostPct = staticExp.transactionCostPercentage ?? 0.015;
+
+        const getFixedForPeriod = (k) => {
+            if (aggregateBy === 'monthly') {
+                return fixedBase; // full month
+            }
+            const daysInMonth = dayjs(k).daysInMonth();
+            return fixedBase / daysInMonth;
+        };
+
         selectedMetrics.forEach((metric) => {
             const currData = categories.map(k => {
                 const v = currAgg[k];
@@ -408,7 +525,18 @@ export default function PerformanceDashboard() {
                 if (metric === 'total_sales') return Number(v.totalRevenue.toFixed(0));
                 if (metric === 'returns') return Number((v.returns || 0).toFixed(0));
                 if (metric === 'gross_profit') return Number((v.revenue - (v.cogs || 0)).toFixed(0));
+                if (metric === 'cogs') return Number((v.cogs || 0).toFixed(0));
                 if (metric === 'cost') return Number(v.cost.toFixed(0));
+                if (metric === 'fixed_costs') return Number(getFixedForPeriod(k).toFixed(0));
+                if (metric === 'variable_costs') return Number((shippingPerOrder * (v.orders || 0) + (v.revenue || 0) * txCostPct).toFixed(0));
+                if (metric === 'ebit_pct') {
+                    const rev = v.revenue || 0;
+                    const cogs = v.cogs || 0;
+                    const fixed = getFixedForPeriod(k);
+                    const variable = shippingPerOrder * (v.orders || 0) + rev * txCostPct;
+                    const allCosts = cogs + fixed + variable + v.cost;
+                    return rev > 0 ? Number(((rev - allCosts) / rev * 100).toFixed(1)) : null;
+                }
                 if (metric === 'orders') return Number(v.orders || 0);
                 if (metric === 'roas') return (v.cost > 0 ? Number((v.revenue / v.cost).toFixed(2)) : null);
                 if (metric === 'poas') return (v.cost > 0 ? Number(((v.revenue - (v.cogs || 0)) / v.cost).toFixed(2)) : null);
@@ -428,7 +556,18 @@ export default function PerformanceDashboard() {
                 if (metric === 'total_sales') return Number(v.totalRevenue.toFixed(0));
                 if (metric === 'returns') return Number((v.returns || 0).toFixed(0));
                 if (metric === 'gross_profit') return Number((v.revenue - (v.cogs || 0)).toFixed(0));
+                if (metric === 'cogs') return Number((v.cogs || 0).toFixed(0));
                 if (metric === 'cost') return Number(v.cost.toFixed(0));
+                if (metric === 'fixed_costs') return Number(getFixedForPeriod(prevKey).toFixed(0));
+                if (metric === 'variable_costs') return Number((shippingPerOrder * (v.orders || 0) + (v.revenue || 0) * txCostPct).toFixed(0));
+                if (metric === 'ebit_pct') {
+                    const rev = v.revenue || 0;
+                    const cogs = v.cogs || 0;
+                    const fixed = getFixedForPeriod(prevKey);
+                    const variable = shippingPerOrder * (v.orders || 0) + rev * txCostPct;
+                    const allCosts = cogs + fixed + variable + v.cost;
+                    return rev > 0 ? Number(((rev - allCosts) / rev * 100).toFixed(1)) : null;
+                }
                 if (metric === 'orders') return Number(v.orders || 0);
                 if (metric === 'roas') return (v.cost > 0 ? Number((v.revenue / v.cost).toFixed(2)) : null);
                 if (metric === 'poas') return (v.cost > 0 ? Number(((v.revenue - (v.cogs || 0)) / v.cost).toFixed(2)) : null);
@@ -734,8 +873,8 @@ export default function PerformanceDashboard() {
                 }
             />
 
-            {/* View Mode Toggler + Metrics Cards Section */}
-            <div className="mb-4">
+            {/* View Mode Toggler + Show calcs + Metrics Cards Section */}
+            <div className="mb-4 flex flex-wrap items-center gap-3">
                 <div className="flex border border-gray-200 bg-gray-100 rounded-lg overflow-hidden w-fit">
                     <button
                         type="button"
@@ -754,6 +893,15 @@ export default function PerformanceDashboard() {
                         Custom
                     </button>
                 </div>
+                {viewMode === 'standard' && (
+                    <button
+                        type="button"
+                        className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors focus:outline-none ${showCalcs ? 'bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                        onClick={() => setShowCalcs((v) => !v)}
+                    >
+                        Show calcs
+                    </button>
+                )}
             </div>
 
             {viewMode === 'standard' ? (
@@ -790,6 +938,7 @@ export default function PerformanceDashboard() {
                         };
 
                         const isSelected = metricKey ? selectedMetrics.includes(metricKey) : false;
+                        const hasCalc = showCalcs && metric.popOverContent;
 
                         return (
                             <div
@@ -798,10 +947,44 @@ export default function PerformanceDashboard() {
                                 tabIndex={0}
                                 onClick={() => toggleMetricSelection(metricKey)}
                                 onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleMetricSelection(metricKey)}
-                                className="cursor-pointer rounded-lg"
+                                className={`cursor-pointer rounded-lg ${hasCalc ? 'flex flex-col' : ''}`}
                                 aria-pressed={metricKey ? isSelected : undefined}
                             >
-                                <MetricCard {...metric} comparisonMethod={comparisonMethod} isActive={isSelected} />
+                                <MetricCard {...metric} popOverContent={null} comparisonMethod={comparisonMethod} isActive={isSelected} />
+                                {hasCalc && (() => {
+                                    const calcLines = metric.popOverContent.split('\n').map((l) => l.trim()).filter((l) => l && l.startsWith('=') && /\d/.test(l));
+                                    if (!calcLines.length) return null;
+                                    const valueLabels = metric.calcValueLabels;
+                                    return (
+                                        <div className="mt-0.5 px-3 py-2 rounded-b-xl bg-gray-50 border border-t-0 border-gray-200 text-[10px] font-mono text-gray-600 leading-tight">
+                                            {valueLabels && (
+                                                <div className="mb-1.5 pb-1.5 border-b border-gray-200 space-y-0.5">
+                                                    {valueLabels.split('\n').filter(Boolean).map((line, i) => {
+                                                        const colonIdx = line.indexOf(':');
+                                                        const label = colonIdx >= 0 ? line.slice(0, colonIdx).trim() : line;
+                                                        const val = colonIdx >= 0 ? line.slice(colonIdx + 1).trim() : '';
+                                                        return (
+                                                            <div key={i} className="flex justify-between gap-4">
+                                                                <span className="text-gray-500">{label}</span>
+                                                                <span className="tabular-nums">{val}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between gap-4">
+                                                {!valueLabels && <span className="shrink-0 text-gray-500">{metric.label}</span>}
+                                                <div className={`text-right flex flex-col items-end ${valueLabels ? 'ml-auto' : ''}`}>
+                                                    {calcLines.map((line, i) => (
+                                                        <span key={i} className={i === calcLines.length - 1 ? 'font-bold text-[var(--color-primary-searchmind)]' : ''}>
+                                                            {line}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         );
                     })

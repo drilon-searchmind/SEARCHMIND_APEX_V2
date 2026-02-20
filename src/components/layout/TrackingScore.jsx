@@ -5,22 +5,21 @@ import { FiRefreshCw } from "react-icons/fi";
 import Link from "next/link";
 import { useCustomers } from "@/hooks/useCustomers";
 
-// Static data for now
-const DEFAULT_SCORES = {
-    performance: 78,
-    privacy: 92,
-    tracking: 65,
-    compliance: 88,
+const EMPTY_SCORES = {
+    performance: 0,
+    tracking: 0,
+    compliance: 0,
 };
 
-function getOverallScore(scores) {
-    const values = Object.values(scores);
+function getOverallScore(scores, totalScoreFromApi) {
+    if (totalScoreFromApi != null && totalScoreFromApi > 0) return totalScoreFromApi;
+    const values = Object.values(scores).filter(v => typeof v === 'number');
+    if (values.length === 0) return 0;
     return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
 }
 
 const SCORE_LABELS = {
     performance: "Performance",
-    privacy: "Privacy",
     tracking: "Tracking",
     compliance: "Compliance",
 };
@@ -32,13 +31,50 @@ function getScoreColor(score) {
 }
 
 export default function TrackingScore({ customerId }) {
-    const [scores, setScores] = useState(DEFAULT_SCORES);
+    const [scores, setScores] = useState(EMPTY_SCORES);
+    const [totalScore, setTotalScore] = useState(0);
+    const [hasScans, setHasScans] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [showPopover, setShowPopover] = useState(false);
     const leaveTimeoutRef = useRef(null);
-    const overall = getOverallScore(scores);
+    const overall = getOverallScore(scores, totalScore);
     const { customers } = useCustomers();
     const customer = customers.find(c => c._id === customerId);
     const [customerSettings, setCustomerSettings] = useState(null);
+
+    useEffect(() => {
+        if (!customerId) {
+            setScores(EMPTY_SCORES);
+            setTotalScore(0);
+            setHasScans(false);
+            setLoading(false);
+            return;
+        }
+        setLoading(true);
+        fetch(`/api/customer-tracking-scores/${customerId}`)
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+                if (data && data.createdAt != null) {
+                    setScores({
+                        performance: data.performanceScore ?? 0,
+                        tracking: data.trackingScore ?? 0,
+                        compliance: data.complianceScore ?? 0,
+                    });
+                    setTotalScore(data.totalScore ?? 0);
+                    setHasScans(true);
+                } else {
+                    setScores(EMPTY_SCORES);
+                    setTotalScore(0);
+                    setHasScans(false);
+                }
+            })
+            .catch(() => {
+                setScores(EMPTY_SCORES);
+                setTotalScore(0);
+                setHasScans(false);
+            })
+            .finally(() => setLoading(false));
+    }, [customerId]);
 
     const handleMouseEnter = () => {
         if (leaveTimeoutRef.current) {
@@ -76,7 +112,7 @@ export default function TrackingScore({ customerId }) {
                         className="flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 bg-white font-semibold text-sm text-[var(--color-primary-searchmind)] transition-colors group-hover:border-[var(--color-primary-searchmind-lighter)]"
                         title="Tracking score"
                     >
-                        {overall}
+                        {loading ? '—' : overall}
                     </div>
                 </div>
                 {showPopover && (
@@ -106,7 +142,9 @@ export default function TrackingScore({ customerId }) {
                             ))}
                         </div>
 
-                        {/* New Scan button */}
+                        {!hasScans && !loading && (
+                            <p className="text-xs text-gray-500 mb-2">No scans found</p>
+                        )}
                         <Link
                             href={`https://searchmind-omnipixel-v2-production.up.railway.app/?customerId=${customerId}&referrer=searcmind-apex-tracking-score&customerUrl=${customerSettings?.googleSearchConsoleProperty}`}
                             className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-medium rounded-lg border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 hover:border-[var(--color-primary-searchmind-lighter)] transition-colors"

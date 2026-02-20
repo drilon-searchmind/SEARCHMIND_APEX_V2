@@ -23,10 +23,16 @@ export default function DailyMetricsTotalsRow({
 			case 'totalSales':
 				return (
 					<td key={key} className={`px-3 py-2 whitespace-nowrap${borderCls}`}>
-						{t.revenue}
+						{t.totalSales}
 					</td>
 				);
 			case 'netRevenue':
+				return (
+					<td key={key} className={`px-3 py-2 whitespace-nowrap${borderCls}`}>
+						{t.netRevenue}
+					</td>
+				);
+			case 'netRevenueExTax':
 				return (
 					<td key={key} className={`px-3 py-2 whitespace-nowrap${borderCls}`}>
 						{t.revenueExTax}

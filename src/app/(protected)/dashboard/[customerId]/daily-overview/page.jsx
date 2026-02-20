@@ -93,7 +93,7 @@ const DailyOverviewPage = () => {
         if (!rows?.length) return [];
         return [
             {
-                name: 'Net Revenue',
+                name: 'Net Revenue Ex Tax',
                 data: rows.map((r) => Math.round(r.revenueExTax || 0)),
                 color: '#406969',
             },
@@ -181,7 +181,7 @@ const DailyOverviewPage = () => {
                 {showTrendChart && rows?.length > 0 && (
                     <div className="mb-6">
                         <GraphCard
-                            title="Net Revenue, Spend & Net Profit Over Time"
+                            title="Net Revenue Ex Tax, Spend & Net Profit Over Time"
                             chartOptions={trendChartOptions}
                             chartSeries={trendChartSeries}
                             chartType="line"

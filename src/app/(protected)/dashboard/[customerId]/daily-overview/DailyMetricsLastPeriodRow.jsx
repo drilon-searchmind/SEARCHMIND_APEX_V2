@@ -9,8 +9,9 @@ export default function DailyMetricsLastPeriodRow({
 	if (!rows?.length) return null;
 
 	const totalOrders = rows.reduce((sum, r) => sum + r.orders, 0);
-	const totalRevenue = rows.reduce((sum, r) => sum + r.revenue, 0);
-	const totalRevenueExTax = rows.reduce((sum, r) => sum + r.revenueExTax, 0);
+	const totalTotalSales = rows.reduce((sum, r) => sum + (r.totalSales ?? 0), 0);
+	const totalNetRevenue = rows.reduce((sum, r) => sum + (r.netRevenue ?? 0), 0);
+	const totalRevenueExTax = rows.reduce((sum, r) => sum + (r.revenueExTax ?? 0), 0);
 	const totalCogs = rows.reduce((sum, r) => sum + (r.cogs || 0), 0);
 	const totalPpcCost = rows.reduce((sum, r) => sum + r.ppcCost, 0);
 	const totalPsCost = rows.reduce((sum, r) => sum + r.psCost, 0);
@@ -19,10 +20,12 @@ export default function DailyMetricsLastPeriodRow({
 		(sum, r) => sum + (r.variableExpense || 0),
 		0
 	);
+	const totalFixedExpenses = rows.reduce(
+		(sum, r) => sum + (r.fixedExpense || 0),
+		0
+	);
+	// Net Profit = Net Revenue Ex Tax - COGS (matches performance-dashboard)
 	const grossProfit = totalRevenueExTax - totalCogs;
-	const fixedExpenses = 0;
-	const netProfit =
-		totalRevenueExTax - totalCogs - totalVariableExpense - fixedExpenses;
 
 	const formatCurrency = (val, decimals = 0) =>
 		val.toLocaleString('da-DK', {
@@ -34,17 +37,18 @@ export default function DailyMetricsLastPeriodRow({
 
 	const values = {
 		orders: totalOrders,
-		totalSales: formatCurrency(totalRevenue, 0),
-		netRevenue: formatCurrency(totalRevenueExTax, 0),
+		totalSales: formatCurrency(totalTotalSales, 0),
+		netRevenue: formatCurrency(totalNetRevenue, 0),
+		netRevenueExTax: formatCurrency(totalRevenueExTax, 0),
 		cogs: formatCurrency(totalCogs, 0),
-		aov: totalOrders > 0 ? formatCurrency(totalRevenue / totalOrders, 0) : '-',
+		aov: totalOrders > 0 ? formatCurrency(totalRevenueExTax / totalOrders, 0) : '-',
 		ppcCost: formatCurrency(totalPpcCost, 0),
 		psCost: formatCurrency(totalPsCost, 0),
 		roas: totalCost > 0 ? (totalRevenueExTax / totalCost).toFixed(2) : '-',
 		variableExpense: formatCurrency(totalVariableExpense, 0),
-		fixedExpenses: formatCurrency(fixedExpenses, 0),
+		fixedExpenses: formatCurrency(totalFixedExpenses, 0),
 		poas: totalCost > 0 ? (grossProfit / totalCost).toFixed(2) : '-',
-		netProfit: formatCurrency(netProfit, 0),
+		netProfit: formatCurrency(grossProfit, 0),
 	};
 
 	const visibleCols = METRIC_COLUMNS.filter((m) => visibleMetrics[m.key]);

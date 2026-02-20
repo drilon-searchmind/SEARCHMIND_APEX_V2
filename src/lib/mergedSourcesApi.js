@@ -5,6 +5,8 @@ import { fetchFacebookAdsInsights } from './facebookApi';
 import { fetchGoogleAdsMetrics } from './googleAdsApi';
 import currencyApiValues from './static-data/currencyApiValues.json';
 
+const DANISH_VAT = 1.25;
+
 /**
  * Fetches and merges revenue (Shopify/WooCommerce), Facebook adspend, and Google Ads adspend for a customer.
  * @param {object} settings - Customer settings object containing all required credentials and customerType.
@@ -196,6 +198,7 @@ export async function fetchMergedSources(settings, startDate, endDate) {
     // Calculate aggregates for metrics
     const totalSales = shopifyDaily.reduce((sum, d) => sum + (d.total_sales || 0), 0);
     const netRevenue = shopifyDaily.reduce((sum, d) => sum + (d.net_sales || 0), 0);
+    const netRevenueExTax = netRevenue / DANISH_VAT;
     const orders = shopifyDaily.reduce((sum, d) => sum + (d.orders || 0), 0);
     const cogsPercentage = settings?.CustomerStaticExpenses?.cogsPercentage || 0;
     const fetchCogs = settings.fetchCogsFromStore === true;
@@ -208,16 +211,16 @@ export async function fetchMergedSources(settings, startDate, endDate) {
         totalCogs = totalSales * cogsPercentage;
     }
 
-    // For net-based calculations, prefer net_sales as revenue base
+    // For net-based calculations: Net Profit = Net Revenue Ex Tax - COGS
     const totalCogsForNet = fetchCogs
         ? shopifyDaily.reduce((sum, d) => sum + (d.cost_of_goods_sold || 0), 0)
-        : netRevenue * cogsPercentage;
+        : netRevenueExTax * cogsPercentage;
     
     const fbAdspend = facebookDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
     const googleAdspend = googleDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
-    // Gross Profit = Revenue - COGS (we maintain both total-sales and net-sales variants)
+    // Gross Profit (Net Profit) = Net Revenue Ex Tax - COGS
     const grossProfitTotalSales = totalSales - totalCogs;
-    const grossProfitNetSales = netRevenue - totalCogsForNet;
+    const grossProfitNetSales = netRevenueExTax - totalCogsForNet;
     const totalAdspend = fbAdspend + googleAdspend;
     const POASTotalSales = totalAdspend !== 0 ? grossProfitTotalSales / totalAdspend : 0;
 
@@ -238,29 +241,38 @@ export async function fetchMergedSources(settings, startDate, endDate) {
     // CAC = marketingSpend / orders
     const CACTotalSales = orders > 0 ? marketingSpend / orders : 0;
 
-    // Calculated metrics
+    // Calculated metrics (Net Profit = Net Revenue Ex Tax - COGS)
+    const fmt = (n, d = 0) => (n ?? 0).toLocaleString('da-DK', { maximumFractionDigits: d });
     const grossProfitCalculation = fetchCogs
-        ? `Net Revenue - COGS (from Store) \n
-        = ${netRevenue.toFixed(2)} - ${totalCogsForNet.toFixed(2)} \n
-        = ${grossProfitNetSales.toFixed(2)}
+        ? `Net Revenue Ex Tax - COGS (from Store) \n
+        = ${fmt(netRevenueExTax)} - ${fmt(totalCogsForNet)} \n
+        = ${fmt(grossProfitNetSales)}
     `
-        : `Net Revenue - (Cogs Percentage x Net Revenue) \n
-        = ${netRevenue.toFixed(2)} - (${cogsPercentage} x ${netRevenue.toFixed(2)}) \n
-        = ${netRevenue.toFixed(2)} - ${totalCogsForNet.toFixed(2)} \n
-        = ${grossProfitNetSales.toFixed(2)}
+        : `Net Revenue Ex Tax - (Cogs % × Net Revenue Ex Tax) \n
+        = ${fmt(netRevenueExTax)} - (${cogsPercentage} × ${fmt(netRevenueExTax)}) \n
+        = ${fmt(netRevenueExTax)} - ${fmt(totalCogsForNet)} \n
+        = ${fmt(grossProfitNetSales)}
     `;
     const totalAdspendCalculation = `Facebook Adspend + Google Adspend \n
-        = ${fbAdspend.toFixed(2)} + ${googleAdspend.toFixed(2)} \n
-        = ${totalAdspend.toFixed(2)}
+        = ${fmt(fbAdspend)} + ${fmt(googleAdspend)} \n
+        = ${fmt(totalAdspend)}
     `;
-    const poasCalculation = totalAdspend !== 0 ? `(Gross Profit / Cost) \n
-        = ${grossProfitTotalSales.toFixed(2)} / ${totalAdspend.toFixed(2)} \n
-        = ${POASTotalSales.toFixed(2)}
+    const POASNetProfit = totalAdspend !== 0 ? grossProfitNetSales / totalAdspend : 0;
+    const poasCalculation = totalAdspend !== 0 ? `(Net Profit / Cost) \n
+        = ${fmt(grossProfitNetSales)} / ${fmt(totalAdspend)} \n
+        = ${POASNetProfit.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
     ` : 'N/A';
     const cacCalculation = orders > 0 ? `(Marketing Spend / Orders) \n
-        = ${marketingSpend.toFixed(2)} / ${orders} \n
-        = ${CACTotalSales.toFixed(2)}
+        = ${fmt(marketingSpend)} / ${orders} \n
+        = ${fmt(CACTotalSales)}
     ` : 'N/A';
+
+    const calculationsValueLabels = {
+        grossProfit: `Net Revenue Ex Tax: ${fmt(netRevenueExTax)}\nCOGS: ${fmt(totalCogsForNet)}`,
+        spend: `Google Adspend: ${fmt(googleAdspend)}\nFB Adspend: ${fmt(fbAdspend)}`,
+        poas: `Net Profit: ${fmt(grossProfitNetSales)}\nCost: ${fmt(totalAdspend)}`,
+        cac: `Marketing Spend: ${fmt(marketingSpend)}\nOrders: ${orders}`,
+    };
 
     return {
         shopifyDaily,
@@ -275,6 +287,7 @@ export async function fetchMergedSources(settings, startDate, endDate) {
             totalAdspendCalculation,
             poasCalculation,
             cacCalculation,
+            valueLabels: calculationsValueLabels,
         }
     };
 }

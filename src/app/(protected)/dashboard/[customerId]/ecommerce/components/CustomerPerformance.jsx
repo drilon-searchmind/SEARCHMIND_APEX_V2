@@ -80,6 +80,16 @@ export default function CustomerPerformance({ segmentation = null, loading = fal
                             icon={<FiPackage className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
                         />
                         <MetricCard
+                            label="NCA Orders"
+                            value={extendedMetricsLoading && segmentation.firstOrdersCount == null ? <Spinner size={20} className="inline-block" /> : (segmentation.firstOrdersCount != null ? formatNumber(segmentation.firstOrdersCount) : '—')}
+                            icon={<FiPackage className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
+                        />
+                        <MetricCard
+                            label="Returning Orders"
+                            value={extendedMetricsLoading && (segmentation.totalOrders == null || segmentation.firstOrdersCount == null) ? <Spinner size={20} className="inline-block" /> : (segmentation.totalOrders != null && segmentation.firstOrdersCount != null ? formatNumber(segmentation.totalOrders - segmentation.firstOrdersCount) : '—')}
+                            icon={<FiPackage className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
+                        />
+                        <MetricCard
                             label="Total Revenue (period)"
                             value={segmentation.totalRevenue != null ? Number(segmentation.totalRevenue).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}
                             unit="kr"
