@@ -136,14 +136,14 @@ const Sidebar = ({ showLinks = true }) => {
                                         <ul className={`mt-2 space-y-2 flex flex-col w-full ${isSmallScreen ? 'ml-0' : ''}`}>
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/performance-dashboard`}
-                                                label="Performance Dashboard"
+                                                label="Overview"
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                             />
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/daily-overview`}
-                                                label="Daily Overview"
+                                                label="Daily"
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
@@ -169,13 +169,13 @@ const Sidebar = ({ showLinks = true }) => {
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                             />
-                                            <NavItem
+                                            {/* <NavItem
                                                 href={`/dashboard/${activeCustomerId}/analytics`}
                                                 label="Analytics"
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
-                                            />
+                                            /> */}
                                         </ul>
                                     )}
                                     {isSmallScreen && (
@@ -206,6 +206,7 @@ const Sidebar = ({ showLinks = true }) => {
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
+                                                subLabel={"WIP"}
                                             />
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/service-dashboard/ppc`}
@@ -213,6 +214,7 @@ const Sidebar = ({ showLinks = true }) => {
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
+                                                subLabel={"WIP"}
                                             />
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/service-dashboard/ps`}
@@ -220,6 +222,15 @@ const Sidebar = ({ showLinks = true }) => {
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
+                                                subLabel={"WIP"}
+                                            />
+                                            <NavItem
+                                                href={`/dashboard/${activeCustomerId}/service-dashboard/em`}
+                                                label="EM"
+                                                activeCustomerId={activeCustomerId}
+                                                pathname={pathname}
+                                                isSmallScreen={isSmallScreen}
+                                                subLabel={"WIP"}
                                             />
                                         </ul>
                                     )}

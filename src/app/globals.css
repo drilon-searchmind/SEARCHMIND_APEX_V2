@@ -303,3 +303,25 @@ select {
 #apexRadar-link a {
 	color: white;
 }
+
+/* Advanced Date Range Picker */
+.react-datepicker {
+	border: 1px solid#eee !important;
+}
+
+.react-datepicker .react-datepicker__header {
+	background-color: #fff !important;
+}
+
+.react-datepicker__day--selected, .react-datepicker__day--in-selecting-range, .react-datepicker__day--in-range, .react-datepicker__month-text--selected, .react-datepicker__month-text--in-selecting-range, .react-datepicker__month-text--in-range, .react-datepicker__quarter-text--selected, .react-datepicker__quarter-text--in-selecting-range, .react-datepicker__quarter-text--in-range, .react-datepicker__year-text--selected, .react-datepicker__year-text--in-selecting-range, .react-datepicker__year-text--in-range {
+	background-color: var(--color-primary-searchmind-lighter) !important;
+}
+
+.react-datepicker__current-month {
+	font-weight: 500 !important;
+	font-size: 12px !important;
+}
+
+#date-range-picker-button {
+	background-color: #fff !important;
+}

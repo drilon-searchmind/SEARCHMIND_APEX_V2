@@ -46,9 +46,10 @@ export default function GoogleAdsPPCPage() {
 	const [tempRange, setTempRange] = useState(defaultRangeValue);
 	const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
 
-	// Handlers for DateRangePicker (controlled)
-	const handleDateRangeApply = ({ startDate, endDate }) => {
+	// Handlers for DateRangePicker (controlled) - comparison only applies on Apply
+	const handleDateRangeApply = ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
 		setAppliedRange({ startDate, endDate });
+		if (appliedComparison) setComparisonMethod(appliedComparison);
 	};
 	const handleStartDateChange = (newStart) => {
 		setTempRange((dr) => ({ ...dr, startDate: newStart }));
@@ -57,8 +58,9 @@ export default function GoogleAdsPPCPage() {
 		setTempRange((dr) => ({ ...dr, endDate: newEnd }));
 	};
 
-	// Comparison method state
+	// Comparison method: applied (triggers fetch) vs temp (picker until Apply)
 	const [comparisonMethod, setComparisonMethod] = useState("Last Period");
+	const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Period");
 
 	// Google Ads data state
 	const [metricsByDate, setMetricsByDate] = useState([]);
@@ -313,10 +315,11 @@ export default function GoogleAdsPPCPage() {
 						onStartDateChange={handleStartDateChange}
 						onEndDateChange={handleEndDateChange}
 						loading={loading}
+						showComparisonMethodToggler={true}
+						comparisonMethod={tempComparisonMethod}
+						onComparisonMethodChange={setTempComparisonMethod}
 					/>
 				}
-				showComparisonMethodToggler={true}
-				onComparisonMethodChange={setComparisonMethod}
 			/>
 
 			{/* Metrics Cards Section */}

@@ -6,13 +6,13 @@ export async function GET(request, { params }) {
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const fast = searchParams.get('fast') === 'true';
 
     if (!startDate || !endDate) {
         return Response.json({ error: 'Missing startDate or endDate' }, { status: 400 });
     }
 
     try {
-        // Fetch customer settings
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
         const res = await fetch(`${baseUrl}/api/customers/${customerId}`);
         if (!res.ok) throw new Error('Failed to fetch customer');
@@ -22,7 +22,7 @@ export async function GET(request, { params }) {
             CustomerStaticExpenses: data.CustomerStaticExpenses || {},
         };
 
-        const products = await fetchShopifyProductMetrics(settings, startDate, endDate);
+        const products = await fetchShopifyProductMetrics(settings, startDate, endDate, { fast });
         return Response.json({ products });
     } catch (error) {
         console.error('Error fetching shopify product metrics:', error);

@@ -53,7 +53,7 @@ export default function TeamMembers({ customerId }) {
 
     return (
         <div className="flex items-center gap-1">
-            <p className="text-gray-500 mr-1">Your team</p>
+            <p className="text-gray-500 mr-1 text-sm">Team</p>
             {displayMembers.map((member, idx) => {
                 const serviceInfo = serviceConfig[member.service] || { label: member.service, color: "#999" };
                 // Create unique key combining member ID and index to ensure uniqueness
@@ -67,7 +67,7 @@ export default function TeamMembers({ customerId }) {
                                 height: "35px",
                                 backgroundColor: serviceInfo.color,
                                 borderColor: "white",
-                                transform: `translateX(-${idx * 10}px)`,
+                                transform: `translateX(-${idx * 12}px)`,
                             }}
                             title={member.username}
                         >

@@ -1,35 +1,89 @@
 import currencyApiValues from './static-data/currencyApiValues.json';
 
 /**
- * Fetch Shopify orders and aggregate product-level metrics between dates.
- * @param {object} settings - customer settings containing shopifyUrl and shopifyApiPassword and customerStoreValutaCode
- * @param {string} startDate - YYYY-MM-DD
- * @param {string} endDate - YYYY-MM-DD
- * @returns {Promise<object[]>} - [{ productId, title, handle, vendor, image, productType, unitsSold, ordersCount, totalRevenue }]
+ * Fetch inventory stock and value for a list of Shopify product IDs.
+ * @param {string} endpoint - Shopify GraphQL endpoint
+ * @param {string} accessToken - Shopify access token
+ * @param {string[]} productIds - Array of product GIDs (e.g. gid://shopify/Product/123)
+ * @param {number} conversionRate - Currency conversion rate to DKK
+ * @returns {Promise<Record<string, { inventoryStock: number, inventoryValue: number }>>}
  */
-export async function fetchShopifyProductMetrics(settings, startDate, endDate) {
-    if (!settings?.shopifyUrl || !settings?.shopifyApiPassword) return [];
-    const shopUrl = settings.shopifyUrl;
-    const accessToken = settings.shopifyApiPassword;
+async function fetchProductInventory(endpoint, accessToken, productIds, conversionRate) {
+    const out = {};
+    if (!productIds.length) return out;
 
-    // Currency conversion similar to mergedSourcesApi: convert from store currency to DKK
-    const fromCode = settings?.customerStoreValutaCode || 'DKK';
-    const toCode = 'DKK';
-    const currencyData = currencyApiValues.data;
-    let conversionRate = 1;
-    if (fromCode !== toCode && currencyData[fromCode] && currencyData[toCode]) {
-        conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
+    // Shopify allows up to 250 IDs per products query
+    const BATCH = 100;
+    for (let i = 0; i < productIds.length; i += BATCH) {
+        const batch = productIds.slice(i, i + BATCH);
+        const query = `query getProductInventory($ids: [ID!]!) {
+            nodes(ids: $ids) {
+                ... on Product {
+                    id
+                    variants(first: 100) {
+                        nodes {
+                            sellableOnlineQuantity
+                            inventoryItem {
+                                unitCost {
+                                    amount
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }`;
+
+        try {
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Shopify-Access-Token': accessToken,
+                },
+                body: JSON.stringify({ query, variables: { ids: batch } }),
+            });
+            if (!res.ok) continue;
+            const json = await res.json();
+            const nodes = json?.data?.nodes || [];
+            for (const node of nodes) {
+                if (!node?.id) continue;
+                const variants = node.variants?.nodes || [];
+                let inventoryStock = 0;
+                let inventoryValue = 0;
+                for (const v of variants) {
+                    const qty = parseInt(v.sellableOnlineQuantity, 10) || 0;
+                    const unitCost = parseFloat(v.inventoryItem?.unitCost?.amount) || 0;
+                    inventoryStock += qty;
+                    inventoryValue += qty * unitCost;
+                }
+                out[node.id] = {
+                    inventoryStock,
+                    inventoryValue: inventoryValue * conversionRate,
+                };
+            }
+        } catch (err) {
+            console.error('fetchProductInventory batch error:', err);
+        }
     }
+    return out;
+}
 
-    const endpoint = `https://${shopUrl}/admin/api/2025-10/graphql.json`;
-
+/**
+ * Fetch orders for a single date-range chunk and aggregate into a product map.
+ * @param {string} endpoint - Shopify GraphQL endpoint
+ * @param {string} accessToken - Shopify access token
+ * @param {string} chunkStart - YYYY-MM-DD
+ * @param {string} chunkEnd - YYYY-MM-DD
+ * @param {number} conversionRate - Currency conversion rate
+ * @returns {Promise<Map<string, object>>}
+ */
+async function fetchOrdersChunk(endpoint, accessToken, chunkStart, chunkEnd, conversionRate) {
     const query = `query getOrders($query: String!, $cursor: String) {
         orders(first: 250, query: $query, after: $cursor) {
             edges {
                 node {
                     id
-                    name
-                    createdAt
                     lineItems(first: 100) {
                         edges {
                             node {
@@ -50,92 +104,198 @@ export async function fetchShopifyProductMetrics(settings, startDate, endDate) {
                 }
                 cursor
             }
-            pageInfo { hasNextPage endCursor }
+            pageInfo {
+                hasNextPage
+                endCursor
+            }
         }
     }`;
 
-    const q = `created_at:>="${startDate}" AND created_at:<="${endDate}"`;
-
-    // Aggregate map: productId -> metrics
+    const q = `created_at:>="${chunkStart}" AND created_at:<="${chunkEnd}"`;
     const products = new Map();
-
     let cursor = null;
     let hasNext = true;
-    try {
-        while (hasNext) {
-            const body = JSON.stringify({ query, variables: { query: q, cursor } });
-            const res = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Shopify-Access-Token': accessToken,
-                },
-                body,
-            });
-            if (!res.ok) throw new Error(`Shopify GraphQL error: ${res.status}`);
-            const json = await res.json();
-            const edges = json?.data?.orders?.edges || [];
-            for (const edge of edges) {
-                const orderNode = edge.node;
-                const orderId = orderNode.id;
-                const lineItems = orderNode.lineItems?.edges || [];
-                // Track which products appeared in this order to count orders per product
-                const productsSeenInOrder = new Set();
-                for (const li of lineItems) {
-                    const node = li.node;
-                    const qty = parseInt(node.quantity) || 0;
-                    const discounted = parseFloat(node.discountedTotalSet?.shopMoney?.amount) || 0;
-                    const unit = parseFloat(node.originalUnitPriceSet?.shopMoney?.amount) || 0;
-                    const product = node.product;
-                    const productId = product?.id || node.id || 'unknown';
-                    const key = productId;
-                    const image = product?.featuredImage?.url || null;
-                    const title = product?.title || node.title || 'Unknown product';
-                    const vendor = product?.vendor || '';
-                    const productType = product?.productType || '';
 
-                    // Use discounted total if available (total for that line), else unit*qty
-                    const revenueRaw = discounted || (unit * qty);
-                    const revenue = revenueRaw * conversionRate;
+    while (hasNext) {
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Shopify-Access-Token': accessToken,
+            },
+            body: JSON.stringify({ query, variables: { query: q, cursor } }),
+        });
+        if (!res.ok) throw new Error(`Shopify GraphQL error: ${res.status}`);
+        const json = await res.json();
+        const edges = json?.data?.orders?.edges || [];
 
-                    if (!products.has(key)) {
-                        products.set(key, {
-                            productId: key,
-                            title,
-                            handle: product?.handle || null,
-                            vendor,
-                            productType,
-                            image,
-                            unitsSold: 0,
-                            ordersCount: 0,
-                            totalRevenue: 0,
-                        });
-                    }
-                    const item = products.get(key);
-                    item.unitsSold += qty;
-                    item.totalRevenue += revenue;
-                    if (!productsSeenInOrder.has(key)) {
-                        item.ordersCount += 1;
-                        productsSeenInOrder.add(key);
-                    }
+        for (const edge of edges) {
+            const orderNode = edge.node;
+            const lineItems = orderNode.lineItems?.edges || [];
+            const productsSeenInOrder = new Set();
+            for (const li of lineItems) {
+                const node = li.node;
+                const qty = parseInt(node.quantity) || 0;
+                const discounted = parseFloat(node.discountedTotalSet?.shopMoney?.amount) || 0;
+                const unit = parseFloat(node.originalUnitPriceSet?.shopMoney?.amount) || 0;
+                const product = node.product;
+                const productId = product?.id || node.id || 'unknown';
+                const key = productId;
+                const image = product?.featuredImage?.url || null;
+                const title = product?.title || node.title || 'Unknown product';
+                const vendor = product?.vendor || '';
+                const productType = product?.productType || '';
+
+                const revenueRaw = discounted || (unit * qty);
+                const revenue = revenueRaw * conversionRate;
+
+                if (!products.has(key)) {
+                    products.set(key, {
+                        productId: key,
+                        title,
+                        handle: product?.handle || null,
+                        vendor,
+                        productType,
+                        image,
+                        unitsSold: 0,
+                        ordersCount: 0,
+                        totalRevenue: 0,
+                    });
+                }
+                const item = products.get(key);
+                item.unitsSold += qty;
+                item.totalRevenue += revenue;
+                if (!productsSeenInOrder.has(key)) {
+                    item.ordersCount += 1;
+                    productsSeenInOrder.add(key);
                 }
             }
-
-            const pageInfo = json?.data?.orders?.pageInfo || {};
-            hasNext = !!pageInfo.hasNextPage;
-            cursor = pageInfo.endCursor || null;
-            if (!hasNext) break;
         }
 
-        // Convert map to array and compute average price
-        const result = Array.from(products.values()).map(p => ({
+        const pageInfo = json?.data?.orders?.pageInfo || {};
+        hasNext = !!pageInfo.hasNextPage;
+        cursor = pageInfo.endCursor || null;
+    }
+    return products;
+}
+
+/**
+ * Split date range into chunks (by month) for parallel fetching.
+ */
+function getDateChunks(startDate, endDate, maxChunks = 6) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const chunks = [];
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const totalDays = Math.ceil((end - start) / msPerDay) + 1;
+    const daysPerChunk = Math.max(1, Math.ceil(totalDays / maxChunks));
+
+    let current = new Date(start);
+    while (current <= end) {
+        const chunkEnd = new Date(current);
+        chunkEnd.setDate(chunkEnd.getDate() + daysPerChunk - 1);
+        if (chunkEnd > end) chunkEnd.setTime(end.getTime());
+        chunks.push({
+            start: current.toISOString().slice(0, 10),
+            end: chunkEnd.toISOString().slice(0, 10),
+        });
+        current.setDate(current.getDate() + daysPerChunk);
+    }
+    return chunks;
+}
+
+/**
+ * Fetch Shopify orders and aggregate product-level metrics between dates.
+ * Uses parallel date chunks for faster loading. Supports fast mode to skip inventory.
+ * @param {object} settings - customer settings containing shopifyUrl and shopifyApiPassword and customerStoreValutaCode
+ * @param {string} startDate - YYYY-MM-DD
+ * @param {string} endDate - YYYY-MM-DD
+ * @param {object} options - { fast?: boolean } - if true, skip inventory fetch
+ * @returns {Promise<object[]>} - [{ productId, title, handle, vendor, image, productType, unitsSold, ordersCount, totalRevenue, inventoryStock?, inventoryValue? }]
+ */
+export async function fetchShopifyProductMetrics(settings, startDate, endDate, options = {}) {
+    if (!settings?.shopifyUrl || !settings?.shopifyApiPassword) return [];
+    const shopUrl = settings.shopifyUrl;
+    const accessToken = settings.shopifyApiPassword;
+    const { fast = false } = options;
+
+    const fromCode = settings?.customerStoreValutaCode || 'DKK';
+    const toCode = 'DKK';
+    const currencyData = currencyApiValues.data;
+    let conversionRate = 1;
+    if (fromCode !== toCode && currencyData[fromCode] && currencyData[toCode]) {
+        conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
+    }
+
+    const endpoint = `https://${shopUrl}/admin/api/2025-10/graphql.json`;
+
+    try {
+        const chunks = getDateChunks(startDate, endDate, 6);
+        const chunkResults = await Promise.all(
+            chunks.map(({ start: chunkStart, end: chunkEnd }) =>
+                fetchOrdersChunk(endpoint, accessToken, chunkStart, chunkEnd, conversionRate)
+            )
+        );
+
+        const products = new Map();
+        for (const chunkMap of chunkResults) {
+            for (const [key, item] of chunkMap) {
+                if (!products.has(key)) {
+                    products.set(key, { ...item });
+                } else {
+                    const existing = products.get(key);
+                    existing.unitsSold += item.unitsSold;
+                    existing.ordersCount += item.ordersCount;
+                    existing.totalRevenue += item.totalRevenue;
+                }
+            }
+        }
+
+        let result = Array.from(products.values()).map(p => ({
             ...p,
             avgPrice: p.unitsSold > 0 ? p.totalRevenue / p.unitsSold : 0,
         })).sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+        if (!fast) {
+            const productIds = result
+                .map(p => p.productId)
+                .filter(id => id && typeof id === 'string' && id.includes('Product'));
+            const inventoryByProduct = await fetchProductInventory(endpoint, accessToken, productIds, conversionRate);
+            result = result.map(p => ({
+                ...p,
+                inventoryStock: inventoryByProduct[p.productId]?.inventoryStock ?? null,
+                inventoryValue: inventoryByProduct[p.productId]?.inventoryValue ?? null,
+            }));
+        } else {
+            result = result.map(p => ({
+                ...p,
+                inventoryStock: null,
+                inventoryValue: null,
+            }));
+        }
 
         return result;
     } catch (err) {
         console.error('fetchShopifyProductMetrics error:', err);
         return [];
     }
+}
+
+/**
+ * Fetch inventory only for given product IDs.
+ * @param {object} settings - customer settings
+ * @param {string[]} productIds - Shopify product GIDs
+ * @returns {Promise<Record<string, { inventoryStock: number, inventoryValue: number }>>}
+ */
+export async function fetchProductInventoryOnly(settings, productIds) {
+    if (!settings?.shopifyUrl || !settings?.shopifyApiPassword || !productIds?.length) return {};
+    const fromCode = settings?.customerStoreValutaCode || 'DKK';
+    const toCode = 'DKK';
+    const currencyData = currencyApiValues.data;
+    let conversionRate = 1;
+    if (fromCode !== toCode && currencyData[fromCode] && currencyData[toCode]) {
+        conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
+    }
+    const endpoint = `https://${settings.shopifyUrl}/admin/api/2025-10/graphql.json`;
+    return fetchProductInventory(endpoint, settings.shopifyApiPassword, productIds, conversionRate);
 }

@@ -4,10 +4,12 @@ import React from 'react';
 import dynamic from 'next/dynamic';
 import Spinner from '@/components/ui/Spinner';
 import GraphCard from '@/components/dashboard/GraphCard';
+import MetricCard from '@/components/dashboard/MetricCard';
+import { FiUsers, FiUserPlus, FiDollarSign, FiTrendingUp, FiPackage } from 'react-icons/fi';
 
 const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
-export default function CustomerPerformance({ segmentation = null, loading = false }) {
+export default function CustomerPerformance({ segmentation = null, loading = false, extendedMetricsLoading = false }) {
     const formatNumber = (n) => (n === undefined || n === null ? '—' : Number(n).toLocaleString());
     const formatCurrency = (v) => (v === undefined || v === null ? '—' : `${Number(v).toLocaleString()} kr`);
 
@@ -44,17 +46,6 @@ export default function CustomerPerformance({ segmentation = null, loading = fal
         { name: 'New', data: newSeriesData },
     ];
 
-    // Cohort retention helpers
-    const renderCohortCellStyle = (val) => {
-        if (val === null || val === undefined) return {};
-        const v = Math.max(0, Math.min(100, Number(val)));
-        let bg = '#f3f4f6';
-        if (v >= 40) bg = '#C6ED62';
-        else if (v >= 15) bg = '#FDE68A';
-        else if (v > 0) bg = '#FECACA';
-        return { backgroundColor: bg };
-    };
-
     return (
         <div className="bg-white border border-gray-200 rounded-xl p-6">
             <div className="flex items-start justify-between mb-4">
@@ -72,63 +63,59 @@ export default function CustomerPerformance({ segmentation = null, loading = fal
                 <div className="space-y-4">
                     <GraphCard title="New vs Returning customers over time" chartOptions={timeSeriesChartOptions} chartSeries={timeSeriesChartSeries} chartType="area" height={320} />
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                            <div className="text-xs text-gray-500">New customers</div>
-                            <div className="font-semibold text-3xl mt-2 text-black">{formatNumber(segmentation.newCustomers ?? segmentation.newCount ?? 0)} <span className="text-sm text-gray-400">({segmentation.newPct ?? 0}%)</span></div>
-                        </div>
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                            <div className="text-xs text-gray-500">Returning customers</div>
-                            <div className="font-semibold text-3xl mt-2 text-black">{formatNumber(segmentation.returningCustomers ?? segmentation.returningCount ?? 0)} <span className="text-sm text-gray-400">({segmentation.returningPct ?? 0}%)</span></div>
-                        </div>
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                            <div className="text-xs text-gray-500">Orders (period)</div>
-                            <div className="font-semibold text-2xl mt-2 text-black">{formatNumber(segmentation.totalOrders || 0)}</div>
-                        </div>
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                            <div className="text-xs text-gray-500">Total Revenue (period)</div>
-                            <div className="font-semibold text-2xl mt-2 text-black">{formatCurrency(segmentation.totalRevenue ?? 0)}</div>
-                        </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <MetricCard
+                            label="New customers"
+                            value={`${formatNumber(segmentation.newCustomers ?? segmentation.newCount ?? 0)} (${segmentation.newPct ?? 0}%)`}
+                            icon={<FiUserPlus className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
+                        />
+                        <MetricCard
+                            label="Returning customers"
+                            value={`${formatNumber(segmentation.returningCustomers ?? segmentation.returningCount ?? 0)} (${segmentation.returningPct ?? 0}%)`}
+                            icon={<FiUsers className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
+                        />
+                        <MetricCard
+                            label="Orders (period)"
+                            value={formatNumber(segmentation.totalOrders || 0)}
+                            icon={<FiPackage className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
+                        />
+                        <MetricCard
+                            label="Total Revenue (period)"
+                            value={segmentation.totalRevenue != null ? Number(segmentation.totalRevenue).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}
+                            unit="kr"
+                            icon={<FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
+                        />
+                        <MetricCard
+                            label="NCA Revenue"
+                            value={segmentation.ncaRevenue != null ? Number(segmentation.ncaRevenue).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}
+                            unit="kr"
+                            icon={<FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
+                        />
+                        <MetricCard
+                            label="LTV 30 days"
+                            value={extendedMetricsLoading && segmentation.ltv30 == null ? <Spinner size={20} className="inline-block" /> : (segmentation.ltv30 != null ? Number(segmentation.ltv30).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—')}
+                            unit={segmentation.ltv30 != null ? 'kr' : undefined}
+                            icon={<FiTrendingUp className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
+                        />
+                        <MetricCard
+                            label="LTV 90 days"
+                            value={extendedMetricsLoading && segmentation.ltv90 == null ? <Spinner size={20} className="inline-block" /> : (segmentation.ltv90 != null ? Number(segmentation.ltv90).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—')}
+                            unit={segmentation.ltv90 != null ? 'kr' : undefined}
+                            icon={<FiTrendingUp className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
+                        />
+                        <MetricCard
+                            label="NCA Net Revenue"
+                            value={extendedMetricsLoading && segmentation.ncaNetRevenue == null ? <Spinner size={20} className="inline-block" /> : (segmentation.ncaNetRevenue != null ? Number(segmentation.ncaNetRevenue).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—')}
+                            unit={segmentation.ncaNetRevenue != null ? 'kr' : undefined}
+                            icon={<FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
+                        />
+                        <MetricCard
+                            label="Returning Customer Net Revenue"
+                            value={extendedMetricsLoading && segmentation.returningCustomerNetRevenue == null ? <Spinner size={20} className="inline-block" /> : (segmentation.returningCustomerNetRevenue != null ? Number(segmentation.returningCustomerNetRevenue).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—')}
+                            unit={segmentation.returningCustomerNetRevenue != null ? 'kr' : undefined}
+                            icon={<FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
+                        />
                     </div>
-
-                    {segmentation.cohortRetention && segmentation.cohortRetention.cohorts && segmentation.cohortRetention.cohorts.length > 0 && (
-                        <div className="bg-white border border-gray-200 rounded-xl p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <div>
-                                    <h6 className="text-[var(--color-primary-searchmind)] mb-1 font-bold">Cohort Retention</h6>
-                                    <div className="text-sm text-gray-500">Showing retention for cohorts (weekly)</div>
-                                </div>
-                            </div>
-                            <div className="overflow-auto">
-                                <table className="min-w-full text-sm">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-4 py-2 text-left">Cohort (week start)</th>
-                                            <th className="px-4 py-2 text-right">Size</th>
-                                            {Array.from({ length: segmentation.cohortRetention.weeks }, (_, i) => (
-                                                <th key={i} className="px-3 py-2 text-center">Week {i}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {segmentation.cohortRetention.cohorts.map((c, idx) => (
-                                            <tr key={idx} className="border-b last:border-b-0">
-                                                <td className="px-4 py-2">{c.cohort}</td>
-                                                <td className="px-4 py-2 text-right">{formatNumber(c.size)}</td>
-                                                {Array.from({ length: segmentation.cohortRetention.weeks }, (_, i) => (
-                                                    <td key={i} className="px-2 py-2 text-center">
-                                                        <div className="inline-block w-16 py-1 rounded" style={renderCohortCellStyle(c.retention[i])}>
-                                                            <div className="text-xs text-gray-800 font-semibold">{c.retention[i] ? `${c.retention[i]}%` : '—'}</div>
-                                                        </div>
-                                                    </td>
-                                                ))}
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    )}
                 </div>
             )}
         </div>

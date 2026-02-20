@@ -35,14 +35,16 @@ export default function ParentPropertyHome() {
     const [tempDateRange, setTempDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
     const [appliedDateRange, setAppliedDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
 
-    // Comparison method state
+    // Comparison method: applied (triggers fetch) vs temp (picker until Apply)
     const [comparisonMethod, setComparisonMethod] = useState("Last Period");
+    const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Period");
     // Determine the predominant metric preference from child customers
     const [predominantMetricPreference, setPredominantMetricPreference] = useState('ROAS/POAS');
 
-    // Handlers for DateRangePicker (controlled)
-    const handleDateRangeApply = ({ startDate, endDate }) => {
+    // Handlers for DateRangePicker (controlled) - comparison only applies on Apply
+    const handleDateRangeApply = ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
         setAppliedDateRange({ startDate, endDate });
+        if (appliedComparison) setComparisonMethod(appliedComparison);
     };
     const handleStartDateChange = (newStart) => {
         setTempDateRange(dr => ({ ...dr, startDate: newStart }));
@@ -346,11 +348,13 @@ export default function ParentPropertyHome() {
                         onStartDateChange={handleStartDateChange}
                         onEndDateChange={handleEndDateChange}
                         onApply={handleDateRangeApply}
+                        loading={loading}
+                        showComparisonMethodToggler={true}
+                        comparisonMethod={tempComparisonMethod}
+                        onComparisonMethodChange={setTempComparisonMethod}
                     />
                 }
-                showComparisonMethodToggler={true}
                 comparisonMethod={comparisonMethod}
-                onComparisonMethodChange={setComparisonMethod}
             />
 
             {/* Metric Cards */}

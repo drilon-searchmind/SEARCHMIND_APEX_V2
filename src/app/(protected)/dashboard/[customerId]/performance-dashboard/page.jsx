@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 import { getChartColors } from "@/components/dashboard/chartColors";
 import Spinner from "@/components/ui/Spinner";
+import Custom from "./components/Custom";
 
 export default function PerformanceDashboard() {
     const params = useParams();
@@ -34,9 +35,10 @@ export default function PerformanceDashboard() {
     const [tempDateRange, setTempDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
     const [appliedDateRange, setAppliedDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
 
-    // Handlers for DateRangePicker (controlled)
-    const handleDateRangeApply = ({ startDate, endDate }) => {
+    // Handlers for DateRangePicker (controlled) - comparison only applies on Apply
+    const handleDateRangeApply = ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
         setAppliedDateRange({ startDate, endDate });
+        if (appliedComparison) setComparisonMethod(appliedComparison);
     };
     const handleStartDateChange = (newStart) => {
         setTempDateRange(dr => ({ ...dr, startDate: newStart }));
@@ -45,11 +47,13 @@ export default function PerformanceDashboard() {
         setTempDateRange(dr => ({ ...dr, endDate: newEnd }));
     };
 
-    // Comparison method state
+    // Comparison method: applied (triggers fetch) vs temp (shown in picker until Apply)
     const [comparisonMethod, setComparisonMethod] = useState("Last Period");
+    const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Period");
 
     // Metrics state
     const [metrics, setMetrics] = useState([]);
+    const [metricsData, setMetricsData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -115,44 +119,52 @@ export default function PerformanceDashboard() {
                 const facebook = merged.facebookDaily || [];
                 const google = merged.googleDaily || [];
                 const revenue = shopify.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
+                const totalSales = shopify.reduce((sum, d) => sum + (d.total_sales || 0), 0);
+                const netRevenue = shopify.reduce((sum, d) => sum + (d.net_sales || 0), 0);
                 const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
+                const returns = shopify.reduce((sum, d) => sum + (d.returns || 0), 0);
                 const cost = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
-                const aov = orders > 0 ? revenue / orders : 0;
-                const roas = cost > 0 ? revenue / cost : null;
+                const aov = orders > 0 ? netRevenue / orders : 0;
+                const roas = cost > 0 ? netRevenue / cost : null;
                 const spendshare = cost / revenue;
                 
-                // Calculate Gross Profit: use fetched COGS if enabled, otherwise use merged value
+                // Calculate Gross Profit (force using net_sales): subtract COGS from netRevenue
+                const cogsPercentage = customer?.CustomerStaticExpenses?.cogsPercentage || 0;
                 const fetchCogs = customer?.CustomerSettings?.fetchCogsFromStore === true;
-                let gross_profit_total_sales = 0;
-                if (fetchCogs) {
-                    // Calculate COGS from fetched cost_of_goods_sold and use Revenue - COGS formula
-                    const totalCogs = shopify.reduce((sum, d) => sum + (d.cost_of_goods_sold || 0), 0);
-                    gross_profit_total_sales = revenue - totalCogs;
-                } else {
-                    // Use the value from merged (calculated using percentage)
-                    gross_profit_total_sales = merged.grossProfitTotalSales || 0;
-                }
+                const totalCogs = fetchCogs
+                    ? shopify.reduce((sum, d) => sum + (d.cost_of_goods_sold || 0), 0)
+                    : netRevenue * cogsPercentage;
+                let gross_profit_total_sales = netRevenue - totalCogs;
 
                 // Aggregate for metric cards (previous)
                 const shopifyPrev = mergedPrev.shopifyDaily || [];
                 const facebookPrev = mergedPrev.facebookDaily || [];
                 const googlePrev = mergedPrev.googleDaily || [];
                 const revenuePrev = shopifyPrev.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
+                const totalSalesPrev = shopifyPrev.reduce((sum, d) => sum + (d.total_sales || 0), 0);
+                const netRevenuePrev = shopifyPrev.reduce((sum, d) => sum + (d.net_sales || 0), 0);
                 const ordersPrev = shopifyPrev.reduce((sum, d) => sum + (d.orders || 0), 0);
+                const returnsPrev = shopifyPrev.reduce((sum, d) => sum + (d.returns || 0), 0);
                 const costPrev = [...facebookPrev, ...googlePrev].reduce((sum, d) => sum + (d.spend || 0), 0);
-                const aovPrev = ordersPrev > 0 ? revenuePrev / ordersPrev : 0;
-                const roasPrev = costPrev > 0 ? revenuePrev / costPrev : null;
+                const aovPrev = ordersPrev > 0 ? netRevenuePrev / ordersPrev : 0;
+                const roasPrev = costPrev > 0 ? netRevenuePrev / costPrev : null;
                 const spendsharePrev = costPrev / revenuePrev;
-                const gross_profit_total_salesPrev = mergedPrev.grossProfitTotalSales || 0; 
+                const prevTotalCogs = fetchCogs
+                    ? shopifyPrev.reduce((sum, d) => sum + (d.cost_of_goods_sold || 0), 0)
+                    : netRevenuePrev * cogsPercentage;
+                const gross_profit_total_salesPrev = netRevenuePrev - prevTotalCogs;
 
                 // Calculations
                 const grossProfitCalculation = merged.calculationsData?.grossProfitCalculation || '';
                 const totalAdspendCalculation = merged.calculationsData?.totalAdspendCalculation || '';
-                const roasCalculation = `Revenue / Cost \n
-                    = ${revenue.toFixed(2)} / ${cost.toFixed(2)} \n
+                const roasCalculation = `Net Revenue / Cost \n
+                    = ${netRevenue.toFixed(2)} / ${cost.toFixed(2)} \n
                     = ${roas !== null ? roas.toFixed(2) : 'N/A'}
                 `;
-                const poasCalculation = merged.calculationsData?.poasCalculation || '';
+                const poasCalculation = cost > 0 ? `(Net Profit / Cost) \n
+                    = ${gross_profit_total_sales.toFixed(2)} / ${cost.toFixed(2)} \n
+                    = ${ (cost > 0 && gross_profit_total_sales !== null) ? ( (gross_profit_total_sales / cost).toFixed(2) ) : 'N/A'}
+                ` : merged.calculationsData?.poasCalculation || '';
                 const cacCalculation = merged.calculationsData?.cacCalculation || '';
 
                 // % change helpers
@@ -166,43 +178,66 @@ export default function PerformanceDashboard() {
                 }
 
                 // POAS and CAC
-                const poas = merged.POASTotalSales ?? null;
-                const poasPrev = mergedPrev.POASTotalSales ?? null;
+                const poas = cost > 0 ? (gross_profit_total_sales / cost) : null;
+                const poasPrev = costPrev > 0 ? (gross_profit_total_salesPrev / costPrev) : null;
                 const cac = merged.CACTotalSales ?? null;
                 const cacPrev = mergedPrev.CACTotalSales ?? null;
 
                 // Build metrics array conditionally
                 const metricsArray = [
                     {
-                        label: `Revenue (${revenueType === 'net_sales' ? ', net sales' : 'total sales'})`,
-                        value: revenue ? revenue.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-',
+                        key: 'total_sales',
+                        label: 'Total Sales',
+                        value: totalSales ? totalSales.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange(revenue, revenuePrev) !== null ? Math.abs(percentChange(revenue, revenuePrev)).toFixed(1) : undefined,
-                        changeType: changeType(percentChange(revenue, revenuePrev)),
-                        tooltip: revenueType === 'net_sales' ? 'Net sales (after discounts, returns, etc.)' : undefined,
+                        change: percentChange(totalSales, totalSalesPrev) !== null ? Math.abs(percentChange(totalSales, totalSalesPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(totalSales, totalSalesPrev)),
                         popOverContent: null,
                     },
                     {
-                        label: "Gross Profit (inc vat)",
-                        value: gross_profit_total_sales ? gross_profit_total_sales.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-',
+                        key: 'revenue',
+                        label: 'Net Revenue',
+                        value: netRevenue ? netRevenue.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange(gross_profit_total_sales, gross_profit_total_salesPrev) !== null ? Math.abs(percentChange(gross_profit_total_sales, gross_profit_total_salesPrev)).toFixed(1) : undefined,
-                        changeType: changeType(percentChange(gross_profit_total_sales, gross_profit_total_salesPrev)),
+                        change: percentChange(netRevenue, netRevenuePrev) !== null ? Math.abs(percentChange(netRevenue, netRevenuePrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(netRevenue, netRevenuePrev)),
+                        tooltip: 'Net sales (after discounts, returns, etc.)',
+                        popOverContent: null,
+                    },
+                    {
+                        key: 'gross_profit',
+                        label: "Net Profit",
+                        // prefer merged net-sales based gross profit when available
+                        value: (merged.grossProfitNetSales ?? gross_profit_total_sales) ? ( (merged.grossProfitNetSales ?? gross_profit_total_sales).toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) ) : '-',
+                        icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange((merged.grossProfitNetSales ?? gross_profit_total_sales), (mergedPrev.grossProfitNetSales ?? gross_profit_total_salesPrev)) !== null ? Math.abs(percentChange((merged.grossProfitNetSales ?? gross_profit_total_sales), (mergedPrev.grossProfitNetSales ?? gross_profit_total_salesPrev))).toFixed(0) : undefined,
+                        changeType: changeType(percentChange((merged.grossProfitNetSales ?? gross_profit_total_sales), (mergedPrev.grossProfitNetSales ?? gross_profit_total_salesPrev))),
                         popOverContent: grossProfitCalculation,
                     },
                     {
+                        key: 'orders',
                         label: "Orders",
-                        value: orders !== null ? orders.toLocaleString() : '-',
+                        value: orders !== null ? orders.toLocaleString('da-DK', { maximumFractionDigits: 0 }) : '-',
                         icon: <FiShoppingCart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange(orders, ordersPrev) !== null ? Math.abs(percentChange(orders, ordersPrev)).toFixed(1) : undefined,
+                        change: percentChange(orders, ordersPrev) !== null ? Math.abs(percentChange(orders, ordersPrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(orders, ordersPrev)),
                         popOverContent: null,
                     },
                     {
-                        label: "Cost (Adspend)",
-                        value: cost ? cost.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-',
+                        key: 'returns',
+                        label: 'Refunds',
+                        value: returns ? returns.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
+                        icon: <FiTrendingUp className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(returns, returnsPrev) !== null ? Math.abs(percentChange(returns, returnsPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(returns, returnsPrev)),
+                        popOverContent: null,
+                    },
+                    {
+                        key: 'cost',
+                        label: "Spend",
+                        value: cost ? cost.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange(cost, costPrev) !== null ? Math.abs(percentChange(cost, costPrev)).toFixed(1) : undefined,
+                        change: percentChange(cost, costPrev) !== null ? Math.abs(percentChange(cost, costPrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(cost, costPrev)),
                         popOverContent: totalAdspendCalculation,
                     },
@@ -211,17 +246,19 @@ export default function PerformanceDashboard() {
                 // Conditionally add ROAS or Spendshare based on preference
                 if (customerMetricPreference === 'Spendshare') {
                     metricsArray.push({
+                        key: 'spendshare',
                         label: "Spendshare",
-                        value: spendshare !== null && !isNaN(spendshare) ? `${(spendshare * 100).toFixed(2)}%` : '-',
+                        value: spendshare !== null && !isNaN(spendshare) ? `${Math.round(spendshare * 100)}%` : '-',
                         icon: <FiBarChart2 className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange(spendshare, spendsharePrev) !== null ? Math.abs(percentChange(spendshare, spendsharePrev)).toFixed(1) : undefined,
+                        change: percentChange(spendshare, spendsharePrev) !== null ? Math.abs(percentChange(spendshare, spendsharePrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(spendshare, spendsharePrev)),
                         popOverContent: null,
                     });
                 } else {
                     // Default to ROAS/POAS
                     metricsArray.push({
-                        label: "ROAS",
+                        key: 'roas',
+                        label: "Blended ROAS",
                         value: roas !== null ? roas.toFixed(2) : '-',
                         icon: <FiBarChart2 className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(roas, roasPrev) !== null ? Math.abs(percentChange(roas, roasPrev)).toFixed(1) : undefined,
@@ -233,7 +270,8 @@ export default function PerformanceDashboard() {
                 // Add remaining metrics
                 metricsArray.push(
                     {
-                        label: "POAS",
+                        key: 'poas',
+                        label: "Blended POAS",
                         value: poas !== null ? poas.toFixed(2) : '-',
                         icon: <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(poas, poasPrev) !== null ? Math.abs(percentChange(poas, poasPrev)).toFixed(1) : undefined,
@@ -241,24 +279,42 @@ export default function PerformanceDashboard() {
                         popOverContent: poasCalculation,
                     },
                     {
-                        label: "AOV",
-                        value: aov !== null ? aov.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-',
+                        key: 'aov',
+                        label: "Net AOV",
+                        value: aov !== null ? aov.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiShoppingBag className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange(aov, aovPrev) !== null ? Math.abs(percentChange(aov, aovPrev)).toFixed(1) : undefined,
+                        change: percentChange(aov, aovPrev) !== null ? Math.abs(percentChange(aov, aovPrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(aov, aovPrev)),
                         popOverContent: null,
                     },
                     {
-                        label: "CAC",
-                        value: cac !== null ? cac.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' }) : '-',
+                        key: 'cac',
+                        label: "Blended CAC",
+                        value: cac !== null ? cac.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiUserCheck className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange(cac, cacPrev) !== null ? Math.abs(percentChange(cac, cacPrev)).toFixed(1) : undefined,
+                        change: percentChange(cac, cacPrev) !== null ? Math.abs(percentChange(cac, cacPrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(cac, cacPrev)),
                         popOverContent: cacCalculation,
                     },
                 );
 
                 setMetrics(metricsArray);
+
+                // Raw numeric values for Custom KPI formulas
+                const gprofit = merged.grossProfitNetSales ?? gross_profit_total_sales;
+                setMetricsData({
+                    total_sales: totalSales,
+                    revenue: netRevenue,
+                    gross_profit: gprofit,
+                    orders,
+                    returns,
+                    cost,
+                    roas: roas ?? 0,
+                    poas: poas ?? 0,
+                    aov,
+                    cac: cac ?? 0,
+                    spendshare: revenue > 0 ? cost / revenue : 0,
+                });
             } catch (err) {
                 setError(err.message);
             } finally {
@@ -273,6 +329,138 @@ export default function PerformanceDashboard() {
         setChartColors(getChartColors());
     }, []);
 
+    // Graph controls: metric toggles and aggregation (period vs monthly)
+    const METRIC_OPTIONS = [
+        { key: 'revenue', label: 'Net Revenue', icon: FiDollarSign },
+        { key: 'total_sales', label: 'Total Sales', icon: FiDollarSign },
+        { key: 'gross_profit', label: 'Net Profit', icon: FiDollarSign },
+        { key: 'returns', label: 'Refunds', icon: FiTrendingUp },
+        { key: 'orders', label: 'Orders', icon: FiShoppingCart },
+        { key: 'cost', label: 'Cost', icon: FiCreditCard },
+        { key: 'roas', label: 'Blended ROAS', icon: FiTrendingUp },
+        { key: 'poas', label: 'Blended POAS', icon: FiPieChart },
+        { key: 'aov', label: 'Net AOV', icon: FiShoppingBag },
+        { key: 'cac', label: 'Blended CAC', icon: FiUserCheck },
+    ];
+    const [selectedMetrics, setSelectedMetrics] = useState(['revenue']); // revenue default
+    const [aggregateBy, setAggregateBy] = useState('period'); // 'period' | 'monthly'
+    const [viewMode, setViewMode] = useState('standard'); // 'standard' | 'custom'
+
+    // Helper to aggregate daily arrays by keyFn (period or month)
+    const aggregateDaily = (shopifyArr, facebookArr, googleArr, keyFn) => {
+        const map = {};
+        const push = (k, obj) => {
+            if (!map[k]) map[k] = { revenue: 0, totalRevenue: 0, orders: 0, cost: 0, cogs: 0, returns: 0 };
+            // totalRevenue = total_sales, revenue = net_sales when available (fallback to total_sales)
+            map[k].totalRevenue += Number(obj.total_sales || 0);
+            map[k].revenue += Number(obj.net_sales || obj.total_sales || 0);
+            map[k].orders += Number(obj.orders || 0);
+            map[k].cogs += Number(obj.cost_of_goods_sold || 0);
+            map[k].returns += Number(obj.returns || 0);
+        };
+        (shopifyArr || []).forEach(d => push(keyFn(d.period), d));
+        // build spend map
+        const addSpend = (k, spend) => {
+            if (!map[k]) map[k] = { revenue: 0, totalRevenue: 0, orders: 0, cost: 0, cogs: 0, returns: 0 };
+            map[k].cost += Number(spend || 0);
+        };
+        (facebookArr || []).forEach(d => addSpend(keyFn(d.period), d.spend));
+        (googleArr || []).forEach(d => addSpend(keyFn(d.period), d.spend));
+        return map;
+    };
+
+    // Build series for selected metrics and current + comparison (aligned)
+    const buildSeriesFromSelected = () => {
+        const keyFn = (period) => aggregateBy === 'monthly' ? dayjs(period).format('YYYY-MM') : period;
+        const currAgg = aggregateDaily(shopifyDaily, facebookDaily, googleDaily, keyFn);
+        const prevAgg = aggregateDaily(shopifyDailyPrev, facebookDailyPrev, googleDailyPrev, keyFn);
+
+        const categories = Object.keys(currAgg).sort();
+        const series = [];
+
+        // days/months count in applied range
+        const daysInRange = dayjs(appliedDateRange.endDate).diff(dayjs(appliedDateRange.startDate), 'day') + 1;
+
+        const getPrevKeyForCategory = (currKey, idx) => {
+            if (aggregateBy === 'monthly') {
+                if (comparisonMethod === 'Last Year') {
+                    return dayjs(currKey + '-01').subtract(1, 'year').format('YYYY-MM');
+                }
+                // Last Period: map months by index relative to previous contiguous month block
+                const periodStartMonth = dayjs(appliedDateRange.startDate).startOf('month');
+                const prevPeriodEnd = periodStartMonth.subtract(1, 'day').endOf('month');
+                const prevPeriodStart = prevPeriodEnd.startOf('month');
+                return prevPeriodStart.add(idx, 'month').format('YYYY-MM');
+            }
+            // daily
+            if (comparisonMethod === 'Last Year') {
+                return dayjs(currKey).subtract(1, 'year').format('YYYY-MM-DD');
+            }
+            const prevStart = dayjs(appliedDateRange.startDate).subtract(daysInRange, 'day');
+            return prevStart.add(idx, 'day').format('YYYY-MM-DD');
+        };
+
+        selectedMetrics.forEach((metric) => {
+            const currData = categories.map(k => {
+                const v = currAgg[k];
+                if (!v) return null;
+                if (metric === 'revenue') return Number(v.revenue.toFixed(0));
+                if (metric === 'total_sales') return Number(v.totalRevenue.toFixed(0));
+                if (metric === 'returns') return Number((v.returns || 0).toFixed(0));
+                if (metric === 'gross_profit') return Number((v.revenue - (v.cogs || 0)).toFixed(0));
+                if (metric === 'cost') return Number(v.cost.toFixed(0));
+                if (metric === 'orders') return Number(v.orders || 0);
+                if (metric === 'roas') return (v.cost > 0 ? Number((v.revenue / v.cost).toFixed(2)) : null);
+                if (metric === 'poas') return (v.cost > 0 ? Number(((v.revenue - (v.cogs || 0)) / v.cost).toFixed(2)) : null);
+                if (metric === 'aov') return (v.orders > 0 ? Number((v.revenue / v.orders).toFixed(0)) : null);
+                if (metric === 'spendshare') return (v.revenue > 0 ? Number(((v.cost / v.revenue) * 100).toFixed(0)) : null);
+                if (metric === 'cac') return (v.orders > 0 ? Number((v.cost / v.orders).toFixed(0)) : null);
+                return null;
+            });
+
+            series.push({ name: `${METRIC_OPTIONS.find(o=>o.key===metric)?.label || metric} (Current)`, data: currData });
+
+            const prevData = categories.map((k, idx) => {
+                const prevKey = getPrevKeyForCategory(k, idx);
+                const v = prevAgg[prevKey];
+                if (!v) return null;
+                if (metric === 'revenue') return Number(v.revenue.toFixed(0));
+                if (metric === 'total_sales') return Number(v.totalRevenue.toFixed(0));
+                if (metric === 'returns') return Number((v.returns || 0).toFixed(0));
+                if (metric === 'gross_profit') return Number((v.revenue - (v.cogs || 0)).toFixed(0));
+                if (metric === 'cost') return Number(v.cost.toFixed(0));
+                if (metric === 'orders') return Number(v.orders || 0);
+                if (metric === 'roas') return (v.cost > 0 ? Number((v.revenue / v.cost).toFixed(2)) : null);
+                if (metric === 'poas') return (v.cost > 0 ? Number(((v.revenue - (v.cogs || 0)) / v.cost).toFixed(2)) : null);
+                if (metric === 'aov') return (v.orders > 0 ? Number((v.revenue / v.orders).toFixed(0)) : null);
+                if (metric === 'spendshare') return (v.revenue > 0 ? Number(((v.cost / v.revenue) * 100).toFixed(0)) : null);
+                if (metric === 'cac') return (v.orders > 0 ? Number((v.cost / v.orders).toFixed(0)) : null);
+                return null;
+            });
+
+            series.push({ name: `${METRIC_OPTIONS.find(o=>o.key===metric)?.label || metric} (${comparisonMethod})`, data: prevData });
+        });
+
+        const formatChartValue = (v) => (typeof v === 'number' && !isNaN(v) ? v.toLocaleString('da-DK', { maximumFractionDigits: 2, minimumFractionDigits: 0 }) : v);
+        const options = {
+            chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
+            xaxis: { categories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
+            yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' }, formatter: formatChartValue } },
+            tooltip: { theme: 'light', y: { formatter: formatChartValue } },
+            colors: [chartColors.lime || '#C6ED62', '#94a3b8', chartColors.primaryLighter || '#406969', '#cbd5e1', chartColors.green || '#213834', '#f1f5f9'],
+            stroke: { width: series.map((_,i) => i % 2 === 0 ? 2 : 1), curve: 'smooth', dashArray: series.map((_,i) => i % 2 === 1 ? 5 : 0) },
+            fill: { type: 'solid', opacity: [1,0.5] },
+            grid: { borderColor: '#e5e7eb', strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
+            dataLabels: { enabled: false },
+            tooltip: { theme: 'light' },
+            legend: { show: true, position: 'top', labels: { colors: chartColors.primary || '#1E2B2B' } },
+        };
+
+        return { series, options };
+    };
+
+    const { series: combinedSeries, options: combinedOptions } = buildSeriesFromSelected();
+
     // Chart options for each graph
     // No fill/gradient for now
     const noFill = { type: 'solid', opacity: 0 };
@@ -281,8 +469,8 @@ export default function PerformanceDashboard() {
     // Revenue chart
     const revenueCategories = shopifyDaily.map(d => d.period);
     const revenueSeries = [
-        { name: 'Revenue (Current)', data: shopifyDaily.map(d => Number(d.total_sales).toFixed(2)) },
-        { name: `Revenue (${comparisonMethod})`, data: shopifyDailyPrev.map(d => Number(d.total_sales).toFixed(2)) }
+        { name: 'Revenue (Current)', data: shopifyDaily.map(d => Number(d.total_sales).toFixed(0)) },
+        { name: `Revenue (${comparisonMethod})`, data: shopifyDailyPrev.map(d => Number(d.total_sales).toFixed(0)) }
     ];
     const revenueOptions = {
         chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
@@ -302,8 +490,8 @@ export default function PerformanceDashboard() {
     // Align facebook and google spend by date (current)
     const facebookSpendMap = Object.fromEntries(facebookDaily.map(d => [d.period, d.spend]));
     const googleSpendMap = Object.fromEntries(googleDaily.map(d => [d.period, d.spend]));
-    const facebookSpendSeries = spendCategories.map(date => (facebookSpendMap[date] ? Number(facebookSpendMap[date]).toFixed(2) : '0.00'));
-    const googleSpendSeries = spendCategories.map(date => (googleSpendMap[date] ? Number(googleSpendMap[date]).toFixed(2) : '0.00'));
+    const facebookSpendSeries = spendCategories.map(date => (facebookSpendMap[date] ? Number(facebookSpendMap[date]).toFixed(0) : '0'));
+    const googleSpendSeries = spendCategories.map(date => (googleSpendMap[date] ? Number(googleSpendMap[date]).toFixed(0) : '0'));
 
     // Align facebook and google spend by date (previous)
     const facebookSpendMapPrev = Object.fromEntries(facebookDailyPrev.map(d => [d.period, d.spend]));
@@ -325,7 +513,7 @@ export default function PerformanceDashboard() {
             const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, 'day') + 1, 'day');
             prevDate = prevPeriodStart.add(daysDiff, 'day').format('YYYY-MM-DD');
         }
-        return facebookSpendMapPrev[prevDate] ? Number(facebookSpendMapPrev[prevDate]).toFixed(2) : '0.00';
+        return facebookSpendMapPrev[prevDate] ? Number(facebookSpendMapPrev[prevDate]).toFixed(0) : '0';
     });
 
     const googleSpendSeriesPrev = spendCategories.map(date => {
@@ -343,7 +531,7 @@ export default function PerformanceDashboard() {
             const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, 'day') + 1, 'day');
             prevDate = prevPeriodStart.add(daysDiff, 'day').format('YYYY-MM-DD');
         }
-        return googleSpendMapPrev[prevDate] ? Number(googleSpendMapPrev[prevDate]).toFixed(2) : '0.00';
+        return googleSpendMapPrev[prevDate] ? Number(googleSpendMapPrev[prevDate]).toFixed(0) : '0';
     });
 
     const spendAllocationSeries = [
@@ -384,7 +572,7 @@ export default function PerformanceDashboard() {
                 name: 'Spendshare (Current)',
                 data: shopifyDaily.map((d, i) => {
                     const spend = (Number(facebookSpendMap[d.period]) || 0) + (Number(googleSpendMap[d.period]) || 0);
-                    return d.total_sales > 0 ? ((spend / d.total_sales) * 100).toFixed(2) : null;
+                    return d.total_sales > 0 ? ((spend / d.total_sales) * 100).toFixed(0) : null;
                 })
             },
             {
@@ -407,23 +595,24 @@ export default function PerformanceDashboard() {
                     const prevShopifyData = shopifyDailyPrev.find(pd => pd.period === prevDate);
                     const prevSpend = (Number(facebookSpendMapPrev[prevDate]) || 0) + (Number(googleSpendMapPrev[prevDate]) || 0);
 
-                    return prevShopifyData && prevShopifyData.total_sales > 0 ? ((prevSpend / prevShopifyData.total_sales) * 100).toFixed(2) : null;
+                    return prevShopifyData && prevShopifyData.total_sales > 0 ? ((prevSpend / prevShopifyData.total_sales) * 100).toFixed(0) : null;
                 })
             }
         ];
         metricTitle = 'Spendshare (%)';
     } else {
-        // ROAS chart (default)
+        // ROAS chart (default) - use blended ROAS label
+        const roasLabel = METRIC_OPTIONS.find(o => o.key === 'roas')?.label || 'Blended ROAS';
         metricSeries = [
             {
-                name: 'ROAS (Current)',
+                name: `${roasLabel} (Current)`,
                 data: shopifyDaily.map((d, i) => {
                     const spend = (Number(facebookSpendMap[d.period]) || 0) + (Number(googleSpendMap[d.period]) || 0);
-                    return spend > 0 ? (d.total_sales / spend).toFixed(2) : null;
+                    return spend > 0 ? ( (Number(d.net_sales || d.total_sales) / spend) ).toFixed(2) : null;
                 })
             },
             {
-                name: `ROAS (${comparisonMethod})`,
+                name: `${roasLabel} (${comparisonMethod})`,
                 data: shopifyDaily.map((d, i) => {
                     let prevDate;
                     if (comparisonMethod === "Last Year") {
@@ -442,11 +631,11 @@ export default function PerformanceDashboard() {
                     const prevShopifyData = shopifyDailyPrev.find(pd => pd.period === prevDate);
                     const prevSpend = (Number(facebookSpendMapPrev[prevDate]) || 0) + (Number(googleSpendMapPrev[prevDate]) || 0);
 
-                    return prevShopifyData && prevSpend > 0 ? (prevShopifyData.total_sales / prevSpend).toFixed(2) : null;
+                    return prevShopifyData && prevSpend > 0 ? ( (Number(prevShopifyData.net_sales || prevShopifyData.total_sales) / prevSpend) ).toFixed(2) : null;
                 })
             }
         ];
-        metricTitle = 'ROAS';
+        metricTitle = roasLabel;
     }
 
     metricOptions = {
@@ -466,11 +655,11 @@ export default function PerformanceDashboard() {
     const aovCategories = shopifyDaily.map(d => d.period);
     const aovSeries = [
         {
-            name: 'AOV (Current)',
-            data: shopifyDaily.map(d => d.orders > 0 ? (d.total_sales / d.orders).toFixed(2) : null)
+            name: 'Net AOV (Current)',
+            data: shopifyDaily.map(d => d.orders > 0 ? ((Number(d.net_sales || d.total_sales) / d.orders)).toFixed(0) : null)
         },
         {
-            name: `AOV (${comparisonMethod})`,
+            name: `Net AOV (${comparisonMethod})`,
             data: shopifyDaily.map((d, i) => {
                 let prevDate;
                 if (comparisonMethod === "Last Year") {
@@ -487,7 +676,7 @@ export default function PerformanceDashboard() {
 
                 // Find corresponding previous period data
                 const prevShopifyData = shopifyDailyPrev.find(pd => pd.period === prevDate);
-                return prevShopifyData && prevShopifyData.orders > 0 ? (prevShopifyData.total_sales / prevShopifyData.orders).toFixed(2) : null;
+                return prevShopifyData && prevShopifyData.orders > 0 ? ((Number(prevShopifyData.net_sales || prevShopifyData.total_sales) / prevShopifyData.orders)).toFixed(0) : null;
             })
         }
     ];
@@ -538,55 +727,129 @@ export default function PerformanceDashboard() {
                         onStartDateChange={handleStartDateChange}
                         onEndDateChange={handleEndDateChange}
                         loading={loading}
+                        showComparisonMethodToggler={true}
+                        comparisonMethod={tempComparisonMethod}
+                        onComparisonMethodChange={setTempComparisonMethod}
                     />
                 }
-                showComparisonMethodToggler={true}
-                onComparisonMethodChange={setComparisonMethod}
             />
 
-            {/* Metrics Cards Section */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 w-full mb-8">
+            {/* View Mode Toggler + Metrics Cards Section */}
+            <div className="mb-4">
+                <div className="flex border border-gray-200 bg-gray-100 rounded-lg overflow-hidden w-fit">
+                    <button
+                        type="button"
+                        className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium focus:outline-none transition-colors duration-150 ${viewMode === 'standard' ? 'bg-white text-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500 hover:text-[var(--color-primary-searchmind)]'}`}
+                        style={{ borderRadius: '8px 0 0 8px' }}
+                        onClick={() => setViewMode('standard')}
+                    >
+                        Standard
+                    </button>
+                    <button
+                        type="button"
+                        className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium focus:outline-none transition-colors duration-150 ${viewMode === 'custom' ? 'bg-white text-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500 hover:text-[var(--color-primary-searchmind)]'}`}
+                        style={{ borderRadius: '0 8px 8px 0' }}
+                        onClick={() => setViewMode('custom')}
+                    >
+                        Custom
+                    </button>
+                </div>
+            </div>
+
+            {viewMode === 'standard' ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6 w-full mb-8">
                 {loading ? (
                     <div className="col-span-4 text-center"><Spinner size={40} color="#406969" /></div>
                 ) : error ? (
                     <div className="col-span-4 text-center text-red-500">{error}</div>
                 ) : (
-                    metrics.map((metric, idx) => (
-                        <MetricCard key={idx} {...metric} comparisonMethod={comparisonMethod} />
-                    ))
+                    metrics.map((metric, idx) => {
+                        // derive a metric key from label to match toggles
+                        const getMetricKeyFromLabel = (label) => {
+                            if (!label) return null;
+                            const l = label.toLowerCase();
+                            if (l.includes('revenue')) return 'revenue';
+                            if (l.includes('gross')) return 'gross_profit';
+                            if (l.includes('cost') || l.includes('adspend') || l.includes('spend')) return 'cost';
+                            if (l.includes('order')) return 'orders';
+                            if (l.includes('roas')) return 'roas';
+                            if (l.includes('poas')) return 'poas';
+                            if (l.includes('aov')) return 'aov';
+                            if (l.includes('cac')) return 'cac';
+                            if (l.includes('spendshare')) return 'spendshare';
+                            return null;
+                        };
+
+                        const metricKey = metric.key || getMetricKeyFromLabel(metric.label);
+
+                        const toggleMetricSelection = (key) => {
+                            if (!key) return;
+                            setSelectedMetrics(prev =>
+                                prev.includes(key) ? (prev.length > 1 ? prev.filter(k => k !== key) : prev) : [...prev, key]
+                            );
+                        };
+
+                        const isSelected = metricKey ? selectedMetrics.includes(metricKey) : false;
+
+                        return (
+                            <div
+                                key={idx}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => toggleMetricSelection(metricKey)}
+                                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleMetricSelection(metricKey)}
+                                className="cursor-pointer rounded-lg"
+                                aria-pressed={metricKey ? isSelected : undefined}
+                            >
+                                <MetricCard {...metric} comparisonMethod={comparisonMethod} isActive={isSelected} />
+                            </div>
+                        );
+                    })
                 )}
             </div>
+            ) : (
+            <div className="mb-8">
+                <Custom
+                    customerId={params.customerId}
+                    metricsData={metricsData}
+                    shopifyDaily={shopifyDaily}
+                    facebookDaily={facebookDaily}
+                    googleDaily={googleDaily}
+                    shopifyDailyPrev={shopifyDailyPrev}
+                    facebookDailyPrev={facebookDailyPrev}
+                    googleDailyPrev={googleDailyPrev}
+                    appliedDateRange={appliedDateRange}
+                    comparisonMethod={comparisonMethod}
+                    aggregateBy={aggregateBy}
+                    chartColors={chartColors}
+                />
+            </div>
+            )}
 
-            {/* Graphs Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-                {/* Revenue Graph */}
-                {loading && (!shopifyDaily.length) ? (
+            {/* Single Toggleable Graph Section - Standard view only */}
+            {viewMode === 'standard' && (
+            <div className="w-full mb-8">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                        {METRIC_OPTIONS.map(opt => (
+                            <button
+                                key={opt.key}
+                                className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 ${selectedMetrics.includes(opt.key) ? 'bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'}`}
+                                onClick={() => setSelectedMetrics(prev => prev.includes(opt.key) ? (prev.length > 1 ? prev.filter(k => k !== opt.key) : prev) : [...prev, opt.key])}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {loading ? (
                     <div className="flex items-center justify-center h-64"><Spinner size={40} color="#406969" /></div>
                 ) : (
-                    <GraphCard title="Revenue (inc VAT)" chartOptions={revenueOptions} chartSeries={revenueSeries} />
-                )}
-
-                {/* Spend Allocation Graph */}
-                {loading && (!facebookDaily.length && !googleDaily.length) ? (
-                    <div className="flex items-center justify-center h-64"><Spinner size={40} color="#406969" /></div>
-                ) : (
-                    <GraphCard title="Spend Allocation" chartOptions={spendOptions} chartSeries={spendAllocationSeries} />
-                )}
-
-                {/* ROAS or Spendshare Graph */}
-                {loading && (!shopifyDaily.length) ? (
-                    <div className="flex items-center justify-center h-64"><Spinner size={40} color="#406969" /></div>
-                ) : (
-                    <GraphCard title={metricTitle} chartOptions={metricOptions} chartSeries={metricSeries} />
-                )}
-
-                {/* AOV Graph */}
-                {loading && (!shopifyDaily.length) ? (
-                    <div className="flex items-center justify-center h-64"><Spinner size={40} color="#406969" /></div>
-                ) : (
-                    <GraphCard title="Average Order Value" chartOptions={aovOptions} chartSeries={aovSeries} />
+                    <GraphCard title={selectedMetrics.length === 1 ? `${METRIC_OPTIONS.find(o=>o.key===selectedMetrics[0])?.label} Over Time` : 'Performance Metrics Over Time'} chartOptions={combinedOptions} chartSeries={combinedSeries} />
                 )}
             </div>
+            )}
         </div>
     );
 }

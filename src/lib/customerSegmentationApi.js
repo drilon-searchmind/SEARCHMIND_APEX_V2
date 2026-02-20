@@ -1,4 +1,96 @@
 import { shopifyqlQuery } from './shopifyApi';
+import currencyApiValues from './static-data/currencyApiValues.json';
+
+/**
+ * Fetch Shopify orders for customer segmentation (customer id, date, total, net).
+ * Fetches in extended range (startDate - 90 days) for LTV 90 computation.
+ * @param {object} settings - { shopifyUrl, shopifyApiPassword, customerStoreValutaCode }
+ * @param {string} startDate - YYYY-MM-DD
+ * @param {string} endDate - YYYY-MM-DD
+ * @returns {Promise<Array<{ customer, created_at, total_price, net_price }>>}
+ */
+async function fetchShopifyOrdersForSegmentation(settings, startDate, endDate) {
+    if (!settings?.shopifyUrl || !settings?.shopifyApiPassword) return [];
+    const shopUrl = settings.shopifyUrl;
+    const accessToken = settings.shopifyApiPassword;
+
+    const fromCode = settings?.customerStoreValutaCode || 'DKK';
+    const toCode = 'DKK';
+    const currencyData = currencyApiValues.data;
+    let conversionRate = 1;
+    if (fromCode !== toCode && currencyData?.[fromCode] && currencyData?.[toCode]) {
+        conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
+    }
+
+    const endpoint = `https://${shopUrl}/admin/api/2025-10/graphql.json`;
+    const orders = [];
+    const extendDays = 90;
+    const fetchStart = new Date(startDate);
+    fetchStart.setDate(fetchStart.getDate() - extendDays);
+    const fetchStartStr = fetchStart.toISOString().slice(0, 10);
+
+    const query = `query getOrdersForSegmentation($query: String!, $cursor: String) {
+        orders(first: 250, query: $query, after: $cursor) {
+            edges {
+                node {
+                    id
+                    createdAt
+                    totalPriceSet { shopMoney { amount } }
+                    netPaymentSet { shopMoney { amount } }
+                    customer {
+                        id
+                        email
+                    }
+                }
+                cursor
+            }
+            pageInfo { hasNextPage endCursor }
+        }
+    }`;
+
+    const q = `created_at:>="${fetchStartStr}" AND created_at:<="${endDate}"`;
+    let cursor = null;
+    let hasNext = true;
+
+    try {
+        while (hasNext) {
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Shopify-Access-Token': accessToken,
+                },
+                body: JSON.stringify({ query, variables: { query: q, cursor } }),
+            });
+            if (!res.ok) throw new Error(`Shopify GraphQL error: ${res.status}`);
+            const json = await res.json();
+            const edges = json?.data?.orders?.edges || [];
+            for (const edge of edges) {
+                const node = edge.node;
+                const cust = node.customer;
+                const custId = cust?.id || cust?.email || null;
+                if (!custId) continue;
+                const total = (parseFloat(node.totalPriceSet?.shopMoney?.amount) || 0) * conversionRate;
+                const net = (parseFloat(node.netPaymentSet?.shopMoney?.amount) || 0) * conversionRate;
+                orders.push({
+                    customer: { id: cust?.id, email: cust?.email },
+                    customer_id: cust?.id,
+                    customer_email: cust?.email,
+                    created_at: node.createdAt,
+                    total_price: total,
+                    net_price: net,
+                });
+            }
+            const pageInfo = json?.data?.orders?.pageInfo || {};
+            hasNext = !!pageInfo.hasNextPage;
+            cursor = pageInfo.endCursor || null;
+        }
+        return orders;
+    } catch (err) {
+        console.error('fetchShopifyOrdersForSegmentation error:', err);
+        return [];
+    }
+}
 
 export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
     // Try to find per-order customer-level data first
@@ -18,17 +110,21 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
         let totalRevenue = 0;
         let totalOrders = 0;
 
+        let totalNetRevenue = 0;
         orders.forEach(o => {
             const cust = (o.customer && (o.customer.id || o.customer.email)) || o.customer_email || o.email || o.customer_id || o.buyer_email || null;
             if (!cust) return;
             const id = String(cust).toLowerCase();
             const created = o.created_at || o.createdAt || o.date || o.processed_at || null;
             const total = Number(o.total_price || o.total || o.price || o.amount || o.subtotal || 0) || 0;
-            if (!byCust.has(id)) byCust.set(id, { orders: [], firstSeen: null, totalValue: 0 });
+            const net = o.net_price != null ? Number(o.net_price) : total;
+            if (!byCust.has(id)) byCust.set(id, { orders: [], firstSeen: null, totalValue: 0, totalNetValue: 0 });
             const rec = byCust.get(id);
-            rec.orders.push({ date: created ? new Date(created) : null, total });
+            rec.orders.push({ date: created ? new Date(created) : null, total, net });
             rec.totalValue += total;
+            rec.totalNetValue += net;
             totalRevenue += total;
+            totalNetRevenue += net;
             totalOrders += 1;
             if (created) {
                 const d = new Date(created);
@@ -93,53 +189,6 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
             revenue: Number(dailyMap[period].revenue.toFixed(2)),
         }));
 
-        // Cohort retention (weekly cohorts, up to MAX_WEEKS)
-        const MAX_WEEKS = 12;
-        const cohortMap = new Map();
-        const weekMs = msPerDay * 7;
-
-        const weekStart = (date) => {
-            const d = new Date(date);
-            // Monday as week start
-            const day = d.getDay(); // 0 = Sun, 1 = Mon
-            const diff = (day + 6) % 7; // days since Monday
-            const ws = new Date(d.getFullYear(), d.getMonth(), d.getDate() - diff);
-            ws.setHours(0,0,0,0);
-            return ws;
-        };
-
-        for (const [id, info] of byCust.entries()) {
-            if (!info.firstSeen) continue;
-            const cohortStart = weekStart(info.firstSeen);
-            const cohortKey = cohortStart.toISOString().slice(0,10);
-            if (!cohortMap.has(cohortKey)) {
-                cohortMap.set(cohortKey, { size: 0, weeklySets: Array.from({ length: MAX_WEEKS }, () => new Set()) });
-            }
-            const entry = cohortMap.get(cohortKey);
-            entry.size += 1;
-            info.orders.forEach(o => {
-                if (!(o.date instanceof Date)) return;
-                const weekDiff = Math.floor((o.date - cohortStart) / weekMs);
-                if (weekDiff >= 0 && weekDiff < MAX_WEEKS) entry.weeklySets[weekDiff].add(id);
-            });
-        }
-
-        const cohortList = Array.from(cohortMap.entries()).sort((a,b) => a[0].localeCompare(b[0]));
-        let maxWeekUsed = 0;
-        const cohorts = cohortList.map(([cohort, entry]) => {
-            const retention = entry.weeklySets.map(s => Number(((s.size / entry.size) * 100).toFixed(1)));
-            for (let i = retention.length - 1; i >= 0; i--) {
-                if (retention[i] > 0) { maxWeekUsed = Math.max(maxWeekUsed, i + 1); break; }
-            }
-            return { cohort, size: entry.size, retention };
-        });
-
-        const weeksToShow = Math.max(4, Math.min(MAX_WEEKS, maxWeekUsed || 4));
-        const cohortRetention = {
-            weeks: weeksToShow,
-            cohorts: cohorts.map(c => ({ cohort: c.cohort, size: c.size, retention: c.retention.slice(0, weeksToShow) })),
-        };
-
         // Repeat rate and avg orders per returning customer
         repeatRate = returningCustomersCount > 0 ? (returningOrdersCount / returningCustomersCount) : 0;
         ordersPerReturning = returningCustomersCount > 0 ? (returningOrdersCount / returningCustomersCount) : 0;
@@ -175,6 +224,45 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
         const lifetimeMonths = churnMonthlyDecimal > 0 ? (1 / churnMonthlyDecimal) : null;
         const ltvEstimate = lifetimeMonths ? Number((avgMonthlyRevenuePerCustomer * lifetimeMonths).toFixed(2)) : null;
 
+        // NCA Revenue = new customers × AOV (assumes each new customer places exactly one order)
+        const aov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+        const ncaRevenue = Number((newCustomers * aov).toFixed(2));
+
+        // NCA net revenue = sum of net from new customers' first orders in period
+        let ncaNetRevenue = 0;
+        let returningCustomerNetRevenue = 0;
+        byCust.forEach((info) => {
+            const isNewCustomer = info.firstSeen && info.firstSeen >= s && info.firstSeen <= e;
+            const firstOrder = info.orders.find(o => o.date && info.firstSeen && o.date.toISOString().slice(0, 10) === info.firstSeen.toISOString().slice(0, 10));
+            if (isNewCustomer && firstOrder?.net != null) ncaNetRevenue += firstOrder.net;
+            else if (isNewCustomer && firstOrder) ncaNetRevenue += firstOrder.total;
+        });
+        ncaNetRevenue = Number(ncaNetRevenue.toFixed(2));
+        returningCustomerNetRevenue = Number((totalNetRevenue - ncaNetRevenue).toFixed(2));
+
+        // LTV 30, 90 days: avg revenue per customer in first X days from first purchase
+        const msPerDayNum = 1000 * 60 * 60 * 24;
+        const ltvWindows = [30, 90];
+        const ltvResult = { ltv30: null, ltv90: null };
+        const cutoffDate = new Date(e.getTime() - 1); // exclude partial windows at end
+        for (const window of ltvWindows) {
+            const windowMs = window * msPerDayNum;
+            const cutoff = new Date(cutoffDate.getTime() - windowMs);
+            let sum = 0;
+            let count = 0;
+            byCust.forEach((info) => {
+                if (!info.firstSeen) return;
+                if (info.firstSeen > cutoff) return; // customer must have first order window+days ago
+                const windowEnd = new Date(info.firstSeen.getTime() + windowMs);
+                const revenueInWindow = info.orders
+                    .filter(o => o.date instanceof Date && o.date >= info.firstSeen && o.date < windowEnd)
+                    .reduce((acc, o) => acc + (o.net != null ? o.net : o.total), 0);
+                sum += revenueInWindow;
+                count += 1;
+            });
+            if (count > 0) ltvResult[`ltv${window}`] = Number((sum / count).toFixed(2));
+        }
+
         // Insights
         if (totalCustomers === 0) insights.push('No customers in orders payload');
         else {
@@ -199,8 +287,13 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
             ordersPerReturning: Number(ordersPerReturning.toFixed(2)),
             totalOrders,
             totalRevenue: Number(totalRevenue.toFixed(2)),
+            totalNetRevenue: Number(totalNetRevenue.toFixed(2)),
+            ncaRevenue,
+            ncaNetRevenue,
+            returningCustomerNetRevenue,
+            ltv30: ltvResult.ltv30,
+            ltv90: ltvResult.ltv90,
             dailySeries,
-            cohortRetention, // newly added
             churnPercent: Number(churnPercent.toFixed(2)),
             churnMonthly: Number(churnMonthly.toFixed(2)),
             ltvEstimate,
@@ -229,6 +322,10 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
             returningCustomers: (d.orders || 0) - Math.round((d.orders || 0) * 0.4),
         }));
 
+        const totalRevenueVal = Number(shopifyDaily.reduce((s, d) => s + (d.total_sales || d.net_sales || 0), 0).toFixed(2));
+        const aovApprox = totalOrders > 0 ? totalRevenueVal / totalOrders : 0;
+        const ncaRevenueApprox = Number((approxNew * aovApprox).toFixed(2));
+
         insights.push('Segmentation approximated from daily aggregates (no order-level data).');
         return {
             totalCustomers: totalOrders,
@@ -239,7 +336,13 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
             repeatRate: 0,
             ordersPerReturning: 0,
             totalOrders,
-            totalRevenue: Number(shopifyDaily.reduce((s, d) => s + (d.total_sales || d.net_sales || 0), 0).toFixed(2)),
+            totalRevenue: totalRevenueVal,
+            totalNetRevenue: totalRevenueVal,
+            ncaRevenue: ncaRevenueApprox,
+            ncaNetRevenue: null,
+            returningCustomerNetRevenue: null,
+            ltv30: null,
+            ltv90: null,
             dailySeries,
             churnPercent: null,
             churnMonthly: null,
@@ -264,6 +367,12 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
         ordersPerReturning: 0,
         totalOrders: 0,
         totalRevenue: 0,
+        totalNetRevenue: 0,
+        ncaRevenue: 0,
+        ncaNetRevenue: null,
+        returningCustomerNetRevenue: null,
+        ltv30: null,
+        ltv90: null,
         dailySeries: [],
         churnPercent: null,
         churnMonthly: null,
@@ -276,11 +385,12 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
     };
 }
 
-export async function fetchCustomerSegmentation(customerId, startDate, endDate) {
+export async function fetchCustomerSegmentation(customerId, startDate, endDate, options = {}) {
     if (!customerId || !startDate || !endDate) {
         throw new Error('Missing parameters');
     }
 
+    const { fast = false } = options;
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
     // Fetch customer settings (same approach as merged-sources route)
@@ -335,35 +445,29 @@ GROUP BY customer_type
             }
             const totalCustomers = newCustomers + returningCustomers;
 
-            // For deeper insights (AOV, repeat) try merged-sources
-            const mergedRes = await fetch(`${baseUrl}/api/merged-sources/${customerId}?startDate=${startDate}&endDate=${endDate}`);
-            if (mergedRes.ok) {
-                const merged = await mergedRes.json();
+            // For deeper insights (AOV, repeat, LTV, NCA) fetch merged-sources + orders (unless fast mode)
+            const mergedPromise = fetch(`${baseUrl}/api/merged-sources/${customerId}?startDate=${startDate}&endDate=${endDate}`);
+            const shopifyOrdersPromise = fast ? Promise.resolve([]) : fetchShopifyOrdersForSegmentation(settings, startDate, endDate);
+            const [mergedRes, shopifyOrders] = await Promise.all([mergedPromise, shopifyOrdersPromise]);
+            const merged = mergedRes.ok ? await mergedRes.json() : {};
+            if (shopifyOrders.length > 0) merged.shopifyOrders = shopifyOrders;
+            if (mergedRes.ok || shopifyOrders.length > 0) {
                 const computed = computeSegmentationFromMerged(merged, startDate, endDate);
-                // Merge counts if ShopifyQL produced better totals
+                const aov = computed.totalOrders > 0 ? computed.totalRevenue / computed.totalOrders : 0;
+                const ncaRevenueOverride = (newCustomers || computed.newCustomers) * aov;
                 return {
+                    ...computed,
                     totalCustomers: totalCustomers || computed.totalCustomers,
                     newCustomers: newCustomers || computed.newCustomers,
                     returningCustomers: returningCustomers || computed.returningCustomers,
                     newPct: totalCustomers ? Number(((newCustomers / totalCustomers) * 100).toFixed(2)) : computed.newPct,
                     returningPct: totalCustomers ? Number(((returningCustomers / totalCustomers) * 100).toFixed(2)) : computed.returningPct,
-                    repeatRate: computed.repeatRate,
-                    ordersPerReturning: computed.ordersPerReturning,
-                    totalOrders: computed.totalOrders,
-                    totalRevenue: computed.totalRevenue,
-                    dailySeries: computed.dailySeries,
-                    churnPercent: computed.churnPercent,
-                    churnMonthly: computed.churnMonthly,
-                    ltvEstimate: computed.ltvEstimate,
-                    firstTimeRepeatRate: computed.firstTimeRepeatRate,
-                    firstTimeRepeatCount: computed.firstTimeRepeatCount,
-                    firstTimeBuyersCount: computed.firstTimeBuyersCount,
-                    firstOrdersCount: computed.firstOrdersCount,
-                    insights: computed.insights,
+                    ncaRevenue: Number(ncaRevenueOverride.toFixed(2)),
                 };
             }
 
-            // If merged fetch failed, return the counts only
+            // If both merged and orders failed, return the counts only
+            const aovFallback = 0;
             return {
                 totalCustomers,
                 newCustomers,
@@ -374,6 +478,12 @@ GROUP BY customer_type
                 ordersPerReturning: 0,
                 totalOrders: 0,
                 totalRevenue: 0,
+                totalNetRevenue: 0,
+                ncaRevenue: Number((newCustomers * aovFallback).toFixed(2)),
+                ncaNetRevenue: null,
+                returningCustomerNetRevenue: null,
+                ltv30: null,
+                ltv90: null,
                 dailySeries: [],
                 churnPercent: null,
                 churnMonthly: null,

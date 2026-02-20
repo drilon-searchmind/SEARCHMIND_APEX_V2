@@ -1,0 +1,126 @@
+'use client';
+
+import dynamic from 'next/dynamic';
+import { FiSettings } from 'react-icons/fi';
+import Spinner from '@/components/ui/Spinner';
+
+const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false });
+
+export default function RevenuePaceAnalysisCard({
+	analysis,
+	loading,
+	error,
+	onOpenSettings,
+}) {
+	if (loading) {
+		return (
+			<div className="w-full md:w-1/3 bg-white border border-gray-200 rounded-xl p-6 flex flex-col gap-4">
+				<h6 className="text-[var(--color-primary-searchmind)] mb-2 font-bold">
+					Revenue Pace
+				</h6>
+				<div className="flex justify-center items-center min-h-[200px]">
+					<Spinner size={40} color="#406969" />
+				</div>
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className="w-full md:w-1/3 bg-white border border-gray-200 rounded-xl p-6 flex flex-col gap-4">
+				<h6 className="text-[var(--color-primary-searchmind)] mb-2 font-bold">
+					Revenue Pace
+				</h6>
+				<div className="text-red-500">{error}</div>
+			</div>
+		);
+	}
+
+	if (!analysis) {
+		return (
+			<div className="w-full md:w-1/3 bg-white border border-gray-200 rounded-xl p-6 flex flex-col gap-4">
+				<h6 className="text-[var(--color-primary-searchmind)] mb-2 font-bold">
+					Revenue Pace
+				</h6>
+				<div className="text-gray-400">No analysis available.</div>
+			</div>
+		);
+	}
+
+	const progressPercent = Number(
+		((analysis.actualValueToDate / analysis.budget) * 100).toFixed(0)
+	);
+
+	const formatCurrency = (val) =>
+		val.toLocaleString('da-DK', {
+			style: 'currency',
+			currency: 'DKK',
+			maximumFractionDigits: 0,
+		});
+
+	return (
+		<div className="w-full md:w-1/3 bg-white border border-gray-200 rounded-xl p-6 flex flex-col gap-4">
+			<h6 className="text-[var(--color-primary-searchmind)] mb-2 font-bold">
+				Revenue Pace
+			</h6>
+			<div className="flex flex-col items-center mb-2">
+				<ReactApexChart
+					options={{
+						chart: { type: 'radialBar', sparkline: { enabled: true } },
+						plotOptions: {
+							radialBar: {
+								startAngle: -100,
+								endAngle: 100,
+								hollow: { size: '75%' },
+								track: { background: '#e5e7eb', strokeWidth: '100%' },
+								dataLabels: {
+									name: { show: false },
+									value: {
+										offsetY: 15,
+										fontSize: '30px',
+										fontWeight: 700,
+										color: '#213834',
+										formatter: (val) => `${val}%`,
+									},
+								},
+							},
+						},
+						stroke: { lineCap: 'round' },
+						fill: { colors: ['#406969'] },
+						labels: ['Progress'],
+					}}
+					series={[progressPercent]}
+					type="radialBar"
+					height={300}
+					width={250}
+				/>
+			</div>
+			<div className="flex flex-col gap-2 mt-2">
+				<div className="flex justify-between text-base font-bold border-b border-gray-200 pb-1">
+					<span>Pace:</span>
+					<span>{analysis.pace.toFixed(2)}</span>
+				</div>
+				<div className="flex justify-between text-sm">
+					<span>Revenue Target (Conversion Budget):</span>
+					<span>{formatCurrency(analysis.budget)}</span>
+				</div>
+				<div className="flex justify-between text-sm">
+					<span>Actual Revenue to Date:</span>
+					<span>{formatCurrency(analysis.actualValueToDate)}</span>
+				</div>
+				<div className="flex justify-between text-sm">
+					<span>Total Days:</span>
+					<span>{analysis.totalDays}</span>
+				</div>
+			</div>
+			<button
+				onClick={onOpenSettings}
+				className="mt-4 text-sm underline hover:text-[var(--color-primary-searchmind-lighter)] text-center flex items-center justify-center gap-1 text-blue-500 w-full"
+			>
+				<span className="text-gray-500 flex items-center gap-1">
+					<FiSettings /> Adjust your revenue targets here.
+				</span>
+			</button>
+		</div>
+	);
+}

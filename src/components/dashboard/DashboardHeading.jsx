@@ -9,9 +9,7 @@ export default function DashboardHeading({
     title,
     label,
     right,
-    showComparisonMethodToggler = false,
-    comparisonMethod,
-    onComparisonMethodChange,
+    comparisonMethod = "Last Period",
     showAnalyzeWithAi = true,
     customerId,
     dateRange,
@@ -20,11 +18,7 @@ export default function DashboardHeading({
     loading = false,
 }) {
     const user = useUser();
-    const [toggleComparisonMethod, setToggleComparisonMethod] = useState("Last Period");
     const [showAnalyzeWithAiModal, setShowAnalyzeWithAiModal] = useState(false);
-
-    const currentMethod = comparisonMethod || toggleComparisonMethod;
-    const setMethod = onComparisonMethodChange || setToggleComparisonMethod;
 
     const handleOpenAiModal = () => {
         setShowAnalyzeWithAiModal(true);
@@ -49,30 +43,8 @@ export default function DashboardHeading({
                     <div 
                         className={`flex flex-col sm:flex-row md:items-center gap-3 md:gap-4 w-full md:w-auto ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                        {showComparisonMethodToggler && (
-                            <div id="dateComparisonToggler" className="w-full sm:w-auto order-2 md:order-1">
-                                <div className="flex border border-gray-200 bg-gray-100 rounded-lg overflow-hidden">
-                                    <button
-                                        disabled={loading}
-                                        className={`flex-1 sm:flex-none px-3 sm:px-4 py-1 text-xs sm:text-sm font-medium focus:outline-none transition-colors duration-150 ${currentMethod === 'Last Year' ? 'bg-white text-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500 hover:text-[var(--color-primary-searchmind)]'}`}
-                                        style={{ borderRadius: '8px 0 0 8px' }}
-                                        onClick={() => setMethod('Last Year')}
-                                    >
-                                        Last Year
-                                    </button>
-                                    <button
-                                        disabled={loading}
-                                        className={`flex-1 sm:flex-none px-3 sm:px-4 py-1 text-xs sm:text-sm font-medium focus:outline-none transition-colors duration-150 ${currentMethod === 'Last Period' ? 'bg-white text-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500 hover:text-[var(--color-primary-searchmind)]'}`}
-                                        style={{ borderRadius: '0 8px 8px 0' }}
-                                        onClick={() => setMethod('Last Period')}
-                                    >
-                                        Last Period
-                                    </button>
-                                </div>
-                            </div>
-                        )}
                         {/* Right Component (DateRangePicker, buttons, etc.) */}
-                        <div className="order-1 md:order-2 flex gap-2">
+                        <div className="flex gap-2">
                             {showAnalyzeWithAi && user?.isAdmin && (
                                 <div className="w-full h-full">
                                     <button 
@@ -100,7 +72,7 @@ export default function DashboardHeading({
                     onClose={handleCloseAiModal}
                     customerId={customerId}
                     dateRange={dateRange}
-                    comparisonMethod={currentMethod}
+                    comparisonMethod={comparisonMethod}
                     dataSnapshot={dataSnapshot}
                     dashboardType={dashboardType}
                 />

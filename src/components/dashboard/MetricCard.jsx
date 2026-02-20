@@ -26,15 +26,19 @@ export default function MetricCard({ label, value, unit, change, changeType, ico
             >
                 <div className="flex items-center justify-between mb-4">
                     <span className={`w-full flex flex-col items-start gap-2 text-sm font-medium ${labelText}`}>
-                        <div className="flex items-start gap-2 justify-between w-full">
-                            <span className={`rounded-lg p-4 ${iconBg}`}>
-                                {icon}
+                        <span className="flex justify-between w-full">
+                            <span className="flex items-center gap-2 justify-start w-full">
+                                {label}
+                                {/* {popOverContent && (
+                                    <span><FiInfo /></span>
+                                )} */}
                             </span>
-                            {popOverContent && (
-                                <span><FiInfo /></span>
-                            )}
-                        </div>
-                        {label}
+                            <div className="flex items-start gap-2 justify-end w-full">
+                                <span className={`rounded-lg p-2 ${iconBg}`}>
+                                    {icon}
+                                </span>
+                            </div>
+                        </span>
                     </span>
                     {children}
                 </div>

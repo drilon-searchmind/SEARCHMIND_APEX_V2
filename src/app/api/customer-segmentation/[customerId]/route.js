@@ -7,12 +7,13 @@ export async function GET(request, { params }) {
     const customerId = resolvedParams.customerId;
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const fast = searchParams.get('fast') === 'true';
 
     if (!customerId) return Response.json({ error: 'Missing customerId in path' }, { status: 400 });
     if (!startDate || !endDate) return Response.json({ error: 'Missing startDate or endDate' }, { status: 400 });
 
     try {
-        const data = await fetchCustomerSegmentation(customerId, startDate, endDate);
+        const data = await fetchCustomerSegmentation(customerId, startDate, endDate, { fast });
         return Response.json(data);
     } catch (err) {
         console.error('Error computing customer segmentation:', err);

@@ -1,0 +1,635 @@
+"use client";
+
+import React, { useState, useEffect, useMemo } from "react";
+import dayjs from "dayjs";
+import { FiPlus, FiEdit2, FiTrash2 } from "react-icons/fi";
+import MetricCard from "@/components/dashboard/MetricCard";
+import GraphCard from "@/components/dashboard/GraphCard";
+import AddKpiModal from "./AddKpiModal";
+import {
+    FiDollarSign,
+    FiTrendingUp,
+    FiShoppingCart,
+    FiCreditCard,
+    FiBarChart2,
+    FiPieChart,
+    FiShoppingBag,
+    FiUserCheck,
+} from "react-icons/fi";
+import {
+    evaluateFormula,
+    getFirstMetricKey,
+    toParts,
+} from "./kpiFormulaUtils";
+import Spinner from "@/components/ui/Spinner";
+
+const STORAGE_KEY_PREFIX = "performance-dashboard-custom-kpis";
+const MIGRATION_KEY = "performance-dashboard-custom-kpis-migrated";
+
+const METRIC_ICONS = {
+    total_sales: FiDollarSign,
+    revenue: FiDollarSign,
+    gross_profit: FiDollarSign,
+    orders: FiShoppingCart,
+    returns: FiTrendingUp,
+    cost: FiCreditCard,
+    roas: FiBarChart2,
+    poas: FiPieChart,
+    aov: FiShoppingBag,
+    cac: FiUserCheck,
+    spendshare: FiBarChart2,
+};
+
+// Fictional fallback values when real data is not available
+const FICTIONAL_METRICS = {
+    total_sales: 125000,
+    revenue: 118000,
+    gross_profit: 42000,
+    orders: 850,
+    returns: 3200,
+    cost: 18500,
+    roas: 6.38,
+    poas: 2.27,
+    aov: 139,
+    cac: 22,
+    spendshare: 0.157,
+};
+
+const CURRENCY_KEYS = [
+    "total_sales",
+    "revenue",
+    "gross_profit",
+    "returns",
+    "cost",
+    "aov",
+    "cac",
+];
+const RATIO_KEYS = ["roas", "poas", "spendshare"];
+
+function formatValue(value, kpi) {
+    if (value === null || value === undefined || isNaN(value)) return "-";
+
+    const parts = toParts(kpi);
+    const metricKeys = parts
+        ? parts.filter((p) => p.type === "metric").map((p) => p.value)
+        : [kpi.metricA, kpi.metricB].filter(Boolean);
+    if (metricKeys.length === 0) {
+        return typeof value === "number" ? value.toLocaleString("da-DK", { maximumFractionDigits: 2 }) : String(value);
+    }
+    const firstMetric = metricKeys[0];
+    const lastMetric = metricKeys[metricKeys.length - 1];
+    const isCurrency =
+        metricKeys.some((k) => CURRENCY_KEYS.includes(k)) ||
+        Math.abs(value) >= 100;
+    const isRatio = metricKeys.some((k) => RATIO_KEYS.includes(k));
+
+    if (
+        (firstMetric === "revenue" || firstMetric === "total_sales") &&
+        lastMetric === "orders"
+    ) {
+        return value.toLocaleString("da-DK", {
+            style: "currency",
+            currency: "DKK",
+            maximumFractionDigits: 0,
+        });
+    }
+    if (isRatio) {
+        return value.toLocaleString("da-DK", {
+            maximumFractionDigits: 2,
+            minimumFractionDigits: 2,
+        });
+    }
+    if (isCurrency) {
+        return value.toLocaleString("da-DK", {
+            style: "currency",
+            currency: "DKK",
+            maximumFractionDigits: 0,
+        });
+    }
+    return value.toLocaleString("da-DK", { maximumFractionDigits: 2 });
+}
+
+async function fetchKpisFromApi(customerId) {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
+    const res = await fetch(`${baseUrl}/api/custom-kpis/${customerId}`);
+    if (!res.ok) throw new Error("Failed to fetch custom KPIs");
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+}
+
+function loadKpisFromStorage(customerId) {
+    if (typeof window === "undefined") return [];
+    try {
+        const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}-${customerId}`);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+function aggregateDaily(shopifyArr, facebookArr, googleArr, keyFn) {
+    const map = {};
+    const push = (k, obj) => {
+        if (!map[k])
+            map[k] = {
+                revenue: 0,
+                totalRevenue: 0,
+                orders: 0,
+                cost: 0,
+                cogs: 0,
+                returns: 0,
+            };
+        map[k].totalRevenue += Number(obj.total_sales || 0);
+        map[k].revenue += Number(obj.net_sales || obj.total_sales || 0);
+        map[k].orders += Number(obj.orders || 0);
+        map[k].cogs += Number(obj.cost_of_goods_sold || 0);
+        map[k].returns += Number(obj.returns || 0);
+    };
+    (shopifyArr || []).forEach((d) => push(keyFn(d.period), d));
+    const addSpend = (k, spend) => {
+        if (!map[k])
+            map[k] = {
+                revenue: 0,
+                totalRevenue: 0,
+                orders: 0,
+                cost: 0,
+                cogs: 0,
+                returns: 0,
+            };
+        map[k].cost += Number(spend || 0);
+    };
+    (facebookArr || []).forEach((d) => addSpend(keyFn(d.period), d.spend));
+    (googleArr || []).forEach((d) => addSpend(keyFn(d.period), d.spend));
+    return map;
+}
+
+export default function Custom({
+    customerId = "",
+    metricsData = null,
+    shopifyDaily = [],
+    facebookDaily = [],
+    googleDaily = [],
+    shopifyDailyPrev = [],
+    facebookDailyPrev = [],
+    googleDailyPrev = [],
+    appliedDateRange = { startDate: "", endDate: "" },
+    comparisonMethod = "Last Period",
+    aggregateBy = "period",
+    chartColors = {},
+}) {
+    const [kpis, setKpis] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [saving, setSaving] = useState(false);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [editingKpi, setEditingKpi] = useState(null);
+    const [selectedKpis, setSelectedKpis] = useState([]);
+
+    useEffect(() => {
+        if (!customerId) {
+            setKpis([]);
+            setLoading(false);
+            return;
+        }
+        let cancelled = false;
+        setLoading(true);
+        setError(null);
+        fetchKpisFromApi(customerId)
+            .then(async (apiKpis) => {
+                if (cancelled) return;
+                if (apiKpis.length === 0) {
+                    const stored = loadKpisFromStorage(customerId);
+                    const migrated = typeof window !== "undefined" && localStorage.getItem(`${MIGRATION_KEY}-${customerId}`);
+                    if (stored.length > 0 && !migrated) {
+                        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
+                        const migratedKpis = [];
+                        for (const kpi of stored) {
+                            const { id, ...rest } = kpi;
+                            const res = await fetch(`${baseUrl}/api/custom-kpis/${customerId}`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(rest),
+                            });
+                            if (res.ok) migratedKpis.push(await res.json());
+                        }
+                        localStorage.removeItem(`${STORAGE_KEY_PREFIX}-${customerId}`);
+                        localStorage.setItem(`${MIGRATION_KEY}-${customerId}`, "1");
+                        return migratedKpis;
+                    }
+                }
+                return apiKpis;
+            })
+            .then((data) => {
+                if (!cancelled) setKpis(data);
+            })
+            .catch((err) => {
+                if (!cancelled) setError(err.message);
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+        return () => { cancelled = true; };
+    }, [customerId]);
+
+    useEffect(() => {
+        setSelectedKpis((prev) => {
+            const ids = kpis.map((k) => k.id);
+            const kept = prev.filter((id) => ids.includes(id));
+            if (kept.length === 0 && kpis.length > 0) {
+                return [kpis[0].id];
+            }
+            return kept;
+        });
+    }, [kpis]);
+
+    const handleSave = async (kpi) => {
+        const isEdit = kpis.some((k) => k.id === kpi.id);
+        setSaving(true);
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
+        try {
+            if (isEdit) {
+                const res = await fetch(
+                    `${baseUrl}/api/custom-kpis/${customerId}/${kpi.id}`,
+                    {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            name: kpi.name,
+                            parts: kpi.parts || [],
+                            metricA: kpi.metricA || "",
+                            metricB: kpi.metricB || "",
+                            operator: kpi.operator || "",
+                        }),
+                    }
+                );
+                if (!res.ok) throw new Error("Failed to update KPI");
+                const updated = await res.json();
+                setKpis((prev) =>
+                    prev.map((k) => (k.id === kpi.id ? updated : k))
+                );
+            } else {
+                const res = await fetch(
+                    `${baseUrl}/api/custom-kpis/${customerId}`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            name: kpi.name,
+                            parts: kpi.parts || [],
+                            metricA: kpi.metricA || "",
+                            metricB: kpi.metricB || "",
+                            operator: kpi.operator || "",
+                        }),
+                    }
+                );
+                if (!res.ok) throw new Error("Failed to create KPI");
+                const created = await res.json();
+                setKpis((prev) => [...prev, created]);
+                setSelectedKpis((p) => [...p, created.id]);
+            }
+            setModalOpen(false);
+            setEditingKpi(null);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleEdit = (kpi) => {
+        setEditingKpi(kpi);
+        setModalOpen(true);
+    };
+
+    const handleDelete = async (kpi) => {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
+        try {
+            const res = await fetch(
+                `${baseUrl}/api/custom-kpis/${customerId}/${kpi.id}`,
+                { method: "DELETE" }
+            );
+            if (!res.ok) throw new Error("Failed to delete KPI");
+            setKpis((prev) => prev.filter((k) => k.id !== kpi.id));
+            setSelectedKpis((p) => p.filter((id) => id !== kpi.id));
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    const handleAddClick = () => {
+        setEditingKpi(null);
+        setModalOpen(true);
+    };
+
+    const handleModalClose = () => {
+        setModalOpen(false);
+        setEditingKpi(null);
+    };
+
+    const toggleKpiSelection = (kpiId) => {
+        setSelectedKpis((prev) =>
+            prev.includes(kpiId)
+                ? prev.length > 1
+                    ? prev.filter((id) => id !== kpiId)
+                    : prev
+                : [...prev, kpiId]
+        );
+    };
+
+    const dataForCards = metricsData ?? FICTIONAL_METRICS;
+
+    // Build chart series for custom KPIs
+    const { chartSeries, chartOptions } = useMemo(() => {
+        const keyFn =
+            aggregateBy === "monthly"
+                ? (p) => dayjs(p).format("YYYY-MM")
+                : (p) => p;
+        const currAgg = aggregateDaily(
+            shopifyDaily,
+            facebookDaily,
+            googleDaily,
+            keyFn
+        );
+        const prevAgg = aggregateDaily(
+            shopifyDailyPrev,
+            facebookDailyPrev,
+            googleDailyPrev,
+            keyFn
+        );
+
+        const categories = Object.keys(currAgg).sort();
+        const daysInRange =
+            dayjs(appliedDateRange.endDate).diff(
+                dayjs(appliedDateRange.startDate),
+                "day"
+            ) + 1;
+
+        const getPrevKey = (currKey, idx) => {
+            if (aggregateBy === "monthly") {
+                if (comparisonMethod === "Last Year") {
+                    return dayjs(currKey + "-01")
+                        .subtract(1, "year")
+                        .format("YYYY-MM");
+                }
+                const periodStartMonth = dayjs(
+                    appliedDateRange.startDate
+                ).startOf("month");
+                const prevPeriodEnd = periodStartMonth
+                    .subtract(1, "day")
+                    .endOf("month");
+                const prevPeriodStart = prevPeriodEnd.startOf("month");
+                return prevPeriodStart.add(idx, "month").format("YYYY-MM");
+            }
+            if (comparisonMethod === "Last Year") {
+                return dayjs(currKey).subtract(1, "year").format("YYYY-MM-DD");
+            }
+            const prevStart = dayjs(appliedDateRange.startDate).subtract(
+                daysInRange,
+                "day"
+            );
+            return prevStart.add(idx, "day").format("YYYY-MM-DD");
+        };
+
+        const series = [];
+        selectedKpis.forEach((kpiId) => {
+            const kpi = kpis.find((k) => k.id === kpiId);
+            if (!kpi) return;
+
+            const currData = categories.map((k) => {
+                const v = currAgg[k];
+                const val = evaluateFormula(kpi, v);
+                return val !== null ? Math.round(Number(val)) : null;
+            });
+            series.push({
+                name: `${kpi.name} (Current)`,
+                data: currData,
+            });
+
+            const prevData = categories.map((k, idx) => {
+                const prevKey = getPrevKey(k, idx);
+                const v = prevAgg[prevKey];
+                const val = evaluateFormula(kpi, v);
+                return val !== null ? Math.round(Number(val)) : null;
+            });
+            series.push({
+                name: `${kpi.name} (${comparisonMethod})`,
+                data: prevData,
+            });
+        });
+
+        const formatChartValue = (v) =>
+            typeof v === "number" && !isNaN(v)
+                ? v.toLocaleString("da-DK", {
+                      maximumFractionDigits: 0,
+                      minimumFractionDigits: 0,
+                  })
+                : v;
+
+        const options = {
+            chart: {
+                toolbar: { show: false },
+                zoom: { enabled: false },
+                fontFamily: "Outfit, sans-serif",
+            },
+            xaxis: {
+                categories,
+                labels: {
+                    style: { colors: chartColors.primaryLighter || "#406969" },
+                },
+                axisTicks: { show: true },
+                axisBorder: { show: true },
+            },
+            yaxis: {
+                labels: {
+                    style: { colors: chartColors.primary || "#1E2B2B" },
+                    formatter: formatChartValue,
+                },
+            },
+            tooltip: {
+                theme: "light",
+                y: { formatter: formatChartValue },
+            },
+            colors: [
+                chartColors.lime || "#C6ED62",
+                "#94a3b8",
+                chartColors.primaryLighter || "#406969",
+                "#cbd5e1",
+                chartColors.green || "#213834",
+                "#f1f5f9",
+            ],
+            stroke: {
+                width: series.map((_, i) => (i % 2 === 0 ? 2 : 1)),
+                curve: "smooth",
+                dashArray: series.map((_, i) => (i % 2 === 1 ? 5 : 0)),
+            },
+            fill: { type: "solid", opacity: [1, 0.5] },
+            grid: {
+                borderColor: "#e5e7eb",
+                strokeDashArray: 0,
+                xaxis: { lines: { show: false } },
+                yaxis: { lines: { show: true } },
+            },
+            dataLabels: { enabled: false },
+            legend: {
+                show: true,
+                position: "top",
+                labels: { colors: chartColors.primary || "#1E2B2B" },
+            },
+        };
+
+        return { chartSeries: series, chartOptions: options };
+    }, [
+        kpis,
+        selectedKpis,
+        shopifyDaily,
+        facebookDaily,
+        googleDaily,
+        shopifyDailyPrev,
+        facebookDailyPrev,
+        googleDailyPrev,
+        appliedDateRange,
+        comparisonMethod,
+        aggregateBy,
+        chartColors,
+    ]);
+
+    return (
+        <div className="w-full">
+            {error && (
+                <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-600 text-sm">
+                    {error}
+                </div>
+            )}
+            {loading ? (
+                <div className="flex justify-center py-12">
+                    <Spinner size={40} color="#406969" />
+                </div>
+            ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6 w-full">
+                {kpis.map((kpi) => {
+                    const rawValue = evaluateFormula(kpi, dataForCards);
+                    const displayValue = formatValue(rawValue, kpi);
+                    const Icon =
+                        METRIC_ICONS[getFirstMetricKey(kpi)] || FiBarChart2;
+                    const isSelected = selectedKpis.includes(kpi.id);
+
+                    return (
+                        <div
+                            key={kpi.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => toggleKpiSelection(kpi.id)}
+                            onKeyDown={(e) =>
+                                (e.key === "Enter" || e.key === " ") &&
+                                toggleKpiSelection(kpi.id)
+                            }
+                            className="relative group cursor-pointer rounded-lg"
+                            aria-pressed={isSelected}
+                        >
+                            <MetricCard
+                                label={kpi.name}
+                                value={displayValue}
+                                icon={
+                                    <Icon className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />
+                                }
+                                isActive={isSelected}
+                                comparisonMethod={comparisonMethod}
+                            />
+                            <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        handleEdit(kpi);
+                                    }}
+                                    className="p-1.5 rounded-lg bg-white/90 hover:bg-gray-100 text-gray-400 hover:text-gray-600 shadow-sm"
+                                    aria-label="Edit KPI"
+                                >
+                                    <FiEdit2 className="text-sm" />
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        handleDelete(kpi);
+                                    }}
+                                    className="p-1.5 rounded-lg bg-white/90 hover:bg-red-50 text-gray-400 hover:text-red-600 shadow-sm"
+                                    aria-label="Delete KPI"
+                                >
+                                    <FiTrash2 className="text-sm" />
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })}
+
+                <button
+                    type="button"
+                    onClick={handleAddClick}
+                    className="group flex flex-col justify-center items-center border-2 border-dashed border-gray-300 rounded-xl min-w-[160px] min-h-[110px] px-6 py-5 hover:border-[var(--color-primary-searchmind)] hover:bg-gray-50/50 transition-colors"
+                    aria-label="Add KPI"
+                >
+                    <FiPlus className="text-3xl text-gray-400 group-hover:text-[var(--color-primary-searchmind)] transition-colors" />
+                    <span className="text-xs text-gray-400 mt-2 group-hover:text-[var(--color-primary-searchmind)] transition-colors">
+                        Add KPI
+                    </span>
+                </button>
+            </div>
+            )}
+
+            {/* Graph section - same pattern as Standard view */}
+            {kpis.length > 0 && (
+                <div className="mt-8">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex flex-wrap gap-2">
+                            {kpis.map((kpi) => (
+                                <button
+                                    key={kpi.id}
+                                    onClick={() =>
+                                        toggleKpiSelection(kpi.id)
+                                    }
+                                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 ${
+                                        selectedKpis.includes(kpi.id)
+                                            ? "bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]"
+                                            : "bg-white text-gray-700 border-gray-200 hover:bg-gray-100"
+                                    }`}
+                                >
+                                    {kpi.name}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {selectedKpis.length > 0 ? (
+                        <GraphCard
+                            title={
+                                selectedKpis.length === 1
+                                    ? `${kpis.find((k) => k.id === selectedKpis[0])?.name || "KPI"} Over Time`
+                                    : "Custom KPIs Over Time"
+                            }
+                            chartOptions={chartOptions}
+                            chartSeries={chartSeries}
+                        />
+                    ) : (
+                        <div className="flex items-center justify-center h-64 border border-dashed border-gray-200 rounded-xl bg-gray-50/50">
+                            <p className="text-sm text-gray-500">
+                                Select KPIs above to display on the graph
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {modalOpen && (
+                <AddKpiModal
+                    onClose={handleModalClose}
+                    onSave={handleSave}
+                    editingKpi={editingKpi}
+                    saving={saving}
+                />
+            )}
+        </div>
+    );
+}

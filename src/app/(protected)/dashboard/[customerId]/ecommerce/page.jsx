@@ -4,23 +4,13 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import DashboardHeading from '@/components/dashboard/DashboardHeading';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
-import MetricCard from '@/components/dashboard/MetricCard';
-import GraphCard from '@/components/dashboard/GraphCard';
 import Spinner from '@/components/ui/Spinner';
-import { FiShoppingCart, FiDollarSign, FiPackage, FiBarChart, FiBarChart2, FiUsers } from 'react-icons/fi';
+import { FiPackage, FiUsers } from 'react-icons/fi';
 
 import ProductPerfomance from './components/ProductPerfomance';
 import CustomerPerformance from './components/CustomerPerformance';
 
-const METRIC_OPTIONS = [
-    { key: 'total_sales', label: 'Total Sales', icon: FiShoppingCart, isCurrency: true, color: '#1E2B2B' },
-    { key: 'net_sales', label: 'Net Sales', icon: FiDollarSign, isCurrency: true, color: '#4F46E5' },
-    { key: 'gross_sales', label: 'Gross Sales', icon: FiPackage, isCurrency: true, color: '#06B6D4' },
-    { key: 'orders', label: 'Orders', icon: FiBarChart, isCurrency: false, color: '#C6ED62' },
-];
-
 const TABS = [
-    { id: 'overview', label: 'Overview', icon: FiBarChart2 },
     { id: 'products', label: 'Product Performance', icon: FiPackage },
     { id: 'customers', label: 'Customer Performance', icon: FiUsers },
 ];
@@ -45,129 +35,122 @@ export default function EcommercePage() {
     const defaultRangeValue = defaultRange();
     const [tempRange, setTempRange] = useState(defaultRangeValue);
     const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
-    const [loading, setLoading] = useState(true);
+    const [productsLoading, setProductsLoading] = useState(true);
+    const [inventoryLoading, setInventoryLoading] = useState(false);
+    const [segmentationLoading, setSegmentationLoading] = useState(false);
+    const [extendedMetricsLoading, setExtendedMetricsLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [shopifyDaily, setShopifyDaily] = useState([]);
     const [products, setProducts] = useState([]);
     const [segmentation, setSegmentation] = useState(null);
-    const [selectedMetrics, setSelectedMetrics] = useState(['total_sales']);
-    const [activeTab, setActiveTab] = useState('overview');
+    const [segmentationFetchedFor, setSegmentationFetchedFor] = useState(null);
+    const [activeTab, setActiveTab] = useState('products');
 
     const handleDateRangeApply = ({ startDate, endDate }) => {
         setAppliedRange({ startDate, endDate });
     };
 
+    const rangeKey = appliedRange.startDate && appliedRange.endDate ? `${appliedRange.startDate}-${appliedRange.endDate}` : null;
+
     useEffect(() => {
         if (!customerId || !appliedRange.startDate || !appliedRange.endDate) return;
         let cancelled = false;
-        async function fetchAllData() {
-            setLoading(true);
+        async function fetchProducts() {
+            setProductsLoading(true);
+            setInventoryLoading(false);
             setError(null);
             try {
-                const [shopifyRes, productsRes, segmentationRes] = await Promise.all([
-                    fetch(`/api/merged-sources/${customerId}?startDate=${appliedRange.startDate}&endDate=${appliedRange.endDate}`),
-                    fetch(`/api/shopify-products/${customerId}?startDate=${appliedRange.startDate}&endDate=${appliedRange.endDate}`),
-                    fetch(`/api/customer-segmentation/${customerId}?startDate=${appliedRange.startDate}&endDate=${appliedRange.endDate}`)
-                ]);
-
-                const shopifyData = await shopifyRes.json();
+                const productsRes = await fetch(`/api/shopify-products/${customerId}?startDate=${appliedRange.startDate}&endDate=${appliedRange.endDate}&fast=true`);
                 const productsData = await productsRes.json();
-                const segmentationData = await segmentationRes.json();
-
-                if (!shopifyRes.ok) throw new Error(shopifyData.error || 'Failed to fetch Shopify data');
-                if (!productsRes.ok) console.warn('Products fetch failed:', productsData.error);
-                if (!segmentationRes.ok) console.warn('Segmentation fetch failed:', segmentationData.error);
-
                 if (!cancelled) {
-                    setShopifyDaily(shopifyData.shopifyDaily || []);
-                    setProducts(productsData.products || []);
-                    setSegmentation(segmentationRes.ok ? segmentationData : null);
+                    if (!productsRes.ok) console.warn('Products fetch failed:', productsData.error);
+                    const list = productsData.products || [];
+                    setProducts(list);
+
+                    const productIds = list
+                        .map(p => p.productId)
+                        .filter(id => id && typeof id === 'string' && id.includes('Product'));
+                    if (productIds.length > 0) {
+                        setInventoryLoading(true);
+                        try {
+                            const invRes = await fetch(`/api/shopify-products/${customerId}/inventory`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ productIds }),
+                            });
+                            if (!cancelled && invRes.ok) {
+                                const { inventory } = await invRes.json();
+                                setProducts(prev =>
+                                    prev.map(p => ({
+                                        ...p,
+                                        inventoryStock: inventory[p.productId]?.inventoryStock ?? p.inventoryStock ?? null,
+                                        inventoryValue: inventory[p.productId]?.inventoryValue ?? p.inventoryValue ?? null,
+                                    }))
+                                );
+                            }
+                        } catch {
+                            // Ignore; core product data already shown
+                        } finally {
+                            if (!cancelled) setInventoryLoading(false);
+                        }
+                    }
                 }
             } catch (e) {
                 if (!cancelled) setError(e.message || String(e));
             } finally {
-                if (!cancelled) setLoading(false);
+                if (!cancelled) setProductsLoading(false);
             }
         }
-        fetchAllData();
+        fetchProducts();
         return () => { cancelled = true; };
     }, [customerId, appliedRange.startDate, appliedRange.endDate]);
 
-    // Ensure at least one metric is always selected
     useEffect(() => {
-        if (selectedMetrics.length === 0) {
-            setSelectedMetrics(['total_sales']);
+        if (!customerId || !appliedRange.startDate || !appliedRange.endDate || activeTab !== 'customers') return;
+        if (segmentation && segmentationFetchedFor === rangeKey) {
+            setExtendedMetricsLoading(false);
+            return;
         }
-    }, [selectedMetrics]);
+        let cancelled = false;
+        async function fetchSegmentation() {
+            setSegmentationLoading(true);
+            setError(null);
+            try {
+                const segmentationRes = await fetch(`/api/customer-segmentation/${customerId}?startDate=${appliedRange.startDate}&endDate=${appliedRange.endDate}&fast=true`);
+                const segmentationData = await segmentationRes.json();
+                if (!cancelled) {
+                    if (!segmentationRes.ok) throw new Error(segmentationData?.error || 'Failed to fetch customer segmentation');
+                    setSegmentation(segmentationRes.ok ? segmentationData : null);
+                    setSegmentationFetchedFor(rangeKey);
+                }
+                setSegmentationLoading(false);
+                setExtendedMetricsLoading(true);
 
-    const totalSales = shopifyDaily.reduce((s, r) => s + (r.total_sales || 0), 0);
-    const netSales = shopifyDaily.reduce((s, r) => s + (r.net_sales || 0), 0);
-    const orders = shopifyDaily.reduce((s, r) => s + (r.orders || 0), 0);
-    const avgOrder = orders > 0 ? totalSales / orders : 0;
-
-    const categories = shopifyDaily.map(d => d.period);
-
-    const series = selectedMetrics.map(metricKey => {
-        const metricData = shopifyDaily.map(d => {
-            const v = d[metricKey];
-            return (typeof v === 'number') ? v : (v ? Number(v) : 0);
-        });
-        const metricOption = METRIC_OPTIONS.find(m => m.key === metricKey);
-        return {
-            name: metricOption?.label || metricKey,
-            data: metricData
-        };
-    });
-
-    const colors = selectedMetrics.map(metricKey => {
-        const metricOption = METRIC_OPTIONS.find(m => m.key === metricKey);
-        return metricOption?.color || '#1E2B2B';
-    });
-
-    const chartOptions = {
-        chart: { id: 'ecom-sales', toolbar: { show: false } },
-        stroke: { curve: 'smooth', width: 2 },
-        markers: { size: 3 },
-        colors: colors,
-        xaxis: { categories, labels: { rotate: -45 } },
-        grid: { strokeDashArray: 4 },
-        tooltip: { y: { formatter: (val) => val !== undefined ? Number(val).toLocaleString() : val } },
-        legend: { show: true, position: 'top' }
-    };
-
-    const sumForKeys = (keys) => {
-        if (!shopifyDaily || shopifyDaily.length === 0) return undefined;
-        for (const key of keys) {
-            const hasAny = shopifyDaily.some(r => r[key] !== undefined && r[key] !== null && r[key] !== '');
-            if (!hasAny) continue;
-            const sum = shopifyDaily.reduce((acc, r) => {
-                const v = r[key];
-                const n = (typeof v === 'number') ? v : (v ? Number(v) : 0);
-                return acc + (isNaN(n) ? 0 : n);
-            }, 0);
-            return sum;
+                // Background fetch for LTV + net revenue (no fast mode)
+                try {
+                    const fullRes = await fetch(`/api/customer-segmentation/${customerId}?startDate=${appliedRange.startDate}&endDate=${appliedRange.endDate}`);
+                    const fullData = await fullRes.json();
+                    if (!cancelled && fullRes.ok) {
+                        setSegmentation((prev) => (prev ? {
+                            ...prev,
+                            ltv30: fullData.ltv30 ?? prev.ltv30,
+                            ltv90: fullData.ltv90 ?? prev.ltv90,
+                            ncaNetRevenue: fullData.ncaNetRevenue ?? prev.ncaNetRevenue,
+                            returningCustomerNetRevenue: fullData.returningCustomerNetRevenue ?? prev.returningCustomerNetRevenue,
+                        } : prev));
+                    }
+                } catch {
+                    // Ignore background fetch errors; fast data already shown
+                } finally {
+                    if (!cancelled) setExtendedMetricsLoading(false);
+                }
+            } catch (e) {
+                if (!cancelled) setError(e.message || String(e));
+                setSegmentationLoading(false);
+            }
         }
-        return undefined;
-    };
-
-    const summaryRows = [
-        { label: 'Gross Sales', value: sumForKeys(['gross_sales', 'total_sales']) },
-        { label: 'Discounts', value: sumForKeys(['discounts']) },
-        { label: 'Returns', value: sumForKeys(['returns']) },
-        { label: 'Net Sales', value: sumForKeys(['net_sales']) },
-        { label: 'Shipping Charges', value: sumForKeys(['shipping_charges', 'shipping']) },
-        { label: 'Taxes', value: sumForKeys(['taxes']) },
-        { label: 'Total Sales', value: sumForKeys(['total_sales']) },
-    ];
-
-    const formatCurrency = (v) => (v === undefined ? '—' : `${Number(v).toLocaleString()} kr`);
-
-    const metricDisplayValue = (key) => {
-        const val = (key === 'total_sales') ? totalSales : (key === 'net_sales') ? netSales : (key === 'orders') ? orders : (key === 'gross_sales') ? shopifyDaily.reduce((s, r) => s + (r.gross_sales || 0), 0) : undefined;
-        if (val === undefined) return '—';
-        const isCurrency = METRIC_OPTIONS.find(m => m.key === key)?.isCurrency;
-        return isCurrency ? `${Number(val).toLocaleString()} kr` : Number(val).toLocaleString();
-    };
+        fetchSegmentation();
+        return () => { cancelled = true; };
+    }, [customerId, appliedRange.startDate, appliedRange.endDate, activeTab, rangeKey]);
 
     if (!customerId) return null;
 
@@ -178,16 +161,11 @@ export default function EcommercePage() {
                 label="Ecommerce Dashboard"
                 customerId={customerId}
                 dateRange={appliedRange}
-                loading={loading}
+                loading={activeTab === 'products' ? productsLoading : segmentationLoading}
                 dashboardType="ecommerce"
                 dataSnapshot={{
-                    shopifyDaily,
                     products,
                     segmentation,
-                    totalSales,
-                    netSales,
-                    orders,
-                    summaryRows,
                     activeTab
                 }}
                 right={(
@@ -223,107 +201,23 @@ export default function EcommercePage() {
                 </div>
             </div>
 
-            {loading ? (
-                <div className="flex justify-center items-center h-64"><Spinner size={48} /></div>
-            ) : error ? (
+            {error ? (
                 <div className="bg-white border border-red-100 rounded-xl p-6 text-red-600">Error: {error}</div>
             ) : (
                 <>
-                    {/* Overview Tab */}
-                    {activeTab === 'overview' && (
-                        <>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                {METRIC_OPTIONS.map(opt => {
-                                    const Icon = opt.icon;
-                                    return (
-                                        <div key={opt.key}
-                                            className="cursor-pointer"
-                                            tabIndex={0}
-                                            role="button"
-                                            onClick={() => setSelectedMetrics(prev => {
-                                                if (prev.includes(opt.key)) {
-                                                    // Don't allow deselecting if it's the only selected metric
-                                                    return prev.length > 1 ? prev.filter(m => m !== opt.key) : prev;
-                                                } else {
-                                                    return [...prev, opt.key];
-                                                }
-                                            })}
-                                            onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setSelectedMetrics(prev => {
-                                                if (prev.includes(opt.key)) {
-                                                    // Don't allow deselecting if it's the only selected metric
-                                                    return prev.length > 1 ? prev.filter(m => m !== opt.key) : prev;
-                                                } else {
-                                                    return [...prev, opt.key];
-                                                }
-                                            })}
-                                        >
-                                            <MetricCard
-                                                label={opt.label}
-                                                value={metricDisplayValue(opt.key)}
-                                                icon={<Icon className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
-                                                isActive={selectedMetrics.includes(opt.key)}
-                                            />
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                                <div className="lg:col-span-2">
-                                    <div className="mb-0 mt-4 flex items-center gap-4">
-                                        {METRIC_OPTIONS.map(opt => (
-                                            <button
-                                                key={opt.key}
-                                                className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 ${selectedMetrics.includes(opt.key) ? 'bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'}`}
-                                                onClick={() => setSelectedMetrics(prev => {
-                                                    if (prev.includes(opt.key)) {
-                                                        // Don't allow deselecting if it's the only selected metric
-                                                        return prev.length > 1 ? prev.filter(m => m !== opt.key) : prev;
-                                                    } else {
-                                                        return [...prev, opt.key];
-                                                    }
-                                                })}
-                                            >
-                                                {opt.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                                <div className="lg:col-span-2">
-                                    <GraphCard title={`${selectedMetrics.length === 1 ? METRIC_OPTIONS.find(m => m.key === selectedMetrics[0])?.label || selectedMetrics[0] : 'Multiple Metrics'} over time`} chartOptions={chartOptions} chartSeries={series} chartType="line" height={420} />
-                                </div>
-
-                                <div className="space-y-4">
-                                    <div className="bg-white border border-gray-200 rounded-xl p-6">
-                                        <h6 className="text-sm text-gray-500 mb-4">Summary</h6>
-                                        <div className="space-y-2">
-                                            {summaryRows.map((row) => (
-                                                <div key={row.label} className="flex justify-between items-center py-2 border-b last:border-b-0">
-                                                    <div className="text-sm text-gray-700">{row.label}</div>
-                                                    <div className="text-sm font-semibold text-gray-900">{formatCurrency(row.value)}</div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </>
-                    )}
-
-                    {/* Product Performance Tab */}
                     {activeTab === 'products' && (
                         <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
-                            <ProductPerfomance products={products} loading={false} />
+                            <ProductPerfomance products={products} loading={productsLoading} inventoryLoading={inventoryLoading} />
                         </div>
                     )}
 
-                    {/* Customer Performance Tab */}
                     {activeTab === 'customers' && (
                         <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
-                            <CustomerPerformance segmentation={segmentation} loading={false} />
+                            <CustomerPerformance
+                                segmentation={segmentation}
+                                loading={segmentationLoading}
+                                extendedMetricsLoading={extendedMetricsLoading}
+                            />
                         </div>
                     )}
                 </>

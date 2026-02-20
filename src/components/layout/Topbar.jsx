@@ -2,13 +2,14 @@ import React, { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { FaMoon, FaSun } from "react-icons/fa";
 import { FiBell } from "react-icons/fi";
-import { FiChevronDown, FiHome, FiUser, FiSettings, FiBarChart2, FiLogOut, FiSearch, FiUsers, FiBookOpen } from "react-icons/fi";
+import { FiChevronDown, FiHome, FiUser, FiSettings, FiBarChart2, FiLogOut, FiSearch, FiUsers, FiBookOpen, FiShare2 } from "react-icons/fi";
 import { useUser } from "@/contexts/UserContext";
 import { signOut } from "next-auth/react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useParams, useRouter } from "next/navigation";
 import Select from 'react-select';
 import TeamMembers from './TeamMembers';
+import TrackingScore from './TrackingScore';
 import SharePropertyModal from '@/components/dashboard/SharePropertyModal';
 import Link from "next/link";
 import FormButton from "../form/FormButton";
@@ -181,7 +182,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
         <>
             <div className="sticky top-0 bg-white flex items-center justify-between px-4 xl:px-20 py-4 xl:py-5 border-b border-gray-200 transition-colors duration-200 z-40">
                 {/* Left Section */}
-                <div className="flex items-center space-x-4 xl:space-x-10 flex-1 xl:flex-none">
+                <div className="flex items-center space-x-4 xl:space-x-5 flex-1 xl:flex-none">
                     {/* Logo - Hidden on mobile */}
                     {showLogo && (
                         <div className="relative hidden xl:block">
@@ -199,9 +200,8 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
 
                     {/* Home Link - Hidden on mobile */}
                     <div className="relative hidden xl:block">
-                        <Link href="/home" className="flex items-center space-x-2">
+                        <Link href="/home" className="flex items-center space-x-0">
                             <FiHome className="text-gray-400 h-4 w-4" />
-                            <span className="text-gray-900 text-sm">Home</span>
                         </Link>
                     </div>
 
@@ -267,7 +267,8 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
 
                     {/* Team Members - Hidden on mobile */}
                     {showLinks && (
-                        <div id="teamMembers" className="hidden xl:block">
+                        <div id="teamMembers" className="hidden xl:flex items-center gap-6">
+                            <TrackingScore customerId={activeCustomerId} />
                             <TeamMembers customerId={activeCustomerId} />
                         </div>
                     )}
@@ -280,7 +281,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                             <div>
                                 <Link href={`/parent-property/${activeCustomer?.parentCustomer || ""}/home`}>
                                     <FormButton buttonSize="small" type="button" borderType="">
-                                        View Group Property
+                                        Group View
                                     </FormButton>
                                 </Link>
                             </div>
@@ -290,7 +291,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                         onClick={() => setShowShareModal(true)}
                                     >
                                         <FormButton buttonSize="small" type="button" borderType="outline">
-                                            Share property
+                                            <FiShare2 className="mr-0" /> Share
                                         </FormButton>
                                     </span>
                                 )}

@@ -3,14 +3,17 @@
 import React, { useState, useMemo } from 'react';
 import Spinner from '@/components/ui/Spinner';
 import Image from 'next/image';
+import MetricCard from '@/components/dashboard/MetricCard';
+import { FiPackage, FiDollarSign } from 'react-icons/fi';
 
-export default function ProductPerfomance({ products = [], loading = false }) {
+export default function ProductPerfomance({ products = [], loading = false, inventoryLoading = false }) {
     // Table controls
     const [query, setQuery] = useState('');
     const [sortKey, setSortKey] = useState('totalRevenue'); // default sort by revenue
     const [sortDir, setSortDir] = useState('desc'); // 'asc' | 'desc'
 
     const formatCurrency = (v) => (v === undefined ? '—' : `${Number(v).toLocaleString()} kr`);
+    const formatCurrencyNoDecimals = (v) => (v === undefined ? '—' : `${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 })} kr`);
     const formatNumber = (n) => (n === undefined ? '—' : Number(n).toLocaleString());
 
     // Filtered and sorted products
@@ -29,10 +32,10 @@ export default function ProductPerfomance({ products = [], loading = false }) {
         const comparator = (a, b) => {
             const aVal = a[sortKey];
             const bVal = b[sortKey];
-            // Handle undefined
-            if (aVal === undefined && bVal === undefined) return 0;
-            if (aVal === undefined) return 1;
-            if (bVal === undefined) return -1;
+            const empty = (v) => v === undefined || v === null;
+            if (empty(aVal) && empty(bVal)) return 0;
+            if (empty(aVal)) return 1;
+            if (empty(bVal)) return -1;
             // Numeric
             if (typeof aVal === 'number' || typeof bVal === 'number') {
                 return Number(aVal) - Number(bVal);
@@ -84,6 +87,8 @@ export default function ProductPerfomance({ products = [], loading = false }) {
                         <option value="unitsSold">Units Sold</option>
                         <option value="ordersCount">Orders</option>
                         <option value="totalRevenue">Revenue</option>
+                        <option value="inventoryStock">Inventory Stock</option>
+                        <option value="inventoryValue">Inventory Value</option>
                     </select>
                     <button
                         onClick={() => setSortDir(prev => prev === 'asc' ? 'desc' : 'asc')}
@@ -99,6 +104,24 @@ export default function ProductPerfomance({ products = [], loading = false }) {
             ) : filteredProducts.length === 0 ? (
                 <div className="text-center text-sm text-gray-500 py-8">No product data for the selected range</div>
             ) : (
+                <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <MetricCard
+                        label="Inventory Stock"
+                        value={inventoryLoading && filteredProducts.every(p => p.inventoryStock == null)
+                            ? <Spinner size={20} className="inline-block" />
+                            : filteredProducts.reduce((s, p) => s + ((p.inventoryStock != null && !isNaN(p.inventoryStock)) ? p.inventoryStock : 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        icon={<FiPackage className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
+                    />
+                    <MetricCard
+                        label="Inventory Value"
+                        value={inventoryLoading && filteredProducts.every(p => p.inventoryValue == null)
+                            ? <Spinner size={20} className="inline-block" />
+                            : filteredProducts.reduce((s, p) => s + ((p.inventoryValue != null && !isNaN(p.inventoryValue)) ? p.inventoryValue : 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 })}
+                        unit={inventoryLoading && filteredProducts.every(p => p.inventoryValue == null) ? undefined : 'kr'}
+                        icon={<FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
+                    />
+                </div>
                 <div className="overflow-auto" style={{ maxHeight: 800 }}>
                     <table className="min-w-full text-sm">
                         <thead className="bg-gray-50 sticky top-0">
@@ -118,6 +141,12 @@ export default function ProductPerfomance({ products = [], loading = false }) {
                                 </th>
                                 <th className="px-4 py-3 text-right cursor-pointer" onClick={() => toggleSort('totalRevenue')}>
                                     Revenue {sortKey === 'totalRevenue' && (sortDir === 'asc' ? '▲' : '▼')}
+                                </th>
+                                <th className="px-4 py-3 text-right cursor-pointer" onClick={() => toggleSort('inventoryStock')}>
+                                    Inventory Stock {sortKey === 'inventoryStock' && (sortDir === 'asc' ? '▲' : '▼')}
+                                </th>
+                                <th className="px-4 py-3 text-right cursor-pointer" onClick={() => toggleSort('inventoryValue')}>
+                                    Inventory Value {sortKey === 'inventoryValue' && (sortDir === 'asc' ? '▲' : '▼')}
                                 </th>
                             </tr>
                         </thead>
@@ -144,11 +173,22 @@ export default function ProductPerfomance({ products = [], loading = false }) {
                                     <td className="px-4 py-4 text-right">{formatNumber(p.unitsSold)}</td>
                                     <td className="px-4 py-4 text-right">{formatNumber(p.ordersCount)}</td>
                                     <td className="px-4 py-4 text-right font-semibold">{formatCurrency(p.totalRevenue)}</td>
+                                    <td className="px-4 py-4 text-right">{inventoryLoading && p.inventoryStock == null ? <Spinner size={16} className="inline-block" /> : (p.inventoryStock != null ? formatNumber(p.inventoryStock) : '—')}</td>
+                                    <td className="px-4 py-4 text-right">{inventoryLoading && p.inventoryValue == null ? <Spinner size={16} className="inline-block" /> : (p.inventoryValue != null ? formatCurrency(p.inventoryValue) : '—')}</td>
                                 </tr>
                             ))}
                         </tbody>
+                        <tfoot className="sticky bottom-0 bg-[var(--color-primary-searchmind)] text-white font-semibold border-t-2 z-10">
+                            <tr>
+                                <td colSpan={5} className="px-4 py-3 text-right text-gray-400">Total</td>
+                                <td className="px-4 py-3 text-right">{formatCurrencyNoDecimals(filteredProducts.reduce((s, p) => s + (p.totalRevenue || 0), 0))}</td>
+                                <td className="px-4 py-3 text-right">{inventoryLoading && filteredProducts.every(p => p.inventoryStock == null) ? <Spinner size={16} className="inline-block" /> : filteredProducts.reduce((s, p) => s + ((p.inventoryStock != null && !isNaN(p.inventoryStock)) ? p.inventoryStock : 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                                <td className="px-4 py-3 text-right">{inventoryLoading && filteredProducts.every(p => p.inventoryValue == null) ? <Spinner size={16} className="inline-block" /> : formatCurrencyNoDecimals(filteredProducts.reduce((s, p) => s + ((p.inventoryValue != null && !isNaN(p.inventoryValue)) ? p.inventoryValue : 0), 0))}</td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
+                </>
             )}
         </div>
     );
