@@ -32,12 +32,6 @@ export default function DailyMetricsTotalsRow({
 						{t.netRevenue}
 					</td>
 				);
-			case 'netRevenueExTax':
-				return (
-					<td key={key} className={`px-3 py-2 whitespace-nowrap${borderCls}`}>
-						{t.revenueExTax}
-					</td>
-				);
 			case 'cogs':
 				return (
 					<td key={key} className={`px-3 py-2 whitespace-nowrap${borderCls}`}>

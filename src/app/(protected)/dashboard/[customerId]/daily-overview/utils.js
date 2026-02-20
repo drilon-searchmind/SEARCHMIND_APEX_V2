@@ -38,7 +38,7 @@ export function computeRowMax(rows) {
 		orders: Math.max(...rows.map((r) => r.orders)),
 		totalSales: Math.max(...rows.map((r) => r.totalSales ?? 0)),
 		netRevenue: Math.max(...rows.map((r) => r.netRevenue ?? 0)),
-		revenueExTax: Math.max(...rows.map((r) => r.revenueExTax ?? 0)),
+		netRevenue: Math.max(...rows.map((r) => r.netRevenue ?? 0)),
 		ppcCost: Math.max(...rows.map((r) => r.ppcCost)),
 		psCost: Math.max(...rows.map((r) => r.psCost)),
 		roas: Math.max(...rows.map((r) => r.roas ?? 0)),
@@ -59,7 +59,6 @@ export function computeTotals(rows, variant = 'current') {
 			orders: 0,
 			totalSales: formatCurrency(0),
 			netRevenue: formatCurrency(0),
-			revenueExTax: formatCurrency(0),
 			cogs: formatCurrency(0),
 			ppcCost: formatCurrency(0),
 			psCost: formatCurrency(0),
@@ -74,7 +73,6 @@ export function computeTotals(rows, variant = 'current') {
 	const totalOrders = rows.reduce((sum, r) => sum + r.orders, 0);
 	const totalTotalSales = rows.reduce((sum, r) => sum + (r.totalSales ?? 0), 0);
 	const totalNetRevenue = rows.reduce((sum, r) => sum + (r.netRevenue ?? 0), 0);
-	const totalRevenueExTax = rows.reduce((sum, r) => sum + (r.revenueExTax ?? 0), 0);
 	const totalCogs = rows.reduce((sum, r) => sum + (r.cogs || 0), 0);
 	const totalPpcCost = rows.reduce((sum, r) => sum + r.ppcCost, 0);
 	const totalPsCost = rows.reduce((sum, r) => sum + r.psCost, 0);
@@ -87,22 +85,21 @@ export function computeTotals(rows, variant = 'current') {
 		(sum, r) => sum + (r.fixedExpense || 0),
 		0
 	);
-	const grossProfit = totalRevenueExTax - totalCogs;
+	const grossProfit = totalNetRevenue - totalCogs;
 
 	return {
 		orders: totalOrders,
 		totalSales: formatCurrency(totalTotalSales),
 		netRevenue: formatCurrency(totalNetRevenue),
-		revenueExTax: formatCurrency(totalRevenueExTax),
 		cogs: formatCurrency(totalCogs),
 		ppcCost: formatCurrency(totalPpcCost),
 		psCost: formatCurrency(totalPsCost),
 		variableExpense: formatCurrency(totalVariableExpense),
 		fixedExpenses: formatCurrency(totalFixedExpenses),
-		aov: totalOrders > 0 ? formatCurrency(totalRevenueExTax / totalOrders) : '-',
-		roas: totalCost > 0 ? (totalRevenueExTax / totalCost).toFixed(2) : '-',
+		aov: totalOrders > 0 ? formatCurrency(totalNetRevenue / totalOrders) : '-',
+		roas: totalCost > 0 ? (totalNetRevenue / totalCost).toFixed(2) : '-',
 		poas: totalCost > 0 ? (grossProfit / totalCost).toFixed(2) : '-',
-		// Net Profit = Net Revenue Ex Tax - COGS (matches performance-dashboard)
-		netProfit: formatCurrency(grossProfit),
+		// Net Profit = Net Revenue - COGS (matches performance-dashboard)
+		netProfit: formatCurrency(totalNetRevenue - totalCogs),
 	};
 }

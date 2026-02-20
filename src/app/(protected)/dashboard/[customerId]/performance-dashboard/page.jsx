@@ -15,8 +15,6 @@ import { getChartColors } from "@/components/dashboard/chartColors";
 import Spinner from "@/components/ui/Spinner";
 import Custom from "./components/Custom";
 
-const DANISH_VAT = 1.25;
-
 export default function PerformanceDashboard() {
     const params = useParams();
     const { customers } = useCustomers();
@@ -142,35 +140,33 @@ export default function PerformanceDashboard() {
         const revenue = shopify.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
         const totalSales = shopify.reduce((sum, d) => sum + (d.total_sales || 0), 0);
         const netRevenue = shopify.reduce((sum, d) => sum + (d.net_sales || 0), 0);
-        const netRevenueExTax = netRevenue / DANISH_VAT;
         const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
         const returns = shopify.reduce((sum, d) => sum + (d.returns || 0), 0);
         const cost = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
-        const aov = orders > 0 ? netRevenueExTax / orders : 0;
-        const roas = cost > 0 ? netRevenueExTax / cost : null;
-        const spendshare = netRevenueExTax > 0 ? cost / netRevenueExTax : 0;
+        const aov = orders > 0 ? netRevenue / orders : 0;
+        const roas = cost > 0 ? netRevenue / cost : null;
+        const spendshare = netRevenue > 0 ? cost / netRevenue : 0;
 
         const revenuePrev = shopifyPrev.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
         const totalSalesPrev = shopifyPrev.reduce((sum, d) => sum + (d.total_sales || 0), 0);
         const netRevenuePrev = shopifyPrev.reduce((sum, d) => sum + (d.net_sales || 0), 0);
-        const netRevenueExTaxPrev = netRevenuePrev / DANISH_VAT;
         const ordersPrev = shopifyPrev.reduce((sum, d) => sum + (d.orders || 0), 0);
         const returnsPrev = shopifyPrev.reduce((sum, d) => sum + (d.returns || 0), 0);
         const costPrev = [...facebookPrev, ...googlePrev].reduce((sum, d) => sum + (d.spend || 0), 0);
-        const aovPrev = ordersPrev > 0 ? netRevenueExTaxPrev / ordersPrev : 0;
-        const roasPrev = costPrev > 0 ? netRevenueExTaxPrev / costPrev : null;
-        const spendsharePrev = netRevenueExTaxPrev > 0 ? costPrev / netRevenueExTaxPrev : 0;
+        const aovPrev = ordersPrev > 0 ? netRevenuePrev / ordersPrev : 0;
+        const roasPrev = costPrev > 0 ? netRevenuePrev / costPrev : null;
+        const spendsharePrev = netRevenuePrev > 0 ? costPrev / netRevenuePrev : 0;
 
         const cogsPercentage = customer?.CustomerStaticExpenses?.cogsPercentage || 0;
         const fetchCogs = customer?.CustomerSettings?.fetchCogsFromStore === true;
         const totalCogs = fetchCogs
             ? shopify.reduce((sum, d) => sum + (d.cost_of_goods_sold || 0), 0)
-            : netRevenueExTax * cogsPercentage;
+            : netRevenue * cogsPercentage;
         const prevTotalCogs = fetchCogs
             ? shopifyPrev.reduce((sum, d) => sum + (d.cost_of_goods_sold || 0), 0)
-            : netRevenueExTaxPrev * cogsPercentage;
-        let gross_profit_total_sales = netRevenueExTax - totalCogs;
-        const gross_profit_total_salesPrev = netRevenueExTaxPrev - prevTotalCogs;
+            : netRevenuePrev * cogsPercentage;
+        let gross_profit_total_sales = netRevenue - totalCogs;
+        const gross_profit_total_salesPrev = netRevenuePrev - prevTotalCogs;
 
         // Fixed costs: fixedExpenses is the monthly total. Prorate by actual days in each month (handles multi-month spans).
         const staticExp = customer?.CustomerStaticExpenses || {};
@@ -193,22 +189,22 @@ export default function PerformanceDashboard() {
         // Variable costs: costs that scale with volume (shipping + transaction fees). Excludes ad spend.
         const shippingCostPerOrder = staticExp.shippingCostPerOrder ?? 0;
         const transactionCostPct = staticExp.transactionCostPercentage ?? 0.015;
-        const variableCosts = shippingCostPerOrder * orders + netRevenueExTax * transactionCostPct;
-        const variableCostsPrev = shippingCostPerOrder * ordersPrev + netRevenueExTaxPrev * transactionCostPct;
+        const variableCosts = shippingCostPerOrder * orders + netRevenue * transactionCostPct;
+        const variableCostsPrev = shippingCostPerOrder * ordersPrev + netRevenuePrev * transactionCostPct;
 
-        // EBIT = Net Revenue Ex Tax - All costs = Net Revenue Ex Tax - COGS - Fixed costs - Variable costs - Spend
+        // EBIT = Net Revenue - All costs = Net Revenue - COGS - Fixed costs - Variable costs - Spend
         const allCosts = totalCogs + fixedCosts + variableCosts + cost;
         const allCostsPrev = prevTotalCogs + fixedCostsPrev + variableCostsPrev + costPrev;
-        const ebit = netRevenueExTax - allCosts;
-        const ebitPrev = netRevenueExTaxPrev - allCostsPrev;
-        const ebitPct = netRevenueExTax > 0 ? (ebit / netRevenueExTax) * 100 : null;
-        const ebitPctPrev = netRevenueExTaxPrev > 0 ? (ebitPrev / netRevenueExTaxPrev) * 100 : null;
+        const ebit = netRevenue - allCosts;
+        const ebitPrev = netRevenuePrev - allCostsPrev;
+        const ebitPct = netRevenue > 0 ? (ebit / netRevenue) * 100 : null;
+        const ebitPctPrev = netRevenuePrev > 0 ? (ebitPrev / netRevenuePrev) * 100 : null;
 
         const fmt = (n, d = 0) => (n ?? 0).toLocaleString('da-DK', { maximumFractionDigits: d });
         const grossProfitCalculation = merged.calculationsData?.grossProfitCalculation || '';
         const totalAdspendCalculation = merged.calculationsData?.totalAdspendCalculation || '';
-        const roasCalculation = `Net Revenue Ex Tax / Cost \n
-                    = ${fmt(netRevenueExTax)} / ${fmt(cost)} \n
+        const roasCalculation = `Net Revenue / Cost \n
+                    = ${fmt(netRevenue)} / ${fmt(cost)} \n
                     = ${roas !== null ? roas.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}
                 `;
         const poasCalculation = cost > 0 ? `(Net Profit / Cost) \n
@@ -250,17 +246,7 @@ export default function PerformanceDashboard() {
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(netRevenue, netRevenuePrev) !== null ? Math.abs(percentChange(netRevenue, netRevenuePrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(netRevenue, netRevenuePrev)),
-                        tooltip: 'Net sales including VAT (after discounts, returns, etc.)',
-                        popOverContent: null,
-                    },
-                    {
-                        key: 'revenue_ex_tax',
-                        label: 'Net Revenue Ex Tax',
-                        value: netRevenueExTax ? netRevenueExTax.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
-                        icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange(netRevenueExTax, netRevenueExTaxPrev) !== null ? Math.abs(percentChange(netRevenueExTax, netRevenueExTaxPrev)).toFixed(0) : undefined,
-                        changeType: changeType(percentChange(netRevenueExTax, netRevenueExTaxPrev)),
-                        tooltip: 'Net sales excluding VAT (Danish 25% removed)',
+                        tooltip: 'Net sales (after discounts, returns, etc.)',
                         popOverContent: null,
                     },
                     {
@@ -279,7 +265,7 @@ export default function PerformanceDashboard() {
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(gross_profit_total_sales, gross_profit_total_salesPrev) !== null ? Math.abs(percentChange(gross_profit_total_sales, gross_profit_total_salesPrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(gross_profit_total_sales, gross_profit_total_salesPrev)),
-                        tooltip: 'Net Revenue Ex Tax - COGS',
+                        tooltip: 'Net Revenue - COGS',
                         popOverContent: grossProfitCalculation,
                         calcValueLabels: apiValueLabels.grossProfit,
                     },
@@ -328,8 +314,8 @@ export default function PerformanceDashboard() {
                         icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(variableCosts, variableCostsPrev) !== null ? Math.abs(percentChange(variableCosts, variableCostsPrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(variableCosts, variableCostsPrev)),
-                        popOverContent: `Variable costs (scale with volume):\n(shippingCostPerOrder × orders) + (Net Revenue Ex Tax × transactionCost%)\n= (${fmt(shippingCostPerOrder)} × ${orders}) + (${fmt(netRevenueExTax)} × ${fmt(transactionCostPct * 100)}%)\n= ${fmt(variableCosts)}`,
-                        calcValueLabels: `Shipping per order: ${fmt(shippingCostPerOrder)}\nOrders: ${orders}\nNet Revenue Ex Tax: ${fmt(netRevenueExTax)}\nTransaction cost %: ${fmt(transactionCostPct * 100)}%`,
+                        popOverContent: `Variable costs (scale with volume):\n(shippingCostPerOrder × orders) + (Net Revenue × transactionCost%)\n= (${fmt(shippingCostPerOrder)} × ${orders}) + (${fmt(netRevenue)} × ${fmt(transactionCostPct * 100)}%)\n= ${fmt(variableCosts)}`,
+                        calcValueLabels: `Shipping per order: ${fmt(shippingCostPerOrder)}\nOrders: ${orders}\nNet Revenue: ${fmt(netRevenue)}\nTransaction cost %: ${fmt(transactionCostPct * 100)}%`,
                     },
                     {
                         key: 'ebit_pct',
@@ -338,8 +324,8 @@ export default function PerformanceDashboard() {
                         icon: <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(ebitPct, ebitPctPrev) !== null ? Math.abs(percentChange(ebitPct, ebitPctPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(ebitPct, ebitPctPrev)),
-                        popOverContent: `EBIT = Net Revenue Ex Tax - All costs\n= ${fmt(netRevenueExTax)} - ${fmt(allCosts)}\n= ${fmt(ebit)}\nEBIT% = (EBIT / Net Revenue Ex Tax) × 100\n= (${fmt(ebit)} / ${fmt(netRevenueExTax)}) × 100\n= ${ebitPct != null ? ebitPct.toFixed(1) : 'N/A'}%`,
-                        calcValueLabels: `Net Revenue Ex Tax: ${fmt(netRevenueExTax)}\nAll costs (COGS + Fixed + Variable + Spend): ${fmt(allCosts)}`,
+                        popOverContent: `EBIT = Net Revenue - All costs\n= ${fmt(netRevenue)} - ${fmt(allCosts)}\n= ${fmt(ebit)}\nEBIT% = (EBIT / Net Revenue) × 100\n= (${fmt(ebit)} / ${fmt(netRevenue)}) × 100\n= ${ebitPct != null ? ebitPct.toFixed(1) : 'N/A'}%`,
+                        calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nAll costs (COGS + Fixed + Variable + Spend): ${fmt(allCosts)}`,
                     },
                 ];
 
@@ -364,7 +350,7 @@ export default function PerformanceDashboard() {
                         change: percentChange(roas, roasPrev) !== null ? Math.abs(percentChange(roas, roasPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(roas, roasPrev)),
                         popOverContent: roasCalculation,
-                        calcValueLabels: `Net Revenue Ex Tax: ${fmt(netRevenueExTax)}\nCost: ${fmt(cost)}`,
+                        calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nCost: ${fmt(cost)}`,
                     });
                 }
 
@@ -405,7 +391,7 @@ export default function PerformanceDashboard() {
 
         setMetricsData({
             total_sales: totalSales,
-            revenue: netRevenueExTax,
+            revenue: netRevenue,
             gross_profit: gross_profit_total_sales,
             orders,
             returns,
@@ -414,7 +400,7 @@ export default function PerformanceDashboard() {
             poas: poas ?? 0,
             aov,
             cac: cac ?? 0,
-            spendshare: netRevenueExTax > 0 ? cost / netRevenueExTax : 0,
+            spendshare: netRevenue > 0 ? cost / netRevenue : 0,
             cogs: totalCogs,
             ebit_pct: ebitPct ?? 0,
                     fixed_costs: fixedCosts,
@@ -430,7 +416,7 @@ export default function PerformanceDashboard() {
 
     // Graph controls: metric toggles and aggregation (period vs monthly)
     const METRIC_OPTIONS = [
-        { key: 'revenue', label: 'Net Revenue Ex Tax', icon: FiDollarSign },
+        { key: 'revenue', label: 'Net Revenue', icon: FiDollarSign },
         { key: 'total_sales', label: 'Total Sales', icon: FiDollarSign },
         { key: 'cogs', label: 'COGS', icon: FiDollarSign },
         { key: 'gross_profit', label: 'Net Profit', icon: FiDollarSign },
@@ -455,9 +441,9 @@ export default function PerformanceDashboard() {
         const map = {};
         const push = (k, obj) => {
             if (!map[k]) map[k] = { revenue: 0, totalRevenue: 0, orders: 0, cost: 0, cogs: 0, returns: 0 };
-            // totalRevenue = total_sales, revenue = net_sales ex tax (Danish VAT removed)
+            // totalRevenue = total_sales, revenue = net_sales
             map[k].totalRevenue += Number(obj.total_sales || 0);
-            map[k].revenue += Number((obj.net_sales || obj.total_sales || 0) / DANISH_VAT);
+            map[k].revenue += Number(obj.net_sales || obj.total_sales || 0);
             map[k].orders += Number(obj.orders || 0);
             map[k].cogs += Number(obj.cost_of_goods_sold || 0);
             map[k].returns += Number(obj.returns || 0);
@@ -893,15 +879,13 @@ export default function PerformanceDashboard() {
                         Custom
                     </button>
                 </div>
-                {viewMode === 'standard' && (
-                    <button
-                        type="button"
-                        className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors focus:outline-none ${showCalcs ? 'bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
-                        onClick={() => setShowCalcs((v) => !v)}
-                    >
-                        Show calcs
-                    </button>
-                )}
+                <button
+                    type="button"
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors focus:outline-none ${showCalcs ? 'bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                    onClick={() => setShowCalcs((v) => !v)}
+                >
+                    Show calcs
+                </button>
             </div>
 
             {viewMode === 'standard' ? (
@@ -995,6 +979,8 @@ export default function PerformanceDashboard() {
                 <Custom
                     customerId={params.customerId}
                     metricsData={metricsData}
+                    metrics={metrics}
+                    showCalcs={showCalcs}
                     shopifyDaily={shopifyDaily}
                     facebookDaily={facebookDaily}
                     googleDaily={googleDaily}

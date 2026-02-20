@@ -8,7 +8,6 @@ const POPOVER_LABELS = {
 	orders: 'Orders',
 	totalSales: 'Total Sales',
 	netRevenue: 'Net Revenue',
-	netRevenueExTax: 'Net Rev Ex Tax',
 	cogs: 'COGS',
 	aov: 'AOV',
 	ppcCost: 'PPC',
@@ -45,9 +44,9 @@ export default function RowComparisonPopover({
 		comparisonRow = rows?.find((r) => r.date === currentDate);
 	}
 
-	// Net Profit = Net Revenue Ex Tax - COGS (matches performance-dashboard)
+	// Net Profit = Net Revenue - COGS (matches performance-dashboard)
 	const netProfit = comparisonRow
-		? comparisonRow.revenueExTax - (comparisonRow.cogs || 0)
+		? comparisonRow.netRevenue - (comparisonRow.cogs || 0)
 		: 0;
 
 	const visibleCols = METRIC_COLUMNS.filter((m) => visibleMetrics[m.key]);
@@ -60,8 +59,6 @@ export default function RowComparisonPopover({
 				return formatCurrency(comparisonRow.totalSales ?? 0);
 			case 'netRevenue':
 				return formatCurrency(comparisonRow.netRevenue ?? 0);
-			case 'netRevenueExTax':
-				return formatCurrency(comparisonRow.revenueExTax ?? 0);
 			case 'cogs':
 				return formatCurrency(comparisonRow.cogs || 0);
 			case 'aov':

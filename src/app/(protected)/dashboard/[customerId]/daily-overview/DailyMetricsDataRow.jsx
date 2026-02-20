@@ -13,8 +13,8 @@ export default function DailyMetricsDataRow({
 	hasCorrespondingRow,
 	visibleMetrics = {},
 }) {
-	// Net Profit = Net Revenue Ex Tax - COGS (matches performance-dashboard gross_profit formula)
-	const netProfit = row.revenueExTax - (row.cogs || 0);
+	// Net Profit = Net Revenue - COGS (matches performance-dashboard gross_profit formula)
+	const netProfit = row.netRevenue - (row.cogs || 0);
 	const fixedExpense = row.fixedExpense ?? 0;
 
 	const handleMouseEnter = (e) => {
@@ -97,20 +97,6 @@ export default function DailyMetricsDataRow({
 						)}
 					>
 						{formatCurrency(row.netRevenue, { maximumFractionDigits: 0 })}
-					</td>
-				);
-			case 'netRevenueExTax':
-				return (
-					<td
-						key={key}
-						className={`px-3 py-2 whitespace-nowrap${borderCls}`}
-						style={getCellStyles(
-							row.revenueExTax,
-							max.revenueExTax,
-							row.revenueExTax === max.revenueExTax
-						)}
-					>
-						{formatCurrency(row.revenueExTax, { maximumFractionDigits: 0 })}
 					</td>
 				);
 			case 'cogs':

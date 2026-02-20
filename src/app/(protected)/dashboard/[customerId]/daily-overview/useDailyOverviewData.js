@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 
-const DANISH_VAT = 1.25;
-
 async function fetchPeriodData(customerId, startDate, endDate) {
 	const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 	const res = await fetch(
@@ -39,32 +37,31 @@ function buildDailyRows(merged, customer, revenueType) {
 		const orders = d.orders || 0;
 		const totalSales = d.total_sales || 0;
 		const netRevenue = d.net_sales || 0;
-		const revenueExTax = (d.net_sales || d.total_sales || 0) / DANISH_VAT;
 		const ppcCost = googleMap[date] || 0;
 		const psCost = fbMap[date] || 0;
 		const cost = ppcCost + psCost;
-		const roas = cost > 0 ? revenueExTax / cost : null;
-		const spendshare = revenueExTax > 0 ? cost / revenueExTax : null;
+		const roas = cost > 0 ? netRevenue / cost : null;
+		const spendshare = netRevenue > 0 ? cost / netRevenue : null;
 
 		let cogs = 0;
 		if (fetchCogs) {
 			cogs = d.cost_of_goods_sold || 0;
 		} else {
-			cogs = revenueExTax * cogsPercentage;
+			cogs = netRevenue * cogsPercentage;
 		}
 
 		let poas = null;
 		if (cost > 0) {
-			const grossProfit = revenueExTax - cogs;
+			const grossProfit = netRevenue - cogs;
 			poas = grossProfit / cost;
 		}
 
     const cac = merged.CACTotalSales ?? null;
-    const aov = orders > 0 ? revenueExTax / orders : null;
+    const aov = orders > 0 ? netRevenue / orders : null;
 		// Variable costs: shipping + transaction fees only (excludes ad spend, matches performance-dashboard)
 		const variableExpense =
 			shippingCostPerOrder * orders +
-			revenueExTax * transactionCostPercentage;
+			netRevenue * transactionCostPercentage;
 		// Fixed costs: prorate by actual days in month (matches performance-dashboard)
 		const daysInMonth = dayjs(date).daysInMonth();
 		const fixedExpense = fixedExpensesMonthly / daysInMonth;
@@ -74,7 +71,6 @@ function buildDailyRows(merged, customer, revenueType) {
 			orders,
 			totalSales,
 			netRevenue,
-			revenueExTax,
 			ppcCost,
 			psCost,
 			roas,

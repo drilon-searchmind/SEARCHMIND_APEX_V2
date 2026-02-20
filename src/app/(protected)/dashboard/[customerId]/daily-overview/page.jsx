@@ -93,8 +93,8 @@ const DailyOverviewPage = () => {
         if (!rows?.length) return [];
         return [
             {
-                name: 'Net Revenue Ex Tax',
-                data: rows.map((r) => Math.round(r.revenueExTax || 0)),
+                name: 'Net Revenue',
+                data: rows.map((r) => Math.round(r.netRevenue || 0)),
                 color: '#406969',
             },
             {
@@ -107,7 +107,7 @@ const DailyOverviewPage = () => {
             {
                 name: 'Net Profit',
                 data: rows.map((r) =>
-                    Math.round(r.revenueExTax - (r.cogs || 0))
+                    Math.round(r.netRevenue - (r.cogs || 0))
                 ),
                 color: '#1E2B2B',
             },
@@ -181,7 +181,7 @@ const DailyOverviewPage = () => {
                 {showTrendChart && rows?.length > 0 && (
                     <div className="mb-6">
                         <GraphCard
-                            title="Net Revenue Ex Tax, Spend & Net Profit Over Time"
+                            title="Net Revenue, Spend & Net Profit Over Time"
                             chartOptions={trendChartOptions}
                             chartSeries={trendChartSeries}
                             chartType="line"
