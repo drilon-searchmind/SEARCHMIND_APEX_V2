@@ -187,6 +187,11 @@ export default function FacebookPSPage() {
                 const totalValue = data.reduce((sum, row) => sum + (row.conversion_value || 0), 0);
                 return totalSpend > 0 ? totalValue / totalSpend : null;
             }
+            if (key === "ctr") {
+                const totalClicks = data.reduce((sum, row) => sum + (row.clicks || 0), 0);
+                const totalImpressions = data.reduce((sum, row) => sum + (row.impressions || 0), 0);
+                return totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : null;
+            }
             // Default: sum
             return data.reduce((sum, row) => sum + (row[key] || 0), 0);
         };
@@ -224,7 +229,10 @@ export default function FacebookPSPage() {
             data: chartCategories.map(date => {
                 const row = fbMetricsByDate.find(r => r.date === date);
                 if (!row) return null;
-                const val = row[metricKey];
+                let val = row[metricKey];
+                if (metricKey === "ctr" && row.impressions > 0) {
+                    val = (row.clicks || 0) / row.impressions * 100;
+                }
                 if (typeof val === 'number' && !isNaN(val)) {
                     return Number(val.toFixed(2));
                 }
@@ -256,7 +264,10 @@ export default function FacebookPSPage() {
 
                 const row = fbMetricsByDatePrevMap[prevDate];
                 if (!row) return null;
-                const val = row[metricKey];
+                let val = row[metricKey];
+                if (metricKey === "ctr" && row.impressions > 0) {
+                    val = (row.clicks || 0) / row.impressions * 100;
+                }
                 if (typeof val === 'number' && !isNaN(val)) {
                     return Number(val.toFixed(2));
                 }
@@ -431,14 +442,14 @@ export default function FacebookPSPage() {
                                     const max = {
                                         clicks: Math.max(...topCampaigns.map(r => Number(r.clicks) || 0)),
                                         impressions: Math.max(...topCampaigns.map(r => Number(r.impressions) || 0)),
-                                        ctr: Math.max(...topCampaigns.map(r => Number(r.ctr) || 0)),
+                                        ctr: Math.max(...topCampaigns.map(r => (Number(r.ctr) || 0) * 100)),
                                     };
                                     return (
                                         <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                                             <td className="px-3 py-2 whitespace-nowrap">{row.campaign_name}</td>
                                             <td className="px-3 py-2 whitespace-nowrap" style={{ ...(row.clicks > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.clicks / max.clicks)})` } : {}) }}>{row.clicks}</td>
                                             <td className="px-3 py-2 whitespace-nowrap" style={{ ...(row.impressions > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.impressions / max.impressions)})` } : {}) }}>{row.impressions}</td>
-                                            <td className="px-3 py-2 whitespace-nowrap" style={{ ...(row.ctr > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.ctr / max.ctr)})` } : {}) }}>{row.ctr ? `${Number(row.ctr).toFixed(2)}%` : '-'}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap" style={{ ...(row.ctr > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * ((Number(row.ctr) || 0) * 100 / max.ctr)})` } : {}) }}>{row.ctr ? `${(Number(row.ctr) * 100).toFixed(2)}%` : '-'}</td>
                                         </tr>
                                     );
                                 })}
