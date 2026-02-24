@@ -27,10 +27,8 @@ export async function fetchFacebookCampaignInsights(adAccountId, customerMetaID,
     const params = new URLSearchParams({
         access_token: accessToken,
         time_range: JSON.stringify({ since, until }),
-        time_increment: '1', // Aggregate for the period
         fields: fields.join(','),
         level: 'campaign',
-        limit: '1000',
     });
 
     // Add country filtering if customerMetaID is provided
@@ -105,10 +103,8 @@ export async function fetchFacebookAdsInsights(adAccountId, customerMetaID, acce
     const params = new URLSearchParams({
         access_token: accessToken,
         time_range: JSON.stringify({ since, until }),
-        time_increment: '1', // Daily breakdown
         fields: fields.join(','),
         level: 'account',
-        limit: '1000',
     });
 
     // Add country filtering if customerMetaID is provided
@@ -180,10 +176,8 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
                 since: startDate,
                 until: endDate
             }),
-            time_increment: '1',
             fields: 'spend,clicks,impressions,actions,action_values,date_start',
             level: 'account',
-            limit: '1000'
         });
 
         if (countryCode) {
@@ -248,7 +242,6 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
             }),
             fields: 'campaign_name,spend,clicks,impressions,actions',
             level: 'campaign',
-            limit: '100'
         });
         if (countryCode) {
             campaignsParams.append('filtering', JSON.stringify([
@@ -302,10 +295,8 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
                         since: startDate,
                         until: endDate
                     }),
-                    time_increment: '1',
                     fields: 'campaign_name,spend,clicks,impressions,actions,date_start',
                     level: 'campaign',
-                    limit: '1000'
                 });
                 const filters = [{
                     field: 'campaign.name',
