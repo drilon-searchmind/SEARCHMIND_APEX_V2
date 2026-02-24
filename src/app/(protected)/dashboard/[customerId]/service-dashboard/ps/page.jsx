@@ -78,8 +78,8 @@ export default function FacebookPSPage() {
     };
 
     // Comparison method: applied (triggers fetch) vs temp (picker until Apply)
-    const [comparisonMethod, setComparisonMethod] = useState("Last Period");
-    const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Period");
+    const [comparisonMethod, setComparisonMethod] = useState("Last Year");
+    const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Year");
 
     // Facebook data state
     const [fbMetricsByDate, setFbMetricsByDate] = useState([]);

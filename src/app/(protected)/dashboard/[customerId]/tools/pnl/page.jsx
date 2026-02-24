@@ -23,8 +23,8 @@ export default function PNLPage() {
 
     const [tempDateRange, setTempDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
     const [appliedDateRange, setAppliedDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
-    const [comparisonMethod, setComparisonMethod] = useState("Last Period");
-    const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Period");
+    const [comparisonMethod, setComparisonMethod] = useState("Last Year");
+    const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Year");
 
     const handleDateRangeApply = ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
         setAppliedDateRange({ startDate, endDate });

@@ -37,8 +37,8 @@ export default function EmailDashboardPage() {
 
     const [tempRange, setTempRange] = useState(defaultRangeValue);
     const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
-    const [comparisonMethod, setComparisonMethod] = useState("Last Period");
-    const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Period");
+    const [comparisonMethod, setComparisonMethod] = useState("Last Year");
+    const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Year");
     const [selectedMetrics, setSelectedMetrics] = useState(["revenue"]);
 
     const handleDateRangeApply = ({ startDate, endDate, comparisonMethod: appliedComparison }) => {

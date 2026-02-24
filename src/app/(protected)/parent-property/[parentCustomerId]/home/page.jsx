@@ -36,8 +36,8 @@ export default function ParentPropertyHome() {
     const [appliedDateRange, setAppliedDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
 
     // Comparison method: applied (triggers fetch) vs temp (picker until Apply)
-    const [comparisonMethod, setComparisonMethod] = useState("Last Period");
-    const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Period");
+    const [comparisonMethod, setComparisonMethod] = useState("Last Year");
+    const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Year");
     // Determine the predominant metric preference from child customers
     const [predominantMetricPreference, setPredominantMetricPreference] = useState('ROAS/POAS');
 

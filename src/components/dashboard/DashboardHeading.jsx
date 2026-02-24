@@ -9,7 +9,7 @@ export default function DashboardHeading({
     title,
     label,
     right,
-    comparisonMethod = "Last Period",
+    comparisonMethod = "Last Year",
     showAnalyzeWithAi = true,
     customerId,
     dateRange,

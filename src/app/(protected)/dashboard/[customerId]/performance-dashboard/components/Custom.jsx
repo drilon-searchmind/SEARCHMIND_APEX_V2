@@ -274,7 +274,7 @@ export default function Custom({
     facebookDailyPrev = [],
     googleDailyPrev = [],
     appliedDateRange = { startDate: "", endDate: "" },
-    comparisonMethod = "Last Period",
+    comparisonMethod = "Last Year",
     aggregateBy = "period",
     chartColors = {},
 }) {

@@ -48,8 +48,8 @@ export default function PerformanceDashboard() {
     };
 
     // Comparison method: applied (triggers fetch) vs temp (shown in picker until Apply)
-    const [comparisonMethod, setComparisonMethod] = useState("Last Period");
-    const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Period");
+    const [comparisonMethod, setComparisonMethod] = useState("Last Year");
+    const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Year");
 
     // Metrics state
     const [metrics, setMetrics] = useState([]);

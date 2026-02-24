@@ -51,7 +51,7 @@ export default function DateRangePicker({
     onEndDateChange,
     loading,
     showComparisonMethodToggler = false,
-    comparisonMethod = "Last Period",
+    comparisonMethod = "Last Year",
     onComparisonMethodChange,
 }) {
     const [isOpen, setIsOpen] = useState(false);
