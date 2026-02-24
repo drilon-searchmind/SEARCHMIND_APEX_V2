@@ -31,8 +31,7 @@ export default function DataWrappedPage() {
                     </h2>
                     <p className="text-gray-500 mb-8">
                         A personalized summary of your store&apos;s performance
-                        this year — revenue, orders, ROAS, and more. Similar to
-                        Spotify Wrapped, but for your ecommerce data.
+                        this year — revenue, orders, ROAS, and more.
                     </p>
                     <button
                         type="button"
