@@ -14,6 +14,7 @@ import {
     FiActivity,
     FiChevronsLeft,
     FiChevronsRight,
+    FiGift,
 } from "react-icons/fi";
 import Image from "next/image";
 import { useParams, usePathname } from "next/navigation";
@@ -26,6 +27,7 @@ const getIconForRoute = (href) => {
     if (href.includes("pace-report")) return <FiActivity className="w-4 h-4" />;
     if (href.includes("pnl")) return <FiDollarSign className="w-4 h-4" />;
     if (href.includes("ecommerce")) return <FiShoppingCart className="w-4 h-4" />;
+    if (href.includes("data-wrapped")) return <FiGift className="w-4 h-4" />;
     if (href.includes("analytics")) return <FiBarChart className="w-4 h-4" />;
     if (href.includes("service-dashboard/seo")) return <FiTrendingUp className="w-4 h-4" />;
     if (href.includes("service-dashboard/ppc")) return <FiDollarSign className="w-4 h-4" />;

@@ -325,3 +325,55 @@ select {
 #date-range-picker-button {
 	background-color: #fff !important;
 }
+
+/* Data Wrapped slide animations */
+@keyframes dataWrappedSlideInFromRight {
+	from {
+		opacity: 0;
+		transform: translateX(40px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+@keyframes dataWrappedSlideInFromLeft {
+	from {
+		opacity: 0;
+		transform: translateX(-40px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+.data-wrapped-slide-next {
+	animation: dataWrappedSlideInFromRight 0.4s ease-out forwards;
+}
+
+.data-wrapped-slide-prev {
+	animation: dataWrappedSlideInFromLeft 0.4s ease-out forwards;
+}
+
+/* Decorative floating shapes */
+@keyframes dataWrappedShapeFloat {
+	0%, 100% {
+		transform: translate(0, 0) rotate(0deg);
+	}
+	25% {
+		transform: translate(8px, -12px) rotate(5deg);
+	}
+	50% {
+		transform: translate(-5px, 8px) rotate(-3deg);
+	}
+	75% {
+		transform: translate(12px, 5px) rotate(2deg);
+	}
+}
+
+.data-wrapped-shape {
+	animation: dataWrappedShapeFloat 12s ease-in-out infinite;
+	pointer-events: none;
+}
