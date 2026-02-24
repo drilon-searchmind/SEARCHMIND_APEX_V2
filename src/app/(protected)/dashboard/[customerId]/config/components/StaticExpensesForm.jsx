@@ -11,7 +11,7 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
             ...lineItems[index],
             [field]: field === 'amount' ? parseFloat(value) || 0 : value
         };
-        
+
         onChange({
             target: {
                 name: fieldName,
@@ -24,7 +24,7 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
     const handleAddLineItem = (fieldName) => {
         const lineItems = [...(form.CustomerStaticExpenses[fieldName] || [])];
         lineItems.push({ name: '', amount: 0 });
-        
+
         onChange({
             target: {
                 name: fieldName,
@@ -37,7 +37,7 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
     const handleRemoveLineItem = (fieldName, index) => {
         const lineItems = [...(form.CustomerStaticExpenses[fieldName] || [])];
         lineItems.splice(index, 1);
-        
+
         onChange({
             target: {
                 name: fieldName,
@@ -47,12 +47,12 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
         });
     };
 
-    const renderLineItems = (fieldName, label) => {
+    const renderLineItems = (fieldName, label, { nested = false } = {}) => {
         const lineItems = form.CustomerStaticExpenses[fieldName] || [];
         const total = lineItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-        
+
         return (
-            <div className="border border-gray-200 rounded-lg p-4">
+            <div className={nested ? "mb-4 last:mb-0" : "border border-gray-200 rounded-lg p-4"}>
                 <div className="flex justify-between items-center mb-1">
                     <div>
                         <FormLabel>{label}</FormLabel>
@@ -68,7 +68,7 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
                         <span>Add Item</span>
                     </button>
                 </div>
-                
+
                 {lineItems.length === 0 ? (
                     <p className="text-sm text-gray-400 mb-2">No line items added. Click "Add Item" to add one.</p>
                 ) : (
@@ -104,7 +104,7 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
                         ))}
                     </div>
                 )}
-                
+
                 <div className="pt-2 border-t border-gray-200">
                     <div className="flex justify-between items-center">
                         <span className="text-sm font-semibold text-gray-700">Total:</span>
@@ -120,58 +120,83 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
     return (
         <form className="flex flex-col gap-4" onSubmit={e => { e.preventDefault(); }}>
             <h5 className="text-lg font-semibold text-[var(--color-primary-searchmind)] mb-2">Expenses</h5>
-            
-            <div>
-                <FormLabel htmlFor="cogsPercentage">COGS %</FormLabel>
-                <FormInputText 
-                    id="cogsPercentage" 
-                    name="cogsPercentage" 
-                    type="number" 
-                    value={form.CustomerStaticExpenses.cogsPercentage} 
-                    onChange={onChange} 
-                    data-group="CustomerStaticExpenses" 
-                    min="0" 
-                    max="1" 
-                    step="0.1" 
-                />
-                <p className="text-xs text-gray-500 mt-1">0.1 = 10%</p>
-            </div>
-            
-            <div>
-                <FormLabel htmlFor="shippingCostPerOrder">Shipping Cost Per Order</FormLabel>
-                <FormInputText 
-                    id="shippingCostPerOrder" 
-                    name="shippingCostPerOrder" 
-                    type="number" 
-                    value={form.CustomerStaticExpenses.shippingCostPerOrder} 
-                    onChange={onChange} 
-                    data-group="CustomerStaticExpenses" 
-                    min="0" 
-                    step="0.01" 
-                />
-            </div>
-            
-            <div>
-                <FormLabel htmlFor="transactionCostPercentage">Transaction Cost %</FormLabel>
-                <FormInputText 
-                    id="transactionCostPercentage" 
-                    name="transactionCostPercentage" 
-                    type="number" 
-                    value={form.CustomerStaticExpenses.transactionCostPercentage} 
-                    onChange={onChange} 
-                    data-group="CustomerStaticExpenses" 
-                    min="0" 
-                    max="1" 
-                    step="0.1" 
-                />
-                <p className="text-xs text-gray-500 mt-1">0.1 = 10%</p>
-            </div>
-            
-            {renderLineItems('marketingBureauCostLineItems', 'Marketing Bureau Cost')}
-            
-            {renderLineItems('marketingToolingCostLineItems', 'Marketing Tooling Cost')}
-            
-            {renderLineItems('fixedExpensesLineItems', 'Fixed Expenses')}
+
+            <span className="flex flex-row gap-4">
+                <span className="border border-gray-200 rounded-lg p-4 flex-1">
+                    <div className="mb-2">
+                        <label for="email" class="block text-sm font-medium text-gray-700">Variable Costs</label>
+                        <p class="text-xs text-gray-500 mt-0.5">Per month</p>
+                    </div>
+
+                    <div className="mb-3">
+                        <FormLabel htmlFor="cogsPercentage">COGS %</FormLabel>
+                        <div className="flex items-center gap-2">
+                            <FormInputText
+                                id="cogsPercentage"
+                                name="cogsPercentage"
+                                type="number"
+                                value={form.CustomerStaticExpenses.cogsPercentage}
+                                onChange={onChange}
+                                data-group="CustomerStaticExpenses"
+                                min="0"
+                                max="1"
+                                step="0.1"
+                                className="flex-1 max-w-75"
+                            />
+                            <span className="text-sm text-gray-900 shrink-0 mt-2">%</span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">0.1 = 10%</p>
+                    </div>
+
+                    <div className="mb-3">
+                        <FormLabel htmlFor="shippingCostPerOrder">Shipping Cost Per Order</FormLabel>
+                        <div className="flex items-center gap-2">
+                            <FormInputText
+                                id="shippingCostPerOrder"
+                                name="shippingCostPerOrder"
+                                type="number"
+                                value={form.CustomerStaticExpenses.shippingCostPerOrder}
+                                onChange={onChange}
+                                data-group="CustomerStaticExpenses"
+                                min="0"
+                                step="0.01"
+                                className="flex-1 max-w-75"
+                            />
+                            <span className="text-sm text-gray-900 shrink-0 mt-2">DKK</span>
+                        </div>
+                    </div>
+
+                    <div className="mb-2">
+                        <FormLabel htmlFor="transactionCostPercentage">Transaction Cost %</FormLabel>
+                        <div className="flex items-center gap-2">
+                            <FormInputText
+                                id="transactionCostPercentage"
+                                name="transactionCostPercentage"
+                                type="number"
+                                value={form.CustomerStaticExpenses.transactionCostPercentage}
+                                onChange={onChange}
+                                data-group="CustomerStaticExpenses"
+                                min="0"
+                                max="1"
+                                step="0.1"
+                                className="flex-1 max-w-75"
+                            />
+                            <span className="text-sm text-gray-900 shrink-0 mt-2">%</span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">0.1 = 10%</p>
+                    </div>
+                </span>
+
+                <div className="border border-gray-200 rounded-lg p-4 flex-2">
+                    <div className="mb-4">
+                        <FormLabel>Fixed Expenses</FormLabel>
+                        <p className="text-xs text-gray-500 mt-0.5">All fixed monthly costs</p>
+                    </div>
+                    {renderLineItems('marketingBureauCostLineItems', 'Marketing Bureau Cost', { nested: true })}
+                    {renderLineItems('marketingToolingCostLineItems', 'Marketing Tooling Cost', { nested: true })}
+                    {renderLineItems('fixedExpensesLineItems', 'Other Fixed Expenses', { nested: true })}
+                </div>
+            </span>
         </form>
     );
 }
