@@ -137,39 +137,26 @@ function pseudoRandom(seed) {
     return x - Math.floor(x);
 }
 
-/** Decorative shapes that randomize on each slide change */
+/** Decorative vertical lines that randomize position on each slide change. Progressively thinner. */
 function DecorativeShapes({ slideKey }) {
-    const shapes = useMemo(() => {
-        const types = ["circle", "square", "blob", "triangle", "diamond"];
-        const colors = [
-            "rgba(198, 237, 98, 0.08)",
-            "rgba(255, 255, 255, 0.06)",
-            "rgba(64, 105, 105, 0.1)",
-            "rgba(214, 205, 182, 0.07)",
-        ];
-        return Array.from({ length: 6 }, (_, i) => {
+    const lineCount = 10;
+    const colors = [
+        "rgba(198, 237, 98, 0.1)",
+        "rgba(255, 255, 255, 0.06)",
+        "rgba(64, 105, 105, 0.08)",
+        "rgba(214, 205, 182, 0.06)",
+    ];
+
+    const lines = useMemo(() => {
+        const maxWidth = 20;
+        const minWidth = 0.5;
+        return Array.from({ length: lineCount }, (_, i) => {
             const seed = slideKey * 31 + i * 7;
-            const type = types[Math.floor(pseudoRandom(seed) * types.length)];
-            const edge = i % 4;
-            let left, top;
-            if (edge === 0) {
-                left = pseudoRandom(seed + 1) * 80 + 10;
-                top = pseudoRandom(seed + 2) * 20 - 5;
-            } else if (edge === 1) {
-                left = pseudoRandom(seed + 1) * 20 + 80;
-                top = pseudoRandom(seed + 2) * 80 + 10;
-            } else if (edge === 2) {
-                left = pseudoRandom(seed + 1) * 80 + 10;
-                top = pseudoRandom(seed + 2) * 20 + 80;
-            } else {
-                left = pseudoRandom(seed + 2) * 20 - 5;
-                top = pseudoRandom(seed + 1) * 80 + 10;
-            }
-            const size = 180 + pseudoRandom(seed + 3) * 320;
-            const color = colors[Math.floor(pseudoRandom(seed + 4) * colors.length)];
-            const animDelay = pseudoRandom(seed + 5) * 8;
-            const rotation = pseudoRandom(seed + 6) * 360;
-            return { type, left, top, size, color, animDelay, rotation };
+            const left = pseudoRandom(seed + 1) * 100;
+            const width = maxWidth - (i / (lineCount - 1)) * (maxWidth - minWidth);
+            const color = colors[Math.floor(pseudoRandom(seed + 2) * colors.length)];
+            const animDelay = pseudoRandom(seed + 3) * 8;
+            return { left, width, color, animDelay };
         });
     }, [slideKey]);
 
@@ -178,34 +165,16 @@ function DecorativeShapes({ slideKey }) {
             className="absolute inset-0 overflow-visible z-0"
             aria-hidden="true"
         >
-            {shapes.map((s, i) => (
+            {lines.map((line, i) => (
                 <div
                     key={i}
-                    className="data-wrapped-shape absolute transition-all duration-700 ease-out"
+                    className="data-wrapped-line absolute top-0 bottom-0 w-px transition-all duration-700 ease-out"
                     style={{
-                        left: `${s.left}%`,
-                        top: `${s.top}%`,
-                        width: s.size,
-                        height: s.size,
-                        background: s.color,
-                        borderRadius:
-                            s.type === "circle"
-                                ? "50%"
-                                : s.type === "blob"
-                                  ? "60% 40% 50% 70% / 55% 60% 45% 50%"
-                                  : s.type === "triangle"
-                                    ? "0"
-                                    : s.type === "diamond"
-                                      ? "0"
-                                      : "12%",
-                        clipPath:
-                            s.type === "triangle"
-                                ? "polygon(50% 0%, 0% 100%, 100% 100%)"
-                                : s.type === "diamond"
-                                  ? "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)"
-                                  : "none",
-                        transform: `translate(-50%, -50%) rotate(${s.rotation}deg)`,
-                        animationDelay: `${s.animDelay}s`,
+                        left: `${line.left}%`,
+                        width: `${Math.max(line.width, 0.5)}px`,
+                        minWidth: `${Math.max(line.width, 0.5)}px`,
+                        background: line.color,
+                        animationDelay: `${line.animDelay}s`,
                     }}
                 />
             ))}

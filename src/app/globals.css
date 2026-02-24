@@ -357,23 +357,23 @@ select {
 	animation: dataWrappedSlideInFromLeft 0.4s ease-out forwards;
 }
 
-/* Decorative floating shapes */
-@keyframes dataWrappedShapeFloat {
+/* Decorative vertical lines - gentle horizontal drift */
+@keyframes dataWrappedLineFloat {
 	0%, 100% {
-		transform: translate(0, 0) rotate(0deg);
+		transform: translateX(0);
 	}
 	25% {
-		transform: translate(8px, -12px) rotate(5deg);
+		transform: translateX(12px);
 	}
 	50% {
-		transform: translate(-5px, 8px) rotate(-3deg);
+		transform: translateX(-8px);
 	}
 	75% {
-		transform: translate(12px, 5px) rotate(2deg);
+		transform: translateX(6px);
 	}
 }
 
-.data-wrapped-shape {
-	animation: dataWrappedShapeFloat 12s ease-in-out infinite;
+.data-wrapped-line {
+	animation: dataWrappedLineFloat 14s ease-in-out infinite;
 	pointer-events: none;
 }
