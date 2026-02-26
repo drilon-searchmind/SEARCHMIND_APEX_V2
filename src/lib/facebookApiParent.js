@@ -27,8 +27,10 @@ export async function fetchFacebookCampaignInsights(adAccountId, customerMetaID,
     const params = new URLSearchParams({
         access_token: accessToken,
         time_range: JSON.stringify({ since, until }),
+        time_increment: '1', // Aggregate for the period
         fields: fields.join(','),
         level: 'campaign',
+        limit: '1000',
     });
 
     // Add country filtering if customerMetaID is provided
@@ -80,11 +82,9 @@ export async function fetchFacebookCampaignInsights(adAccountId, customerMetaID,
  * @param {string} accessToken - Facebook App Token
  * @param {string} since - Start date (YYYY-MM-DD)
  * @param {string} until - End date (YYYY-MM-DD)
- * @param {object} [options] - Optional settings
- * @param {boolean} [options.dailyBreakdown] - If true, adds time_increment=1 for daily rows (used by parent-property)
  * @returns {Promise<object>} - The raw response from Facebook Graph API
  */
-export async function fetchFacebookAdsInsights(adAccountId, customerMetaID, accessToken, since, until, options = {}) {
+export async function fetchFacebookAdsInsights(adAccountId, customerMetaID, accessToken, since, until) {
     // Metrics to fetch
     const fields = [
         'spend',
@@ -105,14 +105,11 @@ export async function fetchFacebookAdsInsights(adAccountId, customerMetaID, acce
     const params = new URLSearchParams({
         access_token: accessToken,
         time_range: JSON.stringify({ since, until }),
+        time_increment: '1', // Daily breakdown
         fields: fields.join(','),
         level: 'account',
+        limit: '1000',
     });
-
-    // Rule: parent-property needs daily breakdown for Ad Spend Allocation chart
-    if (options.dailyBreakdown) {
-        params.append('time_increment', '1');
-    }
 
     // Add country filtering if customerMetaID is provided
     if (customerMetaID) {
@@ -183,8 +180,10 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
                 since: startDate,
                 until: endDate
             }),
+            time_increment: '1',
             fields: 'spend,clicks,impressions,actions,action_values,date_start',
             level: 'account',
+            limit: '1000'
         });
 
         if (countryCode) {
@@ -249,6 +248,7 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
             }),
             fields: 'campaign_name,spend,clicks,impressions,actions',
             level: 'campaign',
+            limit: '100'
         });
         if (countryCode) {
             campaignsParams.append('filtering', JSON.stringify([
@@ -302,8 +302,10 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
                         since: startDate,
                         until: endDate
                     }),
+                    time_increment: '1',
                     fields: 'campaign_name,spend,clicks,impressions,actions,date_start',
                     level: 'campaign',
+                    limit: '1000'
                 });
                 const filters = [{
                     field: 'campaign.name',

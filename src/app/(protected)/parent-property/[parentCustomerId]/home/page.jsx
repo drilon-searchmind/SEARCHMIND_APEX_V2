@@ -138,7 +138,7 @@ export default function ParentPropertyHome() {
                 const [results, resultsPrev, dailyResults] = await Promise.all([
                     Promise.all(
                         childCustomers.map(async (customer) => {
-                            const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}`);
+                            const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&source=parent-property`);
                             if (!res.ok) throw new Error("Failed to fetch data for " + customer.customerName);
                             const merged = await res.json();
                             const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
@@ -168,7 +168,7 @@ export default function ParentPropertyHome() {
                     ),
                     Promise.all(
                         childCustomers.map(async (customer) => {
-                            const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${prevStartStr}&endDate=${prevEndStr}`);
+                            const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${prevStartStr}&endDate=${prevEndStr}&source=parent-property`);
                             if (!res.ok) return { revenue: 0, adspend: 0, orders: 0, roas: null, spendshare: null };
                             const merged = await res.json();
                             const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
@@ -186,7 +186,7 @@ export default function ParentPropertyHome() {
                     // Fetch daily data for charts
                     Promise.all(
                         childCustomers.map(async (customer) => {
-                            const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}`);
+                            const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&source=parent-property`);
                             if (!res.ok) return null;
                             const merged = await res.json();
                             const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';

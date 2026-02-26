@@ -7,10 +7,14 @@ export async function GET(request, { params }) {
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const source = searchParams.get('source');
 
     if (!startDate || !endDate) {
         return Response.json({ error: 'Missing startDate or endDate' }, { status: 400 });
     }
+
+    // Rule: parent-property needs daily breakdown for Facebook (Ad Spend Allocation chart)
+    const dailyBreakdown = source === 'parent-property';
 
     try {
         // Fetch customer settings
@@ -25,7 +29,7 @@ export async function GET(request, { params }) {
         };
 
         // Fetch merged sources (now returns daily arrays)
-        const merged = await fetchMergedSources(settings, startDate, endDate);
+        const merged = await fetchMergedSources(settings, startDate, endDate, { dailyBreakdown });
         return Response.json(merged);
     } catch (error) {
         console.error('Error fetching merged sources:', error);

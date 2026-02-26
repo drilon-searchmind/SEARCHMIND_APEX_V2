@@ -10,10 +10,12 @@ import currencyApiValues from './static-data/currencyApiValues.json';
  * @param {object} settings - Customer settings object containing all required credentials and customerType.
  * @param {string} startDate - Start date (YYYY-MM-DD)
  * @param {string} endDate - End date (YYYY-MM-DD)
+ * @param {object} [options] - Optional settings
+ * @param {boolean} [options.dailyBreakdown] - If true, Facebook uses time_increment for daily rows (parent-property)
  * @returns {Promise<object>} - { shopifyDaily, facebookDaily, googleDaily, ... }
  */
 
-export async function fetchMergedSources(settings, startDate, endDate) {
+export async function fetchMergedSources(settings, startDate, endDate, options = {}) {
     const FACEBOOK_APP_TOKEN = process.env.FACEBOOK_APP_TOKEN;
 
     // Determine customer type and fetch appropriate e-commerce data
@@ -142,7 +144,8 @@ export async function fetchMergedSources(settings, startDate, endDate) {
                 settings.customerMetaID,
                 FACEBOOK_APP_TOKEN,
                 startDate,
-                endDate
+                endDate,
+                { dailyBreakdown: options.dailyBreakdown }
             );
             const fbRows = fbRes?.data || [];
             facebookDaily = fbRows.map(row => ({
