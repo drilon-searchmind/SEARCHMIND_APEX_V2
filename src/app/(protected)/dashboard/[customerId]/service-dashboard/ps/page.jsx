@@ -51,7 +51,6 @@ export default function FacebookPSPage() {
     const customer = customers.find((c) => c._id === params.customerId);
 
     // Date range state
-    // Date range state
     const today = new Date();
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -234,7 +233,7 @@ export default function FacebookPSPage() {
                     val = (row.clicks || 0) / row.impressions * 100;
                 }
                 if (typeof val === 'number' && !isNaN(val)) {
-                    return Number(val.toFixed(2));
+                    return (metricKey === "ctr" || metricKey === "roas") ? Number(val.toFixed(2)) : Math.round(val);
                 }
                 return val ?? null;
             }),
@@ -269,7 +268,7 @@ export default function FacebookPSPage() {
                     val = (row.clicks || 0) / row.impressions * 100;
                 }
                 if (typeof val === 'number' && !isNaN(val)) {
-                    return Number(val.toFixed(2));
+                    return (metricKey === "ctr" || metricKey === "roas") ? Number(val.toFixed(2)) : Math.round(val);
                 }
                 return val ?? null;
             }),
@@ -358,15 +357,15 @@ export default function FacebookPSPage() {
                                 })}
                                 style={{ cursor: 'pointer' }}
                             >
-                                <MetricCard
+								<MetricCard
                                     label={metric.label}
                                     value={
                                         metric.value !== null && metric.value !== undefined
                                             ? (typeof metric.value === "number" && !isNaN(metric.value)
-                                                ? (metric.label === "Conv. Value" || metric.label === "Ad spend" || metric.label === "AOV" ? metric.value.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })
+                                                ? (metric.label === "Conv. Value" || metric.label === "Ad spend" || metric.label === "AOV" ? metric.value.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0, minimumFractionDigits: 0 })
                                                     : metric.label === "CTR" ? `${metric.value.toFixed(2)}%`
                                                     : metric.label === "ROAS" ? metric.value.toFixed(2)
-                                                    : metric.value.toLocaleString())
+                                                    : metric.value.toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 }))
                                                 : metric.value)
                                             : "-"
                                     }
@@ -447,8 +446,8 @@ export default function FacebookPSPage() {
                                     return (
                                         <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                                             <td className="px-3 py-2 whitespace-nowrap">{row.campaign_name}</td>
-                                            <td className="px-3 py-2 whitespace-nowrap" style={{ ...(row.clicks > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.clicks / max.clicks)})` } : {}) }}>{row.clicks}</td>
-                                            <td className="px-3 py-2 whitespace-nowrap" style={{ ...(row.impressions > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.impressions / max.impressions)})` } : {}) }}>{row.impressions}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap" style={{ ...(row.clicks > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.clicks / max.clicks)})` } : {}) }}>{Number(row.clicks || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap" style={{ ...(row.impressions > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.impressions / max.impressions)})` } : {}) }}>{Number(row.impressions || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                                             <td className="px-3 py-2 whitespace-nowrap" style={{ ...(row.ctr > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * ((Number(row.ctr) || 0) * 100 / max.ctr)})` } : {}) }}>{row.ctr ? `${(Number(row.ctr) * 100).toFixed(2)}%` : '-'}</td>
                                         </tr>
                                     );

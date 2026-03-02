@@ -19,6 +19,22 @@ import {
 import Image from "next/image";
 import { useParams, usePathname } from "next/navigation";
 import SmallLabel from "../ui/SmallLabel";
+import { useUser } from "@/contexts/UserContext";
+
+function getLastMonthPeriod() {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getOpenedPeriodsForCustomer(openedWrappedPeriods, customerId) {
+    if (!openedWrappedPeriods || typeof openedWrappedPeriods !== "object" || Array.isArray(openedWrappedPeriods))
+        return [];
+    const key = String(customerId || "").trim();
+    if (!key) return [];
+    const raw = openedWrappedPeriods[key] ?? openedWrappedPeriods[customerId];
+    return Array.isArray(raw) ? raw.map((p) => String(p).trim()).filter((p) => /^\d{4}-\d{2}$/.test(p)) : [];
+}
 
 // Map of route patterns to their respective icons
 const getIconForRoute = (href) => {
@@ -36,6 +52,58 @@ const getIconForRoute = (href) => {
     if (href.includes("config")) return <FiSettings className="w-4 h-4" />;
     if (href.includes("test-page")) return <FiFolder className="w-4 h-4" />;
     return <FiFolder className="w-4 h-4" />;
+};
+
+const DataWrappedNavItem = ({ href, activeCustomerId, pathname, isSmallScreen }) => {
+    const user = useUser();
+    if (!activeCustomerId) return null;
+    const lastMonthPeriod = getLastMonthPeriod();
+    const opened = getOpenedPeriodsForCustomer(user?.openedWrappedPeriods, activeCustomerId);
+    const hasOpenedLastMonth = opened.includes(lastMonthPeriod);
+    const showPulse = !hasOpenedLastMonth;
+    const isActive = pathname === href;
+
+    return (
+        <li
+            className={`py-2 rounded-lg w-full group relative ` +
+                (isSmallScreen ? "px-2" : "px-6") +
+                (isActive ? " bg-[var(--color-primary-searchmind-lighter)]" : "")
+            }
+        >
+            <Link href={href} className="w-full">
+                <span className={`flex items-center justify-between text-[0.85rem] font-medium ${isActive ? "text-white" : "text-slate-600"}`}>
+                    {isSmallScreen ? (
+                        <>
+                            <div className="relative flex items-center justify-center">
+                                {showPulse && (
+                                    <span
+                                        className="absolute inset-0 rounded-full bg-[var(--color-lime)]/90 wrapped-pulse-ring pointer-events-none scale-150"
+                                        aria-hidden="true"
+                                    />
+                                )}
+                                <FiGift className={`relative z-10 w-4 h-4 ${showPulse ? "text-[var(--color-primary-searchmind)] data-wrapped-shake-icon" : ""}`} />
+                            </div>
+                            <div className="absolute left-[70px] bg-gray-900 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
+                                Data Wrapped
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <span className="flex items-center gap-2 relative">
+                                {showPulse && (
+                                    <span
+                                        className="w-2 h-2 rounded-full bg-[var(--color-lime)] wrapped-pulse-ring flex-shrink-0"
+                                        aria-hidden="true"
+                                    />
+                                )}
+                                <span>Data Wrapped</span>
+                            </span>
+                        </>
+                    )}
+                </span>
+            </Link>
+        </li>
+    );
 };
 
 const NavItem = ({ href, label, activeCustomerId, pathname, subLabel, isSmallScreen }) => {
@@ -167,6 +235,12 @@ const Sidebar = ({ showLinks = true }) => {
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/ecommerce`}
                                                 label="Ecommerce"
+                                                activeCustomerId={activeCustomerId}
+                                                pathname={pathname}
+                                                isSmallScreen={isSmallScreen}
+                                            />
+                                            <DataWrappedNavItem
+                                                href={`/dashboard/${activeCustomerId}/data-wrapped`}
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}

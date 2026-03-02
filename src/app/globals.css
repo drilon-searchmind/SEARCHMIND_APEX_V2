@@ -377,3 +377,66 @@ select {
 	animation: dataWrappedLineFloat 14s ease-in-out infinite;
 	pointer-events: none;
 }
+
+/* Data Wrapped pulse ring + shake - both run in sync, then pause (4s total: 1s active, 3s pause) */
+@layer utilities {
+	@keyframes wrappedPulseRing {
+		0% {
+			transform: scale(0);
+			opacity: 0.8;
+		}
+		25% {
+			transform: scale(2);
+			opacity: 0;
+		}
+		100% {
+			transform: scale(2);
+			opacity: 0;
+		}
+	}
+
+	.wrapped-pulse-ring {
+		animation: wrappedPulseRing 2.5s ease-out infinite;
+	}
+}
+
+@keyframes dataWrappedShakeIcon {
+	0%, 25%, 100% {
+		transform: rotate(0);
+	}
+	2.5% {
+		transform: rotate(-12deg);
+	}
+	5% {
+		transform: rotate(12deg);
+	}
+	7.5% {
+		transform: rotate(-12deg);
+	}
+	10% {
+		transform: rotate(12deg);
+	}
+	12.5% {
+		transform: rotate(-12deg);
+	}
+	15% {
+		transform: rotate(12deg);
+	}
+	17.5% {
+		transform: rotate(-12deg);
+	}
+	20% {
+		transform: rotate(12deg);
+	}
+	22.5% {
+		transform: rotate(-6deg);
+	}
+}
+
+.data-wrapped-shake-icon {
+	animation: dataWrappedShakeIcon 2.5s ease-in-out infinite;
+}
+
+.datepicker-monthly .react-datepicker__month.react-datepicker__monthPicker {
+	min-width: 300px;
+}

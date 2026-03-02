@@ -172,9 +172,9 @@ export default function ProductPerfomance({ products = [], loading = false, inve
                                     <td className="px-4 py-4 text-right">{formatCurrency(p.avgPrice)}</td>
                                     <td className="px-4 py-4 text-right">{formatNumber(p.unitsSold)}</td>
                                     <td className="px-4 py-4 text-right">{formatNumber(p.ordersCount)}</td>
-                                    <td className="px-4 py-4 text-right font-semibold">{formatCurrency(p.totalRevenue)}</td>
+                                    <td className="px-4 py-4 text-right font-semibold">{formatCurrencyNoDecimals(p.totalRevenue)}</td>
                                     <td className="px-4 py-4 text-right">{inventoryLoading && p.inventoryStock == null ? <Spinner size={16} className="inline-block" /> : (p.inventoryStock != null ? formatNumber(p.inventoryStock) : '—')}</td>
-                                    <td className="px-4 py-4 text-right">{inventoryLoading && p.inventoryValue == null ? <Spinner size={16} className="inline-block" /> : (p.inventoryValue != null ? formatCurrency(p.inventoryValue) : '—')}</td>
+                                    <td className="px-4 py-4 text-right">{inventoryLoading && p.inventoryValue == null ? <Spinner size={16} className="inline-block" /> : (p.inventoryValue != null ? formatCurrencyNoDecimals(p.inventoryValue) : '—')}</td>
                                 </tr>
                             ))}
                         </tbody>

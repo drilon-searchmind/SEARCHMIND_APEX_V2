@@ -202,7 +202,7 @@ const DailyOverviewPage = () => {
             </div>
 
             <RowComparisonPopover
-                visible={hoveredRowIndex !== null && hoveredRowTable != null}
+                visible={false}
                 position={hoveredRowPosition}
                 tableWidth={tableWidth}
                 hoveredRowTable={hoveredRowTable}

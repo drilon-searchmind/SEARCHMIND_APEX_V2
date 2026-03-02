@@ -24,7 +24,7 @@ async function fetchShopifyOrdersForSegmentation(settings, startDate, endDate) {
 
     const endpoint = `https://${shopUrl}/admin/api/2025-10/graphql.json`;
     const orders = [];
-    const extendDays = 90;
+    const extendDays = 365; // For LTV 365 computation
     const fetchStart = new Date(startDate);
     fetchStart.setDate(fetchStart.getDate() - extendDays);
     const fetchStartStr = fetchStart.toISOString().slice(0, 10);
@@ -105,11 +105,13 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
     const insights = [];
 
     if (Array.isArray(orders) && orders.length > 0) {
+        const s = new Date(startDate);
+        const e = new Date(endDate);
+
         // Group by customer identifier (email preferred)
         const byCust = new Map();
         let totalRevenue = 0;
         let totalOrders = 0;
-
         let totalNetRevenue = 0;
         orders.forEach(o => {
             const cust = (o.customer && (o.customer.id || o.customer.email)) || o.customer_email || o.email || o.customer_id || o.buyer_email || null;
@@ -120,12 +122,16 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
             const net = o.net_price != null ? Number(o.net_price) : total;
             if (!byCust.has(id)) byCust.set(id, { orders: [], firstSeen: null, totalValue: 0, totalNetValue: 0 });
             const rec = byCust.get(id);
-            rec.orders.push({ date: created ? new Date(created) : null, total, net });
+            const orderDate = created ? new Date(created) : null;
+            rec.orders.push({ date: orderDate, total, net });
             rec.totalValue += total;
             rec.totalNetValue += net;
-            totalRevenue += total;
-            totalNetRevenue += net;
-            totalOrders += 1;
+            // Only include orders within the selected period for revenue/order totals
+            if (orderDate instanceof Date && orderDate >= s && orderDate <= e) {
+                totalRevenue += total;
+                totalNetRevenue += net;
+                totalOrders += 1;
+            }
             if (created) {
                 const d = new Date(created);
                 if (!rec.firstSeen || d < rec.firstSeen) rec.firstSeen = d;
@@ -136,9 +142,6 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
         let returningOrdersCount = 0, returningCustomersCount = 0;
         let newCustomersWithRepeat = 0; // new customers who placed >1 order in range
         let firstOrdersCount = 0; // count orders that were first orders (customer's first order falling in range)
-
-        const s = new Date(startDate);
-        const e = new Date(endDate);
 
         // Prepare daily map for time-series
         const msPerDay = 1000 * 60 * 60 * 24;
@@ -240,10 +243,10 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
         ncaNetRevenue = Number(ncaNetRevenue.toFixed(2));
         returningCustomerNetRevenue = Number((totalNetRevenue - ncaNetRevenue).toFixed(2));
 
-        // LTV 30, 90 days: avg revenue per customer in first X days from first purchase
+        // LTV 30, 90, 180, 365 days: avg revenue per customer in first X days from first purchase
         const msPerDayNum = 1000 * 60 * 60 * 24;
-        const ltvWindows = [30, 90];
-        const ltvResult = { ltv30: null, ltv90: null };
+        const ltvWindows = [30, 90, 180, 365];
+        const ltvResult = { ltv30: null, ltv90: null, ltv180: null, ltv365: null };
         const cutoffDate = new Date(e.getTime() - 1); // exclude partial windows at end
         for (const window of ltvWindows) {
             const windowMs = window * msPerDayNum;
@@ -293,6 +296,8 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
             returningCustomerNetRevenue,
             ltv30: ltvResult.ltv30,
             ltv90: ltvResult.ltv90,
+            ltv180: ltvResult.ltv180,
+            ltv365: ltvResult.ltv365,
             dailySeries,
             churnPercent: Number(churnPercent.toFixed(2)),
             churnMonthly: Number(churnMonthly.toFixed(2)),
@@ -302,6 +307,8 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
             firstTimeBuyersCount: newCustomers,
             firstOrdersCount,
             insights,
+            cac: merged.CACTotalSales ?? null,
+            adSpend: (merged.facebookDaily || []).reduce((s, d) => s + (d.spend || 0), 0) + (merged.googleDaily || []).reduce((s, d) => s + (d.spend || 0), 0),
         };
     }
 
@@ -325,6 +332,9 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
         const totalRevenueVal = Number(shopifyDaily.reduce((s, d) => s + (d.total_sales || d.net_sales || 0), 0).toFixed(2));
         const aovApprox = totalOrders > 0 ? totalRevenueVal / totalOrders : 0;
         const ncaRevenueApprox = Number((approxNew * aovApprox).toFixed(2));
+        // Approximate new/returning revenue by same split as orders (40% new, 60% returning)
+        const ncaNetRevenueApprox = totalOrders > 0 ? Number(((approxNew / totalOrders) * totalRevenueVal).toFixed(2)) : null;
+        const returningNetRevenueApprox = totalOrders > 0 ? Number(((approxReturning / totalOrders) * totalRevenueVal).toFixed(2)) : null;
 
         insights.push('Segmentation approximated from daily aggregates (no order-level data).');
         return {
@@ -339,10 +349,12 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
             totalRevenue: totalRevenueVal,
             totalNetRevenue: totalRevenueVal,
             ncaRevenue: ncaRevenueApprox,
-            ncaNetRevenue: null,
-            returningCustomerNetRevenue: null,
+            ncaNetRevenue: ncaNetRevenueApprox,
+            returningCustomerNetRevenue: returningNetRevenueApprox,
             ltv30: null,
             ltv90: null,
+            ltv180: null,
+            ltv365: null,
             dailySeries,
             churnPercent: null,
             churnMonthly: null,
@@ -352,6 +364,8 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
             firstTimeBuyersCount: approxNew,
             firstOrdersCount: approxNew,
             insights,
+            cac: merged.CACTotalSales ?? null,
+            adSpend: (merged.facebookDaily || []).reduce((s, d) => s + (d.spend || 0), 0) + (merged.googleDaily || []).reduce((s, d) => s + (d.spend || 0), 0),
         };
     }
 
@@ -373,6 +387,8 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
         returningCustomerNetRevenue: null,
         ltv30: null,
         ltv90: null,
+        ltv180: null,
+        ltv365: null,
         dailySeries: [],
         churnPercent: null,
         churnMonthly: null,
@@ -382,6 +398,8 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
         firstTimeBuyersCount: 0,
         firstOrdersCount: 0,
         insights,
+        cac: merged.CACTotalSales ?? null,
+        adSpend: (merged.facebookDaily || []).reduce((s, d) => s + (d.spend || 0), 0) + (merged.googleDaily || []).reduce((s, d) => s + (d.spend || 0), 0),
     };
 }
 
@@ -484,6 +502,8 @@ GROUP BY customer_type
                 returningCustomerNetRevenue: null,
                 ltv30: null,
                 ltv90: null,
+                ltv180: null,
+                ltv365: null,
                 dailySeries: [],
                 churnPercent: null,
                 churnMonthly: null,

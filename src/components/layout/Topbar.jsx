@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { FaMoon, FaSun } from "react-icons/fa";
 import { FiBell } from "react-icons/fi";
-import { FiChevronDown, FiHome, FiUser, FiSettings, FiBarChart2, FiLogOut, FiSearch, FiUsers, FiBookOpen, FiShare2 } from "react-icons/fi";
+import { FiChevronDown, FiHome, FiUser, FiSettings, FiBarChart2, FiLogOut, FiSearch, FiUsers, FiBookOpen, FiShare2, FiGift } from "react-icons/fi";
 import { useUser } from "@/contexts/UserContext";
 import { signOut } from "next-auth/react";
 import { useCustomers } from "@/hooks/useCustomers";
@@ -15,6 +15,21 @@ import Link from "next/link";
 import FormButton from "../form/FormButton";
 import { LuRadar } from "react-icons/lu";
 import { RiToolsFill } from "react-icons/ri";
+
+function getLastMonthPeriod() {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getOpenedPeriodsForCustomer(openedWrappedPeriods, customerId) {
+    if (!openedWrappedPeriods || typeof openedWrappedPeriods !== "object" || Array.isArray(openedWrappedPeriods))
+        return [];
+    const key = String(customerId || "").trim();
+    if (!key) return [];
+    const raw = openedWrappedPeriods[key] ?? openedWrappedPeriods[customerId];
+    return Array.isArray(raw) ? raw.map((p) => String(p).trim()).filter((p) => /^\d{4}-\d{2}$/.test(p)) : [];
+}
 
 const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true }) => {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -265,10 +280,12 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                         </div>
                     </div>
 
-                    {/* Team Members - Hidden on mobile */}
+                    {/* Team Members - Hidden on mobile, and hidden for external / non-admin users */}
                     {showLinks && (
                         <div id="teamMembers" className="hidden xl:flex items-center gap-6">
-                            <TrackingScore customerId={activeCustomerId} />
+                            {!user?.isExternal && user?.isAdmin && (
+                                <TrackingScore customerId={activeCustomerId} />
+                            )}
                             <TeamMembers customerId={activeCustomerId} />
                         </div>
                     )}
@@ -278,7 +295,36 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                 <div className="hidden xl:flex items-center space-x-4">
                     {showPropertySection && (
                         <>
-                            <div>
+                            <div className="flex items-center gap-2">
+                                {activeCustomerId && (() => {
+                                    const lastMonthPeriod = getLastMonthPeriod();
+                                    const raw = user?.openedWrappedPeriods?.[activeCustomerId];
+                                    const opened = Array.isArray(raw)
+                                        ? raw.map((p) => String(p).trim()).filter((p) => /^\d{4}-\d{2}$/.test(p))
+                                        : [];
+                                    const hasOpenedLastMonth = opened.includes(lastMonthPeriod);
+                                    const showPulse = !hasOpenedLastMonth;
+                                    return (
+                                        <div className="relative flex items-center justify-center w-10 h-10 overflow-visible mr-2">
+                                            {showPulse && (
+                                                <span
+                                                    className="absolute inset-0 rounded-full bg-[var(--color-lime)]/90 wrapped-pulse-ring pointer-events-none"
+                                                    aria-hidden="true"
+                                                />
+                                            )}
+                                            <Link
+                                                href={`/dashboard/${activeCustomerId}/data-wrapped`}
+                                                className={`relative z-10 flex items-center justify-center w-full h-full rounded-lg transition-colors ${showPulse
+                                                        ? "bg-[var(--color-lime)]/100"
+                                                        : "bg-gray-100 hover:bg-gray-200"
+                                                    }`}
+                                                title="Data Wrapped"
+                                            >
+                                                <FiGift className={showPulse ? "text-[var(--color-primary-searchmind)] data-wrapped-shake-icon" : "text-gray-700"} />
+                                            </Link>
+                                        </div>
+                                    );
+                                })()}
                                 <Link href={`/parent-property/${activeCustomer?.parentCustomer || ""}/home`}>
                                     <FormButton buttonSize="small" type="button" borderType="">
                                         Group View
@@ -305,8 +351,8 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                         </button>
                     </div>
 
-                    <div className="relative" ref={menuBellRef}>
-                        <button 
+                    <div className="relative hidden" ref={menuBellRef}>
+                        <button
                             onClick={() => setBellMenuOpen(!bellMenuOpen)}
                             className="p-2 rounded-full border border-gray-200 bg-white text-gray-700 transition-colors duration-200 hover:bg-gray-50 relative">
                             <span className="absolute text-xs bg-[var(--color-lime)] rounded-full h-[20px] w-[20px] flex items-center justify-center top-[-7px] right-[-7px] text-slate-800">1</span>
@@ -314,7 +360,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                         </button>
 
                         {bellMenuOpen && (
-                             <div className="absolute right-0 mt-[22px] w-75 bg-white shadow-xs rounded-[1rem] px-4 overflow-hidden z-50 py-4 border border-gray-200 transition-colors duration-200">
+                            <div className="absolute right-0 mt-[22px] w-75 bg-white shadow-xs rounded-[1rem] px-4 overflow-hidden z-50 py-4 border border-gray-200 transition-colors duration-200">
                                 <div className="mb-4">
                                     <p className="font-semibold text-gray-900">Notifications</p>
                                     <p className="mt-5 text-center text-[0.75rem] text-[var(--color-primary-searchmind)] bg-gray-200 rounded px-3 py-1">WIP</p>
@@ -363,7 +409,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                         <FiUser />
                                         <Link href="/profile" className="text-sm text-slate-800 font-semibold">My Account</Link>
                                     </li>
-                                    <li className="flex items-center gap-2">
+                                    <li className="flex items-center gap-2 hidden">
                                         <FiBarChart2 />
                                         <Link href="/my-campaigns" className="text-sm text-slate-800 font-semibold">My Campaigns</Link>
                                     </li>
@@ -371,15 +417,16 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                         <FiBookOpen />
                                         <Link href="/lib/guides" className="text-sm text-slate-800 font-semibold">Guides</Link>
                                     </li>
+                                    <li className="flex items-center gap-2">
+                                        <RiToolsFill />
+                                        <Link href="/our-tools" className="text-sm text-slate-800 font-semibold">Our Tools</Link>
+                                        <span className="text-[0.5rem] text-black bg-gray-200 rounded px-3 py-1">WIP</span>
+                                    </li>
                                     {user?.isAdmin && (
                                         <>
                                             <li className="flex items-center gap-2">
                                                 <FiSettings />
                                                 <Link href="/admin" className="text-sm text-slate-800 font-semibold">Admin</Link>
-                                            </li>
-                                            <li className="flex items-center gap-2">
-                                                <RiToolsFill />
-                                                <Link href="#" className="text-sm text-slate-800 font-semibold">Tools</Link>
                                             </li>
                                             <li
                                                 id="apexRadar-link"
@@ -440,8 +487,8 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                             <span className="text-gray-900 font-medium">Home</span>
                         </Link>
 
-                        {/* Team Members - Mobile */}
-                        {showLinks && (
+                        {/* Team Members - Mobile (hidden for external / non-admin users) */}
+                        {showLinks && !user?.isExternal && user?.isAdmin && (
                             <div id="teamMembers-mobile" className="py-2 border-b border-gray-200">
                                 <TeamMembers customerId={activeCustomerId} />
                             </div>
@@ -460,6 +507,30 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                         <FiHome className="text-gray-400 h-5 w-5" />
                                         <span className="text-gray-900 font-medium text-sm">View Group Property</span>
                                     </Link>
+                                    {activeCustomerId && (() => {
+                                        const lastMonthPeriod = getLastMonthPeriod();
+                                        const opened = getOpenedPeriodsForCustomer(user?.openedWrappedPeriods, activeCustomerId);
+                                        const hasOpenedLastMonth = opened.includes(lastMonthPeriod);
+                                        const showPulse = !hasOpenedLastMonth;
+                                        return (
+                                            <Link
+                                                href={`/dashboard/${activeCustomerId}/data-wrapped`}
+                                                onClick={() => setMobileMenuOpen(false)}
+                                                className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors mt-2"
+                                            >
+                                                <div className="relative flex items-center justify-center w-8 h-8">
+                                                    {showPulse && (
+                                                        <span
+                                                            className="absolute inset-0 rounded-full bg-[var(--color-lime)]/90 wrapped-pulse-ring pointer-events-none"
+                                                            aria-hidden="true"
+                                                        />
+                                                    )}
+                                                    <FiGift className={`relative z-10 h-5 w-5 ${showPulse ? "text-[var(--color-primary-searchmind)] data-wrapped-shake-icon" : "text-gray-400"}`} />
+                                                </div>
+                                                <span className="text-gray-900 font-medium text-sm">Data Wrapped</span>
+                                            </Link>
+                                        );
+                                    })()}
                                     {!user?.isExternal && (
                                         <button
                                             onClick={() => {
@@ -513,6 +584,14 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                 >
                                     <FiUser className="text-gray-400 h-5 w-5" />
                                     <span className="text-gray-900 font-medium text-sm">User Profile</span>
+                                </Link>
+                                <Link
+                                    href="/our-tools"
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    <RiToolsFill className="text-gray-400 h-5 w-5" />
+                                    <span className="text-gray-900 font-medium text-sm">Our Tools</span>
                                 </Link>
                                 {user?.isAdmin && (
                                     <Link

@@ -139,6 +139,8 @@ export default function PerformanceDashboard() {
 
         const revenue = shopify.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
         const totalSales = shopify.reduce((sum, d) => sum + (d.total_sales || 0), 0);
+        const grossSales = shopify.reduce((sum, d) => sum + (d.gross_sales || 0), 0);
+        const discounts = shopify.reduce((sum, d) => sum + (d.discounts || 0), 0);
         const netRevenue = shopify.reduce((sum, d) => sum + (d.net_sales || 0), 0);
         const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
         const returns = shopify.reduce((sum, d) => sum + (d.returns || 0), 0);
@@ -247,7 +249,8 @@ export default function PerformanceDashboard() {
                         change: percentChange(netRevenue, netRevenuePrev) !== null ? Math.abs(percentChange(netRevenue, netRevenuePrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(netRevenue, netRevenuePrev)),
                         tooltip: 'Net sales (after discounts, returns, etc.)',
-                        popOverContent: null,
+                        popOverContent: `Net sales = Gross sales - (Discounts + Returns)\n= ${fmt(grossSales)} - (${fmt(discounts)} + ${fmt(returns)})\n= ${fmt(grossSales)} - ${fmt(discounts + returns)}\n= ${fmt(netRevenue)}`,
+                        calcValueLabels: `Gross sales: ${fmt(grossSales)}\nDiscounts: ${fmt(discounts)}\nReturns: ${fmt(returns)}`,
                     },
                     {
                         key: 'cogs',
@@ -256,7 +259,72 @@ export default function PerformanceDashboard() {
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(totalCogs, prevTotalCogs) !== null ? Math.abs(percentChange(totalCogs, prevTotalCogs)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(totalCogs, prevTotalCogs)),
-                        popOverContent: null,
+                        popOverContent: fetchCogs
+                            ? `COGS (from Shopify store)\n= Sum of cost_of_goods_sold per day\n= ${fmt(totalCogs)}`
+                            : `COGS = Net Revenue × COGS %\n= ${fmt(netRevenue)} × ${(cogsPercentage * 100).toFixed(1)}%\n= ${fmt(totalCogs)}`,
+                        calcValueLabels: fetchCogs
+                            ? `Cost of goods sold (from Shopify): ${fmt(totalCogs)}`
+                            : `Net Revenue: ${fmt(netRevenue)}\nCOGS %: ${(cogsPercentage * 100).toFixed(1)}%`,
+                    },
+                    {
+                        key: 'aov',
+                        label: "Net AOV",
+                        value: aov !== null ? aov.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
+                        icon: <FiShoppingBag className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(aov, aovPrev) !== null ? Math.abs(percentChange(aov, aovPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(aov, aovPrev)),
+                        popOverContent: orders > 0 ? `Net AOV = Net Revenue / Orders\n= ${fmt(netRevenue)} / ${orders}\n= ${fmt(aov)}` : null,
+                        calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nOrders: ${orders}`,
+                    },
+                    {
+                        key: 'cost',
+                        label: "Spend",
+                        value: cost ? cost.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
+                        icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(cost, costPrev) !== null ? Math.abs(percentChange(cost, costPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(cost, costPrev)),
+                        popOverContent: totalAdspendCalculation,
+                        calcValueLabels: apiValueLabels.spend,
+                    },
+                    {
+                        key: 'roas',
+                        label: "Blended ROAS",
+                        value: roas !== null ? roas.toFixed(2) : '-',
+                        icon: <FiBarChart2 className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(roas, roasPrev) !== null ? Math.abs(percentChange(roas, roasPrev)).toFixed(1) : undefined,
+                        changeType: changeType(percentChange(roas, roasPrev)),
+                        popOverContent: roasCalculation,
+                        calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nCost: ${fmt(cost)}`,
+                    },
+                    {
+                        key: 'variable_costs',
+                        label: "Variable Costs",
+                        value: variableCosts ? variableCosts.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
+                        icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(variableCosts, variableCostsPrev) !== null ? Math.abs(percentChange(variableCosts, variableCostsPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(variableCosts, variableCostsPrev)),
+                        popOverContent: `Variable costs (scale with volume):\n(shippingCostPerOrder × orders) + (Net Revenue × transactionCost%)\n= (${fmt(shippingCostPerOrder)} × ${orders}) + (${fmt(netRevenue)} × ${fmt(transactionCostPct * 100)}%)\n= ${fmt(variableCosts)}`,
+                        calcValueLabels: `Shipping per order: ${fmt(shippingCostPerOrder)}\nOrders: ${orders}\nNet Revenue: ${fmt(netRevenue)}\nTransaction cost %: ${fmt(transactionCostPct * 100)}%`,
+                    },
+                    {
+                        key: 'fixed_costs',
+                        label: "Fixed Costs",
+                        value: fixedCosts ? fixedCosts.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
+                        icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(fixedCosts, fixedCostsPrev) !== null ? Math.abs(percentChange(fixedCosts, fixedCostsPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(fixedCosts, fixedCostsPrev)),
+                        popOverContent: `Fixed costs (prorated for period):\nfixedExpenses (monthly) × sum over each day of (1 / days in that month)\n= ${fmt(fixedExpensesMonthly)} prorated over ${daysInRange} days\n= ${fmt(fixedCosts)}`,
+                        calcValueLabels: `Fixed expenses (monthly): ${fmt(fixedExpensesMonthly)}\nDays in range: ${daysInRange}`,
+                    },
+                    {
+                        key: 'poas',
+                        label: "Blended POAS",
+                        value: poas !== null ? poas.toFixed(2) : '-',
+                        icon: <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(poas, poasPrev) !== null ? Math.abs(percentChange(poas, poasPrev)).toFixed(1) : undefined,
+                        changeType: changeType(percentChange(poas, poasPrev)),
+                        popOverContent: poasCalculation,
+                        calcValueLabels: apiValueLabels.poas || `Net Profit: ${fmt(gross_profit_total_sales)}\nCost: ${fmt(cost)}`,
                     },
                     {
                         key: 'gross_profit',
@@ -288,36 +356,6 @@ export default function PerformanceDashboard() {
                         popOverContent: null,
                     },
                     {
-                        key: 'cost',
-                        label: "Spend",
-                        value: cost ? cost.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
-                        icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange(cost, costPrev) !== null ? Math.abs(percentChange(cost, costPrev)).toFixed(0) : undefined,
-                        changeType: changeType(percentChange(cost, costPrev)),
-                        popOverContent: totalAdspendCalculation,
-                        calcValueLabels: apiValueLabels.spend,
-                    },
-                    {
-                        key: 'fixed_costs',
-                        label: "Fixed Costs",
-                        value: fixedCosts ? fixedCosts.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
-                        icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange(fixedCosts, fixedCostsPrev) !== null ? Math.abs(percentChange(fixedCosts, fixedCostsPrev)).toFixed(0) : undefined,
-                        changeType: changeType(percentChange(fixedCosts, fixedCostsPrev)),
-                        popOverContent: `Fixed costs (prorated for period):\nfixedExpenses (monthly) × sum over each day of (1 / days in that month)\n= ${fmt(fixedExpensesMonthly)} prorated over ${daysInRange} days\n= ${fmt(fixedCosts)}`,
-                        calcValueLabels: `Fixed expenses (monthly): ${fmt(fixedExpensesMonthly)}\nDays in range: ${daysInRange}`,
-                    },
-                    {
-                        key: 'variable_costs',
-                        label: "Variable Costs",
-                        value: variableCosts ? variableCosts.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
-                        icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange(variableCosts, variableCostsPrev) !== null ? Math.abs(percentChange(variableCosts, variableCostsPrev)).toFixed(0) : undefined,
-                        changeType: changeType(percentChange(variableCosts, variableCostsPrev)),
-                        popOverContent: `Variable costs (scale with volume):\n(shippingCostPerOrder × orders) + (Net Revenue × transactionCost%)\n= (${fmt(shippingCostPerOrder)} × ${orders}) + (${fmt(netRevenue)} × ${fmt(transactionCostPct * 100)}%)\n= ${fmt(variableCosts)}`,
-                        calcValueLabels: `Shipping per order: ${fmt(shippingCostPerOrder)}\nOrders: ${orders}\nNet Revenue: ${fmt(netRevenue)}\nTransaction cost %: ${fmt(transactionCostPct * 100)}%`,
-                    },
-                    {
                         key: 'ebit_pct',
                         label: "EBIT%",
                         value: ebitPct !== null ? `${ebitPct.toFixed(1)}%` : '-',
@@ -329,52 +367,8 @@ export default function PerformanceDashboard() {
                     },
                 ];
 
-                // Conditionally add ROAS or Spendshare based on preference
-                if (customerMetricPreference === 'Spendshare') {
-                    metricsArray.push({
-                        key: 'spendshare',
-                        label: "Spendshare",
-                        value: spendshare !== null && !isNaN(spendshare) ? `${Math.round(spendshare * 100)}%` : '-',
-                        icon: <FiBarChart2 className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange(spendshare, spendsharePrev) !== null ? Math.abs(percentChange(spendshare, spendsharePrev)).toFixed(0) : undefined,
-                        changeType: changeType(percentChange(spendshare, spendsharePrev)),
-                        popOverContent: null,
-                    });
-                } else {
-                    // Default to ROAS/POAS
-                    metricsArray.push({
-                        key: 'roas',
-                        label: "Blended ROAS",
-                        value: roas !== null ? roas.toFixed(2) : '-',
-                        icon: <FiBarChart2 className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange(roas, roasPrev) !== null ? Math.abs(percentChange(roas, roasPrev)).toFixed(1) : undefined,
-                        changeType: changeType(percentChange(roas, roasPrev)),
-                        popOverContent: roasCalculation,
-                        calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nCost: ${fmt(cost)}`,
-                    });
-                }
-
                 // Add remaining metrics
                 metricsArray.push(
-                    {
-                        key: 'poas',
-                        label: "Blended POAS",
-                        value: poas !== null ? poas.toFixed(2) : '-',
-                        icon: <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange(poas, poasPrev) !== null ? Math.abs(percentChange(poas, poasPrev)).toFixed(1) : undefined,
-                        changeType: changeType(percentChange(poas, poasPrev)),
-                        popOverContent: poasCalculation,
-                        calcValueLabels: apiValueLabels.poas || `Net Profit: ${fmt(gross_profit_total_sales)}\nCost: ${fmt(cost)}`,
-                    },
-                    {
-                        key: 'aov',
-                        label: "Net AOV",
-                        value: aov !== null ? aov.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
-                        icon: <FiShoppingBag className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange(aov, aovPrev) !== null ? Math.abs(percentChange(aov, aovPrev)).toFixed(0) : undefined,
-                        changeType: changeType(percentChange(aov, aovPrev)),
-                        popOverContent: null,
-                    },
                     {
                         key: 'cac',
                         label: "Blended CAC",
@@ -440,8 +434,7 @@ export default function PerformanceDashboard() {
     const aggregateDaily = (shopifyArr, facebookArr, googleArr, keyFn) => {
         const map = {};
         const push = (k, obj) => {
-            if (!map[k]) map[k] = { revenue: 0, totalRevenue: 0, orders: 0, cost: 0, cogs: 0, returns: 0 };
-            // totalRevenue = total_sales, revenue = net_sales
+            if (!map[k]) map[k] = { revenue: 0, totalRevenue: 0, orders: 0, cost: 0, costFacebook: 0, costGoogle: 0, cogs: 0, returns: 0 };
             map[k].totalRevenue += Number(obj.total_sales || 0);
             map[k].revenue += Number(obj.net_sales || obj.total_sales || 0);
             map[k].orders += Number(obj.orders || 0);
@@ -449,13 +442,15 @@ export default function PerformanceDashboard() {
             map[k].returns += Number(obj.returns || 0);
         };
         (shopifyArr || []).forEach(d => push(keyFn(d.period), d));
-        // build spend map
-        const addSpend = (k, spend) => {
-            if (!map[k]) map[k] = { revenue: 0, totalRevenue: 0, orders: 0, cost: 0, cogs: 0, returns: 0 };
-            map[k].cost += Number(spend || 0);
+        const addSpend = (k, spend, source) => {
+            if (!map[k]) map[k] = { revenue: 0, totalRevenue: 0, orders: 0, cost: 0, costFacebook: 0, costGoogle: 0, cogs: 0, returns: 0 };
+            const val = Number(spend || 0);
+            map[k].cost += val;
+            if (source === 'facebook') map[k].costFacebook += val;
+            if (source === 'google') map[k].costGoogle += val;
         };
-        (facebookArr || []).forEach(d => addSpend(keyFn(d.period), d.spend));
-        (googleArr || []).forEach(d => addSpend(keyFn(d.period), d.spend));
+        (facebookArr || []).forEach(d => addSpend(keyFn(d.period), d.spend, 'facebook'));
+        (googleArr || []).forEach(d => addSpend(keyFn(d.period), d.spend, 'google'));
         return map;
     };
 
@@ -504,6 +499,18 @@ export default function PerformanceDashboard() {
         };
 
         selectedMetrics.forEach((metric) => {
+            if (metric === 'cost') {
+                const currDataPS = categories.map(k => { const v = currAgg[k]; return v ? Number((v.costFacebook || 0).toFixed(0)) : null; });
+                const currDataPPC = categories.map(k => { const v = currAgg[k]; return v ? Number((v.costGoogle || 0).toFixed(0)) : null; });
+                const prevDataPS = categories.map((k, idx) => { const prevKey = getPrevKeyForCategory(k, idx); const v = prevAgg[prevKey]; return v ? Number((v.costFacebook || 0).toFixed(0)) : null; });
+                const prevDataPPC = categories.map((k, idx) => { const prevKey = getPrevKeyForCategory(k, idx); const v = prevAgg[prevKey]; return v ? Number((v.costGoogle || 0).toFixed(0)) : null; });
+                series.push({ name: 'PS Cost (Current)', data: currDataPS });
+                series.push({ name: 'PPC Cost (Current)', data: currDataPPC });
+                series.push({ name: `PS Cost (${comparisonMethod})`, data: prevDataPS });
+                series.push({ name: `PPC Cost (${comparisonMethod})`, data: prevDataPPC });
+                return;
+            }
+
             const currData = categories.map(k => {
                 const v = currAgg[k];
                 if (!v) return null;
@@ -512,7 +519,6 @@ export default function PerformanceDashboard() {
                 if (metric === 'returns') return Number((v.returns || 0).toFixed(0));
                 if (metric === 'gross_profit') return Number((v.revenue - (v.cogs || 0)).toFixed(0));
                 if (metric === 'cogs') return Number((v.cogs || 0).toFixed(0));
-                if (metric === 'cost') return Number(v.cost.toFixed(0));
                 if (metric === 'fixed_costs') return Number(getFixedForPeriod(k).toFixed(0));
                 if (metric === 'variable_costs') return Number((shippingPerOrder * (v.orders || 0) + (v.revenue || 0) * txCostPct).toFixed(0));
                 if (metric === 'ebit_pct') {
@@ -543,7 +549,6 @@ export default function PerformanceDashboard() {
                 if (metric === 'returns') return Number((v.returns || 0).toFixed(0));
                 if (metric === 'gross_profit') return Number((v.revenue - (v.cogs || 0)).toFixed(0));
                 if (metric === 'cogs') return Number((v.cogs || 0).toFixed(0));
-                if (metric === 'cost') return Number(v.cost.toFixed(0));
                 if (metric === 'fixed_costs') return Number(getFixedForPeriod(prevKey).toFixed(0));
                 if (metric === 'variable_costs') return Number((shippingPerOrder * (v.orders || 0) + (v.revenue || 0) * txCostPct).toFixed(0));
                 if (metric === 'ebit_pct') {
@@ -567,14 +572,15 @@ export default function PerformanceDashboard() {
         });
 
         const formatChartValue = (v) => (typeof v === 'number' && !isNaN(v) ? v.toLocaleString('da-DK', { maximumFractionDigits: 2, minimumFractionDigits: 0 }) : v);
+        const isCurrentSeries = (s) => s.name && s.name.includes('(Current)');
         const options = {
             chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
             xaxis: { categories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
             yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' }, formatter: formatChartValue } },
             tooltip: { theme: 'light', y: { formatter: formatChartValue } },
-            colors: [chartColors.lime || '#C6ED62', '#94a3b8', chartColors.primaryLighter || '#406969', '#cbd5e1', chartColors.green || '#213834', '#f1f5f9'],
-            stroke: { width: series.map((_,i) => i % 2 === 0 ? 2 : 1), curve: 'smooth', dashArray: series.map((_,i) => i % 2 === 1 ? 5 : 0) },
-            fill: { type: 'solid', opacity: [1,0.5] },
+            colors: [chartColors.primaryLighter || '#406969', chartColors.lime || '#C6ED62', '#94a3b8', '#cbd5e1', chartColors.green || '#213834', '#f1f5f9'],
+            stroke: { width: series.map((s) => isCurrentSeries(s) ? 2 : 1), curve: 'smooth', dashArray: series.map((s) => isCurrentSeries(s) ? 0 : 5) },
+            fill: { type: 'solid', opacity: series.map((s) => isCurrentSeries(s) ? 1 : 0.5) },
             grid: { borderColor: '#e5e7eb', strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
             dataLabels: { enabled: false },
             tooltip: { theme: 'light' },
@@ -830,7 +836,8 @@ export default function PerformanceDashboard() {
                 loading={loading}
                 dashboardType="performance-dashboard"
                 dataSnapshot={{
-                    metrics: metrics,
+                    metrics,
+                    metricsData,
                     dailyData: {
                         shopify: shopifyDaily,
                         facebook: facebookDaily,

@@ -43,6 +43,13 @@ const PRESETS = [
     },
 ];
 
+const MONTH_PRESETS = [
+    { label: "This month", getRange: () => ({ start: dayjs().startOf("month"), end: dayjs().endOf("month") }) },
+    { label: "Last month", getRange: () => ({ start: dayjs().subtract(1, "month").startOf("month"), end: dayjs().subtract(1, "month").endOf("month") }) },
+    { label: "2 months ago", getRange: () => ({ start: dayjs().subtract(2, "month").startOf("month"), end: dayjs().subtract(2, "month").endOf("month") }) },
+    { label: "3 months ago", getRange: () => ({ start: dayjs().subtract(3, "month").startOf("month"), end: dayjs().subtract(3, "month").endOf("month") }) },
+];
+
 export default function DateRangePicker({
     onApply,
     startDate,
@@ -53,6 +60,7 @@ export default function DateRangePicker({
     showComparisonMethodToggler = false,
     comparisonMethod = "Last Year",
     onComparisonMethodChange,
+    monthOnly = false,
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const popoverRef = useRef(null);
@@ -76,6 +84,15 @@ export default function DateRangePicker({
         const [start, end] = dates;
         if (onStartDateChange) onStartDateChange(toStr(start));
         if (onEndDateChange) onEndDateChange(toStr(end));
+    };
+
+    const handleMonthChange = (date) => {
+        if (!date) return;
+        const d = dayjs(date);
+        const start = d.startOf("month").format(DATE_FORMAT);
+        const end = d.endOf("month").format(DATE_FORMAT);
+        if (onStartDateChange) onStartDateChange(start);
+        if (onEndDateChange) onEndDateChange(end);
     };
 
     const handlePreset = (preset) => {
@@ -106,12 +123,12 @@ export default function DateRangePicker({
                 </button>
 
                 {isOpen && (
-                    <div className="absolute right-0 top-full mt-1 z-[100] bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                    <div className={`absolute right-0 top-full mt-1 z-[100] bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden ${monthOnly ? "datepicker-monthly" : ""}`}>
                         <span className="flex flex-row gap-2">
                             <div className="p-3 w-full">
                                 <div className="text-xs font-medium text-gray-500 mb-2">Presets</div>
                                 <div className="flex flex-wrap gap-1">
-                                    {PRESETS.map((preset) => (
+                                    {(monthOnly ? MONTH_PRESETS : PRESETS).map((preset) => (
                                         <button
                                             key={preset.label}
                                             type="button"
@@ -151,17 +168,30 @@ export default function DateRangePicker({
                             </div>
                             <span className="relative">
                                 <div className="flex flex-col justify-between h-auto p-2">
-                                    <div className="text-xs font-medium text-gray-500 mb-2">Date Range</div>
-                                    <DatePicker
-                                        selected={startDateObj}
-                                        startDate={startDateObj}
-                                        endDate={endDateObj}
-                                        onChange={handleChange}
-                                        selectsRange
-                                        inline
-                                        dateFormat={DATE_FORMAT}
-                                        disabled={loading}
-                                    />
+                                    <div className="text-xs font-medium text-gray-500 mb-2">
+                                        {monthOnly ? "Month" : "Date Range"}
+                                    </div>
+                                    {monthOnly ? (
+                                        <DatePicker
+                                            selected={startDateObj}
+                                            onChange={handleMonthChange}
+                                            showMonthYearPicker
+                                            inline
+                                            dateFormat="yyyy-MM"
+                                            disabled={loading}
+                                        />
+                                    ) : (
+                                        <DatePicker
+                                            selected={startDateObj}
+                                            startDate={startDateObj}
+                                            endDate={endDateObj}
+                                            onChange={handleChange}
+                                            selectsRange
+                                            inline
+                                            dateFormat={DATE_FORMAT}
+                                            disabled={loading}
+                                        />
+                                    )}
                                 </div>
                                 <div className="flex justify-end px-2">
                                     <button

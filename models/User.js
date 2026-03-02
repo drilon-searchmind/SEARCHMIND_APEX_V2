@@ -52,6 +52,11 @@ const UserSchema = new mongoose.Schema({
         type: String,
         default: '',
     },
+    // Per-customer: { [customerId]: ["2026-01", "2026-02"], ... }
+    openedWrappedPeriods: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({}),
+    },
 });
 
 UserSchema.pre('save', async function () {

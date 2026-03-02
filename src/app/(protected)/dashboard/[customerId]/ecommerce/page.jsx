@@ -134,8 +134,17 @@ export default function EcommercePage() {
                             ...prev,
                             ltv30: fullData.ltv30 ?? prev.ltv30,
                             ltv90: fullData.ltv90 ?? prev.ltv90,
-                            ncaNetRevenue: fullData.ncaNetRevenue ?? prev.ncaNetRevenue,
-                            returningCustomerNetRevenue: fullData.returningCustomerNetRevenue ?? prev.returningCustomerNetRevenue,
+                            ltv180: fullData.ltv180 ?? prev.ltv180,
+                            ltv365: fullData.ltv365 ?? prev.ltv365,
+                            // Don't overwrite revenue with 0 when we already have approximated values from fast load
+                            ncaNetRevenue: fullData.ncaNetRevenue != null && (fullData.ncaNetRevenue > 0 || (prev.ncaNetRevenue ?? 0) === 0)
+                                ? fullData.ncaNetRevenue
+                                : (prev.ncaNetRevenue ?? fullData.ncaNetRevenue),
+                            returningCustomerNetRevenue: fullData.returningCustomerNetRevenue != null && (fullData.returningCustomerNetRevenue > 0 || (prev.returningCustomerNetRevenue ?? 0) === 0)
+                                ? fullData.returningCustomerNetRevenue
+                                : (prev.returningCustomerNetRevenue ?? fullData.returningCustomerNetRevenue),
+                            cac: fullData.cac ?? prev.cac,
+                            adSpend: fullData.adSpend ?? prev.adSpend,
                         } : prev));
                     }
                 } catch {
@@ -177,6 +186,7 @@ export default function EcommercePage() {
                         onEndDateChange={d => setTempRange(r => ({ ...r, endDate: d }))}
                     />
                 )}
+                showPdfExport={false}
             />
 
             {/* Horizontal Tabs */}

@@ -21,12 +21,11 @@ export function getHeatmapStyle(val, maxVal) {
 }
 
 /**
- * Get cell styles (heatmap + bold for max)
+ * Get cell styles (heatmap only, no bold for max)
  */
 export function getCellStyles(val, maxVal, isMax) {
 	const heatmap = val > 0 && maxVal > 0 ? getHeatmapStyle(val, maxVal) : {};
-	const bold = isMax ? { fontWeight: 600 } : {};
-	return { ...bold, ...heatmap };
+	return { ...heatmap };
 }
 
 /**

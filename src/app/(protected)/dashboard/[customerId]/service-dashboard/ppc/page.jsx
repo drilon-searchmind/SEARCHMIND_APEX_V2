@@ -223,7 +223,7 @@ export default function GoogleAdsPPCPage() {
 				if (metricKey === "conversion_value") val = row.conversions_value;
 				else val = row[metricKey];
 				if (typeof val === 'number' && !isNaN(val)) {
-					return Number(val.toFixed(2));
+					return (metricKey === "ctr" || metricKey === "roas" || metricKey === "conv_rate") ? Number(val.toFixed(2)) : Math.round(val);
 				}
 				return val ?? null;
 			}),
@@ -257,7 +257,7 @@ export default function GoogleAdsPPCPage() {
 				if (metricKey === "conversion_value") val = row.conversions_value;
 				else val = row[metricKey];
 				if (typeof val === 'number' && !isNaN(val)) {
-					return Number(val.toFixed(2));
+					return (metricKey === "ctr" || metricKey === "roas" || metricKey === "conv_rate") ? Number(val.toFixed(2)) : Math.round(val);
 				}
 				return val ?? null;
 			}),
@@ -351,10 +351,10 @@ export default function GoogleAdsPPCPage() {
 									value={
 										metric.value !== null && metric.value !== undefined
 											? (typeof metric.value === "number" && !isNaN(metric.value)
-												? (metric.label === "Conv. Value" || metric.label === "Adspend" || metric.label === "AOV" ? metric.value.toLocaleString('da-DK', { style: 'currency', currency: 'DKK' })
+												? (metric.label === "Conv. Value" || metric.label === "Adspend" || metric.label === "AOV" ? metric.value.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0, minimumFractionDigits: 0 })
 													: metric.label === "CTR" || metric.label === "Conv Rate" ? `${(metric.value * 100).toFixed(2)}%`
 														: metric.label === "ROAS" ? metric.value.toFixed(2)
-															: metric.value.toLocaleString())
+															: metric.value.toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 }))
 												: metric.value)
 											: "-"
 									}
@@ -434,8 +434,8 @@ export default function GoogleAdsPPCPage() {
 									return (
 										<tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
 											<td className="px-3 py-2 whitespace-nowrap">{row.campaign_name}</td>
-											<td className="px-3 py-2 whitespace-nowrap" style={{ ...(row.clicks > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.clicks / max.clicks)})` } : {}) }}>{row.clicks}</td>
-											<td className="px-3 py-2 whitespace-nowrap" style={{ ...(row.impressions > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.impressions / max.impressions)})` } : {}) }}>{row.impressions}</td>
+											<td className="px-3 py-2 whitespace-nowrap" style={{ ...(row.clicks > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.clicks / max.clicks)})` } : {}) }}>{Number(row.clicks || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+											<td className="px-3 py-2 whitespace-nowrap" style={{ ...(row.impressions > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.impressions / max.impressions)})` } : {}) }}>{Number(row.impressions || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
 											<td className="px-3 py-2 whitespace-nowrap" style={{ ...(row.ctr > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.ctr / max.ctr)})` } : {}) }}>{row.ctr ? `${(Number(row.ctr) * 100).toFixed(2)}%` : '-'}</td>
 										</tr>
 									);

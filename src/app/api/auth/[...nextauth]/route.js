@@ -141,6 +141,17 @@ export const authOptions = {
 				isExternal: token.isExternal,
 				sharedCustomers: userFromDb?.sharedCustomers || [],
 				favoritedCustomers: userFromDb?.favoritedCustomers || [],
+				openedWrappedPeriods: (() => {
+					const raw = userFromDb?.openedWrappedPeriods;
+					if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+						try {
+							return JSON.parse(JSON.stringify(raw));
+						} catch {
+							return {};
+						}
+					}
+					return {};
+				})(),
 				slackId: token.slackId,
 				clickupId: token.clickupId,
 			};

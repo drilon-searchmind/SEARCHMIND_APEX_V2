@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo } from "react";
+import { useSetUser } from "@/contexts/UserContext";
 import Image from "next/image";
 import {
     FiX,
@@ -225,40 +226,50 @@ function AnimatedNumber({ value, duration = 1200, format = "integer", className 
     return <span className={className}>{formatted}</span>;
 }
 
-// Mock data for frontend demo - replace with real API data later
-const MOCK_WRAPPED_DATA = {
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+function getPeriodLabel(period) {
+    if (!period || !/^\d{4}-\d{2}$/.test(period)) return "";
+    const [y, m] = period.split("-").map(Number);
+    return `${MONTH_NAMES[m - 1]} ${y}`;
+}
+
+const DEFAULT_WRAPPED_DATA = {
     customerName: "Your Store",
     year: new Date().getFullYear(),
-    netRevenue: 2847500,
-    orders: 12450,
-    roas: 6.42,
-    poas: 2.18,
-    totalSpend: 443500,
-    netAov: 229,
-    topChannel: "Facebook",
-    topChannelShare: 58,
-    services: ["PPC", "SEO", "Product Sync"],
+    netRevenue: 0,
+    orders: 0,
+    roas: 0,
+    poas: 0,
+    totalSpend: 0,
+    netAov: 0,
+    topChannel: "—",
+    topChannelShare: 0,
+    services: [],
 };
 
 const SLIDES = [
     {
         id: "intro",
-        render: (data) => (
-            <div className="flex flex-col items-center justify-center text-center px-6">
-                <p className="text-[var(--color-lime)] text-sm font-medium tracking-[0.3em] uppercase mb-4">
-                    {data.year} in review
-                </p>
-                <h2 className="text-4xl md:text-5xl font-bold text-white mb-2">
-                    {data.customerName}
-                </h2>
-                <h2 className="text-4xl md:text-5xl font-bold text-[var(--color-lime)] mb-6">
-                    Data Wrapped
-                </h2>
-                <p className="text-[var(--color-primary-searchmind-lighter)] text-lg max-w-md">
-                    Your annual ecommerce performance, wrapped.
-                </p>
-            </div>
-        ),
+        render: (data) => {
+            const periodLabel = data.periodLabel || getPeriodLabel(data.period) || `${data.year} in review`;
+            return (
+                <div className="flex flex-col items-center justify-center text-center px-6">
+                    <p className="text-[var(--color-lime)] text-sm font-medium tracking-[0.3em] uppercase mb-4">
+                        {periodLabel}
+                    </p>
+                    <h2 className="text-4xl md:text-5xl font-bold text-white mb-2">
+                        {data.customerName}
+                    </h2>
+                    <h2 className="text-4xl md:text-5xl font-bold text-[var(--color-lime)] mb-6">
+                        Data Wrapped
+                    </h2>
+                    <p className="text-[var(--color-primary-searchmind-lighter)] text-lg max-w-md">
+                        Your monthly ecommerce performance, wrapped.
+                    </p>
+                </div>
+            );
+        },
     },
     {
         id: "revenue",
@@ -276,7 +287,7 @@ const SLIDES = [
                     />
                 </div>
                 <p className="text-[var(--color-primary-searchmind-lighter)] text-lg">
-                    DKK in total sales this year
+                    DKK in total sales this month
                 </p>
             </div>
         ),
@@ -297,7 +308,7 @@ const SLIDES = [
                     />
                 </div>
                 <p className="text-[var(--color-primary-searchmind-lighter)] text-lg">
-                    orders placed in {data.year}
+                    orders placed this month
                 </p>
             </div>
         ),
@@ -418,7 +429,7 @@ const SLIDES = [
                     Active Services
                 </p>
                 <div className="flex flex-wrap justify-center gap-3 mb-4">
-                    {data.services.map((s, i) => (
+                    {(data.services || []).map((s, i) => (
                         <span
                             key={i}
                             className="px-4 py-2 rounded-xl bg-[var(--color-primary-searchmind-lighter)]/30 text-[var(--color-lime)] font-semibold text-lg border border-[var(--color-primary-searchmind-lighter)]/50"
@@ -441,10 +452,12 @@ const SLIDES = [
     },
     {
         id: "summary",
-        render: (data, { AnimatedNumber }) => (
+        render: (data, { AnimatedNumber }) => {
+            const periodLabel = data.periodLabel || getPeriodLabel(data.period) || data.year;
+            return (
             <div className="flex flex-col items-center justify-center text-center px-6 max-w-xl">
                 <p className="text-[var(--color-lime)] text-sm font-medium tracking-[0.2em] uppercase mb-6">
-                    {data.year} Highlights
+                    {periodLabel} Highlights
                 </p>
                 <h2 className="text-2xl md:text-3xl font-bold text-white mb-6">
                     Your year in numbers
@@ -472,32 +485,101 @@ const SLIDES = [
                     </div>
                 </div>
             </div>
-        ),
+            );
+        },
     },
     {
         id: "outro",
-        render: (data) => (
+        render: (data) => {
+            const periodLabel = data.periodLabel || getPeriodLabel(data.period) || `${data.year}`;
+            return (
             <div className="flex flex-col items-center justify-center text-center px-6">
                 <p className="text-[var(--color-lime)] text-sm font-medium tracking-[0.3em] uppercase mb-4">
-                    Thanks for a great year
+                    Thanks for a great month
                 </p>
                 <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">
-                    See you in {data.year + 1}
+                    See you next month
                 </h2>
                 <p className="text-[var(--color-primary-searchmind-lighter)] text-lg max-w-md">
-                    Your Data Wrapped {data.year}. Share your results and keep growing.
+                    Your Data Wrapped {periodLabel}. Share your results and keep growing.
                 </p>
             </div>
-        ),
+            );
+        },
     },
 ];
 
-export default function DataWrappedModal({ onClose, customerId, customerName, data }) {
+export default function DataWrappedModal({ onClose, customerId, customerName, period, data: initialData }) {
+    const setUser = useSetUser();
     const [currentIndex, setCurrentIndex] = useState(0);
     const [slideDirection, setSlideDirection] = useState("next");
+    const [data, setData] = useState(initialData || null);
+    const [loading, setLoading] = useState(!initialData);
+    const [error, setError] = useState(null);
+
+    const effectivePeriod = period || (() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    })();
+
+    useEffect(() => {
+        if (initialData) return;
+        if (!customerId || !effectivePeriod) {
+            setLoading(false);
+            return;
+        }
+        let cancelled = false;
+        setLoading(true);
+        setError(null);
+        fetch(`/api/data-wrapped/${customerId}?period=${encodeURIComponent(effectivePeriod)}`)
+            .then(async (res) => {
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    throw new Error(json.error || (res.status === 401 ? "Unauthorized" : "Failed to load"));
+                }
+                return json;
+            })
+            .then((json) => {
+                if (!cancelled) setData(json.data || json);
+            })
+            .catch((err) => {
+                if (!cancelled) setError(err.message);
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+        return () => { cancelled = true; };
+    }, [customerId, effectivePeriod, initialData]);
+
+    useEffect(() => {
+        if (!effectivePeriod || loading || error || !customerId) return;
+        fetch("/api/data-wrapped/mark-opened", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ customerId, period: effectivePeriod }),
+        })
+            .then((res) => {
+                if (res.ok) {
+                    setUser((prev) => {
+                        const prevObj = prev?.openedWrappedPeriods && !Array.isArray(prev.openedWrappedPeriods)
+                            ? prev.openedWrappedPeriods
+                            : {};
+                        const customerPeriods = [...new Set([...(prevObj[customerId] || []), effectivePeriod])];
+                        return {
+                            ...prev,
+                            openedWrappedPeriods: { ...prevObj, [customerId]: customerPeriods },
+                        };
+                    });
+                }
+            })
+            .catch(() => {});
+    }, [effectivePeriod, loading, error, customerId, setUser]);
+
     const wrappedData = {
-        ...MOCK_WRAPPED_DATA,
-        customerName: customerName || MOCK_WRAPPED_DATA.customerName,
+        ...DEFAULT_WRAPPED_DATA,
+        customerName: customerName || DEFAULT_WRAPPED_DATA.customerName,
+        period: effectivePeriod,
+        periodLabel: getPeriodLabel(effectivePeriod),
         ...data,
     };
 
@@ -563,22 +645,40 @@ export default function DataWrappedModal({ onClose, customerId, customerName, da
 
                 {/* Slide content */}
                 <div className="flex-1 flex items-center justify-center min-h-0 overflow-hidden relative z-10">
-                    <div
-                        key={currentIndex}
-                        className={`w-full h-full flex items-center justify-center ${
-                            slideDirection === "next"
-                                ? "data-wrapped-slide-next"
-                                : "data-wrapped-slide-prev"
-                        }`}
-                    >
-                        {CurrentSlide.render(wrappedData, {
-                            AnimatedNumber,
-                            customerId,
-                        })}
-                    </div>
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center gap-4">
+                            <div className="w-12 h-12 border-2 border-[var(--color-lime)] border-t-transparent rounded-full animate-spin" />
+                            <p className="text-[var(--color-primary-searchmind-lighter)]">Loading your wrapped...</p>
+                        </div>
+                    ) : error ? (
+                        <div className="flex flex-col items-center justify-center gap-4 text-center px-6">
+                            <p className="text-red-300">{error}</p>
+                            <button
+                                onClick={onClose}
+                                className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    ) : (
+                        <div
+                            key={currentIndex}
+                            className={`w-full h-full flex items-center justify-center ${
+                                slideDirection === "next"
+                                    ? "data-wrapped-slide-next"
+                                    : "data-wrapped-slide-prev"
+                            }`}
+                        >
+                            {CurrentSlide.render(wrappedData, {
+                                AnimatedNumber,
+                                customerId,
+                            })}
+                        </div>
+                    )}
                 </div>
 
                 {/* Navigation */}
+                {!loading && !error && (
                 <div className="relative z-10 flex items-center justify-between px-6 py-4 border-t border-white/10">
                     <button
                         onClick={goPrev}
@@ -627,11 +727,14 @@ export default function DataWrappedModal({ onClose, customerId, customerName, da
                         <FiChevronRight className="text-lg" />
                     </button>
                 </div>
+                )}
 
                 {/* Slide counter */}
+                {!loading && !error && (
                 <div className="absolute bottom-14 left-1/2 -translate-x-1/2 text-xs text-white/40 pointer-events-none">
                     {currentIndex + 1} / {totalSlides}
                 </div>
+                )}
             </div>
         </div>
     );

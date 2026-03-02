@@ -112,6 +112,8 @@ export async function fetchFacebookAdsInsights(adAccountId, customerMetaID, acce
     // Rule: parent-property needs daily breakdown for Ad Spend Allocation chart
     if (options.dailyBreakdown) {
         params.append('time_increment', '1');
+        // Default page size is 25; full month (31 days) needs limit to avoid missing days 26-31
+        params.append('limit', '93');
     }
 
     // Add country filtering if customerMetaID is provided

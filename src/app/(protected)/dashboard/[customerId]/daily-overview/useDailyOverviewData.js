@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 async function fetchPeriodData(customerId, startDate, endDate) {
 	const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 	const res = await fetch(
-		`${baseUrl}/api/merged-sources/${customerId}?startDate=${startDate}&endDate=${endDate}`
+		`${baseUrl}/api/merged-sources/${customerId}?startDate=${startDate}&endDate=${endDate}&source=daily-overview`
 	);
 	if (!res.ok) throw new Error('Failed to fetch daily data');
 	return await res.json();
@@ -153,14 +153,12 @@ export function useDailyOverviewData(customer, appliedDateRange) {
 
 				setLoadingLastYear(true);
 				try {
-					const start2 = new Date(appliedDateRange.startDate);
-					const end2 = new Date(appliedDateRange.endDate);
-					const lastYearStart = new Date(
-						start2.setFullYear(start2.getFullYear() - 1)
-					).toISOString().slice(0, 10);
-					const lastYearEnd = new Date(
-						end2.setFullYear(end2.getFullYear() - 1)
-					).toISOString().slice(0, 10);
+					// Last Year Period: show entire month of the same month last year
+					const startMonth = dayjs(appliedDateRange.startDate);
+					const lastYearMonthStart = startMonth.subtract(1, 'year').startOf('month');
+					const lastYearMonthEnd = lastYearMonthStart.endOf('month');
+					const lastYearStart = lastYearMonthStart.format('YYYY-MM-DD');
+					const lastYearEnd = lastYearMonthEnd.format('YYYY-MM-DD');
 					const mergedLastYear = await fetchPeriodData(
 						customer._id,
 						lastYearStart,

@@ -245,7 +245,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
     const fmt = (n, d = 0) => (n ?? 0).toLocaleString('da-DK', { maximumFractionDigits: d });
     const grossProfitCalculation = fetchCogs
         ? `Net Revenue Ex Tax - COGS (from Store) \n
-        = ${fmt(netRevenueExTax)} - ${fmt(totalCogsForNet)} \n
+        = ${fmt(netRevenue)} - ${fmt(totalCogsForNet)} \n
         = ${fmt(grossProfitNetSales)}
     `
         : `Net Revenue - (Cogs % × Net Revenue) \n
