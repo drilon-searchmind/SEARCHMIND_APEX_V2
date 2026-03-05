@@ -6,6 +6,8 @@ import DailyMetricsTableHeader from './DailyMetricsTableHeader';
 import DailyMetricsDataRow from './DailyMetricsDataRow';
 import DailyMetricsTotalsRow from './DailyMetricsTotalsRow';
 import DailyMetricsLastPeriodRow from './DailyMetricsLastPeriodRow';
+import DailyMetricsDifferenceRow from './DailyMetricsDifferenceRow';
+import DailyMetricsIndexRow from './DailyMetricsIndexRow';
 import { computeRowMax } from './utils';
 import { METRIC_COLUMNS } from './metricConfig';
 
@@ -83,6 +85,16 @@ export default function DailyMetricsTable({
 							/>
 							<DailyMetricsLastPeriodRow
 								rows={rowsPrev}
+								visibleMetrics={visibleMetrics}
+							/>
+							<DailyMetricsIndexRow
+								rows={rows}
+								rowsPrev={rowsPrev}
+								visibleMetrics={visibleMetrics}
+							/>
+							<DailyMetricsDifferenceRow
+								rows={rows}
+								rowsPrev={rowsPrev}
 								visibleMetrics={visibleMetrics}
 							/>
 						</>

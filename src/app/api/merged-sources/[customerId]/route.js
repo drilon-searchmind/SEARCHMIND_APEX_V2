@@ -13,8 +13,8 @@ export async function GET(request, { params }) {
         return Response.json({ error: 'Missing startDate or endDate' }, { status: 400 });
     }
 
-    // Rule: parent-property and daily-overview need daily breakdown for Facebook (PS cost per day, Ad Spend Allocation chart)
-    const dailyBreakdown = source === 'parent-property' || source === 'daily-overview';
+    // Rule: parent-property, daily-overview, and performance-dashboard need daily breakdown for Facebook (PS cost per day, Ad Spend Allocation chart)
+    const dailyBreakdown = source === 'parent-property' || source === 'daily-overview' || source === 'performance-dashboard';
 
     try {
         // Fetch customer settings

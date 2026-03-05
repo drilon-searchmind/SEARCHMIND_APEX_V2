@@ -109,7 +109,7 @@ const DataWrappedNavItem = ({ href, activeCustomerId, pathname, isSmallScreen })
 const NavItem = ({ href, label, activeCustomerId, pathname, subLabel, isSmallScreen }) => {
     const isActive = pathname === href;
     const icon = getIconForRoute(href);
-    
+
     return (
         <li
             className={`py-2 rounded-lg w-full group relative ` +
@@ -161,19 +161,21 @@ const Sidebar = ({ showLinks = true }) => {
     }, []);
 
     return (
-        <aside className={`flex flex-col xl:mt-0 top-0 left-0 bg-white text-gray-900 h-full transition-all duration-300 ease-in-out z-50 border-r border-gray-200 ${
-            isSmallScreen ? 'w-[50px] px-2' : 'w-[300px] px-8'
-        }`}>
+        <aside className={`flex flex-col xl:mt-0 top-0 left-0 bg-white text-gray-900 h-full transition-all duration-300 ease-in-out z-50 border-r border-gray-200 ${isSmallScreen ? 'w-[50px] px-2' : 'w-[300px] px-8'
+            }`}>
             <div className={`py-8 flex justify-start ${isSmallScreen ? 'mb-0' : 'mb-0'}`}>
                 <Link href="/" className="flex flex-col gap-0">
-                    <Image
-                        src="/images/icons/apexlogo-new1.png"
-                        alt="Apex Icon"
-                        width={isSmallScreen ? 32 : 70}
-                        height={isSmallScreen ? 32 : 70}
-                        className="mb-0"
-                        id="logoApex"
-                    />
+                    <span className="flex items-end gap-2">
+                        <Image
+                            src="/images/icons/apex-icon-svg.svg"
+                            alt="Apex Icon"
+                            width={20}
+                            height={20}
+                            className="mb-0 h-auto"
+                            id="logoApex"
+                        />
+                        <h2 className="text-xl font-bold">Apex</h2>
+                    </span>
                     {!isSmallScreen && <p className="text-gray-400 text-xs">by Searchmind</p>}
                 </Link>
             </div>
@@ -192,12 +194,12 @@ const Sidebar = ({ showLinks = true }) => {
                                 {/* Dashboard */}
                                 <li>
                                     <button
-                                        className={`mb-3 flex items-center justify-between w-full text-left text-gray-600 hover:text-gray-800 group ${isSmallScreen ? "hidden" : ""}` }
+                                        className={`mb-3 flex items-center justify-between w-full text-left text-gray-600 hover:text-gray-800 group ${isSmallScreen ? "hidden" : ""}`}
                                         onClick={() => setDashboardOpen(!dashboardOpen)}
                                         title={isSmallScreen ? "Dashboard" : ""}
                                     >
                                         <span className="flex items-center text-slate-800 font-medium rounded-lg w-full">
-                                            <FiBarChart className={isSmallScreen ? "" : "mr-2"} /> 
+                                            <FiBarChart className={isSmallScreen ? "" : "mr-2"} />
                                             {!isSmallScreen && "Dashboard"}
                                         </span>
                                         {!isSmallScreen && (dashboardOpen ? <FiChevronUp /> : <FiChevronDown />)}
@@ -239,12 +241,6 @@ const Sidebar = ({ showLinks = true }) => {
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                             />
-                                            <DataWrappedNavItem
-                                                href={`/dashboard/${activeCustomerId}/data-wrapped`}
-                                                activeCustomerId={activeCustomerId}
-                                                pathname={pathname}
-                                                isSmallScreen={isSmallScreen}
-                                            />
                                             {/* <NavItem
                                                 href={`/dashboard/${activeCustomerId}/analytics`}
                                                 label="Analytics"
@@ -264,7 +260,7 @@ const Sidebar = ({ showLinks = true }) => {
                                 {/* Service Dashboard */}
                                 <li>
                                     <button
-                                        className={`mb-3 flex items-center justify-between w-full text-left text-gray-600 hover:text-gray-800 group ${isSmallScreen ? "hidden" : ""}` }
+                                        className={`mb-3 flex items-center justify-between w-full text-left text-gray-600 hover:text-gray-800 group ${isSmallScreen ? "hidden" : ""}`}
                                         onClick={() => setServiceOpen(!serviceOpen)}
                                         title={isSmallScreen ? "Service Dashboard" : ""}
                                     >
@@ -320,7 +316,7 @@ const Sidebar = ({ showLinks = true }) => {
                                 {/* Misc */}
                                 <li>
                                     <button
-                                        className={`mb-3 flex items-center justify-between w-full text-left text-gray-600 hover:text-gray-800 group ${isSmallScreen ? "hidden" : ""}` }
+                                        className={`mb-3 flex items-center justify-between w-full text-left text-gray-600 hover:text-gray-800 group ${isSmallScreen ? "hidden" : ""}`}
                                         onClick={() => setServiceOpen(!serviceOpen)}
                                         title={isSmallScreen ? "Misc" : ""}
                                     >

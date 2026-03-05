@@ -91,8 +91,8 @@ export default function PerformanceDashboard() {
                 }
 
                 const [res, resPrev] = await Promise.all([
-                    fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}`),
-                    fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${prevStart.format('YYYY-MM-DD')}&endDate=${prevEnd.format('YYYY-MM-DD')}`)
+                    fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&source=performance-dashboard`),
+                    fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${prevStart.format('YYYY-MM-DD')}&endDate=${prevEnd.format('YYYY-MM-DD')}&source=performance-dashboard`)
                 ]);
                 if (!res.ok || !resPrev.ok) throw new Error('Failed to fetch merged data');
                 const merged = await res.json();
@@ -224,6 +224,19 @@ export default function PerformanceDashboard() {
             if (val === null) return undefined;
             return val > 0 ? "up" : val < 0 ? "down" : undefined;
         }
+        function formatDiff(current, prev, type) {
+            if (prev === null || prev === undefined) return undefined;
+            const diff = (current ?? 0) - (prev ?? 0);
+            if (type === 'currency') {
+                return diff >= 0
+                    ? `+${diff.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 })}`
+                    : diff.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 });
+            }
+            if (type === 'count') return diff >= 0 ? `+${diff}` : `${diff}`;
+            if (type === 'ratio') return diff >= 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2);
+            if (type === 'pct') return diff >= 0 ? `+${diff.toFixed(1)}%` : `${diff.toFixed(1)}%`;
+            return undefined;
+        }
 
         const poas = cost > 0 ? (gross_profit_total_sales / cost) : null;
         const poasPrev = costPrev > 0 ? (gross_profit_total_salesPrev / costPrev) : null;
@@ -233,12 +246,25 @@ export default function PerformanceDashboard() {
         // Build metrics array conditionally
                 const metricsArray = [
                     {
+                        key: 'orders',
+                        label: "Orders",
+                        value: orders !== null ? orders.toLocaleString('da-DK', { maximumFractionDigits: 0 }) : '-',
+                        icon: <FiShoppingCart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(orders, ordersPrev) !== null ? Math.abs(percentChange(orders, ordersPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(orders, ordersPrev)),
+                        changeAbsolute: formatDiff(orders, ordersPrev, 'count'),
+                        changePrevValue: ordersPrev != null ? ordersPrev.toLocaleString('da-DK', { maximumFractionDigits: 0 }) : undefined,
+                        popOverContent: null,
+                    },
+                    {
                         key: 'total_sales',
                         label: 'Total Sales',
                         value: totalSales ? totalSales.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(totalSales, totalSalesPrev) !== null ? Math.abs(percentChange(totalSales, totalSalesPrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(totalSales, totalSalesPrev)),
+                        changeAbsolute: formatDiff(totalSales, totalSalesPrev, 'currency'),
+                        changePrevValue: totalSalesPrev != null ? totalSalesPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
                         popOverContent: null,
                     },
                     {
@@ -248,6 +274,8 @@ export default function PerformanceDashboard() {
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(netRevenue, netRevenuePrev) !== null ? Math.abs(percentChange(netRevenue, netRevenuePrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(netRevenue, netRevenuePrev)),
+                        changeAbsolute: formatDiff(netRevenue, netRevenuePrev, 'currency'),
+                        changePrevValue: netRevenuePrev != null ? netRevenuePrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
                         tooltip: 'Net sales (after discounts, returns, etc.)',
                         popOverContent: `Net sales = Gross sales - (Discounts + Returns)\n= ${fmt(grossSales)} - (${fmt(discounts)} + ${fmt(returns)})\n= ${fmt(grossSales)} - ${fmt(discounts + returns)}\n= ${fmt(netRevenue)}`,
                         calcValueLabels: `Gross sales: ${fmt(grossSales)}\nDiscounts: ${fmt(discounts)}\nReturns: ${fmt(returns)}`,
@@ -259,6 +287,8 @@ export default function PerformanceDashboard() {
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(totalCogs, prevTotalCogs) !== null ? Math.abs(percentChange(totalCogs, prevTotalCogs)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(totalCogs, prevTotalCogs)),
+                        changeAbsolute: formatDiff(totalCogs, prevTotalCogs, 'currency'),
+                        changePrevValue: prevTotalCogs != null ? prevTotalCogs.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
                         popOverContent: fetchCogs
                             ? `COGS (from Shopify store)\n= Sum of cost_of_goods_sold per day\n= ${fmt(totalCogs)}`
                             : `COGS = Net Revenue × COGS %\n= ${fmt(netRevenue)} × ${(cogsPercentage * 100).toFixed(1)}%\n= ${fmt(totalCogs)}`,
@@ -273,6 +303,8 @@ export default function PerformanceDashboard() {
                         icon: <FiShoppingBag className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(aov, aovPrev) !== null ? Math.abs(percentChange(aov, aovPrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(aov, aovPrev)),
+                        changeAbsolute: formatDiff(aov, aovPrev, 'currency'),
+                        changePrevValue: aovPrev != null ? aovPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
                         popOverContent: orders > 0 ? `Net AOV = Net Revenue / Orders\n= ${fmt(netRevenue)} / ${orders}\n= ${fmt(aov)}` : null,
                         calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nOrders: ${orders}`,
                     },
@@ -283,6 +315,8 @@ export default function PerformanceDashboard() {
                         icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(cost, costPrev) !== null ? Math.abs(percentChange(cost, costPrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(cost, costPrev)),
+                        changeAbsolute: formatDiff(cost, costPrev, 'currency'),
+                        changePrevValue: costPrev != null ? costPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
                         popOverContent: totalAdspendCalculation,
                         calcValueLabels: apiValueLabels.spend,
                     },
@@ -293,6 +327,8 @@ export default function PerformanceDashboard() {
                         icon: <FiBarChart2 className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(roas, roasPrev) !== null ? Math.abs(percentChange(roas, roasPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(roas, roasPrev)),
+                        changeAbsolute: formatDiff(roas, roasPrev, 'ratio'),
+                        changePrevValue: roasPrev != null ? roasPrev.toFixed(2) : undefined,
                         popOverContent: roasCalculation,
                         calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nCost: ${fmt(cost)}`,
                     },
@@ -303,6 +339,8 @@ export default function PerformanceDashboard() {
                         icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(variableCosts, variableCostsPrev) !== null ? Math.abs(percentChange(variableCosts, variableCostsPrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(variableCosts, variableCostsPrev)),
+                        changeAbsolute: formatDiff(variableCosts, variableCostsPrev, 'currency'),
+                        changePrevValue: variableCostsPrev != null ? variableCostsPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
                         popOverContent: `Variable costs (scale with volume):\n(shippingCostPerOrder × orders) + (Net Revenue × transactionCost%)\n= (${fmt(shippingCostPerOrder)} × ${orders}) + (${fmt(netRevenue)} × ${fmt(transactionCostPct * 100)}%)\n= ${fmt(variableCosts)}`,
                         calcValueLabels: `Shipping per order: ${fmt(shippingCostPerOrder)}\nOrders: ${orders}\nNet Revenue: ${fmt(netRevenue)}\nTransaction cost %: ${fmt(transactionCostPct * 100)}%`,
                     },
@@ -313,6 +351,8 @@ export default function PerformanceDashboard() {
                         icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(fixedCosts, fixedCostsPrev) !== null ? Math.abs(percentChange(fixedCosts, fixedCostsPrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(fixedCosts, fixedCostsPrev)),
+                        changeAbsolute: formatDiff(fixedCosts, fixedCostsPrev, 'currency'),
+                        changePrevValue: fixedCostsPrev != null ? fixedCostsPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
                         popOverContent: `Fixed costs (prorated for period):\nfixedExpenses (monthly) × sum over each day of (1 / days in that month)\n= ${fmt(fixedExpensesMonthly)} prorated over ${daysInRange} days\n= ${fmt(fixedCosts)}`,
                         calcValueLabels: `Fixed expenses (monthly): ${fmt(fixedExpensesMonthly)}\nDays in range: ${daysInRange}`,
                     },
@@ -333,18 +373,11 @@ export default function PerformanceDashboard() {
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(gross_profit_total_sales, gross_profit_total_salesPrev) !== null ? Math.abs(percentChange(gross_profit_total_sales, gross_profit_total_salesPrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(gross_profit_total_sales, gross_profit_total_salesPrev)),
+                        changeAbsolute: formatDiff(gross_profit_total_sales, gross_profit_total_salesPrev, 'currency'),
+                        changePrevValue: gross_profit_total_salesPrev != null ? gross_profit_total_salesPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
                         tooltip: 'Net Revenue - COGS',
                         popOverContent: grossProfitCalculation,
                         calcValueLabels: apiValueLabels.grossProfit,
-                    },
-                    {
-                        key: 'orders',
-                        label: "Orders",
-                        value: orders !== null ? orders.toLocaleString('da-DK', { maximumFractionDigits: 0 }) : '-',
-                        icon: <FiShoppingCart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange(orders, ordersPrev) !== null ? Math.abs(percentChange(orders, ordersPrev)).toFixed(0) : undefined,
-                        changeType: changeType(percentChange(orders, ordersPrev)),
-                        popOverContent: null,
                     },
                     {
                         key: 'returns',
@@ -353,6 +386,8 @@ export default function PerformanceDashboard() {
                         icon: <FiTrendingUp className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(returns, returnsPrev) !== null ? Math.abs(percentChange(returns, returnsPrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(returns, returnsPrev)),
+                        changeAbsolute: formatDiff(returns, returnsPrev, 'currency'),
+                        changePrevValue: returnsPrev != null ? returnsPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
                         popOverContent: null,
                     },
                     {
@@ -362,6 +397,8 @@ export default function PerformanceDashboard() {
                         icon: <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(ebitPct, ebitPctPrev) !== null ? Math.abs(percentChange(ebitPct, ebitPctPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(ebitPct, ebitPctPrev)),
+                        changeAbsolute: formatDiff(ebitPct, ebitPctPrev, 'pct'),
+                        changePrevValue: ebitPctPrev != null ? `${ebitPctPrev.toFixed(1)}%` : undefined,
                         popOverContent: `EBIT = Net Revenue - All costs\n= ${fmt(netRevenue)} - ${fmt(allCosts)}\n= ${fmt(ebit)}\nEBIT% = (EBIT / Net Revenue) × 100\n= (${fmt(ebit)} / ${fmt(netRevenue)}) × 100\n= ${ebitPct != null ? ebitPct.toFixed(1) : 'N/A'}%`,
                         calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nAll costs (COGS + Fixed + Variable + Spend): ${fmt(allCosts)}`,
                     },
@@ -376,6 +413,8 @@ export default function PerformanceDashboard() {
                         icon: <FiUserCheck className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(cac, cacPrev) !== null ? Math.abs(percentChange(cac, cacPrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(cac, cacPrev)),
+                        changeAbsolute: formatDiff(cac, cacPrev, 'currency'),
+                        changePrevValue: cacPrev != null ? cacPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
                         popOverContent: cacCalculation,
                         calcValueLabels: apiValueLabels.cac,
                     },

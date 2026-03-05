@@ -145,10 +145,10 @@ export default function LoginPage() {
                 {/* Text content */}
                 <div className="relative text-left">
                     <Image
-                        src="/images/icons/apexlogo-new1.png"
+                        src="/images/icons/apex-icon-svg.svg"
                         alt="Apex Icon"
-                        width={200}
-                        height={200}
+                        width={100}
+                        height={100}
                         className="mb-2 filter invert"
                     />
                     <p className="text-lg text-gray-300 max-w-lg mt-5">

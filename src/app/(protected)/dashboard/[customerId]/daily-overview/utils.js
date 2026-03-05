@@ -102,3 +102,127 @@ export function computeTotals(rows, variant = 'current') {
 		netProfit: formatCurrency(totalNetRevenue - totalCogs),
 	};
 }
+
+/**
+ * Compute raw numeric totals for difference calculations
+ */
+export function computeRawTotals(rows) {
+	if (!rows?.length)
+		return {
+			orders: 0,
+			totalSales: 0,
+			netRevenue: 0,
+			cogs: 0,
+			ppcCost: 0,
+			psCost: 0,
+			variableExpense: 0,
+			fixedExpenses: 0,
+			aov: 0,
+			roas: 0,
+			poas: 0,
+			netProfit: 0,
+		};
+
+	const totalOrders = rows.reduce((sum, r) => sum + r.orders, 0);
+	const totalTotalSales = rows.reduce((sum, r) => sum + (r.totalSales ?? 0), 0);
+	const totalNetRevenue = rows.reduce((sum, r) => sum + (r.netRevenue ?? 0), 0);
+	const totalCogs = rows.reduce((sum, r) => sum + (r.cogs || 0), 0);
+	const totalPpcCost = rows.reduce((sum, r) => sum + r.ppcCost, 0);
+	const totalPsCost = rows.reduce((sum, r) => sum + r.psCost, 0);
+	const totalCost = totalPpcCost + totalPsCost;
+	const totalVariableExpense = rows.reduce(
+		(sum, r) => sum + (r.variableExpense || 0),
+		0
+	);
+	const totalFixedExpenses = rows.reduce(
+		(sum, r) => sum + (r.fixedExpense || 0),
+		0
+	);
+	const grossProfit = totalNetRevenue - totalCogs;
+
+	return {
+		orders: totalOrders,
+		totalSales: totalTotalSales,
+		netRevenue: totalNetRevenue,
+		cogs: totalCogs,
+		ppcCost: totalPpcCost,
+		psCost: totalPsCost,
+		variableExpense: totalVariableExpense,
+		fixedExpenses: totalFixedExpenses,
+		aov: totalOrders > 0 ? totalNetRevenue / totalOrders : 0,
+		roas: totalCost > 0 ? totalNetRevenue / totalCost : 0,
+		poas: totalCost > 0 ? grossProfit / totalCost : 0,
+		netProfit: grossProfit,
+	};
+}
+
+/** Metrics where higher is better (green up, red down) */
+const HIGHER_IS_BETTER = new Set([
+	'orders',
+	'totalSales',
+	'netRevenue',
+	'aov',
+	'roas',
+	'poas',
+	'netProfit',
+]);
+
+/**
+ * Compute difference between current and last period totals
+ * @returns {Object} { key: { diff, formatted, isGood } }
+ */
+export function computeDifference(rows, rowsPrev) {
+	const curr = computeRawTotals(rows);
+	const prev = computeRawTotals(rowsPrev || []);
+
+	const result = {};
+	for (const key of Object.keys(curr)) {
+		const diff = curr[key] - prev[key];
+		const higherIsBetter = HIGHER_IS_BETTER.has(key);
+		const isGood =
+			diff === 0 ? null : higherIsBetter ? diff > 0 : diff < 0;
+
+		let formatted;
+		if (key === 'orders') {
+			formatted = diff >= 0 ? `+${diff}` : `${diff}`;
+		} else if (['aov', 'roas', 'poas'].includes(key)) {
+			formatted = diff >= 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2);
+		} else {
+			formatted =
+				diff >= 0
+					? `+${formatCurrency(diff, { maximumFractionDigits: 0 })}`
+					: formatCurrency(diff, { maximumFractionDigits: 0 });
+		}
+		result[key] = { diff, formatted, isGood };
+	}
+	return result;
+}
+
+/**
+ * Compute index (current/previous)*100 for each metric
+ * @returns {Object} { key: { index, formatted, isGood } }
+ */
+export function computeIndex(rows, rowsPrev) {
+	const curr = computeRawTotals(rows);
+	const prev = computeRawTotals(rowsPrev || []);
+
+	const result = {};
+	for (const key of Object.keys(curr)) {
+		const p = prev[key];
+		if (p === 0 || p == null) {
+			result[key] = { index: null, formatted: '-', isGood: null };
+			continue;
+		}
+		const index = (curr[key] / p) * 100;
+		const higherIsBetter = HIGHER_IS_BETTER.has(key);
+		const isGood =
+			index === 100 ? null : higherIsBetter ? index > 100 : index < 100;
+
+		result[key] = {
+			index,
+			formatted: index.toFixed(1),
+			isGood,
+		};
+	}
+	return result;
+}

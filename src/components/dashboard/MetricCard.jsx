@@ -1,23 +1,21 @@
 import React, { useState } from "react";
 import { FiTrendingUp, FiTrendingDown, FiInfo } from "react-icons/fi";
 
-export default function MetricCard({ label, value, unit, change, changeType, icon, children, isActive, comparisonMethod, popOverContent = null }) {
+export default function MetricCard({ label, value, unit, change, changeType, changeAbsolute, changePrevValue, icon, children, isActive, comparisonMethod, popOverContent = null }) {
     const [showPopover, setShowPopover] = useState(false);
 
-    // changeType: "up" | "down" | undefined
-    const changeColor = changeType === "up" ? "text-green-500" : changeType === "down" ? "text-red-500" : "text-gray-400";
-    const changeIcon = changeType === "up" ? "▲" : changeType === "down" ? "▼" : null;
+    const hasComparisonPopover = change !== undefined && changeAbsolute != null && comparisonMethod;
+    const showPopoverOnHover = hasComparisonPopover || popOverContent;
 
     const activeBg = isActive ? "#1E2B2B" : "";
     const activeText = isActive ? "text-white" : "text-gray-900";
     const iconBg = isActive ? "bg-[#243636]" : "bg-gray-50";
     const labelText = isActive ? "text-white" : "text-gray-400";
-    const comparisonMethodValue = comparisonMethod === "Last Period" ? "LP" : comparisonMethod === "Last Year" ? "LY" : "";
 
     return (
         <div
             className="relative"
-            onMouseEnter={() => popOverContent && setShowPopover(true)}
+            onMouseEnter={() => showPopoverOnHover && setShowPopover(true)}
             onMouseLeave={() => setShowPopover(false)}
         >
             <div
@@ -64,7 +62,7 @@ export default function MetricCard({ label, value, unit, change, changeType, ico
             </div>
 
             {/* Popover */}
-            {popOverContent && showPopover && (
+            {showPopover && (hasComparisonPopover || popOverContent) && (
                 <div
                     className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-50 animate-fadeIn min-w-[200px]"
                     style={{
@@ -77,8 +75,20 @@ export default function MetricCard({ label, value, unit, change, changeType, ico
                         <div className="absolute -top-2.5 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-gray-200"></div>
 
                         {/* Content */}
-                        <div className="text-sm text-gray-700 whitespace-pre-line">
-                            {popOverContent}
+                        <div className="text-xs text-gray-700 space-y-2">
+                            {hasComparisonPopover && (
+                                <div className="space-y-1">
+                                    <div className="text-gray-500 text-[10px] font-medium uppercase tracking-wide">{comparisonMethod} value</div>
+                                    <div className="font-medium">{changePrevValue ?? '-'}</div>
+                                    <div className="text-gray-500 text-[10px] font-medium uppercase tracking-wide pt-1">Difference</div>
+                                    <div className="font-semibold">{changeAbsolute}</div>
+                                </div>
+                            )}
+                            {popOverContent && (
+                                <div className={`whitespace-pre-line ${hasComparisonPopover ? "pt-2 border-t border-gray-100" : ""}`}>
+                                    {popOverContent}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

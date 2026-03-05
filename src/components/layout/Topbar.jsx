@@ -203,10 +203,10 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                         <div className="relative hidden xl:block">
                             <Link href="/dashboard">
                                 <Image
-                                    src="/images/icons/apexlogo-new1.png"
+                                    src="/images/icons/apex-icon-svg.svg"
                                     alt="SearchMind Apex Logo"
-                                    width={50}
-                                    height={50}
+                                    width={40}
+                                    height={40}
                                     className="object-contain"
                                 />
                             </Link>

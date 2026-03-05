@@ -11,7 +11,7 @@ export default function Home() {
 				<div className="bg-white border border-gray-200 rounded-xl px-8 py-12 mb-8 text-center">
 					<div className="flex justify-center mb-6">
 						<Image
-							src="/images/icons/apexlogo-new1.png"
+							src="/images/icons/apex-icon-svg.svg"
 							alt="Searchmind Apex Logo"
 							width={120}
 							height={120}
