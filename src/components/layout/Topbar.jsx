@@ -50,7 +50,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
     const router = useRouter();
     const activeCustomerId = params?.customerId;
     const [activeCustomer, setActiveCustomer] = useState([]);
-
+    
     useEffect(() => {
         const currentActiveCustomer = customers.find(c => c._id === activeCustomerId);
 
@@ -363,7 +363,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                             <div className="absolute right-0 mt-[22px] w-75 bg-white shadow-xs rounded-[1rem] px-4 overflow-hidden z-50 py-4 border border-gray-200 transition-colors duration-200">
                                 <div className="mb-4">
                                     <p className="font-semibold text-gray-900">Notifications</p>
-                                    <p className="mt-5 text-center text-[0.75rem] text-[var(--color-primary-searchmind)] bg-gray-200 rounded px-3 py-1">WIP</p>
+                                    <p className="mt-5 text-center text-[0.75rem] text-[var(--color-primary-searchmind)] bg-gray-200 rounded px-3 py-1">BETA</p>
                                 </div>
                             </div>
                         )}
@@ -420,7 +420,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                     <li className="flex items-center gap-2">
                                         <RiToolsFill />
                                         <Link href="/our-tools" className="text-sm text-slate-800 font-semibold">Our Tools</Link>
-                                        <span className="text-[0.5rem] text-black bg-gray-200 rounded px-3 py-1">WIP</span>
+                                        <span className="text-[0.5rem] text-black bg-gray-200 rounded px-3 py-1">BETA</span>
                                     </li>
                                     {user?.isAdmin && (
                                         <>
@@ -432,7 +432,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                                 id="apexRadar-link"
                                                 className="flex items-center gap-2 bg-[var(--color-primary-searchmind-lighter)] text-white rounded py-2 px-3">
                                                 <Link href="#" className="text-sm font-semibold">Apex Radar</Link>
-                                                <span className="text-[0.5rem] text-black bg-gray-200 rounded px-3 py-1">WIP</span>
+                                                <span className="text-[0.5rem] text-black bg-gray-200 rounded px-3 py-1">BETA</span>
                                             </li>
                                         </>
                                     )}

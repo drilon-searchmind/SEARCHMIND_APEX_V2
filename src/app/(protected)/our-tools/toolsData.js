@@ -21,7 +21,7 @@ export const TOOLS = [
         description: "Cross-platform analytics and attribution. Track campaigns, conversions, and ROI across channels.",
         category: "analytics",
         tags: ["Attribution", "ROI", "Campaigns"],
-        url: "https://metriq.io",
+        url: "",
         icon: "FiTrendingUp",
     },
     {
@@ -30,7 +30,7 @@ export const TOOLS = [
         description: "Build custom dashboards and reports. Connect data sources and visualize KPIs in real time.",
         category: "analytics",
         tags: ["Dashboards", "Reports", "BI"],
-        url: "https://databoard.app",
+        url: "",
         icon: "FiBarChart2",
     },
     {
@@ -39,7 +39,7 @@ export const TOOLS = [
         description: "Project and task management. Kanban boards, sprints, and team collaboration.",
         category: "collaboration",
         tags: ["Tasks", "Kanban", "Sprints"],
-        url: "https://flowbase.co",
+        url: "",
         icon: "FiActivity",
     },
     {
@@ -48,7 +48,7 @@ export const TOOLS = [
         description: "Team chat and async communication. Channels, threads, and integrations with your stack.",
         category: "collaboration",
         tags: ["Chat", "Async", "Integrations"],
-        url: "https://syncroom.work",
+        url: "",
         icon: "FiUsers",
     },
     {
@@ -57,7 +57,7 @@ export const TOOLS = [
         description: "UI design and prototyping. Create mockups, design systems, and handoff specs.",
         category: "design",
         tags: ["Design", "Prototyping", "Mockups"],
-        url: "https://pixelcraft.design",
+        url: "",
         icon: "FiGrid",
     },
     {
@@ -66,7 +66,7 @@ export const TOOLS = [
         description: "Vector graphics and asset management. Icons, illustrations, and brand assets.",
         category: "design",
         tags: ["Vector", "Assets", "Icons"],
-        url: "https://vectorlab.io",
+        url: "",
         icon: "FiImage",
     },
     {
@@ -75,7 +75,7 @@ export const TOOLS = [
         description: "Docs, wikis, and knowledge base. Notes, databases, and project docs in one place.",
         category: "productivity",
         tags: ["Docs", "Wiki", "Notes"],
-        url: "https://notion.so",
+        url: "",
         icon: "FiFileText",
     },
     {
@@ -84,7 +84,7 @@ export const TOOLS = [
         description: "Time tracking and resource planning. Log hours, forecast capacity, and invoice clients.",
         category: "productivity",
         tags: ["Time", "Planning", "Invoicing"],
-        url: "https://timestack.io",
+        url: "",
         icon: "FiClock",
     },
     {
@@ -93,7 +93,7 @@ export const TOOLS = [
         description: "Spreadsheets with formulas and automation. Import data, build models, and automate workflows.",
         category: "productivity",
         tags: ["Sheets", "Formulas", "Automation"],
-        url: "https://sheetwise.com",
+        url: "",
         icon: "FiLayers",
     },
     {
@@ -102,7 +102,7 @@ export const TOOLS = [
         description: "Google Ads management and optimization. Keyword research, bid strategies, and performance insights.",
         category: "ppc",
         tags: ["Google Ads", "Keywords", "Bidding"],
-        url: "https://adscope.io",
+        url: "",
         icon: "FiBarChart2",
     },
     {
@@ -111,7 +111,7 @@ export const TOOLS = [
         description: "Meta and paid social analytics. Campaign tracking, audience insights, and creative performance.",
         category: "ps",
         tags: ["Meta", "Facebook", "Instagram"],
-        url: "https://socialpulse.co",
+        url: "",
         icon: "FiTrendingUp",
     },
     {
@@ -120,7 +120,7 @@ export const TOOLS = [
         description: "SEO tracking and keyword monitoring. Rankings, backlinks, and technical SEO audits.",
         category: "seo",
         tags: ["Rankings", "Keywords", "Backlinks"],
-        url: "https://rankly.io",
+        url: "",
         icon: "FiActivity",
     },
     {
@@ -129,7 +129,7 @@ export const TOOLS = [
         description: "Email marketing automation. Campaigns, segmentation, and deliverability analytics.",
         category: "em",
         tags: ["Email", "Automation", "Segmentation"],
-        url: "https://mailflow.io",
+        url: "",
         icon: "FiLayers",
     },
 ];

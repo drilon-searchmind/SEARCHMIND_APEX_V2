@@ -6,7 +6,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import MetricCard from "@/components/dashboard/MetricCard";
-import { FiDollarSign, FiTrendingUp, FiShoppingCart, FiCreditCard, FiBarChart2, FiPieChart, FiShoppingBag, FiUserCheck } from "react-icons/fi";
+import { FiDollarSign, FiTrendingUp, FiTrendingDown, FiShoppingCart, FiCreditCard, FiBarChart2, FiPieChart, FiShoppingBag, FiUserCheck } from "react-icons/fi";
 import GraphCard from "@/components/dashboard/GraphCard";
 // import { revenueData, spendAllocationData, roasData, aovData } from "@/data/dashboardCharts";
 import { useEffect, useState } from "react";
@@ -151,6 +151,8 @@ export default function PerformanceDashboard() {
 
         const revenuePrev = shopifyPrev.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
         const totalSalesPrev = shopifyPrev.reduce((sum, d) => sum + (d.total_sales || 0), 0);
+        const grossSalesPrev = shopifyPrev.reduce((sum, d) => sum + (d.gross_sales || 0), 0);
+        const discountsPrev = shopifyPrev.reduce((sum, d) => sum + (d.discounts || 0), 0);
         const netRevenuePrev = shopifyPrev.reduce((sum, d) => sum + (d.net_sales || 0), 0);
         const ordersPrev = shopifyPrev.reduce((sum, d) => sum + (d.orders || 0), 0);
         const returnsPrev = shopifyPrev.reduce((sum, d) => sum + (d.returns || 0), 0);
@@ -265,6 +267,28 @@ export default function PerformanceDashboard() {
                         changeType: changeType(percentChange(totalSales, totalSalesPrev)),
                         changeAbsolute: formatDiff(totalSales, totalSalesPrev, 'currency'),
                         changePrevValue: totalSalesPrev != null ? totalSalesPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
+                        popOverContent: null,
+                    },
+                    {
+                        key: 'gross_sales',
+                        label: 'Gross Sales',
+                        value: grossSales ? grossSales.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
+                        icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(grossSales, grossSalesPrev) !== null ? Math.abs(percentChange(grossSales, grossSalesPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(grossSales, grossSalesPrev)),
+                        changeAbsolute: formatDiff(grossSales, grossSalesPrev, 'currency'),
+                        changePrevValue: grossSalesPrev != null ? grossSalesPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
+                        popOverContent: null,
+                    },
+                    {
+                        key: 'discounts',
+                        label: 'Discounts',
+                        value: discounts ? discounts.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
+                        icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(discounts, discountsPrev) !== null ? Math.abs(percentChange(discounts, discountsPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(discounts, discountsPrev)),
+                        changeAbsolute: formatDiff(discounts, discountsPrev, 'currency'),
+                        changePrevValue: discountsPrev != null ? discountsPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
                         popOverContent: null,
                     },
                     {
@@ -467,7 +491,26 @@ export default function PerformanceDashboard() {
     const [selectedMetrics, setSelectedMetrics] = useState(['revenue']); // revenue default
     const [aggregateBy, setAggregateBy] = useState('period'); // 'period' | 'monthly'
     const [viewMode, setViewMode] = useState('standard'); // 'standard' | 'custom'
-    const [showCalcs, setShowCalcs] = useState(false);
+    const [showCalcs, setShowCalcs] = useState(false); // Default ON for Standard view
+
+    // Standard view: 3 sections with grouped KPIs
+    const STANDARD_SECTIONS = [
+        {
+            key: 'total_sales',
+            title: 'Total Sales',
+            metricKeys: ['total_sales', 'gross_sales', 'discounts', 'returns', 'orders'],
+        },
+        {
+            key: 'net_revenue',
+            title: 'Net Revenue',
+            metricKeys: ['revenue', 'cogs', 'aov', 'cost', 'roas', 'variable_costs', 'fixed_costs'],
+        },
+        {
+            key: 'net_profit',
+            title: 'Net Profit',
+            metricKeys: ['gross_profit', 'ebit_pct', 'poas', 'cac'],
+        },
+    ];
 
     // Helper to aggregate daily arrays by keyFn (period or month)
     const aggregateDaily = (shopifyArr, facebookArr, googleArr, keyFn) => {
@@ -935,86 +978,119 @@ export default function PerformanceDashboard() {
             </div>
 
             {viewMode === 'standard' ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6 w-full mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mb-8">
                 {loading ? (
-                    <div className="col-span-4 text-center"><Spinner size={40} color="#406969" /></div>
+                    <div className="col-span-full text-center py-12"><Spinner size={40} color="#406969" /></div>
                 ) : error ? (
-                    <div className="col-span-4 text-center text-red-500">{error}</div>
+                    <div className="col-span-full text-center text-red-500 py-12">{error}</div>
                 ) : (
-                    metrics.map((metric, idx) => {
-                        // derive a metric key from label to match toggles
-                        const getMetricKeyFromLabel = (label) => {
-                            if (!label) return null;
-                            const l = label.toLowerCase();
-                            if (l.includes('revenue')) return 'revenue';
-                            if (l.includes('gross')) return 'gross_profit';
-                            if (l.includes('cost') || l.includes('adspend') || l.includes('spend')) return 'cost';
-                            if (l.includes('order')) return 'orders';
-                            if (l.includes('roas')) return 'roas';
-                            if (l.includes('poas')) return 'poas';
-                            if (l.includes('aov')) return 'aov';
-                            if (l.includes('cac')) return 'cac';
-                            if (l.includes('spendshare')) return 'spendshare';
-                            return null;
-                        };
-
-                        const metricKey = metric.key || getMetricKeyFromLabel(metric.label);
-
-                        const toggleMetricSelection = (key) => {
-                            if (!key) return;
-                            setSelectedMetrics(prev =>
-                                prev.includes(key) ? (prev.length > 1 ? prev.filter(k => k !== key) : prev) : [...prev, key]
-                            );
-                        };
-
-                        const isSelected = metricKey ? selectedMetrics.includes(metricKey) : false;
-                        const hasCalc = showCalcs && metric.popOverContent;
+                    STANDARD_SECTIONS.map((section) => {
+                        const sectionMetrics = metrics.filter((m) => section.metricKeys.includes(m.key));
+                        const primaryKey = section.metricKeys[0];
+                        const primaryMetric = sectionMetrics.find((m) => m.key === primaryKey);
+                        const totalSales = metricsData?.total_sales || 0;
+                        const primaryValue = primaryKey === 'total_sales' ? totalSales
+                            : primaryKey === 'revenue' ? (metricsData?.revenue ?? 0)
+                            : primaryKey === 'gross_profit' ? (metricsData?.gross_profit ?? 0)
+                            : 0;
+                        const pctOfTotal = totalSales > 0 ? ((primaryValue / totalSales) * 100).toFixed(1) : '0';
 
                         return (
                             <div
-                                key={idx}
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => toggleMetricSelection(metricKey)}
-                                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleMetricSelection(metricKey)}
-                                className={`cursor-pointer rounded-lg ${hasCalc ? 'flex flex-col' : ''}`}
-                                aria-pressed={metricKey ? isSelected : undefined}
+                                key={section.key}
+                                className="flex flex-col rounded-xl border border-gray-200 bg-white overflow-hidden"
                             >
-                                <MetricCard {...metric} popOverContent={null} comparisonMethod={comparisonMethod} isActive={isSelected} />
-                                {hasCalc && (() => {
-                                    const calcLines = metric.popOverContent.split('\n').map((l) => l.trim()).filter((l) => l && l.startsWith('=') && /\d/.test(l));
-                                    if (!calcLines.length) return null;
-                                    const valueLabels = metric.calcValueLabels;
-                                    return (
-                                        <div className="mt-0.5 px-3 py-2 rounded-b-xl bg-gray-50 border border-t-0 border-gray-200 text-[10px] font-mono text-gray-600 leading-tight">
-                                            {valueLabels && (
-                                                <div className="mb-1.5 pb-1.5 border-b border-gray-200 space-y-0.5">
-                                                    {valueLabels.split('\n').filter(Boolean).map((line, i) => {
-                                                        const colonIdx = line.indexOf(':');
-                                                        const label = colonIdx >= 0 ? line.slice(0, colonIdx).trim() : line;
-                                                        const val = colonIdx >= 0 ? line.slice(colonIdx + 1).trim() : '';
-                                                        return (
-                                                            <div key={i} className="flex justify-between gap-4">
-                                                                <span className="text-gray-500">{label}</span>
-                                                                <span className="tabular-nums">{val}</span>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                            <div className="flex justify-between gap-4">
-                                                {!valueLabels && <span className="shrink-0 text-gray-500">{metric.label}</span>}
-                                                <div className={`text-right flex flex-col items-end ${valueLabels ? 'ml-auto' : ''}`}>
-                                                    {calcLines.map((line, i) => (
-                                                        <span key={i} className={i === calcLines.length - 1 ? 'font-bold text-[var(--color-primary-searchmind)]' : ''}>
-                                                            {line}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
+                                {/* Section header */}
+                                <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
+                                    <div className="text-sm font-medium text-gray-500 mb-1">{section.title}</div>
+                                    <div className="flex items-end justify-between gap-2">
+                                        <span className="text-2xl font-bold text-[var(--color-primary-searchmind)]">
+                                            {primaryMetric?.value ?? '-'}
+                                        </span>
+                                        {totalSales > 0 && (
+                                            <span className="text-xs text-gray-500 tabular-nums">
+                                                {pctOfTotal}% of total sales
+                                            </span>
+                                        )}
+                                    </div>
+                                    {primaryMetric?.change !== undefined && (
+                                        <div className="mt-2 flex items-center gap-1">
+                                            <span className={`text-[0.65rem] rounded-sm font-medium flex items-center gap-1 px-2 py-1 w-fit ${primaryMetric.changeType === 'up' ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
+                                                {primaryMetric.changeType === 'up' ? <FiTrendingUp className="text-sm" /> : <FiTrendingDown className="text-sm" />}
+                                                {primaryMetric.change}%
+                                            </span>
                                         </div>
-                                    );
-                                })()}
+                                    )}
+                                </div>
+
+                                {/* Section breakdown */}
+                                <div className="flex flex-col divide-y divide-gray-100">
+                                    {sectionMetrics.map((metric) => {
+                                        const metricKey = metric.key;
+                                        const toggleMetricSelection = (key) => {
+                                            if (!key) return;
+                                            setSelectedMetrics(prev =>
+                                                prev.includes(key) ? (prev.length > 1 ? prev.filter(k => k !== key) : prev) : [...prev, key]
+                                            );
+                                        };
+                                        const isSelected = selectedMetrics.includes(metricKey);
+                                        const hasCalc = showCalcs && metric.popOverContent;
+                                        const calcLines = metric.popOverContent ? metric.popOverContent.split('\n').map((l) => l.trim()).filter((l) => l && l.startsWith('=') && /\d/.test(l)) : [];
+
+                                        return (
+                                            <div
+                                                key={metric.key}
+                                                role="button"
+                                                tabIndex={0}
+                                                onClick={() => toggleMetricSelection(metricKey)}
+                                                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleMetricSelection(metricKey)}
+                                                className={`cursor-pointer transition-colors hover:bg-gray-50/50 ${isSelected ? 'bg-[#1E2B2B]/5' : ''}`}
+                                                aria-pressed={isSelected}
+                                            >
+                                                <div className="px-5 py-3 flex items-center justify-between gap-4">
+                                                    <span className="text-sm font-medium text-gray-700">{metric.label}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-semibold tabular-nums text-gray-900">{metric.value}</span>
+                                                        {metric.change !== undefined && (
+                                                            <span className={`text-[0.65rem] rounded-sm font-medium flex items-center gap-0.5 px-1.5 py-0.5 ${metric.changeType === 'up' ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
+                                                                {metric.changeType === 'up' ? <FiTrendingUp className="text-xs" /> : <FiTrendingDown className="text-xs" />}
+                                                                {metric.change}%
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {hasCalc && calcLines.length > 0 && (
+                                                    <div className="px-5 pb-3 pt-0">
+                                                        <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-[10px] font-mono text-gray-600 leading-tight">
+                                                            {metric.calcValueLabels && (
+                                                                <div className="mb-1.5 pb-1.5 border-b border-gray-200 space-y-0.5">
+                                                                    {metric.calcValueLabels.split('\n').filter(Boolean).map((line, i) => {
+                                                                        const colonIdx = line.indexOf(':');
+                                                                        const label = colonIdx >= 0 ? line.slice(0, colonIdx).trim() : line;
+                                                                        const val = colonIdx >= 0 ? line.slice(colonIdx + 1).trim() : '';
+                                                                        return (
+                                                                            <div key={i} className="flex justify-between gap-4">
+                                                                                <span className="text-gray-500">{label}</span>
+                                                                                <span className="tabular-nums">{val}</span>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+                                                            <div className="flex flex-col items-end gap-0.5">
+                                                                {calcLines.map((line, i) => (
+                                                                    <span key={i} className={i === calcLines.length - 1 ? 'font-bold text-[var(--color-primary-searchmind)]' : ''}>
+                                                                        {line}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         );
                     })

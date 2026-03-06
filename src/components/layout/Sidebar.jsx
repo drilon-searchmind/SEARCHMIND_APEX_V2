@@ -278,7 +278,7 @@ const Sidebar = ({ showLinks = true }) => {
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
-                                                subLabel={"WIP"}
+                                                subLabel={"BETA"}
                                             />
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/service-dashboard/ppc`}
@@ -286,7 +286,7 @@ const Sidebar = ({ showLinks = true }) => {
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
-                                                subLabel={"WIP"}
+                                                subLabel={"BETA"}
                                             />
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/service-dashboard/ps`}
@@ -294,7 +294,7 @@ const Sidebar = ({ showLinks = true }) => {
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
-                                                subLabel={"WIP"}
+                                                subLabel={"BETA"}
                                             />
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/service-dashboard/em`}
@@ -302,7 +302,7 @@ const Sidebar = ({ showLinks = true }) => {
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
-                                                subLabel={"WIP"}
+                                                subLabel={"BETA"}
                                             />
                                         </ul>
                                     )}
@@ -333,7 +333,7 @@ const Sidebar = ({ showLinks = true }) => {
                                                 label="Campaign Planner"
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
-                                                subLabel={"WIP"}
+                                                subLabel={"BETA"}
                                                 isSmallScreen={isSmallScreen}
                                             />
                                             <NavItem
