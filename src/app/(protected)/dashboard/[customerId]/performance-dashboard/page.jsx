@@ -145,6 +145,8 @@ export default function PerformanceDashboard() {
         const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
         const returns = shopify.reduce((sum, d) => sum + (d.returns || 0), 0);
         const cost = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
+        const metaSpend = facebook.reduce((sum, d) => sum + (d.spend || 0), 0);
+        const googleSpend = google.reduce((sum, d) => sum + (d.spend || 0), 0);
         const aov = orders > 0 ? netRevenue / orders : 0;
         const roas = cost > 0 ? netRevenue / cost : null;
         const spendshare = netRevenue > 0 ? cost / netRevenue : 0;
@@ -157,6 +159,8 @@ export default function PerformanceDashboard() {
         const ordersPrev = shopifyPrev.reduce((sum, d) => sum + (d.orders || 0), 0);
         const returnsPrev = shopifyPrev.reduce((sum, d) => sum + (d.returns || 0), 0);
         const costPrev = [...facebookPrev, ...googlePrev].reduce((sum, d) => sum + (d.spend || 0), 0);
+        const metaSpendPrev = facebookPrev.reduce((sum, d) => sum + (d.spend || 0), 0);
+        const googleSpendPrev = googlePrev.reduce((sum, d) => sum + (d.spend || 0), 0);
         const aovPrev = ordersPrev > 0 ? netRevenuePrev / ordersPrev : 0;
         const roasPrev = costPrev > 0 ? netRevenuePrev / costPrev : null;
         const spendsharePrev = netRevenuePrev > 0 ? costPrev / netRevenuePrev : 0;
@@ -195,6 +199,10 @@ export default function PerformanceDashboard() {
         const transactionCostPct = staticExp.transactionCostPercentage ?? 0.015;
         const variableCosts = shippingCostPerOrder * orders + netRevenue * transactionCostPct;
         const variableCostsPrev = shippingCostPerOrder * ordersPrev + netRevenuePrev * transactionCostPct;
+        const shippingCost = shippingCostPerOrder * orders;
+        const shippingCostPrev = shippingCostPerOrder * ordersPrev;
+        const transactionFee = netRevenue * transactionCostPct;
+        const transactionFeePrev = netRevenuePrev * transactionCostPct;
 
         // EBIT = Net Revenue - All costs = Net Revenue - COGS - Fixed costs - Variable costs - Spend
         const allCosts = totalCogs + fixedCosts + variableCosts + cost;
@@ -211,7 +219,7 @@ export default function PerformanceDashboard() {
                     = ${fmt(netRevenue)} / ${fmt(cost)} \n
                     = ${roas !== null ? roas.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}
                 `;
-        const poasCalculation = cost > 0 ? `(Net Profit / Cost) \n
+        const poasCalculation = cost > 0 ? `(Net Profit / Spend) \n
                     = ${fmt(gross_profit_total_sales)} / ${fmt(cost)} \n
                     = ${ (cost > 0 && gross_profit_total_sales !== null) ? (gross_profit_total_sales / cost).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}
                 ` : merged.calculationsData?.poasCalculation || '';
@@ -282,7 +290,7 @@ export default function PerformanceDashboard() {
                     },
                     {
                         key: 'discounts',
-                        label: 'Discounts',
+                        label: 'Discount',
                         value: discounts ? discounts.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(discounts, discountsPrev) !== null ? Math.abs(percentChange(discounts, discountsPrev)).toFixed(0) : undefined,
@@ -322,7 +330,7 @@ export default function PerformanceDashboard() {
                     },
                     {
                         key: 'aov',
-                        label: "Net AOV",
+                        label: "NET AOV",
                         value: aov !== null ? aov.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiShoppingBag className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(aov, aovPrev) !== null ? Math.abs(percentChange(aov, aovPrev)).toFixed(0) : undefined,
@@ -345,6 +353,73 @@ export default function PerformanceDashboard() {
                         calcValueLabels: apiValueLabels.spend,
                     },
                     {
+                        key: 'marketing_spend',
+                        label: "Marketing Spend",
+                        value: cost ? cost.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
+                        icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(cost, costPrev) !== null ? Math.abs(percentChange(cost, costPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(cost, costPrev)),
+                        changeAbsolute: formatDiff(cost, costPrev, 'currency'),
+                        changePrevValue: costPrev != null ? costPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
+                        popOverContent: totalAdspendCalculation,
+                        calcValueLabels: apiValueLabels.spend,
+                    },
+                    {
+                        key: 'meta_spend',
+                        label: "Meta Spend",
+                        value: metaSpend ? metaSpend.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
+                        icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(metaSpend, metaSpendPrev) !== null ? Math.abs(percentChange(metaSpend, metaSpendPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(metaSpend, metaSpendPrev)),
+                        changeAbsolute: formatDiff(metaSpend, metaSpendPrev, 'currency'),
+                        changePrevValue: metaSpendPrev != null ? metaSpendPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
+                        popOverContent: null,
+                    },
+                    {
+                        key: 'google_spend',
+                        label: "Google Ads Spend",
+                        value: googleSpend ? googleSpend.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
+                        icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(googleSpend, googleSpendPrev) !== null ? Math.abs(percentChange(googleSpend, googleSpendPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(googleSpend, googleSpendPrev)),
+                        changeAbsolute: formatDiff(googleSpend, googleSpendPrev, 'currency'),
+                        changePrevValue: googleSpendPrev != null ? googleSpendPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
+                        popOverContent: null,
+                    },
+                    {
+                        key: 'shipping_cost',
+                        label: "Shipping Cost",
+                        value: shippingCost ? shippingCost.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
+                        icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(shippingCost, shippingCostPrev) !== null ? Math.abs(percentChange(shippingCost, shippingCostPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(shippingCost, shippingCostPrev)),
+                        changeAbsolute: formatDiff(shippingCost, shippingCostPrev, 'currency'),
+                        changePrevValue: shippingCostPrev != null ? shippingCostPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
+                        popOverContent: `Shipping Cost = Shipping per order × Orders\n= ${fmt(shippingCostPerOrder)} × ${orders}\n= ${fmt(shippingCost)}`,
+                        calcValueLabels: `Shipping per order: ${fmt(shippingCostPerOrder)}\nOrders: ${orders}`,
+                    },
+                    {
+                        key: 'pick_pack',
+                        label: "Pick & Pack",
+                        value: '0',
+                        icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: undefined,
+                        changeType: undefined,
+                        popOverContent: null,
+                    },
+                    {
+                        key: 'total_expenses',
+                        label: "Total Expenses",
+                        value: allCosts ? allCosts.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
+                        icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(allCosts, allCostsPrev) !== null ? Math.abs(percentChange(allCosts, allCostsPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(allCosts, allCostsPrev)),
+                        changeAbsolute: formatDiff(allCosts, allCostsPrev, 'currency'),
+                        changePrevValue: allCostsPrev != null ? allCostsPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
+                        popOverContent: `Total Expenses = COGS + Marketing + Variable + Fixed\n= ${fmt(totalCogs)} + ${fmt(cost)} + ${fmt(variableCosts)} + ${fmt(fixedCosts)}\n= ${fmt(allCosts)}`,
+                        calcValueLabels: `COGS: ${fmt(totalCogs)}\nMarketing Spend: ${fmt(cost)}\nVariable Expenses: ${fmt(variableCosts)}\nFixed Expenses: ${fmt(fixedCosts)}`,
+                    },
+                    {
                         key: 'roas',
                         label: "Blended ROAS",
                         value: roas !== null ? roas.toFixed(2) : '-',
@@ -354,30 +429,30 @@ export default function PerformanceDashboard() {
                         changeAbsolute: formatDiff(roas, roasPrev, 'ratio'),
                         changePrevValue: roasPrev != null ? roasPrev.toFixed(2) : undefined,
                         popOverContent: roasCalculation,
-                        calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nCost: ${fmt(cost)}`,
+                        calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nSpend: ${fmt(cost)}`,
                     },
                     {
                         key: 'variable_costs',
-                        label: "Variable Costs",
+                        label: "Variable Expenses",
                         value: variableCosts ? variableCosts.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(variableCosts, variableCostsPrev) !== null ? Math.abs(percentChange(variableCosts, variableCostsPrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(variableCosts, variableCostsPrev)),
                         changeAbsolute: formatDiff(variableCosts, variableCostsPrev, 'currency'),
                         changePrevValue: variableCostsPrev != null ? variableCostsPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
-                        popOverContent: `Variable costs (scale with volume):\n(shippingCostPerOrder × orders) + (Net Revenue × transactionCost%)\n= (${fmt(shippingCostPerOrder)} × ${orders}) + (${fmt(netRevenue)} × ${fmt(transactionCostPct * 100)}%)\n= ${fmt(variableCosts)}`,
+                        popOverContent: `Variable Spend (scale with volume):\n(shippingCostPerOrder × orders) + (Net Revenue × transactionCost%)\n= (${fmt(shippingCostPerOrder)} × ${orders}) + (${fmt(netRevenue)} × ${fmt(transactionCostPct * 100)}%)\n= ${fmt(variableCosts)}`,
                         calcValueLabels: `Shipping per order: ${fmt(shippingCostPerOrder)}\nOrders: ${orders}\nNet Revenue: ${fmt(netRevenue)}\nTransaction cost %: ${fmt(transactionCostPct * 100)}%`,
                     },
                     {
                         key: 'fixed_costs',
-                        label: "Fixed Costs",
+                        label: "Fixed Expenses",
                         value: fixedCosts ? fixedCosts.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(fixedCosts, fixedCostsPrev) !== null ? Math.abs(percentChange(fixedCosts, fixedCostsPrev)).toFixed(0) : undefined,
                         changeType: changeType(percentChange(fixedCosts, fixedCostsPrev)),
                         changeAbsolute: formatDiff(fixedCosts, fixedCostsPrev, 'currency'),
                         changePrevValue: fixedCostsPrev != null ? fixedCostsPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
-                        popOverContent: `Fixed costs (prorated for period):\nfixedExpenses (monthly) × sum over each day of (1 / days in that month)\n= ${fmt(fixedExpensesMonthly)} prorated over ${daysInRange} days\n= ${fmt(fixedCosts)}`,
+                        popOverContent: `Fixed Spend (prorated for period):\nfixedExpenses (monthly) × sum over each day of (1 / days in that month)\n= ${fmt(fixedExpensesMonthly)} prorated over ${daysInRange} days\n= ${fmt(fixedCosts)}`,
                         calcValueLabels: `Fixed expenses (monthly): ${fmt(fixedExpensesMonthly)}\nDays in range: ${daysInRange}`,
                     },
                     {
@@ -388,11 +463,11 @@ export default function PerformanceDashboard() {
                         change: percentChange(poas, poasPrev) !== null ? Math.abs(percentChange(poas, poasPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(poas, poasPrev)),
                         popOverContent: poasCalculation,
-                        calcValueLabels: apiValueLabels.poas || `Net Profit: ${fmt(gross_profit_total_sales)}\nCost: ${fmt(cost)}`,
+                        calcValueLabels: apiValueLabels.poas || `Net Profit: ${fmt(gross_profit_total_sales)}\nSpend: ${fmt(cost)}`,
                     },
                     {
                         key: 'gross_profit',
-                        label: "Net Profit",
+                        label: "Gross Profit",
                         value: gross_profit_total_sales ? gross_profit_total_sales.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(gross_profit_total_sales, gross_profit_total_salesPrev) !== null ? Math.abs(percentChange(gross_profit_total_sales, gross_profit_total_salesPrev)).toFixed(0) : undefined,
@@ -405,7 +480,7 @@ export default function PerformanceDashboard() {
                     },
                     {
                         key: 'returns',
-                        label: 'Refunds',
+                        label: 'Returns',
                         value: returns ? returns.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiTrendingUp className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(returns, returnsPrev) !== null ? Math.abs(percentChange(returns, returnsPrev)).toFixed(0) : undefined,
@@ -413,6 +488,48 @@ export default function PerformanceDashboard() {
                         changeAbsolute: formatDiff(returns, returnsPrev, 'currency'),
                         changePrevValue: returnsPrev != null ? returnsPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
                         popOverContent: null,
+                    },
+                    {
+                        key: 'shipping_revenue',
+                        label: 'Shipping Revenue',
+                        value: '0',
+                        icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: undefined,
+                        changeType: undefined,
+                        popOverContent: null,
+                    },
+                    {
+                        key: 'transaction_fee',
+                        label: 'Transaction Fee',
+                        value: transactionFee ? transactionFee.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
+                        icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(transactionFee, transactionFeePrev) !== null ? Math.abs(percentChange(transactionFee, transactionFeePrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(transactionFee, transactionFeePrev)),
+                        changeAbsolute: formatDiff(transactionFee, transactionFeePrev, 'currency'),
+                        changePrevValue: transactionFeePrev != null ? transactionFeePrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
+                        popOverContent: `Transaction Fee = Net Revenue × ${(transactionCostPct * 100).toFixed(2)}%\n= ${fmt(netRevenue)} × ${(transactionCostPct * 100).toFixed(2)}%\n= ${fmt(transactionFee)}`,
+                        calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nTransaction %: ${(transactionCostPct * 100).toFixed(2)}%`,
+                    },
+                    {
+                        key: 'tax',
+                        label: 'Tax',
+                        value: '0',
+                        icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: undefined,
+                        changeType: undefined,
+                        popOverContent: null,
+                    },
+                    {
+                        key: 'ebit',
+                        label: "Net Profit",
+                        value: ebit != null ? ebit.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
+                        icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+                        change: percentChange(ebit, ebitPrev) !== null ? Math.abs(percentChange(ebit, ebitPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(ebit, ebitPrev)),
+                        changeAbsolute: formatDiff(ebit, ebitPrev, 'currency'),
+                        changePrevValue: ebitPrev != null ? ebitPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
+                        popOverContent: `Net Profit = Net Revenue - All Spend\n= ${fmt(netRevenue)} - ${fmt(allCosts)}\n= ${fmt(ebit)}`,
+                        calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nAll Spend (COGS + Fixed + Variable + Spend): ${fmt(allCosts)}`,
                     },
                     {
                         key: 'ebit_pct',
@@ -423,8 +540,8 @@ export default function PerformanceDashboard() {
                         changeType: changeType(percentChange(ebitPct, ebitPctPrev)),
                         changeAbsolute: formatDiff(ebitPct, ebitPctPrev, 'pct'),
                         changePrevValue: ebitPctPrev != null ? `${ebitPctPrev.toFixed(1)}%` : undefined,
-                        popOverContent: `EBIT = Net Revenue - All costs\n= ${fmt(netRevenue)} - ${fmt(allCosts)}\n= ${fmt(ebit)}\nEBIT% = (EBIT / Net Revenue) × 100\n= (${fmt(ebit)} / ${fmt(netRevenue)}) × 100\n= ${ebitPct != null ? ebitPct.toFixed(1) : 'N/A'}%`,
-                        calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nAll costs (COGS + Fixed + Variable + Spend): ${fmt(allCosts)}`,
+                        popOverContent: `EBIT = Net Revenue - All Spend\n= ${fmt(netRevenue)} - ${fmt(allCosts)}\n= ${fmt(ebit)}\nEBIT% = (EBIT / Net Revenue) × 100\n= (${fmt(ebit)} / ${fmt(netRevenue)}) × 100\n= ${ebitPct != null ? ebitPct.toFixed(1) : 'N/A'}%`,
+                        calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nAll Spend (COGS + Fixed + Variable + Spend): ${fmt(allCosts)}`,
                     },
                 ];
 
@@ -450,6 +567,8 @@ export default function PerformanceDashboard() {
             total_sales: totalSales,
             revenue: netRevenue,
             gross_profit: gross_profit_total_sales,
+            total_expenses: allCosts,
+            ebit,
             orders,
             returns,
             cost,
@@ -460,7 +579,7 @@ export default function PerformanceDashboard() {
             spendshare: netRevenue > 0 ? cost / netRevenue : 0,
             cogs: totalCogs,
             ebit_pct: ebitPct ?? 0,
-                    fixed_costs: fixedCosts,
+            fixed_costs: fixedCosts,
             variable_costs: variableCosts,
         });
     }, [customer, appliedDateRange, comparisonMethod, merged, mergedPrev]);
@@ -476,12 +595,13 @@ export default function PerformanceDashboard() {
         { key: 'revenue', label: 'Net Revenue', icon: FiDollarSign },
         { key: 'total_sales', label: 'Total Sales', icon: FiDollarSign },
         { key: 'cogs', label: 'COGS', icon: FiDollarSign },
-        { key: 'gross_profit', label: 'Net Profit', icon: FiDollarSign },
+        { key: 'gross_profit', label: 'Gross Profit', icon: FiDollarSign },
+        { key: 'ebit', label: 'Net Profit', icon: FiDollarSign },
         { key: 'returns', label: 'Refunds', icon: FiTrendingUp },
         { key: 'orders', label: 'Orders', icon: FiShoppingCart },
-        { key: 'cost', label: 'Cost', icon: FiCreditCard },
-        { key: 'fixed_costs', label: 'Fixed Costs', icon: FiCreditCard },
-        { key: 'variable_costs', label: 'Variable Costs', icon: FiCreditCard },
+        { key: 'cost', label: 'Spend', icon: FiCreditCard },
+        { key: 'fixed_costs', label: 'Fixed Spend', icon: FiCreditCard },
+        { key: 'variable_costs', label: 'Variable Spend', icon: FiCreditCard },
         { key: 'ebit_pct', label: 'EBIT%', icon: FiPieChart },
         { key: 'roas', label: 'Blended ROAS', icon: FiTrendingUp },
         { key: 'poas', label: 'Blended POAS', icon: FiPieChart },
@@ -493,22 +613,22 @@ export default function PerformanceDashboard() {
     const [viewMode, setViewMode] = useState('standard'); // 'standard' | 'custom'
     const [showCalcs, setShowCalcs] = useState(false); // Default ON for Standard view
 
-    // Standard view: 3 sections with grouped KPIs
+    // Standard view: 3 sections with metrics used in each calculation (primary metric excluded from breakdown)
     const STANDARD_SECTIONS = [
-        {
-            key: 'total_sales',
-            title: 'Total Sales',
-            metricKeys: ['total_sales', 'gross_sales', 'discounts', 'returns', 'orders'],
-        },
         {
             key: 'net_revenue',
             title: 'Net Revenue',
-            metricKeys: ['revenue', 'cogs', 'aov', 'cost', 'roas', 'variable_costs', 'fixed_costs'],
+            metricKeys: ['revenue', 'orders', 'aov', 'gross_sales', 'discounts', 'returns', 'shipping_revenue', 'transaction_fee', 'tax'],
+        },
+        {
+            key: 'total_expenses',
+            title: 'Total Expenses',
+            metricKeys: ['total_expenses', 'marketing_spend', 'meta_spend', 'google_spend', 'variable_costs', 'cogs', 'shipping_cost', 'pick_pack', 'fixed_costs'],
         },
         {
             key: 'net_profit',
             title: 'Net Profit',
-            metricKeys: ['gross_profit', 'ebit_pct', 'poas', 'cac'],
+            metricKeys: ['ebit', 'roas', 'cac', 'poas', 'ebit_pct'],
         },
     ];
 
@@ -586,10 +706,10 @@ export default function PerformanceDashboard() {
                 const currDataPPC = categories.map(k => { const v = currAgg[k]; return v ? Number((v.costGoogle || 0).toFixed(0)) : null; });
                 const prevDataPS = categories.map((k, idx) => { const prevKey = getPrevKeyForCategory(k, idx); const v = prevAgg[prevKey]; return v ? Number((v.costFacebook || 0).toFixed(0)) : null; });
                 const prevDataPPC = categories.map((k, idx) => { const prevKey = getPrevKeyForCategory(k, idx); const v = prevAgg[prevKey]; return v ? Number((v.costGoogle || 0).toFixed(0)) : null; });
-                series.push({ name: 'PS Cost (Current)', data: currDataPS });
-                series.push({ name: 'PPC Cost (Current)', data: currDataPPC });
-                series.push({ name: `PS Cost (${comparisonMethod})`, data: prevDataPS });
-                series.push({ name: `PPC Cost (${comparisonMethod})`, data: prevDataPPC });
+                series.push({ name: 'PS Spend (Current)', data: currDataPS });
+                series.push({ name: 'PPC Spend (Current)', data: currDataPPC });
+                series.push({ name: `PS Spend (${comparisonMethod})`, data: prevDataPS });
+                series.push({ name: `PPC Spend (${comparisonMethod})`, data: prevDataPPC });
                 return;
             }
 
@@ -610,6 +730,14 @@ export default function PerformanceDashboard() {
                     const variable = shippingPerOrder * (v.orders || 0) + rev * txCostPct;
                     const allCosts = cogs + fixed + variable + v.cost;
                     return rev > 0 ? Number(((rev - allCosts) / rev * 100).toFixed(1)) : null;
+                }
+                if (metric === 'ebit') {
+                    const rev = v.revenue || 0;
+                    const cogs = v.cogs || 0;
+                    const fixed = getFixedForPeriod(k);
+                    const variable = shippingPerOrder * (v.orders || 0) + rev * txCostPct;
+                    const allCosts = cogs + fixed + variable + v.cost;
+                    return Number((rev - allCosts).toFixed(0));
                 }
                 if (metric === 'orders') return Number(v.orders || 0);
                 if (metric === 'roas') return (v.cost > 0 ? Number((v.revenue / v.cost).toFixed(2)) : null);
@@ -640,6 +768,14 @@ export default function PerformanceDashboard() {
                     const variable = shippingPerOrder * (v.orders || 0) + rev * txCostPct;
                     const allCosts = cogs + fixed + variable + v.cost;
                     return rev > 0 ? Number(((rev - allCosts) / rev * 100).toFixed(1)) : null;
+                }
+                if (metric === 'ebit') {
+                    const rev = v.revenue || 0;
+                    const cogs = v.cogs || 0;
+                    const fixed = getFixedForPeriod(prevKey);
+                    const variable = shippingPerOrder * (v.orders || 0) + rev * txCostPct;
+                    const allCosts = cogs + fixed + variable + v.cost;
+                    return Number((rev - allCosts).toFixed(0));
                 }
                 if (metric === 'orders') return Number(v.orders || 0);
                 if (metric === 'roas') return (v.cost > 0 ? Number((v.revenue / v.cost).toFixed(2)) : null);
@@ -978,6 +1114,7 @@ export default function PerformanceDashboard() {
             </div>
 
             {viewMode === 'standard' ? (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mb-8">
                 {loading ? (
                     <div className="col-span-full text-center py-12"><Spinner size={40} color="#406969" /></div>
@@ -985,13 +1122,16 @@ export default function PerformanceDashboard() {
                     <div className="col-span-full text-center text-red-500 py-12">{error}</div>
                 ) : (
                     STANDARD_SECTIONS.map((section) => {
-                        const sectionMetrics = metrics.filter((m) => section.metricKeys.includes(m.key));
                         const primaryKey = section.metricKeys[0];
-                        const primaryMetric = sectionMetrics.find((m) => m.key === primaryKey);
+                        const breakdownKeys = section.metricKeys.slice(1); // Exclude primary from breakdown
+                        const sectionMetrics = metrics.filter((m) => breakdownKeys.includes(m.key));
+                        const primaryMetric = metrics.find((m) => m.key === primaryKey);
                         const totalSales = metricsData?.total_sales || 0;
                         const primaryValue = primaryKey === 'total_sales' ? totalSales
                             : primaryKey === 'revenue' ? (metricsData?.revenue ?? 0)
                             : primaryKey === 'gross_profit' ? (metricsData?.gross_profit ?? 0)
+                            : primaryKey === 'total_expenses' ? (metricsData?.total_expenses ?? 0)
+                            : primaryKey === 'ebit' ? (metricsData?.ebit ?? 0)
                             : 0;
                         const pctOfTotal = totalSales > 0 ? ((primaryValue / totalSales) * 100).toFixed(1) : '0';
 
@@ -1022,6 +1162,39 @@ export default function PerformanceDashboard() {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Section calculation (when Show calcs enabled) */}
+                                {showCalcs && primaryMetric?.popOverContent && (
+                                    <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/30">
+                                        <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-[10px] font-mono text-gray-600 leading-tight">
+                                            {primaryMetric.calcValueLabels && (
+                                                <div className="mb-1.5 pb-1.5 border-b border-gray-200 space-y-0.5">
+                                                    {primaryMetric.calcValueLabels.split('\n').filter(Boolean).map((line, i) => {
+                                                        const colonIdx = line.indexOf(':');
+                                                        const label = colonIdx >= 0 ? line.slice(0, colonIdx).trim() : line;
+                                                        const val = colonIdx >= 0 ? line.slice(colonIdx + 1).trim() : '';
+                                                        return (
+                                                            <div key={i} className="flex justify-between gap-4">
+                                                                <span className="text-gray-500">{label}</span>
+                                                                <span className="tabular-nums">{val}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                            <div className="flex flex-col items-end gap-0.5">
+                                                {(() => {
+                                                    const calcLines = primaryMetric.popOverContent.split('\n').map((l) => l.trim()).filter((l) => l && l.startsWith('=') && /\d/.test(l));
+                                                    return calcLines.map((line, i) => (
+                                                        <span key={i} className={i === calcLines.length - 1 ? 'font-bold text-[var(--color-primary-searchmind)]' : ''}>
+                                                            {line}
+                                                        </span>
+                                                    ));
+                                                })()}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Section breakdown */}
                                 <div className="flex flex-col divide-y divide-gray-100">
@@ -1096,6 +1269,7 @@ export default function PerformanceDashboard() {
                     })
                 )}
             </div>
+            </>
             ) : (
             <div className="mb-8">
                 <Custom
