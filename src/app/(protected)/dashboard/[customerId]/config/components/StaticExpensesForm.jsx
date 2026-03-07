@@ -166,6 +166,24 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
                         </div>
                     </div>
 
+                    <div className="mb-3">
+                        <FormLabel htmlFor="pickNPackCostPerOrder">Pick & Pack Cost Per Order</FormLabel>
+                        <div className="flex items-center gap-2">
+                            <FormInputText
+                                id="pickNPackCostPerOrder"
+                                name="pickNPackCostPerOrder"
+                                type="number"
+                                value={form.CustomerStaticExpenses.pickNPackCostPerOrder}
+                                onChange={onChange}
+                                data-group="CustomerStaticExpenses"
+                                min="0"
+                                step="0.01"
+                                className="flex-1 max-w-75"
+                            />
+                            <span className="text-sm text-gray-900 shrink-0 mt-2">DKK</span>
+                        </div>
+                    </div>
+
                     <div className="mb-2">
                         <FormLabel htmlFor="transactionCostPercentage">Transaction Cost %</FormLabel>
                         <div className="flex items-center gap-2">

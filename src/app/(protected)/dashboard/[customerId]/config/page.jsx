@@ -38,6 +38,7 @@ export default function ConfigPage() {
         CustomerStaticExpenses: {
             cogsPercentage: 0,
             shippingCostPerOrder: 0,
+            pickNPackCostPerOrder: 0,
             transactionCostPercentage: 0,
             marketingBureauCost: 0,
             marketingBureauCostLineItems: [],

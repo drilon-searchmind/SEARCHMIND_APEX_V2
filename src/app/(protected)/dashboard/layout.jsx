@@ -10,7 +10,7 @@ const DashboardLayout = ({ children }) => {
             <Sidebar />
             <div className="flex-1 flex flex-col">
                 <Topbar />
-                <main className="flex-1 overflow-y-auto md:py-10 md:px-20 bg-slate-50 py-10 px-4">{children}</main>
+                <main className="flex-1 overflow-y-auto xl:px-20 lg:py10 bg-slate-50 py-10 px-4">{children}</main>
             </div>
         </div>
     );

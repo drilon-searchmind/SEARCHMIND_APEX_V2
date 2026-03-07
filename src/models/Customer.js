@@ -115,6 +115,10 @@ const CustomerSchema = new mongoose.Schema({
             type: Number,
             default: 0,
         },
+        pickNPackCostPerOrder: {
+            type: Number,
+            default: 0,
+        },
         transactionCostPercentage: {
             type: Number,
             default: 0,

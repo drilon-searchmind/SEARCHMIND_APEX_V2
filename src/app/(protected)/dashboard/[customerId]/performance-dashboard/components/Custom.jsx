@@ -32,6 +32,7 @@ Object.assign(METRIC_LABELS, {
     cogs: "COGS",
     fixed_costs: "Fixed Costs",
     variable_costs: "Variable Costs",
+    pick_pack: "Pick & Pack",
     ebit_pct: "EBIT%",
 });
 
@@ -46,7 +47,7 @@ function fmtMetricValue(val, key) {
     if (val == null || isNaN(val)) return "-";
     if (RATIO_KEYS.includes(key))
         return fmt(val, 2);
-    if (CURRENCY_KEYS.includes(key) || key === "fixed_costs" || key === "variable_costs")
+    if (CURRENCY_KEYS.includes(key) || key === "fixed_costs" || key === "variable_costs" || key === "pick_pack")
         return fmt(val, 0);
     return fmt(val, 0);
 }

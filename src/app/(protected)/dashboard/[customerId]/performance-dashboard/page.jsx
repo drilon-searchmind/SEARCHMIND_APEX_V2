@@ -144,6 +144,8 @@ export default function PerformanceDashboard() {
         const netRevenue = shopify.reduce((sum, d) => sum + (d.net_sales || 0), 0);
         const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
         const returns = shopify.reduce((sum, d) => sum + (d.returns || 0), 0);
+        const shippingCharges = shopify.reduce((sum, d) => sum + (d.shipping_charges || 0), 0);
+        const taxes = shopify.reduce((sum, d) => sum + (d.taxes || 0), 0);
         const cost = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
         const metaSpend = facebook.reduce((sum, d) => sum + (d.spend || 0), 0);
         const googleSpend = google.reduce((sum, d) => sum + (d.spend || 0), 0);
@@ -158,6 +160,8 @@ export default function PerformanceDashboard() {
         const netRevenuePrev = shopifyPrev.reduce((sum, d) => sum + (d.net_sales || 0), 0);
         const ordersPrev = shopifyPrev.reduce((sum, d) => sum + (d.orders || 0), 0);
         const returnsPrev = shopifyPrev.reduce((sum, d) => sum + (d.returns || 0), 0);
+        const shippingChargesPrev = shopifyPrev.reduce((sum, d) => sum + (d.shipping_charges || 0), 0);
+        const taxesPrev = shopifyPrev.reduce((sum, d) => sum + (d.taxes || 0), 0);
         const costPrev = [...facebookPrev, ...googlePrev].reduce((sum, d) => sum + (d.spend || 0), 0);
         const metaSpendPrev = facebookPrev.reduce((sum, d) => sum + (d.spend || 0), 0);
         const googleSpendPrev = googlePrev.reduce((sum, d) => sum + (d.spend || 0), 0);
@@ -178,6 +182,8 @@ export default function PerformanceDashboard() {
 
         // Fixed costs: fixedExpenses is the monthly total. Prorate by actual days in each month (handles multi-month spans).
         const staticExp = customer?.CustomerStaticExpenses || {};
+        console.log("::: STATIC EXPENSES :::");
+        console.log({ staticExp });
         const fixedExpensesMonthly = Number(staticExp.fixedExpenses) || 0;
         const calcFixedForRange = (rangeStart, rangeEnd) => {
             let total = 0;
@@ -194,19 +200,22 @@ export default function PerformanceDashboard() {
         const prevPeriodStart = prevPeriodEnd.subtract(daysInRange - 1, 'day');
         const fixedCostsPrev = calcFixedForRange(prevPeriodStart, prevPeriodEnd);
 
-        // Variable costs: costs that scale with volume (shipping + transaction fees). Excludes ad spend.
+        // Variable costs: costs that scale with volume (shipping + pick & pack). Excludes transaction fee (shown separately).
         const shippingCostPerOrder = staticExp.shippingCostPerOrder ?? 0;
+        const pickNPackCostPerOrder = staticExp.pickNPackCostPerOrder ?? 0;
         const transactionCostPct = staticExp.transactionCostPercentage ?? 0.015;
-        const variableCosts = shippingCostPerOrder * orders + netRevenue * transactionCostPct;
-        const variableCostsPrev = shippingCostPerOrder * ordersPrev + netRevenuePrev * transactionCostPct;
         const shippingCost = shippingCostPerOrder * orders;
         const shippingCostPrev = shippingCostPerOrder * ordersPrev;
+        const pickPackCost = pickNPackCostPerOrder * orders;
+        const pickPackCostPrev = pickNPackCostPerOrder * ordersPrev;
         const transactionFee = netRevenue * transactionCostPct;
         const transactionFeePrev = netRevenuePrev * transactionCostPct;
+        const variableCosts = shippingCost + pickPackCost;
+        const variableCostsPrev = shippingCostPrev + pickPackCostPrev;
 
-        // EBIT = Net Revenue - All costs = Net Revenue - COGS - Fixed costs - Variable costs - Spend
-        const allCosts = totalCogs + fixedCosts + variableCosts + cost;
-        const allCostsPrev = prevTotalCogs + fixedCostsPrev + variableCostsPrev + costPrev;
+        // EBIT = Net Revenue - All costs = Net Revenue - COGS - Fixed - Variable - Transaction Fee - Spend
+        const allCosts = totalCogs + fixedCosts + variableCosts + transactionFee + cost;
+        const allCostsPrev = prevTotalCogs + fixedCostsPrev + variableCostsPrev + transactionFeePrev + costPrev;
         const ebit = netRevenue - allCosts;
         const ebitPrev = netRevenuePrev - allCostsPrev;
         const ebitPct = netRevenue > 0 ? (ebit / netRevenue) * 100 : null;
@@ -401,11 +410,14 @@ export default function PerformanceDashboard() {
                     {
                         key: 'pick_pack',
                         label: "Pick & Pack",
-                        value: '0',
+                        value: pickPackCost ? pickPackCost.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: undefined,
-                        changeType: undefined,
-                        popOverContent: null,
+                        change: percentChange(pickPackCost, pickPackCostPrev) !== null ? Math.abs(percentChange(pickPackCost, pickPackCostPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(pickPackCost, pickPackCostPrev)),
+                        changeAbsolute: formatDiff(pickPackCost, pickPackCostPrev, 'currency'),
+                        changePrevValue: pickPackCostPrev != null ? pickPackCostPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
+                        popOverContent: `Pick & Pack = Pick & pack per order × Orders\n= ${fmt(pickNPackCostPerOrder)} × ${orders}\n= ${fmt(pickPackCost)}`,
+                        calcValueLabels: `Pick & pack per order: ${fmt(pickNPackCostPerOrder)}\nOrders: ${orders}`,
                     },
                     {
                         key: 'total_expenses',
@@ -416,8 +428,8 @@ export default function PerformanceDashboard() {
                         changeType: changeType(percentChange(allCosts, allCostsPrev)),
                         changeAbsolute: formatDiff(allCosts, allCostsPrev, 'currency'),
                         changePrevValue: allCostsPrev != null ? allCostsPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
-                        popOverContent: `Total Expenses = COGS + Marketing + Variable + Fixed\n= ${fmt(totalCogs)} + ${fmt(cost)} + ${fmt(variableCosts)} + ${fmt(fixedCosts)}\n= ${fmt(allCosts)}`,
-                        calcValueLabels: `COGS: ${fmt(totalCogs)}\nMarketing Spend: ${fmt(cost)}\nVariable Expenses: ${fmt(variableCosts)}\nFixed Expenses: ${fmt(fixedCosts)}`,
+                        popOverContent: `Total Expenses = COGS + Marketing + Variable + Fixed + Transaction Fee\n= ${fmt(totalCogs)} + ${fmt(cost)} + ${fmt(variableCosts)} + ${fmt(fixedCosts)} + ${fmt(transactionFee)}\n= ${fmt(allCosts)}`,
+                        calcValueLabels: `COGS: ${fmt(totalCogs)}\nMarketing Spend: ${fmt(cost)}\nVariable Expenses: ${fmt(variableCosts)}\nFixed Expenses: ${fmt(fixedCosts)}\nTransaction Fee: ${fmt(transactionFee)}`,
                     },
                     {
                         key: 'roas',
@@ -440,8 +452,8 @@ export default function PerformanceDashboard() {
                         changeType: changeType(percentChange(variableCosts, variableCostsPrev)),
                         changeAbsolute: formatDiff(variableCosts, variableCostsPrev, 'currency'),
                         changePrevValue: variableCostsPrev != null ? variableCostsPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
-                        popOverContent: `Variable Spend (scale with volume):\n(shippingCostPerOrder × orders) + (Net Revenue × transactionCost%)\n= (${fmt(shippingCostPerOrder)} × ${orders}) + (${fmt(netRevenue)} × ${fmt(transactionCostPct * 100)}%)\n= ${fmt(variableCosts)}`,
-                        calcValueLabels: `Shipping per order: ${fmt(shippingCostPerOrder)}\nOrders: ${orders}\nNet Revenue: ${fmt(netRevenue)}\nTransaction cost %: ${fmt(transactionCostPct * 100)}%`,
+                        popOverContent: `Variable Spend (scale with volume):\n(shipping + pick & pack) × orders\n= (${fmt(shippingCostPerOrder)} + ${fmt(pickNPackCostPerOrder)}) × ${orders}\n= ${fmt(variableCosts)}`,
+                        calcValueLabels: `Shipping per order: ${fmt(shippingCostPerOrder)}\nPick & pack per order: ${fmt(pickNPackCostPerOrder)}\nOrders: ${orders}`,
                     },
                     {
                         key: 'fixed_costs',
@@ -491,11 +503,13 @@ export default function PerformanceDashboard() {
                     },
                     {
                         key: 'shipping_revenue',
-                        label: 'Shipping Revenue',
-                        value: '0',
+                        label: 'Shipping Charges',
+                        value: shippingCharges ? shippingCharges.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: undefined,
-                        changeType: undefined,
+                        change: percentChange(shippingCharges, shippingChargesPrev) !== null ? Math.abs(percentChange(shippingCharges, shippingChargesPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(shippingCharges, shippingChargesPrev)),
+                        changeAbsolute: formatDiff(shippingCharges, shippingChargesPrev, 'currency'),
+                        changePrevValue: shippingChargesPrev != null ? shippingChargesPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
                         popOverContent: null,
                     },
                     {
@@ -512,11 +526,13 @@ export default function PerformanceDashboard() {
                     },
                     {
                         key: 'tax',
-                        label: 'Tax',
-                        value: '0',
+                        label: 'Taxes',
+                        value: taxes ? taxes.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: undefined,
-                        changeType: undefined,
+                        change: percentChange(taxes, taxesPrev) !== null ? Math.abs(percentChange(taxes, taxesPrev)).toFixed(0) : undefined,
+                        changeType: changeType(percentChange(taxes, taxesPrev)),
+                        changeAbsolute: formatDiff(taxes, taxesPrev, 'currency'),
+                        changePrevValue: taxesPrev != null ? taxesPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
                         popOverContent: null,
                     },
                     {
@@ -529,7 +545,7 @@ export default function PerformanceDashboard() {
                         changeAbsolute: formatDiff(ebit, ebitPrev, 'currency'),
                         changePrevValue: ebitPrev != null ? ebitPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
                         popOverContent: `Net Profit = Net Revenue - All Spend\n= ${fmt(netRevenue)} - ${fmt(allCosts)}\n= ${fmt(ebit)}`,
-                        calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nAll Spend (COGS + Fixed + Variable + Spend): ${fmt(allCosts)}`,
+                        calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nAll Spend (COGS + Fixed + Variable + Transaction Fee + Spend): ${fmt(allCosts)}`,
                     },
                     {
                         key: 'ebit_pct',
@@ -541,7 +557,7 @@ export default function PerformanceDashboard() {
                         changeAbsolute: formatDiff(ebitPct, ebitPctPrev, 'pct'),
                         changePrevValue: ebitPctPrev != null ? `${ebitPctPrev.toFixed(1)}%` : undefined,
                         popOverContent: `EBIT = Net Revenue - All Spend\n= ${fmt(netRevenue)} - ${fmt(allCosts)}\n= ${fmt(ebit)}\nEBIT% = (EBIT / Net Revenue) × 100\n= (${fmt(ebit)} / ${fmt(netRevenue)}) × 100\n= ${ebitPct != null ? ebitPct.toFixed(1) : 'N/A'}%`,
-                        calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nAll Spend (COGS + Fixed + Variable + Spend): ${fmt(allCosts)}`,
+                        calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nAll Spend (COGS + Fixed + Variable + Transaction Fee + Spend): ${fmt(allCosts)}`,
                     },
                 ];
 
@@ -581,6 +597,8 @@ export default function PerformanceDashboard() {
             ebit_pct: ebitPct ?? 0,
             fixed_costs: fixedCosts,
             variable_costs: variableCosts,
+            shipping_cost: shippingCost,
+            pick_pack: pickPackCost,
         });
     }, [customer, appliedDateRange, comparisonMethod, merged, mergedPrev]);
 
@@ -602,6 +620,7 @@ export default function PerformanceDashboard() {
         { key: 'cost', label: 'Spend', icon: FiCreditCard },
         { key: 'fixed_costs', label: 'Fixed Spend', icon: FiCreditCard },
         { key: 'variable_costs', label: 'Variable Spend', icon: FiCreditCard },
+        { key: 'pick_pack', label: 'Pick & Pack', icon: FiCreditCard },
         { key: 'ebit_pct', label: 'EBIT%', icon: FiPieChart },
         { key: 'roas', label: 'Blended ROAS', icon: FiTrendingUp },
         { key: 'poas', label: 'Blended POAS', icon: FiPieChart },
@@ -624,6 +643,7 @@ export default function PerformanceDashboard() {
             key: 'total_expenses',
             title: 'Total Expenses',
             metricKeys: ['total_expenses', 'marketing_spend', 'meta_spend', 'google_spend', 'variable_costs', 'cogs', 'shipping_cost', 'pick_pack', 'fixed_costs'],
+            variableSubItems: ['cogs', 'shipping_cost', 'pick_pack'], // Indent these under Variable expenses
         },
         {
             key: 'net_profit',
@@ -690,6 +710,7 @@ export default function PerformanceDashboard() {
         const staticExp = customer?.CustomerStaticExpenses || {};
         const fixedBase = Number(staticExp.fixedExpenses) || 0;
         const shippingPerOrder = staticExp.shippingCostPerOrder ?? 0;
+        const pickPerOrder = staticExp.pickNPackCostPerOrder ?? 0;
         const txCostPct = staticExp.transactionCostPercentage ?? 0.015;
 
         const getFixedForPeriod = (k) => {
@@ -722,21 +743,24 @@ export default function PerformanceDashboard() {
                 if (metric === 'gross_profit') return Number((v.revenue - (v.cogs || 0)).toFixed(0));
                 if (metric === 'cogs') return Number((v.cogs || 0).toFixed(0));
                 if (metric === 'fixed_costs') return Number(getFixedForPeriod(k).toFixed(0));
-                if (metric === 'variable_costs') return Number((shippingPerOrder * (v.orders || 0) + (v.revenue || 0) * txCostPct).toFixed(0));
+                if (metric === 'variable_costs') return Number(((shippingPerOrder + pickPerOrder) * (v.orders || 0)).toFixed(0));
+                if (metric === 'pick_pack') return Number(((pickPerOrder || 0) * (v.orders || 0)).toFixed(0));
                 if (metric === 'ebit_pct') {
                     const rev = v.revenue || 0;
                     const cogs = v.cogs || 0;
                     const fixed = getFixedForPeriod(k);
-                    const variable = shippingPerOrder * (v.orders || 0) + rev * txCostPct;
-                    const allCosts = cogs + fixed + variable + v.cost;
+                    const variable = (shippingPerOrder + pickPerOrder) * (v.orders || 0);
+                    const txFee = rev * txCostPct;
+                    const allCosts = cogs + fixed + variable + txFee + v.cost;
                     return rev > 0 ? Number(((rev - allCosts) / rev * 100).toFixed(1)) : null;
                 }
                 if (metric === 'ebit') {
                     const rev = v.revenue || 0;
                     const cogs = v.cogs || 0;
                     const fixed = getFixedForPeriod(k);
-                    const variable = shippingPerOrder * (v.orders || 0) + rev * txCostPct;
-                    const allCosts = cogs + fixed + variable + v.cost;
+                    const variable = (shippingPerOrder + pickPerOrder) * (v.orders || 0);
+                    const txFee = rev * txCostPct;
+                    const allCosts = cogs + fixed + variable + txFee + v.cost;
                     return Number((rev - allCosts).toFixed(0));
                 }
                 if (metric === 'orders') return Number(v.orders || 0);
@@ -760,21 +784,24 @@ export default function PerformanceDashboard() {
                 if (metric === 'gross_profit') return Number((v.revenue - (v.cogs || 0)).toFixed(0));
                 if (metric === 'cogs') return Number((v.cogs || 0).toFixed(0));
                 if (metric === 'fixed_costs') return Number(getFixedForPeriod(prevKey).toFixed(0));
-                if (metric === 'variable_costs') return Number((shippingPerOrder * (v.orders || 0) + (v.revenue || 0) * txCostPct).toFixed(0));
+                if (metric === 'variable_costs') return Number(((shippingPerOrder + pickPerOrder) * (v.orders || 0)).toFixed(0));
+                if (metric === 'pick_pack') return Number(((pickPerOrder || 0) * (v.orders || 0)).toFixed(0));
                 if (metric === 'ebit_pct') {
                     const rev = v.revenue || 0;
                     const cogs = v.cogs || 0;
                     const fixed = getFixedForPeriod(prevKey);
-                    const variable = shippingPerOrder * (v.orders || 0) + rev * txCostPct;
-                    const allCosts = cogs + fixed + variable + v.cost;
+                    const variable = (shippingPerOrder + pickPerOrder) * (v.orders || 0);
+                    const txFee = rev * txCostPct;
+                    const allCosts = cogs + fixed + variable + txFee + v.cost;
                     return rev > 0 ? Number(((rev - allCosts) / rev * 100).toFixed(1)) : null;
                 }
                 if (metric === 'ebit') {
                     const rev = v.revenue || 0;
                     const cogs = v.cogs || 0;
                     const fixed = getFixedForPeriod(prevKey);
-                    const variable = shippingPerOrder * (v.orders || 0) + rev * txCostPct;
-                    const allCosts = cogs + fixed + variable + v.cost;
+                    const variable = (shippingPerOrder + pickPerOrder) * (v.orders || 0);
+                    const txFee = rev * txCostPct;
+                    const allCosts = cogs + fixed + variable + txFee + v.cost;
                     return Number((rev - allCosts).toFixed(0));
                 }
                 if (metric === 'orders') return Number(v.orders || 0);
@@ -1124,7 +1151,9 @@ export default function PerformanceDashboard() {
                     STANDARD_SECTIONS.map((section) => {
                         const primaryKey = section.metricKeys[0];
                         const breakdownKeys = section.metricKeys.slice(1); // Exclude primary from breakdown
-                        const sectionMetrics = metrics.filter((m) => breakdownKeys.includes(m.key));
+                        const sectionMetrics = metrics
+                            .filter((m) => breakdownKeys.includes(m.key))
+                            .sort((a, b) => breakdownKeys.indexOf(a.key) - breakdownKeys.indexOf(b.key));
                         const primaryMetric = metrics.find((m) => m.key === primaryKey);
                         const totalSales = metricsData?.total_sales || 0;
                         const primaryValue = primaryKey === 'total_sales' ? totalSales
@@ -1200,6 +1229,7 @@ export default function PerformanceDashboard() {
                                 <div className="flex flex-col divide-y divide-gray-100">
                                     {sectionMetrics.map((metric) => {
                                         const metricKey = metric.key;
+                                        const isVariableSubItem = section.variableSubItems?.includes(metricKey);
                                         const toggleMetricSelection = (key) => {
                                             if (!key) return;
                                             setSelectedMetrics(prev =>
@@ -1220,7 +1250,7 @@ export default function PerformanceDashboard() {
                                                 className={`cursor-pointer transition-colors hover:bg-gray-50/50 ${isSelected ? 'bg-[#1E2B2B]/5' : ''}`}
                                                 aria-pressed={isSelected}
                                             >
-                                                <div className="px-5 py-3 flex items-center justify-between gap-4">
+                                                <div className={`px-5 py-3 flex items-center justify-between gap-4 ${isVariableSubItem ? '' : ''}`}>
                                                     <span className="text-sm font-medium text-gray-700">{metric.label}</span>
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-sm font-semibold tabular-nums text-gray-900">{metric.value}</span>
@@ -1233,7 +1263,7 @@ export default function PerformanceDashboard() {
                                                     </div>
                                                 </div>
                                                 {hasCalc && calcLines.length > 0 && (
-                                                    <div className="px-5 pb-3 pt-0">
+                                                    <div className={`pb-3 pt-0 ${isVariableSubItem ? 'pl-8 pr-5' : 'px-5'}`}>
                                                         <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-[10px] font-mono text-gray-600 leading-tight">
                                                             {metric.calcValueLabels && (
                                                                 <div className="mb-1.5 pb-1.5 border-b border-gray-200 space-y-0.5">
@@ -1294,8 +1324,8 @@ export default function PerformanceDashboard() {
             {/* Single Toggleable Graph Section - Standard view only */}
             {viewMode === 'standard' && (
             <div className="w-full mb-8">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                    <div className="flex flex-wrap items-center gap-2">
                         {METRIC_OPTIONS.map(opt => (
                             <button
                                 key={opt.key}
