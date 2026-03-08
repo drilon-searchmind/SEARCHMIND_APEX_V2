@@ -27,6 +27,8 @@ function buildDailyRows(merged, customer, revenueType) {
 
 	const shippingCostPerOrder =
 		customer?.CustomerStaticExpenses?.shippingCostPerOrder ?? 0;
+	const pickNPackCostPerOrder =
+		customer?.CustomerStaticExpenses?.pickNPackCostPerOrder ?? 0;
 	const transactionCostPercentage =
 		customer?.CustomerStaticExpenses?.transactionCostPercentage ?? 0.015;
 	const fixedExpensesMonthly = Number(customer?.CustomerStaticExpenses?.fixedExpenses) || 0;
@@ -56,15 +58,21 @@ function buildDailyRows(merged, customer, revenueType) {
 			poas = grossProfit / cost;
 		}
 
-    const cac = merged.CACTotalSales ?? null;
-    const aov = orders > 0 ? netRevenue / orders : null;
-		// Variable costs: shipping + transaction fees only (excludes ad spend, matches performance-dashboard)
+		const cac = merged.CACTotalSales ?? null;
+		const aov = orders > 0 ? netRevenue / orders : null;
+
+		// Variable costs: shipping + pick & pack only (no transaction fee - matches performance-dashboard)
 		const variableExpense =
-			shippingCostPerOrder * orders +
-			netRevenue * transactionCostPercentage;
+			shippingCostPerOrder * orders + pickNPackCostPerOrder * orders;
 		// Fixed costs: prorate by actual days in month (matches performance-dashboard)
 		const daysInMonth = dayjs(date).daysInMonth();
 		const fixedExpense = fixedExpensesMonthly / daysInMonth;
+		// Transaction fee: separate from variable (matches performance-dashboard)
+		const transactionFee = netRevenue * transactionCostPercentage;
+
+		// Net Profit = Net Revenue - COGS - Fixed - Variable - Transaction Fee - Spend (matches performance-dashboard)
+		const allCosts = cogs + fixedExpense + variableExpense + transactionFee + cost;
+		const netProfit = netRevenue - allCosts;
 
 		return {
 			date,
@@ -81,6 +89,8 @@ function buildDailyRows(merged, customer, revenueType) {
 			cogs,
 			variableExpense,
 			fixedExpense,
+			transactionFee,
+			netProfit,
 		};
 	});
 }

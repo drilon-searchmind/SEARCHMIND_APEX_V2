@@ -37,7 +37,6 @@ export function computeRowMax(rows) {
 		orders: Math.max(...rows.map((r) => r.orders)),
 		totalSales: Math.max(...rows.map((r) => r.totalSales ?? 0)),
 		netRevenue: Math.max(...rows.map((r) => r.netRevenue ?? 0)),
-		netRevenue: Math.max(...rows.map((r) => r.netRevenue ?? 0)),
 		ppcCost: Math.max(...rows.map((r) => r.ppcCost)),
 		psCost: Math.max(...rows.map((r) => r.psCost)),
 		roas: Math.max(...rows.map((r) => r.roas ?? 0)),
@@ -85,6 +84,10 @@ export function computeTotals(rows, variant = 'current') {
 		0
 	);
 	const grossProfit = totalNetRevenue - totalCogs;
+	const totalNetProfit = rows.reduce(
+		(sum, r) => sum + (r.netProfit ?? 0),
+		0
+	);
 
 	return {
 		orders: totalOrders,
@@ -98,8 +101,8 @@ export function computeTotals(rows, variant = 'current') {
 		aov: totalOrders > 0 ? formatCurrency(totalNetRevenue / totalOrders) : '-',
 		roas: totalCost > 0 ? (totalNetRevenue / totalCost).toFixed(2) : '-',
 		poas: totalCost > 0 ? (grossProfit / totalCost).toFixed(2) : '-',
-		// Net Profit = Net Revenue - COGS (matches performance-dashboard)
-		netProfit: formatCurrency(totalNetRevenue - totalCogs),
+		// Net Profit = sum of row netProfits (matches performance-dashboard: Net Revenue - COGS - Fixed - Variable - Transaction Fee - Spend)
+		netProfit: formatCurrency(totalNetProfit),
 	};
 }
 
@@ -139,6 +142,10 @@ export function computeRawTotals(rows) {
 		0
 	);
 	const grossProfit = totalNetRevenue - totalCogs;
+	const totalNetProfit = rows.reduce(
+		(sum, r) => sum + (r.netProfit ?? 0),
+		0
+	);
 
 	return {
 		orders: totalOrders,
@@ -152,7 +159,7 @@ export function computeRawTotals(rows) {
 		aov: totalOrders > 0 ? totalNetRevenue / totalOrders : 0,
 		roas: totalCost > 0 ? totalNetRevenue / totalCost : 0,
 		poas: totalCost > 0 ? grossProfit / totalCost : 0,
-		netProfit: grossProfit,
+		netProfit: totalNetProfit,
 	};
 }
 

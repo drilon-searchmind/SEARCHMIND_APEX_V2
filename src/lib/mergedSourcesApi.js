@@ -236,10 +236,8 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
     const marketingBureauCostTotal = days > 0 ? marketingBureauCost / days : 0;
     const marketingToolingCostTotal = days > 0 ? marketingToolingCost / days : 0;
 
-    // Total marketing spend
-    const marketingSpend = fbAdspend + googleAdspend + marketingBureauCostTotal + marketingToolingCostTotal;
-    // CAC = marketingSpend / orders
-    const CACTotalSales = orders > 0 ? marketingSpend / orders : 0;
+    // CAC = ad spend (FB + Google) / orders - aligned with Marketing Spend in Total Expenses
+    const CACTotalSales = orders > 0 ? totalAdspend / orders : 0;
 
     // Calculated metrics (Net Profit = Net Revenue Ex Tax - COGS)
     const fmt = (n, d = 0) => (n ?? 0).toLocaleString('da-DK', { maximumFractionDigits: d });
@@ -263,7 +261,8 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
         = ${POASNetProfit.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
     ` : 'N/A';
     const cacCalculation = orders > 0 ? `(Marketing Spend / Orders) \n
-        = ${fmt(marketingSpend)} / ${orders} \n
+        = (${fmt(fbAdspend)} + ${fmt(googleAdspend)}) / ${orders} \n
+        = ${fmt(totalAdspend)} / ${orders} \n
         = ${fmt(CACTotalSales)}
     ` : 'N/A';
 
@@ -271,7 +270,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
         grossProfit: `Net Revenue: ${fmt(netRevenue)}\nCOGS: ${fmt(totalCogsForNet)}`,
         spend: `Google Adspend: ${fmt(googleAdspend)}\nFB Adspend: ${fmt(fbAdspend)}`,
         poas: `Net Profit: ${fmt(grossProfitNetSales)}\nCost: ${fmt(totalAdspend)}`,
-        cac: `Marketing Spend: ${fmt(marketingSpend)}\nOrders: ${orders}`,
+        cac: `Google Adspend: ${fmt(googleAdspend)}\nFB Adspend: ${fmt(fbAdspend)}\nOrders: ${orders}`,
     };
 
     return {

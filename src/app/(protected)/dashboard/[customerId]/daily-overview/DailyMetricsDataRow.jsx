@@ -13,8 +13,8 @@ export default function DailyMetricsDataRow({
 	hasCorrespondingRow,
 	visibleMetrics = {},
 }) {
-	// Net Profit = Net Revenue - COGS (matches performance-dashboard gross_profit formula)
-	const netProfit = row.netRevenue - (row.cogs || 0);
+	// Net Profit from row (matches performance-dashboard: Net Revenue - COGS - Fixed - Variable - Transaction Fee - Spend)
+	const netProfit = row.netProfit ?? 0;
 	const fixedExpense = row.fixedExpense ?? 0;
 
 	const handleMouseEnter = (e) => {

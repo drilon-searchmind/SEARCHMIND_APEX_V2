@@ -23,8 +23,11 @@ export default function DailyMetricsLastPeriodRow({
 		(sum, r) => sum + (r.fixedExpense || 0),
 		0
 	);
-	// Net Profit = Net Revenue - COGS (matches performance-dashboard)
 	const grossProfit = totalNetRevenue - totalCogs;
+	const totalNetProfit = rows.reduce(
+		(sum, r) => sum + (r.netProfit ?? 0),
+		0
+	);
 
 	const formatCurrency = (val, decimals = 0) =>
 		val.toLocaleString('da-DK', {
@@ -46,7 +49,7 @@ export default function DailyMetricsLastPeriodRow({
 		variableExpense: formatCurrency(totalVariableExpense, 0),
 		fixedExpenses: formatCurrency(totalFixedExpenses, 0),
 		poas: totalCost > 0 ? (grossProfit / totalCost).toFixed(2) : '-',
-		netProfit: formatCurrency(grossProfit, 0),
+		netProfit: formatCurrency(totalNetProfit, 0),
 	};
 
 	const visibleCols = METRIC_COLUMNS.filter((m) => visibleMetrics[m.key]);

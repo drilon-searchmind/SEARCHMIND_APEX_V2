@@ -106,9 +106,7 @@ const DailyOverviewPage = () => {
             },
             {
                 name: 'Net Profit',
-                data: rows.map((r) =>
-                    Math.round(r.netRevenue - (r.cogs || 0))
-                ),
+                data: rows.map((r) => Math.round(r.netProfit ?? 0)),
                 color: '#1E2B2B',
             },
         ];
