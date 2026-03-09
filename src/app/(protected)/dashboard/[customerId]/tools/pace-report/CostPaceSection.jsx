@@ -15,6 +15,8 @@ export default function CostPaceSection({
 	loading,
 	error,
 	onOpenSettings,
+	showCalcs = false,
+	onShowCalcsChange,
 }) {
 	const { chartSeries, chartCategoriesWithStart } = buildCostBudgetChartData(
 		costData,
@@ -31,7 +33,17 @@ export default function CostPaceSection({
 	};
 
 	return (
-		<div className="flex flex-col md:flex-row gap-8 mt-4">
+		<div className="flex flex-col gap-4 mt-4">
+			<div className="flex items-center gap-3">
+				<button
+					type="button"
+					className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors focus:outline-none ${showCalcs ? 'bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+					onClick={() => onShowCalcsChange?.((v) => !v)}
+				>
+					Show calcs
+				</button>
+			</div>
+			<div className="flex flex-col md:flex-row gap-8">
 			<div className="flex-1">
 				{loading ? (
 					<div className="flex items-center justify-center h-64">
@@ -53,7 +65,9 @@ export default function CostPaceSection({
 				error={error}
 				onOpenSettings={onOpenSettings}
 				settingsButtonText="Adjust your property budgets here."
+				showCalcs={showCalcs}
 			/>
+			</div>
 		</div>
 	);
 }

@@ -1,28 +1,21 @@
-import dayjs from 'dayjs';
-
 export function buildCostBudgetChartData(costData, paceAnalysis, appliedDateRange) {
 	const chartCategories = costData.map((d) => d.period);
-	const chartStartDate =
-		costData.length > 0 ? costData[0].period : appliedDateRange.startDate;
-	const chartStartDateObj = dayjs(chartStartDate);
-	const dayBeforeStart = chartStartDateObj.subtract(1, 'day').format('YYYY-MM-DD');
-
+	// Chart starts from range startDate (no "day before"); first point shows 0
 	const costSeriesData =
 		costData.length > 0
-			? ['0', ...costData.map((d) => Math.round(Number(d.spend)).toString())]
+			? ['0', ...costData.slice(1).map((d) => Math.round(Number(d.spend)).toString())]
 			: ['0'];
 	const budgetSeriesData =
 		(paceAnalysis?.budgetDaily || []).length > 0
 			? [
 				'0',
-				...paceAnalysis.budgetDaily.map((d) =>
+				...paceAnalysis.budgetDaily.slice(1).map((d) =>
 					Math.round(Number(d.budget)).toString()
 				),
 			]
 			: ['0'];
 
-	const chartCategoriesWithStart =
-		costData.length > 0 ? [dayBeforeStart, ...chartCategories] : [dayBeforeStart];
+	const chartCategoriesWithStart = chartCategories.length > 0 ? chartCategories : [appliedDateRange.startDate];
 
 	const costSeries = [{ name: 'Cost', data: costSeriesData }];
 	const budgetSeries = [{ name: 'Budget', data: budgetSeriesData }];
@@ -39,22 +32,18 @@ export function buildRevenueTargetChartData(
 	conversionPaceAnalysis,
 	appliedDateRange
 ) {
-	const chartStartDate =
-		costData.length > 0 ? costData[0].period : appliedDateRange.startDate;
-	const chartStartDateObj = dayjs(chartStartDate);
-	const dayBeforeStart = chartStartDateObj.subtract(1, 'day').format('YYYY-MM-DD');
-
 	const conversionChartCategories = costData.map((d) => d.period);
 	const revenueMap = {};
 	conversionValueData.forEach((d) => {
 		revenueMap[d.period] = d.revenue;
 	});
 
+	// Chart starts from range startDate; first point shows 0
 	const revenueSeriesData =
 		conversionChartCategories.length > 0
 			? [
 				'0',
-				...conversionChartCategories.map((period) =>
+				...conversionChartCategories.slice(1).map((period) =>
 					Math.round(Number(revenueMap[period] || 0)).toString()
 				),
 			]
@@ -63,7 +52,7 @@ export function buildRevenueTargetChartData(
 		(conversionPaceAnalysis?.budgetDaily || []).length > 0
 			? [
 				'0',
-				...conversionPaceAnalysis.budgetDaily.map((d) =>
+				...conversionPaceAnalysis.budgetDaily.slice(1).map((d) =>
 					Math.round(Number(d.budget)).toString()
 				),
 			]
@@ -71,8 +60,8 @@ export function buildRevenueTargetChartData(
 
 	const conversionChartCategoriesWithStart =
 		conversionChartCategories.length > 0
-			? [dayBeforeStart, ...conversionChartCategories]
-			: [dayBeforeStart];
+			? conversionChartCategories
+			: [appliedDateRange.startDate];
 
 	const revenueSeries = [{ name: 'Revenue', data: revenueSeriesData }];
 	const conversionBudgetSeries = [

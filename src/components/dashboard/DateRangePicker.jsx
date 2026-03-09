@@ -44,7 +44,17 @@ const PRESETS = [
 ];
 
 const MONTH_PRESETS = [
-    { label: "This month", getRange: () => ({ start: dayjs().startOf("month"), end: dayjs().endOf("month") }) },
+    {
+        label: "This month",
+        getRange: () => {
+            const today = dayjs();
+            const isFirst = today.date() === 1;
+            return {
+                start: today.startOf("month"),
+                end: isFirst ? today : today.subtract(1, "day"),
+            };
+        },
+    },
     { label: "Last month", getRange: () => ({ start: dayjs().subtract(1, "month").startOf("month"), end: dayjs().subtract(1, "month").endOf("month") }) },
     { label: "2 months ago", getRange: () => ({ start: dayjs().subtract(2, "month").startOf("month"), end: dayjs().subtract(2, "month").endOf("month") }) },
     { label: "3 months ago", getRange: () => ({ start: dayjs().subtract(3, "month").startOf("month"), end: dayjs().subtract(3, "month").endOf("month") }) },
@@ -89,8 +99,12 @@ export default function DateRangePicker({
     const handleMonthChange = (date) => {
         if (!date) return;
         const d = dayjs(date);
+        const today = dayjs();
         const start = d.startOf("month").format(DATE_FORMAT);
-        const end = d.endOf("month").format(DATE_FORMAT);
+        const end =
+            d.isSame(today, "month")
+                ? (today.date() === 1 ? today : today.subtract(1, "day")).format(DATE_FORMAT)
+                : d.endOf("month").format(DATE_FORMAT);
         if (onStartDateChange) onStartDateChange(start);
         if (onEndDateChange) onEndDateChange(end);
     };

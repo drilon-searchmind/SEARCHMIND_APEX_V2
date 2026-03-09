@@ -27,6 +27,9 @@ export function usePaceReportData(customer, objectives, appliedDateRange) {
 				if (!res.ok) throw new Error('Failed to fetch merged data');
 				const merged = await res.json();
 
+				const startDateObj = dayjs(appliedDateRange.startDate);
+				const endDateObj = dayjs(appliedDateRange.endDate);
+
 				const costMap = {};
 				[
 					...(merged.facebookDaily || []),
@@ -35,16 +38,20 @@ export function usePaceReportData(customer, objectives, appliedDateRange) {
 					if (!costMap[d.period]) costMap[d.period] = 0;
 					costMap[d.period] += Number(d.spend || 0);
 				});
-				const sortedPeriods = Object.keys(costMap).sort();
+				// Generate all days from startDate to endDate for consistent chart display
+				const allPeriods = [];
+				let dayCursor = startDateObj;
+				while (!dayCursor.isAfter(endDateObj)) {
+					allPeriods.push(dayCursor.format('YYYY-MM-DD'));
+					dayCursor = dayCursor.add(1, 'day');
+				}
 				let cumulative = 0;
-				const costDaily = sortedPeriods.map((period) => {
-					cumulative += costMap[period];
+				const costDaily = allPeriods.map((period) => {
+					cumulative += costMap[period] || 0;
 					return { period, spend: Number(cumulative.toFixed(2)) };
 				});
 				setCostData(costDaily);
 
-				const startDateObj = dayjs(appliedDateRange.startDate);
-				const endDateObj = dayjs(appliedDateRange.endDate);
 				const totalDays = endDateObj.diff(startDateObj, 'day') + 1;
 
 				let monthsInRange = [];
@@ -129,14 +136,13 @@ export function usePaceReportData(customer, objectives, appliedDateRange) {
 				const revenueType =
 					customer?.CustomerSettings?.customerRevenueType || 'total_sales';
 				const revenueMap = {};
-				(merged.shopifyDaily || []).forEach((d) => {
-					if (!revenueMap[d.period]) revenueMap[d.period] = 0;
-					revenueMap[d.period] += Number(d[revenueType] || 0);
+				(merged.shopifyDaily || []).forEach((row) => {
+					if (!revenueMap[row.period]) revenueMap[row.period] = 0;
+					revenueMap[row.period] += Number(row[revenueType] || 0);
 				});
-				const sortedRevenuePeriods = Object.keys(revenueMap).sort();
 				let revenueCumulative = 0;
-				const revenueDaily = sortedRevenuePeriods.map((period) => {
-					revenueCumulative += revenueMap[period];
+				const revenueDaily = allPeriods.map((period) => {
+					revenueCumulative += revenueMap[period] || 0;
 					return { period, revenue: Number(revenueCumulative.toFixed(2)) };
 				});
 				setConversionValueData(revenueDaily);

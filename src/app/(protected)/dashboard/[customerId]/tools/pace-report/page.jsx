@@ -61,6 +61,7 @@ export default function PaceReportPage() {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const [localObjectives, setLocalObjectives] = useState({});
 	const [savingObjectives, setSavingObjectives] = useState(false);
+	const [showCalcs, setShowCalcs] = useState(false);
 
 	useEffect(() => {
 		if (sidebarOpen && customer) {
@@ -148,6 +149,8 @@ export default function PaceReportPage() {
 				loading={loading}
 				error={error}
 				onOpenSettings={() => setSidebarOpen(true)}
+				showCalcs={showCalcs}
+				onShowCalcsChange={setShowCalcs}
 			/>
 			<RevenuePaceSection
 				costData={costData}
@@ -157,6 +160,8 @@ export default function PaceReportPage() {
 				loading={loading}
 				error={error}
 				onOpenSettings={() => setSidebarOpen(true)}
+				showCalcs={showCalcs}
+				revenueType={customer?.CustomerSettings?.customerRevenueType || 'total_sales'}
 			/>
 		</div>
 	);

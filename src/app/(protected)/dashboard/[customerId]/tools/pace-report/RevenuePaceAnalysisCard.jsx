@@ -6,11 +6,15 @@ import Spinner from '@/components/ui/Spinner';
 
 const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
+const REVENUE_TYPE_LABELS = { total_sales: 'Total Sales', net_sales: 'Net Sales' };
+
 export default function RevenuePaceAnalysisCard({
 	analysis,
 	loading,
 	error,
 	onOpenSettings,
+	showCalcs = false,
+	revenueType = 'total_sales',
 }) {
 	if (loading) {
 		return (
@@ -109,10 +113,50 @@ export default function RevenuePaceAnalysisCard({
 					<span>{formatCurrency(analysis.actualValueToDate)}</span>
 				</div>
 				<div className="flex justify-between text-sm">
+					<span>Ideal Revenue to Date:</span>
+					<span>{formatCurrency(analysis.idealValueToDate)}</span>
+				</div>
+				<div className="flex justify-between text-sm">
 					<span>Total Days:</span>
 					<span>{analysis.totalDays}</span>
 				</div>
 			</div>
+			{showCalcs && (
+				<div className="mt-4 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-[10px] font-mono text-gray-600 leading-tight">
+					<div className="mb-1.5 pb-1.5 border-b border-gray-200 space-y-0.5">
+						<div className="flex justify-between gap-4">
+							<span className="text-gray-500">Revenue target (from property objectives):</span>
+							<span className="tabular-nums">{formatCurrency(analysis.budget)}</span>
+						</div>
+						<div className="flex justify-between gap-4">
+							<span className="text-gray-500">Actual revenue ({REVENUE_TYPE_LABELS[revenueType] || revenueType} from Shopify):</span>
+							<span className="tabular-nums">{formatCurrency(analysis.actualValueToDate)}</span>
+						</div>
+						<div className="flex justify-between gap-4">
+							<span className="text-gray-500">Days passed (excl. today):</span>
+							<span className="tabular-nums">{analysis.daysPassedExcludingToday}</span>
+						</div>
+						<div className="flex justify-between gap-4">
+							<span className="text-gray-500">Total days in range:</span>
+							<span className="tabular-nums">{analysis.totalDays}</span>
+						</div>
+						<div className="flex justify-between gap-4">
+							<span className="text-gray-500">Daily target (Revenue target ÷ Total days):</span>
+							<span className="tabular-nums">{formatCurrency(analysis.dailyTarget)}</span>
+						</div>
+						<div className="flex justify-between gap-4">
+							<span className="text-gray-500">Ideal revenue to date (Daily target × Days passed):</span>
+							<span className="tabular-nums">{formatCurrency(analysis.idealValueToDate)}</span>
+						</div>
+					</div>
+					<div className="flex flex-col items-end gap-0.5 pt-1">
+						<span>Pace = Actual Revenue ÷ Ideal Revenue to date</span>
+						<span className="font-bold text-[var(--color-primary-searchmind)]">
+							= {formatCurrency(analysis.actualValueToDate)} ÷ {formatCurrency(analysis.idealValueToDate)} = {analysis.pace.toFixed(2)}
+						</span>
+					</div>
+				</div>
+			)}
 			<button
 				onClick={onOpenSettings}
 				className="mt-4 text-sm underline hover:text-[var(--color-primary-searchmind-lighter)] text-center flex items-center justify-center gap-1 text-blue-500 w-full"
