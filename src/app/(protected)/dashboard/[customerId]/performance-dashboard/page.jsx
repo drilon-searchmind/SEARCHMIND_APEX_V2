@@ -610,22 +610,25 @@ export default function PerformanceDashboard() {
 
     // Graph controls: metric toggles and aggregation (period vs monthly)
     const METRIC_OPTIONS = [
+        // Net Revenue section
         { key: 'revenue', label: 'Net Revenue', icon: FiDollarSign },
-        { key: 'total_sales', label: 'Total Sales', icon: FiDollarSign },
-        { key: 'cogs', label: 'COGS', icon: FiDollarSign },
-        { key: 'gross_profit', label: 'Gross Profit', icon: FiDollarSign },
-        { key: 'ebit', label: 'Net Profit', icon: FiDollarSign },
-        { key: 'returns', label: 'Refunds', icon: FiTrendingUp },
         { key: 'orders', label: 'Orders', icon: FiShoppingCart },
-        { key: 'cost', label: 'Spend', icon: FiCreditCard },
-        { key: 'fixed_costs', label: 'Fixed Spend', icon: FiCreditCard },
-        { key: 'variable_costs', label: 'Variable Spend', icon: FiCreditCard },
-        { key: 'pick_pack', label: 'Pick & Pack', icon: FiCreditCard },
-        { key: 'ebit_pct', label: 'EBIT%', icon: FiPieChart },
-        { key: 'roas', label: 'Blended ROAS', icon: FiTrendingUp },
-        { key: 'poas', label: 'Blended POAS', icon: FiPieChart },
         { key: 'aov', label: 'Net AOV', icon: FiShoppingBag },
+        { key: 'total_sales', label: 'Gross Sales', icon: FiDollarSign },
+        { key: 'returns', label: 'Refunds', icon: FiTrendingUp },
+        { key: 'gross_profit', label: 'Gross Profit', icon: FiDollarSign },
+        // Total Expenses section
+        { key: 'cost', label: 'Marketing Spend', icon: FiCreditCard },
+        { key: 'variable_costs', label: 'Variable Expenses', icon: FiCreditCard },
+        { key: 'cogs', label: 'COGS', icon: FiDollarSign },
+        { key: 'pick_pack', label: 'Pick & Pack', icon: FiCreditCard },
+        { key: 'fixed_costs', label: 'Fixed Expenses', icon: FiCreditCard },
+        // Net Profit section
+        { key: 'ebit', label: 'Net Profit', icon: FiDollarSign },
+        { key: 'roas', label: 'Blended ROAS', icon: FiTrendingUp },
         { key: 'cac', label: 'Blended CAC', icon: FiUserCheck },
+        { key: 'poas', label: 'Blended POAS', icon: FiPieChart },
+        { key: 'ebit_pct', label: 'EBIT%', icon: FiPieChart },
     ];
     const [selectedMetrics, setSelectedMetrics] = useState(['revenue']); // revenue default
     const [aggregateBy, setAggregateBy] = useState('period'); // 'period' | 'monthly'

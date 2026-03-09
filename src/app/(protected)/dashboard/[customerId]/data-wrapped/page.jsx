@@ -158,7 +158,7 @@ export default function DataWrappedPage() {
                     {reportsLoading ? (
                         <div className="p-8 text-center text-gray-500">Loading...</div>
                     ) : (
-                        <div className="divide-y divide-gray-200">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y divide-gray-200">
                             {/* Monthly */}
                             <div className="p-6">
                                 <div className="flex items-center gap-2 mb-4">
@@ -166,7 +166,7 @@ export default function DataWrappedPage() {
                                     <h4 className="font-medium text-gray-900">Monthly</h4>
                                 </div>
                                 {reports.monthly?.length > 0 ? (
-                                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                    <div className="grid gap-2 sm:grid-cols-1 lg:grid-cols-1">
                                         {reports.monthly.map((r) => (
                                             <button
                                                 key={r.period}
