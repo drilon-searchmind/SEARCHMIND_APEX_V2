@@ -180,6 +180,73 @@ async function fetchOrdersChunk(endpoint, accessToken, chunkStart, chunkEnd, con
 }
 
 /**
+ * Fetch all products from Shopify (paginated).
+ * @param {string} endpoint - Shopify GraphQL endpoint
+ * @param {string} accessToken - Shopify access token
+ * @returns {Promise<Map<string, object>>} - Map of productId -> { productId, title, handle, vendor, productType, image }
+ */
+async function fetchAllProducts(endpoint, accessToken) {
+    const products = new Map();
+    let cursor = null;
+    let hasNext = true;
+
+    const query = `query getProducts($first: Int!, $after: String) {
+        products(first: $first, after: $after) {
+            edges {
+                node {
+                    id
+                    title
+                    handle
+                    vendor
+                    productType
+                    featuredImage { url }
+                }
+            }
+            pageInfo {
+                hasNextPage
+                endCursor
+            }
+        }
+    }`;
+
+    while (hasNext) {
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Shopify-Access-Token': accessToken,
+            },
+            body: JSON.stringify({ query, variables: { first: 250, after: cursor } }),
+        });
+        if (!res.ok) throw new Error(`Shopify GraphQL products error: ${res.status}`);
+        const json = await res.json();
+        const edges = json?.data?.products?.edges || [];
+
+        for (const edge of edges) {
+            const node = edge.node;
+            const productId = node?.id;
+            if (!productId) continue;
+            products.set(productId, {
+                productId,
+                title: node.title || 'Untitled',
+                handle: node.handle || null,
+                vendor: node.vendor || '',
+                productType: node.productType || '',
+                image: node.featuredImage?.url || null,
+                unitsSold: 0,
+                ordersCount: 0,
+                totalRevenue: 0,
+            });
+        }
+
+        const pageInfo = json?.data?.products?.pageInfo || {};
+        hasNext = !!pageInfo.hasNextPage;
+        cursor = pageInfo.endCursor || null;
+    }
+    return products;
+}
+
+/**
  * Split date range into chunks (by month) for parallel fetching.
  */
 function getDateChunks(startDate, endDate, maxChunks = 6) {
@@ -230,6 +297,10 @@ export async function fetchShopifyProductMetrics(settings, startDate, endDate, o
     const endpoint = `https://${shopUrl}/admin/api/2025-10/graphql.json`;
 
     try {
+        // Fetch ALL products from the store first
+        const allProductsMap = await fetchAllProducts(endpoint, accessToken);
+
+        // Fetch order data for the date range (products that sold)
         const chunks = getDateChunks(startDate, endDate, 6);
         const chunkResults = await Promise.all(
             chunks.map(({ start: chunkStart, end: chunkEnd }) =>
@@ -237,21 +308,27 @@ export async function fetchShopifyProductMetrics(settings, startDate, endDate, o
             )
         );
 
-        const products = new Map();
+        // Merge order metrics into all products
         for (const chunkMap of chunkResults) {
             for (const [key, item] of chunkMap) {
-                if (!products.has(key)) {
-                    products.set(key, { ...item });
-                } else {
-                    const existing = products.get(key);
+                const existing = allProductsMap.get(key);
+                if (existing) {
                     existing.unitsSold += item.unitsSold;
                     existing.ordersCount += item.ordersCount;
                     existing.totalRevenue += item.totalRevenue;
+                    // Prefer order data for title/vendor/image if we have it (more complete)
+                    if (item.title) existing.title = item.title;
+                    if (item.vendor !== undefined) existing.vendor = item.vendor;
+                    if (item.productType !== undefined) existing.productType = item.productType;
+                    if (item.image) existing.image = item.image;
+                } else {
+                    // Product in order but not in allProducts (e.g. deleted product) - add it
+                    allProductsMap.set(key, { ...item });
                 }
             }
         }
 
-        let result = Array.from(products.values()).map(p => ({
+        let result = Array.from(allProductsMap.values()).map(p => ({
             ...p,
             avgPrice: p.unitsSold > 0 ? p.totalRevenue / p.unitsSold : 0,
         })).sort((a, b) => b.totalRevenue - a.totalRevenue);

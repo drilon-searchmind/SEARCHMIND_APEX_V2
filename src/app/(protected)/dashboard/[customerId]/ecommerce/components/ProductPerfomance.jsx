@@ -180,8 +180,7 @@ export default function ProductPerfomance({ products = [], loading = false, inve
                         </tbody>
                         <tfoot className="sticky bottom-0 bg-[var(--color-primary-searchmind)] text-white font-semibold border-t-2 z-10">
                             <tr>
-                                <td colSpan={5} className="px-4 py-3 text-right text-gray-400">Total</td>
-                                <td className="px-4 py-3 text-right">{formatCurrencyNoDecimals(filteredProducts.reduce((s, p) => s + (p.totalRevenue || 0), 0))}</td>
+                                <td colSpan={6} className="px-4 py-3 text-right text-gray-400">Total</td>
                                 <td className="px-4 py-3 text-right">{inventoryLoading && filteredProducts.every(p => p.inventoryStock == null) ? <Spinner size={16} className="inline-block" /> : filteredProducts.reduce((s, p) => s + ((p.inventoryStock != null && !isNaN(p.inventoryStock)) ? p.inventoryStock : 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                                 <td className="px-4 py-3 text-right">{inventoryLoading && filteredProducts.every(p => p.inventoryValue == null) ? <Spinner size={16} className="inline-block" /> : formatCurrencyNoDecimals(filteredProducts.reduce((s, p) => s + ((p.inventoryValue != null && !isNaN(p.inventoryValue)) ? p.inventoryValue : 0), 0))}</td>
                             </tr>

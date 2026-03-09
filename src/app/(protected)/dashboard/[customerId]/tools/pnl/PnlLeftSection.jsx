@@ -12,6 +12,7 @@ export default function PnlLeftSection({
     comparisonLabel,
     staticExpenses,
     days,
+    fetchCogs = false,
     // Current
     grossSales,
     totalSalesDisplay,
@@ -78,7 +79,7 @@ export default function PnlLeftSection({
                 hasPrev={hasPrev}
                 rows={[
                     {
-                        label: "Gross turnover",
+                        label: "Gross sales",
                         tooltip: "Sum of all Shopify gross sales in the period.",
                         prevVal: grossSalesPrev,
                         currVal: grossSales,
@@ -134,7 +135,9 @@ export default function PnlLeftSection({
                 rows={[
                     {
                         label: "COGS",
-                        tooltip: `COGS = Net sales * COGS percentage (${Math.round((staticExpenses.cogsPercentage || 0) * 100)}%)`,
+                        tooltip: fetchCogs
+                            ? "COGS (from Shopify store) = Sum of cost_of_goods_sold per day"
+                            : `COGS = Net sales × COGS percentage (${Math.round((staticExpenses.cogsPercentage || 0) * 100)}%)`,
                         prevVal: cogsPrev,
                         currVal: cogs,
                         zeroAsDash: false,

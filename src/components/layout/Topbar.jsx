@@ -303,24 +303,23 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                         ? raw.map((p) => String(p).trim()).filter((p) => /^\d{4}-\d{2}$/.test(p))
                                         : [];
                                     const hasOpenedLastMonth = opened.includes(lastMonthPeriod);
-                                    const showPulse = !hasOpenedLastMonth;
+                                    const hasUnreadWrapped = !hasOpenedLastMonth;
                                     return (
                                         <div className="relative flex items-center justify-center w-10 h-10 overflow-visible mr-2">
-                                            {showPulse && (
-                                                <span
-                                                    className="absolute inset-0 rounded-full bg-[var(--color-lime)]/90 wrapped-pulse-ring pointer-events-none"
-                                                    aria-hidden="true"
-                                                />
-                                            )}
                                             <Link
                                                 href={`/dashboard/${activeCustomerId}/data-wrapped`}
-                                                className={`relative z-10 flex items-center justify-center w-full h-full rounded-lg transition-colors ${showPulse
+                                                className={`relative z-10 flex items-center justify-center w-full h-full rounded-lg transition-colors ${hasUnreadWrapped
                                                         ? "bg-[var(--color-lime)]/100"
                                                         : "bg-gray-100 hover:bg-gray-200"
                                                     }`}
                                                 title="Data Wrapped"
                                             >
-                                                <FiGift className={showPulse ? "text-[var(--color-primary-searchmind)] data-wrapped-shake-icon" : "text-gray-700"} />
+                                                <FiGift className={hasUnreadWrapped ? "text-[var(--color-primary-searchmind)]" : "text-gray-700"} />
+                                                {hasUnreadWrapped && (
+                                                    <span className="absolute -top-1 -right-1 text-[9px] font-semibold text-[var(--color-primary-searchmind)] bg-white rounded min-w-[16px] h-4 flex items-center justify-center px-1 border border-[var(--color-primary-searchmind)]">
+                                                        1
+                                                    </span>
+                                                )}
                                             </Link>
                                         </div>
                                     );
@@ -511,7 +510,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                         const lastMonthPeriod = getLastMonthPeriod();
                                         const opened = getOpenedPeriodsForCustomer(user?.openedWrappedPeriods, activeCustomerId);
                                         const hasOpenedLastMonth = opened.includes(lastMonthPeriod);
-                                        const showPulse = !hasOpenedLastMonth;
+                                        const hasUnreadWrapped = !hasOpenedLastMonth;
                                         return (
                                             <Link
                                                 href={`/dashboard/${activeCustomerId}/data-wrapped`}
@@ -519,13 +518,12 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                                 className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors mt-2"
                                             >
                                                 <div className="relative flex items-center justify-center w-8 h-8">
-                                                    {showPulse && (
-                                                        <span
-                                                            className="absolute inset-0 rounded-full bg-[var(--color-lime)]/90 wrapped-pulse-ring pointer-events-none"
-                                                            aria-hidden="true"
-                                                        />
+                                                    <FiGift className={`h-5 w-5 ${hasUnreadWrapped ? "text-[var(--color-primary-searchmind)]" : "text-gray-400"}`} />
+                                                    {hasUnreadWrapped && (
+                                                        <span className="absolute -top-0.5 -right-0.5 text-[9px] font-semibold text-[var(--color-primary-searchmind)] bg-white rounded min-w-[14px] h-3.5 flex items-center justify-center px-0.5 border border-[var(--color-primary-searchmind)]">
+                                                            (1)
+                                                        </span>
                                                     )}
-                                                    <FiGift className={`relative z-10 h-5 w-5 ${showPulse ? "text-[var(--color-primary-searchmind)] data-wrapped-shake-icon" : "text-gray-400"}`} />
                                                 </div>
                                                 <span className="text-gray-900 font-medium text-sm">Data Wrapped</span>
                                             </Link>

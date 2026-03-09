@@ -17,6 +17,7 @@ export function usePnlData(customer, appliedDateRange, comparisonMethod) {
     const [mergedPrev, setMergedPrev] = useState(null);
 
     const staticExpenses = customer?.CustomerStaticExpenses || {};
+    const fetchCogs = customer?.CustomerSettings?.fetchCogsFromStore === true;
 
     const start = new Date(appliedDateRange?.startDate || 0);
     const end = new Date(appliedDateRange?.endDate || 0);
@@ -76,7 +77,9 @@ export function usePnlData(customer, appliedDateRange, comparisonMethod) {
         orders = merged.shopifyDaily?.reduce((sum, d) => sum + (d.orders || 0), 0) || 0;
 
         const cogsPercentage = staticExpenses.cogsPercentage || 0;
-        cogs = totalSales * cogsPercentage;
+        cogs = fetchCogs
+            ? (merged.shopifyDaily?.reduce((sum, d) => sum + (d.cost_of_goods_sold || 0), 0) || 0)
+            : totalSales * cogsPercentage;
         db1 = totalSales - cogs;
         shipping = orders * (staticExpenses.shippingCostPerOrder || 0);
         transactionCosts = totalSales * (staticExpenses.transactionCostPercentage || 0);
@@ -117,7 +120,9 @@ export function usePnlData(customer, appliedDateRange, comparisonMethod) {
         totalSalesPrev = shopifyPrev.reduce((sum, d) => sum + (d.net_sales || 0), 0);
         const ordersPrev = shopifyPrev.reduce((sum, d) => sum + (d.orders || 0), 0);
 
-        cogsPrev = totalSalesPrev * (staticExpenses.cogsPercentage || 0);
+        cogsPrev = fetchCogs
+            ? shopifyPrev.reduce((sum, d) => sum + (d.cost_of_goods_sold || 0), 0)
+            : totalSalesPrev * (staticExpenses.cogsPercentage || 0);
         db1Prev = totalSalesPrev - cogsPrev;
         shippingPrev = ordersPrev * (staticExpenses.shippingCostPerOrder || 0);
         transactionCostsPrev = totalSalesPrev * (staticExpenses.transactionCostPercentage || 0);
@@ -145,6 +150,7 @@ export function usePnlData(customer, appliedDateRange, comparisonMethod) {
         hasPrev: !!mergedPrev,
         days,
         staticExpenses,
+        fetchCogs,
         // Current
         grossSales,
         totalSalesDisplay,

@@ -101,6 +101,7 @@ export default function PNLPage() {
                     comparisonLabel={comparisonLabel}
                     staticExpenses={pnl.staticExpenses}
                     days={pnl.days}
+                    fetchCogs={pnl.fetchCogs}
                     grossSales={pnl.grossSales}
                     totalSalesDisplay={pnl.totalSalesDisplay}
                     discounts={pnl.discounts}
