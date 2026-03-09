@@ -103,7 +103,7 @@ export function usePaceReportData(customer, objectives, appliedDateRange) {
 				} else {
 					todayDayNumber = todayObj.diff(startDateObj, 'day') + 1;
 				}
-				const c = Math.max(0, todayDayNumber - 1);
+				const c = Math.max(0, todayDayNumber);
 
 				const idealSpendToDate = dailyTarget * c;
 				const b = dailyTarget;
@@ -127,7 +127,7 @@ export function usePaceReportData(customer, objectives, appliedDateRange) {
 					idealSpendToDate,
 					actualSpendToDate,
 					costUntilLastDay,
-					daysPassedExcludingToday: c,
+					daysPassed: c,
 					pace,
 					suggestedDailyAdjustment,
 					budgetDaily,
@@ -196,7 +196,7 @@ export function usePaceReportData(customer, objectives, appliedDateRange) {
 					idealValueToDate: idealRevenueToDate,
 					actualValueToDate: actualRevenueToDate,
 					valueUntilLastDay: revenueUntilLastDay,
-					daysPassedExcludingToday: c,
+					daysPassed: c,
 					pace: conversionPace,
 					suggestedDailyAdjustment: suggestedConversionDailyAdjustment,
 					budgetDaily: conversionBudgetDaily,

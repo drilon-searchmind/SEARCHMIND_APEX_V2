@@ -133,8 +133,8 @@ export default function RevenuePaceAnalysisCard({
 							<span className="tabular-nums">{formatCurrency(analysis.actualValueToDate)}</span>
 						</div>
 						<div className="flex justify-between gap-4">
-							<span className="text-gray-500">Days passed (excl. today):</span>
-							<span className="tabular-nums">{analysis.daysPassedExcludingToday}</span>
+							<span className="text-gray-500">Days passed:</span>
+							<span className="tabular-nums">{analysis.daysPassed}</span>
 						</div>
 						<div className="flex justify-between gap-4">
 							<span className="text-gray-500">Total days in range:</span>
