@@ -3,14 +3,26 @@
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import SearchInput from "@/components/search/SearchInput";
-import FormButton from "../form/FormButton";
-import { FiArrowRight, FiLogOut, FiUsers, FiUser, FiStar } from "react-icons/fi";
+import { FiArrowRight, FiLogOut, FiUsers, FiUser, FiStar, FiServer } from "react-icons/fi";
 import { useUser } from "@/contexts/UserContext";
 import { signOut } from "next-auth/react";
 import { useCustomers } from "@/hooks/useCustomers";
 import CustomerCreateForm from "../form/CustomerCreateForm";
 import { SiShopify, SiWordpress } from "react-icons/si";
 
+const FONT = "text-xs";
+const AVATAR_COLORS = [
+    "bg-emerald-500",
+    "bg-blue-500",
+    "bg-[var(--color-primary-searchmind)]",
+    "bg-amber-500",
+    "bg-rose-500",
+];
+
+function getAvatarColor(str) {
+    const code = (str || " ").charCodeAt(0);
+    return AVATAR_COLORS[code % AVATAR_COLORS.length];
+}
 
 export default function CustomerTable() {
     const [searchTerm, setSearchTerm] = useState("");
@@ -22,64 +34,52 @@ export default function CustomerTable() {
     const user = useUser();
     const { customers, loading, error } = useCustomers(refreshKey);
 
-    // Load user's favorited customers
     useEffect(() => {
         if (user?.favoritedCustomers) {
-            const favoriteIds = user.favoritedCustomers.map(id => 
-                typeof id === 'object' && id.$oid ? id.$oid : String(id)
+            const favoriteIds = user.favoritedCustomers.map(id =>
+                typeof id === "object" && id.$oid ? id.$oid : String(id)
             );
             setFavoritedCustomers(favoriteIds);
         }
     }, [user]);
 
-    // Toggle favorite status
     const handleToggleFavorite = async (customerId) => {
         if (!user?.id) return;
-        
-        setLoadingFavorites(prev => ({ ...prev, [customerId]: true }));
-        
+        setLoadingFavorites((prev) => ({ ...prev, [customerId]: true }));
         try {
             const response = await fetch(`/api/user/${user.id}/favorites`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ customerId }),
             });
-
-            if (!response.ok) throw new Error('Failed to toggle favorite');
-
+            if (!response.ok) throw new Error("Failed to toggle favorite");
             const data = await response.json();
-            const favoriteIds = data.favoritedCustomers.map(id => 
-                typeof id === 'object' && id.$oid ? id.$oid : String(id)
+            const favoriteIds = data.favoritedCustomers.map(id =>
+                typeof id === "object" && id.$oid ? id.$oid : String(id)
             );
             setFavoritedCustomers(favoriteIds);
         } catch (error) {
-            console.error('Error toggling favorite:', error);
-            alert('Failed to update favorite. Please try again.');
+            console.error("Error toggling favorite:", error);
+            alert("Failed to update favorite. Please try again.");
         } finally {
-            setLoadingFavorites(prev => ({ ...prev, [customerId]: false }));
+            setLoadingFavorites((prev) => ({ ...prev, [customerId]: false }));
         }
     };
 
-    // Check if customer is favorited
-    const isFavorited = (customerId) => {
-        return favoritedCustomers.includes(String(customerId));
-    };
+    const isFavorited = (customerId) => favoritedCustomers.includes(String(customerId));
 
-    // Dynamic access control: if user is external, only show shared customers; else show all
     let accessibleCustomers = customers;
     if (user?.isExternal) {
         const sharedCustomerIds = (user.sharedCustomers || []).map(
-            id => typeof id === 'object' && id.$oid ? id.$oid : String(id)
+            (id) => (typeof id === "object" && id.$oid ? id.$oid : String(id))
         );
-        accessibleCustomers = customers.filter(c => sharedCustomerIds.includes(String(c._id)));
+        accessibleCustomers = customers.filter((c) => sharedCustomerIds.includes(String(c._id)));
     }
 
-    // Group customers by parentCustomer
     const filteredCustomers = accessibleCustomers.filter((customer) =>
         customer.customerName.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Grouping logic
     const groups = {};
     filteredCustomers.forEach((customer) => {
         const parent = customer.parentCustomer || "none";
@@ -87,25 +87,27 @@ export default function CustomerTable() {
         groups[parent].push(customer);
     });
 
-    // Fetch parent names for all parent IDs (optimized: only on customers change, with retry and caching)
     useEffect(() => {
-        const parentIds = Array.from(new Set((accessibleCustomers || []).map(c => c.parentCustomer).filter(id => id && id !== "none")));
+        const parentIds = Array.from(
+            new Set(
+                (accessibleCustomers || [])
+                    .map((c) => c.parentCustomer)
+                    .filter((id) => id && id !== "none")
+            )
+        );
         if (parentIds.length === 0) return;
         let isMounted = true;
         const cache = { ...parentNames };
-
-        // Helper: fetch with retry
         const fetchWithRetry = async (url, retries = 3, delay = 300) => {
             for (let i = 0; i < retries; i++) {
                 try {
                     const res = await fetch(url);
                     if (res.ok) return await res.json();
                 } catch {}
-                if (i < retries - 1) await new Promise(r => setTimeout(r, delay));
+                if (i < retries - 1) await new Promise((r) => setTimeout(r, delay));
             }
             return null;
         };
-
         (async () => {
             for (const parentId of parentIds) {
                 if (!cache[parentId]) {
@@ -115,25 +117,31 @@ export default function CustomerTable() {
             }
             if (isMounted) setParentNames(cache);
         })();
-        return () => { isMounted = false; };
+        return () => {
+            isMounted = false;
+        };
     }, [customers]);
 
-    const handleLogout = () => {
-        signOut({ callbackUrl: "/login" });
-    };
-
+    const handleLogout = () => signOut({ callbackUrl: "/login" });
     const handleCreated = () => {
         setShowCreate(false);
         setRefreshKey((k) => k + 1);
     };
 
+    const PlatformIcon = ({ type }) => {
+        const iconClass = "w-4 h-4 shrink-0";
+        if (type === "Shopify") return <SiShopify className={iconClass} />;
+        if (type === "WooCommerce") return <SiWordpress className={iconClass} />;
+        return <FiServer className={iconClass} />;
+    };
+
     if (loading) {
         return (
-            <div className="fixed inset-0 flex items-center justify-center glassmorphism3">
-                <div className="w-full max-w-4xl p-10 bg-white rounded-[1rem] shadow-xl">
+            <div className="fixed inset-0 flex items-center justify-center glassmorphism2">
+                <div className={`w-full max-w-4xl p-8 bg-white dark:bg-[#181f23] border border-gray-200 rounded-xl ${FONT}`}>
                     <div className="text-center">
-                        <h1 className="text-2xl font-bold mb-4 text-black">Loading Properties...</h1>
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+                        <h1 className="font-bold text-gray-900 dark:text-gray-100">Loading Properties...</h1>
+                        <div className="animate-spin rounded-full h-10 w-10 border-2 border-[var(--color-primary-searchmind)] border-t-transparent mx-auto mt-4" />
                     </div>
                 </div>
             </div>
@@ -142,14 +150,14 @@ export default function CustomerTable() {
 
     if (error) {
         return (
-            <div className="fixed inset-0 flex items-center justify-center glassmorphism3">
-                <div className="w-full max-w-4xl p-10 bg-white rounded-[1rem] shadow-xl">
+            <div className="fixed inset-0 flex items-center justify-center glassmorphism2">
+                <div className={`w-full max-w-4xl p-8 bg-white dark:bg-[#181f23] border border-gray-200 rounded-xl ${FONT}`}>
                     <div className="text-center">
-                        <h1 className="text-2xl font-bold mb-4 text-black">Error Loading Properties</h1>
-                        <p className="text-red-500 mb-4">{error}</p>
+                        <h1 className="font-bold text-gray-900 dark:text-gray-100">Error Loading Properties</h1>
+                        <p className="text-red-500 mt-2 mb-4">{error}</p>
                         <button
                             onClick={() => window.location.reload()}
-                            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                            className="px-4 py-2 bg-[var(--color-primary-searchmind)] text-white rounded-lg hover:bg-[var(--color-primary-searchmind-hover)] transition-colors"
                         >
                             Try Again
                         </button>
@@ -160,104 +168,120 @@ export default function CustomerTable() {
     }
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center glassmorphism3">
-            <div className="w-full max-w-6xl p-10 bg-white rounded-[1rem] shadow-xl">
-                <div className="flex gap-6">
-                    {/* Main table section */}
-                    <div className="flex-1 overflow-x-auto max-h-[70vh]">
-                        <span className="flex justify-between items-start mb-4">
-                            <div>
-                                <h1 className="text-2xl font-bold mb-4 text-black">{showCreate ? 'Create New Property' : 'Select a Property'}</h1>
-                                {!showCreate && <p className="text-gray-400 mb-6">Welcome back, <span className="text-gray-600">{user?.name || "User"}!</span> A list of properties available to you</p>}
-
-                                {showCreate && <p className="text-gray-400 mb-6">Welcome back, <span className="text-gray-600">{user?.name || "User"}!</span> Fill out the form to create a new property</p>}
-                            </div>
-                            <div className="flex flex-col gap-2 items-end">
-                                <div
-                                    className="flex items-center justify-center text-center shadow-none border border-gray-200 text-gray-500 bg-white hover:bg-white hover:text-[var(--color-primary-searchmind)] rounded-lg cursor-pointer text-xs px-4 py-2"
-                                    onClick={() => setShowCreate((v) => !v)}
-                                >
-                                    {showCreate ? 'Back to List' : 'New Property'}
-                                </div>
-                                <span onClick={handleLogout} className="w-full">
-                                    <FormButton buttonSize="small">
-                                        Logout <FiLogOut />
-                                    </FormButton>
-                                </span>
-                            </div>
-                        </span>
-
+        <div className="fixed inset-0 flex items-center justify-center glassmorphism2 p-4">
+            <div className={`w-full max-w-7xl h-[90vh] flex flex-col bg-white dark:bg-[#181f23] border border-gray-200 rounded-xl overflow-hidden ${FONT}`}>
+                <div className="flex flex-1 min-h-0 gap-4 p-4 md:p-6">
+                    <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
                         {showCreate ? (
-                            <div className="max-h-[70vh] overflow-y-auto">
+                            <div className="flex-1 overflow-y-auto">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h1 className="font-bold text-[var(--color-primary-searchmind)]">Create New Property</h1>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowCreate(false)}
+                                        className="text-gray-500 hover:text-[var(--color-primary-searchmind)] transition-colors"
+                                    >
+                                        ← Back to List
+                                    </button>
+                                </div>
                                 <CustomerCreateForm onSuccess={handleCreated} />
                             </div>
                         ) : (
                             <>
-                                <SearchInput onSearch={setSearchTerm} placeholder="Search properties..." />
-                                <div id="tableWrapper" className="border border-gray-200 mt-5 rounded-[0.5rem] overflow-hidden">
-                                    {Object.keys(groups).map((parentId, idx) => (
-                                        <div key={parentId} className="mb-8">
-                                            {parentId !== "none" && (
-                                                <div className="bg-gray-100 px-5 py-2 font-semibold text-gray-700 rounded-t-[0.5rem] underline">
-                                                    <Link className="flex items-center gap-2" href={`/parent-property/${parentId}/home`}>
-                                                        <FiUsers /> View group property {parentNames[parentId] || parentId}
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 shrink-0">
+                                    <h1 className="font-bold text-[var(--color-primary-searchmind)] text-lg">Select a Property</h1>
+                                    <div className="w-full sm:w-56 shrink-0">
+                                        <SearchInput onSearch={setSearchTerm} placeholder="Search properties..." />
+                                    </div>
+                                </div>
+                                <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
+                                    {Object.keys(groups).map((parentId) => (
+                                        <div
+                                            key={parentId}
+                                            className="bg-white dark:bg-[#181f23] border border-gray-200 dark:border-[#232a2f] rounded-xl overflow-hidden"
+                                        >
+                                            <div className="px-4 py-3 bg-gray-50 dark:bg-[#232a2f] border-b border-gray-200 dark:border-[#232a2f] flex items-center">
+                                                {parentId !== "none" ? (
+                                                    <Link
+                                                        href={`/parent-property/${parentId}/home`}
+                                                        className="inline-flex items-center gap-2 font-medium text-gray-700 dark:text-gray-300 hover:text-[var(--color-primary-searchmind)] transition-colors"
+                                                    >
+                                                        <FiUsers />
+                                                        {parentNames[parentId] || parentId}
                                                     </Link>
-                                                </div>
-                                            )} 
-                                            
-                                            {parentId === "none" && (
-                                                <div className="flex items-center gap-2 bg-gray-100 px-5 py-2 font-semibold text-gray-700 rounded-t-[0.5rem] underline">
-                                                    <FiUser />Rest
-                                                </div>
-                                            )}
-                                            <table className="min-w-full border-collapse">
-                                                <thead>
-                                                    <tr className="bg-gray-50 border-b border-gray-200">
-                                                        <th className="font-medium text-gray-500 text-start text-theme-xs text-xs px-5 py-3">Property Name</th>
-                                                        <th className="font-medium text-gray-500 text-start text-theme-xs text-xs px-5 py-3">Platform</th>
-                                                        <th className="font-medium text-gray-500 text-center text-theme-xs text-xs px-5 py-3">Favorite</th>
-                                                        <th className="font-medium text-gray-500 text-start text-theme-xs text-xs px-5 py-3">Action</th>
-                                                        <th className="font-medium text-gray-500 text-start text-theme-xs text-xs px-5 py-3">Platform</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {groups[parentId].map((customer) => (
-                                                        <tr key={customer._id} className="hover:bg-gray-50">
-                                                            <td className="border-b border-gray-50 px-5 py-3 text-black text-sm">{customer.customerName}</td>
-                                                            <td className="border-b border-gray-50 px-5 py-3 text-gray-500 text-sm">
-                                                                {customer.customerType}
-                                                            </td>
-                                                            <td className="border-b border-gray-50 px-5 py-3 text-center">
-                                                                <button
-                                                                    onClick={() => handleToggleFavorite(customer._id)}
-                                                                    className={`hover:scale-110 transition-transform ${loadingFavorites[customer._id] ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                                    disabled={loadingFavorites[customer._id]}
-                                                                    title={isFavorited(customer._id) ? "Remove from favorites" : "Add to favorites"}
-                                                                >
-                                                                    <FiStar 
-                                                                        className={`text-lg ${isFavorited(customer._id) ? 'fill-[#1E2B2B] text-[#1E2B2B]' : 'text-gray-400'}`}
-                                                                    />
-                                                                </button>
-                                                            </td>
-                                                            <td className="border-b border-gray-50 px-5 py-3 text-gray-500 text-sm">
-                                                                <Link href={`/dashboard/${customer._id}/performance-dashboard`} className="hover:underline text-sm">
-                                                                    <FormButton buttonSize="small" borderType="outline">
-                                                                        View Dashboard <FiArrowRight />
-                                                                    </FormButton>
-                                                                </Link>
-                                                            </td>
-                                                            <td className="border-b border-gray-50 px-5 py-3 text-gray-500 text-sm">
-                                                                {customer.customerType === "Shopify" ? <SiShopify /> : customer.customerType === "WooCommerce" ? <SiWordpress /> : <FiServer />}
-                                                            </td>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-2 font-medium text-gray-700 dark:text-gray-300">
+                                                        <FiUser /> Rest
+                                                    </span>
+                                                )}
+                                                <span className="text-gray-500 dark:text-gray-400 ml-2">
+                                                    — {groups[parentId].length} {groups[parentId].length === 1 ? "property" : "properties"}
+                                                </span>
+                                            </div>
+                                            <div className="overflow-x-auto">
+                                                <table className="min-w-full">
+                                                    <thead>
+                                                        <tr className="border-b border-gray-200 dark:border-[#232a2f]">
+                                                            <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Property</th>
+                                                            <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Platform</th>
+                                                            <th className="px-4 py-3 text-center font-medium text-gray-500 dark:text-gray-400 w-14">Favorite</th>
+                                                            <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Action</th>
                                                         </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
+                                                    </thead>
+                                                    <tbody>
+                                                        {groups[parentId].map((customer) => (
+                                                            <tr
+                                                                key={customer._id}
+                                                                className="border-b border-gray-100 dark:border-[#232a2f] last:border-b-0 hover:bg-gray-50 dark:hover:bg-[#232a2f] transition-colors"
+                                                            >
+                                                                <td className="px-4 py-3 align-middle">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <span
+                                                                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white font-medium ${getAvatarColor(customer.customerName)}`}
+                                                                        >
+                                                                            {(customer.customerName || "?").charAt(0).toUpperCase()}
+                                                                        </span>
+                                                                        <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                                                                            {customer.customerName}
+                                                                        </span>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-3 align-middle">
+                                                                    <span className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                                                                        <PlatformIcon type={customer.customerType} />
+                                                                        {customer.customerType}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-4 py-3 align-middle text-center">
+                                                                    <button
+                                                                        onClick={() => handleToggleFavorite(customer._id)}
+                                                                        disabled={loadingFavorites[customer._id]}
+                                                                        title={isFavorited(customer._id) ? "Remove from favorites" : "Add to favorites"}
+                                                                        className={`p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-[#2c353b] transition-colors ${loadingFavorites[customer._id] ? "opacity-50 cursor-not-allowed" : ""}`}
+                                                                    >
+                                                                        <FiStar
+                                                                            className={`w-4 h-4 ${isFavorited(customer._id) ? "fill-[var(--color-primary-searchmind)] text-[var(--color-primary-searchmind)]" : "text-gray-400"}`}
+                                                                        />
+                                                                    </button>
+                                                                </td>
+                                                                <td className="px-4 py-3 align-middle text-right">
+                                                                    <Link
+                                                                        href={`/dashboard/${customer._id}/performance-dashboard`}
+                                                                        className="inline-flex items-center gap-1 font-medium text-[var(--color-primary-searchmind)] hover:underline"
+                                                                    >
+                                                                        View <FiArrowRight className="w-4 h-4" />
+                                                                    </Link>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </div>
                                     ))}
                                     {filteredCustomers.length === 0 && (
-                                        <div className="text-center py-8 text-gray-500">
-                                            {searchTerm ? 'No customers found matching your search.' : 'No customers available.'}
+                                        <div className="flex items-center justify-center py-16 text-gray-500">
+                                            {searchTerm ? "No properties match your search." : "No properties available."}
                                         </div>
                                     )}
                                 </div>
@@ -265,29 +289,51 @@ export default function CustomerTable() {
                         )}
                     </div>
 
-                    {/* Favorites sidebar */}
                     {!showCreate && (
-                        <div className="w-64 flex-shrink-0">
-                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 sticky top-0">
-                                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                                    <FiStar className="text-[#1E2B2B]" />
+                        <div className="w-64 flex-shrink-0 flex flex-col gap-4">
+                            <div className="flex flex-col gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCreate(true)}
+                                    className="w-full py-2.5 px-3 rounded-lg bg-[var(--color-primary-searchmind)] text-white font-medium hover:bg-[var(--color-primary-searchmind-hover)] transition-colors flex items-center justify-center gap-2"
+                                >
+                                    New Property
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleLogout}
+                                    className="w-full py-2.5 px-3 rounded-lg border border-gray-200 dark:border-[#232a2f] text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-50 dark:hover:bg-[#232a2f] transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <FiLogOut /> Logout
+                                </button>
+                            </div>
+                            <div className="flex-1 min-h-0 flex flex-col border border-gray-200 dark:border-[#232a2f] rounded-xl bg-gray-50 dark:bg-[#232a2f] p-3 overflow-hidden">
+                                <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2 shrink-0">
+                                    <FiStar className="text-[var(--color-primary-searchmind)]" />
                                     Your Favorites
                                 </h3>
-                                <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                                <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
                                     {favoritedCustomers.length === 0 ? (
-                                        <p className="text-xs text-gray-400 italic">No favorites yet</p>
+                                        <p className="text-gray-400 italic">No favorites yet</p>
                                     ) : (
-                                        favoritedCustomers.map(favoriteId => {
-                                            const customer = customers.find(c => String(c._id) === String(favoriteId));
+                                        favoritedCustomers.map((favoriteId) => {
+                                            const customer = customers.find((c) => String(c._id) === String(favoriteId));
                                             if (!customer) return null;
                                             return (
-                                                <Link 
-                                                    key={customer._id} 
+                                                <Link
+                                                    key={customer._id}
                                                     href={`/dashboard/${customer._id}/performance-dashboard`}
-                                                    className="block p-2 bg-white border border-gray-200 rounded hover:border-[#1E2B2B] hover:shadow-sm transition-all"
+                                                    className="flex items-center gap-2 p-2.5 bg-white dark:bg-[#181f23] border border-gray-200 dark:border-[#232a2f] rounded-lg hover:border-[var(--color-primary-searchmind)] transition-all"
                                                 >
-                                                    <p className="text-xs font-medium text-gray-800 truncate">{customer.customerName}</p>
-                                                    <p className="text-xs text-gray-400">{customer.customerType}</p>
+                                                    <span
+                                                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white font-medium ${getAvatarColor(customer.customerName)}`}
+                                                    >
+                                                        {(customer.customerName || "?").charAt(0).toUpperCase()}
+                                                    </span>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="font-medium text-gray-800 dark:text-gray-200 truncate">{customer.customerName}</p>
+                                                        <p className="text-gray-500 dark:text-gray-400 truncate">{customer.customerType}</p>
+                                                    </div>
                                                 </Link>
                                             );
                                         })
