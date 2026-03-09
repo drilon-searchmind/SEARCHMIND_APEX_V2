@@ -174,7 +174,7 @@ const Sidebar = ({ showLinks = true }) => {
                             className="mb-0 h-auto"
                             id="logoApex"
                         />
-                        <h2 className="text-xl font-bold">Apex</h2>
+                        <h2 className="text-xl font-bold hidden xl:block">Apex</h2>
                     </span>
                     {!isSmallScreen && <p className="text-gray-400 text-xs">by Searchmind</p>}
                 </Link>
