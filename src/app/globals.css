@@ -264,7 +264,7 @@ select {
 	filter: invert(1);
 }
 .dark .text-slate-800 {
-	color: #475569 !important;
+	color: #6e84a3 !important;
 }
 .dark .text-slate-600 {
 	color: #cbd5e1 !important;
@@ -292,6 +292,16 @@ select {
 	color: #3b82f6 !important;
 }
 .dark textarea {
+	color: #f1f5f9 !important;
+}
+.dark .bg-gray-50\/50 {
+	background-color: #323b4250 !important;
+}
+.dark g.apexcharts-datalabels-group {
+	filter: invert(1) !important;
+}
+.dark h1,
+.dark h2 {
 	color: #f1f5f9 !important;
 }
 

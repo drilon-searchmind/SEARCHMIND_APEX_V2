@@ -3,9 +3,40 @@ import dynamic from "next/dynamic";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
+const DARK_CHART_OVERRIDES = {
+    chart: { foreColor: "#cbd5e1" },
+    xaxis: { labels: { style: { colors: "#94a3b8" } } },
+    yaxis: { labels: { style: { colors: "#94a3b8" } } },
+    grid: { borderColor: "#2c353b", strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
+    tooltip: { theme: "dark" },
+    legend: { labels: { colors: "#cbd5e1" } },
+    colors: ["#C6ED62", "#60a5fa", "#94a3b8", "#cbd5e1", "#6ee7b7", "#f1f5f9"],
+};
+
+function deepMerge(target, source) {
+    const result = { ...target };
+    for (const key of Object.keys(source)) {
+        if (source[key] && typeof source[key] === "object" && !Array.isArray(source[key])) {
+            result[key] = deepMerge(result[key] || {}, source[key]);
+        } else {
+            result[key] = source[key];
+        }
+    }
+    return result;
+}
+
 export default function GraphCard({ title, chartOptions, chartSeries, chartType = "line", height = 300, children }) {
     // Toggle state (Period active by default)
     const [toggle, setToggle] = React.useState("Period");
+    const [isDark, setIsDark] = React.useState(false);
+
+    React.useEffect(() => {
+        const check = () => setIsDark(document.documentElement.classList.contains("dark"));
+        check();
+        const observer = new MutationObserver(check);
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+        return () => observer.disconnect();
+    }, []);
 
     // Function to aggregate data by month
     const aggregateByMonth = React.useCallback((categories, seriesData) => {
@@ -60,8 +91,16 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
     // Process chart data based on toggle - always create fresh copies
     const processedData = React.useMemo(() => {
         // Create deep copies to prevent mutation
-        const optionsCopy = JSON.parse(JSON.stringify(chartOptions));
+        let optionsCopy = JSON.parse(JSON.stringify(chartOptions));
         const seriesCopy = JSON.parse(JSON.stringify(chartSeries));
+
+        if (isDark) {
+            optionsCopy = deepMerge(optionsCopy, DARK_CHART_OVERRIDES);
+            // Override per-series colors with dark-mode palette
+            seriesCopy.forEach((s, i) => {
+                s.color = DARK_CHART_OVERRIDES.colors[i % DARK_CHART_OVERRIDES.colors.length];
+            });
+        }
         
         if (toggle === "Monthly") {
             const categories = optionsCopy?.xaxis?.categories;
@@ -120,23 +159,23 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
             series: seriesCopy,
             type: chartType
         };
-    }, [toggle, chartOptions, chartSeries, chartType, aggregateByMonth]);
+    }, [toggle, chartOptions, chartSeries, chartType, aggregateByMonth, isDark]);
 
     return (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col justify-between h-full min-h-[320px]">
+        <div className="bg-white dark:bg-[#181f23] rounded-xl border border-gray-200 dark:border-[#232a2f] p-6 flex flex-col justify-between h-full min-h-[320px]">
             <div className="mb-2 flex justify-between items-center">
-                <h6 className="text-[var(--color-primary-searchmind)] mb-2 font-bold">{title}</h6>
+                <h6 className="text-[var(--color-primary-searchmind)] dark:text-[#f1f5f9] mb-2 font-bold">{title}</h6>
                 <div id="chartToggler">
-                    <div className="flex border border-gray-200 bg-gray-100 rounded-lg overflow-hidden">
+                    <div className="flex border border-gray-200 dark:border-[#232a2f] bg-gray-100 dark:bg-[#232a2f] rounded-lg overflow-hidden">
                         <button
-                            className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors duration-150 ${toggle === 'Monthly' ? 'bg-white text-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500 hover:text-[var(--color-primary-searchmind)]'}`}
+                            className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors duration-150 ${toggle === 'Monthly' ? 'bg-white dark:bg-[#2c353b] text-[var(--color-primary-searchmind)] dark:text-[#f1f5f9] shadow-sm' : 'text-gray-500 dark:text-[#94a3b8] hover:text-[var(--color-primary-searchmind)] dark:hover:text-[#f1f5f9]'}`}
                             style={{ borderRadius: '8px 0 0 8px' }}
                             onClick={() => setToggle('Monthly')}
                         >
                             Monthly
                         </button>
                         <button
-                            className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors duration-150 ${toggle === 'Period' ? 'bg-white text-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500 hover:text-[var(--color-primary-searchmind)]'}`}
+                            className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors duration-150 ${toggle === 'Period' ? 'bg-white dark:bg-[#2c353b] text-[var(--color-primary-searchmind)] dark:text-[#f1f5f9] shadow-sm' : 'text-gray-500 dark:text-[#94a3b8] hover:text-[var(--color-primary-searchmind)] dark:hover:text-[#f1f5f9]'}`}
                             style={{ borderRadius: '0 8px 8px 0' }}
                             onClick={() => setToggle('Period')}
                         >
