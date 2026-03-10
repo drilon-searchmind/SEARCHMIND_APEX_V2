@@ -1275,12 +1275,10 @@ export default function PerformanceDashboard() {
                                                     <span className="text-sm font-medium text-gray-700">{metric.label}</span>
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-sm font-semibold tabular-nums text-gray-900">{metric.value}</span>
-                                                        {metric.change !== undefined && (
-                                                            <span className={`text-[0.65rem] rounded-sm font-medium flex items-center justify-end gap-0.5 px-1.5 py-0.5 min-w-[4rem] tabular-nums ${metric.changeType === 'up' ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
-                                                                {metric.changeType === 'up' ? <FiTrendingUp className="text-xs" /> : <FiTrendingDown className="text-xs" />}
-                                                                {metric.change}%
-                                                            </span>
-                                                        )}
+                                                        <span className={`text-[0.65rem] rounded-sm font-medium flex items-center justify-end gap-0.5 px-1.5 py-0.5 min-w-[4rem] tabular-nums ${metric.changeType === 'up' ? 'text-green-600 bg-green-50' : metric.changeType === 'down' ? 'text-red-600 bg-red-50' : 'text-gray-600 bg-gray-100'}`}>
+                                                            {metric.changeType === 'up' ? <FiTrendingUp className="text-xs" /> : metric.changeType === 'down' ? <FiTrendingDown className="text-xs" /> : null}
+                                                            {(metric.change ?? 0)}%
+                                                        </span>
                                                     </div>
                                                 </div>
                                                 {hasCalc && calcLines.length > 0 && (
