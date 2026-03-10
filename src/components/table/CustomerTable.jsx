@@ -219,12 +219,18 @@ export default function CustomerTable() {
                                                 </span>
                                             </div>
                                             <div className="overflow-x-auto">
-                                                <table className="min-w-full">
+                                                <table className="min-w-full table-fixed">
+                                                    <colgroup>
+                                                        <col className="w-[40%]" />
+                                                        <col className="w-[25%]" />
+                                                        <col className="w-[80px]" />
+                                                        <col className="w-[100px]" />
+                                                    </colgroup>
                                                     <thead>
                                                         <tr className="border-b border-gray-200">
                                                             <th className="px-4 py-3 text-left font-medium text-gray-500">Property</th>
                                                             <th className="px-4 py-3 text-left font-medium text-gray-500">Platform</th>
-                                                            <th className="px-4 py-3 text-center font-medium text-gray-500 w-14">Favorite</th>
+                                                            <th className="px-4 py-3 text-center font-medium text-gray-500">Favorite</th>
                                                             <th className="px-4 py-3 text-right font-medium text-gray-500">Action</th>
                                                         </tr>
                                                     </thead>
@@ -234,8 +240,8 @@ export default function CustomerTable() {
                                                                 key={customer._id}
                                                                 className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors"
                                                             >
-                                                                <td className="px-4 py-3 align-middle">
-                                                                    <div className="flex items-center gap-3">
+                                                                <td className="px-4 py-3 align-middle text-left">
+                                                                    <div className="flex items-center gap-3 min-w-0">
                                                                         <span
                                                                             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white font-medium ${getAvatarColor(customer.customerName)}`}
                                                                         >
@@ -246,23 +252,25 @@ export default function CustomerTable() {
                                                                         </span>
                                                                     </div>
                                                                 </td>
-                                                                <td className="px-4 py-3 align-middle">
+                                                                <td className="px-4 py-3 align-middle text-left">
                                                                     <span className="inline-flex items-center gap-2 text-gray-600">
                                                                         <PlatformIcon type={customer.customerType} />
                                                                         {customer.customerType}
                                                                     </span>
                                                                 </td>
-                                                                <td className="px-4 py-3 align-middle text-center">
-                                                                    <button
-                                                                        onClick={() => handleToggleFavorite(customer._id)}
-                                                                        disabled={loadingFavorites[customer._id]}
-                                                                        title={isFavorited(customer._id) ? "Remove from favorites" : "Add to favorites"}
-                                                                        className={`p-1.5 rounded-full hover:bg-gray-200 transition-colors ${loadingFavorites[customer._id] ? "opacity-50 cursor-not-allowed" : ""}`}
-                                                                    >
-                                                                        <FiStar
-                                                                            className={`w-4 h-4 ${isFavorited(customer._id) ? "fill-[var(--color-primary-searchmind)] text-[var(--color-primary-searchmind)]" : "text-gray-400"}`}
-                                                                        />
-                                                                    </button>
+                                                                <td className="px-4 py-3 align-middle">
+                                                                    <div className="flex justify-center items-center">
+                                                                        <button
+                                                                            onClick={() => handleToggleFavorite(customer._id)}
+                                                                            disabled={loadingFavorites[customer._id]}
+                                                                            title={isFavorited(customer._id) ? "Remove from favorites" : "Add to favorites"}
+                                                                            className={`p-1.5 rounded-full hover:bg-gray-200 transition-colors ${loadingFavorites[customer._id] ? "opacity-50 cursor-not-allowed" : ""}`}
+                                                                        >
+                                                                            <FiStar
+                                                                                className={`w-4 h-4 ${isFavorited(customer._id) ? "fill-[var(--color-primary-searchmind)] text-[var(--color-primary-searchmind)]" : "text-gray-400"}`}
+                                                                            />
+                                                                        </button>
+                                                                    </div>
                                                                 </td>
                                                                 <td className="px-4 py-3 align-middle text-right">
                                                                     <Link
