@@ -283,9 +283,9 @@ export default function EcommercePage() {
                     {activeTab === 'customers' && (
                         <div className="relative">
                             {segmentationLoading && (
-                                <div className="sticky top-10 mt-10 z-50 flex items-center justify-center gap-3 py-4 px-6 w-full min-h-[72px] bg-white/60 backdrop-blur-xl border-b border-white/20 dark:border-gray-700/50 shadow-lg">
+                                <div className="sticky top-10 mt-10 z-50 flex items-center justify-center gap-3 py-4 px-6 w-full min-h-[72px] bg-white/60 backdrop-blur-xl border-b border-white/20 shadow-lg">
                                     <Spinner size={24} />
-                                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                                    <span className="text-sm font-medium text-gray-800">
                                         Fetching data for LTV last 180 days, calculating and crunching numbers…
                                     </span>
                                 </div>

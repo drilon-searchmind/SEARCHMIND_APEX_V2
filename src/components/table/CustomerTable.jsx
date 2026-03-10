@@ -140,7 +140,7 @@ export default function CustomerTable() {
             <div className="fixed inset-0 flex items-center justify-center glassmorphism2">
                 <div className={`w-full max-w-4xl p-8 bg-white border border-gray-200 rounded-xl ${FONT}`}>
                     <div className="text-center">
-                        <h1 className="font-bold text-gray-900 dark:text-gray-100">Loading Properties...</h1>
+                        <h1 className="font-bold text-gray-900">Loading Properties...</h1>
                         <div className="animate-spin rounded-full h-10 w-10 border-2 border-[var(--color-primary-searchmind)] border-t-transparent mx-auto mt-4" />
                     </div>
                 </div>
@@ -153,7 +153,7 @@ export default function CustomerTable() {
             <div className="fixed inset-0 flex items-center justify-center glassmorphism2">
                 <div className={`w-full max-w-4xl p-8 bg-white border border-gray-200 rounded-xl ${FONT}`}>
                     <div className="text-center">
-                        <h1 className="font-bold text-gray-900 dark:text-gray-100">Error Loading Properties</h1>
+                        <h1 className="font-bold text-gray-900">Error Loading Properties</h1>
                         <p className="text-red-500 mt-2 mb-4">{error}</p>
                         <button
                             onClick={() => window.location.reload()}
@@ -204,35 +204,35 @@ export default function CustomerTable() {
                                                 {parentId !== "none" ? (
                                                     <Link
                                                         href={`/parent-property/${parentId}/home`}
-                                                        className="inline-flex items-center gap-2 font-medium text-gray-700 dark:text-gray-300 hover:text-[var(--color-primary-searchmind)] transition-colors"
+                                                        className="inline-flex items-center gap-2 font-medium text-gray-700 hover:text-[var(--color-primary-searchmind)] transition-colors"
                                                     >
                                                         <FiUsers />
                                                         {parentNames[parentId] || parentId}
                                                     </Link>
                                                 ) : (
-                                                    <span className="inline-flex items-center gap-2 font-medium text-gray-700 dark:text-gray-300">
+                                                    <span className="inline-flex items-center gap-2 font-medium text-gray-700">
                                                         <FiUser /> Rest
                                                     </span>
                                                 )}
-                                                <span className="text-gray-500 dark:text-gray-400 ml-2">
+                                                <span className="text-gray-500 ml-2">
                                                     — {groups[parentId].length} {groups[parentId].length === 1 ? "property" : "properties"}
                                                 </span>
                                             </div>
                                             <div className="overflow-x-auto">
                                                 <table className="min-w-full">
                                                     <thead>
-                                                        <tr className="border-b border-gray-200 dark:border-[#232a2f]">
-                                                            <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Property</th>
-                                                            <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Platform</th>
-                                                            <th className="px-4 py-3 text-center font-medium text-gray-500 dark:text-gray-400 w-14">Favorite</th>
-                                                            <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Action</th>
+                                                        <tr className="border-b border-gray-200">
+                                                            <th className="px-4 py-3 text-left font-medium text-gray-500">Property</th>
+                                                            <th className="px-4 py-3 text-left font-medium text-gray-500">Platform</th>
+                                                            <th className="px-4 py-3 text-center font-medium text-gray-500 w-14">Favorite</th>
+                                                            <th className="px-4 py-3 text-right font-medium text-gray-500">Action</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         {groups[parentId].map((customer) => (
                                                             <tr
                                                                 key={customer._id}
-                                                                className="border-b border-gray-100 dark:border-[#232a2f] last:border-b-0 hover:bg-gray-50 dark:hover:bg-[#232a2f] transition-colors"
+                                                                className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors"
                                                             >
                                                                 <td className="px-4 py-3 align-middle">
                                                                     <div className="flex items-center gap-3">
@@ -241,13 +241,13 @@ export default function CustomerTable() {
                                                                         >
                                                                             {(customer.customerName || "?").charAt(0).toUpperCase()}
                                                                         </span>
-                                                                        <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                                                                        <span className="font-medium text-gray-900 truncate">
                                                                             {customer.customerName}
                                                                         </span>
                                                                     </div>
                                                                 </td>
                                                                 <td className="px-4 py-3 align-middle">
-                                                                    <span className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                                                                    <span className="inline-flex items-center gap-2 text-gray-600">
                                                                         <PlatformIcon type={customer.customerType} />
                                                                         {customer.customerType}
                                                                     </span>
@@ -257,7 +257,7 @@ export default function CustomerTable() {
                                                                         onClick={() => handleToggleFavorite(customer._id)}
                                                                         disabled={loadingFavorites[customer._id]}
                                                                         title={isFavorited(customer._id) ? "Remove from favorites" : "Add to favorites"}
-                                                                        className={`p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-[#2c353b] transition-colors ${loadingFavorites[customer._id] ? "opacity-50 cursor-not-allowed" : ""}`}
+                                                                        className={`p-1.5 rounded-full hover:bg-gray-200 transition-colors ${loadingFavorites[customer._id] ? "opacity-50 cursor-not-allowed" : ""}`}
                                                                     >
                                                                         <FiStar
                                                                             className={`w-4 h-4 ${isFavorited(customer._id) ? "fill-[var(--color-primary-searchmind)] text-[var(--color-primary-searchmind)]" : "text-gray-400"}`}
@@ -302,13 +302,13 @@ export default function CustomerTable() {
                                 <button
                                     type="button"
                                     onClick={handleLogout}
-                                    className="w-full py-2.5 px-3 rounded-lg border border-gray-200 text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                                    className="w-full py-2.5 px-3 rounded-lg border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
                                 >
                                     <FiLogOut /> Logout
                                 </button>
                             </div>
                             <div className="flex-1 min-h-0 flex flex-col border border-gray-200 rounded-xl bg-gray-50 p-3 overflow-hidden">
-                                <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2 shrink-0">
+                                <h3 className="font-semibold text-gray-700 mb-2 flex items-center gap-2 shrink-0">
                                     <FiStar className="text-[var(--color-primary-searchmind)]" />
                                     Your Favorites
                                 </h3>
@@ -331,8 +331,8 @@ export default function CustomerTable() {
                                                         {(customer.customerName || "?").charAt(0).toUpperCase()}
                                                     </span>
                                                     <div className="min-w-0 flex-1">
-                                                        <p className="font-medium text-gray-800 dark:text-gray-200 truncate">{customer.customerName}</p>
-                                                        <p className="text-gray-500 dark:text-gray-400 truncate">{customer.customerType}</p>
+                                                        <p className="font-medium text-gray-800 truncate">{customer.customerName}</p>
+                                                        <p className="text-gray-500 truncate">{customer.customerType}</p>
                                                     </div>
                                                 </Link>
                                             );
