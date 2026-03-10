@@ -69,7 +69,7 @@ export default function DailyMetricsLastPeriodRow({
 	};
 
 	return (
-		<tr className="bg-gray-50 font-semibold">
+		<tr className="bg-gray-50 font-semibold border-t border-b border-gray-200">
 			<td className="px-3 py-2 whitespace-nowrap">Last Period</td>
 			{visibleCols.map((m) => (
 				<td

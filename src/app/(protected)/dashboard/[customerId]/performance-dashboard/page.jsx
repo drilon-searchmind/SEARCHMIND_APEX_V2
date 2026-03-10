@@ -229,8 +229,8 @@ export default function PerformanceDashboard() {
                     = ${roas !== null ? roas.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}
                 `;
         const poasCalculation = cost > 0 ? `(Net Profit / Spend) \n
-                    = ${fmt(gross_profit_total_sales)} / ${fmt(cost)} \n
-                    = ${ (cost > 0 && gross_profit_total_sales !== null) ? (gross_profit_total_sales / cost).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}
+                    = ${fmt(ebit)} / ${fmt(cost)} \n
+                    = ${ (cost > 0 && ebit !== null) ? (ebit / cost).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}
                 ` : merged.calculationsData?.poasCalculation || '';
         const cacCalculation = merged.calculationsData?.cacCalculation || '';
         const apiValueLabels = merged.calculationsData?.valueLabels || {};
@@ -257,8 +257,8 @@ export default function PerformanceDashboard() {
             return undefined;
         }
 
-        const poas = cost > 0 ? (gross_profit_total_sales / cost) : null;
-        const poasPrev = costPrev > 0 ? (gross_profit_total_salesPrev / costPrev) : null;
+        const poas = cost > 0 ? (ebit / cost) : null;
+        const poasPrev = costPrev > 0 ? (ebitPrev / costPrev) : null;
         const cac = merged.CACTotalSales ?? null;
         const cacPrev = mergedPrev.CACTotalSales ?? null;
 
@@ -323,7 +323,7 @@ export default function PerformanceDashboard() {
                     },
                     {
                         key: 'cogs',
-                        label: "COGS",
+                        label: "- COGS",
                         value: totalCogs ? totalCogs.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(totalCogs, prevTotalCogs) !== null ? Math.abs(percentChange(totalCogs, prevTotalCogs)).toFixed(0) : undefined,
@@ -375,7 +375,7 @@ export default function PerformanceDashboard() {
                     },
                     {
                         key: 'meta_spend',
-                        label: "Meta Spend",
+                        label: "- Meta Spend",
                         value: metaSpend ? metaSpend.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(metaSpend, metaSpendPrev) !== null ? Math.abs(percentChange(metaSpend, metaSpendPrev)).toFixed(0) : undefined,
@@ -386,7 +386,7 @@ export default function PerformanceDashboard() {
                     },
                     {
                         key: 'google_spend',
-                        label: "Google Ads Spend",
+                        label: "- Google Ads Spend",
                         value: googleSpend ? googleSpend.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(googleSpend, googleSpendPrev) !== null ? Math.abs(percentChange(googleSpend, googleSpendPrev)).toFixed(0) : undefined,
@@ -397,7 +397,7 @@ export default function PerformanceDashboard() {
                     },
                     {
                         key: 'shipping_cost',
-                        label: "Shipping Cost",
+                        label: "- Shipping Cost",
                         value: shippingCost ? shippingCost.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(shippingCost, shippingCostPrev) !== null ? Math.abs(percentChange(shippingCost, shippingCostPrev)).toFixed(0) : undefined,
@@ -409,7 +409,7 @@ export default function PerformanceDashboard() {
                     },
                     {
                         key: 'pick_pack',
-                        label: "Pick & Pack",
+                        label: "- Pick & Pack",
                         value: pickPackCost ? pickPackCost.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
                         icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(pickPackCost, pickPackCostPrev) !== null ? Math.abs(percentChange(pickPackCost, pickPackCostPrev)).toFixed(0) : undefined,
@@ -475,7 +475,7 @@ export default function PerformanceDashboard() {
                         change: percentChange(poas, poasPrev) !== null ? Math.abs(percentChange(poas, poasPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(poas, poasPrev)),
                         popOverContent: poasCalculation,
-                        calcValueLabels: apiValueLabels.poas || `Net Profit: ${fmt(gross_profit_total_sales)}\nSpend: ${fmt(cost)}`,
+                        calcValueLabels: `Net Profit: ${fmt(ebit)}\nSpend: ${fmt(cost)}`,
                     },
                     {
                         key: 'gross_profit',
@@ -768,7 +768,16 @@ export default function PerformanceDashboard() {
                 }
                 if (metric === 'orders') return Number(v.orders || 0);
                 if (metric === 'roas') return (v.cost > 0 ? Number((v.revenue / v.cost).toFixed(2)) : null);
-                if (metric === 'poas') return (v.cost > 0 ? Number(((v.revenue - (v.cogs || 0)) / v.cost).toFixed(2)) : null);
+                if (metric === 'poas') {
+                    const rev = v.revenue || 0;
+                    const cogs = v.cogs || 0;
+                    const fixed = getFixedForPeriod(k);
+                    const variable = (shippingPerOrder + pickPerOrder) * (v.orders || 0);
+                    const txFee = rev * txCostPct;
+                    const allCosts = cogs + fixed + variable + txFee + v.cost;
+                    const ebit = rev - allCosts;
+                    return (v.cost > 0 ? Number((ebit / v.cost).toFixed(2)) : null);
+                }
                 if (metric === 'aov') return (v.orders > 0 ? Number((v.revenue / v.orders).toFixed(0)) : null);
                 if (metric === 'spendshare') return (v.revenue > 0 ? Number(((v.cost / v.revenue) * 100).toFixed(0)) : null);
                 if (metric === 'cac') return (v.orders > 0 ? Number((v.cost / v.orders).toFixed(0)) : null);
@@ -809,7 +818,16 @@ export default function PerformanceDashboard() {
                 }
                 if (metric === 'orders') return Number(v.orders || 0);
                 if (metric === 'roas') return (v.cost > 0 ? Number((v.revenue / v.cost).toFixed(2)) : null);
-                if (metric === 'poas') return (v.cost > 0 ? Number(((v.revenue - (v.cogs || 0)) / v.cost).toFixed(2)) : null);
+                if (metric === 'poas') {
+                    const rev = v.revenue || 0;
+                    const cogs = v.cogs || 0;
+                    const fixed = getFixedForPeriod(prevKey);
+                    const variable = (shippingPerOrder + pickPerOrder) * (v.orders || 0);
+                    const txFee = rev * txCostPct;
+                    const allCosts = cogs + fixed + variable + txFee + v.cost;
+                    const ebit = rev - allCosts;
+                    return (v.cost > 0 ? Number((ebit / v.cost).toFixed(2)) : null);
+                }
                 if (metric === 'aov') return (v.orders > 0 ? Number((v.revenue / v.orders).toFixed(0)) : null);
                 if (metric === 'spendshare') return (v.revenue > 0 ? Number(((v.cost / v.revenue) * 100).toFixed(0)) : null);
                 if (metric === 'cac') return (v.orders > 0 ? Number((v.cost / v.orders).toFixed(0)) : null);
@@ -1187,7 +1205,7 @@ export default function PerformanceDashboard() {
                                     </div>
                                     {primaryMetric?.change !== undefined && (
                                         <div className="mt-2 flex items-center gap-1">
-                                            <span className={`text-[0.65rem] rounded-sm font-medium flex items-center gap-1 px-2 py-1 w-fit ${primaryMetric.changeType === 'up' ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
+                                            <span className={`text-[0.65rem] rounded-sm font-medium flex items-center justify-end gap-1 px-2 py-1 tabular-nums ${primaryMetric.changeType === 'up' ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
                                                 {primaryMetric.changeType === 'up' ? <FiTrendingUp className="text-sm" /> : <FiTrendingDown className="text-sm" />}
                                                 {primaryMetric.change}%
                                             </span>
@@ -1258,7 +1276,7 @@ export default function PerformanceDashboard() {
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-sm font-semibold tabular-nums text-gray-900">{metric.value}</span>
                                                         {metric.change !== undefined && (
-                                                            <span className={`text-[0.65rem] rounded-sm font-medium flex items-center gap-0.5 px-1.5 py-0.5 ${metric.changeType === 'up' ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
+                                                            <span className={`text-[0.65rem] rounded-sm font-medium flex items-center justify-end gap-0.5 px-1.5 py-0.5 min-w-[4rem] tabular-nums ${metric.changeType === 'up' ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
                                                                 {metric.changeType === 'up' ? <FiTrendingUp className="text-xs" /> : <FiTrendingDown className="text-xs" />}
                                                                 {metric.change}%
                                                             </span>

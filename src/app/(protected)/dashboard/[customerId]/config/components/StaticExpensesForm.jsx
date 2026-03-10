@@ -141,7 +141,7 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
                                 min="0"
                                 max="1"
                                 step="0.1"
-                                className="flex-1 max-w-75"
+                                className="flex-1 max-w-[90%]"
                             />
                             <span className="text-sm text-gray-900 shrink-0 mt-2">%</span>
                         </div>
@@ -160,7 +160,7 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
                                 data-group="CustomerStaticExpenses"
                                 min="0"
                                 step="0.01"
-                                className="flex-1 max-w-75"
+                                className="flex-1 max-w-[90%]"
                             />
                             <span className="text-sm text-gray-900 shrink-0 mt-2">DKK</span>
                         </div>
@@ -178,7 +178,7 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
                                 data-group="CustomerStaticExpenses"
                                 min="0"
                                 step="0.01"
-                                className="flex-1 max-w-75"
+                                className="flex-1 max-w-[90%]"
                             />
                             <span className="text-sm text-gray-900 shrink-0 mt-2">DKK</span>
                         </div>
@@ -197,7 +197,7 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
                                 min="0"
                                 max="1"
                                 step="0.1"
-                                className="flex-1 max-w-75"
+                                className="flex-1 max-w-[90%]"
                             />
                             <span className="text-sm text-gray-900 shrink-0 mt-2">%</span>
                         </div>
@@ -205,7 +205,7 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
                     </div>
                 </span>
 
-                <div className="border border-gray-200 rounded-lg p-4 flex-2">
+                <div className="border border-gray-200 rounded-lg p-4 flex-1">
                     <div className="mb-4">
                         <FormLabel>Fixed Expenses</FormLabel>
                         <p className="text-xs text-gray-500 mt-0.5">All fixed monthly costs</p>

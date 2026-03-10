@@ -227,7 +227,7 @@ export function computeIndex(rows, rowsPrev) {
 
 		result[key] = {
 			index,
-			formatted: index.toFixed(1),
+			formatted: Math.round(index).toString(),
 			isGood,
 		};
 	}

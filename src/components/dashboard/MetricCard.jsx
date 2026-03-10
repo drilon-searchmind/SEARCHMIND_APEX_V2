@@ -52,7 +52,7 @@ export default function MetricCard({ label, value, unit, change, changeType, cha
 
                     {change !== undefined && (
                         <div className="flex items-center gap-1">
-                            <span className={`text-[0.65rem] rounded-sm font-medium flex items-center gap-1 px-2 py-1 ${changeType === "up" ? "text-green-600 bg-green-50" : "text-red-600 bg-red-50"}`}>
+                            <span className={`text-[0.65rem] rounded-sm font-medium flex items-center justify-end gap-1 px-2 py-1 min-w-[4rem] tabular-nums ${changeType === "up" ? "text-green-600 bg-green-50" : "text-red-600 bg-red-50"}`}>
                                 {changeType === "up" ? <FiTrendingUp className="text-sm" /> : <FiTrendingDown className="text-sm" />}
                                 {change}%
                             </span>

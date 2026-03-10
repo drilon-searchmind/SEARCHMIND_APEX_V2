@@ -29,7 +29,7 @@ export default function DailyMetricsIndexRow({
 	};
 
 	return (
-		<tr className="bg-slate-50/80 font-medium">
+		<tr className="bg-slate-50/80 font-medium border-t border-b border-gray-200">
 			<td className="px-3 py-2 whitespace-nowrap">Index</td>
 			{visibleCols.map((m) => {
 				const { index, formatted } = indexData[m.key];

@@ -1,6 +1,5 @@
 'use client';
 
-import { FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { computeDifference } from './utils';
 import { METRIC_COLUMNS } from './metricConfig';
 
@@ -30,10 +29,10 @@ export default function DailyMetricsDifferenceRow({
 	};
 
 	return (
-		<tr className="bg-amber-50/50 font-medium">
+		<tr className="bg-amber-50/50 font-medium border-t border-b border-gray-200">
 			<td className="px-3 py-2 whitespace-nowrap">Difference</td>
 			{visibleCols.map((m) => {
-				const { diff: val, formatted, isGood } = diff[m.key];
+				const { diff: val, formatted } = diff[m.key];
 				const borderCls = getBorderLClass(m.key);
 
 				if (val === 0) {
@@ -47,23 +46,12 @@ export default function DailyMetricsDifferenceRow({
 					);
 				}
 
-				const iconColorClass =
-					isGood === true
-						? 'text-green-600'
-						: isGood === false
-							? 'text-red-600'
-							: 'text-gray-500';
-				const Icon = val > 0 ? FiArrowUp : FiArrowDown;
-
 				return (
 					<td
 						key={m.key}
 						className={`px-3 py-2 whitespace-nowrap${borderCls}`}
 					>
-						<span className="inline-flex items-center gap-1">
-							{formatted}
-							<Icon className={`text-sm shrink-0 ${iconColorClass}`} />
-						</span>
+						{formatted}
 					</td>
 				);
 			})}

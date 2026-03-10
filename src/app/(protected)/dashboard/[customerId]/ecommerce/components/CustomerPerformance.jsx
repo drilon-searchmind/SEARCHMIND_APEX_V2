@@ -2,14 +2,28 @@
 
 import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
-import Spinner from '@/components/ui/Spinner';
 import GraphCard from '@/components/dashboard/GraphCard';
 import MetricCard from '@/components/dashboard/MetricCard';
+import Spinner from '@/components/ui/Spinner';
 import { FiDollarSign, FiTrendingUp, FiPackage } from 'react-icons/fi';
 
 const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
-export default function CustomerPerformance({ segmentation = null, loading = false, extendedMetricsLoading = false }) {
+// Stub for skeleton layout while loading (all nulls so cards show "—")
+const LOADING_STUB = {
+    dailySeries: [],
+    firstOrdersCount: null,
+    totalOrders: null,
+    totalNetRevenue: null,
+    ncaNetRevenue: null,
+    returningCustomerNetRevenue: null,
+    ltv30: null,
+    ltv90: null,
+    ltv180: null,
+    adSpend: null,
+};
+
+export default function CustomerPerformance({ segmentation = null, loading = false, ltvLoading = false, ltvError = null }) {
     const [showCalcs, setShowCalcs] = useState(false);
     const formatNumber = (n) => (n === undefined || n === null ? '—' : Number(n).toLocaleString());
     const formatCurrency = (v) => (v === undefined || v === null ? '—' : `${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })} kr`);
@@ -58,10 +72,12 @@ export default function CustomerPerformance({ segmentation = null, loading = fal
         );
     };
 
+    // Use stub when loading so we show layout with placeholders
+    const data = loading ? LOADING_STUB : segmentation;
     // Prepare chart data
-    const categories = segmentation?.dailySeries?.map(d => d.period) || [];
-    const newSeriesData = segmentation?.dailySeries?.map(d => d.newCustomers || 0) || [];
-    const returningSeriesData = segmentation?.dailySeries?.map(d => d.returningCustomers || 0) || [];
+    const categories = data?.dailySeries?.map(d => d.period) || [];
+    const newSeriesData = data?.dailySeries?.map(d => d.newCustomers || 0) || [];
+    const returningSeriesData = data?.dailySeries?.map(d => d.returningCustomers || 0) || [];
 
     const timeSeriesChartOptions = {
         chart: { id: 'segmentation-timeseries', toolbar: { show: false }, fontFamily: 'Outfit, sans-serif' },
@@ -100,9 +116,7 @@ export default function CustomerPerformance({ segmentation = null, loading = fal
                 </div>
             </div>
 
-            {loading ? (
-                <div className="flex justify-center items-center h-40"><Spinner size={36} /></div>
-            ) : !segmentation ? (
+            {!loading && !segmentation ? (
                 <div className="text-sm text-gray-500">No segmentation data available</div>
             ) : (
                 <div className="space-y-4">
@@ -122,100 +136,106 @@ export default function CustomerPerformance({ segmentation = null, loading = fal
                         {/* Row 1: Orders */}
                         <MetricWithCalc
                             label="New customer orders"
-                            value={extendedMetricsLoading && segmentation.firstOrdersCount == null ? <Spinner size={20} className="inline-block" /> : withPct(segmentation.firstOrdersCount != null ? formatNumber(segmentation.firstOrdersCount) : '—', segmentation.firstOrdersCount, segmentation.totalOrders)}
+                            value={withPct(data.firstOrdersCount != null ? formatNumber(data.firstOrdersCount) : '—', data.firstOrdersCount, data.totalOrders)}
                             icon={<FiPackage className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
-                            calcValueLabels={segmentation.firstOrdersCount != null && segmentation.totalOrders != null ? `New customer orders: ${fmt(segmentation.firstOrdersCount)}\nTotal orders: ${fmt(segmentation.totalOrders)}\n% of total: ${formatPct(segmentation.firstOrdersCount, segmentation.totalOrders) ?? '—'}%` : null}
-                            popOverContent={segmentation.firstOrdersCount != null && segmentation.totalOrders != null ? `= ${fmt(segmentation.firstOrdersCount)} (${formatPct(segmentation.firstOrdersCount, segmentation.totalOrders)}% of total)` : null}
+                            calcValueLabels={data.firstOrdersCount != null && data.totalOrders != null ? `New customer orders: ${fmt(data.firstOrdersCount)}\nTotal orders: ${fmt(data.totalOrders)}\n% of total: ${formatPct(data.firstOrdersCount, data.totalOrders) ?? '—'}%` : null}
+                            popOverContent={data.firstOrdersCount != null && data.totalOrders != null ? `= ${fmt(data.firstOrdersCount)} (${formatPct(data.firstOrdersCount, data.totalOrders)}% of total)` : null}
                         />
                         <MetricWithCalc
                             label="Returning customer orders"
-                            value={extendedMetricsLoading && (segmentation.totalOrders == null || segmentation.firstOrdersCount == null) ? <Spinner size={20} className="inline-block" /> : (() => {
-                                const val = segmentation.totalOrders != null && segmentation.firstOrdersCount != null ? segmentation.totalOrders - segmentation.firstOrdersCount : null;
-                                return withPct(val != null ? formatNumber(val) : '—', val, segmentation.totalOrders);
+                            value={(() => {
+                                const val = data.totalOrders != null && data.firstOrdersCount != null ? data.totalOrders - data.firstOrdersCount : null;
+                                return withPct(val != null ? formatNumber(val) : '—', val, data.totalOrders);
                             })()}
                             icon={<FiPackage className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
-                            calcValueLabels={segmentation.totalOrders != null && segmentation.firstOrdersCount != null ? `Total orders: ${fmt(segmentation.totalOrders)}\nNew customer orders: ${fmt(segmentation.firstOrdersCount)}\nReturning: ${fmt(segmentation.totalOrders - segmentation.firstOrdersCount)}\n% of total: ${formatPct(segmentation.totalOrders - segmentation.firstOrdersCount, segmentation.totalOrders) ?? '—'}%` : null}
-                            popOverContent={segmentation.totalOrders != null && segmentation.firstOrdersCount != null ? `= ${fmt(segmentation.totalOrders)} - ${fmt(segmentation.firstOrdersCount)}\n= ${fmt(segmentation.totalOrders - segmentation.firstOrdersCount)} (${formatPct(segmentation.totalOrders - segmentation.firstOrdersCount, segmentation.totalOrders)}% of total)` : null}
+                            calcValueLabels={data.totalOrders != null && data.firstOrdersCount != null ? `Total orders: ${fmt(data.totalOrders)}\nNew customer orders: ${fmt(data.firstOrdersCount)}\nReturning: ${fmt(data.totalOrders - data.firstOrdersCount)}\n% of total: ${formatPct(data.totalOrders - data.firstOrdersCount, data.totalOrders) ?? '—'}%` : null}
+                            popOverContent={data.totalOrders != null && data.firstOrdersCount != null ? `= ${fmt(data.totalOrders)} - ${fmt(data.firstOrdersCount)}\n= ${fmt(data.totalOrders - data.firstOrdersCount)} (${formatPct(data.totalOrders - data.firstOrdersCount, data.totalOrders)}% of total)` : null}
                         />
                         <MetricWithCalc
                             label="Total customer orders"
-                            value={extendedMetricsLoading && segmentation.totalOrders == null ? <Spinner size={20} className="inline-block" /> : (segmentation.totalOrders != null ? formatNumber(segmentation.totalOrders) : '—')}
+                            value={data.totalOrders != null ? formatNumber(data.totalOrders) : '—'}
                             icon={<FiPackage className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
-                            calcValueLabels={segmentation.totalOrders != null ? `New customer orders: ${fmt(segmentation.firstOrdersCount)}\nReturning customer orders: ${fmt((segmentation.totalOrders ?? 0) - (segmentation.firstOrdersCount ?? 0))}\nTotal: ${fmt(segmentation.totalOrders)}` : null}
-                            popOverContent={segmentation.firstOrdersCount != null && segmentation.totalOrders != null ? `= ${fmt(segmentation.firstOrdersCount)} + ${fmt(segmentation.totalOrders - segmentation.firstOrdersCount)}\n= ${fmt(segmentation.totalOrders)}` : null}
+                            calcValueLabels={data.totalOrders != null ? `New customer orders: ${fmt(data.firstOrdersCount)}\nReturning customer orders: ${fmt((data.totalOrders ?? 0) - (data.firstOrdersCount ?? 0))}\nTotal: ${fmt(data.totalOrders)}` : null}
+                            popOverContent={data.firstOrdersCount != null && data.totalOrders != null ? `= ${fmt(data.firstOrdersCount)} + ${fmt(data.totalOrders - data.firstOrdersCount)}\n= ${fmt(data.totalOrders)}` : null}
                         />
                         {/* Row 2: Revenue */}
                         <MetricWithCalc
                             label="New customer revenue"
-                            value={extendedMetricsLoading && segmentation.ncaNetRevenue == null ? <Spinner size={20} className="inline-block" /> : withPct(segmentation.ncaNetRevenue != null ? formatCurrency(segmentation.ncaNetRevenue) : '—', segmentation.ncaNetRevenue, segmentation.totalNetRevenue)}
+                            value={withPct(data.ncaNetRevenue != null ? formatCurrency(data.ncaNetRevenue) : '—', data.ncaNetRevenue, data.totalNetRevenue)}
                             icon={<FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
-                            calcValueLabels={segmentation.ncaNetRevenue != null && segmentation.totalNetRevenue != null ? `New customer revenue: ${fmt(segmentation.ncaNetRevenue)} kr\nTotal revenue: ${fmt(segmentation.totalNetRevenue)} kr\n% of total: ${formatPct(segmentation.ncaNetRevenue, segmentation.totalNetRevenue) ?? '—'}%` : null}
-                            popOverContent={segmentation.ncaNetRevenue != null && segmentation.totalNetRevenue != null ? `= ${fmt(segmentation.ncaNetRevenue)} kr (${formatPct(segmentation.ncaNetRevenue, segmentation.totalNetRevenue)}% of total)` : null}
+                            calcValueLabels={data.ncaNetRevenue != null && data.totalNetRevenue != null ? `New customer revenue: ${fmt(data.ncaNetRevenue)} kr\nTotal revenue: ${fmt(data.totalNetRevenue)} kr\n% of total: ${formatPct(data.ncaNetRevenue, data.totalNetRevenue) ?? '—'}%` : null}
+                            popOverContent={data.ncaNetRevenue != null && data.totalNetRevenue != null ? `= ${fmt(data.ncaNetRevenue)} kr (${formatPct(data.ncaNetRevenue, data.totalNetRevenue)}% of total)` : null}
                         />
                         <MetricWithCalc
                             label="Returning customer revenue"
-                            value={extendedMetricsLoading && segmentation.returningCustomerNetRevenue == null ? <Spinner size={20} className="inline-block" /> : withPct(segmentation.returningCustomerNetRevenue != null ? formatCurrency(segmentation.returningCustomerNetRevenue) : '—', segmentation.returningCustomerNetRevenue, segmentation.totalNetRevenue)}
+                            value={withPct(data.returningCustomerNetRevenue != null ? formatCurrency(data.returningCustomerNetRevenue) : '—', data.returningCustomerNetRevenue, data.totalNetRevenue)}
                             icon={<FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
-                            calcValueLabels={segmentation.returningCustomerNetRevenue != null && segmentation.totalNetRevenue != null ? `Returning customer revenue: ${fmt(segmentation.returningCustomerNetRevenue)} kr\nTotal revenue: ${fmt(segmentation.totalNetRevenue)} kr\n% of total: ${formatPct(segmentation.returningCustomerNetRevenue, segmentation.totalNetRevenue) ?? '—'}%` : null}
-                            popOverContent={segmentation.returningCustomerNetRevenue != null && segmentation.totalNetRevenue != null ? `= ${fmt(segmentation.returningCustomerNetRevenue)} kr (${formatPct(segmentation.returningCustomerNetRevenue, segmentation.totalNetRevenue)}% of total)` : null}
+                            calcValueLabels={data.returningCustomerNetRevenue != null && data.totalNetRevenue != null ? `Returning customer revenue: ${fmt(data.returningCustomerNetRevenue)} kr\nTotal revenue: ${fmt(data.totalNetRevenue)} kr\n% of total: ${formatPct(data.returningCustomerNetRevenue, data.totalNetRevenue) ?? '—'}%` : null}
+                            popOverContent={data.returningCustomerNetRevenue != null && data.totalNetRevenue != null ? `= ${fmt(data.returningCustomerNetRevenue)} kr (${formatPct(data.returningCustomerNetRevenue, data.totalNetRevenue)}% of total)` : null}
                         />
                         <MetricWithCalc
                             label="Total customer revenue"
-                            value={extendedMetricsLoading && segmentation.totalNetRevenue == null ? <Spinner size={20} className="inline-block" /> : (segmentation.totalNetRevenue != null ? formatCurrency(segmentation.totalNetRevenue) : '—')}
+                            value={data.totalNetRevenue != null ? formatCurrency(data.totalNetRevenue) : '—'}
                             icon={<FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
-                            calcValueLabels={segmentation.ncaNetRevenue != null && segmentation.returningCustomerNetRevenue != null ? `New customer revenue: ${fmt(segmentation.ncaNetRevenue)} kr\nReturning customer revenue: ${fmt(segmentation.returningCustomerNetRevenue)} kr\nTotal: ${fmt(segmentation.totalNetRevenue)} kr` : null}
-                            popOverContent={segmentation.ncaNetRevenue != null && segmentation.returningCustomerNetRevenue != null ? `= ${fmt(segmentation.ncaNetRevenue)} + ${fmt(segmentation.returningCustomerNetRevenue)}\n= ${fmt(segmentation.totalNetRevenue)} kr` : null}
+                            calcValueLabels={data.ncaNetRevenue != null && data.returningCustomerNetRevenue != null ? `New customer revenue: ${fmt(data.ncaNetRevenue)} kr\nReturning customer revenue: ${fmt(data.returningCustomerNetRevenue)} kr\nTotal: ${fmt(data.totalNetRevenue)} kr` : null}
+                            popOverContent={data.ncaNetRevenue != null && data.returningCustomerNetRevenue != null ? `= ${fmt(data.ncaNetRevenue)} + ${fmt(data.returningCustomerNetRevenue)}\n= ${fmt(data.totalNetRevenue)} kr` : null}
                         />
                         {/* Row 3: LTV */}
+                        {ltvError && (
+                            <div className="col-span-full flex items-center gap-2 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+                                <span className="font-medium">LTV unavailable:</span>
+                                <span>{ltvError}</span>
+                            </div>
+                        )}
                         <MetricWithCalc
                             label="LTV 30 days"
-                            value={extendedMetricsLoading && segmentation.ltv30 == null ? <Spinner size={20} className="inline-block" /> : (segmentation.ltv30 != null ? formatCurrency(segmentation.ltv30) : '—')}
+                            value={data.ltv30 != null ? formatCurrency(data.ltv30) : '—'}
                             icon={<FiTrendingUp className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
-                            calcValueLabels={segmentation.ltv30 != null ? `LTV 30 days: ${fmt(segmentation.ltv30)} kr\n(Sum of revenue in first 30 days from first purchase / count of customers)` : null}
-                            popOverContent={segmentation.ltv30 != null ? `= ${fmt(segmentation.ltv30)} kr (avg per customer)` : null}
+                            calcValueLabels={data.ltv30 != null ? `LTV 30 days: ${fmt(data.ltv30)} kr\n(Sum of revenue in first 30 days from first purchase / count of customers)` : null}
+                            popOverContent={data.ltv30 != null ? `= ${fmt(data.ltv30)} kr (avg per customer)` : null}
                         />
                         <MetricWithCalc
                             label="LTV 90 days"
-                            value={extendedMetricsLoading && segmentation.ltv90 == null ? <Spinner size={20} className="inline-block" /> : (segmentation.ltv90 != null ? formatCurrency(segmentation.ltv90) : '—')}
+                            value={ltvLoading && data.ltv90 == null ? <Spinner size={20} className="inline-block" /> : (data.ltv90 != null ? formatCurrency(data.ltv90) : '—')}
                             icon={<FiTrendingUp className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
-                            calcValueLabels={segmentation.ltv90 != null ? `LTV 90 days: ${fmt(segmentation.ltv90)} kr\n(Sum of revenue in first 90 days from first purchase / count of customers)` : null}
-                            popOverContent={segmentation.ltv90 != null ? `= ${fmt(segmentation.ltv90)} kr (avg per customer)` : null}
+                            calcValueLabels={data.ltv90 != null ? `LTV 90 days: ${fmt(data.ltv90)} kr\n(Sum of revenue in first 90 days from first purchase / count of customers)` : null}
+                            popOverContent={data.ltv90 != null ? `= ${fmt(data.ltv90)} kr (avg per customer)` : null}
                         />
                         <MetricWithCalc
                             label="LTV 180 days"
-                            value={extendedMetricsLoading && segmentation.ltv180 == null ? <Spinner size={20} className="inline-block" /> : (segmentation.ltv180 != null ? formatCurrency(segmentation.ltv180) : '—')}
+                            value={ltvLoading && data.ltv180 == null ? <Spinner size={20} className="inline-block" /> : (data.ltv180 != null ? formatCurrency(data.ltv180) : '—')}
                             icon={<FiTrendingUp className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
-                            calcValueLabels={segmentation.ltv180 != null ? `LTV 180 days: ${fmt(segmentation.ltv180)} kr\n(Sum of revenue in first 180 days from first purchase / count of customers)` : null}
-                            popOverContent={segmentation.ltv180 != null ? `= ${fmt(segmentation.ltv180)} kr (avg per customer)` : null}
+                            calcValueLabels={data.ltv180 != null ? `LTV 180 days: ${fmt(data.ltv180)} kr\n(Sum of revenue in first 180 days from first purchase / count of customers)` : null}
+                            popOverContent={data.ltv180 != null ? `= ${fmt(data.ltv180)} kr (avg per customer)` : null}
                         />
                         {/* Row 4: LTV/nCAC — nCAC = ad spend (FB+Google) / new customer orders, LTV/nCAC = LTV / nCAC */}
                         {(() => {
-                            const firstOrders = segmentation.firstOrdersCount ?? 0;
-                            const adSpend = segmentation.adSpend ?? 0;
+                            const firstOrders = data.firstOrdersCount ?? 0;
+                            const adSpend = data.adSpend ?? 0;
                             const nCAC = firstOrders > 0 && adSpend > 0 ? adSpend / firstOrders : null;
                             const ltvNcac = (ltv) => (ltv != null && nCAC != null && nCAC > 0 ? (ltv / nCAC).toFixed(2) : '—');
-                            const ltv30 = segmentation.ltv30;
-                            const ltv90 = segmentation.ltv90;
-                            const ltv180 = segmentation.ltv180;
+                            const ltv30 = data.ltv30;
+                            const ltv90 = data.ltv90;
+                            const ltv180 = data.ltv180;
                             return (
                                 <>
                                     <MetricWithCalc
                                         label="LTV/nCAC 30 days"
-                                        value={extendedMetricsLoading && (segmentation.ltv30 == null || segmentation.adSpend == null) ? <Spinner size={20} className="inline-block" /> : ltvNcac(segmentation.ltv30)}
+                                        value={ltvNcac(data.ltv30)}
                                         icon={<FiTrendingUp className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
                                         calcValueLabels={nCAC != null && ltv30 != null ? `Ad spend (FB+Google): ${fmt(adSpend)} kr\nNew customer orders: ${fmt(firstOrders)}\nnCAC: ${fmt(nCAC)} kr\nLTV 30 days: ${fmt(ltv30)} kr` : null}
                                         popOverContent={nCAC != null && ltv30 != null ? `= ${fmt(adSpend)} / ${fmt(firstOrders)}\n= ${fmt(nCAC)} kr (nCAC)\n= ${fmt(ltv30)} / ${fmt(nCAC)}\n= ${ltvNcac(ltv30)} (LTV/nCAC)` : null}
                                     />
                                     <MetricWithCalc
                                         label="LTV/nCAC 90 days"
-                                        value={extendedMetricsLoading && (segmentation.ltv90 == null || segmentation.adSpend == null) ? <Spinner size={20} className="inline-block" /> : ltvNcac(segmentation.ltv90)}
+                                        value={ltvLoading && data.ltv90 == null ? <Spinner size={20} className="inline-block" /> : ltvNcac(data.ltv90)}
                                         icon={<FiTrendingUp className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
                                         calcValueLabels={nCAC != null && ltv90 != null ? `Ad spend (FB+Google): ${fmt(adSpend)} kr\nNew customer orders: ${fmt(firstOrders)}\nnCAC: ${fmt(nCAC)} kr\nLTV 90 days: ${fmt(ltv90)} kr` : null}
                                         popOverContent={nCAC != null && ltv90 != null ? `= ${fmt(adSpend)} / ${fmt(firstOrders)}\n= ${fmt(nCAC)} kr (nCAC)\n= ${fmt(ltv90)} / ${fmt(nCAC)}\n= ${ltvNcac(ltv90)} (LTV/nCAC)` : null}
                                     />
                                     <MetricWithCalc
                                         label="LTV/nCAC 180 days"
-                                        value={extendedMetricsLoading && (segmentation.ltv180 == null || segmentation.adSpend == null) ? <Spinner size={20} className="inline-block" /> : ltvNcac(segmentation.ltv180)}
+                                        value={ltvLoading && data.ltv180 == null ? <Spinner size={20} className="inline-block" /> : ltvNcac(data.ltv180)}
                                         icon={<FiTrendingUp className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />}
                                         calcValueLabels={nCAC != null && ltv180 != null ? `Ad spend (FB+Google): ${fmt(adSpend)} kr\nNew customer orders: ${fmt(firstOrders)}\nnCAC: ${fmt(nCAC)} kr\nLTV 180 days: ${fmt(ltv180)} kr` : null}
                                         popOverContent={nCAC != null && ltv180 != null ? `= ${fmt(adSpend)} / ${fmt(firstOrders)}\n= ${fmt(nCAC)} kr (nCAC)\n= ${fmt(ltv180)} / ${fmt(nCAC)}\n= ${ltvNcac(ltv180)} (LTV/nCAC)` : null}

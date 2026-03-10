@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import DashboardHeading from '@/components/dashboard/DashboardHeading';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import Spinner from '@/components/ui/Spinner';
@@ -29,21 +29,42 @@ const defaultRange = () => {
     return { startDate: defaultStart, endDate: defaultEnd };
 };
 
+const TAB_IDS = ['products', 'customers'];
+
 export default function EcommercePage() {
     const params = useParams();
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const customerId = params?.customerId;
     const defaultRangeValue = defaultRange();
     const [tempRange, setTempRange] = useState(defaultRangeValue);
     const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
-    const [productsLoading, setProductsLoading] = useState(true);
+    const [productsLoading, setProductsLoading] = useState(false);
     const [inventoryLoading, setInventoryLoading] = useState(false);
     const [segmentationLoading, setSegmentationLoading] = useState(false);
-    const [extendedMetricsLoading, setExtendedMetricsLoading] = useState(false);
+    const [ltvLoading, setLtvLoading] = useState(false);
+    const [ltvError, setLtvError] = useState(null);
     const [error, setError] = useState(null);
     const [products, setProducts] = useState([]);
     const [segmentation, setSegmentation] = useState(null);
     const [segmentationFetchedFor, setSegmentationFetchedFor] = useState(null);
-    const [activeTab, setActiveTab] = useState('products');
+    const tabFromUrl = searchParams.get('tab');
+    const [activeTab, setActiveTabState] = useState(() =>
+        TAB_IDS.includes(tabFromUrl) ? tabFromUrl : 'products'
+    );
+
+    const setActiveTab = (tab) => {
+        setActiveTabState(tab);
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', tab);
+        router.replace(url.pathname + url.search, { scroll: false });
+    };
+
+    // Sync tab from URL (e.g. on refresh or browser back/forward)
+    useEffect(() => {
+        const t = searchParams.get('tab');
+        if (t && TAB_IDS.includes(t)) setActiveTabState(t);
+    }, [searchParams]);
 
     const handleDateRangeApply = ({ startDate, endDate }) => {
         setAppliedRange({ startDate, endDate });
@@ -52,7 +73,7 @@ export default function EcommercePage() {
     const rangeKey = appliedRange.startDate && appliedRange.endDate ? `${appliedRange.startDate}-${appliedRange.endDate}` : null;
 
     useEffect(() => {
-        if (!customerId || !appliedRange.startDate || !appliedRange.endDate) return;
+        if (!customerId || !appliedRange.startDate || !appliedRange.endDate || activeTab !== 'products') return;
         let cancelled = false;
         async function fetchProducts() {
             setProductsLoading(true);
@@ -102,59 +123,97 @@ export default function EcommercePage() {
         }
         fetchProducts();
         return () => { cancelled = true; };
-    }, [customerId, appliedRange.startDate, appliedRange.endDate]);
+    }, [customerId, appliedRange.startDate, appliedRange.endDate, activeTab]);
 
     useEffect(() => {
         if (!customerId || !appliedRange.startDate || !appliedRange.endDate || activeTab !== 'customers') return;
         if (segmentation && segmentationFetchedFor === rangeKey) {
-            setExtendedMetricsLoading(false);
+            setLtvLoading(false); // Cached data - no background LTV fetch
             return;
         }
         let cancelled = false;
         async function fetchSegmentation() {
             setSegmentationLoading(true);
             setError(null);
+            setLtvError(null);
             try {
-                const segmentationRes = await fetch(`/api/customer-segmentation/${customerId}?startDate=${appliedRange.startDate}&endDate=${appliedRange.endDate}&fast=true`);
-                const segmentationData = await segmentationRes.json();
-                if (!cancelled) {
-                    if (!segmentationRes.ok) throw new Error(segmentationData?.error || 'Failed to fetch customer segmentation');
-                    setSegmentation(segmentationRes.ok ? segmentationData : null);
-                    setSegmentationFetchedFor(rangeKey);
-                }
-                setSegmentationLoading(false);
-                setExtendedMetricsLoading(true);
+                // 1. Try ShopifyQL first (fast: new/returning + merged-sources)
+                const shopifyqlRes = await fetch(
+                    `/api/customer-segmentation-shopifyql/${customerId}?startDate=${appliedRange.startDate}&endDate=${appliedRange.endDate}&full=true`
+                );
+                const shopifyqlData = await shopifyqlRes.json();
 
-                // Background fetch for LTV + net revenue (no fast mode)
-                try {
-                    const fullRes = await fetch(`/api/customer-segmentation/${customerId}?startDate=${appliedRange.startDate}&endDate=${appliedRange.endDate}`);
-                    const fullData = await fullRes.json();
-                    if (!cancelled && fullRes.ok) {
-                        setSegmentation((prev) => (prev ? {
-                            ...prev,
-                            ltv30: fullData.ltv30 ?? prev.ltv30,
-                            ltv90: fullData.ltv90 ?? prev.ltv90,
-                            ltv180: fullData.ltv180 ?? prev.ltv180,
-                            ltv365: fullData.ltv365 ?? prev.ltv365,
-                            // Don't overwrite revenue with 0 when we already have approximated values from fast load
-                            ncaNetRevenue: fullData.ncaNetRevenue != null && (fullData.ncaNetRevenue > 0 || (prev.ncaNetRevenue ?? 0) === 0)
-                                ? fullData.ncaNetRevenue
-                                : (prev.ncaNetRevenue ?? fullData.ncaNetRevenue),
-                            returningCustomerNetRevenue: fullData.returningCustomerNetRevenue != null && (fullData.returningCustomerNetRevenue > 0 || (prev.returningCustomerNetRevenue ?? 0) === 0)
-                                ? fullData.returningCustomerNetRevenue
-                                : (prev.returningCustomerNetRevenue ?? fullData.returningCustomerNetRevenue),
-                            cac: fullData.cac ?? prev.cac,
-                            adSpend: fullData.adSpend ?? prev.adSpend,
-                        } : prev));
+                if (!cancelled) {
+                    if (shopifyqlRes.ok) {
+                        console.log('[Customer Performance] ShopifyQL data loaded (fast path)', {
+                            newCustomers: shopifyqlData.newCustomers,
+                            returningCustomers: shopifyqlData.returningCustomers,
+                            totalOrders: shopifyqlData.totalOrders,
+                        });
+                        setSegmentation(shopifyqlData);
+                        setSegmentationFetchedFor(rangeKey);
+                        setSegmentationLoading(false);
+                        // 2. Background: fetch full LTV (slow). Only merge ltv30/90/180 - never overwrite other data.
+                        setLtvLoading(true);
+                        setLtvError(null);
+                        console.log('[Customer Performance] LTV background fetch started…');
+                        try {
+                            const ltvRes = await fetch(
+                                `/api/customer-segmentation/${customerId}?startDate=${appliedRange.startDate}&endDate=${appliedRange.endDate}&extendForLtv=true`
+                            );
+                            const ltvData = await ltvRes.json();
+                            if (!cancelled) {
+                                if (ltvRes.ok && !ltvData.error) {
+                                    setLtvError(null);
+                                    console.log('[Customer Performance] LTV background fetch completed', {
+                                        ltv30: ltvData.ltv30,
+                                        ltv90: ltvData.ltv90,
+                                        ltv180: ltvData.ltv180,
+                                    });
+                                    const ltvOnly = {
+                                        ltv30: ltvData.ltv30,
+                                        ltv90: ltvData.ltv90,
+                                        ltv180: ltvData.ltv180,
+                                    };
+                                    setSegmentation((prev) =>
+                                        prev && prev.source === 'shopifyql'
+                                            ? { ...prev, ...ltvOnly }
+                                            : prev
+                                    );
+                                } else {
+                                    const errMsg = ltvData?.error || (ltvRes.ok ? null : 'Failed to load LTV');
+                                    setLtvError(errMsg);
+                                    console.warn('[Customer Performance] LTV fetch returned error', {
+                                        ok: ltvRes.ok,
+                                        error: errMsg,
+                                    });
+                                }
+                            }
+                        } catch (ltvErr) {
+                            if (!cancelled) {
+                                setLtvError(ltvErr?.message || 'Failed to load LTV');
+                                console.warn('[Customer Performance] LTV background fetch failed:', ltvErr);
+                            }
+                        } finally {
+                            if (!cancelled) setLtvLoading(false);
+                        }
+                        return;
                     }
-                } catch {
-                    // Ignore background fetch errors; fast data already shown
-                } finally {
-                    if (!cancelled) setExtendedMetricsLoading(false);
+                    // 3. Fallback: full customer-segmentation (when ShopifyQL fails)
+                    const res = await fetch(
+                        `/api/customer-segmentation/${customerId}?startDate=${appliedRange.startDate}&endDate=${appliedRange.endDate}&extendForLtv=true`
+                    );
+                    const data = await res.json();
+                    if (!cancelled) {
+                        if (!res.ok) throw new Error(data?.error || 'Failed to fetch customer segmentation');
+                        setSegmentation(data);
+                        setSegmentationFetchedFor(rangeKey);
+                    }
                 }
             } catch (e) {
                 if (!cancelled) setError(e.message || String(e));
-                setSegmentationLoading(false);
+            } finally {
+                if (!cancelled) setSegmentationLoading(false);
             }
         }
         fetchSegmentation();
@@ -222,12 +281,23 @@ export default function EcommercePage() {
                     )}
 
                     {activeTab === 'customers' && (
-                        <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
-                            <CustomerPerformance
-                                segmentation={segmentation}
-                                loading={segmentationLoading}
-                                extendedMetricsLoading={extendedMetricsLoading}
-                            />
+                        <div className="relative">
+                            {segmentationLoading && (
+                                <div className="sticky top-10 mt-10 z-50 flex items-center justify-center gap-3 py-4 px-6 w-full min-h-[72px] bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl border-b border-white/20 dark:border-gray-700/50 shadow-lg">
+                                    <Spinner size={24} />
+                                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                                        Fetching data for LTV last 180 days, calculating and crunching numbers…
+                                    </span>
+                                </div>
+                            )}
+                            <div className={segmentationLoading ? 'pointer-events-none select-none blur-md transition-all duration-300' : 'transition-all duration-300'}>
+                                <CustomerPerformance
+                                    segmentation={segmentation}
+                                    loading={segmentationLoading}
+                                    ltvLoading={ltvLoading}
+                                    ltvError={ltvError}
+                                />
+                            </div>
                         </div>
                     )}
                 </>

@@ -3,13 +3,13 @@ import currencyApiValues from './static-data/currencyApiValues.json';
 
 /**
  * Fetch Shopify orders for customer segmentation (customer id, date, total, net).
- * Fetches in extended range (startDate - 90 days) for LTV 90 computation.
  * @param {object} settings - { shopifyUrl, shopifyApiPassword, customerStoreValutaCode }
  * @param {string} startDate - YYYY-MM-DD
  * @param {string} endDate - YYYY-MM-DD
+ * @param {object} opts - { extendForLtv: boolean } When true (default), fetches startDate-365 to endDate for LTV. When false, fetches only [startDate,endDate] for fast core metrics.
  * @returns {Promise<Array<{ customer, created_at, total_price, net_price }>>}
  */
-async function fetchShopifyOrdersForSegmentation(settings, startDate, endDate) {
+async function fetchShopifyOrdersForSegmentation(settings, startDate, endDate, opts = {}) {
     if (!settings?.shopifyUrl || !settings?.shopifyApiPassword) return [];
     const shopUrl = settings.shopifyUrl;
     const accessToken = settings.shopifyApiPassword;
@@ -24,7 +24,8 @@ async function fetchShopifyOrdersForSegmentation(settings, startDate, endDate) {
 
     const endpoint = `https://${shopUrl}/admin/api/2025-10/graphql.json`;
     const orders = [];
-    const extendDays = 365; // For LTV 365 computation
+    // UI uses LTV 30/90/180, so we need 180 days of lookback for full LTV.
+    const extendDays = opts.extendForLtv !== false ? 180 : 0;
     const fetchStart = new Date(startDate);
     fetchStart.setDate(fetchStart.getDate() - extendDays);
     const fetchStartStr = fetchStart.toISOString().slice(0, 10);
@@ -51,6 +52,7 @@ async function fetchShopifyOrdersForSegmentation(settings, startDate, endDate) {
     const q = `created_at:>="${fetchStartStr}" AND created_at:<="${endDate}"`;
     let cursor = null;
     let hasNext = true;
+    let pageNum = 0;
 
     try {
         while (hasNext) {
@@ -64,12 +66,25 @@ async function fetchShopifyOrdersForSegmentation(settings, startDate, endDate) {
             });
             if (!res.ok) throw new Error(`Shopify GraphQL error: ${res.status}`);
             const json = await res.json();
+            const apiErrors = json?.errors;
+            if (apiErrors?.length) {
+                console.warn('[Customer Segmentation] Shopify GraphQL API errors:', apiErrors);
+                const accessDenied = apiErrors.find((e) => e?.extensions?.code === 'ACCESS_DENIED' || /access denied|required access/i.test(e?.message || ''));
+                if (accessDenied) {
+                    const requiredScope = (accessDenied?.extensions?.requiredAccess || accessDenied?.message?.match(/Required access: (.+)/i)?.[1] || 'additional scope').replace(/\.$/, '');
+                    throw new Error(`Shopify access denied. This store's app needs the ${requiredScope} to compute LTV. Ask the merchant to add this scope in their Shopify app settings.`);
+                }
+            }
             const edges = json?.data?.orders?.edges || [];
+            let skippedNoCustomer = 0;
             for (const edge of edges) {
                 const node = edge.node;
                 const cust = node.customer;
                 const custId = cust?.id || cust?.email || null;
-                if (!custId) continue;
+                if (!custId) {
+                    skippedNoCustomer += 1;
+                    continue;
+                }
                 const total = (parseFloat(node.totalPriceSet?.shopMoney?.amount) || 0) * conversionRate;
                 const net = (parseFloat(node.netPaymentSet?.shopMoney?.amount) || 0) * conversionRate;
                 orders.push({
@@ -84,9 +99,41 @@ async function fetchShopifyOrdersForSegmentation(settings, startDate, endDate) {
             const pageInfo = json?.data?.orders?.pageInfo || {};
             hasNext = !!pageInfo.hasNextPage;
             cursor = pageInfo.endCursor || null;
+            // Log first page to diagnose empty results
+            if (opts.extendForLtv !== false && pageNum === 0) {
+                const firstNode = edges[0]?.node;
+                console.log('[Customer Segmentation] fetchShopifyOrdersForSegmentation first page:', {
+                    edgesCount: edges.length,
+                    skippedNoCustomer,
+                    hasNextPage: pageInfo.hasNextPage,
+                    sampleNode: firstNode ? { hasCustomer: !!firstNode.customer, createdAt: firstNode.createdAt } : null,
+                    apiErrors: apiErrors?.length ? apiErrors : undefined,
+                });
+            }
+            pageNum += 1;
+        }
+        if (opts.extendForLtv !== false) {
+            console.log('[Customer Segmentation] fetchShopifyOrdersForSegmentation:', {
+                range: `${fetchStartStr} to ${endDate}`,
+                ordersCount: orders.length,
+                sampleCustomer: orders[0] ? { hasId: !!orders[0].customer_id, hasEmail: !!orders[0].customer_email } : null,
+            });
+        }
+
+        // Fallback: Shopify restricts read_orders to 60 days for apps without read_all_orders.
+        // If 180-day fetch returned 0 orders, retry with 60-day window.
+        if (opts.extendForLtv !== false && !opts._retry60 && orders.length === 0 && extendDays === 180) {
+            const fallbackStart = new Date(endDate);
+            fallbackStart.setDate(fallbackStart.getDate() - 60);
+            const fallbackStartStr = fallbackStart.toISOString().slice(0, 10);
+            console.log('[Customer Segmentation] Retrying with 60-day window (Shopify read_orders scope):', fallbackStartStr, 'to', endDate);
+            return fetchShopifyOrdersForSegmentation(settings, fallbackStartStr, endDate, { ...opts, extendForLtv: false, _retry60: true });
         }
         return orders;
     } catch (err) {
+        if (/Shopify access denied|access denied|required access/i.test(err?.message || '')) {
+            throw err;
+        }
         console.error('fetchShopifyOrdersForSegmentation error:', err);
         return [];
     }
@@ -95,6 +142,10 @@ async function fetchShopifyOrdersForSegmentation(settings, startDate, endDate) {
 export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
     // Try to find per-order customer-level data first
     const orders = merged.shopifyOrders || merged.orders || merged.shopify?.orders || [];
+
+    if (orders.length === 0) {
+        console.log('[Customer Segmentation] computeSegmentationFromMerged: no order-level data, merged keys:', Object.keys(merged));
+    }
 
     // Initialize defaults
     let totalCustomers = 0;
@@ -184,7 +235,7 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
             });
         });
 
-        const dailySeries = Object.keys(dailyMap).sort().map(period => ({
+        let dailySeries = Object.keys(dailyMap).sort().map(period => ({
             period,
             newCustomers: dailyMap[period].newSet.size,
             returningCustomers: dailyMap[period].returningSet.size,
@@ -243,11 +294,12 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
         ncaNetRevenue = Number(ncaNetRevenue.toFixed(2));
         returningCustomerNetRevenue = Number((totalNetRevenue - ncaNetRevenue).toFixed(2));
 
-        // LTV 30, 90, 180, 365 days: avg revenue per customer in first X days from first purchase
+        // LTV 30, 90, 180 days: avg revenue per customer in first X days from first purchase
         const msPerDayNum = 1000 * 60 * 60 * 24;
-        const ltvWindows = [30, 90, 180, 365];
+        const ltvWindows = [30, 90, 180];
         const ltvResult = { ltv30: null, ltv90: null, ltv180: null, ltv365: null };
         const cutoffDate = new Date(e.getTime() - 1); // exclude partial windows at end
+        const ltvCohortCounts = {};
         for (const window of ltvWindows) {
             const windowMs = window * msPerDayNum;
             const cutoff = new Date(cutoffDate.getTime() - windowMs);
@@ -263,7 +315,52 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
                 sum += revenueInWindow;
                 count += 1;
             });
+            ltvCohortCounts[`ltv${window}`] = count;
             if (count > 0) ltvResult[`ltv${window}`] = Number((sum / count).toFixed(2));
+        }
+        if (Object.values(ltvResult).every((v) => v == null)) {
+            const firstSeenDates = [...byCust.values()].map((i) => i.firstSeen).filter(Boolean);
+            const earliestFirstSeen = firstSeenDates.reduce((min, d) => (!min || d < min ? d : min), null);
+            const cutoffLtv30 = new Date(cutoffDate.getTime() - 30 * msPerDayNum);
+            const sampleFirstSeen = firstSeenDates.slice(0, 5).map((d) => d.toISOString().slice(0, 10));
+            const qualifyingForLtv30 = firstSeenDates.filter((d) => d <= cutoffLtv30).length;
+            console.log('[Customer Segmentation] LTV all null - debug:', {
+                ordersCount: orders.length,
+                byCustSize: byCust.size,
+                ltvCohortCounts,
+                endDate: String(endDate),
+                cutoffLtv30: cutoffLtv30.toISOString().slice(0, 10),
+                earliestFirstSeen: earliestFirstSeen ? earliestFirstSeen.toISOString().slice(0, 10) : null,
+                sampleFirstSeen,
+                qualifyingForLtv30,
+            });
+        }
+
+        // If we have store-wide daily totals, prefer them for overall orders/revenue to avoid dropping guest/unknown-customer orders.
+        // (Order-level payload skips orders with no customer id/email, which makes totals look "wrong" vs Shopify.)
+        let storeTotalOrders = totalOrders;
+        let storeTotalRevenue = totalRevenue;
+        let storeTotalNetRevenue = totalNetRevenue;
+        const shopifyDaily = merged.shopifyDaily || merged.shopify_daily || merged.shopify || [];
+        if (Array.isArray(shopifyDaily) && shopifyDaily.length > 0) {
+            storeTotalOrders = shopifyDaily.reduce((sum, d) => sum + (d.orders || 0), 0);
+            storeTotalRevenue = shopifyDaily.reduce((sum, d) => sum + (d.total_sales || d.net_sales || 0), 0);
+            storeTotalNetRevenue = shopifyDaily.reduce((sum, d) => sum + (d.net_sales || d.total_sales || 0), 0);
+
+            // Merge daily series: keep new/returning customer counts from order-level, but orders/revenue from store totals.
+            const byDay = new Map(dailySeries.map(d => [d.period, { ...d }]));
+            for (const d of shopifyDaily) {
+                const period = d.period || d.date || d.day;
+                if (!period) continue;
+                const rec = byDay.get(period) || { period, newCustomers: 0, returningCustomers: 0, orders: 0, revenue: 0 };
+                rec.orders = d.orders || 0;
+                rec.revenue = Number(((d.total_sales ?? d.net_sales ?? 0) || 0).toFixed(2));
+                byDay.set(period, rec);
+            }
+            // overwrite dailySeries variable by shadowing
+            const mergedDailySeries = [...byDay.values()].sort((a, b) => String(a.period).localeCompare(String(b.period)));
+            // eslint-disable-next-line no-unused-vars
+            dailySeries = mergedDailySeries;
         }
 
         // Insights
@@ -288,12 +385,12 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
             returningPct: totalCustomers ? Number(((returningCustomers / totalCustomers) * 100).toFixed(2)) : 0,
             repeatRate: Number(repeatRate.toFixed(2)),
             ordersPerReturning: Number(ordersPerReturning.toFixed(2)),
-            totalOrders,
-            totalRevenue: Number(totalRevenue.toFixed(2)),
-            totalNetRevenue: Number(totalNetRevenue.toFixed(2)),
+            totalOrders: storeTotalOrders,
+            totalRevenue: Number(storeTotalRevenue.toFixed(2)),
+            totalNetRevenue: Number(storeTotalNetRevenue.toFixed(2)),
             ncaRevenue,
             ncaNetRevenue,
-            returningCustomerNetRevenue,
+            returningCustomerNetRevenue: Number((storeTotalNetRevenue - ncaNetRevenue).toFixed(2)),
             ltv30: ltvResult.ltv30,
             ltv90: ltvResult.ltv90,
             ltv180: ltvResult.ltv180,
@@ -408,7 +505,7 @@ export async function fetchCustomerSegmentation(customerId, startDate, endDate, 
         throw new Error('Missing parameters');
     }
 
-    const { fast = false } = options;
+    const { fast = false, extendForLtv = true } = options;
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
     // Fetch customer settings (same approach as merged-sources route)
@@ -465,10 +562,17 @@ GROUP BY customer_type
 
             // For deeper insights (AOV, repeat, LTV, NCA) fetch merged-sources + orders (unless fast mode)
             const mergedPromise = fetch(`${baseUrl}/api/merged-sources/${customerId}?startDate=${startDate}&endDate=${endDate}`);
-            const shopifyOrdersPromise = fast ? Promise.resolve([]) : fetchShopifyOrdersForSegmentation(settings, startDate, endDate);
+            const shopifyOrdersPromise = fast ? Promise.resolve([]) : fetchShopifyOrdersForSegmentation(settings, startDate, endDate, { extendForLtv });
             const [mergedRes, shopifyOrders] = await Promise.all([mergedPromise, shopifyOrdersPromise]);
             const merged = mergedRes.ok ? await mergedRes.json() : {};
             if (shopifyOrders.length > 0) merged.shopifyOrders = shopifyOrders;
+            if (extendForLtv) {
+                console.log('[Customer Segmentation] Before computeSegmentationFromMerged:', {
+                    shopifyOrdersCount: shopifyOrders.length,
+                    mergedHasShopifyOrders: !!merged.shopifyOrders,
+                    mergedHasShopifyDaily: !!(merged.shopifyDaily?.length),
+                });
+            }
             if (mergedRes.ok || shopifyOrders.length > 0) {
                 const computed = computeSegmentationFromMerged(merged, startDate, endDate);
                 const aov = computed.totalOrders > 0 ? computed.totalRevenue / computed.totalOrders : 0;
@@ -515,7 +619,9 @@ GROUP BY customer_type
                 insights: [totalCustomers === 0 ? 'No customers found via ShopifyQL' : 'Counts computed via ShopifyQL; for more insights enable order-level export.']
             };
         } catch (err) {
-            // ShopifyQL failed - fall back
+            if (/Shopify access denied|access denied|required access/i.test(err?.message || '')) {
+                throw err;
+            }
             console.warn('ShopifyQL failed, falling back to merged sources', err);
         }
     }
