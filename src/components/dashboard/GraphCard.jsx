@@ -162,20 +162,20 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
     }, [toggle, chartOptions, chartSeries, chartType, aggregateByMonth, isDark]);
 
     return (
-        <div className="bg-white dark:bg-[#181f23] rounded-xl border border-gray-200 dark:border-[#232a2f] p-6 flex flex-col justify-between h-full min-h-[320px]">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col justify-between h-full min-h-[320px]">
             <div className="mb-2 flex justify-between items-center">
                 <h6 className="text-[var(--color-primary-searchmind)] dark:text-[#f1f5f9] mb-2 font-bold">{title}</h6>
                 <div id="chartToggler">
-                    <div className="flex border border-gray-200 dark:border-[#232a2f] bg-gray-100 dark:bg-[#232a2f] rounded-lg overflow-hidden">
+                    <div className="flex border border-gray-200 bg-gray-100 rounded-lg overflow-hidden">
                         <button
-                            className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors duration-150 ${toggle === 'Monthly' ? 'bg-white dark:bg-[#2c353b] text-[var(--color-primary-searchmind)] dark:text-[#f1f5f9] shadow-sm' : 'text-gray-500 dark:text-[#94a3b8] hover:text-[var(--color-primary-searchmind)] dark:hover:text-[#f1f5f9]'}`}
+                            className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors duration-150 ${toggle === 'Monthly' ? 'bg-white text-[var(--color-primary-searchmind)] dark:text-[#f1f5f9] shadow-sm' : 'text-gray-500 dark:text-[#94a3b8] hover:text-[var(--color-primary-searchmind)] dark:hover:text-[#f1f5f9]'}`}
                             style={{ borderRadius: '8px 0 0 8px' }}
                             onClick={() => setToggle('Monthly')}
                         >
                             Monthly
                         </button>
                         <button
-                            className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors duration-150 ${toggle === 'Period' ? 'bg-white dark:bg-[#2c353b] text-[var(--color-primary-searchmind)] dark:text-[#f1f5f9] shadow-sm' : 'text-gray-500 dark:text-[#94a3b8] hover:text-[var(--color-primary-searchmind)] dark:hover:text-[#f1f5f9]'}`}
+                            className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors duration-150 ${toggle === 'Period' ? 'bg-white  text-[var(--color-primary-searchmind)] dark:text-[#f1f5f9] shadow-sm' : 'text-gray-500 dark:text-[#94a3b8] hover:text-[var(--color-primary-searchmind)] dark:hover:text-[#f1f5f9]'}`}
                             style={{ borderRadius: '0 8px 8px 0' }}
                             onClick={() => setToggle('Period')}
                         >

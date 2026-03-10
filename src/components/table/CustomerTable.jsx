@@ -138,7 +138,7 @@ export default function CustomerTable() {
     if (loading) {
         return (
             <div className="fixed inset-0 flex items-center justify-center glassmorphism2">
-                <div className={`w-full max-w-4xl p-8 bg-white dark:bg-[#181f23] border border-gray-200 rounded-xl ${FONT}`}>
+                <div className={`w-full max-w-4xl p-8 bg-white border border-gray-200 rounded-xl ${FONT}`}>
                     <div className="text-center">
                         <h1 className="font-bold text-gray-900 dark:text-gray-100">Loading Properties...</h1>
                         <div className="animate-spin rounded-full h-10 w-10 border-2 border-[var(--color-primary-searchmind)] border-t-transparent mx-auto mt-4" />
@@ -151,7 +151,7 @@ export default function CustomerTable() {
     if (error) {
         return (
             <div className="fixed inset-0 flex items-center justify-center glassmorphism2">
-                <div className={`w-full max-w-4xl p-8 bg-white dark:bg-[#181f23] border border-gray-200 rounded-xl ${FONT}`}>
+                <div className={`w-full max-w-4xl p-8 bg-white border border-gray-200 rounded-xl ${FONT}`}>
                     <div className="text-center">
                         <h1 className="font-bold text-gray-900 dark:text-gray-100">Error Loading Properties</h1>
                         <p className="text-red-500 mt-2 mb-4">{error}</p>
@@ -169,7 +169,7 @@ export default function CustomerTable() {
 
     return (
         <div className="fixed inset-0 flex items-center justify-center glassmorphism2 p-4">
-            <div className={`w-full max-w-7xl h-[90vh] flex flex-col bg-white dark:bg-[#181f23] border border-gray-200 rounded-xl overflow-hidden ${FONT}`}>
+            <div className={`w-full max-w-7xl h-[90vh] flex flex-col bg-white border border-gray-200 rounded-xl overflow-hidden ${FONT}`}>
                 <div className="flex flex-1 min-h-0 gap-4 p-4 md:p-6">
                     <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
                         {showCreate ? (
@@ -198,9 +198,9 @@ export default function CustomerTable() {
                                     {Object.keys(groups).map((parentId) => (
                                         <div
                                             key={parentId}
-                                            className="bg-white dark:bg-[#181f23] border border-gray-200 dark:border-[#232a2f] rounded-xl overflow-hidden"
+                                            className="bg-white border border-gray-200 rounded-xl overflow-hidden"
                                         >
-                                            <div className="px-4 py-3 bg-gray-50 dark:bg-[#232a2f] border-b border-gray-200 dark:border-[#232a2f] flex items-center">
+                                            <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center">
                                                 {parentId !== "none" ? (
                                                     <Link
                                                         href={`/parent-property/${parentId}/home`}
@@ -302,12 +302,12 @@ export default function CustomerTable() {
                                 <button
                                     type="button"
                                     onClick={handleLogout}
-                                    className="w-full py-2.5 px-3 rounded-lg border border-gray-200 dark:border-[#232a2f] text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-50 dark:hover:bg-[#232a2f] transition-colors flex items-center justify-center gap-2"
+                                    className="w-full py-2.5 px-3 rounded-lg border border-gray-200 text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
                                 >
                                     <FiLogOut /> Logout
                                 </button>
                             </div>
-                            <div className="flex-1 min-h-0 flex flex-col border border-gray-200 dark:border-[#232a2f] rounded-xl bg-gray-50 dark:bg-[#232a2f] p-3 overflow-hidden">
+                            <div className="flex-1 min-h-0 flex flex-col border border-gray-200 rounded-xl bg-gray-50 p-3 overflow-hidden">
                                 <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2 shrink-0">
                                     <FiStar className="text-[var(--color-primary-searchmind)]" />
                                     Your Favorites
@@ -323,7 +323,7 @@ export default function CustomerTable() {
                                                 <Link
                                                     key={customer._id}
                                                     href={`/dashboard/${customer._id}/performance-dashboard`}
-                                                    className="flex items-center gap-2 p-2.5 bg-white dark:bg-[#181f23] border border-gray-200 dark:border-[#232a2f] rounded-lg hover:border-[var(--color-primary-searchmind)] transition-all"
+                                                    className="flex items-center gap-2 p-2.5 bg-white border border-gray-200  rounded-lg hover:border-[var(--color-primary-searchmind)] transition-all"
                                                 >
                                                     <span
                                                         className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white font-medium ${getAvatarColor(customer.customerName)}`}
