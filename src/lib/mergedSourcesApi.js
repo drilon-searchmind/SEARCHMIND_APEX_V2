@@ -1,6 +1,7 @@
 // src/lib/mergedSourcesApi.js
 import { shopifyqlQuery, discoverSalesFields } from './shopifyApi';
 import { fetchWooCommerceOrders } from './wooCommerceApi';
+import { fetchMagentoOrders } from './magentoApi';
 import { fetchFacebookAdsInsights } from './facebookApi';
 import { fetchGoogleAdsMetrics } from './googleAdsApi';
 import currencyApiValues from './static-data/currencyApiValues.json';
@@ -50,6 +51,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                     GROUP BY day SINCE ${startDate} UNTIL ${endDate}`;
             }
             
+            console.log(`[Shopify] Fetching for customer: ${settings.customerName || 'Unknown'}, shop: ${settings.shopifyUrl}`);
             const shopifyRes = await shopifyqlQuery(settings.shopifyUrl, settings.shopifyApiPassword, shopifyql);
             let rows = shopifyRes?.data?.shopifyqlQuery?.tableData?.rows || [];
             
@@ -129,6 +131,43 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 custom_1: (parseFloat(row.custom_1) || 0) * conversionRate,
                 orders: parseInt(row.orders) || 0,
             })).sort((a, b) => a.period.localeCompare(b.period));
+        } else if (customerType === 'Magento' && settings.magentoBaseUrl && settings.magentoAccessToken) {
+            console.log("::: FETCHING MAGENTO DATA :::");
+            console.log("Customer:", settings.customerName || 'Unknown', "- Date range:", { startDate, endDate });
+
+            const magentoData = await fetchMagentoOrders(
+                settings.magentoBaseUrl,
+                settings.magentoAccessToken,
+                startDate,
+                endDate,
+                settings.magentoStoreCode
+            );
+
+            console.log("::: MAGENTO RESULT :::", magentoData.length, "days with data");
+
+            // Currency conversion logic (same as Shopify/WooCommerce)
+            const fromCode = settings?.customerStoreValutaCode || 'DKK';
+            const toCode = 'DKK';
+            const currencyData = currencyApiValues.data;
+            let conversionRate = 1;
+            if (fromCode !== toCode && currencyData[fromCode] && currencyData[toCode]) {
+                conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
+            }
+
+            shopifyDaily = magentoData.map(row => ({
+                period: row.period,
+                gross_sales: (parseFloat(row.gross_sales) || 0) * conversionRate,
+                discounts: (parseFloat(row.discounts) || 0) * conversionRate,
+                returns: (parseFloat(row.returns) || 0) * conversionRate,
+                net_sales: (parseFloat(row.net_sales) || 0) * conversionRate,
+                shipping_charges: (parseFloat(row.shipping_charges) || 0) * conversionRate,
+                duties: (parseFloat(row.duties) || 0) * conversionRate,
+                additional_fees: (parseFloat(row.additional_fees) || 0) * conversionRate,
+                taxes: (parseFloat(row.taxes) || 0) * conversionRate,
+                total_sales: (parseFloat(row.total_sales) || 0) * conversionRate,
+                custom_1: (parseFloat(row.custom_1) || 0) * conversionRate,
+                orders: parseInt(row.orders) || 0,
+            })).sort((a, b) => a.period.localeCompare(b.period));
         }
     } catch (err) {
         console.error(`${customerType} error:`, err);
@@ -139,7 +178,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
     let facebookDaily = [];
     try {
         if (settings.facebookAdAccountId && FACEBOOK_APP_TOKEN) {
-            const fbRes = await fetchFacebookAdsInsights(
+            let fbRes = await fetchFacebookAdsInsights(
                 settings.facebookAdAccountId,
                 settings.customerMetaID,
                 FACEBOOK_APP_TOKEN,
@@ -147,7 +186,23 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 endDate,
                 { dailyBreakdown: options.dailyBreakdown }
             );
-            const fbRows = fbRes?.data || [];
+            let fbRows = fbRes?.data || [];
+            // Fallback: if country filter returns empty but we expect data, retry without country filter
+            if (fbRows.length === 0 && settings.customerMetaID) {
+                console.log('Facebook: Country filter returned empty, retrying without filter for date range', startDate, endDate);
+                fbRes = await fetchFacebookAdsInsights(
+                    settings.facebookAdAccountId,
+                    null,
+                    FACEBOOK_APP_TOKEN,
+                    startDate,
+                    endDate,
+                    { dailyBreakdown: options.dailyBreakdown }
+                );
+                fbRows = fbRes?.data || [];
+                if (fbRows.length > 0) {
+                    console.log('Facebook: Fallback succeeded — using total spend (all countries)');
+                }
+            }
             facebookDaily = fbRows.map(row => ({
                 period: row.date_start,
                 spend: parseFloat(row.spend) || 0,

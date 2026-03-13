@@ -23,10 +23,13 @@ export async function GET(request, { params }) {
         if (!res.ok) throw new Error('Failed to fetch customer');
         const data = await res.json();
         const settings = {
+            customerName: data.customerName,
             customerType: data.customerType || 'Shopify', // Include customer type
             ...(data.CustomerSettings || {}),
             CustomerStaticExpenses: data.CustomerStaticExpenses || {},
         };
+
+        console.log(`[Merged Sources] Customer: ${data.customerName || 'Unknown'} (${customerId}), type: ${settings.customerType}, shop: ${settings.shopifyUrl || 'N/A'}`);
 
         // Fetch merged sources (now returns daily arrays)
         const merged = await fetchMergedSources(settings, startDate, endDate, { dailyBreakdown });

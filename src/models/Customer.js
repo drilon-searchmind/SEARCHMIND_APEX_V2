@@ -24,7 +24,7 @@ const CustomerSchema = new mongoose.Schema({
     },
     customerType: {
         type: String,
-        enum: ["Shopify", "WooCommerce", "Other"],
+        enum: ["Shopify", "WooCommerce", "Magento", "Other"],
         default: "Shopify"
     },
     CustomerSettings: {
@@ -102,6 +102,30 @@ const CustomerSchema = new mongoose.Schema({
             default: ""
         },
         wooCommerceApiUrl: {
+            type: String,
+            default: ""
+        },
+        magentoBaseUrl: {
+            type: String,
+            default: ""
+        },
+        magentoAccessToken: {
+            type: String,
+            default: ""
+        },
+        magentoConsumerKey: {
+            type: String,
+            default: ""
+        },
+        magentoConsumerSecret: {
+            type: String,
+            default: ""
+        },
+        magentoAccessTokenSecret: {
+            type: String,
+            default: ""
+        },
+        magentoStoreCode: {
             type: String,
             default: ""
         }

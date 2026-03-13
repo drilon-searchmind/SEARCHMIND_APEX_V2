@@ -22,6 +22,11 @@ const initialState = {
         wooCommerceApiKey: "",
         wooCommerceApiSecret: "",
         wooCommerceApiUrl: "",
+        magentoBaseUrl: "",
+        magentoAccessToken: "",
+        magentoConsumerKey: "",
+        magentoConsumerSecret: "",
+        magentoAccessTokenSecret: "",
         facebookAdAccountId: "",
         googleAdsCustomerId: "",
         googleSearchConsoleProperty: ""
@@ -114,6 +119,7 @@ export default function CustomerCreateForm({ onSuccess }) {
                 <select id="customerType" name="customerType" value={form.customerType} onChange={handleChange} className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20">
                     <option value="Shopify">Shopify</option>
                     <option value="WooCommerce">WooCommerce</option>
+                    <option value="Magento">Magento</option>
                     <option value="Other">Other</option>
                 </select>
             </div>
@@ -149,13 +155,30 @@ export default function CustomerCreateForm({ onSuccess }) {
                 </>
             )}
 
-            <div>
-                <FormLabel htmlFor="metricPreference">Metric Preference</FormLabel>
-                <select id="metricPreference" name="metricPreference" value={form.CustomerSettings.metricPreference} onChange={handleChange} className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20">
-                    <option value="ROAS/POAS">ROAS/POAS</option>
-                    <option value="Spendshare">Spendshare</option>
-                </select>
-            </div>
+            {form.customerType === "Magento" && (
+                <>
+                    <div>
+                        <FormLabel htmlFor="magentoBaseUrl">Magento Base URL</FormLabel>
+                        <FormInputText id="magentoBaseUrl" name="magentoBaseUrl" value={form.CustomerSettings.magentoBaseUrl} onChange={handleChange} placeholder="https://yourdomain.com" />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="magentoConsumerKey">Consumer Key</FormLabel>
+                        <FormInputText id="magentoConsumerKey" name="magentoConsumerKey" value={form.CustomerSettings.magentoConsumerKey} onChange={handleChange} type="password" placeholder="From System > Integrations" />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="magentoConsumerSecret">Consumer Secret</FormLabel>
+                        <FormInputText id="magentoConsumerSecret" name="magentoConsumerSecret" value={form.CustomerSettings.magentoConsumerSecret} onChange={handleChange} type="password" placeholder="From System > Integrations" />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="magentoAccessToken">Access Token</FormLabel>
+                        <FormInputText id="magentoAccessToken" name="magentoAccessToken" value={form.CustomerSettings.magentoAccessToken} onChange={handleChange} type="password" placeholder="From System > Integrations" />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="magentoAccessTokenSecret">Access Token Secret</FormLabel>
+                        <FormInputText id="magentoAccessTokenSecret" name="magentoAccessTokenSecret" value={form.CustomerSettings.magentoAccessTokenSecret} onChange={handleChange} type="password" placeholder="From System > Integrations" />
+                    </div>
+                </>
+            )}
             <div>
                 <FormLabel htmlFor="customerStoreValutaCode">Store Valuta Code</FormLabel>
                 <FormInputText id="customerStoreValutaCode" name="customerStoreValutaCode" value={form.CustomerSettings.customerStoreValutaCode} onChange={handleChange} />
@@ -188,14 +211,6 @@ export default function CustomerCreateForm({ onSuccess }) {
             <div>
                 <FormLabel htmlFor="changeCurrencyShopifyBillingCountryName">Change Currency Shopify Billing Country Name</FormLabel>
                 <FormInputText id="changeCurrencyShopifyBillingCountryName" name="changeCurrencyShopifyBillingCountryName" value={form.CustomerSettings.changeCurrencyShopifyBillingCountryName} onChange={handleChange} />
-            </div>
-            <div>
-                <FormLabel htmlFor="customerRevenueType">Revenue Type</FormLabel>
-                <select id="customerRevenueType" name="customerRevenueType" value={form.CustomerSettings.customerRevenueType} onChange={handleChange} className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20">
-                    <option value="total_sales">Total Sales</option>
-                    <option value="net_sales">Net Sales</option>
-                    <option value="custom_1">Custom 1</option>
-                </select>
             </div>
             <div className="flex items-center gap-2">
                 <input id="isArchived" name="isArchived" type="checkbox" checked={form.isArchived} onChange={handleChange} className="rounded border-gray-300" />

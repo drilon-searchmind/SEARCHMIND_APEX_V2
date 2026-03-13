@@ -80,6 +80,35 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
                     </div>
                 </>
             )}
+
+            {customerType === "Magento" && (
+                <>
+                    <div>
+                        <FormLabel htmlFor="magentoBaseUrl">Magento Base URL</FormLabel>
+                        <FormInputText id="magentoBaseUrl" name="magentoBaseUrl" value={form.magentoBaseUrl} onChange={onChange} placeholder="https://yourdomain.com" />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="magentoConsumerKey">Consumer Key</FormLabel>
+                        <FormInputText id="magentoConsumerKey" name="magentoConsumerKey" value={form.magentoConsumerKey} onChange={onChange} type="password" placeholder="From System > Integrations" />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="magentoConsumerSecret">Consumer Secret</FormLabel>
+                        <FormInputText id="magentoConsumerSecret" name="magentoConsumerSecret" value={form.magentoConsumerSecret} onChange={onChange} type="password" placeholder="From System > Integrations" />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="magentoAccessToken">Access Token</FormLabel>
+                        <FormInputText id="magentoAccessToken" name="magentoAccessToken" value={form.magentoAccessToken} onChange={onChange} type="password" placeholder="From System > Integrations" />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="magentoAccessTokenSecret">Access Token Secret</FormLabel>
+                        <FormInputText id="magentoAccessTokenSecret" name="magentoAccessTokenSecret" value={form.magentoAccessTokenSecret} onChange={onChange} type="password" placeholder="From System > Integrations" />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="magentoStoreCode">Currency filter (optional)</FormLabel>
+                        <FormInputText id="magentoStoreCode" name="magentoStoreCode" value={form.magentoStoreCode} onChange={onChange} placeholder="e.g. DKK to include only DK store orders" />
+                    </div>
+                </>
+            )}
             <div>
                 <FormLabel htmlFor="facebookAdAccountId">Facebook Ad Account ID</FormLabel>
                 <FormInputText id="facebookAdAccountId" name="facebookAdAccountId" value={form.facebookAdAccountId} onChange={onChange} />

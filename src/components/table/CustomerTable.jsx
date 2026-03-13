@@ -8,7 +8,7 @@ import { useUser } from "@/contexts/UserContext";
 import { signOut } from "next-auth/react";
 import { useCustomers } from "@/hooks/useCustomers";
 import CustomerCreateForm from "../form/CustomerCreateForm";
-import { SiShopify, SiWordpress } from "react-icons/si";
+import { SiShopify, SiWordpress, SiMagento } from "react-icons/si";
 
 const FONT = "text-xs";
 const AVATAR_COLORS = [
@@ -132,6 +132,7 @@ export default function CustomerTable() {
         const iconClass = "w-4 h-4 shrink-0";
         if (type === "Shopify") return <SiShopify className={iconClass} />;
         if (type === "WooCommerce") return <SiWordpress className={iconClass} />;
+        if (type === "Magento") return <SiMagento className={iconClass} />;
         return <FiServer className={iconClass} />;
     };
 
@@ -300,13 +301,15 @@ export default function CustomerTable() {
                     {!showCreate && (
                         <div className="w-64 flex-shrink-0 flex flex-col gap-4">
                             <div className="flex flex-col gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowCreate(true)}
-                                    className="w-full py-2.5 px-3 rounded-lg bg-[var(--color-primary-searchmind)] text-white font-medium hover:bg-[var(--color-primary-searchmind-hover)] transition-colors flex items-center justify-center gap-2"
-                                >
-                                    New Property
-                                </button>
+                                {user?.isAdmin && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowCreate(true)}
+                                        className="w-full py-2.5 px-3 rounded-lg bg-[var(--color-primary-searchmind)] text-white font-medium hover:bg-[var(--color-primary-searchmind-hover)] transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        New Property
+                                    </button>
+                                )}
                                 <button
                                     type="button"
                                     onClick={handleLogout}

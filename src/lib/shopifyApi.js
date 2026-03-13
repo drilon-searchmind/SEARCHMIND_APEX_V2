@@ -14,6 +14,7 @@ export async function shopifyqlQuery(shopifyUrl, accessToken, shopifyqlQuery) {
     const body = JSON.stringify({
         query: `query { shopifyqlQuery(query: "${shopifyqlQuery}") { tableData { columns { name dataType displayName } rows } parseErrors } }`
     });
+    console.log(`[Shopify API] Request to shop: ${shopifyUrl}`);
     const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -22,6 +23,11 @@ export async function shopifyqlQuery(shopifyUrl, accessToken, shopifyqlQuery) {
         },
         body,
     });
-    if (!res.ok) throw new Error(`Shopify API error: ${res.status}`);
+    if (!res.ok) {
+        const errorBody = await res.text();
+        console.error(`[Shopify API] Error ${res.status} ${res.statusText} for shop: ${shopifyUrl}`);
+        console.error(`[Shopify API] Response body:`, errorBody);
+        throw new Error(`Shopify API error: ${res.status}`);
+    }
     return res.json();
 }
