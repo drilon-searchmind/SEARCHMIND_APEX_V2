@@ -108,8 +108,8 @@ export default function FacebookPSPage() {
                 const res = await fetch(`${baseUrl}/api/customers/${customer._id}`);
                 if (!res.ok) throw new Error("Failed to fetch customer settings");
                 const settings = (await res.json()).CustomerSettings || {};
-                const { facebookAdAccountId, customerMetaID } = settings;
-                if (!facebookAdAccountId || !customerMetaID) throw new Error("Missing Facebook credentials");
+                const { facebookAdAccountId, customerMetaID, customerMetaIDExclude } = settings;
+                if (!facebookAdAccountId) throw new Error("Missing Facebook Ad Account ID");
                 const adAccountId = facebookAdAccountId.startsWith("act_") ? facebookAdAccountId : `act_${facebookAdAccountId}`;
 
                 // Calculate previous period based on comparisonMethod
@@ -128,10 +128,16 @@ export default function FacebookPSPage() {
                     prevStart = prevEnd.subtract(days - 1, 'day');
                 }
 
-                // Fetch current and previous period data in parallel
+                const metaParams = new URLSearchParams({ adAccountId, since: appliedRange.startDate, until: appliedRange.endDate });
+                if (customerMetaID) metaParams.set('customerMetaID', customerMetaID);
+                if (customerMetaIDExclude) metaParams.set('customerMetaIDExclude', customerMetaIDExclude);
+                const prevParams = new URLSearchParams({ adAccountId, since: prevStart.format('YYYY-MM-DD'), until: prevEnd.format('YYYY-MM-DD') });
+                if (customerMetaID) prevParams.set('customerMetaID', customerMetaID);
+                if (customerMetaIDExclude) prevParams.set('customerMetaIDExclude', customerMetaIDExclude);
+
                 const [fbRes, fbResPrev] = await Promise.all([
-                    fetch(`/api/facebook-campaign-insights?adAccountId=${encodeURIComponent(adAccountId)}&customerMetaID=${encodeURIComponent(customerMetaID)}&since=${encodeURIComponent(appliedRange.startDate)}&until=${encodeURIComponent(appliedRange.endDate)}`),
-                    fetch(`/api/facebook-campaign-insights?adAccountId=${encodeURIComponent(adAccountId)}&customerMetaID=${encodeURIComponent(customerMetaID)}&since=${encodeURIComponent(prevStart.format('YYYY-MM-DD'))}&until=${encodeURIComponent(prevEnd.format('YYYY-MM-DD'))}`)
+                    fetch(`/api/facebook-campaign-insights?${metaParams.toString()}`),
+                    fetch(`/api/facebook-campaign-insights?${prevParams.toString()}`)
                 ]);
                 
                 if (!fbRes.ok) throw new Error("Failed to fetch Facebook PS dashboard metrics");

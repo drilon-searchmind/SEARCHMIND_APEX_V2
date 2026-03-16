@@ -6,12 +6,13 @@ export async function GET(req) {
     const FACEBOOK_APP_TOKEN = process.env.FACEBOOK_APP_TOKEN;
     const { searchParams } = new URL(req.url);
     const adAccountId = searchParams.get('adAccountId');
-    const customerMetaID = searchParams.get('customerMetaID');
+    const metaIdInclude = searchParams.get('customerMetaID') || searchParams.get('metaIdInclude') || '';
+    const metaIdExclude = searchParams.get('customerMetaIDExclude') || searchParams.get('metaIdExclude') || '';
     const since = searchParams.get('since');
     const until = searchParams.get('until');
 
-    if (!adAccountId || !customerMetaID || !since || !until) {
-        return new Response(JSON.stringify({ error: 'Missing required query parameters' }), { status: 400 });
+    if (!adAccountId || !since || !until) {
+        return new Response(JSON.stringify({ error: 'Missing required query parameters: adAccountId, since, until' }), { status: 400 });
     }
 
     try {
@@ -20,7 +21,8 @@ export async function GET(req) {
             adAccountId,
             startDate: since,
             endDate: until,
-            countryCode: customerMetaID,
+            metaIdInclude: metaIdInclude || undefined,
+            metaIdExclude: metaIdExclude || undefined,
         });
         return new Response(JSON.stringify(metrics), { status: 200 });
     } catch (err) {

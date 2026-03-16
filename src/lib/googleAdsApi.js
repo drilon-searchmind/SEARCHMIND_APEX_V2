@@ -2,13 +2,48 @@
 import { GoogleAdsApi } from 'google-ads-api';
 
 /**
+ * Resolve country name or ISO code to criterion ID via geo_target_constant API (no static mapping).
+ * @param {object} customer - Google Ads customer instance
+ * @param {string} input - Country name (e.g. "Germany") or ISO code (e.g. "DE")
+ * @returns {Promise<number|null>} Criterion ID or null
+ */
+export async function resolveCountryToCriterionId(customer, input) {
+    const key = input.trim();
+    if (!key) return null;
+    const isLikelyCode = key.length === 2;
+    const escape = (s) => String(s).replace(/'/g, "''");
+    if (isLikelyCode) {
+        const q = `SELECT geo_target_constant.id FROM geo_target_constant WHERE geo_target_constant.target_type = 'Country' AND geo_target_constant.country_code = '${escape(key.toUpperCase())}' LIMIT 1`;
+        try {
+            const res = await customer.query(q);
+            const rows = Array.isArray(res) ? res : (res.results || []);
+            return rows[0]?.geo_target_constant?.id != null ? Number(rows[0].geo_target_constant.id) : null;
+        } catch (_) {
+            return null;
+        }
+    }
+    const nameVariants = [key, key.charAt(0).toUpperCase() + key.slice(1).toLowerCase()];
+    for (const name of nameVariants) {
+        try {
+            const q = `SELECT geo_target_constant.id FROM geo_target_constant WHERE geo_target_constant.target_type = 'Country' AND geo_target_constant.name = '${escape(name)}' LIMIT 1`;
+            const res = await customer.query(q);
+            const rows = Array.isArray(res) ? res : (res.results || []);
+            if (rows[0]?.geo_target_constant?.id != null) return Number(rows[0].geo_target_constant.id);
+        } catch (_) { /* try next */ }
+    }
+    return null;
+}
+
+/**
  * Fetches Google Ads metrics for a given customer ID and date range.
  * @param {string} customerId - Google Ads customer ID (from CustomerSettings)
  * @param {string} startDate - Start date (YYYY-MM-DD)
  * @param {string} endDate - End date (YYYY-MM-DD)
+ * @param {string} [countryFilter] - Optional comma-separated countries to INCLUDE (e.g. "Germany,Denmark,Norway")
+ * @param {string} [countryExclude] - Optional comma-separated countries to EXCLUDE (e.g. "France,Spain")
  * @returns {Promise<{metrics: object[], currencyCode: string}>} - Raw rows from Google Ads API and customer currency code
  */
-export async function fetchGoogleAdsMetrics(customerId, startDate, endDate) {
+export async function fetchGoogleAdsMetrics(customerId, startDate, endDate, countryFilter, countryExclude) {
         if (!customerId) {
                 console.error('Google Ads customerId is missing or undefined:', customerId);
                 throw new Error('Google Ads customerId is missing or undefined');
@@ -49,28 +84,97 @@ export async function fetchGoogleAdsMetrics(customerId, startDate, endDate) {
                 console.warn('Could not fetch customer currency code, using default USD:', err.message);
         }
 
-        const metricsQuery = `
-                SELECT 
-                campaign.id,
-                campaign.name,
-                segments.date,
-                metrics.clicks,
-                metrics.impressions,
-                metrics.conversions,
-                metrics.conversions_value,
-                metrics.cost_micros
-                FROM campaign
-                WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
-                ORDER BY segments.date ASC
-        `;
+        const hasInclude = typeof countryFilter === 'string' && countryFilter.trim().length > 0;
+        const hasExclude = typeof countryExclude === 'string' && countryExclude.trim().length > 0;
+        const hasAnyFilter = hasInclude || hasExclude;
+        let metrics;
 
-        try {
-                const res = await customer.query(metricsQuery);
-                const metrics = Array.isArray(res) ? res : (res.results || []);
-                // Return both metrics and currency code
-                return { metrics, currencyCode };
-        } catch (err) {
-                console.error('Google Ads API error:', err);
-                throw err;
+        const resolveIds = async (inputStr) => {
+                const inputs = inputStr.split(',').map((c) => c.trim()).filter(Boolean);
+                const ids = [];
+                for (const inp of inputs) {
+                        const id = await resolveCountryToCriterionId(customer, inp);
+                        if (id != null) ids.push(id);
+                        else console.warn('Google Ads country filter: unknown country skipped:', inp);
+                }
+                return [...new Set(ids)];
+        };
+
+        if (hasAnyFilter) {
+                let includeIds = [];
+                let excludeIds = [];
+                if (hasInclude) includeIds = await resolveIds(countryFilter);
+                if (hasExclude) excludeIds = await resolveIds(countryExclude);
+
+                const effectiveIncludeIds = hasInclude
+                        ? includeIds.filter((id) => !excludeIds.includes(id))
+                        : null;
+
+                if (hasInclude && effectiveIncludeIds.length === 0) {
+                        console.warn('Google Ads country filter: all included countries were excluded, falling back to unfiltered');
+                }
+
+                const useLocationView = (hasInclude && effectiveIncludeIds.length > 0) || (hasExclude && !hasInclude);
+                if (useLocationView) {
+                        const idsList = effectiveIncludeIds?.length
+                                ? effectiveIncludeIds.join(', ')
+                                : null;
+                        const whereCountry = idsList
+                                ? `AND user_location_view.country_criterion_id IN (${idsList})`
+                                : '';
+                        const countryQuery = `
+                                SELECT 
+                                user_location_view.country_criterion_id,
+                                segments.date,
+                                metrics.clicks,
+                                metrics.impressions,
+                                metrics.conversions,
+                                metrics.conversions_value,
+                                metrics.cost_micros
+                                FROM user_location_view
+                                WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
+                                ${whereCountry}
+                                ORDER BY segments.date ASC
+                        `;
+                        try {
+                                const res = await customer.query(countryQuery);
+                                let rows = Array.isArray(res) ? res : (res.results || []);
+                                if (hasExclude && excludeIds.length > 0) {
+                                        rows = rows.filter(
+                                                (r) => !excludeIds.includes(Number(r.user_location_view?.country_criterion_id ?? r.country_criterion_id))
+                                        );
+                                }
+                                metrics = rows;
+                        } catch (err) {
+                                console.error('Google Ads API error (user_location_view):', err);
+                                throw err;
+                        }
+                }
         }
+
+        if (!metrics) {
+                const metricsQuery = `
+                        SELECT 
+                        campaign.id,
+                        campaign.name,
+                        segments.date,
+                        metrics.clicks,
+                        metrics.impressions,
+                        metrics.conversions,
+                        metrics.conversions_value,
+                        metrics.cost_micros
+                        FROM campaign
+                        WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
+                        ORDER BY segments.date ASC
+                `;
+                try {
+                        const res = await customer.query(metricsQuery);
+                        metrics = Array.isArray(res) ? res : (res.results || []);
+                } catch (err) {
+                        console.error('Google Ads API error:', err);
+                        throw err;
+                }
+        }
+
+        return { metrics, currencyCode };
 }

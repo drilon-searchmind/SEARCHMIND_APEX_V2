@@ -36,15 +36,30 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 ? 'orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales, cost_of_goods_sold'
                 : 'orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales';
             
-            // If changeCurrency is true, include currency in results so we can filter by it
-            if (settings.changeCurrency === true && settings.customerStoreValutaCode) {
+            // Billing country filter: include and/or exclude (optional, only when changeCurrency)
+            const parseCountries = (s) => (typeof s === 'string' ? s.split(',').map((c) => c.trim()).filter(Boolean) : []);
+            const includeCountries = parseCountries(settings.changeCurrencyShopifyBillingCountryName);
+            const excludeCountries = parseCountries(settings.changeCurrencyShopifyBillingCountryExclude);
+            const hasInclude = includeCountries.length > 0;
+            const hasExclude = excludeCountries.length > 0;
+            const hasBillingFilter = settings.changeCurrency === true && settings.customerStoreValutaCode && (hasInclude || hasExclude);
+
+            if (hasBillingFilter) {
+                const escape = (c) => String(c).replace(/'/g, "''");
+                const includeClause = hasInclude
+                    ? `(${includeCountries.map((c) => `billing_country = '${escape(c)}'`).join(' OR ')})`
+                    : null;
+                const excludeClause = hasExclude
+                    ? `NOT (${excludeCountries.map((c) => `billing_country = '${escape(c)}'`).join(' OR ')})`
+                    : null;
+                const whereParts = [includeClause, excludeClause].filter(Boolean);
+                const whereClause = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '';
                 shopifyql = `
                     FROM sales 
                     SHOW ${showFields}
-                    WHERE billing_country = '${settings.changeCurrencyShopifyBillingCountryName}'
+                    ${whereClause}
                     GROUP BY day SINCE ${startDate} UNTIL ${endDate}`;
             } else {
-                // If changeCurrency is false, fetch all currencies without grouping by currency
                 shopifyql = `
                     FROM sales 
                     SHOW ${showFields}
@@ -178,31 +193,16 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
     let facebookDaily = [];
     try {
         if (settings.facebookAdAccountId && FACEBOOK_APP_TOKEN) {
-            let fbRes = await fetchFacebookAdsInsights(
+            const fbRes = await fetchFacebookAdsInsights(
                 settings.facebookAdAccountId,
                 settings.customerMetaID,
+                settings.customerMetaIDExclude,
                 FACEBOOK_APP_TOKEN,
                 startDate,
                 endDate,
                 { dailyBreakdown: options.dailyBreakdown }
             );
-            let fbRows = fbRes?.data || [];
-            // Fallback: if country filter returns empty but we expect data, retry without country filter
-            if (fbRows.length === 0 && settings.customerMetaID) {
-                console.log('Facebook: Country filter returned empty, retrying without filter for date range', startDate, endDate);
-                fbRes = await fetchFacebookAdsInsights(
-                    settings.facebookAdAccountId,
-                    null,
-                    FACEBOOK_APP_TOKEN,
-                    startDate,
-                    endDate,
-                    { dailyBreakdown: options.dailyBreakdown }
-                );
-                fbRows = fbRes?.data || [];
-                if (fbRows.length > 0) {
-                    console.log('Facebook: Fallback succeeded — using total spend (all countries)');
-                }
-            }
+            const fbRows = fbRes?.data || [];
             facebookDaily = fbRows.map(row => ({
                 period: row.date_start,
                 spend: parseFloat(row.spend) || 0,
@@ -220,7 +220,9 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
             const googleResponse = await fetchGoogleAdsMetrics(
                 settings.googleAdsCustomerId,
                 startDate,
-                endDate
+                endDate,
+                settings.googleAdsCountryFilter || undefined,
+                settings.googleAdsCountryExclude || undefined
             );
             // Destructure metrics and currency code from response
             const googleRows = googleResponse.metrics;

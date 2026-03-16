@@ -70,20 +70,53 @@ async function fetchProductInventory(endpoint, accessToken, productIds, conversi
 }
 
 /**
+ * Parse billing country filter from settings.
+ * @param {object} settings - Customer settings
+ * @returns {{ include: string[], exclude: string[] }}
+ */
+function parseBillingCountryFilter(settings) {
+    const parse = (s) => (typeof s === 'string' ? s.split(',').map((c) => c.trim()).filter(Boolean) : []);
+    return {
+        include: parse(settings?.changeCurrencyShopifyBillingCountryName),
+        exclude: parse(settings?.changeCurrencyShopifyBillingCountryExclude),
+    };
+}
+
+/**
+ * Check if order passes billing country filter (include/exclude).
+ * @param {string|null} billingCountry - Order billing country name
+ * @param {{ include: string[], exclude: string[] }} filter
+ * @returns {boolean}
+ */
+function orderMatchesBillingFilter(billingCountry, filter) {
+    const country = (billingCountry || '').trim();
+    const hasInclude = filter.include.length > 0;
+    const hasExclude = filter.exclude.length > 0;
+    if (!hasInclude && !hasExclude) return true;
+    const inInclude = hasInclude && filter.include.some((c) => c.toLowerCase() === country.toLowerCase());
+    const inExclude = hasExclude && filter.exclude.some((c) => c.toLowerCase() === country.toLowerCase());
+    if (hasInclude && hasExclude) return inInclude && !inExclude;
+    if (hasInclude) return inInclude;
+    return !inExclude;
+}
+
+/**
  * Fetch orders for a single date-range chunk and aggregate into a product map.
  * @param {string} endpoint - Shopify GraphQL endpoint
  * @param {string} accessToken - Shopify access token
  * @param {string} chunkStart - YYYY-MM-DD
  * @param {string} chunkEnd - YYYY-MM-DD
  * @param {number} conversionRate - Currency conversion rate
+ * @param {{ include: string[], exclude: string[] }} [billingFilter] - Optional billing country filter
  * @returns {Promise<Map<string, object>>}
  */
-async function fetchOrdersChunk(endpoint, accessToken, chunkStart, chunkEnd, conversionRate) {
+async function fetchOrdersChunk(endpoint, accessToken, chunkStart, chunkEnd, conversionRate, billingFilter = { include: [], exclude: [] }) {
     const query = `query getOrders($query: String!, $cursor: String) {
         orders(first: 250, query: $query, after: $cursor) {
             edges {
                 node {
                     id
+                    billingAddress { country }
                     lineItems(first: 100) {
                         edges {
                             node {
@@ -131,6 +164,8 @@ async function fetchOrdersChunk(endpoint, accessToken, chunkStart, chunkEnd, con
 
         for (const edge of edges) {
             const orderNode = edge.node;
+            const billingCountry = orderNode.billingAddress?.country;
+            if (!orderMatchesBillingFilter(billingCountry, billingFilter)) continue;
             const lineItems = orderNode.lineItems?.edges || [];
             const productsSeenInOrder = new Set();
             for (const li of lineItems) {
@@ -296,6 +331,9 @@ export async function fetchShopifyProductMetrics(settings, startDate, endDate, o
 
     const endpoint = `https://${shopUrl}/admin/api/2025-10/graphql.json`;
 
+    const billingFilter = parseBillingCountryFilter(settings);
+    const hasBillingFilter = billingFilter.include.length > 0 || billingFilter.exclude.length > 0;
+
     try {
         // Fetch ALL products from the store first
         const allProductsMap = await fetchAllProducts(endpoint, accessToken);
@@ -304,7 +342,7 @@ export async function fetchShopifyProductMetrics(settings, startDate, endDate, o
         const chunks = getDateChunks(startDate, endDate, 6);
         const chunkResults = await Promise.all(
             chunks.map(({ start: chunkStart, end: chunkEnd }) =>
-                fetchOrdersChunk(endpoint, accessToken, chunkStart, chunkEnd, conversionRate)
+                fetchOrdersChunk(endpoint, accessToken, chunkStart, chunkEnd, conversionRate, hasBillingFilter ? billingFilter : { include: [], exclude: [] })
             )
         );
 

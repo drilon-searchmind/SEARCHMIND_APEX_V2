@@ -10,6 +10,8 @@ export async function GET(req) {
     const customerId = searchParams.get('customerId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const countryFilter = searchParams.get('countryFilter') || undefined;
+    const countryExclude = searchParams.get('countryExclude') || undefined;
 
     if (!customerId || !startDate || !endDate) {
         return new Response(JSON.stringify({ error: 'Missing required query parameters' }), { status: 400 });
@@ -25,6 +27,8 @@ export async function GET(req) {
             managerCustomerId: GOOGLE_ADS_MANAGER_CUSTOMER_ID,
             startDate,
             endDate,
+            countryFilter,
+            countryExclude,
         });
         return new Response(JSON.stringify(metrics), { status: 200 });
     } catch (err) {

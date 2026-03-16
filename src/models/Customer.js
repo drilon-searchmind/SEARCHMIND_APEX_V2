@@ -49,7 +49,7 @@ const CustomerSchema = new mongoose.Schema({
         },
         customerMetaID: {
             type: String,
-            default: "DK"
+            default: ""
         },
         customerMetaIDExclude: {
             type: String,
@@ -60,6 +60,10 @@ const CustomerSchema = new mongoose.Schema({
             default: true
         },
         changeCurrencyShopifyBillingCountryName: {
+            type: String,
+            default: ""
+        },
+        changeCurrencyShopifyBillingCountryExclude: {
             type: String,
             default: ""
         },
@@ -82,6 +86,14 @@ const CustomerSchema = new mongoose.Schema({
             default: ""
         },
         googleAdsCustomerId: {
+            type: String,
+            default: ""
+        },
+        googleAdsCountryFilter: {
+            type: String,
+            default: ""
+        },
+        googleAdsCountryExclude: {
             type: String,
             default: ""
         },

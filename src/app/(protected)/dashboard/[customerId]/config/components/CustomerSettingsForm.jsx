@@ -27,20 +27,24 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
                 <FormInputText id="customerClickupID" name="customerClickupID" value={form.customerClickupID} onChange={onChange} />
             </div>
             <div>
-                <FormLabel htmlFor="customerMetaID">Meta ID</FormLabel>
-                <FormInputText id="customerMetaID" name="customerMetaID" value={form.customerMetaID} onChange={onChange} />
+                <FormLabel htmlFor="customerMetaID">Meta ID include (optional)</FormLabel>
+                <FormInputText id="customerMetaID" name="customerMetaID" value={form.customerMetaID} onChange={onChange} placeholder="e.g. DK,SE,NO — empty = all countries" />
             </div>
             <div>
-                <FormLabel htmlFor="customerMetaIDExclude">Meta ID Exclude</FormLabel>
-                <FormInputText id="customerMetaIDExclude" name="customerMetaIDExclude" value={form.customerMetaIDExclude} onChange={onChange} />
+                <FormLabel htmlFor="customerMetaIDExclude">Meta ID exclude (optional)</FormLabel>
+                <FormInputText id="customerMetaIDExclude" name="customerMetaIDExclude" value={form.customerMetaIDExclude} onChange={onChange} placeholder="e.g. FR,ES to exclude" />
             </div>
             <div className="flex items-center gap-2">
                 <input id="changeCurrency" name="changeCurrency" type="checkbox" checked={form.changeCurrency} onChange={onChange} className="rounded border-gray-300" />
                 <FormLabel htmlFor="changeCurrency">Change Currency</FormLabel>
             </div>
             <div>
-                <FormLabel htmlFor="changeCurrencyShopifyBillingCountryName">Change Currency Shopify Billing Country Name</FormLabel>
-                <FormInputText id="changeCurrencyShopifyBillingCountryName" name="changeCurrencyShopifyBillingCountryName" value={form.changeCurrencyShopifyBillingCountryName} onChange={onChange} />
+                <FormLabel htmlFor="changeCurrencyShopifyBillingCountryName">Shopify billing country include (optional)</FormLabel>
+                <FormInputText id="changeCurrencyShopifyBillingCountryName" name="changeCurrencyShopifyBillingCountryName" value={form.changeCurrencyShopifyBillingCountryName} onChange={onChange} placeholder="e.g. Sweden,Denmark,Norway" />
+            </div>
+            <div>
+                <FormLabel htmlFor="changeCurrencyShopifyBillingCountryExclude">Shopify billing country exclude (optional)</FormLabel>
+                <FormInputText id="changeCurrencyShopifyBillingCountryExclude" name="changeCurrencyShopifyBillingCountryExclude" value={form.changeCurrencyShopifyBillingCountryExclude} onChange={onChange} placeholder="e.g. France,Spain to exclude" />
             </div>
             <div>
                 <FormLabel htmlFor="customerRevenueType">Revenue Type</FormLabel>
@@ -116,6 +120,14 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
             <div>
                 <FormLabel htmlFor="googleAdsCustomerId">Google Ads Customer ID</FormLabel>
                 <FormInputText id="googleAdsCustomerId" name="googleAdsCustomerId" value={form.googleAdsCustomerId} onChange={onChange} />
+            </div>
+            <div>
+                <FormLabel htmlFor="googleAdsCountryFilter">Google Ads country include (optional)</FormLabel>
+                <FormInputText id="googleAdsCountryFilter" name="googleAdsCountryFilter" value={form.googleAdsCountryFilter} onChange={onChange} placeholder="e.g. Germany,Denmark,Norway or DE,DK,NO" />
+            </div>
+            <div>
+                <FormLabel htmlFor="googleAdsCountryExclude">Google Ads country exclude (optional)</FormLabel>
+                <FormInputText id="googleAdsCountryExclude" name="googleAdsCountryExclude" value={form.googleAdsCountryExclude} onChange={onChange} placeholder="e.g. France,Spain to exclude from results" />
             </div>
             <div>
                 <FormLabel htmlFor="googleSearchConsoleProperty">Google Search Console Property</FormLabel>

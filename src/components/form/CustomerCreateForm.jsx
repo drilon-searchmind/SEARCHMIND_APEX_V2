@@ -16,6 +16,7 @@ const initialState = {
         customerMetaIDExclude: "",
         changeCurrency: true,
         changeCurrencyShopifyBillingCountryName: "",
+        changeCurrencyShopifyBillingCountryExclude: "",
         customerRevenueType: "total_sales",
         shopifyUrl: "",
         shopifyApiPassword: "",
@@ -209,8 +210,12 @@ export default function CustomerCreateForm({ onSuccess }) {
                 <FormLabel htmlFor="changeCurrency">Change Currency</FormLabel>
             </div>
             <div>
-                <FormLabel htmlFor="changeCurrencyShopifyBillingCountryName">Change Currency Shopify Billing Country Name</FormLabel>
-                <FormInputText id="changeCurrencyShopifyBillingCountryName" name="changeCurrencyShopifyBillingCountryName" value={form.CustomerSettings.changeCurrencyShopifyBillingCountryName} onChange={handleChange} />
+                <FormLabel htmlFor="changeCurrencyShopifyBillingCountryName">Shopify billing country include (optional)</FormLabel>
+                <FormInputText id="changeCurrencyShopifyBillingCountryName" name="changeCurrencyShopifyBillingCountryName" value={form.CustomerSettings.changeCurrencyShopifyBillingCountryName} onChange={handleChange} placeholder="e.g. Sweden,Denmark,Norway" />
+            </div>
+            <div>
+                <FormLabel htmlFor="changeCurrencyShopifyBillingCountryExclude">Shopify billing country exclude (optional)</FormLabel>
+                <FormInputText id="changeCurrencyShopifyBillingCountryExclude" name="changeCurrencyShopifyBillingCountryExclude" value={form.CustomerSettings.changeCurrencyShopifyBillingCountryExclude} onChange={handleChange} placeholder="e.g. France,Spain" />
             </div>
             <div className="flex items-center gap-2">
                 <input id="isArchived" name="isArchived" type="checkbox" checked={form.isArchived} onChange={handleChange} className="rounded border-gray-300" />

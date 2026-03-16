@@ -1,14 +1,25 @@
 /**
+ * Parse meta ID include/exclude from comma-separated strings.
+ */
+function parseMetaIdFilter(includeStr, excludeStr) {
+    const parse = (s) => (typeof s === 'string' ? s.split(',').map((c) => c.trim().toUpperCase()).filter(Boolean) : []);
+    const include = parse(includeStr);
+    const exclude = parse(excludeStr);
+    const effectiveInclude = include.length > 0 ? include.filter((c) => !exclude.includes(c)) : [];
+    return { include, exclude, effectiveInclude };
+}
+
+/**
  * Fetches Facebook Ads Insights at the campaign level for a given ad account and country (Meta ID).
  * @param {string} adAccountId - Facebook Ad Account ID (with 'act_' prefix)
- * @param {string} customerMetaID - Country code to filter (e.g., 'DK')
+ * @param {string} [metaIdInclude] - Comma-separated country codes to include (e.g., 'DK,SE,NO'). Empty = all.
+ * @param {string} [metaIdExclude] - Comma-separated country codes to exclude (e.g., 'FR,ES')
  * @param {string} accessToken - Facebook App Token
  * @param {string} since - Start date (YYYY-MM-DD)
  * @param {string} until - End date (YYYY-MM-DD)
  * @returns {Promise<object>} - The raw response from Facebook Graph API (campaign level)
  */
-export async function fetchFacebookCampaignInsights(adAccountId, customerMetaID, accessToken, since, until) {
-    // Metrics to fetch at campaign level
+export async function fetchFacebookCampaignInsights(adAccountId, metaIdInclude, metaIdExclude, accessToken, since, until) {
     const fields = [
         'campaign_name',
         'spend',
@@ -19,38 +30,35 @@ export async function fetchFacebookCampaignInsights(adAccountId, customerMetaID,
         'cpm',
     ];
 
-    // Facebook API endpoint (always use act_ prefix)
     const accountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
     const apiUrl = `https://graph.facebook.com/v21.0/${accountId}/insights`;
 
-    // Query parameters
     const params = new URLSearchParams({
         access_token: accessToken,
         time_range: JSON.stringify({ since, until }),
-        time_increment: '1', // Aggregate for the period
+        time_increment: '1',
         fields: fields.join(','),
         level: 'campaign',
         limit: '1000',
     });
 
-    // Add country filtering if customerMetaID is provided
-    if (customerMetaID) {
+    const { effectiveInclude, exclude } = parseMetaIdFilter(metaIdInclude, metaIdExclude);
+
+    if (effectiveInclude.length > 0) {
         params.append('filtering', JSON.stringify([
-            {
-                field: 'country',
-                operator: 'IN',
-                value: [customerMetaID]
-            }
+            { field: 'country', operator: 'IN', value: effectiveInclude }
         ]));
+    }
+    const useBreakdown = exclude.length > 0 && effectiveInclude.length === 0;
+    if (useBreakdown) {
+        params.append('breakdowns', JSON.stringify(['country']));
     }
 
     const url = `${apiUrl}?${params.toString()}`;
 
     const res = await fetch(url, {
         method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-        }
+        headers: { 'Content-Type': 'application/json' },
     });
 
     if (!res.ok) {
@@ -63,29 +71,43 @@ export async function fetchFacebookCampaignInsights(adAccountId, customerMetaID,
         throw new Error(`Facebook API error: ${JSON.stringify(data.error)}`);
     }
 
-    // Optionally, filter by country code (customerMetaID) if not already filtered
-    let filtered = data.data || [];
-    if (customerMetaID) {
-        filtered = filtered.filter(row => {
-            if (!row.country) return false;
-            return row.country.toUpperCase() === customerMetaID.toUpperCase();
+    let rows = data.data || [];
+    if (useBreakdown && rows.length > 0) {
+        rows = rows.filter((row) => {
+            const c = (row.country || '').toUpperCase();
+            return c && !exclude.includes(c);
         });
+        const byCampaign = {};
+        for (const row of rows) {
+            const key = row.campaign_name || 'Unknown';
+            if (!byCampaign[key]) {
+                byCampaign[key] = { campaign_name: key, spend: 0, impressions: 0, clicks: 0, ctr: 0, cpc: 0, cpm: 0 };
+            }
+            byCampaign[key].spend += parseFloat(row.spend || 0);
+            byCampaign[key].impressions += parseFloat(row.impressions || 0);
+            byCampaign[key].clicks += parseFloat(row.clicks || 0);
+        }
+        rows = Object.values(byCampaign).map((r) => ({
+            ...r,
+            ctr: r.impressions > 0 ? r.clicks / r.impressions : 0,
+            cpc: r.clicks > 0 ? r.spend / r.clicks : 0,
+            cpm: r.impressions > 0 ? (r.spend / r.impressions) * 1000 : 0,
+        }));
     }
-    return { ...data, data: filtered };
+    return { ...data, data: rows };
 }
-// src/lib/facebookApi.js
 
 /**
  * Fetches Facebook Ads Insights for a given ad account and country (Meta ID).
  * @param {string} adAccountId - Facebook Ad Account ID (with 'act_' prefix)
- * @param {string} customerMetaID - Country code to filter (e.g., 'DK')
+ * @param {string} [metaIdInclude] - Comma-separated country codes to include (e.g., 'DK,SE,NO'). Empty = all.
+ * @param {string} [metaIdExclude] - Comma-separated country codes to exclude (e.g., 'FR,ES')
  * @param {string} accessToken - Facebook App Token
  * @param {string} since - Start date (YYYY-MM-DD)
  * @param {string} until - End date (YYYY-MM-DD)
  * @returns {Promise<object>} - The raw response from Facebook Graph API
  */
-export async function fetchFacebookAdsInsights(adAccountId, customerMetaID, accessToken, since, until) {
-    // Metrics to fetch
+export async function fetchFacebookAdsInsights(adAccountId, metaIdInclude, metaIdExclude, accessToken, since, until) {
     const fields = [
         'spend',
         'purchase_roas',
@@ -97,38 +119,35 @@ export async function fetchFacebookAdsInsights(adAccountId, customerMetaID, acce
         'cpm',
     ];
 
-    // Facebook API endpoint (always use act_ prefix)
     const accountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
     const apiUrl = `https://graph.facebook.com/v21.0/${accountId}/insights`;
 
-    // Query parameters
     const params = new URLSearchParams({
         access_token: accessToken,
         time_range: JSON.stringify({ since, until }),
-        time_increment: '1', // Daily breakdown
+        time_increment: '1',
         fields: fields.join(','),
         level: 'account',
         limit: '1000',
     });
 
-    // Add country filtering if customerMetaID is provided
-    if (customerMetaID) {
+    const { effectiveInclude, exclude } = parseMetaIdFilter(metaIdInclude, metaIdExclude);
+
+    if (effectiveInclude.length > 0) {
         params.append('filtering', JSON.stringify([
-            {
-                field: 'country',
-                operator: 'IN',
-                value: [customerMetaID]
-            }
+            { field: 'country', operator: 'IN', value: effectiveInclude }
         ]));
+    }
+    const useBreakdown = exclude.length > 0 && effectiveInclude.length === 0;
+    if (useBreakdown) {
+        params.append('breakdowns', JSON.stringify(['country']));
     }
 
     const url = `${apiUrl}?${params.toString()}`;
 
     const res = await fetch(url, {
         method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-        }
+        headers: { 'Content-Type': 'application/json' },
     });
 
     if (!res.ok) {
@@ -141,8 +160,45 @@ export async function fetchFacebookAdsInsights(adAccountId, customerMetaID, acce
         throw new Error(`Facebook API error: ${JSON.stringify(data.error)}`);
     }
 
-    // Return the data as-is - the API already filtered by country
-    return data;
+    let rows = data.data || [];
+    if (useBreakdown && rows.length > 0) {
+        rows = rows.filter((row) => {
+            const c = (row.country || '').toUpperCase();
+            return c && !exclude.includes(c);
+        });
+        const byDate = {};
+        for (const row of rows) {
+            const key = row.date_start || '';
+            if (!byDate[key]) byDate[key] = { date_start: key, spend: 0, impressions: 0, clicks: 0, actions: [], action_values: [] };
+            byDate[key].spend += parseFloat(row.spend || 0);
+            byDate[key].impressions += parseFloat(row.impressions || 0);
+            byDate[key].clicks += parseFloat(row.clicks || 0);
+            if (row.actions) byDate[key].actions.push(...row.actions);
+            if (row.action_values) byDate[key].action_values.push(...(row.action_values || []));
+        }
+        rows = Object.values(byDate).map((r) => {
+            const actionsByType = {};
+            for (const a of (r.actions || [])) {
+                actionsByType[a.action_type] = (actionsByType[a.action_type] || 0) + parseFloat(a.value || 0);
+            }
+            const actionValuesByType = {};
+            for (const a of (r.action_values || [])) {
+                actionValuesByType[a.action_type] = (actionValuesByType[a.action_type] || 0) + parseFloat(a.value || 0);
+            }
+            return {
+                date_start: r.date_start,
+                spend: r.spend,
+                impressions: r.impressions,
+                clicks: r.clicks,
+                ctr: r.impressions > 0 ? r.clicks / r.impressions : 0,
+                cpc: r.clicks > 0 ? r.spend / r.clicks : 0,
+                cpm: r.impressions > 0 ? (r.spend / r.impressions) * 1000 : 0,
+                actions: Object.entries(actionsByType).map(([t, v]) => ({ action_type: t, value: String(v) })),
+                action_values: Object.entries(actionValuesByType).map(([t, v]) => ({ action_type: t, value: String(v) })),
+            };
+        }).sort((a, b) => (a.date_start || '').localeCompare(b.date_start || ''));
+    }
+    return { ...data, data: rows };
 }
 
 /**
@@ -152,19 +208,21 @@ export async function fetchFacebookAdsInsights(adAccountId, customerMetaID, acce
  * @param {string} config.adAccountId - Facebook Ad Account ID
  * @param {string} config.startDate - Start date in YYYY-MM-DD format
  * @param {string} config.endDate - End date in YYYY-MM-DD format
- * @param {string} [config.countryCode] - Optional country code to filter by (e.g., 'DK', 'DE')
+ * @param {string} [config.metaIdInclude] - Comma-separated country codes to include (e.g., 'DK,SE,NO'). Empty = all.
+ * @param {string} [config.metaIdExclude] - Comma-separated country codes to exclude (e.g., 'FR,ES')
  * @returns {Promise<Object>} Object containing metrics_by_date, top_campaigns, and campaigns_by_date
  */
-export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccountId, startDate, endDate, countryCode }) {
+export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccountId, startDate, endDate, metaIdInclude, metaIdExclude }) {
     const formattedAccountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
     const apiUrl = `https://graph.facebook.com/v21.0/${formattedAccountId}/insights`;
 
-    console.log(`[Facebook API PS] Fetching data for account: ${formattedAccountId}, date range: ${startDate} to ${endDate}`);
-    if (countryCode) {
-        console.log(`[Facebook API PS] Filtering by country: ${countryCode}`);
-    }
+    const { effectiveInclude, exclude } = parseMetaIdFilter(metaIdInclude, metaIdExclude);
+    const useBreakdown = exclude.length > 0 && effectiveInclude.length === 0;
 
-    // Helper function to extract action values
+    console.log(`[Facebook API PS] Fetching data for account: ${formattedAccountId}, date range: ${startDate} to ${endDate}`);
+    if (effectiveInclude.length > 0) console.log(`[Facebook API PS] Include countries: ${effectiveInclude.join(',')}`);
+    if (exclude.length > 0) console.log(`[Facebook API PS] Exclude countries: ${exclude.join(',')}`);
+
     const getActionValue = (actions, actionType) => {
         if (!actions) return 0;
         const action = actions.find(a => a.action_type === actionType);
@@ -172,28 +230,22 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
     };
 
     try {
-        // Step 1: Fetch account-level daily metrics
-        console.log('[Facebook API PS] Fetching account-level daily metrics');
         const accountParams = new URLSearchParams({
             access_token: accessToken,
-            time_range: JSON.stringify({
-                since: startDate,
-                until: endDate
-            }),
+            time_range: JSON.stringify({ since: startDate, until: endDate }),
             time_increment: '1',
+            limit: '500',
             fields: 'spend,clicks,impressions,actions,action_values,date_start',
             level: 'account',
-            limit: '1000'
         });
 
-        if (countryCode) {
+        if (effectiveInclude.length > 0) {
             accountParams.append('filtering', JSON.stringify([
-                {
-                    field: 'country',
-                    operator: 'IN',
-                    value: [countryCode]
-                }
+                { field: 'country', operator: 'IN', value: effectiveInclude }
             ]));
+        }
+        if (useBreakdown) {
+            accountParams.append('breakdowns', JSON.stringify(['country']));
         }
 
         const accountResponse = await fetch(`${apiUrl}?${accountParams.toString()}`, {
@@ -203,7 +255,6 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
 
         if (!accountResponse.ok) {
             const errorText = await accountResponse.text();
-            console.error(`[Facebook API PS] Account metrics error: ${accountResponse.status}`, errorText);
             throw new Error(`Facebook API error: ${accountResponse.status} - ${errorText}`);
         }
 
@@ -212,7 +263,43 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
             throw new Error(`Facebook API error: ${JSON.stringify(accountData.error)}`);
         }
 
-        const metrics_by_date = (accountData.data || []).map(row => {
+        let accountRows = accountData.data || [];
+        if (useBreakdown && accountRows.length > 0) {
+            accountRows = accountRows.filter((row) => {
+                const c = (row.country || '').toUpperCase();
+                return c && !exclude.includes(c);
+            });
+            const byDate = {};
+            for (const row of accountRows) {
+                const key = row.date_start || '';
+                if (!byDate[key]) byDate[key] = { date_start: key, spend: 0, clicks: 0, impressions: 0, actions: [], action_values: [] };
+                byDate[key].spend += parseFloat(row.spend || 0);
+                byDate[key].clicks += parseFloat(row.clicks || 0);
+                byDate[key].impressions += parseFloat(row.impressions || 0);
+                if (row.actions) byDate[key].actions.push(...row.actions);
+                if (row.action_values) byDate[key].action_values.push(...(row.action_values || []));
+            }
+            accountRows = Object.values(byDate).map((r) => {
+                const actionsByType = {};
+                for (const a of (r.actions || [])) {
+                    actionsByType[a.action_type] = (actionsByType[a.action_type] || 0) + parseFloat(a.value || 0);
+                }
+                const actionValuesByType = {};
+                for (const a of (r.action_values || [])) {
+                    actionValuesByType[a.action_type] = (actionValuesByType[a.action_type] || 0) + parseFloat(a.value || 0);
+                }
+                return {
+                    date_start: r.date_start,
+                    spend: r.spend,
+                    clicks: r.clicks,
+                    impressions: r.impressions,
+                    actions: Object.entries(actionsByType).map(([t, v]) => ({ action_type: t, value: String(v) })),
+                    action_values: Object.entries(actionValuesByType).map(([t, v]) => ({ action_type: t, value: String(v) })),
+                };
+            }).sort((a, b) => (a.date_start || '').localeCompare(b.date_start || ''));
+        }
+
+        const metrics_by_date = accountRows.map(row => {
             const conversions = getActionValue(row.actions, 'purchase') || 
                                getActionValue(row.actions, 'omni_purchase') ||
                                getActionValue(row.actions, 'offsite_conversion.fb_pixel_purchase');
@@ -238,41 +325,65 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
             };
         }).sort((a, b) => new Date(a.date) - new Date(b.date));
 
-        // Step 2: Fetch top campaigns
-        console.log('[Facebook API PS] Fetching top campaigns');
         const campaignsParams = new URLSearchParams({
             access_token: accessToken,
-            time_range: JSON.stringify({
-                since: startDate,
-                until: endDate
-            }),
+            time_range: JSON.stringify({ since: startDate, until: endDate }),
             fields: 'campaign_name,spend,clicks,impressions,actions',
             level: 'campaign',
             limit: '100'
         });
-        if (countryCode) {
+        if (effectiveInclude.length > 0) {
             campaignsParams.append('filtering', JSON.stringify([
-                {
-                    field: 'country',
-                    operator: 'IN',
-                    value: [countryCode]
-                }
+                { field: 'country', operator: 'IN', value: effectiveInclude }
             ]));
         }
+        if (useBreakdown) {
+            campaignsParams.append('breakdowns', JSON.stringify(['country']));
+        }
+
         const campaignsResponse = await fetch(`${apiUrl}?${campaignsParams.toString()}`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' }
         });
         if (!campaignsResponse.ok) {
             const errorText = await campaignsResponse.text();
-            console.error(`[Facebook API PS] Campaigns error: ${campaignsResponse.status}`, errorText);
             throw new Error(`Facebook API error: ${campaignsResponse.status} - ${errorText}`);
         }
         const campaignsData = await campaignsResponse.json();
         if (campaignsData.error) {
             throw new Error(`Facebook API error: ${JSON.stringify(campaignsData.error)}`);
         }
-        const top_campaigns = (campaignsData.data || [])
+
+        let campaignRows = campaignsData.data || [];
+        if (useBreakdown && campaignRows.length > 0) {
+            campaignRows = campaignRows.filter((row) => {
+                const c = (row.country || '').toUpperCase();
+                return c && !exclude.includes(c);
+            });
+            const byCampaign = {};
+            for (const row of campaignRows) {
+                const key = row.campaign_name || 'Unknown';
+                if (!byCampaign[key]) byCampaign[key] = { campaign_name: key, spend: 0, clicks: 0, impressions: 0, actions: [] };
+                byCampaign[key].spend += parseFloat(row.spend || 0);
+                byCampaign[key].clicks += parseFloat(row.clicks || 0);
+                byCampaign[key].impressions += parseFloat(row.impressions || 0);
+                if (row.actions) byCampaign[key].actions.push(...row.actions);
+            }
+            campaignRows = Object.values(byCampaign).map((r) => {
+                const actionsByType = {};
+                for (const a of (r.actions || [])) {
+                    actionsByType[a.action_type] = (actionsByType[a.action_type] || 0) + parseFloat(a.value || 0);
+                }
+                return {
+                    campaign_name: r.campaign_name,
+                    spend: r.spend,
+                    clicks: r.clicks,
+                    impressions: r.impressions,
+                    actions: Object.entries(actionsByType).map(([t, v]) => ({ action_type: t, value: String(v) })),
+                };
+            });
+        }
+        const top_campaigns = campaignRows
             .map(row => {
                 const clicks = parseFloat(row.clicks || 0);
                 const impressions = parseFloat(row.impressions || 0);
@@ -290,18 +401,13 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
             .sort((a, b) => b.clicks - a.clicks)
             .slice(0, 5);
 
-        // Step 3: For top campaigns, fetch daily breakdown
-        console.log('[Facebook API PS] Fetching daily breakdown for top campaigns');
         const topCampaignNames = top_campaigns.map(c => c.campaign_name);
         const campaigns_by_date = [];
         for (const campaignName of topCampaignNames) {
             try {
                 const campaignDailyParams = new URLSearchParams({
                     access_token: accessToken,
-                    time_range: JSON.stringify({
-                        since: startDate,
-                        until: endDate
-                    }),
+                    time_range: JSON.stringify({ since: startDate, until: endDate }),
                     time_increment: '1',
                     fields: 'campaign_name,spend,clicks,impressions,actions,date_start',
                     level: 'campaign',
@@ -312,14 +418,18 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
                     operator: 'EQUAL',
                     value: campaignName
                 }];
-                if (countryCode) {
+                if (effectiveInclude.length > 0) {
                     filters.push({
                         field: 'country',
                         operator: 'IN',
-                        value: [countryCode]
+                        value: effectiveInclude
                     });
                 }
+                if (useBreakdown) {
+                    campaignDailyParams.append('breakdowns', JSON.stringify(['country']));
+                }
                 campaignDailyParams.append('filtering', JSON.stringify(filters));
+
                 const dailyResponse = await fetch(`${apiUrl}?${campaignDailyParams.toString()}`, {
                     method: 'GET',
                     headers: { 'Content-Type': 'application/json' }
@@ -327,7 +437,26 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
                 if (dailyResponse.ok) {
                     const dailyData = await dailyResponse.json();
                     if (!dailyData.error && dailyData.data) {
-                        dailyData.data.forEach(row => {
+                        let dailyRows = dailyData.data;
+                        if (useBreakdown) {
+                            dailyRows = dailyRows.filter((row) => {
+                                const c = (row.country || '').toUpperCase();
+                                return c && !exclude.includes(c);
+                            });
+                            const byDateCampaign = {};
+                            for (const row of dailyRows) {
+                                const key = `${row.date_start || ''}::${row.campaign_name || 'Unknown'}`;
+                                if (!byDateCampaign[key]) {
+                                    byDateCampaign[key] = { date_start: row.date_start, campaign_name: row.campaign_name || 'Unknown', spend: 0, clicks: 0, impressions: 0, actions: [] };
+                                }
+                                byDateCampaign[key].spend += parseFloat(row.spend || 0);
+                                byDateCampaign[key].clicks += parseFloat(row.clicks || 0);
+                                byDateCampaign[key].impressions += parseFloat(row.impressions || 0);
+                                if (row.actions) byDateCampaign[key].actions.push(...row.actions);
+                            }
+                            dailyRows = Object.values(byDateCampaign);
+                        }
+                        dailyRows.forEach(row => {
                             const clicks = parseFloat(row.clicks || 0);
                             const impressions = parseFloat(row.impressions || 0);
                             const ad_spend = parseFloat(row.spend || 0);
@@ -358,7 +487,6 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
             if (dateCompare !== 0) return dateCompare;
             return b.clicks - a.clicks;
         });
-        console.log(`[Facebook API PS] Successfully fetched: ${metrics_by_date.length} days, ${top_campaigns.length} campaigns, ${campaigns_by_date.length} campaign-date records`);
         return {
             metrics_by_date,
             top_campaigns,

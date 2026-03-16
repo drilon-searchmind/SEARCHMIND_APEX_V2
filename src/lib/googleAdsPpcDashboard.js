@@ -1,5 +1,6 @@
 // src/lib/googleAdsPpcDashboard.js
 import { GoogleAdsApi } from 'google-ads-api';
+import { resolveCountryToCriterionId } from './googleAdsApi';
 import currencyApiValues from './static-data/currencyApiValues.json';
 
 /**
@@ -13,6 +14,8 @@ import currencyApiValues from './static-data/currencyApiValues.json';
  * @param {string} [config.managerCustomerId]
  * @param {string} config.startDate
  * @param {string} config.endDate
+ * @param {string} [config.countryFilter] - Optional comma-separated countries to INCLUDE
+ * @param {string} [config.countryExclude] - Optional comma-separated countries to EXCLUDE
  * @returns {Promise<Object>} Object containing metrics_by_date, top_campaigns, and campaigns_by_date
  */
 export async function fetchGoogleAdsPPCDashboardMetrics({
@@ -23,7 +26,9 @@ export async function fetchGoogleAdsPPCDashboardMetrics({
     customerId,
     managerCustomerId,
     startDate,
-    endDate
+    endDate,
+    countryFilter,
+    countryExclude,
 }) {
     try {
         const client = new GoogleAdsApi({
@@ -49,31 +54,89 @@ export async function fetchGoogleAdsPPCDashboardMetrics({
             conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
         }
         
-        const query = `
-            SELECT 
-                campaign.id,
-                campaign.name,
-                segments.date,
-                metrics.clicks,
-                metrics.impressions,
-                metrics.conversions,
-                metrics.conversions_value,
-                metrics.cost_micros
-            FROM campaign
-            WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
-            ORDER BY segments.date ASC
-        `;
-        const response = await customer.query(query);
-        const rawData = response.map(row => ({
-            date: row.segments.date,
-            campaign_name: row.campaign.name,
-            campaign_id: row.campaign.id,
-            clicks: row.metrics.clicks || 0,
-            impressions: row.metrics.impressions || 0,
-            conversions: row.metrics.conversions || 0,
-            conversions_value: row.metrics.conversions_value || 0,
-            ad_spend: ((row.metrics.cost_micros || 0) / 1_000_000) * conversionRate,
-        }));
+        const hasInclude = typeof countryFilter === 'string' && countryFilter.trim().length > 0;
+        const hasExclude = typeof countryExclude === 'string' && countryExclude.trim().length > 0;
+        const hasAnyFilter = hasInclude || hasExclude;
+        let response;
+        if (hasAnyFilter) {
+            const resolveIds = async (inputStr) => {
+                const inputs = inputStr.split(',').map((c) => c.trim()).filter(Boolean);
+                const ids = [];
+                for (const inp of inputs) {
+                    const id = await resolveCountryToCriterionId(customer, inp);
+                    if (id != null) ids.push(id);
+                    else console.warn('Google Ads PPC country filter: unknown country skipped:', inp);
+                }
+                return [...new Set(ids)];
+            };
+            let includeIds = [];
+            let excludeIds = [];
+            if (hasInclude) includeIds = await resolveIds(countryFilter);
+            if (hasExclude) excludeIds = await resolveIds(countryExclude);
+            const effectiveIncludeIds = hasInclude
+                ? includeIds.filter((id) => !excludeIds.includes(id))
+                : null;
+            if (hasInclude && effectiveIncludeIds.length === 0) {
+                console.warn('Google Ads PPC country filter: all included countries were excluded, falling back to unfiltered');
+            }
+            const useLocationView = (hasInclude && effectiveIncludeIds.length > 0) || (hasExclude && !hasInclude);
+            if (useLocationView) {
+                const idsList = effectiveIncludeIds?.length ? effectiveIncludeIds.join(', ') : null;
+                const whereCountry = idsList
+                    ? `AND user_location_view.country_criterion_id IN (${idsList})`
+                    : '';
+                const countryQuery = `
+                    SELECT 
+                        user_location_view.country_criterion_id,
+                        campaign.id,
+                        campaign.name,
+                        segments.date,
+                        metrics.clicks,
+                        metrics.impressions,
+                        metrics.conversions,
+                        metrics.conversions_value,
+                        metrics.cost_micros
+                    FROM user_location_view
+                    WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
+                    ${whereCountry}
+                    ORDER BY segments.date ASC
+                `;
+                response = await customer.query(countryQuery);
+                if (hasExclude && excludeIds.length > 0) {
+                    const rows = Array.isArray(response) ? response : (response?.results || []);
+                    response = rows.filter(
+                        (r) => !excludeIds.includes(Number(r.user_location_view?.country_criterion_id ?? r.country_criterion_id))
+                    );
+                }
+            }
+        }
+        if (!response) {
+            const query = `
+                SELECT 
+                    campaign.id,
+                    campaign.name,
+                    segments.date,
+                    metrics.clicks,
+                    metrics.impressions,
+                    metrics.conversions,
+                    metrics.conversions_value,
+                    metrics.cost_micros
+                FROM campaign
+                WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
+                ORDER BY segments.date ASC
+            `;
+            response = await customer.query(query);
+        }
+        const rawData = (Array.isArray(response) ? response : (response?.results || [])).map(row => ({
+            date: row.segments?.date,
+            campaign_name: row.campaign?.name ?? '(no campaign)',
+            campaign_id: row.campaign?.id,
+            clicks: row.metrics?.clicks || 0,
+            impressions: row.metrics?.impressions || 0,
+            conversions: row.metrics?.conversions || 0,
+            conversions_value: row.metrics?.conversions_value || 0,
+            ad_spend: ((row.metrics?.cost_micros || 0) / 1_000_000) * conversionRate,
+        })).filter(row => row.date);
         const metricsByDateMap = {};
         rawData.forEach(row => {
             if (!metricsByDateMap[row.date]) {

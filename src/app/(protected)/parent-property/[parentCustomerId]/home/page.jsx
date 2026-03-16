@@ -29,9 +29,10 @@ export default function ParentPropertyHome() {
     const today = new Date();
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const dd = String(today.getDate()).padStart(2, "0");
-    const defaultEnd = `${yyyy}-${mm}-${dd}`;
+    // First day of month as start; end = yesterday (unless 1st of month, then 1st as end too)
+    const isFirstOfMonth = today.getDate() === 1;
     const defaultStart = `${yyyy}-${mm}-01`;
+    const defaultEnd = isFirstOfMonth ? `${yyyy}-${mm}-01` : `${yyyy}-${mm}-${String(today.getDate() - 1).padStart(2, "0")}`;
     const [tempDateRange, setTempDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
     const [appliedDateRange, setAppliedDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
 
@@ -148,7 +149,9 @@ export default function ParentPropertyHome() {
                             const google = merged.googleDaily || [];
                             const revenue = shopify.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
                             const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
-                            const adspend = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
+                            const facebookAdspend = facebook.reduce((sum, d) => sum + (d.spend || 0), 0);
+                            const googleAdspend = google.reduce((sum, d) => sum + (d.spend || 0), 0);
+                            const adspend = facebookAdspend + googleAdspend;
                             const aov = orders > 0 ? revenue / orders : 0;
                             const roas = adspend > 0 ? revenue / adspend : null;
                             const spendshare = revenue > 0 ? adspend / revenue : null;
@@ -158,6 +161,8 @@ export default function ParentPropertyHome() {
                                 revenue,
                                 orders,
                                 adspend,
+                                facebookAdspend,
+                                googleAdspend,
                                 roas,
                                 spendshare,
                                 aov,
@@ -177,10 +182,12 @@ export default function ParentPropertyHome() {
                             const google = merged.googleDaily || [];
                             const revenue = shopify.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
                             const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
-                            const adspend = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
+                            const facebookAdspend = facebook.reduce((sum, d) => sum + (d.spend || 0), 0);
+                            const googleAdspend = google.reduce((sum, d) => sum + (d.spend || 0), 0);
+                            const adspend = facebookAdspend + googleAdspend;
                             const roas = adspend > 0 ? revenue / adspend : null;
                             const spendshare = revenue > 0 ? adspend / revenue : null;
-                            return { _id: customer._id, revenue, adspend, orders, roas, spendshare };
+                            return { _id: customer._id, revenue, adspend, facebookAdspend, googleAdspend, orders, roas, spendshare };
                         })
                     ),
                     // Fetch daily data for charts
@@ -389,7 +396,9 @@ export default function ParentPropertyHome() {
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">Property Name</th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">Revenue</th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">Orders</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Ad Spend</th>
+                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Total Adspend</th>
+                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Facebook Adspend</th>
+                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Google Adspend</th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">
                                         {predominantMetricPreference === 'Spendshare' ? 'Spendshare' : 'ROAS'}
                                     </th>
@@ -417,6 +426,8 @@ export default function ParentPropertyHome() {
                                             </td>
                                             <td className="px-3 py-2 whitespace-nowrap">{row.orders.toLocaleString()}</td>
                                             <td className="px-3 py-2 whitespace-nowrap">{row.adspend.toLocaleString("da-DK", { style: "currency", currency: "DKK" })}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap">{(row.facebookAdspend ?? 0).toLocaleString("da-DK", { style: "currency", currency: "DKK" })}</td>
+                                            <td className="px-3 py-2 whitespace-nowrap">{(row.googleAdspend ?? 0).toLocaleString("da-DK", { style: "currency", currency: "DKK" })}</td>
                                             <td className="px-3 py-2 whitespace-nowrap">
                                                 {row.metricPreference === 'Spendshare' ? (
                                                     row.spendshare !== null ? `${(row.spendshare * 100).toFixed(2)}%` : "-"
