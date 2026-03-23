@@ -41,9 +41,14 @@ export async function fetchGoogleAdsPPCDashboardMetrics({
             refresh_token: refreshToken,
             login_customer_id: managerCustomerId || undefined,
         });
-        const currencyQuery = `SELECT customer.currency_code FROM customer`;
-        const currencyResponse = await customer.query(currencyQuery);
-        const accountCurrency = currencyResponse[0]?.customer?.currency_code || 'USD';
+        let accountCurrency = 'DKK';
+        try {
+            const currencyQuery = `SELECT customer.currency_code FROM customer`;
+            const currencyResponse = await customer.query(currencyQuery);
+            accountCurrency = currencyResponse[0]?.customer?.currency_code || 'DKK';
+        } catch (err) {
+            console.warn('Google Ads: could not fetch currency, using DKK:', err?.message);
+        }
         
         // Currency conversion logic
         const fromCode = accountCurrency;

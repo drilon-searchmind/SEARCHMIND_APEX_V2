@@ -69,6 +69,14 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
             console.log(`[Shopify] Fetching for customer: ${settings.customerName || 'Unknown'}, shop: ${settings.shopifyUrl}`);
             const shopifyRes = await shopifyqlQuery(settings.shopifyUrl, settings.shopifyApiPassword, shopifyql);
             let rows = shopifyRes?.data?.shopifyqlQuery?.tableData?.rows || [];
+            const parseErrors = shopifyRes?.data?.shopifyqlQuery?.parseErrors || [];
+            const gqlErrors = shopifyRes?.errors || [];
+            if (rows.length === 0) {
+                console.warn(`[Shopify] Empty shopifyDaily for ${settings.shopifyUrl}. parseErrors:`, parseErrors, 'gqlErrors:', gqlErrors);
+                if (parseErrors.length === 0 && gqlErrors.length === 0) {
+                    console.warn(`[Shopify] No errors returned. Likely cause: token missing read_reports scope (OAuth needs read_reports, not unauthenticated_read_*). Or no sales in range.`);
+                }
+            }
             
             // Currency conversion logic
             const fromCode = settings?.customerStoreValutaCode || 'DKK';

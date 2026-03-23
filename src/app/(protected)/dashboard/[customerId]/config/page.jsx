@@ -44,6 +44,7 @@ export default function ConfigPage() {
         googleAdsCountryExclude: "",
         googleSearchConsoleProperty: "",
         ga4PropertyId: "",
+        klaviyoPrivateApiKey: "",
         CustomerStaticExpenses: {
             cogsPercentage: 0,
             shippingCostPerOrder: 0,
@@ -152,6 +153,7 @@ export default function ConfigPage() {
                 googleAdsCustomerId,
                 googleSearchConsoleProperty,
                 ga4PropertyId,
+                klaviyoPrivateApiKey,
                 CustomerStaticExpenses,
             } = form;
             
@@ -227,6 +229,7 @@ export default function ConfigPage() {
                             googleAdsCountryExclude,
                             googleSearchConsoleProperty,
                             ga4PropertyId,
+                            klaviyoPrivateApiKey,
                         },
                         CustomerStaticExpenses: updatedExpenses,
                         CustomerPropertyObjectives: objectives,

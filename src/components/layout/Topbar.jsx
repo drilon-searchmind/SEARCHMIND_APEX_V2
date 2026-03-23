@@ -11,6 +11,7 @@ import Select from 'react-select';
 import TeamMembers from './TeamMembers';
 import TrackingScore from './TrackingScore';
 import SharePropertyModal from '@/components/dashboard/SharePropertyModal';
+import ParentPropertyFilterDropdown from './ParentPropertyFilterDropdown';
 import Link from "next/link";
 import FormButton from "../form/FormButton";
 import { LuRadar } from "react-icons/lu";
@@ -31,7 +32,7 @@ function getOpenedPeriodsForCustomer(openedWrappedPeriods, customerId) {
     return Array.isArray(raw) ? raw.map((p) => String(p).trim()).filter((p) => /^\d{4}-\d{2}$/.test(p)) : [];
 }
 
-const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true }) => {
+const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true, isParentProperty = false }) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const [bellMenuOpen, setBellMenuOpen] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -200,7 +201,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                 <div className="flex items-center space-x-4 xl:space-x-5 flex-1 xl:flex-none">
                     {/* Logo - Hidden on mobile */}
                     {showLogo && (
-                        <div className="relative hidden xl:block">
+                        <div className="relative hidden">
                             <Link href="/dashboard">
                                 <Image
                                     src="/images/icons/apex-icon-svg.svg"
@@ -214,7 +215,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                     )}
 
                     {/* Home Link - Hidden on mobile */}
-                    <div className="relative hidden xl:block">
+                    <div className="relative hidden">
                         <Link href="/home" className="flex items-center space-x-0">
                             <FiHome className="text-gray-400 h-4 w-4" />
                         </Link>
@@ -344,6 +345,9 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                         </>
                     )}
 
+                    {isParentProperty && (
+                        <ParentPropertyFilterDropdown />
+                    )}
                     <div>
                         <button onClick={handleToggleTheme} className="p-2 rounded-full border border-gray-200 bg-white text-gray-700 transition-colors duration-200 hover:bg-gray-50">
                             {theme === "dark" ? <FaSun /> : <FaMoon />}

@@ -25,8 +25,8 @@ function deepMerge(target, source) {
     return result;
 }
 
-export default function GraphCard({ title, chartOptions, chartSeries, chartType = "line", height = 300, children }) {
-    // Toggle state (Period active by default)
+export default function GraphCard({ title, chartOptions, chartSeries, chartType = "line", height = 300, children, hideChartToggle = false }) {
+    // Toggle state (Period active by default). When hideChartToggle, always use Period view.
     const [toggle, setToggle] = React.useState("Period");
     const [isDark, setIsDark] = React.useState(false);
 
@@ -102,7 +102,7 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
             });
         }
         
-        if (toggle === "Monthly") {
+        if (toggle === "Monthly" && !hideChartToggle) {
             const categories = optionsCopy?.xaxis?.categories;
             const hasValidCategories = categories && Array.isArray(categories) && categories.length > 0;
             
@@ -159,12 +159,13 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
             series: seriesCopy,
             type: chartType
         };
-    }, [toggle, chartOptions, chartSeries, chartType, aggregateByMonth, isDark]);
+    }, [toggle, chartOptions, chartSeries, chartType, aggregateByMonth, isDark, hideChartToggle]);
 
     return (
         <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col justify-between h-full min-h-[320px]">
             <div className="mb-2 flex justify-between items-center">
                 <h6 className="text-[var(--color-primary-searchmind)] mb-2 font-bold">{title}</h6>
+                {!hideChartToggle && (
                 <div id="chartToggler">
                     <div className="flex border border-gray-200 bg-gray-100 rounded-lg overflow-hidden">
                         <button
@@ -183,6 +184,7 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
                         </button>
                     </div>
                 </div>
+                )}
             </div>
             <div className="flex-1 flex items-center justify-center w-full">
                 <div style={{ width: '100%' }}>

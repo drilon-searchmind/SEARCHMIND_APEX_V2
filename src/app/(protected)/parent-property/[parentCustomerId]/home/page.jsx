@@ -12,18 +12,33 @@ import Link from "next/link";
 import ParentRevenueOrdersChart from "./components/ParentRevenueOrdersChart";
 import ParenteAdspendChart from "./components/ParentAdspendChart";
 import ParentROASChart from "./components/ParentROASChart";
+import { useParentPropertyView, PARENT_VIEWS } from "@/contexts/ParentPropertyViewContext";
+import { useParentPropertyFilter } from "@/contexts/ParentPropertyFilterContext";
+import ParentPropertyLoadingOverlay from "@/components/layout/ParentPropertyLoadingOverlay";
+import {
+    ParentOverviewView,
+    ParentDailyView,
+    ParentPaceReportView,
+    ParentPnlView,
+    ParentEcommerceView,
+} from "./views";
+import { buildParentDailyRows } from "./utils/buildParentDailyRows";
 
 export default function ParentPropertyHome() {
+    const { activeView } = useParentPropertyView();
+    const { enabledProperties, setChildCustomers: setFilterChildCustomers, setEnabledProperties: setFilterEnabledProperties, toggleProperty } = useParentPropertyFilter();
     const params = useParams();
     const parentCustomerId = params.parentCustomerId;
     const [parentCustomer, setParentCustomer] = useState(null);
     const [childCustomers, setChildCustomers] = useState([]);
     const [allTableRows, setAllTableRows] = useState([]); // Store all fetched data
-    const [enabledProperties, setEnabledProperties] = useState({}); // Track which properties are enabled
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [allDailyChartData, setAllDailyChartData] = useState([]); // Store all daily data
     const [chartLoading, setChartLoading] = useState(false);
+    const [loadingPhase, setLoadingPhase] = useState("parent"); // 'parent' | 'properties' | 'aggregating' | 'complete'
+    const [progressItems, setProgressItems] = useState([]); // [{ id, name, status: 'loading'|'loaded', source?, shop? }]
+    const [overlayFading, setOverlayFading] = useState(false); // true during fade-out before unmount
 
     // Separate temp (input) and applied (fetch-triggered) date ranges
     const today = new Date();
@@ -54,192 +69,106 @@ export default function ParentPropertyHome() {
         setTempDateRange(dr => ({ ...dr, endDate: newEnd }));
     };
 
-    // Toggle property enable/disable
-    const toggleProperty = (customerId, newState) => {
-        setEnabledProperties(prev => ({
-            ...prev,
-            [customerId]: newState
-        }));
-    };
-
-    // Initialize enabled properties when child customers are loaded
-    useEffect(() => {
-        if (childCustomers.length > 0) {
-            const initialEnabled = {};
-            childCustomers.forEach(customer => {
-                initialEnabled[customer._id] = true; // All enabled by default
-            });
-            setEnabledProperties(initialEnabled);
-        }
-    }, [childCustomers]);
-
-    // Fetch parent customer and its child customers
-    useEffect(() => {
-        setLoading(true);
-        setError(null);
-        (async () => {
-            try {
-                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-                const res = await fetch(`${baseUrl}/api/parent-customers/${parentCustomerId}`);
-                if (!res.ok) throw new Error("Failed to fetch parent customer");
-                const parent = await res.json();
-                setParentCustomer(parent);
-                setChildCustomers(parent.customers || []);
-            } catch (err) {
-                setError(err.message);
-                setChildCustomers([]);
-            } finally {
-                setLoading(false);
-            }
-        })();
-    }, [parentCustomerId]);
-
     // Helper for percent change
     function percentChange(current, prev) {
         if (prev === 0 || prev === null || prev === undefined) return null;
         return ((current - prev) / Math.abs(prev)) * 100;
     }
 
-    // Fetch metrics for all child customers (store all data)
+    // Streaming aggregated fetch: parent + all children's merged data with progressive progress updates.
     useEffect(() => {
-        if (!childCustomers.length) {
-            setAllTableRows([]);
-            setAllDailyChartData([]);
-            setLoading(false);
-            return;
-        }
         setLoading(true);
         setChartLoading(true);
         setError(null);
+        setLoadingPhase("parent");
+        setProgressItems([]);
+        setOverlayFading(false);
+
         (async () => {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+                const url = `${baseUrl}/api/parent-customers/${parentCustomerId}/aggregated?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&comparisonMethod=${encodeURIComponent(comparisonMethod)}&stream=1`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error("Failed to fetch parent property data");
+                if (!res.body) throw new Error("Streaming not supported");
 
-                const start = new Date(appliedDateRange.startDate);
-                const end = new Date(appliedDateRange.endDate);
-                const msDay = 24 * 60 * 60 * 1000;
-                const days = Math.floor((end - start) / msDay) + 1;
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = "";
 
-                let prevStart, prevEnd;
-                if (comparisonMethod === "Last Year") {
-                    prevStart = new Date(start);
-                    prevStart.setFullYear(prevStart.getFullYear() - 1);
-                    prevEnd = new Date(end);
-                    prevEnd.setFullYear(prevEnd.getFullYear() - 1);
-                } else {
-                    const prevEndMs = start.getTime() - msDay;
-                    const prevStartMs = prevEndMs - (days - 1) * msDay;
-                    prevStart = new Date(prevStartMs);
-                    prevEnd = new Date(prevEndMs);
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split("\n");
+                    buffer = lines.pop() || "";
+
+                    for (const line of lines) {
+                        if (!line.trim()) continue;
+                        try {
+                            const event = JSON.parse(line);
+                            if (event.type === "start") {
+                                setLoadingPhase("properties");
+                                setParentCustomer((p) => (p ? p : { _id: null, name: event.parentName, customers: [] }));
+                                setProgressItems(
+                                    (event.children || []).map((c) => ({ id: c.id, name: c.name, status: "loading" }))
+                                );
+                            } else if (event.type === "loaded") {
+                                setProgressItems((prev) =>
+                                    prev.map((p) =>
+                                        p.id === event.id
+                                            ? { ...p, status: "loaded", source: event.source, shop: event.shop }
+                                            : p
+                                    )
+                                );
+                            } else if (event.type === "aggregating") {
+                                setLoadingPhase("aggregating");
+                            } else if (event.type === "complete" || (event.parent && event.rows !== undefined)) {
+                                const parent = { _id: event.parent._id, name: event.parent.name, customers: event.parent.customers || [] };
+                                const children = event.parent.customers || [];
+
+                                setParentCustomer(parent);
+                                setChildCustomers(children);
+                                setAllTableRows(event.rows || []);
+                                setAllDailyChartData(event.dailyData || []);
+                                setPredominantMetricPreference(event.predominantMetricPreference || "ROAS/POAS");
+                                setFilterChildCustomers(children);
+                                const initialEnabled = {};
+                                children.forEach((c) => { initialEnabled[c._id] = true; });
+                                setFilterEnabledProperties(initialEnabled);
+
+                                setLoadingPhase("complete");
+                                setLoading(false);
+                                setChartLoading(false);
+
+                                // Brief "Complete" display, then fade out
+                                await new Promise((r) => setTimeout(r, 600));
+                                setOverlayFading(true);
+                                await new Promise((r) => setTimeout(r, 400));
+                                setLoadingPhase("parent");
+                                setProgressItems([]);
+                                setOverlayFading(false);
+                            }
+                        } catch (e) {
+                            // ignore parse errors for partial chunks
+                        }
+                    }
                 }
-                const prevStartStr = prevStart.toISOString().slice(0, 10);
-                const prevEndStr = prevEnd.toISOString().slice(0, 10);
-
-                // Fetch merged data for all child customers in parallel
-                const [results, resultsPrev, dailyResults] = await Promise.all([
-                    Promise.all(
-                        childCustomers.map(async (customer) => {
-                            const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&source=parent-property`);
-                            if (!res.ok) throw new Error("Failed to fetch data for " + customer.customerName);
-                            const merged = await res.json();
-                            const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
-                            const metricPreference = customer?.CustomerSettings?.metricPreference || 'ROAS/POAS';
-                            const shopify = merged.shopifyDaily || [];
-                            const facebook = merged.facebookDaily || [];
-                            const google = merged.googleDaily || [];
-                            const revenue = shopify.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
-                            const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
-                            const facebookAdspend = facebook.reduce((sum, d) => sum + (d.spend || 0), 0);
-                            const googleAdspend = google.reduce((sum, d) => sum + (d.spend || 0), 0);
-                            const adspend = facebookAdspend + googleAdspend;
-                            const aov = orders > 0 ? revenue / orders : 0;
-                            const roas = adspend > 0 ? revenue / adspend : null;
-                            const spendshare = revenue > 0 ? adspend / revenue : null;
-                            return {
-                                _id: customer._id,
-                                customerName: customer.customerName,
-                                revenue,
-                                orders,
-                                adspend,
-                                facebookAdspend,
-                                googleAdspend,
-                                roas,
-                                spendshare,
-                                aov,
-                                revenueType,
-                                metricPreference,
-                            };
-                        })
-                    ),
-                    Promise.all(
-                        childCustomers.map(async (customer) => {
-                            const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${prevStartStr}&endDate=${prevEndStr}&source=parent-property`);
-                            if (!res.ok) return { revenue: 0, adspend: 0, orders: 0, roas: null, spendshare: null };
-                            const merged = await res.json();
-                            const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
-                            const shopify = merged.shopifyDaily || [];
-                            const facebook = merged.facebookDaily || [];
-                            const google = merged.googleDaily || [];
-                            const revenue = shopify.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
-                            const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
-                            const facebookAdspend = facebook.reduce((sum, d) => sum + (d.spend || 0), 0);
-                            const googleAdspend = google.reduce((sum, d) => sum + (d.spend || 0), 0);
-                            const adspend = facebookAdspend + googleAdspend;
-                            const roas = adspend > 0 ? revenue / adspend : null;
-                            const spendshare = revenue > 0 ? adspend / revenue : null;
-                            return { _id: customer._id, revenue, adspend, facebookAdspend, googleAdspend, orders, roas, spendshare };
-                        })
-                    ),
-                    // Fetch daily data for charts
-                    Promise.all(
-                        childCustomers.map(async (customer) => {
-                            const res = await fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&source=parent-property`);
-                            if (!res.ok) return null;
-                            const merged = await res.json();
-                            const revenueType = customer?.CustomerSettings?.customerRevenueType || 'total_sales';
-                            return {
-                                _id: customer._id,
-                                shopifyDaily: merged.shopifyDaily || [],
-                                facebookDaily: merged.facebookDaily || [],
-                                googleDaily: merged.googleDaily || [],
-                                revenueType,
-                            };
-                        })
-                    )
-                ]);
-
-                // Store all fetched data
-                const rowsWithPrev = results.map((row, idx) => ({
-                    ...row,
-                    prevData: resultsPrev[idx]
-                }));
-                setAllTableRows(rowsWithPrev);
-
-                // Store all daily data with customer ID
-                setAllDailyChartData(dailyResults.filter(r => r !== null));
-
-                // Determine predominant metric preference from all results
-                const preferenceCounts = results.reduce((acc, r) => {
-                    acc[r.metricPreference] = (acc[r.metricPreference] || 0) + 1;
-                    return acc;
-                }, {});
-                const predominant = Object.keys(preferenceCounts).reduce((a, b) =>
-                    preferenceCounts[a] > preferenceCounts[b] ? a : b, 'ROAS/POAS'
-                );
-                setPredominantMetricPreference(predominant);
-
             } catch (err) {
                 setError(err.message);
-            } finally {
+                setChildCustomers([]);
+                setAllTableRows([]);
+                setAllDailyChartData([]);
                 setLoading(false);
                 setChartLoading(false);
             }
         })();
-    }, [childCustomers, appliedDateRange, comparisonMethod]);
+    }, [parentCustomerId, appliedDateRange, comparisonMethod]);
 
     // Filter data based on enabled properties
-    const { filteredTableRows, filteredDailyData, metrics, metricsPrev } = useMemo(() => {
+    const { filteredTableRows, filteredDailyData, metrics, metricsPrev, aggregatedMetrics, aggregatedMetricsPrev, filteredDailyRows, filteredDailyRowsPrev } = useMemo(() => {
         const filtered = allTableRows.filter(row => enabledProperties[row._id]);
+        const filteredDailyDataList = allDailyChartData.filter((r) => enabledProperties[r._id]);
 
         // Aggregate filtered daily data
         const dailyMap = {};
@@ -286,13 +215,91 @@ export default function ParentPropertyHome() {
         const combinedRoasPrev = totalAdspendPrev > 0 ? totalRevenuePrev / totalAdspendPrev : null;
         const combinedSpendsharePrev = totalRevenuePrev > 0 ? totalAdspendPrev / totalRevenuePrev : null;
 
+        // Aggregate full metrics from filtered rows (for parent overview)
+        const agg = (key) => filtered.reduce((s, r) => s + (r.fullMetrics?.[key] ?? 0), 0);
+        const totalSales = agg("totalSales");
+        const grossSales = agg("grossSales");
+        const discounts = agg("discounts");
+        const returns = agg("returns");
+        const netRevenue = agg("netRevenue");
+        const orders = agg("orders");
+        const shippingCharges = agg("shippingCharges");
+        const taxes = agg("taxes");
+        const metaSpend = agg("metaSpend");
+        const googleSpend = agg("googleSpend");
+        const cost = agg("cost");
+        const totalCogs = agg("totalCogs");
+        const fixedCosts = agg("fixedCosts");
+        const variableCosts = agg("variableCosts");
+        const shippingCost = agg("shippingCost");
+        const pickPackCost = agg("pickPackCost");
+        const transactionFee = agg("transactionFee");
+        const allCosts = agg("allCosts");
+        const ebit = agg("ebit");
+        const grossProfit = agg("grossProfit");
+
+        const totalSalesPrev = agg("totalSalesPrev");
+        const grossSalesPrev = agg("grossSalesPrev");
+        const discountsPrev = agg("discountsPrev");
+        const returnsPrev = agg("returnsPrev");
+        const netRevenuePrev = agg("netRevenuePrev");
+        const ordersPrev = agg("ordersPrev");
+        const shippingChargesPrev = agg("shippingChargesPrev");
+        const taxesPrev = agg("taxesPrev");
+        const metaSpendPrev = agg("metaSpendPrev");
+        const googleSpendPrev = agg("googleSpendPrev");
+        const costPrev = agg("costPrev");
+        const prevTotalCogs = agg("prevTotalCogs");
+        const fixedCostsPrev = agg("fixedCostsPrev");
+        const variableCostsPrev = agg("variableCostsPrev");
+        const shippingCostPrev = agg("shippingCostPrev");
+        const pickPackCostPrev = agg("pickPackCostPrev");
+        const transactionFeePrev = agg("transactionFeePrev");
+        const allCostsPrev = agg("allCostsPrev");
+        const ebitPrev = agg("ebitPrev");
+        const grossProfitPrev = agg("grossProfitPrev");
+
+        const aov = orders > 0 ? netRevenue / orders : null;
+        const aovPrev = ordersPrev > 0 ? netRevenuePrev / ordersPrev : null;
+        const roas = cost > 0 ? netRevenue / cost : null;
+        const roasPrev = costPrev > 0 ? netRevenuePrev / costPrev : null;
+        const poas = cost > 0 ? ebit / cost : null;
+        const poasPrev = costPrev > 0 ? ebitPrev / costPrev : null;
+        const cac = orders > 0 ? cost / orders : null;
+        const cacPrev = ordersPrev > 0 ? costPrev / ordersPrev : null;
+        const ebitPct = netRevenue > 0 ? (ebit / netRevenue) * 100 : null;
+        const ebitPctPrev = netRevenuePrev > 0 ? (ebitPrev / netRevenuePrev) * 100 : null;
+        const spendshare = netRevenue > 0 ? cost / netRevenue : null;
+        const spendsharePrev = netRevenuePrev > 0 ? costPrev / netRevenuePrev : null;
+
+        const aggregatedMetrics = filtered.length > 0 ? {
+            totalSales, grossSales, discounts, returns, netRevenue, orders, shippingCharges, taxes,
+            metaSpend, googleSpend, cost, totalCogs, fixedCosts, variableCosts, shippingCost, pickPackCost,
+            transactionFee, allCosts, ebit, grossProfit, aov, roas, poas, cac, ebitPct, spendshare,
+        } : null;
+        const aggregatedMetricsPrev = filtered.length > 0 ? {
+            totalSales: totalSalesPrev, grossSales: grossSalesPrev, discounts: discountsPrev, returns: returnsPrev,
+            netRevenue: netRevenuePrev, orders: ordersPrev, shippingCharges: shippingChargesPrev, taxes: taxesPrev,
+            metaSpend: metaSpendPrev, googleSpend: googleSpendPrev, cost: costPrev, totalCogs: prevTotalCogs,
+            fixedCosts: fixedCostsPrev, variableCosts: variableCostsPrev, shippingCost: shippingCostPrev, pickPackCost: pickPackCostPrev,
+            transactionFee: transactionFeePrev, allCosts: allCostsPrev, ebit: ebitPrev, grossProfit: grossProfitPrev,
+            aov: aovPrev, roas: roasPrev, poas: poasPrev, cac: cacPrev, ebitPct: ebitPctPrev, spendshare: spendsharePrev,
+        } : null;
+
+        const filteredDailyRows = buildParentDailyRows(filteredDailyDataList, childCustomers, { usePrev: false });
+        const filteredDailyRowsPrev = buildParentDailyRows(filteredDailyDataList, childCustomers, { usePrev: true });
+
         return {
             filteredTableRows: filtered,
             filteredDailyData: aggregatedDaily,
             metrics: { revenue: totalRevenue, adspend: totalAdspend, orders: totalOrders, roas: combinedRoas, spendshare: combinedSpendshare },
-            metricsPrev: { revenue: totalRevenuePrev, adspend: totalAdspendPrev, orders: totalOrdersPrev, roas: combinedRoasPrev, spendshare: combinedSpendsharePrev }
+            metricsPrev: { revenue: totalRevenuePrev, adspend: totalAdspendPrev, orders: totalOrdersPrev, roas: combinedRoasPrev, spendshare: combinedSpendsharePrev },
+            aggregatedMetrics,
+            aggregatedMetricsPrev,
+            filteredDailyRows,
+            filteredDailyRowsPrev,
         };
-    }, [allTableRows, allDailyChartData, enabledProperties]);
+    }, [allTableRows, allDailyChartData, enabledProperties, childCustomers]);
 
     // Metric cards config - conditionally show either ROAS or Spendshare
     const metricCards = [
@@ -338,8 +345,56 @@ export default function ParentPropertyHome() {
         });
     }
 
+    // Shared data passed to all views - state is preserved when switching
+    const sharedData = {
+        parentCustomer,
+        parentCustomerId,
+        childCustomers,
+        filteredTableRows,
+        filteredDailyData,
+        allTableRows,
+        enabledProperties,
+        metrics,
+        metricsPrev,
+        aggregatedMetrics,
+        aggregatedMetricsPrev,
+        filteredDailyRows,
+        filteredDailyRowsPrev,
+        appliedDateRange,
+        tempDateRange,
+        comparisonMethod,
+        tempComparisonMethod,
+        setTempComparisonMethod,
+        predominantMetricPreference,
+        loading,
+        chartLoading,
+        toggleProperty,
+        handleDateRangeApply,
+        handleStartDateChange,
+        handleEndDateChange,
+    };
+
+    // Render views with loading overlay
     return (
-        <div className="w-full">
+        <>
+            <ParentPropertyLoadingOverlay
+                visible={loading || loadingPhase === "complete" || overlayFading}
+                phase={loadingPhase}
+                parentName={parentCustomer?.name}
+                items={progressItems}
+                fading={overlayFading}
+            />
+            {activeView === PARENT_VIEWS.OVERVIEW && <ParentOverviewView sharedData={sharedData} />}
+            {activeView === PARENT_VIEWS.DAILY && <ParentDailyView sharedData={sharedData} />}
+            {activeView === PARENT_VIEWS.PACE_REPORT && <ParentPaceReportView sharedData={sharedData} />}
+            {activeView === PARENT_VIEWS.PNL && <ParentPnlView sharedData={sharedData} />}
+            {activeView === PARENT_VIEWS.ECOMMERCE && <ParentEcommerceView sharedData={sharedData} />}
+            {activeView !== PARENT_VIEWS.OVERVIEW &&
+                activeView !== PARENT_VIEWS.DAILY &&
+                activeView !== PARENT_VIEWS.PACE_REPORT &&
+                activeView !== PARENT_VIEWS.PNL &&
+                activeView !== PARENT_VIEWS.ECOMMERCE && (
+                    <div className="w-full">
             <DashboardHeading
                 title="Parent Property Overview"
                 label={parentCustomer?.name || parentCustomerId}
@@ -404,12 +459,11 @@ export default function ParentPropertyHome() {
                                     </th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">AOV</th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">Actions</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Filter</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {allTableRows.length === 0 ? (
-                                    <tr><td colSpan={8} className="text-center py-8 text-gray-400">No child properties found.</td></tr>
+                                    <tr><td colSpan={9} className="text-center py-8 text-gray-400">No child properties found.</td></tr>
                                 ) : allTableRows.map((row, idx) => {
                                     const isEnabled = enabledProperties[row._id];
                                     return (
@@ -444,22 +498,6 @@ export default function ParentPropertyHome() {
                                                     <FormButton buttonSize="small" borderType="outline">Config</FormButton>
                                                 </Link>
                                             </td>
-                                            <td className="px-3 py-2 whitespace-nowrap">
-                                                <div className="flex border border-gray-200 bg-gray-100 rounded-lg overflow-hidden w-fit">
-                                                    <button
-                                                        className={`px-3 py-1 text-xs font-medium focus:outline-none transition-colors duration-150 ${!isEnabled ? 'bg-white text-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                                                        onClick={() => toggleProperty(row._id, false)}
-                                                    >
-                                                        Off
-                                                    </button>
-                                                    <button
-                                                        className={`px-3 py-1 text-xs font-medium focus:outline-none transition-colors duration-150 ${isEnabled ? 'bg-white text-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                                                        onClick={() => toggleProperty(row._id, true)}
-                                                    >
-                                                        On
-                                                    </button>
-                                                </div>
-                                            </td>
                                         </tr>
                                     );
                                 })}
@@ -479,5 +517,7 @@ export default function ParentPropertyHome() {
                 />
             </div>
         </div>
+                )}
+        </>
     );
 }

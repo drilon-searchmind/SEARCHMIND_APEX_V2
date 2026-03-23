@@ -140,6 +140,10 @@ const CustomerSchema = new mongoose.Schema({
         magentoStoreCode: {
             type: String,
             default: ""
+        },
+        klaviyoPrivateApiKey: {
+            type: String,
+            default: ""
         }
     },
     CustomerStaticExpenses: {
