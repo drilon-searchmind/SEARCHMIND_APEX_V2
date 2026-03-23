@@ -146,6 +146,7 @@ const Sidebar = ({ showLinks = true }) => {
     const [isSmallScreen, setIsSmallScreen] = useState(false);
 
     const params = useParams();
+    const user = useUser();
     const pathname = usePathname();
     const activeCustomerId = params?.customerId;
 
@@ -343,13 +344,15 @@ const Sidebar = ({ showLinks = true }) => {
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                             />
-                                            <NavItem
-                                                href={`/dashboard/${activeCustomerId}/test-page`}
-                                                label="Test Page"
-                                                activeCustomerId={activeCustomerId}
-                                                pathname={pathname}
-                                                isSmallScreen={isSmallScreen}
-                                            />
+                                            {user?.isAdmin && (
+                                                <NavItem
+                                                    href={`/dashboard/${activeCustomerId}/test-page`}
+                                                    label="Test Page"
+                                                    activeCustomerId={activeCustomerId}
+                                                    pathname={pathname}
+                                                    isSmallScreen={isSmallScreen}
+                                                />
+                                            )}
                                         </ul>
                                     )}
                                     {isSmallScreen && (

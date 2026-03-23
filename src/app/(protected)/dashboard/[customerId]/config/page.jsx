@@ -2,6 +2,7 @@
 
 import DashboardHeading from '@/components/dashboard/DashboardHeading';
 import ToastProvider, { showToast } from '@/components/ui/ToastProvider';
+import { useUser } from '@/contexts/UserContext';
 import { useParams } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import VerticalTabs from './components/VerticalTabs';
@@ -12,6 +13,7 @@ import PropertyObjectives from './components/PropertyObjectives';
 
 export default function ConfigPage() {
     const { customerId } = useParams();
+    const user = useUser();
     const defaultFormState = {
         customerName: "",
         parentCustomer: "",
@@ -248,7 +250,7 @@ export default function ConfigPage() {
         return <div className="w-full flex justify-center items-center min-h-[300px] text-gray-400">Loading...</div>;
     }
 
-    const tabs = [
+    const allTabs = [
         {
             key: 'general',
             label: 'General Settings',
@@ -271,13 +273,20 @@ export default function ConfigPage() {
         },
     ];
 
+    const tabs = user?.isExternal
+        ? allTabs.filter((t) => t.key !== 'general' && t.key !== 'customer')
+        : allTabs;
+
+    const visibleKeys = tabs.map((t) => t.key);
+    const effectiveActiveTab = visibleKeys.includes(activeTab) ? activeTab : (visibleKeys[0] ?? 'objectives');
+
     return (
         <div id='ConfigPage' className="w-full">
             <ToastProvider />
             <DashboardHeading title="Property Configuration" label={form.customerName || ""} />
             <div className="mt-8">
                 <div className="bg-white border border-gray-200 rounded-xl p-0">
-                    <VerticalTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
+                    <VerticalTabs tabs={tabs} activeTab={effectiveActiveTab} onTabChange={setActiveTab} />
                 </div>
                 <div className="flex justify-end mt-6">
                     <button

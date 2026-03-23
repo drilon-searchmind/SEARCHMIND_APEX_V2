@@ -420,11 +420,13 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                         <FiBookOpen />
                                         <Link href="/lib/guides" className="text-sm text-slate-800 font-semibold">Guides</Link>
                                     </li>
-                                    <li className="flex items-center gap-2">
-                                        <RiToolsFill />
-                                        <Link href="/our-tools" className="text-sm text-slate-800 font-semibold">Our Tools</Link>
-                                        <span className="text-[0.5rem] text-black bg-gray-200 rounded px-3 py-1">BETA</span>
-                                    </li>
+                                    {!user?.isExternal && (
+                                        <li className="flex items-center gap-2">
+                                            <RiToolsFill />
+                                            <Link href="/our-tools" className="text-sm text-slate-800 font-semibold">Our Tools</Link>
+                                            <span className="text-[0.5rem] text-black bg-gray-200 rounded px-3 py-1">BETA</span>
+                                        </li>
+                                    )}
                                     {user?.isAdmin && (
                                         <>
                                             <li className="flex items-center gap-2">
@@ -587,14 +589,16 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                     <FiUser className="text-gray-400 h-5 w-5" />
                                     <span className="text-gray-900 font-medium text-sm">User Profile</span>
                                 </Link>
-                                <Link
-                                    href="/our-tools"
-                                    onClick={() => setMobileMenuOpen(false)}
-                                    className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
-                                >
-                                    <RiToolsFill className="text-gray-400 h-5 w-5" />
-                                    <span className="text-gray-900 font-medium text-sm">Our Tools</span>
-                                </Link>
+                                {!user?.isExternal && (
+                                    <Link
+                                        href="/our-tools"
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
+                                    >
+                                        <RiToolsFill className="text-gray-400 h-5 w-5" />
+                                        <span className="text-gray-900 font-medium text-sm">Our Tools</span>
+                                    </Link>
+                                )}
                                 {user?.isAdmin && (
                                     <Link
                                         href="/admin"
