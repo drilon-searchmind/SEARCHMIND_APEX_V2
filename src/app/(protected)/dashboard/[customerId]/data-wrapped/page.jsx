@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useSetUser } from "@/contexts/UserContext";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
-import DataWrappedModal from "./components/DataWrappedModal";
+import DataWrappedModalMaskScroll from "./components/DataWrappedModalMaskScroll";
 import { FiGift, FiCalendar, FiChevronRight } from "react-icons/fi";
 
 function getCurrentPeriod() {
@@ -35,7 +35,7 @@ export default function DataWrappedPage() {
     const setUser = useSetUser();
     const { customers } = useCustomers();
     const customer = customers.find((c) => c._id === params.customerId);
-    const [showModal, setShowModal] = useState(false);
+    const [showWrapped, setShowWrapped] = useState(false);
     const [modalPeriod, setModalPeriod] = useState(null);
     const [reports, setReports] = useState({ monthly: [], quarterly: [], yearly: [] });
     const [reportsLoading, setReportsLoading] = useState(true);
@@ -102,16 +102,16 @@ export default function DataWrappedPage() {
 
     const openLatest = () => {
         setModalPeriod(getLatestAvailablePeriod());
-        setShowModal(true);
+        setShowWrapped(true);
     };
 
     const openPeriod = (period) => {
         setModalPeriod(period);
-        setShowModal(true);
+        setShowWrapped(true);
     };
 
-    const closeModal = () => {
-        setShowModal(false);
+    const closeWrapped = () => {
+        setShowWrapped(false);
         setModalPeriod(null);
         fetchReports();
     };
@@ -143,7 +143,7 @@ export default function DataWrappedPage() {
                             className="px-6 py-3 rounded-xl font-semibold text-white bg-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind-hover)] transition-colors flex items-center gap-2 mx-auto"
                         >
                             <FiGift className="text-lg" />
-                            View Latest Wrapped
+                            View latest wrapped
                         </button>
                     </div>
                 </div>
@@ -208,9 +208,9 @@ export default function DataWrappedPage() {
                 </div>
             </div>
 
-            {showModal && (
-                <DataWrappedModal
-                    onClose={closeModal}
+            {showWrapped && (
+                <DataWrappedModalMaskScroll
+                    onClose={closeWrapped}
                     customerId={params.customerId}
                     customerName={customer?.customerName}
                     period={modalPeriod ?? getLatestAvailablePeriod()}

@@ -26,6 +26,7 @@
     "dotenv": "^17.2.3",
     "google-ads-api": "^21.0.1",
     "google-auth-library": "^10.5.0",
+    "gsap": "^3.14.2",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.0",
     "lucide-react": "^0.562.0",

@@ -2,7 +2,6 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { useSetUser } from "@/contexts/UserContext";
-import Image from "next/image";
 import {
     FiX,
     FiChevronLeft,
@@ -15,122 +14,7 @@ import {
     FiPieChart,
     FiShoppingBag,
 } from "react-icons/fi";
-
-const TEAM_SERVICE_CONFIG = {
-    "51ed563e-4a2c-489b-9506-be385c49a354": { label: "SEO", color: "#1E2B2B" },
-    "bee4b7c5-c9d0-4808-8a4f-b00ee6df311e": { label: "PPC", color: "#2b3d3d" },
-    "2df85265-d5eb-4e86-a111-5d55623851fa": { label: "PS", color: "#3b5252" },
-    "55b3e92d-5972-4246-8160-73d7ba04401a": { label: "EM", color: "#4c6b6b" },
-    "28b06356-6f19-4633-bfa4-416c150a562c": { label: "Client Lead", color: "#5e8888" },
-};
-
-
-/** Team slide content - fetches team members and displays large avatars */
-function TeamSlideContent({ customerId }) {
-    const [members, setMembers] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        if (!customerId) {
-            setLoading(false);
-            return;
-        }
-        let cancelled = false;
-        fetch(`/api/clickup-team-members/${customerId}`)
-            .then((res) => res.ok ? res.json() : { members: [] })
-            .then((data) => {
-                if (!cancelled) setMembers(data.members || []);
-            })
-            .catch(() => {
-                if (!cancelled) setMembers([]);
-            })
-            .finally(() => {
-                if (!cancelled) setLoading(false);
-            });
-        return () => { cancelled = true; };
-    }, [customerId]);
-
-    const displayMembers = members.length > 0
-        ? members
-        : [1, 2, 3, 4, 5].map((i) => ({ id: i, username: "Team member", service: "None" }));
-
-    if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center text-center px-6">
-                <p className="text-[var(--color-lime)] text-sm font-medium tracking-[0.2em] uppercase mb-6">
-                    Your Team
-                </p>
-                <div className="flex gap-4 justify-center">
-                    {[1, 2, 3, 4].map((i) => (
-                        <div
-                            key={i}
-                            className="w-24 h-24 rounded-full bg-white/10 animate-pulse"
-                        />
-                    ))}
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="flex flex-col items-center justify-center text-center px-6">
-            <p className="text-[var(--color-lime)] text-sm font-medium tracking-[0.2em] uppercase mb-6">
-                Your Team
-            </p>
-            <h2 className="text-2xl md:text-3xl font-bold text-white mb-8">
-                The people behind your success
-            </h2>
-            <div className="flex flex-wrap justify-center gap-8 md:gap-12">
-                {displayMembers.map((member, idx) => {
-                    const serviceInfo = TEAM_SERVICE_CONFIG[member.service] || { label: member.service || "Team", color: "#406969" };
-                    const size = 180;
-                    return (
-                        <div
-                            key={member.id || idx}
-                            className="flex flex-col items-center gap-3"
-                        >
-                            <div
-                                className="rounded-full border-4 flex items-center justify-center overflow-hidden shrink-0"
-                                style={{
-                                    width: size,
-                                    height: size,
-                                    borderColor: "rgba(255,255,255,0.3)",
-                                    backgroundColor: serviceInfo.color,
-                                }}
-                            >
-                                {member.avatar ? (
-                                    <Image
-                                        src={member.avatar}
-                                        alt={member.username}
-                                        width={size}
-                                        height={size}
-                                        className="object-cover w-full h-full"
-                                    />
-                                ) : (
-                                    <img
-                                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(member.username || "?")}&size=360&background=${serviceInfo.color.replace("#", "")}&color=fff`}
-                                        alt={member.username}
-                                        width={size}
-                                        height={size}
-                                        className="w-full h-full object-cover"
-                                    />
-                                )}
-                            </div>
-                            <div className="text-center">
-                                <p className="text-white font-semibold text-lg">
-                                    {member.username || "Team member"}
-                                </p>
-                                <p className="text-[var(--color-primary-searchmind-lighter)] text-sm">
-                                    {serviceInfo.label}
-                                </p>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
-    );
-}
+import { TeamSlideContent } from "./DataWrappedTeamSlide";
 
 /** Pseudo-random 0-1 from seed (deterministic per slide) */
 function pseudoRandom(seed) {
