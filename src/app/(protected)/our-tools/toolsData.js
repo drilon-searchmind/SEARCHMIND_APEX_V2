@@ -1,6 +1,5 @@
 /**
- * External tools catalog — tools outside this application.
- * Add previewImage: "/images/tools/tool-name.png" for screenshots.
+ * Filter and icon options for Our Tools (data lives in MongoDB via /api/our-tools).
  */
 export const TOOL_CATEGORIES = [
     { id: "all", label: "All Tools" },
@@ -14,122 +13,19 @@ export const TOOL_CATEGORIES = [
     { id: "em", label: "EM" },
 ];
 
-export const TOOLS = [
-    {
-        id: "metriq",
-        title: "Metriq",
-        description: "Cross-platform analytics and attribution. Track campaigns, conversions, and ROI across channels.",
-        category: "analytics",
-        tags: ["Attribution", "ROI", "Campaigns"],
-        url: "",
-        icon: "FiTrendingUp",
-    },
-    {
-        id: "databoard",
-        title: "Databoard",
-        description: "Build custom dashboards and reports. Connect data sources and visualize KPIs in real time.",
-        category: "analytics",
-        tags: ["Dashboards", "Reports", "BI"],
-        url: "",
-        icon: "FiBarChart2",
-    },
-    {
-        id: "flowbase",
-        title: "Flowbase",
-        description: "Project and task management. Kanban boards, sprints, and team collaboration.",
-        category: "collaboration",
-        tags: ["Tasks", "Kanban", "Sprints"],
-        url: "",
-        icon: "FiActivity",
-    },
-    {
-        id: "syncroom",
-        title: "Syncroom",
-        description: "Team chat and async communication. Channels, threads, and integrations with your stack.",
-        category: "collaboration",
-        tags: ["Chat", "Async", "Integrations"],
-        url: "",
-        icon: "FiUsers",
-    },
-    {
-        id: "pixelcraft",
-        title: "Pixelcraft",
-        description: "UI design and prototyping. Create mockups, design systems, and handoff specs.",
-        category: "design",
-        tags: ["Design", "Prototyping", "Mockups"],
-        url: "",
-        icon: "FiGrid",
-    },
-    {
-        id: "vectorlab",
-        title: "VectorLab",
-        description: "Vector graphics and asset management. Icons, illustrations, and brand assets.",
-        category: "design",
-        tags: ["Vector", "Assets", "Icons"],
-        url: "",
-        icon: "FiImage",
-    },
-    {
-        id: "notion",
-        title: "Notion",
-        description: "Docs, wikis, and knowledge base. Notes, databases, and project docs in one place.",
-        category: "productivity",
-        tags: ["Docs", "Wiki", "Notes"],
-        url: "",
-        icon: "FiFileText",
-    },
-    {
-        id: "timestack",
-        title: "Timestack",
-        description: "Time tracking and resource planning. Log hours, forecast capacity, and invoice clients.",
-        category: "productivity",
-        tags: ["Time", "Planning", "Invoicing"],
-        url: "",
-        icon: "FiClock",
-    },
-    {
-        id: "sheetwise",
-        title: "Sheetwise",
-        description: "Spreadsheets with formulas and automation. Import data, build models, and automate workflows.",
-        category: "productivity",
-        tags: ["Sheets", "Formulas", "Automation"],
-        url: "",
-        icon: "FiLayers",
-    },
-    {
-        id: "adscope",
-        title: "AdScope",
-        description: "Google Ads management and optimization. Keyword research, bid strategies, and performance insights.",
-        category: "ppc",
-        tags: ["Google Ads", "Keywords", "Bidding"],
-        url: "",
-        icon: "FiBarChart2",
-    },
-    {
-        id: "socialpulse",
-        title: "SocialPulse",
-        description: "Meta and paid social analytics. Campaign tracking, audience insights, and creative performance.",
-        category: "ps",
-        tags: ["Meta", "Facebook", "Instagram"],
-        url: "",
-        icon: "FiTrendingUp",
-    },
-    {
-        id: "rankly",
-        title: "Rankly",
-        description: "SEO tracking and keyword monitoring. Rankings, backlinks, and technical SEO audits.",
-        category: "seo",
-        tags: ["Rankings", "Keywords", "Backlinks"],
-        url: "",
-        icon: "FiActivity",
-    },
-    {
-        id: "mailflow",
-        title: "MailFlow",
-        description: "Email marketing automation. Campaigns, segmentation, and deliverability analytics.",
-        category: "em",
-        tags: ["Email", "Automation", "Segmentation"],
-        url: "",
-        icon: "FiLayers",
-    },
+export const TOOL_CATEGORY_FILTER_OPTIONS = TOOL_CATEGORIES.filter(
+    (c) => c.id !== "all"
+);
+
+export const TOOL_ICON_OPTIONS = [
+    { value: "FiTrendingUp", label: "Trending" },
+    { value: "FiActivity", label: "Activity" },
+    { value: "FiBarChart2", label: "Bar chart" },
+    { value: "FiGrid", label: "Grid" },
+    { value: "FiUsers", label: "Users" },
+    { value: "FiImage", label: "Image" },
+    { value: "FiFileText", label: "Document" },
+    { value: "FiClock", label: "Clock" },
+    { value: "FiLayers", label: "Layers" },
+    { value: "FiSearch", label: "Search" },
 ];
