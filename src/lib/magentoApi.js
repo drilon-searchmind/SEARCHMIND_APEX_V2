@@ -24,13 +24,21 @@
  * @param {string} endDate       - End date (YYYY-MM-DD)
  * @param {string} [currencyFilter] - Optional currency code (e.g. "DKK") to include only orders in that currency
  * @returns {Promise<Array>}       - Array of daily sales objects
+ *
+ * Note: Magento 2 (OSS) has no REST equivalent to ShopifyQL daily aggregates; we must use
+ * GET /V1/orders with date/status filters. Throughput is improved via larger pages, parallel
+ * page fetches, optional order_currency_code filter, and avoiding per-order logging unless
+ * MAGENTO_API_DEBUG=1.
  */
 export async function fetchMagentoOrders(baseUrl, accessToken, startDate, endDate, currencyFilter) {
     try {
-        console.log('::: FETCHING MAGENTO DATA :::');
-        console.log('Date range:', { startDate, endDate });
-        if (currencyFilter && String(currencyFilter).trim()) {
-            console.log('Currency filter:', currencyFilter.trim().toUpperCase());
+        const debug = process.env.MAGENTO_API_DEBUG === '1';
+        if (debug) {
+            console.log('::: FETCHING MAGENTO DATA :::');
+            console.log('Date range:', { startDate, endDate });
+            if (currencyFilter && String(currencyFilter).trim()) {
+                console.log('Currency filter:', currencyFilter.trim().toUpperCase());
+            }
         }
 
         const now = new Date();
@@ -44,9 +52,15 @@ export async function fetchMagentoOrders(baseUrl, accessToken, startDate, endDat
 
         const effectiveEndDate = end > now ? now.toISOString().split('T')[0] : endDate;
 
-        let orders = await fetchAllOrders(baseUrl, accessToken, startDate, effectiveEndDate);
+        let orders = await fetchAllOrders(
+            baseUrl,
+            accessToken,
+            startDate,
+            effectiveEndDate,
+            currencyFilter
+        );
 
-        // Filter by currency when magentoStoreCode is set (e.g. "DKK" for DK store only)
+        // Safety net if API ignored order_currency_code filter (older / custom Magento builds)
         const filterCurrency = currencyFilter && String(currencyFilter).trim();
         if (filterCurrency) {
             const targetCurrency = filterCurrency.trim().toUpperCase();
@@ -55,10 +69,14 @@ export async function fetchMagentoOrders(baseUrl, accessToken, startDate, endDat
                 const orderCurrency = (o.order_currency_code || o.base_currency_code || '').toUpperCase();
                 return orderCurrency === targetCurrency;
             });
-            console.log(`📋 MAGENTO: Filtered to ${targetCurrency} only — ${orders.length} of ${before} orders included`);
+            if (debug && before !== orders.length) {
+                console.log(
+                    `📋 MAGENTO: Client currency filter removed ${before - orders.length} orders (target ${targetCurrency})`
+                );
+            }
         }
 
-        return aggregateOrdersByDay(orders);
+        return aggregateOrdersByDay(orders, debug);
     } catch (error) {
         console.error('❌ MAGENTO FATAL ERROR:', error);
         throw error;
@@ -67,54 +85,68 @@ export async function fetchMagentoOrders(baseUrl, accessToken, startDate, endDat
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
+const MAGENTO_ORDER_PAGE_SIZE = 200;
+const MAGENTO_MAX_PAGES = 250;
+const MAGENTO_PAGE_FETCH_CONCURRENCY = 6;
+
+function buildOrderListParams(startDate, endDate, currentPage, pageSize, currencyFilter) {
+    const params = new URLSearchParams();
+
+    // Filter group 0: created_at >= startDate
+    params.append('searchCriteria[filter_groups][0][filters][0][field]', 'created_at');
+    params.append('searchCriteria[filter_groups][0][filters][0][value]', `${startDate} 00:00:00`);
+    params.append('searchCriteria[filter_groups][0][filters][0][condition_type]', 'gteq');
+
+    // Filter group 1: created_at <= endDate
+    params.append('searchCriteria[filter_groups][1][filters][0][field]', 'created_at');
+    params.append('searchCriteria[filter_groups][1][filters][0][value]', `${endDate} 23:59:59`);
+    params.append('searchCriteria[filter_groups][1][filters][0][condition_type]', 'lteq');
+
+    // Filter group 2: status in (complete, processing)
+    params.append('searchCriteria[filter_groups][2][filters][0][field]', 'status');
+    params.append('searchCriteria[filter_groups][2][filters][0][value]', 'complete,processing');
+    params.append('searchCriteria[filter_groups][2][filters][0][condition_type]', 'in');
+
+    const trimmedCurrency = currencyFilter && String(currencyFilter).trim();
+    if (trimmedCurrency) {
+        params.append('searchCriteria[filter_groups][3][filters][0][field]', 'order_currency_code');
+        params.append('searchCriteria[filter_groups][3][filters][0][value]', trimmedCurrency.toUpperCase());
+        params.append('searchCriteria[filter_groups][3][filters][0][condition_type]', 'eq');
+    }
+
+    params.append('searchCriteria[pageSize]', String(pageSize));
+    params.append('searchCriteria[currentPage]', String(currentPage));
+    params.append('searchCriteria[sortOrders][0][field]', 'created_at');
+    params.append('searchCriteria[sortOrders][0][direction]', 'ASC');
+
+    return params;
+}
+
 /**
- * Paginate through the Magento orders REST endpoint using Bearer token auth.
- * Filters by created_at date range; only includes 'complete' and 'processing' orders.
+ * Paginate through GET /rest/V1/orders (Magento has no public daily-sales aggregate REST API).
+ * Uses parallel page requests to reduce wall-clock time.
  */
-async function fetchAllOrders(baseUrl, accessToken, startDate, endDate) {
+async function fetchAllOrders(baseUrl, accessToken, startDate, endDate, currencyFilter) {
     const cleanBase = baseUrl.replace(/\/$/, '');
     const endpoint = `${cleanBase}/rest/V1/orders`;
+    const pageSize = MAGENTO_ORDER_PAGE_SIZE;
+    const debug = process.env.MAGENTO_API_DEBUG === '1';
 
-    let allOrders = [];
-    let currentPage = 1;
-    const pageSize = 100;
+    const headers = {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+    };
 
-    while (true) {
-        const params = new URLSearchParams();
-
-        // Filter group 0: created_at >= startDate
-        params.append('searchCriteria[filter_groups][0][filters][0][field]', 'created_at');
-        params.append('searchCriteria[filter_groups][0][filters][0][value]', `${startDate} 00:00:00`);
-        params.append('searchCriteria[filter_groups][0][filters][0][condition_type]', 'gteq');
-
-        // Filter group 1: created_at <= endDate
-        params.append('searchCriteria[filter_groups][1][filters][0][field]', 'created_at');
-        params.append('searchCriteria[filter_groups][1][filters][0][value]', `${endDate} 23:59:59`);
-        params.append('searchCriteria[filter_groups][1][filters][0][condition_type]', 'lteq');
-
-        // Filter group 2: status in (complete, processing)
-        params.append('searchCriteria[filter_groups][2][filters][0][field]', 'status');
-        params.append('searchCriteria[filter_groups][2][filters][0][value]', 'complete,processing');
-        params.append('searchCriteria[filter_groups][2][filters][0][condition_type]', 'in');
-
-        params.append('searchCriteria[pageSize]', String(pageSize));
-        params.append('searchCriteria[currentPage]', String(currentPage));
-        params.append('searchCriteria[sortOrders][0][field]', 'created_at');
-        params.append('searchCriteria[sortOrders][0][direction]', 'ASC');
-
+    const fetchPage = async (page) => {
+        const params = buildOrderListParams(startDate, endDate, page, pageSize, currencyFilter);
         const fullUrl = `${endpoint}?${params.toString()}`;
 
-        if (currentPage === 1) {
+        if (page === 1 && debug) {
             console.log(`🌐 MAGENTO API: ${fullUrl}`);
         }
 
-        const response = await fetch(fullUrl, {
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-                Accept: 'application/json',
-            },
-        });
+        const response = await fetch(fullUrl, { headers });
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -122,34 +154,76 @@ async function fetchAllOrders(baseUrl, accessToken, startDate, endDate) {
             throw new Error(`Magento API error: ${response.status} ${response.statusText} — ${errorText}`);
         }
 
-        const data = await response.json();
-        const items = data.items || [];
-        const totalCount = data.total_count || 0;
+        return response.json();
+    };
 
-        allOrders = allOrders.concat(items);
+    const first = await fetchPage(1);
+    const firstItems = first.items || [];
+    const totalCount = first.total_count ?? 0;
 
-        if (items.length < pageSize || allOrders.length >= totalCount) break;
+    // Magento usually returns total_count; if missing/zero but page is full, keep paging sequentially.
+    if (totalCount <= 0) {
+        if (firstItems.length < pageSize) {
+            return firstItems;
+        }
+        const allOrders = [...firstItems];
+        let page = 2;
+        let lastChunkLen = firstItems.length;
+        while (page <= MAGENTO_MAX_PAGES) {
+            const data = await fetchPage(page);
+            const chunk = data.items || [];
+            lastChunkLen = chunk.length;
+            allOrders.push(...chunk);
+            if (chunk.length < pageSize) {
+                break;
+            }
+            page++;
+        }
+        if (lastChunkLen === pageSize && page > MAGENTO_MAX_PAGES) {
+            console.warn(
+                `⚠️ MAGENTO: Hit page cap ${MAGENTO_MAX_PAGES} without short page; totals may be incomplete`
+            );
+        }
+        return allOrders;
+    }
 
-        currentPage++;
-        if (currentPage > 50) {
-            console.warn('⚠️ MAGENTO: Safety page limit (50) reached');
-            break;
+    const totalPagesRaw = Math.ceil(totalCount / pageSize);
+    const totalPages = Math.min(Math.max(totalPagesRaw, 1), MAGENTO_MAX_PAGES);
+
+    if (totalPagesRaw > MAGENTO_MAX_PAGES) {
+        console.warn(
+            `⚠️ MAGENTO: ${totalPagesRaw} pages exceed cap ${MAGENTO_MAX_PAGES} (~${MAGENTO_MAX_PAGES * pageSize} orders); truncating`
+        );
+    }
+
+    if (totalPages <= 1) {
+        return firstItems;
+    }
+
+    const allOrders = [...firstItems];
+    const remaining = [];
+    for (let p = 2; p <= totalPages; p++) {
+        remaining.push(p);
+    }
+
+    for (let i = 0; i < remaining.length; i += MAGENTO_PAGE_FETCH_CONCURRENCY) {
+        const batch = remaining.slice(i, i + MAGENTO_PAGE_FETCH_CONCURRENCY);
+        const results = await Promise.all(batch.map((p) => fetchPage(p)));
+        for (const data of results) {
+            allOrders.push(...(data.items || []));
         }
     }
 
+    if (allOrders.length > totalCount) {
+        return allOrders.slice(0, totalCount);
+    }
     return allOrders;
 }
 
 /**
  * Aggregate raw Magento orders into daily totals using Shopify-compatible field names.
  */
-function aggregateOrdersByDay(orders) {
-    const statusCount = {};
-    orders.forEach(order => {
-        const s = order.status || 'unknown';
-        statusCount[s] = (statusCount[s] || 0) + 1;
-    });
-
+function aggregateOrdersByDay(orders, debug = false) {
     const dailyData = {};
 
     for (const order of orders) {
@@ -186,16 +260,18 @@ function aggregateOrdersByDay(orders) {
         const grandTotal = parseFloat(order.grand_total || 0);
         const totalRefunded = parseFloat(order.total_refunded || 0);
 
-        const currency = order.order_currency_code || order.base_currency_code || 'unknown';
-        console.log(
-            `💰 MAGENTO ORDER ${order.increment_id}: ${orderDate}` +
-            ` - Currency: ${currency}` +
-            ` - Status: ${order.status}` +
-            ` - Grand Total: ${grandTotal}` +
-            ` - Tax: ${taxAmount}` +
-            ` - Shipping: ${shippingAmount}` +
-            ` - Refunded: ${totalRefunded}`
-        );
+        if (debug) {
+            const currency = order.order_currency_code || order.base_currency_code || 'unknown';
+            console.log(
+                `💰 MAGENTO ORDER ${order.increment_id}: ${orderDate}` +
+                    ` - Currency: ${currency}` +
+                    ` - Status: ${order.status}` +
+                    ` - Grand Total: ${grandTotal}` +
+                    ` - Tax: ${taxAmount}` +
+                    ` - Shipping: ${shippingAmount}` +
+                    ` - Refunded: ${totalRefunded}`
+            );
+        }
 
         // net_sales: product revenue after discounts and returns (no tax, no shipping)
         const netSales = subtotal - discountAmount - totalRefunded;
