@@ -3,6 +3,37 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 
+function MemberFace({ member }) {
+    const [imgError, setImgError] = useState(false);
+    useEffect(() => {
+        setImgError(false);
+    }, [member.avatar, member.id]);
+    const showImage = Boolean(member.avatar) && !imgError;
+
+    return (
+        <>
+            {showImage ? (
+                <Image
+                    src={member.avatar}
+                    alt={member.username || ""}
+                    width={35}
+                    height={35}
+                    className="rounded-full object-cover"
+                    sizes="35px"
+                    onError={() => setImgError(true)}
+                />
+            ) : (
+                <span className="text-white text-xs font-bold">
+                    {(member.username && member.username !== "×"
+                        ? member.username.charAt(0)
+                        : "×"
+                    ).toUpperCase()}
+                </span>
+            )}
+        </>
+    );
+}
+
 const serviceConfig = {
     "51ed563e-4a2c-489b-9506-be385c49a354": { label: "SEO", color: "#1E2B2B" },
     "bee4b7c5-c9d0-4808-8a4f-b00ee6df311e": { label: "PPC", color: "#2b3d3d" },
@@ -71,19 +102,7 @@ export default function TeamMembers({ customerId }) {
                             }}
                             title={member.username}
                         >
-                            {member.avatar ? (
-                                <Image
-                                    src={member.avatar}
-                                    alt={member.username}
-                                    width={35}
-                                    height={35}
-                                    className="rounded-full"
-                                />
-                            ) : (
-                                <span className="text-white text-xs font-bold">
-                                    {member.username?.charAt(0).toUpperCase()}
-                                </span>
-                            )}
+                            <MemberFace member={member} />
                         </div>
                         {/* Show name and service on hover */}
                         <span className="absolute left-1/2 -translate-x-1/2 mt-2 px-2 py-1 text-xs bg-gray-900 text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">

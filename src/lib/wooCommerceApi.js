@@ -86,7 +86,7 @@ async function tryV3ReportsApi(apiUrl, consumerKey, consumerSecret, startDate, e
 
         const salesReport = await response.json();
 
-        console.log(`📋 WOO V3 RAW DATA:`, JSON.stringify(salesReport, null, 2));
+        // console.log(`📋 WOO V3 RAW DATA:`, JSON.stringify(salesReport, null, 2));
 
         // Convert v3 format to our standardized format
         return convertV3DataToStandardFormat(salesReport);
