@@ -15,6 +15,7 @@ import {
     FiChevronsLeft,
     FiChevronsRight,
     FiGift,
+    FiImage,
 } from "react-icons/fi";
 import Image from "next/image";
 import { useParams, usePathname } from "next/navigation";
@@ -48,6 +49,7 @@ const getIconForRoute = (href) => {
     if (href.includes("service-dashboard/seo")) return <FiTrendingUp className="w-4 h-4" />;
     if (href.includes("service-dashboard/ppc")) return <FiDollarSign className="w-4 h-4" />;
     if (href.includes("service-dashboard/ps")) return <FiShoppingCart className="w-4 h-4" />;
+    if (href.includes("service-dashboard/pinterest")) return <FiImage className="w-4 h-4" />;
     if (href.includes("campaign-planner")) return <FiCalendar className="w-4 h-4" />;
     if (href.includes("config")) return <FiSettings className="w-4 h-4" />;
     if (href.includes("test-page")) return <FiFolder className="w-4 h-4" />;
@@ -296,6 +298,14 @@ const Sidebar = ({ showLinks = true }) => {
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                                 subLabel={"BETA"}
+                                            />
+                                            <NavItem
+                                                href={`/dashboard/${activeCustomerId}/service-dashboard/pinterest`}
+                                                label="Pinterest"
+                                                activeCustomerId={activeCustomerId}
+                                                pathname={pathname}
+                                                isSmallScreen={isSmallScreen}
+                                                subLabel={"WIP"}
                                             />
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/service-dashboard/em`}
