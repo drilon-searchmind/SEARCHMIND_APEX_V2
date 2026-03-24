@@ -329,12 +329,20 @@ const Sidebar = ({ showLinks = true }) => {
                                     </button>
                                     {serviceOpen && (
                                         <ul className="mt-2 space-y-2 flex flex-col w-full">
-                                            <NavItem
+                                            {/* <NavItem
                                                 href={`/dashboard/${activeCustomerId}/campaign-planner`}
                                                 label="Campaign Planner"
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 subLabel={"BETA"}
+                                                isSmallScreen={isSmallScreen}
+                                            /> */}
+                                            <NavItem
+                                                href={`/dashboard/${activeCustomerId}/campaign-planner-v2`}
+                                                label="Campaign Planner (v2)"
+                                                activeCustomerId={activeCustomerId}
+                                                pathname={pathname}
+                                                subLabel={"WIP"}
                                                 isSmallScreen={isSmallScreen}
                                             />
                                             <NavItem

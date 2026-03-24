@@ -1,0 +1,121 @@
+/* Scoped tweaks for react-big-calendar inside Campaign Planner v2 */
+
+.planner-v2-rbc .rbc-calendar {
+  font-family: inherit;
+}
+
+.planner-v2-rbc .rbc-toolbar {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.65rem 0.75rem;
+  background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+}
+
+.planner-v2-rbc .rbc-toolbar button {
+  border-radius: 0.5rem !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  padding: 0.35rem 0.75rem !important;
+  background: #fff !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
+}
+
+.planner-v2-rbc .rbc-toolbar button:hover {
+  background: #f8fafc !important;
+  border-color: #94a3b8 !important;
+}
+
+.planner-v2-rbc .rbc-toolbar button.rbc-active {
+  background: var(--color-primary-searchmind) !important;
+  color: #fff !important;
+  border-color: var(--color-primary-searchmind) !important;
+}
+
+.planner-v2-rbc .rbc-toolbar-label {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.planner-v2-rbc .rbc-header {
+  padding: 0.5rem 0.25rem;
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  border-bottom: 2px solid #e2e8f0 !important;
+}
+
+.planner-v2-rbc .rbc-month-view {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: #fff;
+}
+
+.planner-v2-rbc .rbc-day-bg + .rbc-day-bg {
+  border-left: 1px solid #f1f5f9;
+}
+
+.planner-v2-rbc .rbc-month-row + .rbc-month-row {
+  border-top: 1px solid #f1f5f9;
+}
+
+.planner-v2-rbc .rbc-today {
+  background-color: rgba(59, 130, 246, 0.07);
+}
+
+.planner-v2-rbc .rbc-off-range-bg {
+  background: #f8fafc;
+}
+
+.planner-v2-rbc .rbc-date-cell {
+  text-align: right;
+  padding: 0.25rem 0.35rem;
+}
+
+.planner-v2-rbc .rbc-date-cell > a,
+.planner-v2-rbc .rbc-date-cell > button {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.planner-v2-rbc .rbc-now .rbc-button-link {
+  color: var(--color-primary-searchmind);
+}
+
+.planner-v2-rbc .rbc-event {
+  border-radius: 0.375rem !important;
+  padding: 2px 4px !important;
+  font-size: 0.6875rem !important;
+  line-height: 1.25 !important;
+  box-shadow: none !important;
+}
+
+.planner-v2-rbc .rbc-event:focus {
+  outline: 2px solid var(--color-primary-searchmind);
+  outline-offset: 1px;
+}
+
+.planner-v2-rbc .rbc-show-more {
+  color: var(--color-primary-searchmind);
+  font-weight: 600;
+  font-size: 0.7rem;
+}
+
+.planner-v2-rbc .rbc-overlay {
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: none !important;
+}
