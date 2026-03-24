@@ -194,9 +194,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
         return () => document.removeEventListener('mousedown', handleDocumentClick);
     }, [mobileMenuOpen]);
 
-    const teamMembersDataEnabled = Boolean(
-        showLinks && !user?.isExternal && user?.isAdmin && activeCustomerId
-    );
+    const teamMembersDataEnabled = Boolean(showLinks && activeCustomerId);
 
     return (
         <>
@@ -289,7 +287,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                         </div>
                     </div>
 
-                    {/* Team Members - Hidden on mobile, and hidden for external / non-admin users */}
+                    {/* Team Members - desktop (xl+). Tracking score remains admin-only. */}
                     {showLinks && (
                         <div id="teamMembers" className="hidden xl:flex items-center gap-6">
                             {!user?.isExternal && user?.isAdmin && (
@@ -500,8 +498,8 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                             <span className="text-gray-900 font-medium">Home</span>
                         </Link>
 
-                        {/* Team Members - Mobile (hidden for external / non-admin users) */}
-                        {showLinks && !user?.isExternal && user?.isAdmin && (
+                        {/* Team Members - Mobile */}
+                        {showLinks && (
                             <div id="teamMembers-mobile" className="py-2 border-b border-gray-200">
                                 <TeamMembers />
                             </div>
