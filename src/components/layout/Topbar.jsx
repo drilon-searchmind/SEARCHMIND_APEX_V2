@@ -8,7 +8,7 @@ import { signOut } from "next-auth/react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useParams, useRouter } from "next/navigation";
 import Select from 'react-select';
-import TeamMembers from './TeamMembers';
+import TeamMembers, { ClickupTeamMembersProvider } from './TeamMembers';
 import TrackingScore from './TrackingScore';
 import SharePropertyModal from '@/components/dashboard/SharePropertyModal';
 import ParentPropertyFilterDropdown from './ParentPropertyFilterDropdown';
@@ -194,8 +194,16 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
         return () => document.removeEventListener('mousedown', handleDocumentClick);
     }, [mobileMenuOpen]);
 
+    const teamMembersDataEnabled = Boolean(
+        showLinks && !user?.isExternal && user?.isAdmin && activeCustomerId
+    );
+
     return (
         <>
+            <ClickupTeamMembersProvider
+                customerId={activeCustomerId}
+                enabled={teamMembersDataEnabled}
+            >
             <div className="sticky top-0 bg-white flex items-center justify-between px-4 xl:px-20 py-4 xl:py-5 border-b border-gray-200 transition-colors duration-200 z-40">
                 {/* Left Section */}
                 <div className="flex items-center space-x-4 xl:space-x-5 flex-1 xl:flex-none">
@@ -287,7 +295,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                             {!user?.isExternal && user?.isAdmin && (
                                 <TrackingScore customerId={activeCustomerId} />
                             )}
-                            <TeamMembers customerId={activeCustomerId} />
+                            <TeamMembers />
                         </div>
                     )}
                 </div>
@@ -495,7 +503,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                         {/* Team Members - Mobile (hidden for external / non-admin users) */}
                         {showLinks && !user?.isExternal && user?.isAdmin && (
                             <div id="teamMembers-mobile" className="py-2 border-b border-gray-200">
-                                <TeamMembers customerId={activeCustomerId} />
+                                <TeamMembers />
                             </div>
                         )}
 
@@ -632,6 +640,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                     </div>
                 </div>
             )}
+            </ClickupTeamMembersProvider>
             {/* SharePropertyModal (only for non-external users) */}
             {showShareModal && !user?.isExternal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center glassmorphism2">

@@ -1,7 +1,95 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, {
+    createContext,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
 import Image from "next/image";
+
+const TeamMembersDataContext = createContext(null);
+
+/**
+ * Single source for ClickUp team fetch + animation key.
+ * Topbar mounts <TeamMembers /> twice (desktop + mobile); without this, each instance
+ * fetches and bumps avatarAnimKey → repeated animations and duplicate API calls.
+ */
+export function ClickupTeamMembersProvider({
+    customerId,
+    enabled = true,
+    children,
+}) {
+    const [members, setMembers] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [avatarAnimKey, setAvatarAnimKey] = useState(0);
+
+    useEffect(() => {
+        if (!enabled || !customerId) {
+            setMembers([]);
+            setAvatarAnimKey(0);
+            setLoading(false);
+            return;
+        }
+
+        let cancelled = false;
+
+        (async () => {
+            setLoading(true);
+            try {
+                const response = await fetch(
+                    `/api/clickup-team-members/${customerId}`
+                );
+                if (cancelled) return;
+                if (!response.ok) {
+                    throw new Error("Failed to fetch team members");
+                }
+                const data = await response.json();
+                if (cancelled) return;
+                setMembers(data.members || []);
+                setAvatarAnimKey((k) => k + 1);
+            } catch (err) {
+                if (cancelled) return;
+                console.error("Error fetching team members:", err);
+                setMembers([]);
+                setAvatarAnimKey((k) => k + 1);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [customerId, enabled]);
+
+    const value = useMemo(
+        () => ({
+            members,
+            loading,
+            avatarAnimKey,
+            customerId: enabled ? customerId : null,
+        }),
+        [members, loading, avatarAnimKey, customerId, enabled]
+    );
+
+    return (
+        <TeamMembersDataContext.Provider value={value}>
+            {children}
+        </TeamMembersDataContext.Provider>
+    );
+}
+
+function useTeamMembersData() {
+    const ctx = useContext(TeamMembersDataContext);
+    if (!ctx) {
+        throw new Error(
+            "TeamMembers must be used inside ClickupTeamMembersProvider"
+        );
+    }
+    return ctx;
+}
 
 function MemberFace({ member }) {
     const [imgError, setImgError] = useState(false);
@@ -42,75 +130,61 @@ const serviceConfig = {
     "28b06356-6f19-4633-bfa4-416c150a562c": { label: "Client Lead", color: "#5e8888" },
 };
 
-export default function TeamMembers({ customerId }) {
-    const [members, setMembers] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+export default function TeamMembers() {
+    const { members, loading, avatarAnimKey, customerId } = useTeamMembersData();
 
-    useEffect(() => {
-        if (!customerId) {
-            setMembers([]);
-            return;
-        }
+    const displayMembers =
+        members.length > 0
+            ? members
+            : [1, 2, 3, 4, 5].map((i) => ({
+                  id: i,
+                  username: "×",
+                  service: "None",
+              }));
 
-        const fetchTeamMembers = async () => {
-            setLoading(true);
-            setError("");
-            try {
-                const response = await fetch(`/api/clickup-team-members/${customerId}`);
-                if (!response.ok) {
-                    throw new Error("Failed to fetch team members");
-                }
-                const data = await response.json();
-                setMembers(data.members || []);
-            } catch (err) {
-                console.error("Error fetching team members:", err);
-                setError(err.message);
-                // Fallback to placeholder members on error
-                setMembers([]);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchTeamMembers();
-    }, [customerId]);
-
-    const displayMembers = members.length > 0 ? members : [1, 2, 3, 4, 5].map(i => ({
-        id: i,
-        username: "×",
-        service: "None"
-    }));
+    const keyBase = customerId ?? "none";
 
     return (
         <div className="flex items-center gap-1">
             <p className="text-gray-500 mr-1 text-sm">Team</p>
-            {displayMembers.map((member, idx) => {
-                const serviceInfo = serviceConfig[member.service] || { label: member.service, color: "#999" };
-                // Create unique key combining member ID and index to ensure uniqueness
-                const uniqueKey = `member-${member.id || `placeholder-${idx}`}-${idx}`;
-                return (
-                    <div key={uniqueKey} className="relative group" id={uniqueKey}>
-                        <div    
-                            className="rounded-full border-2 hover:scale-105 transition-transform duration-150 flex items-center justify-center"
-                            style={{
-                                width: "35px",
-                                height: "35px",
-                                backgroundColor: serviceInfo.color,
-                                borderColor: "white",
-                                transform: `translateX(-${idx * 12}px)`,
-                            }}
-                            title={member.username}
+            <div
+                className="flex items-center gap-1"
+                key={`${keyBase}-${avatarAnimKey}`}
+                aria-busy={loading}
+            >
+                {displayMembers.map((member, idx) => {
+                    const serviceInfo = serviceConfig[member.service] || {
+                        label: member.service,
+                        color: "#999",
+                    };
+                    const uniqueKey = `member-${member.id || `placeholder-${idx}`}-${idx}`;
+                    return (
+                        <div
+                            key={uniqueKey}
+                            className="relative group animate-team-member-in"
+                            style={{ animationDelay: `${idx * 52}ms` }}
+                            id={uniqueKey}
                         >
-                            <MemberFace member={member} />
+                            <div
+                                className="rounded-full border-2 hover:scale-105 transition-transform duration-150 flex items-center justify-center"
+                                style={{
+                                    width: "35px",
+                                    height: "35px",
+                                    backgroundColor: serviceInfo.color,
+                                    borderColor: "white",
+                                    transform: `translateX(-${idx * 12}px)`,
+                                }}
+                                title={member.username}
+                            >
+                                <MemberFace member={member} />
+                            </div>
+                            <span className="absolute left-1/2 -translate-x-1/2 mt-2 px-2 py-1 text-xs bg-gray-900 text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
+                                {member.username} ({serviceInfo.label})
+                            </span>
                         </div>
-                        {/* Show name and service on hover */}
-                        <span className="absolute left-1/2 -translate-x-1/2 mt-2 px-2 py-1 text-xs bg-gray-900 text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
-                            {member.username} ({serviceInfo.label})
-                        </span>
-                    </div>
-                );
-            })}
+                    );
+                })}
+            </div>
         </div>
     );
 }
