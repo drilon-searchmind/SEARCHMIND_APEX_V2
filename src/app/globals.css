@@ -498,3 +498,14 @@ select {
 .data-wrapped-panel-fade-up {
 	animation: dataWrappedPanelFadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+#mainSidebar * {
+	color: #fff;
+}
+#mainSidebar #logoApex {
+	filter: invert(1);
+}
+
+#mainSidebar #smallLabel {
+	color: #000;
+}

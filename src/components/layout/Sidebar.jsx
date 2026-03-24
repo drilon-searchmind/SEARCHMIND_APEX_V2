@@ -164,7 +164,7 @@ const Sidebar = ({ showLinks = true }) => {
     }, []);
 
     return (
-        <aside className={`flex flex-col xl:mt-0 top-0 left-0 bg-white text-gray-900 h-full transition-all duration-300 ease-in-out z-50 border-r border-gray-200 ${isSmallScreen ? 'w-[50px] px-2' : 'w-[300px] px-8'
+        <aside id="mainSidebar" className={`flex flex-col xl:mt-0 top-0 left-0 bg-[var(--color-primary-searchmind)] text-gray-900 h-full transition-all duration-300 ease-in-out z-50 border-r border-gray-200 ${isSmallScreen ? 'w-[50px] px-2' : 'w-[300px] px-8'
             }`}>
             <div className={`py-8 flex justify-start ${isSmallScreen ? 'mb-0' : 'mb-0'}`}>
                 <Link href="/" className="flex flex-col gap-0">
