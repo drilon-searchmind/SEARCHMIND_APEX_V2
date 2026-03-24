@@ -32,7 +32,10 @@ export async function GET(request, { params }) {
         console.log(`[Merged Sources] Customer: ${data.customerName || 'Unknown'} (${customerId}), type: ${settings.customerType}, shop: ${settings.shopifyUrl || 'N/A'}`);
 
         // Fetch merged sources (now returns daily arrays)
-        const merged = await fetchMergedSources(settings, startDate, endDate, { dailyBreakdown });
+        const merged = await fetchMergedSources(settings, startDate, endDate, {
+            dailyBreakdown,
+            source: source || undefined,
+        });
         return Response.json(merged);
     } catch (error) {
         console.error('Error fetching merged sources:', error);

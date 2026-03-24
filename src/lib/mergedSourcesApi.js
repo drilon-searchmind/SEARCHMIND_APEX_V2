@@ -1,7 +1,7 @@
 // src/lib/mergedSourcesApi.js
 import { shopifyqlQuery, discoverSalesFields } from './shopifyApi';
 import { fetchWooCommerceOrders } from './wooCommerceApi';
-import { fetchMagentoOrders } from './magentoApi';
+import { fetchMagentoPerformanceDaily } from './magentoPerformanceDashboardApi';
 import { fetchFacebookAdsInsights } from './facebookApi';
 import { fetchGoogleAdsMetrics } from './googleAdsApi';
 import currencyApiValues from './static-data/currencyApiValues.json';
@@ -13,6 +13,7 @@ import currencyApiValues from './static-data/currencyApiValues.json';
  * @param {string} endDate - End date (YYYY-MM-DD)
  * @param {object} [options] - Optional settings
  * @param {boolean} [options.dailyBreakdown] - If true, Facebook uses time_increment for daily rows (parent-property)
+ * @param {string} [options.source] - Caller id (e.g. merged-sources query); does not change Magento fetch path
  * @returns {Promise<object>} - { shopifyDaily, facebookDaily, googleDaily, ... }
  */
 
@@ -155,10 +156,10 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 orders: parseInt(row.orders) || 0,
             })).sort((a, b) => a.period.localeCompare(b.period));
         } else if (customerType === 'Magento' && settings.magentoBaseUrl && settings.magentoAccessToken) {
-            console.log("::: FETCHING MAGENTO DATA :::");
+            console.log('::: FETCHING MAGENTO DATA (invoices + creditmemos) :::');
             console.log("Customer:", settings.customerName || 'Unknown', "- Date range:", { startDate, endDate });
 
-            const magentoData = await fetchMagentoOrders(
+            const magentoData = await fetchMagentoPerformanceDaily(
                 settings.magentoBaseUrl,
                 settings.magentoAccessToken,
                 startDate,
