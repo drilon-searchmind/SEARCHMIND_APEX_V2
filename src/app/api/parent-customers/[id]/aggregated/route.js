@@ -3,7 +3,7 @@
 // Eliminates client waterfall and reduces network round-trips from ~13 to 1.
 import { getParentCustomerById } from "../../../../../../lib/parentCustomerOperations";
 import { fetchMergedSources } from "@/lib/mergedSourcesApi";
-import { isDemoCustomerId } from "@/lib/demoCustomer";
+import { isDemoCustomerId, mergeDemoCustomerDocument } from "@/lib/demoCustomer";
 import { getDemoMergedSourcesForRange } from "@/lib/demoMergedSources";
 
 function plainCustomer(c) {
@@ -174,7 +174,8 @@ export async function GET(request, { params }) {
         const dailyBreakdown = true;
 
         const fetchForChild = async (customer) => {
-            const cust = plainCustomer(customer);
+            const raw = plainCustomer(customer);
+            const cust = isDemoCustomerId(String(raw._id)) ? mergeDemoCustomerDocument(raw) : raw;
             const settings = buildSettings(cust);
             const revenueType = cust?.CustomerSettings?.customerRevenueType || "total_sales";
             const metricPreference = cust?.CustomerSettings?.metricPreference || "ROAS/POAS";

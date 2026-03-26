@@ -19,13 +19,31 @@ export function numHash(str) {
     return Math.abs(h);
 }
 
+/** Aligns with demo merged daily pool: gradual growth from 2025-01-01 so comparisons vs prior periods trend up. */
+function dayIndexFrom20250101(dateStr) {
+    const t = new Date(`${dateStr}T12:00:00.000Z`).getTime();
+    const origin = Date.UTC(2025, 0, 1);
+    return Math.max(0, Math.floor((t - origin) / 86400000));
+}
+
+/** Per-date 0.85–1.12 multiplier so series aren’t perfectly aligned (different % vs prior period per metric). */
+function dateWiggle(date, salt) {
+    const x = numHash(`${salt}-${date}`);
+    return 0.85 + 0.27 * (x % 1000) / 1000;
+}
+
 function googlePpcRow(date) {
+    const di = dayIndexFrom20250101(date);
+    const revScale = 1 + di * 0.000065;
+    const spendScale = 1 + di * 0.00004;
+    const wRev = dateWiggle(date, "gcr-v");
+    const wSpend = dateWiggle(date, "gcs-v");
     const h = numHash(`ppc-${date}`);
-    const clicks = 200 + (h % 50);
-    const impressions = 8000 + (h % 1000);
-    const conversions = 12 + (h % 8);
-    const conversions_value = 4500 + (h % 500);
-    const ad_spend = 2100 + (h % 200);
+    const clicks = Math.round((200 + (h % 50)) * (1 + di * 0.00008) * dateWiggle(date, "gclk"));
+    const impressions = Math.round((8000 + (h % 1000)) * (1 + di * 0.00006) * dateWiggle(date, "gimp"));
+    const conversions = Math.round((12 + (h % 8)) * (1 + di * 0.0001) * dateWiggle(date, "gconv"));
+    const conversions_value = Math.round((3800 + (h % 500)) * revScale * wRev);
+    const ad_spend = Math.round((1150 + (h % 160)) * spendScale * wSpend);
     return {
         date,
         clicks,
@@ -42,12 +60,17 @@ function googlePpcRow(date) {
 }
 
 function facebookRow(date) {
+    const di = dayIndexFrom20250101(date);
+    const revScale = 1 + di * 0.000065;
+    const spendScale = 1 + di * 0.00004;
+    const wRev = dateWiggle(date, "fcr-v");
+    const wSpend = dateWiggle(date, "fcs-v");
     const h = numHash(`fb-${date}`);
-    const clicks = 300 + (h % 40);
-    const impressions = 12000 + (h % 800);
-    const conversions = 18 + (h % 10);
-    const conversion_value = 6200 + (h % 400);
-    const ad_spend = 1800 + (h % 150);
+    const clicks = Math.round((300 + (h % 40)) * (1 + di * 0.00008) * dateWiggle(date, "fclk"));
+    const impressions = Math.round((12000 + (h % 800)) * (1 + di * 0.00006) * dateWiggle(date, "fimp"));
+    const conversions = Math.round((18 + (h % 10)) * (1 + di * 0.0001) * dateWiggle(date, "fconv"));
+    const conversion_value = Math.round((5200 + (h % 400)) * revScale * wRev);
+    const ad_spend = Math.round((950 + (h % 120)) * spendScale * wSpend);
     return {
         date,
         clicks,
@@ -67,12 +90,17 @@ function facebookRow(date) {
 }
 
 function pinterestRow(date) {
+    const di = dayIndexFrom20250101(date);
+    const revScale = 1 + di * 0.000065;
+    const spendScale = 1 + di * 0.00004;
+    const wRev = dateWiggle(date, "pcr-v");
+    const wSpend = dateWiggle(date, "pcs-v");
     const h = numHash(`pin-${date}`);
-    const ad_spend = 950 + (h % 80);
-    const impressions = 110000 + (h % 5000);
-    const clicks = 2200 + (h % 200);
-    const conversions = 14 + (h % 6);
-    const conversion_value = 2100 + (h % 200);
+    const ad_spend = Math.round((520 + (h % 65)) * spendScale * wSpend);
+    const impressions = Math.round((110000 + (h % 5000)) * (1 + di * 0.00005) * dateWiggle(date, "pimp"));
+    const clicks = Math.round((2200 + (h % 200)) * (1 + di * 0.00007) * dateWiggle(date, "pclk"));
+    const conversions = Math.round((14 + (h % 6)) * (1 + di * 0.0001) * dateWiggle(date, "pconv"));
+    const conversion_value = Math.round((1850 + (h % 200)) * revScale * wRev);
     return {
         date,
         conversion_value,
@@ -138,12 +166,15 @@ export function getDemoPinterestDashboardForRange(startDate, endDate) {
 export function getDemoKlaviyoDashboardForRange(startDate, endDate, prevStartDate, prevEndDate) {
     const curDays = eachDayInclusive(startDate, endDate);
     const metrics_by_date = curDays.map((date) => {
+        const di = dayIndexFrom20250101(date);
+        const revScale = 1 + di * 0.000055;
+        const w = dateWiggle(date, "kl-v");
         const h = numHash(`kl-${date}`);
-        const recipients = 1500 + (h % 100);
-        const opens = 400 + (h % 50);
-        const clicks = 200 + (h % 50);
-        const conversions = 10 + (h % 8);
-        const conversion_value = 4000 + (h % 1000);
+        const recipients = Math.round((1500 + (h % 100)) * (1 + di * 0.00005) * dateWiggle(date, "klr"));
+        const opens = Math.round((400 + (h % 50)) * (1 + di * 0.00006) * dateWiggle(date, "klo"));
+        const clicks = Math.round((200 + (h % 50)) * (1 + di * 0.00006) * dateWiggle(date, "klc"));
+        const conversions = Math.round((10 + (h % 8)) * (1 + di * 0.00008) * dateWiggle(date, "klx"));
+        const conversion_value = Math.round((3400 + (h % 1000)) * revScale * w);
         const unsubscribes = 5 + (h % 5);
         return {
             date,

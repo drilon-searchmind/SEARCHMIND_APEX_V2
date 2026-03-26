@@ -33,9 +33,24 @@ const DEMO_ID = "69c5097c84057563ba331cd2";
 const DEMO_DAILY_COUNT = inclusiveDayCount(2025, 1, 1, 2026, 12, 31);
 const days = daysYmd(2025, 1, 1, DEMO_DAILY_COUNT);
 
+/** Deterministic 0..1 — decorrelates revenue vs ad spend vs orders so YoY % isn’t ~same for every metric. */
+function mix01(i, salt) {
+    const x = Math.imul(i + salt * 9973, 1597334677) | 0;
+    return ((x >>> 0) % 10001) / 10000;
+}
+
+/** Mild long-run growth (lower than before to avoid ~35% YoY everywhere) + weekly bump + daily jitter. */
+const revenueDriftPerDay = 5;
+const adSpendDriftPerDay = 2.4;
+
 const shopifyDaily = days.map((period, i) => {
-    const base = 15000 + (i % 7) * 800;
-    const orders = 40 + (i % 5) * 3;
+    const revJitter = 0.88 + mix01(i, 11) * 0.2;
+    const orderJitter = 0.92 + mix01(i, 17) * 0.14;
+    const base = (10800 + i * revenueDriftPerDay + (i % 7) * 260) * revJitter;
+    const orders = Math.max(
+        24,
+        Math.round((34 + (i % 5) * 2.2 + i * 0.012) * orderJitter)
+    );
     const net_sales = Math.round(base * 0.92 * 100) / 100;
     const total_sales = Math.round(base * 100) / 100;
     return {
@@ -48,19 +63,23 @@ const shopifyDaily = days.map((period, i) => {
         shipping_charges: Math.round(total_sales * 0.03 * 100) / 100,
         taxes: Math.round(total_sales * 0.15 * 100) / 100,
         total_sales,
-        cost_of_goods_sold: Math.round(net_sales * 0.35 * 100) / 100,
+        cost_of_goods_sold: Math.round(net_sales * 0.26 * 100) / 100,
     };
 });
 
-const facebookDaily = days.map((period, i) => ({
-    period,
-    spend: Math.round((1200 + (i % 7) * 100) * 100) / 100,
-}));
+const facebookDaily = days.map((period, i) => {
+    const spendJitter = 0.85 + mix01(i, 23) * 0.22;
+    const spend =
+        (620 + i * adSpendDriftPerDay + (i % 7) * 48 + mix01(i, 29) * 180) * spendJitter;
+    return { period, spend: Math.round(spend * 100) / 100 };
+});
 
-const googleDaily = days.map((period, i) => ({
-    period,
-    spend: Math.round((900 + (i % 6) * 80) * 100) / 100,
-}));
+const googleDaily = days.map((period, i) => {
+    const spendJitter = 0.84 + mix01(i, 31) * 0.24;
+    const spend =
+        (480 + i * (adSpendDriftPerDay * 0.82) + (i % 6) * 42 + mix01(i, 37) * 140) * spendJitter;
+    return { period, spend: Math.round(spend * 100) / 100 };
+});
 
 const netRevenue = shopifyDaily.reduce((s, d) => s + (d.net_sales || 0), 0);
 const totalCogsForNet = shopifyDaily.reduce((s, d) => s + (d.cost_of_goods_sold || 0), 0);
@@ -119,13 +138,13 @@ const customer = {
         klaviyoPrivateApiKey: "demo-klaviyo-key",
     },
     CustomerStaticExpenses: {
-        cogsPercentage: 0.35,
-        shippingCostPerOrder: 25,
-        pickNPackCostPerOrder: 8,
-        transactionCostPercentage: 0.015,
-        fixedExpenses: 45000,
-        marketingBureauCost: 15000,
-        marketingToolingCost: 2000,
+        cogsPercentage: 0.26,
+        shippingCostPerOrder: 16,
+        pickNPackCostPerOrder: 5,
+        transactionCostPercentage: 0.012,
+        fixedExpenses: 22000,
+        marketingBureauCost: 8000,
+        marketingToolingCost: 1200,
     },
 };
 

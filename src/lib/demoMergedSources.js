@@ -1,4 +1,4 @@
-import { getDemoPayload } from "@/lib/demoCustomer";
+import { getDemoPayload, mergeDemoStaticExpenses } from "@/lib/demoCustomer";
 
 /** YYYY-MM-DD rows with `period` */
 function filterDailyRows(rows, startDate, endDate) {
@@ -131,10 +131,10 @@ export function getDemoMergedSourcesForRange(startDate, endDate, customer = null
                   ...template.CustomerSettings,
                   ...(customer?.CustomerSettings || {}),
               },
-              CustomerStaticExpenses: {
-                  ...template.CustomerStaticExpenses,
-                  ...(customer?.CustomerStaticExpenses || {}),
-              },
+              CustomerStaticExpenses: mergeDemoStaticExpenses(
+                  template.CustomerStaticExpenses || {},
+                  customer?.CustomerStaticExpenses || {}
+              ),
           }
         : customer || {};
     const settings = normalizeCustomerSettings(mergedCustomer);

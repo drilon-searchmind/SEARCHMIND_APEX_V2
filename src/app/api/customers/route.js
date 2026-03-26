@@ -1,11 +1,23 @@
 import { NextResponse } from 'next/server';
 import { getAllCustomers, createCustomer } from '../../../../lib/customerOperations';
+import { isDemoCustomerId, mergeDemoCustomerDocument } from '@/lib/demoCustomer';
+
+function toPlainCustomer(doc) {
+    if (doc && typeof doc.toObject === 'function') return doc.toObject();
+    return { ...doc };
+}
 
 // GET /api/customers - Get all customers
 export async function GET() {
     try {
         const customers = await getAllCustomers();
-        return NextResponse.json(customers);
+        const merged = customers.map((c) => {
+            const plain = toPlainCustomer(c);
+            const id = String(plain._id);
+            if (!isDemoCustomerId(id)) return plain;
+            return mergeDemoCustomerDocument(plain);
+        });
+        return NextResponse.json(merged);
     } catch (error) {
         console.error('Error fetching customers:', error);
         return NextResponse.json(
