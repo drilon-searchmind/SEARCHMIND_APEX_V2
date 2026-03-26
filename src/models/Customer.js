@@ -97,6 +97,10 @@ const CustomerSchema = new mongoose.Schema({
             type: String,
             default: ""
         },
+        pinterestAdAccountId: {
+            type: String,
+            default: ""
+        },
         googleSearchConsoleProperty: {
             type: String,
             default: ""

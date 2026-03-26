@@ -8,10 +8,7 @@ import MetricCard from "@/components/dashboard/MetricCard";
 import GraphCard from "@/components/dashboard/GraphCard";
 import Spinner from "@/components/ui/Spinner";
 import {
-    FiDollarSign,
     FiTrendingUp,
-    FiBarChart2,
-    FiPieChart,
     FiShoppingCart,
     FiEye,
     FiMousePointer,
@@ -24,10 +21,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import dayjs from "dayjs";
 
 const METRIC_OPTIONS = [
-    { key: "conversion_value", label: "Conv. Value", icon: FiDollarSign },
     { key: "ad_spend", label: "Ad spend", icon: FiTrendingUp },
-    { key: "roas", label: "ROAS", icon: FiBarChart2 },
-    { key: "aov", label: "AOV", icon: FiPieChart },
     { key: "conversions", label: "Conversions", icon: FiShoppingCart },
     { key: "impressions", label: "Impressions", icon: FiEye },
     { key: "clicks", label: "Outbound clicks", icon: FiMousePointer },
@@ -36,67 +30,6 @@ const METRIC_OPTIONS = [
     { key: "cpc", label: "CPC", icon: FiArrowDownRight },
     { key: "cpm", label: "CPM", icon: FiArrowUpRight },
 ];
-
-function hashDay(dateStr) {
-    let h = 0;
-    for (let i = 0; i < dateStr.length; i++) h = (h << 5) - h + dateStr.charCodeAt(i);
-    return Math.abs(h);
-}
-
-function generateMockDailyRows(startDate, endDate) {
-    const rows = [];
-    let d = dayjs(startDate);
-    const end = dayjs(endDate);
-    while (!d.isAfter(end)) {
-        const dateStr = d.format("YYYY-MM-DD");
-        const seed = hashDay(dateStr);
-        const impressions = 32000 + (seed % 15000);
-        const ctrBase = 0.016 + (seed % 25) / 2000;
-        const clicks = Math.round(impressions * ctrBase);
-        const conversions = Math.max(3, Math.round(clicks * (0.025 + (seed % 12) / 1000)));
-        const ad_spend = 480 + (seed % 420);
-        const conversion_value = ad_spend * (2.0 + (seed % 20) / 10);
-        const saves = Math.round(clicks * (0.1 + (seed % 8) / 200));
-        const roas = ad_spend > 0 ? conversion_value / ad_spend : 0;
-        const aov = conversions > 0 ? conversion_value / conversions : 0;
-        rows.push({
-            date: dateStr,
-            conversion_value,
-            ad_spend,
-            conversions,
-            impressions,
-            clicks,
-            saves,
-            roas,
-            aov,
-            ctr: impressions > 0 ? clicks / impressions : 0,
-            cpc: clicks > 0 ? ad_spend / clicks : 0,
-            cpm: impressions > 0 ? (ad_spend / impressions) * 1000 : 0,
-        });
-        d = d.add(1, "day");
-    }
-    return rows;
-}
-
-function generateMockTopCampaigns(rangeKey) {
-    const names = [
-        "Awareness — Spring Pins",
-        "Catalog sales — retargeting",
-        "Traffic — brand keywords",
-        "Consideration — video pins",
-        "Conversion — shopping",
-    ];
-    return names
-        .map((campaign_name, i) => {
-            const seed = hashDay(rangeKey + campaign_name + String(i));
-            const impressions = 180000 - i * 28000 + (seed % 8000);
-            const clicks = Math.round(impressions * (0.021 - i * 0.0015 + (seed % 5) / 1000));
-            const ctr = impressions > 0 ? clicks / impressions : 0;
-            const saves = Math.round(clicks * (0.14 + (seed % 6) / 100));
-            return { campaign_name, clicks, impressions, ctr, saves };
-        })
-        .sort((a, b) => b.clicks - a.clicks);
-}
 
 export default function PinterestServiceDashboardPage() {
     const params = useParams();
@@ -115,9 +48,8 @@ export default function PinterestServiceDashboardPage() {
     const [tempRange, setTempRange] = useState(defaultRangeValue);
     const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
 
-    const handleDateRangeApply = ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
+    const handleDateRangeApply = ({ startDate, endDate }) => {
         setAppliedRange({ startDate, endDate });
-        if (appliedComparison) setComparisonMethod(appliedComparison);
     };
     const handleStartDateChange = (newStart) => {
         setTempRange((dr) => ({ ...dr, startDate: newStart }));
@@ -126,43 +58,108 @@ export default function PinterestServiceDashboardPage() {
         setTempRange((dr) => ({ ...dr, endDate: newEnd }));
     };
 
+    /** Single source of truth: toggling comparison refetches immediately (no need to click Apply). */
     const [comparisonMethod, setComparisonMethod] = useState("Last Year");
-    const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Year");
 
-    const [selectedMetrics, setSelectedMetrics] = useState(["conversion_value"]);
+    const [metricsByDate, setMetricsByDate] = useState([]);
+    const [metricsByDatePrev, setMetricsByDatePrev] = useState([]);
+    const [topCampaigns, setTopCampaigns] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    const [selectedMetrics, setSelectedMetrics] = useState(["ad_spend"]);
 
     useEffect(() => {
         if (selectedMetrics.length === 0) {
-            setSelectedMetrics(["conversion_value"]);
+            setSelectedMetrics(["ad_spend"]);
         }
     }, [selectedMetrics]);
 
-    const { metricsByDate, metricsByDatePrev, topCampaigns } = useMemo(() => {
-        const start = dayjs(appliedRange.startDate);
-        const end = dayjs(appliedRange.endDate);
-        const days = end.diff(start, "day") + 1;
-        let prevStart;
-        let prevEnd;
-        if (comparisonMethod === "Last Year") {
-            prevStart = start.subtract(1, "year");
-            prevEnd = end.subtract(1, "year");
-        } else {
-            prevEnd = start.subtract(1, "day");
-            prevStart = prevEnd.subtract(days - 1, "day");
+    useEffect(() => {
+        if (!customer) {
+            setLoading(false);
+            return;
         }
-        const rangeKey = `${appliedRange.startDate}_${appliedRange.endDate}`;
-        return {
-            metricsByDate: generateMockDailyRows(appliedRange.startDate, appliedRange.endDate),
-            metricsByDatePrev: generateMockDailyRows(
-                prevStart.format("YYYY-MM-DD"),
-                prevEnd.format("YYYY-MM-DD")
-            ),
-            topCampaigns: generateMockTopCampaigns(rangeKey),
-        };
-    }, [appliedRange.startDate, appliedRange.endDate, comparisonMethod]);
+        setLoading(true);
+        setError(null);
+        (async () => {
+            try {
+                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+                const res = await fetch(`${baseUrl}/api/customers/${customer._id}`);
+                if (!res.ok) throw new Error("Failed to fetch customer settings");
+                const settings = (await res.json()).CustomerSettings || {};
+                const { pinterestAdAccountId } = settings;
+                if (!pinterestAdAccountId?.trim()) {
+                    throw new Error("Missing Pinterest ad account ID");
+                }
 
-    const loading = false;
-    const error = null;
+                const start = dayjs(appliedRange.startDate);
+                const end = dayjs(appliedRange.endDate);
+                const days = end.diff(start, "day") + 1;
+                let prevStart;
+                let prevEnd;
+                if (comparisonMethod === "Last Year") {
+                    prevStart = start.subtract(1, "year");
+                    prevEnd = end.subtract(1, "year");
+                } else {
+                    prevEnd = start.subtract(1, "day");
+                    prevStart = prevEnd.subtract(days - 1, "day");
+                }
+
+                const prevStartStr = prevStart.format("YYYY-MM-DD");
+                const prevEndStr = prevEnd.format("YYYY-MM-DD");
+
+                const q = (s, e) =>
+                    `adAccountId=${encodeURIComponent(pinterestAdAccountId.trim())}&startDate=${encodeURIComponent(s)}&endDate=${encodeURIComponent(e)}`;
+
+                const [curRes, prevRes] = await Promise.all([
+                    fetch(`/api/pinterest-dashboard?${q(appliedRange.startDate, appliedRange.endDate)}`),
+                    fetch(`/api/pinterest-dashboard?${q(prevStartStr, prevEndStr)}`),
+                ]);
+
+                if (!curRes.ok) {
+                    const errJson = await curRes.json().catch(() => ({}));
+                    throw new Error(errJson.error || "Failed to fetch Pinterest dashboard metrics");
+                }
+                const metrics = await curRes.json();
+                const byDate = metrics.metrics_by_date || [];
+                const campaigns = metrics.top_campaigns || [];
+                setMetricsByDate(byDate);
+                setTopCampaigns(campaigns);
+
+                if (prevRes.ok) {
+                    const metricsPrev = await prevRes.json();
+                    setMetricsByDatePrev(metricsPrev.metrics_by_date || []);
+                } else {
+                    setMetricsByDatePrev([]);
+                    const errPrev = await prevRes.json().catch(() => ({}));
+                    if (process.env.NODE_ENV === "development") {
+                        console.debug("[Pinterest dashboard] comparison period fetch failed", prevRes.status, errPrev);
+                    }
+                }
+
+                if (process.env.NODE_ENV === "development") {
+                    const spend = byDate.reduce((s, r) => s + (Number(r.ad_spend) || 0), 0);
+                    console.debug("[Pinterest dashboard]", {
+                        range: `${appliedRange.startDate}–${appliedRange.endDate}`,
+                        days: byDate.length,
+                        totalAdSpend: spend,
+                        topCampaigns: campaigns.length,
+                        sampleDay: byDate[0],
+                        comparison: comparisonMethod,
+                        prevOk: prevRes.ok,
+                    });
+                }
+            } catch (err) {
+                setError(err.message);
+                setMetricsByDate([]);
+                setMetricsByDatePrev([]);
+                setTopCampaigns([]);
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, [customer, appliedRange.startDate, appliedRange.endDate, comparisonMethod]);
 
     const percentChange = (current, prev) => {
         if (prev === 0 || prev === null || prev === undefined) return null;
@@ -177,21 +174,8 @@ export default function PinterestServiceDashboardPage() {
         if (!metricsByDate.length) return [];
 
         const agg = (key, data) => {
-            if (key === "conversion_value") {
-                return data.reduce((sum, row) => sum + (row.conversion_value || 0), 0);
-            }
             if (key === "conversions") {
                 return data.reduce((sum, row) => sum + (row.conversions || 0), 0);
-            }
-            if (key === "aov") {
-                const totalValue = data.reduce((sum, row) => sum + (row.conversion_value || 0), 0);
-                const totalConv = data.reduce((sum, row) => sum + (row.conversions || 0), 0);
-                return totalConv > 0 ? totalValue / totalConv : null;
-            }
-            if (key === "roas") {
-                const totalSpend = data.reduce((sum, row) => sum + (row.ad_spend || 0), 0);
-                const totalValue = data.reduce((sum, row) => sum + (row.conversion_value || 0), 0);
-                return totalSpend > 0 ? totalValue / totalSpend : null;
             }
             if (key === "ctr") {
                 const totalClicks = data.reduce((sum, row) => sum + (row.clicks || 0), 0);
@@ -215,108 +199,114 @@ export default function PinterestServiceDashboardPage() {
         });
     }, [metricsByDate, metricsByDatePrev]);
 
-    const chartCategories = metricsByDate.map((row) => row.date);
+    const { chartOptions, chartSeries } = useMemo(() => {
+        const chartCategories = metricsByDate.map((row) => row.date);
+        const metricsByDatePrevMap = Object.fromEntries(metricsByDatePrev.map((row) => [row.date, row]));
+        const series = [];
 
-    const metricsByDatePrevMap = Object.fromEntries(metricsByDatePrev.map((row) => [row.date, row]));
-
-    const chartSeries = [];
-
-    selectedMetrics.forEach((metricKey) => {
-        const metricOption = METRIC_OPTIONS.find((opt) => opt.key === metricKey);
-        chartSeries.push({
-            name: `${metricOption?.label || "Metric"} (Current)`,
-            data: chartCategories.map((date) => {
-                const row = metricsByDate.find((r) => r.date === date);
-                if (!row) return null;
-                let val = row[metricKey];
-                if (metricKey === "ctr" && row.impressions > 0) {
-                    val = ((row.clicks || 0) / row.impressions) * 100;
-                }
-                if (typeof val === "number" && !isNaN(val)) {
-                    return metricKey === "ctr" || metricKey === "roas" || metricKey === "aov"
-                        ? Number(val.toFixed(2))
-                        : Math.round(val);
-                }
-                return val ?? null;
-            }),
+        selectedMetrics.forEach((metricKey) => {
+            const metricOption = METRIC_OPTIONS.find((opt) => opt.key === metricKey);
+            series.push({
+                name: `${metricOption?.label || "Metric"} (Current)`,
+                data: chartCategories.map((date) => {
+                    const row = metricsByDate.find((r) => r.date === date);
+                    if (!row) return null;
+                    let val = row[metricKey];
+                    if (metricKey === "ctr" && row.impressions > 0) {
+                        val = ((row.clicks || 0) / row.impressions) * 100;
+                    }
+                    if (typeof val === "number" && !isNaN(val)) {
+                        return metricKey === "ctr" ? Number(val.toFixed(2)) : Math.round(val);
+                    }
+                    return val ?? null;
+                }),
+            });
         });
-    });
 
-    selectedMetrics.forEach((metricKey) => {
-        const metricOption = METRIC_OPTIONS.find((opt) => opt.key === metricKey);
-        chartSeries.push({
-            name: `${metricOption?.label || "Metric"} (${comparisonMethod})`,
-            data: chartCategories.map((date) => {
-                let prevDate;
-                if (comparisonMethod === "Last Year") {
-                    const currentDate = dayjs(date);
-                    prevDate = currentDate.subtract(1, "year").format("YYYY-MM-DD");
-                } else {
-                    const currentDate = dayjs(date);
-                    const periodStart = dayjs(appliedRange.startDate);
-                    const periodEnd = dayjs(appliedRange.endDate);
-                    const daysDiff = currentDate.diff(periodStart, "day");
-                    const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, "day") + 1, "day");
-                    prevDate = prevPeriodStart.add(daysDiff, "day").format("YYYY-MM-DD");
-                }
+        selectedMetrics.forEach((metricKey) => {
+            const metricOption = METRIC_OPTIONS.find((opt) => opt.key === metricKey);
+            series.push({
+                name: `${metricOption?.label || "Metric"} (${comparisonMethod})`,
+                data: chartCategories.map((date) => {
+                    let prevDate;
+                    if (comparisonMethod === "Last Year") {
+                        const currentDate = dayjs(date);
+                        prevDate = currentDate.subtract(1, "year").format("YYYY-MM-DD");
+                    } else {
+                        const currentDate = dayjs(date);
+                        const periodStart = dayjs(appliedRange.startDate);
+                        const periodEnd = dayjs(appliedRange.endDate);
+                        const daysDiff = currentDate.diff(periodStart, "day");
+                        const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, "day") + 1, "day");
+                        prevDate = prevPeriodStart.add(daysDiff, "day").format("YYYY-MM-DD");
+                    }
 
-                const row = metricsByDatePrevMap[prevDate];
-                if (!row) return null;
-                let val = row[metricKey];
-                if (metricKey === "ctr" && row.impressions > 0) {
-                    val = ((row.clicks || 0) / row.impressions) * 100;
-                }
-                if (typeof val === "number" && !isNaN(val)) {
-                    return metricKey === "ctr" || metricKey === "roas" || metricKey === "aov"
-                        ? Number(val.toFixed(2))
-                        : Math.round(val);
-                }
-                return val ?? null;
-            }),
+                    const row = metricsByDatePrevMap[prevDate];
+                    if (!row) return null;
+                    let val = row[metricKey];
+                    if (metricKey === "ctr" && row.impressions > 0) {
+                        val = ((row.clicks || 0) / row.impressions) * 100;
+                    }
+                    if (typeof val === "number" && !isNaN(val)) {
+                        return metricKey === "ctr" ? Number(val.toFixed(2)) : Math.round(val);
+                    }
+                    return val ?? null;
+                }),
+            });
         });
-    });
 
-    const selectedMetricsCount = selectedMetrics.length;
-    const strokeWidths = [...Array(selectedMetricsCount).fill(2), ...Array(selectedMetricsCount).fill(1)];
-    const strokeDashArrays = [...Array(selectedMetricsCount).fill(0), ...Array(selectedMetricsCount).fill(5)];
-    const fillOpacities = [...Array(selectedMetricsCount).fill(1), ...Array(selectedMetricsCount).fill(0.5)];
+        const selectedMetricsCount = selectedMetrics.length;
+        const strokeWidths = [...Array(selectedMetricsCount).fill(2), ...Array(selectedMetricsCount).fill(1)];
+        const strokeDashArrays = [...Array(selectedMetricsCount).fill(0), ...Array(selectedMetricsCount).fill(5)];
+        const fillOpacities = [...Array(selectedMetricsCount).fill(1), ...Array(selectedMetricsCount).fill(0.5)];
 
-    const chartOptions = {
-        chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "Outfit, sans-serif" },
-        xaxis: { categories: chartCategories },
-        yaxis: {},
-        colors: [
-            "#406969",
-            "#1E2B2B",
-            "#4F46E5",
-            "#06B6D4",
-            "#C6ED62",
-            "#D6CDB6",
-            "#F59E0B",
-            "#EF4444",
-            "#8B5CF6",
-            "#EC4899",
-            "#10B981",
-        ],
-        stroke: {
-            width: strokeWidths,
-            curve: "smooth",
-            dashArray: strokeDashArrays,
-        },
-        fill: {
-            type: "solid",
-            opacity: fillOpacities,
-        },
-        grid: {
-            borderColor: "#e5e7eb",
-            strokeDashArray: 0,
-            xaxis: { lines: { show: false } },
-            yaxis: { lines: { show: true } },
-        },
-        dataLabels: { enabled: false },
-        tooltip: { theme: "light" },
-        legend: { show: true, position: "top" },
-    };
+        return {
+            chartSeries: series,
+            chartOptions: {
+                chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "Outfit, sans-serif" },
+                xaxis: { categories: chartCategories },
+                yaxis: {},
+                colors: [
+                    "#406969",
+                    "#1E2B2B",
+                    "#4F46E5",
+                    "#06B6D4",
+                    "#C6ED62",
+                    "#D6CDB6",
+                    "#F59E0B",
+                    "#EF4444",
+                    "#8B5CF6",
+                    "#EC4899",
+                    "#10B981",
+                ],
+                stroke: {
+                    width: strokeWidths,
+                    curve: "smooth",
+                    dashArray: strokeDashArrays,
+                },
+                fill: {
+                    type: "solid",
+                    opacity: fillOpacities,
+                },
+                grid: {
+                    borderColor: "#e5e7eb",
+                    strokeDashArray: 0,
+                    xaxis: { lines: { show: false } },
+                    yaxis: { lines: { show: true } },
+                },
+                dataLabels: { enabled: false },
+                tooltip: { theme: "light" },
+                legend: { show: true, position: "top" },
+            },
+        };
+    }, [
+        metricsByDate,
+        metricsByDatePrev,
+        selectedMetrics,
+        comparisonMethod,
+        appliedRange.startDate,
+        appliedRange.endDate,
+    ]);
 
     return (
         <div className="w-full">
@@ -344,15 +334,11 @@ export default function PinterestServiceDashboardPage() {
                         onEndDateChange={handleEndDateChange}
                         loading={loading}
                         showComparisonMethodToggler={true}
-                        comparisonMethod={tempComparisonMethod}
-                        onComparisonMethodChange={setTempComparisonMethod}
+                        comparisonMethod={comparisonMethod}
+                        onComparisonMethodChange={setComparisonMethod}
                     />
                 }
             />
-
-            <p className="text-sm text-amber-900/90 bg-amber-50 border border-amber-100 rounded-lg px-4 py-2.5 mb-6">
-                Placeholder data for layout preview. Pinterest Ads reporting API is not wired up yet.
-            </p>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6 w-full mb-8">
                 {loading ? (
@@ -384,9 +370,7 @@ export default function PinterestServiceDashboardPage() {
                                     value={
                                         metric.value !== null && metric.value !== undefined
                                             ? typeof metric.value === "number" && !isNaN(metric.value)
-                                                ? metric.label === "Conv. Value" ||
-                                                  metric.label === "Ad spend" ||
-                                                  metric.label === "AOV"
+                                                ? metric.label === "Ad spend"
                                                     ? metric.value.toLocaleString("da-DK", {
                                                           style: "currency",
                                                           currency: "DKK",
@@ -395,19 +379,17 @@ export default function PinterestServiceDashboardPage() {
                                                       })
                                                     : metric.label === "CTR"
                                                       ? `${metric.value.toFixed(2)}%`
-                                                      : metric.label === "ROAS"
-                                                        ? metric.value.toFixed(2)
-                                                        : metric.label === "CPC" || metric.label === "CPM"
-                                                          ? metric.value.toLocaleString("da-DK", {
-                                                                style: "currency",
-                                                                currency: "DKK",
-                                                                maximumFractionDigits: 2,
-                                                                minimumFractionDigits: 2,
-                                                            })
-                                                          : metric.value.toLocaleString(undefined, {
-                                                                maximumFractionDigits: 0,
-                                                                minimumFractionDigits: 0,
-                                                            })
+                                                      : metric.label === "CPC" || metric.label === "CPM"
+                                                        ? metric.value.toLocaleString("da-DK", {
+                                                              style: "currency",
+                                                              currency: "DKK",
+                                                              maximumFractionDigits: 2,
+                                                              minimumFractionDigits: 2,
+                                                          })
+                                                        : metric.value.toLocaleString(undefined, {
+                                                              maximumFractionDigits: 0,
+                                                              minimumFractionDigits: 0,
+                                                          })
                                                 : metric.value
                                             : "-"
                                     }

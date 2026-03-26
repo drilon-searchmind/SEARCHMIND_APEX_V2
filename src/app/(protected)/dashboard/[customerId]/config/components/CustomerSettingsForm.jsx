@@ -3,7 +3,7 @@
 import React from "react";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
-import { FiSettings, FiShoppingBag, FiPackage, FiDatabase, FiFacebook, FiTrendingUp, FiSearch, FiMail } from "react-icons/fi";
+import { FiSettings, FiShoppingBag, FiPackage, FiDatabase, FiFacebook, FiTrendingUp, FiSearch, FiMail, FiImage } from "react-icons/fi";
 
 function SettingsSection({ title, icon: Icon, children }) {
     return (
@@ -309,6 +309,18 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
                     value={form.googleAdsCountryExclude}
                     onChange={onChange}
                     placeholder="e.g. France,Spain to exclude from results"
+                />
+            </SettingsSection>
+
+            {/* Pinterest Ads */}
+            <SettingsSection title="Pinterest Ads" icon={FiImage}>
+                <FormField
+                    id="pinterestAdAccountId"
+                    name="pinterestAdAccountId"
+                    label="Pinterest ad account ID"
+                    value={form.pinterestAdAccountId}
+                    onChange={onChange}
+                    placeholder="Numeric id from Pinterest Ads Manager or GET /api/pinterest-ad-accounts"
                 />
             </SettingsSection>
 

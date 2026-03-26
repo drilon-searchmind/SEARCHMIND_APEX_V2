@@ -305,7 +305,7 @@ const Sidebar = ({ showLinks = true }) => {
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
-                                                subLabel={"WIP"}
+                                                subLabel={"BETA"}
                                             />
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/service-dashboard/em`}

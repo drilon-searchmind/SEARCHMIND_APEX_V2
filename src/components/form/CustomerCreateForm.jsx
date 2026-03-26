@@ -30,6 +30,7 @@ const initialState = {
         magentoAccessTokenSecret: "",
         facebookAdAccountId: "",
         googleAdsCustomerId: "",
+        pinterestAdAccountId: "",
         googleSearchConsoleProperty: ""
     }
 };
@@ -195,6 +196,10 @@ export default function CustomerCreateForm({ onSuccess }) {
             <div>
                 <FormLabel htmlFor="googleAdsCustomerId">Google Ads Customer ID</FormLabel>
                 <FormInputText id="googleAdsCustomerId" name="googleAdsCustomerId" value={form.CustomerSettings.googleAdsCustomerId} onChange={handleChange} />
+            </div>
+            <div>
+                <FormLabel htmlFor="pinterestAdAccountId">Pinterest ad account ID</FormLabel>
+                <FormInputText id="pinterestAdAccountId" name="pinterestAdAccountId" value={form.CustomerSettings.pinterestAdAccountId} onChange={handleChange} />
             </div>
             {/* Optional fields */}
             <div>
