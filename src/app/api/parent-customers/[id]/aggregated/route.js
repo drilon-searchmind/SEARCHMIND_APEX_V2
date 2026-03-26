@@ -3,6 +3,14 @@
 // Eliminates client waterfall and reduces network round-trips from ~13 to 1.
 import { getParentCustomerById } from "../../../../../../lib/parentCustomerOperations";
 import { fetchMergedSources } from "@/lib/mergedSourcesApi";
+import { isDemoCustomerId } from "@/lib/demoCustomer";
+import { getDemoMergedSourcesForRange } from "@/lib/demoMergedSources";
+
+function plainCustomer(c) {
+    if (!c) return c;
+    if (typeof c.toObject === "function") return c.toObject();
+    return c;
+}
 
 function buildSettings(customer) {
     return {
@@ -166,13 +174,19 @@ export async function GET(request, { params }) {
         const dailyBreakdown = true;
 
         const fetchForChild = async (customer) => {
-            const settings = buildSettings(customer);
-            const revenueType = customer?.CustomerSettings?.customerRevenueType || "total_sales";
-            const metricPreference = customer?.CustomerSettings?.metricPreference || "ROAS/POAS";
+            const cust = plainCustomer(customer);
+            const settings = buildSettings(cust);
+            const revenueType = cust?.CustomerSettings?.customerRevenueType || "total_sales";
+            const metricPreference = cust?.CustomerSettings?.metricPreference || "ROAS/POAS";
 
+            const demo = isDemoCustomerId(String(cust._id));
             const [mergedCurrent, mergedPrev] = await Promise.all([
-                fetchMergedSources(settings, startDate, endDate, { dailyBreakdown }),
-                fetchMergedSources(settings, prevStartStr, prevEndStr, { dailyBreakdown }),
+                demo
+                    ? Promise.resolve(getDemoMergedSourcesForRange(startDate, endDate, cust))
+                    : fetchMergedSources(settings, startDate, endDate, { dailyBreakdown }),
+                demo
+                    ? Promise.resolve(getDemoMergedSourcesForRange(prevStartStr, prevEndStr, cust))
+                    : fetchMergedSources(settings, prevStartStr, prevEndStr, { dailyBreakdown }),
             ]);
 
             const shopify = mergedCurrent.shopifyDaily || [];
@@ -199,13 +213,13 @@ export async function GET(request, { params }) {
             const spendsharePrev = revenuePrev > 0 ? adspendPrev / revenuePrev : null;
 
             const fullMetrics = computeChildFullMetrics(
-                customer, mergedCurrent, mergedPrev, startDate, endDate, prevStartStr, prevEndStr
+                cust, mergedCurrent, mergedPrev, startDate, endDate, prevStartStr, prevEndStr
             );
 
             return {
                 row: {
-                    _id: customer._id,
-                    customerName: customer.customerName,
+                    _id: cust._id,
+                    customerName: cust.customerName,
                     revenue,
                     orders,
                     adspend,
@@ -219,7 +233,7 @@ export async function GET(request, { params }) {
                     fullMetrics: fullMetrics,
                 },
                 prevData: {
-                    _id: customer._id,
+                    _id: cust._id,
                     revenue: revenuePrev,
                     adspend: adspendPrev,
                     facebookAdspend: facebookAdspendPrev,
@@ -229,7 +243,7 @@ export async function GET(request, { params }) {
                     spendshare: spendsharePrev,
                 },
                 dailyData: {
-                    _id: customer._id,
+                    _id: cust._id,
                     shopifyDaily: mergedCurrent.shopifyDaily || [],
                     facebookDaily: mergedCurrent.facebookDaily || [],
                     googleDaily: mergedCurrent.googleDaily || [],

@@ -110,7 +110,7 @@ export default function PinterestServiceDashboardPage() {
                 const prevEndStr = prevEnd.format("YYYY-MM-DD");
 
                 const q = (s, e) =>
-                    `adAccountId=${encodeURIComponent(pinterestAdAccountId.trim())}&startDate=${encodeURIComponent(s)}&endDate=${encodeURIComponent(e)}`;
+                    `adAccountId=${encodeURIComponent(pinterestAdAccountId.trim())}&startDate=${encodeURIComponent(s)}&endDate=${encodeURIComponent(e)}&dashboardCustomerId=${encodeURIComponent(String(customer._id))}`;
 
                 const [curRes, prevRes] = await Promise.all([
                     fetch(`/api/pinterest-dashboard?${q(appliedRange.startDate, appliedRange.endDate)}`),

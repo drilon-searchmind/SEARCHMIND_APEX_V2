@@ -1,4 +1,5 @@
 import { fetchShopifyProductMetrics } from '@/lib/shopifyProductsApi';
+import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
 
 export async function GET(request, { params }) {
     const resolvedParams = await params;
@@ -10,6 +11,10 @@ export async function GET(request, { params }) {
 
     if (!startDate || !endDate) {
         return Response.json({ error: 'Missing startDate or endDate' }, { status: 400 });
+    }
+
+    if (isDemoCustomerId(customerId)) {
+        return Response.json(getDemoPayload('shopifyProducts'));
     }
 
     try {

@@ -128,10 +128,20 @@ export default function FacebookPSPage() {
                     prevStart = prevEnd.subtract(days - 1, 'day');
                 }
 
-                const metaParams = new URLSearchParams({ adAccountId, since: appliedRange.startDate, until: appliedRange.endDate });
+                const metaParams = new URLSearchParams({
+                    adAccountId,
+                    since: appliedRange.startDate,
+                    until: appliedRange.endDate,
+                    dashboardCustomerId: String(customer._id),
+                });
                 if (customerMetaID) metaParams.set('customerMetaID', customerMetaID);
                 if (customerMetaIDExclude) metaParams.set('customerMetaIDExclude', customerMetaIDExclude);
-                const prevParams = new URLSearchParams({ adAccountId, since: prevStart.format('YYYY-MM-DD'), until: prevEnd.format('YYYY-MM-DD') });
+                const prevParams = new URLSearchParams({
+                    adAccountId,
+                    since: prevStart.format('YYYY-MM-DD'),
+                    until: prevEnd.format('YYYY-MM-DD'),
+                    dashboardCustomerId: String(customer._id),
+                });
                 if (customerMetaID) prevParams.set('customerMetaID', customerMetaID);
                 if (customerMetaIDExclude) prevParams.set('customerMetaIDExclude', customerMetaIDExclude);
 

@@ -4,6 +4,8 @@ import { fetchMergedSources } from '@/lib/mergedSourcesApi';
 import connectToDatabase from '../../../../../lib/mongodb';
 import DataWrappedReport from '@/models/DataWrappedReport';
 import { getCustomerById } from '../../../../../lib/customerOperations';
+import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
+import { getDemoMergedSourcesForRange } from '@/lib/demoMergedSources';
 
 function getMonthRange(period) {
     const [year, month] = period.split('-').map(Number);
@@ -85,6 +87,20 @@ export async function GET(request, { params }) {
 
     if (!period || !/^\d{4}-\d{2}$/.test(period)) {
         return Response.json({ error: 'Missing or invalid period (expected YYYY-MM)' }, { status: 400 });
+    }
+
+    if (isDemoCustomerId(customerId)) {
+        const { startDate, endDate } = getMonthRange(period);
+        let customer = null;
+        try {
+            const doc = await getCustomerById(customerId);
+            customer = doc?.toObject ? doc.toObject() : doc;
+        } catch {
+            customer = getDemoPayload('customer');
+        }
+        const merged = getDemoMergedSourcesForRange(startDate, endDate, customer);
+        const wrappedData = buildWrappedData(merged, customer, period);
+        return Response.json({ data: wrappedData, fromCache: true });
     }
 
     try {

@@ -1,5 +1,7 @@
 import { getCustomerById } from '../../../../../lib/customerOperations';
 import { fetchKlaviyoDashboardMetricsBothPeriods } from '@/lib/klaviyoDashboard';
+import { isDemoCustomerId } from '@/lib/demoCustomer';
+import { getDemoKlaviyoDashboardForRange } from '@/lib/demoAdMetrics';
 
 // In-memory cache for repeat requests. TTL 5 min. Avoids 50–60s waits when Klaviyo is rate-limited.
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -23,6 +25,13 @@ export async function GET(req, { params }) {
         return new Response(
             JSON.stringify({ error: 'Missing required parameters: customerId, startDate, endDate' }),
             { status: 400 }
+        );
+    }
+
+    if (isDemoCustomerId(customerId)) {
+        return new Response(
+            JSON.stringify(getDemoKlaviyoDashboardForRange(startDate, endDate, prevStartDate, prevEndDate)),
+            { status: 200 }
         );
     }
 

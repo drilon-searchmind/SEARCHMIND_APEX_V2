@@ -3,6 +3,7 @@ import {
     getCustomKpisByCustomerId,
     createCustomKpi,
 } from "../../../../../lib/customKpiOperations";
+import { getDemoPayload, isDemoCustomerId } from "@/lib/demoCustomer";
 
 function serializeKpi(kpi) {
     const obj = kpi.toObject ? kpi.toObject() : kpi;
@@ -22,6 +23,10 @@ export async function GET(request, { params }) {
             { error: "Customer ID required" },
             { status: 400 }
         );
+    }
+
+    if (isDemoCustomerId(customerId)) {
+        return NextResponse.json(getDemoPayload("customKpis"));
     }
 
     try {

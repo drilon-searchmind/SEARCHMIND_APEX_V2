@@ -16,6 +16,7 @@ import Link from "next/link";
 import FormButton from "../form/FormButton";
 import { LuRadar } from "react-icons/lu";
 import { RiToolsFill } from "react-icons/ri";
+import { getDemoCustomerIds } from "@/lib/demoCustomerId";
 
 function getLastMonthPeriod() {
     const d = new Date();
@@ -65,6 +66,13 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
             id => typeof id === 'object' && id.$oid ? id.$oid : String(id)
         );
         accessibleCustomers = customers.filter(c => sharedCustomerIds.includes(String(c._id)));
+        const demoIds = getDemoCustomerIds();
+        for (const demoId of demoIds) {
+            const demoRow = customers.find((c) => String(c._id) === demoId);
+            if (demoRow && !accessibleCustomers.some((c) => String(c._id) === demoId)) {
+                accessibleCustomers = [...accessibleCustomers, demoRow];
+            }
+        }
     }
     // Share property modal state
     const [showShareModal, setShowShareModal] = useState(false);

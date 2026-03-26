@@ -1,6 +1,7 @@
 // src/app/api/clickup-team-members/[customerId]/route.js
 import Customer from '@/models/Customer';
 import connectToDatabase from '../../../../../lib/mongodb';
+import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
 
 /** Fixed ClickUp list whose /member endpoint includes profile pictures for Searchmind team. */
 const CLICKUP_TEAM_LIST_ID = '210313781';
@@ -147,9 +148,14 @@ function applyListProfilePictures(members, { byId, byEmail, byUsername }) {
 
 export async function GET(request, { params }) {
     try {
-        await connectToDatabase();
         const resolvedParams = await params;
         const customerId = resolvedParams.customerId;
+
+        if (isDemoCustomerId(customerId)) {
+            return Response.json(getDemoPayload('clickupTeamMembers'), { status: 200 });
+        }
+
+        await connectToDatabase();
 
         // Fetch the customer to get their ClickUp ID
         const customer = await Customer.findById(customerId);

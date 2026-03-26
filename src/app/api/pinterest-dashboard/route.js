@@ -1,4 +1,6 @@
 import { fetchPinterestDashboardMetrics } from "@/lib/pinterestApi";
+import { isDemoCustomerId } from "@/lib/demoCustomer";
+import { getDemoPinterestDashboardForRange } from "@/lib/demoAdMetrics";
 
 /**
  * GET /api/pinterest-dashboard?adAccountId=...&startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
@@ -7,6 +9,7 @@ import { fetchPinterestDashboardMetrics } from "@/lib/pinterestApi";
 export async function GET(req) {
     const accessToken = process.env.PINTEREST_ACCESS_TOKEN;
     const { searchParams } = new URL(req.url);
+    const dashboardCustomerId = searchParams.get("dashboardCustomerId");
     const adAccountId = searchParams.get("adAccountId");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
@@ -16,6 +19,13 @@ export async function GET(req) {
             JSON.stringify({ error: "Missing required query parameters: adAccountId, startDate, endDate" }),
             { status: 400, headers: { "Content-Type": "application/json" } }
         );
+    }
+
+    if (dashboardCustomerId && isDemoCustomerId(dashboardCustomerId)) {
+        return new Response(JSON.stringify(getDemoPinterestDashboardForRange(startDate, endDate)), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+        });
     }
 
     if (!accessToken) {

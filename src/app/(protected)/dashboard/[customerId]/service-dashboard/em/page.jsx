@@ -9,6 +9,7 @@ import Spinner from "@/components/ui/Spinner";
 import { FiMail, FiMousePointer, FiTrendingUp, FiDollarSign, FiSend, FiUserX } from "react-icons/fi";
 import { useCustomers } from "@/hooks/useCustomers";
 import dayjs from "dayjs";
+import { isDemoCustomerId } from "@/lib/demoCustomerId";
 
 const METRIC_OPTIONS = [
     { key: "revenue", label: "Revenue", icon: FiDollarSign },
@@ -88,7 +89,8 @@ export default function EmailDashboardPage() {
         setTempRange((dr) => ({ ...dr, endDate: newEnd }));
     };
 
-    const hasKlaviyoCredentials = !!customer?.CustomerSettings?.klaviyoPrivateApiKey;
+    const hasKlaviyoCredentials =
+        !!customer?.CustomerSettings?.klaviyoPrivateApiKey || isDemoCustomerId(customerId);
 
     useEffect(() => {
         if (!customer || !hasKlaviyoCredentials || !customerId) {

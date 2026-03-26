@@ -3,6 +3,13 @@
 // new_or_returning_customer dimension (FROM sales). Much faster than order-level fetch.
 // ?full=true returns full segmentation (ShopifyQL + merged-sources) for Customer Performance page.
 import { fetchCustomerSegmentationShopifyql, fetchCustomerSegmentationShopifyqlFull } from '@/lib/customerSegmentationShopifyql';
+import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
+import {
+    getDemoMergedSourcesForRange,
+    getDemoShopifyqlFullFromMerged,
+    getDemoShopifyqlSegmentationFromMerged,
+} from '@/lib/demoMergedSources';
+import { getCustomerById } from '../../../../../lib/customerOperations';
 
 export async function GET(request, { params }) {
     const { searchParams } = new URL(request.url);
@@ -14,6 +21,21 @@ export async function GET(request, { params }) {
 
     if (!customerId) return Response.json({ error: 'Missing customerId in path' }, { status: 400 });
     if (!startDate || !endDate) return Response.json({ error: 'Missing startDate or endDate' }, { status: 400 });
+
+    if (isDemoCustomerId(customerId)) {
+        let customer = null;
+        try {
+            const doc = await getCustomerById(customerId);
+            customer = doc?.toObject ? doc.toObject() : doc;
+        } catch {
+            customer = getDemoPayload('customer');
+        }
+        const merged = getDemoMergedSourcesForRange(startDate, endDate, customer);
+        const payload = full
+            ? getDemoShopifyqlFullFromMerged(merged)
+            : getDemoShopifyqlSegmentationFromMerged(merged);
+        return Response.json(payload);
+    }
 
     try {
         const data = full

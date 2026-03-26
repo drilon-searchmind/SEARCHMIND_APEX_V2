@@ -1,5 +1,8 @@
 // src/app/api/customer-segmentation/[customerId]/route.js
-import fetchCustomerSegmentation from '@/lib/customerSegmentationApi';
+import fetchCustomerSegmentation, { computeSegmentationFromMerged } from '@/lib/customerSegmentationApi';
+import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
+import { getDemoMergedSourcesForRange } from '@/lib/demoMergedSources';
+import { getCustomerById } from '../../../../../lib/customerOperations';
 
 // In-memory cache for repeat requests (same customer + date range). TTL 5 min.
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -16,6 +19,18 @@ export async function GET(request, { params }) {
 
     if (!customerId) return Response.json({ error: 'Missing customerId in path' }, { status: 400 });
     if (!startDate || !endDate) return Response.json({ error: 'Missing startDate or endDate' }, { status: 400 });
+
+    if (isDemoCustomerId(customerId)) {
+        let customer = null;
+        try {
+            const doc = await getCustomerById(customerId);
+            customer = doc?.toObject ? doc.toObject() : doc;
+        } catch {
+            customer = getDemoPayload('customer');
+        }
+        const merged = getDemoMergedSourcesForRange(startDate, endDate, customer);
+        return Response.json(computeSegmentationFromMerged(merged, startDate, endDate));
+    }
 
     const cacheKey = `${customerId}:${startDate}:${endDate}:${fast}:${extendForLtv}`;
     const cached = cache.get(cacheKey);

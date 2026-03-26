@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '../../../../../lib/mongodb';
 import CustomerTrackingScanScores from '@/models/CustomerTrackingScanScores';
+import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
 
 // GET /api/customer-tracking-scores/[customerId] - Get the newest scan for the customer
 export async function GET(request, { params }) {
@@ -12,6 +13,10 @@ export async function GET(request, { params }) {
             { error: 'Customer ID required' },
             { status: 400 }
         );
+    }
+
+    if (isDemoCustomerId(customerId)) {
+        return NextResponse.json(getDemoPayload('customerTrackingScores'));
     }
 
     try {

@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../auth/[...nextauth]/route';
 import { markOpenedWrappedPeriod } from '../../../../../lib/userService';
+import { isDemoCustomerId } from '@/lib/demoCustomer';
 
 export async function POST(request) {
     const session = await getServerSession(authOptions);
@@ -15,6 +16,10 @@ export async function POST(request) {
         const customerIdStr = String(customerId || "").trim();
         if (!customerIdStr) {
             return Response.json({ error: 'Missing customerId' }, { status: 400 });
+        }
+
+        if (isDemoCustomerId(customerIdStr)) {
+            return Response.json({ ok: true });
         }
 
         const toMark = Array.isArray(periods)

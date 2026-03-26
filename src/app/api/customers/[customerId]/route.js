@@ -5,6 +5,7 @@ import {
     deleteCustomer,
     permanentlyDeleteCustomer
 } from '../../../../../lib/customerOperations';
+import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
 
 // GET /api/customers/[customerId] - Get a specific customer
 export async function GET(request, { params }) {
@@ -12,6 +13,23 @@ export async function GET(request, { params }) {
     const customerId = resolvedParams.customerId;
 
     try {
+        if (isDemoCustomerId(customerId)) {
+            const demo = getDemoPayload('customer');
+            let dbCustomer = null;
+            try {
+                dbCustomer = await getCustomerById(customerId);
+            } catch {
+                dbCustomer = null;
+            }
+            return NextResponse.json({
+                ...demo,
+                _id: customerId,
+                customerName: dbCustomer?.customerName ?? demo.customerName,
+                parentCustomer: dbCustomer?.parentCustomer ?? demo.parentCustomer,
+                createdAt: dbCustomer?.createdAt ?? demo.createdAt,
+                updatedAt: dbCustomer?.updatedAt ?? demo.updatedAt,
+            });
+        }
         const customer = await getCustomerById(customerId);
         return NextResponse.json(customer);
     } catch (error) {

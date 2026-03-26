@@ -1,9 +1,34 @@
 import { NextResponse } from 'next/server';
 import { getSearchConsoleClient } from '@/lib/searchConsoleClient';
+import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
+import { eachDayInclusive, numHash } from '@/lib/demoAdMetrics';
+
+function buildDemoSeoMetricsForRange(startDate, endDate) {
+    const template = getDemoPayload('seoDashboardMetrics') || {};
+    const rows = eachDayInclusive(startDate, endDate).map((date) => {
+        const h = numHash(`seo-${date}`);
+        return {
+            keys: [date],
+            clicks: 20 + (h % 15),
+            impressions: 800 + (h % 200),
+            ctr: 0.03,
+            position: 12 + (h % 8),
+        };
+    });
+    return {
+        metrics: { rows },
+        keywords: template.keywords || { rows: [] },
+        urls: template.urls || { rows: [] },
+    };
+}
 
 export async function POST(req) {
     try {
-        const { siteUrl, startDate, endDate } = await req.json();
+        const body = await req.json();
+        const { siteUrl, startDate, endDate, customerId } = body;
+        if (customerId && isDemoCustomerId(customerId)) {
+            return NextResponse.json(buildDemoSeoMetricsForRange(startDate, endDate));
+        }
         if (!siteUrl || !startDate || !endDate) {
             return NextResponse.json({ error: 'Missing siteUrl, startDate or endDate' }, { status: 400 });
         }

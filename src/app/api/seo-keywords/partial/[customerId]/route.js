@@ -3,6 +3,7 @@ import connectToDatabase from '../../../../../../lib/mongodb';
 import SEOPartialKeywordGroup from '@/models/SEOPartialKeywordGroup';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
 
 // GET - Fetch all partial keyword groups for a customer
 export async function GET(request, { params }) {
@@ -12,9 +13,14 @@ export async function GET(request, { params }) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        await connectToDatabase();
         const resolvedParams = await params;
         const { customerId } = resolvedParams;
+
+        if (isDemoCustomerId(customerId)) {
+            return NextResponse.json(getDemoPayload('seoKeywordsPartial'));
+        }
+
+        await connectToDatabase();
 
         const groups = await SEOPartialKeywordGroup.find({ customer: customerId }).sort({ createdAt: -1 });
 

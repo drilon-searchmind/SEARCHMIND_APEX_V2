@@ -115,9 +115,10 @@ export default function GoogleAdsPPCPage() {
 					googleAdsCountryExclude ? `countryExclude=${encodeURIComponent(googleAdsCountryExclude)}` : '',
 				].filter(Boolean).join('&');
 				const countryParam = countryParams ? `&${countryParams}` : '';
+				const dash = `&dashboardCustomerId=${encodeURIComponent(String(customer._id))}`;
 				const [ppcRes, ppcResPrev] = await Promise.all([
-					fetch(`/api/google-ppc-dashboard?customerId=${encodeURIComponent(googleAdsCustomerId)}&startDate=${encodeURIComponent(appliedRange.startDate)}&endDate=${encodeURIComponent(appliedRange.endDate)}${countryParam}`),
-					fetch(`/api/google-ppc-dashboard?customerId=${encodeURIComponent(googleAdsCustomerId)}&startDate=${encodeURIComponent(prevStart.format('YYYY-MM-DD'))}&endDate=${encodeURIComponent(prevEnd.format('YYYY-MM-DD'))}${countryParam}`)
+					fetch(`/api/google-ppc-dashboard?customerId=${encodeURIComponent(googleAdsCustomerId)}&startDate=${encodeURIComponent(appliedRange.startDate)}&endDate=${encodeURIComponent(appliedRange.endDate)}${countryParam}${dash}`),
+					fetch(`/api/google-ppc-dashboard?customerId=${encodeURIComponent(googleAdsCustomerId)}&startDate=${encodeURIComponent(prevStart.format('YYYY-MM-DD'))}&endDate=${encodeURIComponent(prevEnd.format('YYYY-MM-DD'))}${countryParam}${dash}`)
 				]);
 				
 				if (!ppcRes.ok) throw new Error("Failed to fetch Google Ads PPC dashboard metrics");

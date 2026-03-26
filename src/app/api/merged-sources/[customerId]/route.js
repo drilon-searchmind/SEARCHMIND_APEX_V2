@@ -1,5 +1,8 @@
 // src/app/api/merged-sources/[customerId]/route.js
 import { fetchMergedSources } from '@/lib/mergedSourcesApi';
+import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
+import { getDemoMergedSourcesForRange } from '@/lib/demoMergedSources';
+import { getCustomerById } from '../../../../../lib/customerOperations';
 
 export async function GET(request, { params }) {
     const resolvedParams = await params;
@@ -11,6 +14,17 @@ export async function GET(request, { params }) {
 
     if (!startDate || !endDate) {
         return Response.json({ error: 'Missing startDate or endDate' }, { status: 400 });
+    }
+
+    if (isDemoCustomerId(customerId)) {
+        let customer = null;
+        try {
+            const doc = await getCustomerById(customerId);
+            customer = doc?.toObject ? doc.toObject() : doc;
+        } catch {
+            customer = getDemoPayload('customer');
+        }
+        return Response.json(getDemoMergedSourcesForRange(startDate, endDate, customer));
     }
 
     // Rule: parent-property, daily-overview, and performance-dashboard need daily breakdown for Facebook (PS cost per day, Ad Spend Allocation chart)

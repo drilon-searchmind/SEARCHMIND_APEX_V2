@@ -137,6 +137,7 @@ export default function AnalyticsPage() {
                 metrics: ["totalUsers", "screenPageViews", "bounceRate", "averageSessionDuration"].join(","),
                 dimensions: "date",
                 propertyId: ga4PropertyId,
+                customerId,
             })}`);
             const tJson = await tRes.json();
             if (!tRes.ok) throw new Error(tJson?.error || "GA4 timeseries failed");
@@ -177,6 +178,7 @@ export default function AnalyticsPage() {
                 dimensions: "pageTitle",
                 limit: 10,
                 propertyId: ga4PropertyId,
+                customerId,
             })}`);
             const pJson = await pRes.json();
             if (!pRes.ok) throw new Error(pJson?.error || "GA4 pages failed");
@@ -197,6 +199,7 @@ export default function AnalyticsPage() {
                 dimensions: "yearMonth,sessionDefaultChannelGroup",
                 limit: 1000,
                 propertyId: ga4PropertyId,
+                customerId,
             })}`);
             const acqJson = await acqRes.json();
             if (!acqRes.ok) throw new Error(acqJson?.error || "GA4 acquisition channels failed");
@@ -238,6 +241,7 @@ export default function AnalyticsPage() {
                 dimensions: "deviceCategory",
                 limit: 100,
                 propertyId: ga4PropertyId,
+                customerId,
             })}`);
             const devJson = await devRes.json();
             if (!devRes.ok) throw new Error(devJson?.error || "GA4 devices failed");
@@ -261,7 +265,7 @@ export default function AnalyticsPage() {
         } finally {
             setLoading(false);
         }
-    }, [appliedRange.startDate, appliedRange.endDate, ga4PropertyId]);
+    }, [appliedRange.startDate, appliedRange.endDate, ga4PropertyId, customerId]);
 
     useEffect(() => {
         fetchAll();

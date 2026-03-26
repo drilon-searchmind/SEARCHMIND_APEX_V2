@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "../../../../../lib/mongodb";
+import { getDemoPayload, isDemoCustomerId } from "@/lib/demoCustomer";
 import {
     getCampaignsByCustomer,
     createCampaigns,
@@ -13,9 +14,12 @@ import User from "../../../../../models/User"
 
 // GET /api/campaigns/[customerId] - Get all campaigns for a customer
 export async function GET(request, { params }) {
-    await dbConnect();
     const resolvedParams = await params;
     const customerId = resolvedParams.customerId;
+    if (isDemoCustomerId(customerId)) {
+        return NextResponse.json(getDemoPayload("campaigns"));
+    }
+    await dbConnect();
     try {
         const campaigns = await getCampaignsByCustomer(customerId);
         return NextResponse.json(campaigns);

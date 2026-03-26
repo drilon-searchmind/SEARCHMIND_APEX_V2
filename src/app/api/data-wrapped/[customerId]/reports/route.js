@@ -3,6 +3,7 @@ import { authOptions } from '../../../auth/[...nextauth]/route';
 import connectToDatabase from '../../../../../../lib/mongodb';
 import DataWrappedReport from '@/models/DataWrappedReport';
 import { getCustomerById } from '../../../../../../lib/customerOperations';
+import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -20,6 +21,10 @@ export async function GET(request, { params }) {
 
     const resolvedParams = await params;
     const customerId = resolvedParams.customerId;
+
+    if (isDemoCustomerId(customerId)) {
+        return Response.json(getDemoPayload('dataWrappedReports'));
+    }
 
     try {
         await connectToDatabase();

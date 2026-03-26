@@ -1,4 +1,5 @@
 import { fetchProductInventoryOnly } from '@/lib/shopifyProductsApi';
+import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
 
 export async function POST(request, { params }) {
     const resolvedParams = await params;
@@ -6,6 +7,10 @@ export async function POST(request, { params }) {
 
     if (!customerId) {
         return Response.json({ error: 'Missing customerId' }, { status: 400 });
+    }
+
+    if (isDemoCustomerId(customerId)) {
+        return Response.json(getDemoPayload('shopifyInventory'));
     }
 
     try {

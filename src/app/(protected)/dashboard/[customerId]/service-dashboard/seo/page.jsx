@@ -153,7 +153,12 @@ export default function SEODashboardPage() {
             const res = await fetch('/api/seo-dashboard/metrics', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ siteUrl, startDate: appliedRange.startDate, endDate: appliedRange.endDate }),
+                body: JSON.stringify({
+                    siteUrl,
+                    startDate: appliedRange.startDate,
+                    endDate: appliedRange.endDate,
+                    customerId,
+                }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error?.message || 'API error');
