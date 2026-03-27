@@ -298,7 +298,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                     {/* Team Members - desktop (xl+). Tracking score remains admin-only. */}
                     {showLinks && (
                         <div id="teamMembers" className="hidden xl:flex items-center gap-6">
-                            {!user?.isExternal && user?.isAdmin && (
+                            {!user?.isExternal && (
                                 <TrackingScore customerId={activeCustomerId} />
                             )}
                             <TeamMembers />

@@ -133,6 +133,8 @@ const customer = {
         googleAdsCountryFilter: "",
         googleAdsCountryExclude: "",
         pinterestAdAccountId: "1234567890123",
+        bingAdsCustomerId: "251234567",
+        bingAdsAccountId: "1234567890",
         googleSearchConsoleProperty: "https://demo.example.com/",
         ga4PropertyId: "460732795",
         klaviyoPrivateApiKey: "demo-klaviyo-key",

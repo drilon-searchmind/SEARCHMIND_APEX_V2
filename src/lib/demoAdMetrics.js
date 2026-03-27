@@ -163,6 +163,57 @@ export function getDemoPinterestDashboardForRange(startDate, endDate) {
     };
 }
 
+function bingRow(date) {
+    const di = dayIndexFrom20250101(date);
+    const revScale = 1 + di * 0.000065;
+    const spendScale = 1 + di * 0.00004;
+    const wRev = dateWiggle(date, "bcr-v");
+    const wSpend = dateWiggle(date, "bcs-v");
+    const h = numHash(`bing-${date}`);
+    const ad_spend = Math.round((680 + (h % 72)) * spendScale * wSpend);
+    const impressions = Math.round((95000 + (h % 4200)) * (1 + di * 0.00005) * dateWiggle(date, "bimp"));
+    const clicks = Math.round((1900 + (h % 180)) * (1 + di * 0.00007) * dateWiggle(date, "bclk"));
+    const conversions = Math.round((16 + (h % 7)) * (1 + di * 0.0001) * dateWiggle(date, "bconv"));
+    const conversion_value = Math.round((2400 + (h % 220)) * revScale * wRev);
+    return {
+        date,
+        conversion_value,
+        ad_spend,
+        conversions,
+        impressions,
+        clicks,
+        roas: ad_spend > 0 ? conversion_value / ad_spend : 0,
+        ctr: impressions > 0 ? clicks / impressions : 0,
+        cpc: clicks > 0 ? ad_spend / clicks : 0,
+        cpm: impressions > 0 ? (ad_spend / impressions) * 1000 : 0,
+    };
+}
+
+/** Microsoft Advertising / Bing Ads — same response shape as Pinterest dashboard (metrics_by_date + top_campaigns). */
+export function getDemoBingDashboardForRange(startDate, endDate) {
+    const days = eachDayInclusive(startDate, endDate);
+    return {
+        metrics_by_date: days.map(bingRow),
+        top_campaigns: [
+            {
+                campaign_name: "Search — Brand (Bing)",
+                clicks: 4200,
+                impressions: 98000,
+                conversions: 88,
+                ctr: 0.043,
+            },
+            {
+                campaign_name: "Audience — Remarketing",
+                clicks: 2100,
+                impressions: 76000,
+                conversions: 52,
+                ctr: 0.028,
+            },
+        ],
+        campaigns_by_date: [],
+    };
+}
+
 export function getDemoKlaviyoDashboardForRange(startDate, endDate, prevStartDate, prevEndDate) {
     const curDays = eachDayInclusive(startDate, endDate);
     const metrics_by_date = curDays.map((date) => {

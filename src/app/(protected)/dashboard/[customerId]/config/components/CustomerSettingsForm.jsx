@@ -3,17 +3,51 @@
 import React from "react";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
-import { FiSettings, FiShoppingBag, FiPackage, FiDatabase, FiFacebook, FiTrendingUp, FiSearch, FiMail, FiImage } from "react-icons/fi";
+import { FiSettings, FiShoppingBag, FiPackage, FiDatabase, FiFacebook, FiTrendingUp, FiSearch, FiMail, FiImage, FiLayers } from "react-icons/fi";
 
-function SettingsSection({ title, icon: Icon, children }) {
+function SettingsSection({ title, icon: Icon, children, sectionId }) {
     return (
-        <div className="mb-8 last:mb-0 bg-gray-50 p-8 rounded-xl border border-gray-200">
-            <h6 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4 pb-2 border-b border-gray-200 flex items-center gap-2">
-                {Icon && <Icon className="w-4 h-4 text-[var(--color-primary-searchmind)]" />}
-                {title}
-            </h6>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
-        </div>
+        <section
+            id={sectionId}
+            className={`mb-8 last:mb-0 ${sectionId ? "scroll-mt-24" : ""}`}
+        >
+            <div className="bg-gray-50 p-8 rounded-xl border border-gray-200">
+                <h6 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4 pb-2 border-b border-gray-200 flex items-center gap-2">
+                    {Icon && <Icon className="w-4 h-4 text-[var(--color-primary-searchmind)]" />}
+                    {title}
+                </h6>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
+            </div>
+        </section>
+    );
+}
+
+function scrollToSection(id) {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function TableOfContents({ items }) {
+    return (
+        <nav
+            aria-label="On this page"
+            className="mb-8 rounded-xl border border-gray-200 bg-white p-4"
+        >
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">On this page</p>
+            <ul className="flex flex-wrap gap-2">
+                {items.map(({ id, label }) => (
+                    <li key={id}>
+                        <button
+                            type="button"
+                            onClick={() => scrollToSection(id)}
+                            className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-left text-sm font-medium text-gray-700 transition-colors hover:border-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind-lighter)] hover:text-gray-900"
+                        >
+                            {label}
+                        </button>
+                    </li>
+                ))}
+            </ul>
+        </nav>
     );
 }
 
@@ -73,10 +107,32 @@ function FormCheckbox({ id, name, label, checked, onChange }) {
 }
 
 export default function CustomerSettingsForm({ form, onChange, saving, customerType }) {
+    const storeSection =
+        customerType === "Shopify"
+            ? { id: "store-platform", label: "Shopify" }
+            : customerType === "WooCommerce"
+              ? { id: "store-platform", label: "WooCommerce" }
+              : customerType === "Magento"
+                ? { id: "store-platform", label: "Magento" }
+                : null;
+
+    const tocItems = [
+        { id: "general", label: "General" },
+        ...(storeSection ? [storeSection] : []),
+        { id: "meta", label: "Meta" },
+        { id: "google-ads", label: "Google Ads" },
+        { id: "pinterest-ads", label: "Pinterest Ads" },
+        { id: "microsoft-ads", label: "Microsoft Ads" },
+        { id: "seo", label: "SEO" },
+        { id: "email", label: "Email" },
+    ];
+
     return (
         <form className="flex flex-col" onSubmit={(e) => e.preventDefault()}>
+            <TableOfContents items={tocItems} />
+
             {/* General */}
-            <SettingsSection title="General" icon={FiSettings}>
+            <SettingsSection title="General" icon={FiSettings} sectionId="general">
                 <FormSelect
                     id="metricPreference"
                     name="metricPreference"
@@ -132,7 +188,7 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
 
             {/* Shopify */}
             {customerType === "Shopify" && (
-                <SettingsSection title="Shopify" icon={FiShoppingBag}>
+                <SettingsSection title="Shopify" icon={FiShoppingBag} sectionId="store-platform">
                     <FormField
                         id="shopifyUrl"
                         name="shopifyUrl"
@@ -171,7 +227,7 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
 
             {/* WooCommerce */}
             {customerType === "WooCommerce" && (
-                <SettingsSection title="WooCommerce" icon={FiPackage}>
+                <SettingsSection title="WooCommerce" icon={FiPackage} sectionId="store-platform">
                     <FormField
                         id="wooCommerceApiKey"
                         name="wooCommerceApiKey"
@@ -200,7 +256,7 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
 
             {/* Magento */}
             {customerType === "Magento" && (
-                <SettingsSection title="Magento" icon={FiDatabase}>
+                <SettingsSection title="Magento" icon={FiDatabase} sectionId="store-platform">
                     <FormField
                         id="magentoBaseUrl"
                         name="magentoBaseUrl"
@@ -285,7 +341,7 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
             </SettingsSection>
 
             {/* Google Ads */}
-            <SettingsSection title="Google Ads" icon={FiTrendingUp}>
+            <SettingsSection title="Google Ads" icon={FiTrendingUp} sectionId="google-ads">
                 <FormField
                     id="googleAdsCustomerId"
                     name="googleAdsCustomerId"
@@ -313,7 +369,7 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
             </SettingsSection>
 
             {/* Pinterest Ads */}
-            <SettingsSection title="Pinterest Ads" icon={FiImage}>
+            <SettingsSection title="Pinterest Ads" icon={FiImage} sectionId="pinterest-ads">
                 <FormField
                     id="pinterestAdAccountId"
                     name="pinterestAdAccountId"
@@ -324,8 +380,28 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
                 />
             </SettingsSection>
 
+            {/* Microsoft Advertising (Bing Ads) */}
+            <SettingsSection title="Microsoft Advertising (Bing Ads)" icon={FiLayers} sectionId="microsoft-ads">
+                <FormField
+                    id="bingAdsCustomerId"
+                    name="bingAdsCustomerId"
+                    label="Microsoft Advertising Customer ID"
+                    value={form.bingAdsCustomerId}
+                    onChange={onChange}
+                    placeholder="Digits only — Customer (manager) ID, not Kontonummer"
+                />
+                <FormField
+                    id="bingAdsAccountId"
+                    name="bingAdsAccountId"
+                    label="Microsoft Advertising Account ID"
+                    value={form.bingAdsAccountId}
+                    onChange={onChange}
+                    placeholder="Digits only — numeric Konto-id, not the alphanumeric Kontonummer (e.g. F118BTG2)"
+                />
+            </SettingsSection>
+
             {/* SEO */}
-            <SettingsSection title="SEO" icon={FiSearch}>
+            <SettingsSection title="SEO" icon={FiSearch} sectionId="seo">
                 <FormField
                     id="googleSearchConsoleProperty"
                     name="googleSearchConsoleProperty"
@@ -345,7 +421,7 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
             </SettingsSection>
 
             {/* Email (Klaviyo) */}
-            <SettingsSection title="Email (Klaviyo)" icon={FiMail}>
+            <SettingsSection title="Email (Klaviyo)" icon={FiMail} sectionId="email">
                 <FormField
                     id="klaviyoPrivateApiKey"
                     name="klaviyoPrivateApiKey"

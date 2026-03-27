@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import {
     FiChevronDown,
@@ -16,25 +16,45 @@ import {
     FiChevronsRight,
     FiGift,
     FiImage,
+    FiLayers,
+    FiAlertTriangle,
 } from "react-icons/fi";
 import Image from "next/image";
 import { useParams, usePathname } from "next/navigation";
 import SmallLabel from "../ui/SmallLabel";
 import { useUser } from "@/contexts/UserContext";
+import { useCustomers } from "@/hooks/useCustomers";
 
-function getLastMonthPeriod() {
-    const d = new Date();
-    d.setMonth(d.getMonth() - 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+/** Treats empty, "0", and "1" as missing/placeholder (per Customer settings). */
+function isValidIntegrationId(value) {
+    const s = String(value ?? "").trim();
+    if (!s) return false;
+    if (s === "0" || s === "1") return false;
+    return true;
 }
 
-function getOpenedPeriodsForCustomer(openedWrappedPeriods, customerId) {
-    if (!openedWrappedPeriods || typeof openedWrappedPeriods !== "object" || Array.isArray(openedWrappedPeriods))
-        return [];
-    const key = String(customerId || "").trim();
-    if (!key) return [];
-    const raw = openedWrappedPeriods[key] ?? openedWrappedPeriods[customerId];
-    return Array.isArray(raw) ? raw.map((p) => String(p).trim()).filter((p) => /^\d{4}-\d{2}$/.test(p)) : [];
+function getServiceDashboardConfigWarnings(settings) {
+    const s = settings || {};
+    return {
+        seo: !isValidIntegrationId(s.googleSearchConsoleProperty),
+        ppc: !isValidIntegrationId(s.googleAdsCustomerId),
+        ps: !isValidIntegrationId(s.facebookAdAccountId),
+        pinterest: !isValidIntegrationId(s.pinterestAdAccountId),
+        bing: !(
+            isValidIntegrationId(s.bingAdsAccountId) && isValidIntegrationId(s.bingAdsCustomerId)
+        ),
+        em: !isValidIntegrationId(s.klaviyoPrivateApiKey),
+    };
+}
+
+function serviceDashboardWarningKeyForHref(href) {
+    if (href.includes("service-dashboard/seo")) return "seo";
+    if (href.includes("service-dashboard/ppc")) return "ppc";
+    if (href.includes("service-dashboard/ps")) return "ps";
+    if (href.includes("service-dashboard/pinterest")) return "pinterest";
+    if (href.includes("service-dashboard/bing")) return "bing";
+    if (href.includes("service-dashboard/em")) return "em";
+    return null;
 }
 
 // Map of route patterns to their respective icons
@@ -50,65 +70,17 @@ const getIconForRoute = (href) => {
     if (href.includes("service-dashboard/ppc")) return <FiDollarSign className="w-4 h-4" />;
     if (href.includes("service-dashboard/ps")) return <FiShoppingCart className="w-4 h-4" />;
     if (href.includes("service-dashboard/pinterest")) return <FiImage className="w-4 h-4" />;
+    if (href.includes("service-dashboard/bing")) return <FiLayers className="w-4 h-4" />;
     if (href.includes("campaign-planner")) return <FiCalendar className="w-4 h-4" />;
     if (href.includes("config")) return <FiSettings className="w-4 h-4" />;
     if (href.includes("test-page")) return <FiFolder className="w-4 h-4" />;
     return <FiFolder className="w-4 h-4" />;
 };
 
-const DataWrappedNavItem = ({ href, activeCustomerId, pathname, isSmallScreen }) => {
-    const user = useUser();
-    if (!activeCustomerId) return null;
-    const lastMonthPeriod = getLastMonthPeriod();
-    const opened = getOpenedPeriodsForCustomer(user?.openedWrappedPeriods, activeCustomerId);
-    const hasOpenedLastMonth = opened.includes(lastMonthPeriod);
-    const showPulse = !hasOpenedLastMonth;
-    const isActive = pathname === href;
+const CONFIG_WARNING_TITLE =
+    "Integration not configured for this customer (check Config or set a valid ID — not empty, 0, or 1)";
 
-    return (
-        <li
-            className={`py-2 rounded-lg w-full group relative ` +
-                (isSmallScreen ? "px-2" : "px-6") +
-                (isActive ? " bg-[var(--color-primary-searchmind-lighter)]" : "")
-            }
-        >
-            <Link href={href} className="w-full">
-                <span className={`flex items-center justify-between text-[0.85rem] font-medium ${isActive ? "text-white" : "text-slate-600"}`}>
-                    {isSmallScreen ? (
-                        <>
-                            <div className="relative flex items-center justify-center">
-                                {showPulse && (
-                                    <span
-                                        className="absolute inset-0 rounded-full bg-[var(--color-lime)]/90 wrapped-pulse-ring pointer-events-none scale-150"
-                                        aria-hidden="true"
-                                    />
-                                )}
-                                <FiGift className={`relative z-10 w-4 h-4 ${showPulse ? "text-[var(--color-primary-searchmind)] data-wrapped-shake-icon" : ""}`} />
-                            </div>
-                            <div className="absolute left-[70px] bg-gray-900 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
-                                Data Wrapped
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <span className="flex items-center gap-2 relative">
-                                {showPulse && (
-                                    <span
-                                        className="w-2 h-2 rounded-full bg-[var(--color-lime)] wrapped-pulse-ring flex-shrink-0"
-                                        aria-hidden="true"
-                                    />
-                                )}
-                                <span>Data Wrapped</span>
-                            </span>
-                        </>
-                    )}
-                </span>
-            </Link>
-        </li>
-    );
-};
-
-const NavItem = ({ href, label, activeCustomerId, pathname, subLabel, isSmallScreen }) => {
+const NavItem = ({ href, label, activeCustomerId, pathname, subLabel, isSmallScreen, configWarning }) => {
     const isActive = pathname === href;
     const icon = getIconForRoute(href);
 
@@ -123,17 +95,32 @@ const NavItem = ({ href, label, activeCustomerId, pathname, subLabel, isSmallScr
                 <span className={`flex items-center justify-between text-[0.85rem] font-medium ${isActive ? "text-white" : "text-slate-600"}`}>
                     {isSmallScreen ? (
                         <>
-                            {icon}
+                            <span className="flex items-center gap-0.5" title={configWarning ? CONFIG_WARNING_TITLE : undefined}>
+                                {icon}
+                                {configWarning ? (
+                                    <FiAlertTriangle className="w-3 h-3 text-amber-400 shrink-0" aria-hidden />
+                                ) : null}
+                            </span>
                             {/* Small screen tooltip */}
                             <div className="absolute left-[70px] bg-gray-900 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
                                 {label}
+                                {configWarning ? " — not configured" : ""}
                             </div>
                         </>
                     ) : (
-                        <>
-                            {label}
+                        <span className="flex items-center justify-between gap-1.5 flex-wrap w-full">
+                            <span>{label}</span>
+                            <span className="flex items-center gap-2">
+                            {configWarning ? (
+                                <FiAlertTriangle
+                                    className="w-3.5 h-3.5 text-amber-500 shrink-0"
+                                    aria-label="Integration not configured"
+                                    title={CONFIG_WARNING_TITLE}
+                                />
+                            ) : null}
                             {subLabel && <SmallLabel>{subLabel}</SmallLabel>}
-                        </>
+                            </span>
+                        </span>
                     )}
                 </span>
             </Link>
@@ -149,8 +136,24 @@ const Sidebar = ({ showLinks = true }) => {
 
     const params = useParams();
     const user = useUser();
+    const { customers } = useCustomers();
     const pathname = usePathname();
     const activeCustomerId = params?.customerId;
+
+    const serviceDashboardWarnings = useMemo(() => {
+        if (!activeCustomerId) return null;
+        const cur = customers.find((c) => String(c._id) === String(activeCustomerId));
+        return getServiceDashboardConfigWarnings(cur?.CustomerSettings);
+    }, [customers, activeCustomerId]);
+
+    const configWarningForHref = (href) => {
+        const key = serviceDashboardWarningKeyForHref(href);
+        if (!key || !serviceDashboardWarnings) return false;
+        return !!serviceDashboardWarnings[key];
+    };
+
+    const serviceDashboardHref = (segment) =>
+        `/dashboard/${activeCustomerId}/service-dashboard/${segment}`;
 
     // Handle responsive sidebar
     React.useEffect(() => {
@@ -276,44 +279,58 @@ const Sidebar = ({ showLinks = true }) => {
                                     {serviceOpen && (
                                         <ul className="mt-2 space-y-2 flex flex-col w-full">
                                             <NavItem
-                                                href={`/dashboard/${activeCustomerId}/service-dashboard/seo`}
+                                                href={serviceDashboardHref("seo")}
                                                 label="SEO"
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                                 subLabel={"BETA"}
+                                                configWarning={configWarningForHref(serviceDashboardHref("seo"))}
                                             />
                                             <NavItem
-                                                href={`/dashboard/${activeCustomerId}/service-dashboard/ppc`}
+                                                href={serviceDashboardHref("ppc")}
                                                 label="PPC"
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                                 subLabel={"BETA"}
+                                                configWarning={configWarningForHref(serviceDashboardHref("ppc"))}
                                             />
                                             <NavItem
-                                                href={`/dashboard/${activeCustomerId}/service-dashboard/ps`}
+                                                href={serviceDashboardHref("ps")}
                                                 label="PS"
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                                 subLabel={"BETA"}
+                                                configWarning={configWarningForHref(serviceDashboardHref("ps"))}
                                             />
                                             <NavItem
-                                                href={`/dashboard/${activeCustomerId}/service-dashboard/pinterest`}
+                                                href={serviceDashboardHref("pinterest")}
                                                 label="Pinterest"
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                                 subLabel={"BETA"}
+                                                configWarning={configWarningForHref(serviceDashboardHref("pinterest"))}
                                             />
                                             <NavItem
-                                                href={`/dashboard/${activeCustomerId}/service-dashboard/em`}
+                                                href={serviceDashboardHref("bing")}
+                                                label="Bing Ads"
+                                                activeCustomerId={activeCustomerId}
+                                                pathname={pathname}
+                                                isSmallScreen={isSmallScreen}
+                                                subLabel={"BETA"}
+                                                configWarning={configWarningForHref(serviceDashboardHref("bing"))}
+                                            />
+                                            <NavItem
+                                                href={serviceDashboardHref("em")}
                                                 label="EM"
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                                 subLabel={"BETA"}
+                                                configWarning={configWarningForHref(serviceDashboardHref("em"))}
                                             />
                                         </ul>
                                     )}

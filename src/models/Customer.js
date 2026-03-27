@@ -101,6 +101,15 @@ const CustomerSchema = new mongoose.Schema({
             type: String,
             default: ""
         },
+        bingAdsAccountId: {
+            type: String,
+            default: ""
+        },
+        /** Microsoft Advertising customer (manager) ID — required with bingAdsAccountId for Reporting API. */
+        bingAdsCustomerId: {
+            type: String,
+            default: ""
+        },
         googleSearchConsoleProperty: {
             type: String,
             default: ""

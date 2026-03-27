@@ -48,6 +48,15 @@ body {
 	padding: 0;
 }
 
+/* Hide scrollbar but keep overflow scroll (sidebar, etc.) */
+.no-scrollbar {
+	/* -ms-overflow-style: none; */
+	scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+	display: none;
+}
+
 /* Headings */
 h1,
 h2,
