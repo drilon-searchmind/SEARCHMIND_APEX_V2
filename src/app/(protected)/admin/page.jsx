@@ -6,6 +6,8 @@ import VerticalTabs from "./components/VerticalTabs";
 import GeneralAppSettings from "./tabs/GeneralAppSettings";
 import CustomersTab from "./tabs/CustomersTab";
 import UsersTab from "./tabs/UsersTab";
+import NotificationsTab from "./tabs/NotificationsTab";
+import NewsTab from "./tabs/NewsTab";
 
 export default function AdminPage() {
     const [activeTab, setActiveTab] = useState("general");
@@ -14,6 +16,8 @@ export default function AdminPage() {
         { key: "general", label: "General App Settings", content: <GeneralAppSettings /> },
         { key: "customers", label: "Customers", content: <CustomersTab /> },
         { key: "users", label: "Users", content: <UsersTab /> },
+        { key: "notifications", label: "Notifications", content: <NotificationsTab /> },
+        { key: "news", label: "News", content: <NewsTab /> },
     ];
 
     return (

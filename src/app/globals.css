@@ -313,6 +313,9 @@ select {
 .dark h2 {
 	color: #f1f5f9 !important;
 }
+.dark .text-gray-800 {
+	color: #cbd5e1 !important;
+}
 
 /* AI Chat */
 #chatAiMessage * {
@@ -517,4 +520,46 @@ select {
 
 #mainSidebar #smallLabel {
 	color: #000;
+}
+
+#newsContent h1,
+#newsContent h2 {
+	margin-top: 1rem !important;
+}
+
+#newsContent ul,
+#newsContent ol {
+	margin-top: 0.75rem;
+	margin-bottom: 0.75rem;
+	padding-left: 1.25rem;
+}
+
+#newsContent ul {
+	list-style-type: disc;
+}
+
+#newsContent ol {
+	list-style-type: decimal;
+}
+
+#newsContent li {
+	margin-top: 0.35rem;
+	margin-bottom: 0.35rem;
+	padding-left: 0.25rem;
+	line-height: 1.6;
+}
+
+/* Nested lists */
+#newsContent li > ul,
+#newsContent li > ol {
+	margin-top: 0.35rem;
+	margin-bottom: 0.35rem;
+}
+
+#newsContent ul ul {
+	list-style-type: circle;
+}
+
+#newsContent ul ul ul {
+	list-style-type: square;
 }
