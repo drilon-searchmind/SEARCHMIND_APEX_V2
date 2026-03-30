@@ -1,17 +1,31 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import { inlineTagStyle } from "@/components/content-tags/tagPresets";
 
 export default function NewsArticlePage() {
     const params = useParams();
     const slug = params?.slug;
     const [post, setPost] = useState(null);
+    const [contentTags, setContentTags] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const r = await fetch("/api/content-tags?scope=news");
+                const d = await r.json();
+                if (r.ok) setContentTags(Array.isArray(d.tags) ? d.tags : []);
+            } catch {
+                setContentTags([]);
+            }
+        })();
+    }, []);
 
     useEffect(() => {
         if (!slug) return;
@@ -28,6 +42,14 @@ export default function NewsArticlePage() {
             }
         })();
     }, [slug]);
+
+    const tagMeta = useMemo(() => {
+        const m = Object.create(null);
+        for (const t of contentTags) {
+            m[t.slug] = { label: t.label, color: t.color };
+        }
+        return m;
+    }, [contentTags]);
 
     return (
         <div className="max-w-3xl mx-auto">
@@ -64,11 +86,19 @@ export default function NewsArticlePage() {
                                     })}
                                 </time>
                             )}
-                            {(post.tags || []).map((t) => (
-                                <span key={t} className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">
-                                    {t}
-                                </span>
-                            ))}
+                            {(post.tags || []).map((s) => {
+                                const meta = tagMeta[s];
+                                const label = meta?.label || s;
+                                return (
+                                    <span
+                                        key={s}
+                                        className="px-2 py-0.5 rounded-full font-medium text-xs"
+                                        style={inlineTagStyle(meta?.color)}
+                                    >
+                                        {label}
+                                    </span>
+                                );
+                            })}
                         </div>
                         <div id="newsContent" className="prose prose-sm md:prose-base max-w-none text-gray-800 prose-headings:text-gray-900 prose-a:text-[var(--color-primary-searchmind)]">
                             <ReactMarkdown>{post.content}</ReactMarkdown>

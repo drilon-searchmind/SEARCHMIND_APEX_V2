@@ -71,7 +71,7 @@ export async function POST(request) {
             title,
             description: body.description ?? "",
             category,
-            tags: body.tags,
+            tags: Array.isArray(body.tags) ? body.tags : [],
             url: body.url ?? "",
             icon: body.icon || "FiGrid",
             badge: body.badge ?? "",
@@ -86,6 +86,12 @@ export async function POST(request) {
         return NextResponse.json(serializeTool(tool), { status: 201 });
     } catch (error) {
         console.error("Error creating our tool:", error);
+        if (
+            error?.message?.includes("Unknown or invalid tags") ||
+            error?.message?.includes("Unknown or invalid")
+        ) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
         return NextResponse.json(
             { error: "Failed to create tool" },
             { status: 500 }

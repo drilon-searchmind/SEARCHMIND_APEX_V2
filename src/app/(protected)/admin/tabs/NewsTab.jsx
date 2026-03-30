@@ -2,19 +2,23 @@
 
 import React from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import FormButton from "@/components/form/FormButton";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
+import ContentTagPicker from "@/components/content-tags/ContentTagPicker";
 import { showToast } from "@/components/ui/ToastProvider";
 
 export default function NewsTab() {
+    const { data: session } = useSession();
+    const canCreateTags = !!session?.user?.isAdmin;
     const [posts, setPosts] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
     const [title, setTitle] = React.useState("");
     const [excerpt, setExcerpt] = React.useState("");
     const [content, setContent] = React.useState("");
     const [coverImageUrl, setCoverImageUrl] = React.useState("");
-    const [tags, setTags] = React.useState("");
+    const [selectedTagSlugs, setSelectedTagSlugs] = React.useState([]);
     const [published, setPublished] = React.useState(false);
     const [saving, setSaving] = React.useState(false);
 
@@ -58,7 +62,7 @@ export default function NewsTab() {
             setExcerpt("");
             setContent("");
             setCoverImageUrl("");
-            setTags("");
+            setSelectedTagSlugs([]);
             setPublished(false);
             load();
         } catch (err) {
@@ -128,15 +132,13 @@ export default function NewsTab() {
                             placeholder="https://..."
                         />
                     </div>
-                    <div>
-                        <FormLabel htmlFor="news-tags">Tags (comma-separated)</FormLabel>
-                        <FormInputText
-                            id="news-tags"
-                            value={tags}
-                            onChange={(e) => setTags(e.target.value)}
-                            placeholder="product, roadmap, tip"
-                        />
-                    </div>
+                    <ContentTagPicker
+                        scope="news"
+                        value={selectedTagSlugs}
+                        onChange={setSelectedTagSlugs}
+                        canCreate={canCreateTags}
+                        disabled={saving}
+                    />
                     <div>
                         <FormLabel htmlFor="news-content">Content</FormLabel>
                         <textarea

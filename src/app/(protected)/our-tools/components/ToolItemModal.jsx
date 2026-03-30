@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { FiX } from "react-icons/fi";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
 import FormButton from "@/components/form/FormButton";
+import ContentTagPicker from "@/components/content-tags/ContentTagPicker";
 import {
     TOOL_CATEGORY_FILTER_OPTIONS,
     TOOL_ICON_OPTIONS,
@@ -20,7 +22,7 @@ const defaultForm = () => ({
     title: "",
     description: "",
     category: TOOL_CATEGORY_FILTER_OPTIONS[0]?.id || "analytics",
-    tags: "",
+    tagSlugs: [],
     url: "",
     icon: "FiGrid",
     badge: "",
@@ -35,6 +37,8 @@ export default function ToolItemModal({
     initialTool,
     mode = "create",
 }) {
+    const { data: session } = useSession();
+    const canCreateTags = !!session?.user?.isAdmin;
     const [form, setForm] = useState(defaultForm);
     const [saving, setSaving] = useState(false);
 
@@ -45,9 +49,9 @@ export default function ToolItemModal({
                 title: initialTool.title || "",
                 description: initialTool.description || "",
                 category: initialTool.category || "analytics",
-                tags: Array.isArray(initialTool.tags)
-                    ? initialTool.tags.join(", ")
-                    : "",
+                tagSlugs: Array.isArray(initialTool.tags)
+                    ? initialTool.tags.map((t) => String(t).trim().toLowerCase()).filter(Boolean)
+                    : [],
                 url: initialTool.url || "",
                 icon: initialTool.icon || "FiGrid",
                 badge: initialTool.badge || "",
@@ -71,7 +75,7 @@ export default function ToolItemModal({
             title: form.title.trim(),
             description: form.description.trim(),
             category: form.category,
-            tags: form.tags,
+            tags: form.tagSlugs,
             url: form.url.trim(),
             icon: form.icon,
             badge: form.badge.trim(),
@@ -159,17 +163,13 @@ export default function ToolItemModal({
                         </select>
                     </div>
 
-                    <div>
-                        <FormLabel htmlFor="ot-tags">Tags</FormLabel>
-                        <FormInputText
-                            id="ot-tags"
-                            name="tags"
-                            value={form.tags}
-                            onChange={handleChange}
-                            disabled={saving}
-                            placeholder="Comma-separated, e.g. Reports, ROI"
-                        />
-                    </div>
+                    <ContentTagPicker
+                        scope="tools"
+                        value={form.tagSlugs}
+                        onChange={(tagSlugs) => setForm((prev) => ({ ...prev, tagSlugs }))}
+                        canCreate={canCreateTags}
+                        disabled={saving}
+                    />
 
                     <div>
                         <FormLabel htmlFor="ot-url">Tool URL</FormLabel>

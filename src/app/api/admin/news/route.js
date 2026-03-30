@@ -35,10 +35,10 @@ export async function POST(req) {
             return NextResponse.json({ error: "title and content are required" }, { status: 400 });
         }
         const tagList = Array.isArray(tags)
-            ? tags
+            ? tags.map((t) => String(t).trim().toLowerCase()).filter(Boolean)
             : String(tags || "")
                   .split(",")
-                  .map((t) => t.trim())
+                  .map((t) => t.trim().toLowerCase())
                   .filter(Boolean);
         const post = await createNewsPost({
             title,
@@ -52,6 +52,10 @@ export async function POST(req) {
         return NextResponse.json({ post }, { status: 201 });
     } catch (e) {
         console.error("[admin news POST]", e);
-        return NextResponse.json({ error: e.message || "Failed to create" }, { status: 500 });
+        const msg = e.message || "Failed to create";
+        if (msg.includes("Unknown or invalid")) {
+            return NextResponse.json({ error: msg }, { status: 400 });
+        }
+        return NextResponse.json({ error: msg }, { status: 500 });
     }
 }

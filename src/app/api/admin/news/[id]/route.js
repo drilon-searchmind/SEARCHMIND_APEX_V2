@@ -23,10 +23,10 @@ export async function PUT(req, context) {
             body.tags === undefined
                 ? undefined
                 : Array.isArray(body.tags)
-                  ? body.tags
+                  ? body.tags.map((t) => String(t).trim().toLowerCase()).filter(Boolean)
                   : String(body.tags || "")
                         .split(",")
-                        .map((t) => t.trim())
+                        .map((t) => t.trim().toLowerCase())
                         .filter(Boolean);
         const post = await updateNewsPost(id, {
             title: body.title,
@@ -40,7 +40,11 @@ export async function PUT(req, context) {
         return NextResponse.json({ post });
     } catch (e) {
         console.error("[admin news PUT]", e);
-        return NextResponse.json({ error: e.message || "Failed to update" }, { status: 500 });
+        const msg = e.message || "Failed to update";
+        if (msg.includes("Unknown or invalid")) {
+            return NextResponse.json({ error: msg }, { status: 400 });
+        }
+        return NextResponse.json({ error: msg }, { status: 500 });
     }
 }
 

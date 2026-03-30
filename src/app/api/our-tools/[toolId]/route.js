@@ -34,7 +34,9 @@ function buildUpdatePayload(body) {
         }
         patch.category = body.category;
     }
-    if (body.tags !== undefined) patch.tags = body.tags;
+    if (body.tags !== undefined) {
+        patch.tags = Array.isArray(body.tags) ? body.tags : [];
+    }
     if (body.url !== undefined) patch.url = String(body.url).trim();
     if (body.icon !== undefined) patch.icon = String(body.icon).trim() || "FiGrid";
     if (body.badge !== undefined) patch.badge = String(body.badge).trim();
@@ -86,6 +88,12 @@ export async function PUT(request, { params }) {
         console.error("Error updating our tool:", error);
         if (error.message === "Tool not found") {
             return NextResponse.json({ error: "Tool not found" }, { status: 404 });
+        }
+        if (
+            error?.message?.includes("Unknown or invalid tags") ||
+            error?.message?.includes("Unknown or invalid")
+        ) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
         }
         return NextResponse.json(
             { error: "Failed to update tool" },
