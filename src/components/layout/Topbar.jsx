@@ -523,7 +523,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                 onClick={() => setMenuOpen(!menuOpen)}
                             >
                                 <Image
-                                    src={user?.image || "/images/users/66beeaec47a55.jpg"}
+                                    src={user?.image || "/images/users/default-avatar-photo-placeholder-profile-icon-vector.jpg"}
                                     alt="User"
                                     width={32}
                                     height={32}
@@ -577,7 +577,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                             <li className="flex items-center gap-2">
                                                 <RiToolsFill />
                                                 <Link href="/our-tools" className="text-sm text-slate-800 font-semibold">Our Tools</Link>
-                                                <span className="text-[0.5rem] text-black bg-gray-200 rounded px-3 py-1">BETA</span>
+                                                
                                             </li>
                                         )}
                                         {user?.isAdmin && (
@@ -720,7 +720,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                 <div className="mb-3">
                                     <div className="flex items-center space-x-3 px-3 py-2">
                                         <Image
-                                            src={user?.image || "/images/users/66beeaec47a55.jpg"}
+                                            src={user?.image || "/images/users/default-avatar-photo-placeholder-profile-icon-vector.jpg"}
                                             alt="User"
                                             width={32}
                                             height={32}
