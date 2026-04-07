@@ -411,6 +411,14 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
                     placeholder="e.g. sc-domain:yourdomain.com"
                 />
                 <FormField
+                    id="bingWebmasterSiteUrl"
+                    name="bingWebmasterSiteUrl"
+                    label="Bing Webmaster site URL"
+                    value={form.bingWebmasterSiteUrl}
+                    onChange={onChange}
+                    placeholder="https://yourdomain.com/"
+                />
+                <FormField
                     id="ga4PropertyId"
                     name="ga4PropertyId"
                     label="GA4 Property ID"

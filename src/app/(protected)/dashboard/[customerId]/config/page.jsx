@@ -48,6 +48,7 @@ export default function ConfigPage() {
         bingAdsCustomerId: "",
         bingAdsAccountId: "",
         googleSearchConsoleProperty: "",
+        bingWebmasterSiteUrl: "",
         ga4PropertyId: "",
         klaviyoPrivateApiKey: "",
         CustomerStaticExpenses: {
@@ -160,6 +161,7 @@ export default function ConfigPage() {
                 bingAdsCustomerId,
                 bingAdsAccountId,
                 googleSearchConsoleProperty,
+                bingWebmasterSiteUrl,
                 ga4PropertyId,
                 klaviyoPrivateApiKey,
                 CustomerStaticExpenses,
@@ -239,6 +241,7 @@ export default function ConfigPage() {
                             googleAdsCountryFilter,
                             googleAdsCountryExclude,
                             googleSearchConsoleProperty,
+                            bingWebmasterSiteUrl,
                             ga4PropertyId,
                             klaviyoPrivateApiKey,
                         },
@@ -247,6 +250,22 @@ export default function ConfigPage() {
                     })
                 });
             if (!res.ok) throw new Error('Failed to update customer');
+            const saved = await res.json();
+            setForm({
+                ...defaultFormState,
+                ...saved,
+                ...(saved.CustomerSettings || {}),
+                CustomerStaticExpenses: {
+                    ...defaultFormState.CustomerStaticExpenses,
+                    ...(saved.CustomerStaticExpenses || {}),
+                    marketingBureauCostLineItems:
+                        saved.CustomerStaticExpenses?.marketingBureauCostLineItems || [],
+                    marketingToolingCostLineItems:
+                        saved.CustomerStaticExpenses?.marketingToolingCostLineItems || [],
+                    fixedExpensesLineItems: saved.CustomerStaticExpenses?.fixedExpensesLineItems || [],
+                },
+            });
+            setObjectives(saved.CustomerPropertyObjectives || {});
             showToast({ message: 'Settings updated successfully!', type: 'success', position: 'top-center' });
         } catch (err) {
             showToast({ message: err.message || 'Failed to update customer', type: 'error', position: 'top-center' });

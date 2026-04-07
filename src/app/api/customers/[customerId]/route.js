@@ -5,7 +5,7 @@ import {
     deleteCustomer,
     permanentlyDeleteCustomer
 } from '../../../../../lib/customerOperations';
-import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
+import { getDemoPayload, isDemoCustomerId, mergeDemoCustomerDocument } from '@/lib/demoCustomer';
 
 // GET /api/customers/[customerId] - Get a specific customer
 export async function GET(request, { params }) {
@@ -21,14 +21,16 @@ export async function GET(request, { params }) {
             } catch {
                 dbCustomer = null;
             }
-            return NextResponse.json({
-                ...demo,
-                _id: customerId,
-                customerName: dbCustomer?.customerName ?? demo.customerName,
-                parentCustomer: dbCustomer?.parentCustomer ?? demo.parentCustomer,
-                createdAt: dbCustomer?.createdAt ?? demo.createdAt,
-                updatedAt: dbCustomer?.updatedAt ?? demo.updatedAt,
-            });
+            if (!dbCustomer) {
+                return NextResponse.json({ ...demo, _id: customerId });
+            }
+            const plain =
+                typeof dbCustomer.toObject === 'function'
+                    ? dbCustomer.toObject()
+                    : dbCustomer;
+            const merged = mergeDemoCustomerDocument(plain);
+            merged._id = customerId;
+            return NextResponse.json(merged);
         }
         const customer = await getCustomerById(customerId);
         return NextResponse.json(customer);

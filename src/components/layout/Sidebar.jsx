@@ -72,6 +72,7 @@ const getIconForRoute = (href) => {
     if (href.includes("service-dashboard/ppc")) return <FiDollarSign className="w-4 h-4" />;
     if (href.includes("service-dashboard/ps")) return <FiShoppingCart className="w-4 h-4" />;
     if (href.includes("service-dashboard/pinterest")) return <FiImage className="w-4 h-4" />;
+    if (href.includes("service-dashboard/bing-webmaster")) return <FiGlobe className="w-4 h-4" />;
     if (href.includes("service-dashboard/bing")) return <FiLayers className="w-4 h-4" />;
     if (href.includes("campaign-planner")) return <FiCalendar className="w-4 h-4" />;
     if (href.includes("config")) return <FiSettings className="w-4 h-4" />;
@@ -138,7 +139,6 @@ const Sidebar = ({ showLinks = true }) => {
 
     const params = useParams();
     const user = useUser();
-    const showBingWebmasterNav = user?.email?.toLowerCase() === "dbr@searchmind.dk";
     const { customers } = useCustomers();
     const pathname = usePathname();
     const activeCustomerId = params?.customerId;
@@ -326,17 +326,6 @@ const Sidebar = ({ showLinks = true }) => {
                                                 subLabel={"BETA"}
                                                 configWarning={configWarningForHref(serviceDashboardHref("bing"))}
                                             />
-                                            {showBingWebmasterNav ? (
-                                                <NavItem
-                                                    href={serviceDashboardHref("bing-webmaster")}
-                                                    label="Bing Webmaster"
-                                                    activeCustomerId={activeCustomerId}
-                                                    pathname={pathname}
-                                                    isSmallScreen={isSmallScreen}
-                                                    subLabel={"BETA"}
-                                                    configWarning={false}
-                                                />
-                                            ) : null}
                                             <NavItem
                                                 href={serviceDashboardHref("em")}
                                                 label="EM"
@@ -385,6 +374,15 @@ const Sidebar = ({ showLinks = true }) => {
                                                 pathname={pathname}
                                                 subLabel={"WIP"}
                                                 isSmallScreen={isSmallScreen}
+                                            />
+                                            <NavItem
+                                                href={serviceDashboardHref("bing-webmaster")}
+                                                label="Bing Webmaster"
+                                                activeCustomerId={activeCustomerId}
+                                                pathname={pathname}
+                                                isSmallScreen={isSmallScreen}
+                                                subLabel={"WIP"}
+                                                configWarning={false}
                                             />
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/config`}

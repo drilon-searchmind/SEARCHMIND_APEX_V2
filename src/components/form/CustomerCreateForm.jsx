@@ -31,7 +31,8 @@ const initialState = {
         facebookAdAccountId: "",
         googleAdsCustomerId: "",
         pinterestAdAccountId: "",
-        googleSearchConsoleProperty: ""
+        googleSearchConsoleProperty: "",
+        bingWebmasterSiteUrl: "",
     }
 };
 

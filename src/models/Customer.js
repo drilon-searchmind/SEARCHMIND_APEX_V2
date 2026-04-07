@@ -114,6 +114,11 @@ const CustomerSchema = new mongoose.Schema({
             type: String,
             default: ""
         },
+        /** Verified site URL for Bing Webmaster JSON API (e.g. https://example.com/). */
+        bingWebmasterSiteUrl: {
+            type: String,
+            default: ""
+        },
         ga4PropertyId: {
             type: String,
             default: ""
