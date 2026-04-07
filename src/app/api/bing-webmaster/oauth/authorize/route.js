@@ -3,12 +3,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { buildAuthorizeUrl, getBingWebmasterEnv } from "@/lib/bingWebmasterOAuth";
 
-/** Only allow same-origin relative return paths (open-redirect safe). */
+/** Only allow same-origin relative return paths (open-redirect safe). No bare /dashboard — that route does not exist. */
 function safeReturnPath(raw) {
-    if (!raw || typeof raw !== "string") return "/dashboard";
+    if (!raw || typeof raw !== "string") return "/";
     const t = decodeURIComponent(raw).trim();
-    if (!t.startsWith("/") || t.startsWith("//")) return "/dashboard";
-    return t.length > 2048 ? "/dashboard" : t;
+    if (!t.startsWith("/") || t.startsWith("//")) return "/";
+    return t.length > 2048 ? "/" : t;
 }
 
 /**
@@ -32,7 +32,7 @@ export async function GET(req) {
     }
 
     const { searchParams } = new URL(req.url);
-    const returnTo = safeReturnPath(searchParams.get("returnTo") || "/dashboard");
+    const returnTo = safeReturnPath(searchParams.get("returnTo") || "/");
     const state = Buffer.from(JSON.stringify({ returnTo }), "utf8").toString("base64url");
 
     const url = buildAuthorizeUrl({ clientId, redirectUri, state });

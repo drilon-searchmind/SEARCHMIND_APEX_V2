@@ -4,17 +4,20 @@ import { exchangeAuthorizationCode, getBingWebmasterEnv } from "@/lib/bingWebmas
 const COOKIE_ACCESS = "bing_wm_access_token";
 const COOKIE_REFRESH = "bing_wm_refresh_token";
 
+/** App has no /dashboard route (only /dashboard/[customerId]/...); never default there. */
+const DEFAULT_RETURN = "/";
+
 function parseState(state) {
-    if (!state) return { returnTo: "/dashboard" };
+    if (!state) return { returnTo: DEFAULT_RETURN };
     try {
         const json = Buffer.from(state, "base64url").toString("utf8");
         const o = JSON.parse(json);
         const returnTo = typeof o.returnTo === "string" && o.returnTo.startsWith("/") && !o.returnTo.startsWith("//")
             ? o.returnTo
-            : "/dashboard";
+            : DEFAULT_RETURN;
         return { returnTo };
     } catch {
-        return { returnTo: "/dashboard" };
+        return { returnTo: DEFAULT_RETURN };
     }
 }
 
@@ -42,7 +45,7 @@ export async function GET(req) {
         return fail(searchParams.get("error_description") || err);
     }
     if (!code) {
-        return fail("Missing authorization code");
+        return fail("Use Connect Bing Webmaster in Apex; do not open this callback URL directly.");
     }
 
     const { clientId, clientSecret, redirectUri } = getBingWebmasterEnv();
