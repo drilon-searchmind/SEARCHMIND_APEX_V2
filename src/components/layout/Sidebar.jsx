@@ -18,6 +18,7 @@ import {
     FiImage,
     FiLayers,
     FiAlertTriangle,
+    FiGlobe,
 } from "react-icons/fi";
 import Image from "next/image";
 import { useParams, usePathname } from "next/navigation";
@@ -52,6 +53,7 @@ function serviceDashboardWarningKeyForHref(href) {
     if (href.includes("service-dashboard/ppc")) return "ppc";
     if (href.includes("service-dashboard/ps")) return "ps";
     if (href.includes("service-dashboard/pinterest")) return "pinterest";
+    if (href.includes("service-dashboard/bing-webmaster")) return null;
     if (href.includes("service-dashboard/bing")) return "bing";
     if (href.includes("service-dashboard/em")) return "em";
     return null;
@@ -136,6 +138,7 @@ const Sidebar = ({ showLinks = true }) => {
 
     const params = useParams();
     const user = useUser();
+    const showBingWebmasterNav = user?.email?.toLowerCase() === "dbr@searchmind.dk";
     const { customers } = useCustomers();
     const pathname = usePathname();
     const activeCustomerId = params?.customerId;
@@ -323,6 +326,17 @@ const Sidebar = ({ showLinks = true }) => {
                                                 subLabel={"BETA"}
                                                 configWarning={configWarningForHref(serviceDashboardHref("bing"))}
                                             />
+                                            {showBingWebmasterNav ? (
+                                                <NavItem
+                                                    href={serviceDashboardHref("bing-webmaster")}
+                                                    label="Bing Webmaster"
+                                                    activeCustomerId={activeCustomerId}
+                                                    pathname={pathname}
+                                                    isSmallScreen={isSmallScreen}
+                                                    subLabel={"BETA"}
+                                                    configWarning={false}
+                                                />
+                                            ) : null}
                                             <NavItem
                                                 href={serviceDashboardHref("em")}
                                                 label="EM"
