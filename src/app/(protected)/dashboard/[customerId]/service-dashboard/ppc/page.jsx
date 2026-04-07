@@ -8,6 +8,7 @@ import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import MetricCard from "@/components/dashboard/MetricCard";
 import GraphCard from "@/components/dashboard/GraphCard";
+import AdsPerformanceTable from "@/components/dashboard/AdsPerformanceTable";
 import Spinner from "@/components/ui/Spinner";
 import { FiDollarSign, FiTrendingUp, FiBarChart2, FiPieChart, FiShoppingCart, FiEye, FiMousePointer, FiPercent, FiArrowDownRight } from "react-icons/fi";
 import { useCustomers } from "@/hooks/useCustomers";
@@ -72,12 +73,58 @@ export default function GoogleAdsPPCPage() {
 	const [error, setError] = useState(null);
 	const [selectedMetrics, setSelectedMetrics] = useState(["conversion_value"]);
 
+	const [adPerfRows, setAdPerfRows] = useState([]);
+	const [adPerfLoading, setAdPerfLoading] = useState(true);
+	const [adPerfError, setAdPerfError] = useState(null);
+
 	// Ensure at least one metric is always selected
 	useEffect(() => {
 		if (selectedMetrics.length === 0) {
 			setSelectedMetrics(["conversion_value"]);
 		}
 	}, [selectedMetrics]);
+
+	useEffect(() => {
+		if (!customer) {
+			setAdPerfLoading(false);
+			return;
+		}
+		let cancelled = false;
+		(async () => {
+			setAdPerfLoading(true);
+			setAdPerfError(null);
+			try {
+				const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+				const res = await fetch(`${baseUrl}/api/customers/${customer._id}`);
+				if (!res.ok) throw new Error("Failed to fetch customer settings");
+				const settings = (await res.json()).CustomerSettings || {};
+				const { googleAdsCustomerId } = settings;
+				if (!googleAdsCustomerId) {
+					if (!cancelled) {
+						setAdPerfRows([]);
+						setAdPerfError("Add a Google Ads customer ID in customer settings to load ad-level performance.");
+						setAdPerfLoading(false);
+					}
+					return;
+				}
+				const dash = `dashboardCustomerId=${encodeURIComponent(String(customer._id))}`;
+				const url = `/api/google-ads-ad-performance?customerId=${encodeURIComponent(googleAdsCustomerId)}&startDate=${encodeURIComponent(appliedRange.startDate)}&endDate=${encodeURIComponent(appliedRange.endDate)}&${dash}`;
+				const r = await fetch(url);
+				const d = await r.json();
+				if (!r.ok) throw new Error(d.error || "Failed to load ads performance");
+				if (!cancelled) {
+					setAdPerfRows(Array.isArray(d.ads) ? d.ads : []);
+				}
+			} catch (e) {
+				if (!cancelled) setAdPerfError(e.message || "Failed to load ads performance");
+			} finally {
+				if (!cancelled) setAdPerfLoading(false);
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [customer, appliedRange]);
 
 	useEffect(() => {
 		if (!customer) return;
@@ -408,6 +455,15 @@ export default function GoogleAdsPPCPage() {
 							: `Multiple PPC Metrics vs ${comparisonMethod}`
 					} chartOptions={chartOptions} chartSeries={chartSeries} />
 				)}
+			</div>
+
+			<div className="mb-8 min-w-0 max-w-full">
+				<AdsPerformanceTable
+					rows={adPerfRows}
+					loading={adPerfLoading}
+					errors={adPerfError ? [adPerfError] : []}
+					platform="google"
+				/>
 			</div>
 
 			{/* Top Campaigns Table */}

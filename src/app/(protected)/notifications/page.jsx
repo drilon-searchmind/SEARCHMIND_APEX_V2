@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { normalizeInternalNotificationHref } from "@/lib/notificationLink";
 
 function formatRelative(iso) {
     const d = new Date(iso);
@@ -44,7 +45,7 @@ function groupNotifications(items) {
 
 function NotificationRow({ n }) {
     const raw = (n.linkUrl || "").trim();
-    const href = raw || null;
+    const href = raw ? normalizeInternalNotificationHref(raw) : null;
     const inner = (
         <div className="flex gap-3 py-4 border-b border-gray-100 last:border-0">
             <div className="relative shrink-0">

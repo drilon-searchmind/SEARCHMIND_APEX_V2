@@ -17,6 +17,7 @@ import FormButton from "../form/FormButton";
 import { LuRadar } from "react-icons/lu";
 import { RiToolsFill } from "react-icons/ri";
 import { getDemoCustomerIds } from "@/lib/demoCustomerId";
+import { normalizeInternalNotificationHref } from "@/lib/notificationLink";
 
 function getLastMonthPeriod() {
     const d = new Date();
@@ -305,7 +306,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                             </a>
                                         ) : n.linkUrl ? (
                                             <Link
-                                                href={n.linkUrl}
+                                                href={normalizeInternalNotificationHref(n.linkUrl)}
                                                 className="block px-2 py-2.5 rounded-lg hover:bg-gray-50 text-left"
                                                 onClick={() => setBellMenuOpen(false)}
                                             >

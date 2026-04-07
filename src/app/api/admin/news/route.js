@@ -51,11 +51,21 @@ export async function POST(req) {
         });
         return NextResponse.json({ post }, { status: 201 });
     } catch (e) {
-        console.error("[admin news POST]", e);
+        console.error("[admin news POST]", {
+            name: e?.name,
+            message: e?.message,
+            stack: e?.stack,
+        });
         const msg = e.message || "Failed to create";
         if (msg.includes("Unknown or invalid")) {
-            return NextResponse.json({ error: msg }, { status: 400 });
+            return NextResponse.json({ error: msg, detail: process.env.NODE_ENV === "development" ? String(e?.stack) : undefined }, { status: 400 });
         }
-        return NextResponse.json({ error: msg }, { status: 500 });
+        return NextResponse.json(
+            {
+                error: msg,
+                detail: process.env.NODE_ENV === "development" ? String(e?.stack) : undefined,
+            },
+            { status: 500 }
+        );
     }
 }

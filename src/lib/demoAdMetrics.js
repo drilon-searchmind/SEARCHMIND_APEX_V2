@@ -284,3 +284,77 @@ export function getDemoKlaviyoDashboardForRange(startDate, endDate, prevStartDat
         ],
     };
 }
+
+/** Demo ad-level rows for PPC / PS Ads performance tables */
+export function getDemoGoogleAdsAdPerformanceForRange(startDate, endDate) {
+    const days = eachDayInclusive(startDate, endDate).length || 1;
+    const seed = [
+        { name: "BF_DPA_All_products_singleimage", rev: 425286, spend: 18109 },
+        { name: "PMAX_Retail_Shopping", rev: 198400, spend: 9200 },
+        { name: "Search_Brand_Exact", rev: 156200, spend: 4100 },
+        { name: "DemandGen_Video_Prospecting", rev: 89200, spend: 5600 },
+    ];
+    const ads = seed.map((s, i) => {
+        const h = numHash(`gad-${s.name}-${days}`);
+        const impressions = Math.round(80000 + (h % 20000) + i * 5000);
+        const clicks = Math.round(4000 + (h % 800) + i * 200);
+        const conversions = Math.round(180 + (h % 40));
+        const revenue = Math.round(s.rev * (0.85 + (h % 20) / 100));
+        const spend = Math.round(s.spend * (0.9 + (h % 15) / 100));
+        const roas = spend > 0 ? revenue / spend : 0;
+        const allVal = revenue * 1.08;
+        const poas = spend > 0 ? allVal / spend : roas;
+        return {
+            platform: "google",
+            ad_id: String(1000 + i),
+            ad_name: s.name,
+            revenue,
+            roas,
+            poas,
+            ad_spend: spend,
+            impressions,
+            clicks,
+            ctr: impressions > 0 ? clicks / impressions : 0,
+            conv_rate_clicks: clicks > 0 ? conversions / clicks : 0,
+            conv_rate_impressions: impressions > 0 ? conversions / impressions : 0,
+        };
+    });
+    return {
+        ads,
+        currency: "DKK",
+        adPerformanceNote: null,
+    };
+}
+
+export function getDemoFacebookAdsAdPerformanceForRange(since, until) {
+    const days = eachDayInclusive(since, until).length || 1;
+    const seed = [
+        { name: "Catalog_Sales_Carousel", rev: 312000, spend: 14200 },
+        { name: "Video_Views_TOF", rev: 145000, spend: 8900 },
+        { name: "Remarketing_Dynamic", rev: 268000, spend: 12100 },
+    ];
+    const ads = seed.map((s, i) => {
+        const h = numHash(`fbad-${s.name}-${days}`);
+        const impressions = Math.round(120000 + (h % 30000));
+        const clicks = Math.round(5500 + (h % 900));
+        const conversions = Math.round(220 + (h % 50));
+        const revenue = Math.round(s.rev * (0.88 + (h % 12) / 100));
+        const spend = Math.round(s.spend * (0.92 + (h % 10) / 100));
+        const roas = spend > 0 ? revenue / spend : 0;
+        return {
+            platform: "facebook",
+            ad_id: String(2000 + i),
+            ad_name: s.name,
+            revenue,
+            roas,
+            poas: roas,
+            ad_spend: spend,
+            impressions,
+            clicks,
+            ctr: impressions > 0 ? clicks / impressions : 0,
+            conv_rate_clicks: clicks > 0 ? conversions / clicks : 0,
+            conv_rate_impressions: impressions > 0 ? conversions / impressions : 0,
+        };
+    });
+    return { ads, currency: "DKK", adPerformanceNote: null };
+}

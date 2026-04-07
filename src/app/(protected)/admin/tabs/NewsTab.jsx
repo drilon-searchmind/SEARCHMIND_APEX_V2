@@ -43,20 +43,28 @@ export default function NewsTab() {
         }
         setSaving(true);
         try {
+            const payload = {
+                title: title.trim(),
+                excerpt: excerpt.trim(),
+                content,
+                coverImageUrl: coverImageUrl.trim(),
+                tags: selectedTagSlugs,
+                published,
+            };
             const res = await fetch("/api/admin/news", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    title: title.trim(),
-                    excerpt: excerpt.trim(),
-                    content,
-                    coverImageUrl: coverImageUrl.trim(),
-                    tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
-                    published,
-                }),
+                body: JSON.stringify(payload),
             });
             const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || "Failed to create");
+            if (!res.ok) {
+                console.error("[NewsTab] POST /api/admin/news failed", {
+                    status: res.status,
+                    body: data,
+                    payloadPreview: { ...payload, content: `[${payload.content?.length ?? 0} chars]` },
+                });
+                throw new Error(data.error || "Failed to create");
+            }
             showToast({ type: "success", message: "News post created" });
             setTitle("");
             setExcerpt("");
@@ -66,6 +74,7 @@ export default function NewsTab() {
             setPublished(false);
             load();
         } catch (err) {
+            console.error("[NewsTab] handleCreate error", err?.name, err?.message, err?.stack);
             showToast({ type: "error", message: err.message });
         } finally {
             setSaving(false);

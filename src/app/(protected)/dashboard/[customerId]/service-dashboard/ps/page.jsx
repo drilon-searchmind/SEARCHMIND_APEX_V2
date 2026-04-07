@@ -7,6 +7,7 @@ import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import MetricCard from "@/components/dashboard/MetricCard";
 import GraphCard from "@/components/dashboard/GraphCard";
+import AdsPerformanceTable from "@/components/dashboard/AdsPerformanceTable";
 import Spinner from "@/components/ui/Spinner";
 import { FiDollarSign, FiTrendingUp, FiBarChart2, FiPieChart, FiShoppingCart, FiEye, FiMousePointer, FiPercent, FiArrowDownRight, FiArrowUpRight } from "react-icons/fi";
 // Remove direct import, will use API route
@@ -90,12 +91,66 @@ export default function FacebookPSPage() {
     const [error, setError] = useState(null);
     const [selectedMetrics, setSelectedMetrics] = useState(["conversion_value"]);
 
+    const [adPerfRows, setAdPerfRows] = useState([]);
+    const [adPerfLoading, setAdPerfLoading] = useState(true);
+    const [adPerfError, setAdPerfError] = useState(null);
+
         // Ensure at least one metric is always selected
         useEffect(() => {
             if (selectedMetrics.length === 0) {
                 setSelectedMetrics(["conversion_value"]);
             }
         }, [selectedMetrics]);
+
+    useEffect(() => {
+        if (!customer) {
+            setAdPerfLoading(false);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            setAdPerfLoading(true);
+            setAdPerfError(null);
+            try {
+                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+                const res = await fetch(`${baseUrl}/api/customers/${customer._id}`);
+                if (!res.ok) throw new Error("Failed to fetch customer settings");
+                const settings = (await res.json()).CustomerSettings || {};
+                const { facebookAdAccountId } = settings;
+                if (!facebookAdAccountId) {
+                    if (!cancelled) {
+                        setAdPerfRows([]);
+                        setAdPerfError("Add a Facebook Ad Account ID in customer settings to load ad-level performance.");
+                        setAdPerfLoading(false);
+                    }
+                    return;
+                }
+                const adAccountId = facebookAdAccountId.startsWith("act_") ? facebookAdAccountId : `act_${facebookAdAccountId}`;
+                const { customerMetaID, customerMetaIDExclude } = settings;
+                const params = new URLSearchParams({
+                    adAccountId,
+                    since: appliedRange.startDate,
+                    until: appliedRange.endDate,
+                    dashboardCustomerId: String(customer._id),
+                });
+                if (customerMetaID) params.set("customerMetaID", customerMetaID);
+                if (customerMetaIDExclude) params.set("customerMetaIDExclude", customerMetaIDExclude);
+                const r = await fetch(`/api/facebook-ads-ad-performance?${params.toString()}`);
+                const d = await r.json();
+                if (!r.ok) throw new Error(d.error || "Failed to load ads performance");
+                if (!cancelled) {
+                    setAdPerfRows(Array.isArray(d.ads) ? d.ads : []);
+                }
+            } catch (e) {
+                if (!cancelled) setAdPerfError(e.message || "Failed to load ads performance");
+            } finally {
+                if (!cancelled) setAdPerfLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [customer, appliedRange]);
 
     useEffect(() => {
         if (!customer) return;
@@ -429,6 +484,15 @@ export default function FacebookPSPage() {
                             : `Multiple Facebook PS Metrics vs ${comparisonMethod}`
                     } chartOptions={chartOptions} chartSeries={chartSeries} />
                 )}
+            </div>
+
+            <div className="mb-8 min-w-0 max-w-full">
+                <AdsPerformanceTable
+                    rows={adPerfRows}
+                    loading={adPerfLoading}
+                    errors={adPerfError ? [adPerfError] : []}
+                    platform="facebook"
+                />
             </div>
 
             {/* Top Campaigns Table */}
