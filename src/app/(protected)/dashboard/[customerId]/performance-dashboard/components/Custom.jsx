@@ -668,6 +668,32 @@ export default function Custom({
                                 }
                                 isActive={isSelected}
                                 comparisonMethod={comparisonMethod}
+                                change={
+                                    isSingleMetric
+                                        ? standardMetric?.change
+                                        : undefined
+                                }
+                                changeType={
+                                    isSingleMetric
+                                        ? standardMetric?.changeType
+                                        : undefined
+                                }
+                                changeAbsolute={
+                                    isSingleMetric
+                                        ? standardMetric?.changeAbsolute
+                                        : undefined
+                                }
+                                changePrevValue={
+                                    isSingleMetric
+                                        ? standardMetric?.changePrevValue
+                                        : undefined
+                                }
+                                popOverContent={
+                                    isSingleMetric &&
+                                    standardMetric?.popOverContent
+                                        ? standardMetric.popOverContent
+                                        : null
+                                }
                             />
                             {hasCalc && calcLines?.length > 0 && (
                                 <div className="mt-0.5 px-3 py-2 rounded-b-xl bg-gray-50 border border-t-0 border-gray-200 text-[10px] font-mono text-gray-600 leading-tight">

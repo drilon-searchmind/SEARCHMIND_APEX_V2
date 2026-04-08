@@ -6,6 +6,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import MetricCard from "@/components/dashboard/MetricCard";
+import ComparisonPeriodPopover from "@/components/dashboard/ComparisonPeriodPopover";
 import { FiDollarSign, FiTrendingUp, FiTrendingDown, FiShoppingCart, FiCreditCard, FiBarChart2, FiPieChart, FiShoppingBag, FiUserCheck } from "react-icons/fi";
 import GraphCard from "@/components/dashboard/GraphCard";
 // import { revenueData, spendAllocationData, roasData, aovData } from "@/data/dashboardCharts";
@@ -474,6 +475,8 @@ export default function PerformanceDashboard() {
                         icon: <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                         change: percentChange(poas, poasPrev) !== null ? Math.abs(percentChange(poas, poasPrev)).toFixed(1) : undefined,
                         changeType: changeType(percentChange(poas, poasPrev)),
+                        changeAbsolute: formatDiff(poas, poasPrev, 'ratio'),
+                        changePrevValue: poasPrev != null ? poasPrev.toFixed(2) : undefined,
                         popOverContent: poasCalculation,
                         calcValueLabels: `Net Profit: ${fmt(ebit)}\nSpend: ${fmt(cost)}`,
                     },
@@ -1188,30 +1191,36 @@ export default function PerformanceDashboard() {
                         return (
                             <div
                                 key={section.key}
-                                className="flex flex-col rounded-xl border border-gray-200 bg-white overflow-hidden"
+                                className="flex flex-col rounded-xl border border-gray-200 bg-white overflow-visible"
                             >
                                 {/* Section header */}
-                                <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
-                                    <div className="text-sm font-medium text-gray-500 mb-1">{section.title}</div>
-                                    <div className="flex items-end justify-between gap-2">
-                                        <span className="text-2xl font-bold text-[var(--color-primary-searchmind)]">
-                                            {primaryMetric?.value ?? '-'}
-                                        </span>
-                                        {totalSales > 0 && (
-                                            <span className="text-xs text-gray-500 tabular-nums">
-                                                {pctOfTotal}% of total sales
+                                <ComparisonPeriodPopover
+                                    comparisonMethod={comparisonMethod}
+                                    changePrevValue={primaryMetric?.changePrevValue}
+                                    changeAbsolute={primaryMetric?.changeAbsolute}
+                                >
+                                    <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
+                                        <div className="text-sm font-medium text-gray-500 mb-1">{section.title}</div>
+                                        <div className="flex items-end justify-between gap-2">
+                                            <span className="text-2xl font-bold text-[var(--color-primary-searchmind)]">
+                                                {primaryMetric?.value ?? '-'}
                                             </span>
+                                            {totalSales > 0 && (
+                                                <span className="text-xs text-gray-500 tabular-nums">
+                                                    {pctOfTotal}% of total sales
+                                                </span>
+                                            )}
+                                        </div>
+                                        {primaryMetric?.change !== undefined && (
+                                            <div className="mt-2 flex items-center gap-1">
+                                                <span className={`text-[0.65rem] rounded-sm font-medium flex items-center justify-end gap-1 px-2 py-1 tabular-nums ${primaryMetric.changeType === 'up' ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
+                                                    {primaryMetric.changeType === 'up' ? <FiTrendingUp className="text-sm" /> : <FiTrendingDown className="text-sm" />}
+                                                    {primaryMetric.change}%
+                                                </span>
+                                            </div>
                                         )}
                                     </div>
-                                    {primaryMetric?.change !== undefined && (
-                                        <div className="mt-2 flex items-center gap-1">
-                                            <span className={`text-[0.65rem] rounded-sm font-medium flex items-center justify-end gap-1 px-2 py-1 tabular-nums ${primaryMetric.changeType === 'up' ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
-                                                {primaryMetric.changeType === 'up' ? <FiTrendingUp className="text-sm" /> : <FiTrendingDown className="text-sm" />}
-                                                {primaryMetric.change}%
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
+                                </ComparisonPeriodPopover>
 
                                 {/* Section calculation (when Show calcs enabled) */}
                                 {showCalcs && primaryMetric?.popOverContent && (
@@ -1271,16 +1280,22 @@ export default function PerformanceDashboard() {
                                                 className={`cursor-pointer transition-colors hover:bg-gray-50/50 ${isSelected ? 'bg-[#1E2B2B]/5' : ''}`}
                                                 aria-pressed={isSelected}
                                             >
-                                                <div className={`px-5 py-3 flex items-center justify-between gap-4 ${isVariableSubItem ? '' : ''}`}>
-                                                    <span className="text-sm font-medium text-gray-700">{metric.label}</span>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-sm font-semibold tabular-nums text-gray-900">{metric.value}</span>
-                                                        <span className={`text-[0.65rem] rounded-sm font-medium flex items-center justify-end gap-0.5 px-1.5 py-0.5 min-w-[4rem] tabular-nums ${metric.changeType === 'up' ? 'text-green-600 bg-green-50' : metric.changeType === 'down' ? 'text-red-600 bg-red-50' : 'text-gray-600 bg-gray-100'}`}>
-                                                            {metric.changeType === 'up' ? <FiTrendingUp className="text-xs" /> : metric.changeType === 'down' ? <FiTrendingDown className="text-xs" /> : null}
-                                                            {(metric.change ?? 0)}%
-                                                        </span>
+                                                <ComparisonPeriodPopover
+                                                    comparisonMethod={comparisonMethod}
+                                                    changePrevValue={metric.changePrevValue}
+                                                    changeAbsolute={metric.changeAbsolute}
+                                                >
+                                                    <div className={`px-5 py-3 flex items-center justify-between gap-4 ${isVariableSubItem ? '' : ''}`}>
+                                                        <span className="text-sm font-medium text-gray-700">{metric.label}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-sm font-semibold tabular-nums text-gray-900">{metric.value}</span>
+                                                            <span className={`text-[0.65rem] rounded-sm font-medium flex items-center justify-end gap-0.5 px-1.5 py-0.5 min-w-[4rem] tabular-nums ${metric.changeType === 'up' ? 'text-green-600 bg-green-50' : metric.changeType === 'down' ? 'text-red-600 bg-red-50' : 'text-gray-600 bg-gray-100'}`}>
+                                                                {metric.changeType === 'up' ? <FiTrendingUp className="text-xs" /> : metric.changeType === 'down' ? <FiTrendingDown className="text-xs" /> : null}
+                                                                {(metric.change ?? 0)}%
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                </div>
+                                                </ComparisonPeriodPopover>
                                                 {hasCalc && calcLines.length > 0 && (
                                                     <div className={`pb-3 pt-0 ${isVariableSubItem ? 'pl-8 pr-5' : 'px-5'}`}>
                                                         <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-[10px] font-mono text-gray-600 leading-tight">

@@ -1,40 +1,47 @@
-import React, { useState } from "react";
-import { FiTrendingUp, FiTrendingDown, FiInfo } from "react-icons/fi";
+import React from "react";
+import { FiTrendingUp, FiTrendingDown } from "react-icons/fi";
+import ComparisonPeriodPopover from "@/components/dashboard/ComparisonPeriodPopover";
 
-export default function MetricCard({ label, value, unit, change, changeType, changeAbsolute, changePrevValue, icon, children, isActive, comparisonMethod, popOverContent = null }) {
-    const [showPopover, setShowPopover] = useState(false);
-
-    const hasComparisonPopover = change !== undefined && changeAbsolute != null && comparisonMethod;
-    const showPopoverOnHover = hasComparisonPopover || popOverContent;
-
+export default function MetricCard({
+    label,
+    value,
+    unit,
+    change,
+    changeType,
+    changeAbsolute,
+    changePrevValue,
+    icon,
+    children,
+    isActive,
+    comparisonMethod,
+    popOverContent = null,
+}) {
     const activeBg = isActive ? "#1E2B2B" : "";
     const activeText = isActive ? "text-white" : "text-gray-900";
     const iconBg = isActive ? "bg-[#243636]" : "bg-gray-50";
     const labelText = isActive ? "text-white" : "text-gray-400";
 
     return (
-        <div
-            className="relative"
-            onMouseEnter={() => showPopoverOnHover && setShowPopover(true)}
-            onMouseLeave={() => setShowPopover(false)}
+        <ComparisonPeriodPopover
+            comparisonMethod={comparisonMethod}
+            changePrevValue={changePrevValue}
+            changeAbsolute={changeAbsolute}
+            extraContent={popOverContent}
         >
             <div
-                className={`flex flex-col justify-between border border-gray-200 rounded-xl px-6 py-5 min-w-[160px] min-h-[110px] ${isActive ? 'shadow-md' : 'bg-white'}`}
-                style={{ background: activeBg, transition: 'background 0.2s, color 0.2s' }}
+                className={`flex flex-col justify-between border border-gray-200 rounded-xl px-6 py-5 min-w-[160px] min-h-[110px] ${isActive ? "shadow-md" : "bg-white"}`}
+                style={{ background: activeBg, transition: "background 0.2s, color 0.2s" }}
             >
                 <div className="flex items-center justify-between mb-4">
-                    <span className={`w-full flex flex-col items-start gap-2 text-sm font-medium ${labelText}`}>
+                    <span
+                        className={`w-full flex flex-col items-start gap-2 text-sm font-medium ${labelText}`}
+                    >
                         <span className="flex justify-between w-full">
                             <span className="flex items-center gap-2 justify-start w-full">
                                 {label}
-                                {/* {popOverContent && (
-                                    <span><FiInfo /></span>
-                                )} */}
                             </span>
                             <div className="flex items-start gap-2 justify-end w-full">
-                                <span className={`rounded-lg p-2 ${iconBg}`}>
-                                    {icon}
-                                </span>
+                                <span className={`rounded-lg p-2 ${iconBg}`}>{icon}</span>
                             </div>
                         </span>
                     </span>
@@ -43,56 +50,31 @@ export default function MetricCard({ label, value, unit, change, changeType, cha
                 <div className="flex justify-between items-end gap-2">
                     <span className={`text-2xl font-bold ${activeText}`}>
                         {value}
-                        {unit &&
-                            <span className="text-base font-normal ml-1">
-                                {unit}
-                            </span>
-                        }
+                        {unit && (
+                            <span className="text-base font-normal ml-1">{unit}</span>
+                        )}
                     </span>
 
                     {change !== undefined && (
                         <div className="flex items-center gap-1">
-                            <span className={`text-[0.65rem] rounded-sm font-medium flex items-center justify-end gap-1 px-2 py-1 min-w-[4rem] tabular-nums ${changeType === "up" ? "text-green-600 bg-green-50" : "text-red-600 bg-red-50"}`}>
-                                {changeType === "up" ? <FiTrendingUp className="text-sm" /> : <FiTrendingDown className="text-sm" />}
+                            <span
+                                className={`text-[0.65rem] rounded-sm font-medium flex items-center justify-end gap-1 px-2 py-1 min-w-[4rem] tabular-nums ${
+                                    changeType === "up"
+                                        ? "text-green-600 bg-green-50"
+                                        : "text-red-600 bg-red-50"
+                                }`}
+                            >
+                                {changeType === "up" ? (
+                                    <FiTrendingUp className="text-sm" />
+                                ) : (
+                                    <FiTrendingDown className="text-sm" />
+                                )}
                                 {change}%
                             </span>
                         </div>
                     )}
                 </div>
             </div>
-
-            {/* Popover */}
-            {showPopover && (hasComparisonPopover || popOverContent) && (
-                <div
-                    className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-50 animate-fadeIn min-w-[200px]"
-                    style={{
-                        animation: 'fadeIn 0.15s ease-in-out',
-                    }}
-                >
-                    <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-3 w-max">
-                        {/* Arrow */}
-                        <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-white"></div>
-                        <div className="absolute -top-2.5 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-gray-200"></div>
-
-                        {/* Content */}
-                        <div className="text-xs text-gray-700 space-y-2">
-                            {hasComparisonPopover && (
-                                <div className="space-y-1">
-                                    <div className="text-gray-500 text-[10px] font-medium uppercase tracking-wide">{comparisonMethod} value</div>
-                                    <div className="font-medium">{changePrevValue ?? '-'}</div>
-                                    <div className="text-gray-500 text-[10px] font-medium uppercase tracking-wide pt-1">Difference</div>
-                                    <div className="font-semibold">{changeAbsolute}</div>
-                                </div>
-                            )}
-                            {popOverContent && (
-                                <div className={`whitespace-pre-line ${hasComparisonPopover ? "pt-2 border-t border-gray-100" : ""}`}>
-                                    {popOverContent}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+        </ComparisonPeriodPopover>
     );
 }
