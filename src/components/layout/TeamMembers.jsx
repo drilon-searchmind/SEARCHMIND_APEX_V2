@@ -142,44 +142,65 @@ function memberRoleLabel(member) {
 }
 
 /** Hover panel: team names + contract services (check / X). */
-function TeamServicesPopover({ services, members, open }) {
+function TeamServicesPopover({
+    services,
+    members,
+    open,
+    highlightedMemberId,
+}) {
     if (!open) return null;
     const hasTeam = members?.length > 0;
     const hasServices = services?.length > 0;
     if (!hasTeam && !hasServices) return null;
 
+    const twoCols = hasTeam && hasServices;
+
     return (
         <div
-            className="absolute right-0 top-full z-[100] mt-1.5 flex max-w-[min(92vw,22rem)] gap-3 rounded-md border border-gray-200/90 bg-white/98 py-2 pl-2.5 pr-2.5 shadow-sm backdrop-blur-[2px]"
+            className={
+                twoCols
+                    ? "absolute right-0 top-full z-[100] mt-1.5 grid w-max min-w-[min(100%,20rem)] max-w-[min(96vw,32rem)] grid-cols-1 gap-3 rounded-md border border-gray-200/90 bg-white/98 p-3 shadow-sm backdrop-blur-[2px] sm:min-w-[24rem] sm:grid-cols-2 sm:gap-4"
+                    : "absolute right-0 top-full z-[100] mt-1.5 w-max min-w-[min(100%,14rem)] max-w-[min(96vw,22rem)] rounded-md border border-gray-200/90 bg-white/98 p-3 shadow-sm backdrop-blur-[2px]"
+            }
             role="tooltip"
         >
             {hasTeam && (
                 <div
-                    className={`min-w-0 shrink-0 ${hasServices ? "border-r border-gray-100 pr-3" : ""}`}
+                    className={`min-w-0 max-w-full ${twoCols ? "border-b border-gray-100 pb-3 sm:border-b-0 sm:border-r sm:border-gray-100 sm:pb-0 sm:pr-4" : ""}`}
                 >
                     <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-gray-400">
                         Team
                     </p>
                     <ul className="space-y-1.5" aria-label="Team members">
-                        {members.map((m) => (
-                            <li
-                                key={String(m.id)}
-                                className="text-[11px] leading-tight text-gray-700"
-                            >
-                                <span className="font-medium text-gray-800">
-                                    {m.username}
-                                </span>
-                                <span className="text-gray-500">
-                                    {" "}
-                                    ({memberRoleLabel(m)})
-                                </span>
-                            </li>
-                        ))}
+                        {members.map((m) => {
+                            const rowId = String(m.id);
+                            const isHighlighted =
+                                highlightedMemberId != null &&
+                                highlightedMemberId === rowId;
+                            return (
+                                <li
+                                    key={rowId}
+                                    className={`break-words rounded-md px-2 py-1 text-[11px] leading-snug text-gray-700 transition-colors duration-150 ${
+                                        isHighlighted
+                                            ? "bg-[var(--color-primary-searchmind-lighter)]/10"
+                                            : ""
+                                    }`}
+                                >
+                                    <span className="font-medium text-gray-800">
+                                        {m.username}
+                                    </span>
+                                    <span className="text-gray-500">
+                                        {" "}
+                                        ({memberRoleLabel(m)})
+                                    </span>
+                                </li>
+                            );
+                        })}
                     </ul>
                 </div>
             )}
             {hasServices && (
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 max-w-full">
                     <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-gray-400">
                         Services by Searchmind
                     </p>
@@ -187,9 +208,9 @@ function TeamServicesPopover({ services, members, open }) {
                         {services.map((s) => (
                             <li
                                 key={s.key}
-                                className="flex items-center gap-2 text-[11px] leading-tight text-gray-600"
+                                className="flex min-w-0 items-start gap-2 text-[11px] leading-snug text-gray-600"
                             >
-                                <span className="flex shrink-0 items-center justify-center">
+                                <span className="mt-0.5 flex shrink-0 items-center justify-center">
                                     {s.active ? (
                                         <FiCheck
                                             className="h-3 w-3 text-emerald-600/75"
@@ -202,7 +223,7 @@ function TeamServicesPopover({ services, members, open }) {
                                         />
                                     )}
                                 </span>
-                                <span className="min-w-0">{s.label}</span>
+                                <span className="min-w-0 break-words">{s.label}</span>
                             </li>
                         ))}
                     </ul>
@@ -216,6 +237,8 @@ export default function TeamMembers() {
     const { members, customerServices, loading, avatarAnimKey, customerId } =
         useTeamMembersData();
     const [servicesOpen, setServicesOpen] = useState(false);
+    /** Which team member avatar is hovered — highlights matching row in popover. */
+    const [hoveredMemberId, setHoveredMemberId] = useState(null);
 
     const hasServiceData = customerServices.length > 0;
     const hasTeamMembers = members.length > 0;
@@ -233,29 +256,24 @@ export default function TeamMembers() {
     const keyBase = customerId ?? "none";
     const totalMembers = displayMembers.length;
 
+    const memberHoverId = (member, idx) =>
+        member?.id != null ? String(member.id) : `placeholder-${idx}`;
+
     const renderMemberAvatar = (member, idx) => {
         const serviceInfo = serviceConfig[member.service] || {
             label: member.service,
             color: "#999",
         };
         const uniqueKey = `member-${member.id || `placeholder-${idx}`}-${idx}`;
-        const isLast = idx === totalMembers - 1;
+        const hoverKey = memberHoverId(member, idx);
         return (
             <div
                 key={uniqueKey}
                 className="animate-team-member-in relative w-[35px] shrink-0"
                 style={{ animationDelay: `${idx * 52}ms` }}
                 id={uniqueKey}
+                onMouseEnter={() => setHoveredMemberId(hoverKey)}
             >
-                {isLast && hasServiceData && (
-                    <span
-                        className="pointer-events-none absolute top-1/2 z-[5] -translate-y-1/2 translate-x-1 text-gray-400"
-                        style={{ right: "calc(100% - 4px)" }}
-                        aria-hidden
-                    >
-                        <FiInfo className="h-3.5 w-3.5" strokeWidth={2} />
-                    </span>
-                )}
                 <div
                     className="flex h-[35px] w-[35px] items-center justify-center rounded-full border-2 border-white transition-transform duration-150 hover:scale-105"
                     style={{
@@ -272,23 +290,44 @@ export default function TeamMembers() {
     return (
         <div
             className="relative flex min-w-0 items-center gap-1 sm:gap-1.5"
-            onMouseEnter={() => hasServiceData && setServicesOpen(true)}
-            onMouseLeave={() => setServicesOpen(false)}
+            onMouseEnter={() => showPopoverContent && setServicesOpen(true)}
+            onMouseLeave={() => {
+                setServicesOpen(false);
+                setHoveredMemberId(null);
+            }}
         >
-            <p className="mr-0.5 shrink-0 text-sm text-gray-500">Team</p>
+            <p
+                className="mr-0.5 shrink-0 text-sm text-gray-500"
+                onMouseEnter={() => setHoveredMemberId(null)}
+            >
+                Team
+            </p>
             <div
-                className="flex items-center gap-1"
+                className="relative inline-flex items-center gap-1"
                 key={`${keyBase}-${avatarAnimKey}`}
                 aria-busy={loading}
             >
                 {displayMembers.map((member, idx) =>
                     renderMemberAvatar(member, idx)
                 )}
+                {hasServiceData && (
+                    <span
+                        className="pointer-events-none absolute left-full top-1/2 z-[6] ml-1 -translate-y-1/2 text-gray-400"
+                        aria-hidden
+                        title="Contract services"
+                        style={{
+                            transform: `translateX(-${totalMembers * 12 - 10}px)`,
+                        }}
+                    >
+                        <FiInfo className="h-3.5 w-3.5" strokeWidth={2} />
+                    </span>
+                )}
             </div>
             <TeamServicesPopover
                 services={customerServices}
                 members={members}
                 open={servicesOpen && showPopoverContent}
+                highlightedMemberId={hoveredMemberId}
             />
         </div>
     );
