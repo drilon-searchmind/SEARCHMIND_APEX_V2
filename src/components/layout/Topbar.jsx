@@ -364,10 +364,14 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                             </div>
                         )}
 
-                        {/* Home Link - Hidden on mobile */}
-                        <div className="relative hidden">
-                            <Link href="/home" className="flex items-center space-x-0">
-                                <FiHome className="text-gray-400 h-4 w-4" />
+                        {/* Home — far left on desktop; mobile uses hamburger menu */}
+                        <div className="relative hidden xl:flex items-center shrink-0">
+                            <Link
+                                href="/home"
+                                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-100 transition-colors"
+                            >
+                                <FiHome className="text-[var(--color-primary-searchmind)] h-4 w-4 shrink-0" aria-hidden />
+                                <span>Home</span>
                             </Link>
                         </div>
 

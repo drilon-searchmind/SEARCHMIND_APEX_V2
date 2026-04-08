@@ -24,13 +24,15 @@ function getAvatarColor(str) {
     return AVATAR_COLORS[code % AVATAR_COLORS.length];
 }
 
-export default function CustomerTable() {
+export default function CustomerTable({ showLatestNews = true }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [showCreate, setShowCreate] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
     const [parentNames, setParentNames] = useState({});
     const [favoritedCustomers, setFavoritedCustomers] = useState([]);
     const [loadingFavorites, setLoadingFavorites] = useState({});
+    const [newsPosts, setNewsPosts] = useState([]);
+    const [newsLoading, setNewsLoading] = useState(true);
     const user = useUser();
     const { customers, loading, error } = useCustomers(refreshKey);
 
@@ -42,6 +44,31 @@ export default function CustomerTable() {
             setFavoritedCustomers(favoriteIds);
         }
     }, [user]);
+
+    useEffect(() => {
+        if (!showLatestNews) {
+            setNewsLoading(false);
+            return;
+        }
+        let cancelled = false;
+        setNewsLoading(true);
+        (async () => {
+            try {
+                const res = await fetch("/api/news");
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || "Failed to load news");
+                const posts = Array.isArray(data.posts) ? data.posts : [];
+                if (!cancelled) setNewsPosts(posts.slice(0, 5));
+            } catch {
+                if (!cancelled) setNewsPosts([]);
+            } finally {
+                if (!cancelled) setNewsLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [showLatestNews]);
 
     const handleToggleFavorite = async (customerId) => {
         if (!user?.id) return;
@@ -103,7 +130,7 @@ export default function CustomerTable() {
                 try {
                     const res = await fetch(url);
                     if (res.ok) return await res.json();
-                } catch {}
+                } catch { }
                 if (i < retries - 1) await new Promise((r) => setTimeout(r, delay));
             }
             return null;
@@ -169,8 +196,8 @@ export default function CustomerTable() {
     }
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center glassmorphism2 p-4">
-            <div className={`w-full max-w-7xl h-[90vh] flex flex-col bg-white border border-gray-200 rounded-xl overflow-hidden ${FONT}`}>
+        <div className="fixed inset-0 flex items-center justify-center glassmorphism2 p-4 grid grid-cols-1 md:grid-cols-12 gap-4 px-4 md:px-10 lg:px-20 xl:px-40 py-4 md:py-20">
+            <div className={`col-span-10 w-full h-full flex flex-col bg-white border border-gray-200 rounded-xl overflow-hidden ${FONT}`}>
                 <div className="flex flex-1 min-h-0 gap-4 p-4 md:p-6">
                     <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
                         {showCreate ? (
@@ -299,8 +326,8 @@ export default function CustomerTable() {
                     </div>
 
                     {!showCreate && (
-                        <div className="w-64 flex-shrink-0 flex flex-col gap-4">
-                            <div className="flex flex-col gap-2">
+                        <div className="w-72 xl:w-80 shrink-0 flex flex-col gap-4 min-h-0">
+                            <div className="flex flex-col gap-2 shrink-0">
                                 {user?.isAdmin && (
                                     <button
                                         type="button"
@@ -318,7 +345,7 @@ export default function CustomerTable() {
                                     <FiLogOut /> Logout
                                 </button>
                             </div>
-                            <div className="flex-1 min-h-0 flex flex-col border border-gray-200 rounded-xl bg-gray-50 p-3 overflow-hidden">
+                            <div className="flex-1 min-h-0 h-full flex flex-col border border-gray-200 rounded-xl bg-gray-50 p-3 overflow-hidden">
                                 <h3 className="font-semibold text-gray-700 mb-2 flex items-center gap-2 shrink-0">
                                     <FiStar className="text-[var(--color-primary-searchmind)]" />
                                     Your Favorites
@@ -354,6 +381,69 @@ export default function CustomerTable() {
                         </div>
                     )}
                 </div>
+            </div>
+
+            <div className="col-span-2 w-full h-full">
+                {showLatestNews && (
+                    <section
+                        className="flex-1 min-h-0 flex flex-col border-b border-gray-200 bg-gray-100 rounded-xl overflow-hidden"
+                        aria-labelledby="customer-table-latest-news-heading"
+                    >
+                        <div className="p-4 border-b border-gray-200 shrink-0">
+                            <h2
+                                id="customer-table-latest-news-heading"
+                                className="text-sm font-semibold text-[var(--color-primary-searchmind)]"
+                            >
+                                Latest news
+                            </h2>
+                        </div>
+                        <div className="flex-1 min-h-0 overflow-y-auto p-4">
+                            {newsLoading ? (
+                                <p className="text-xs text-gray-500 py-2">Loading…</p>
+                            ) : newsPosts.length === 0 ? (
+                                <p className="text-xs text-gray-500 py-2">No news yet.</p>
+                            ) : (
+                                <ul className="space-y-0 divide-y divide-gray-200">
+                                    {newsPosts.map((post) => (
+                                        <li key={post.slug || post._id} className="py-2.5 first:pt-0">
+                                            <Link
+                                                href={`/news/${post.slug}`}
+                                                className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] rounded-md -m-1 p-1"
+                                            >
+                                                <span className="text-xs font-semibold text-gray-900 group-hover:text-[var(--color-primary-searchmind)] line-clamp-2">
+                                                    {post.title}
+                                                </span>
+                                                {post.excerpt ? (
+                                                    <p className="text-[0.65rem] text-gray-600 mt-1 line-clamp-2">{post.excerpt}</p>
+                                                ) : null}
+                                                {post.publishedAt ? (
+                                                    <time
+                                                        dateTime={post.publishedAt}
+                                                        className="text-[0.65rem] text-gray-400 mt-1 block"
+                                                    >
+                                                        {new Date(post.publishedAt).toLocaleDateString(undefined, {
+                                                            year: "numeric",
+                                                            month: "short",
+                                                            day: "numeric",
+                                                        })}
+                                                    </time>
+                                                ) : null}
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                        <div className="px-3 py-2 border-t border-gray-100 shrink-0">
+                            <Link
+                                href="/news"
+                                className="block w-full text-center text-xs font-semibold text-[var(--color-primary-searchmind)] py-1.5 rounded-lg hover:bg-[var(--color-primary-searchmind-lighter)] transition-colors"
+                            >
+                                Show all
+                            </Link>
+                        </div>
+                    </section>
+                )}
             </div>
         </div>
     );
