@@ -8,6 +8,7 @@ import React, {
     useState,
 } from "react";
 import Image from "next/image";
+import { FiCheck, FiInfo, FiX } from "react-icons/fi";
 
 const TeamMembersDataContext = createContext(null);
 
@@ -22,12 +23,14 @@ export function ClickupTeamMembersProvider({
     children,
 }) {
     const [members, setMembers] = useState([]);
+    const [customerServices, setCustomerServices] = useState([]);
     const [loading, setLoading] = useState(false);
     const [avatarAnimKey, setAvatarAnimKey] = useState(0);
 
     useEffect(() => {
         if (!enabled || !customerId) {
             setMembers([]);
+            setCustomerServices([]);
             setAvatarAnimKey(0);
             setLoading(false);
             return;
@@ -48,11 +51,13 @@ export function ClickupTeamMembersProvider({
                 const data = await response.json();
                 if (cancelled) return;
                 setMembers(data.members || []);
+                setCustomerServices(data.customerServices || []);
                 setAvatarAnimKey((k) => k + 1);
             } catch (err) {
                 if (cancelled) return;
                 console.error("Error fetching team members:", err);
                 setMembers([]);
+                setCustomerServices([]);
                 setAvatarAnimKey((k) => k + 1);
             } finally {
                 if (!cancelled) setLoading(false);
@@ -67,11 +72,12 @@ export function ClickupTeamMembersProvider({
     const value = useMemo(
         () => ({
             members,
+            customerServices,
             loading,
             avatarAnimKey,
             customerId: enabled ? customerId : null,
         }),
-        [members, loading, avatarAnimKey, customerId, enabled]
+        [members, customerServices, loading, avatarAnimKey, customerId, enabled]
     );
 
     return (
@@ -130,8 +136,90 @@ const serviceConfig = {
     "28b06356-6f19-4633-bfa4-416c150a562c": { label: "Client Lead", color: "#5e8888" },
 };
 
+function memberRoleLabel(member) {
+    const s = serviceConfig[member.service];
+    return s?.label ?? member.service ?? "—";
+}
+
+/** Hover panel: team names + contract services (check / X). */
+function TeamServicesPopover({ services, members, open }) {
+    if (!open) return null;
+    const hasTeam = members?.length > 0;
+    const hasServices = services?.length > 0;
+    if (!hasTeam && !hasServices) return null;
+
+    return (
+        <div
+            className="absolute right-0 top-full z-[100] mt-1.5 flex max-w-[min(92vw,22rem)] gap-3 rounded-md border border-gray-200/90 bg-white/98 py-2 pl-2.5 pr-2.5 shadow-sm backdrop-blur-[2px]"
+            role="tooltip"
+        >
+            {hasTeam && (
+                <div
+                    className={`min-w-0 shrink-0 ${hasServices ? "border-r border-gray-100 pr-3" : ""}`}
+                >
+                    <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-gray-400">
+                        Team
+                    </p>
+                    <ul className="space-y-1.5" aria-label="Team members">
+                        {members.map((m) => (
+                            <li
+                                key={String(m.id)}
+                                className="text-[11px] leading-tight text-gray-700"
+                            >
+                                <span className="font-medium text-gray-800">
+                                    {m.username}
+                                </span>
+                                <span className="text-gray-500">
+                                    {" "}
+                                    ({memberRoleLabel(m)})
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            {hasServices && (
+                <div className="min-w-0 flex-1">
+                    <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-gray-400">
+                        Services by Searchmind
+                    </p>
+                    <ul className="space-y-1" aria-label="Contract services">
+                        {services.map((s) => (
+                            <li
+                                key={s.key}
+                                className="flex items-center gap-2 text-[11px] leading-tight text-gray-600"
+                            >
+                                <span className="flex shrink-0 items-center justify-center">
+                                    {s.active ? (
+                                        <FiCheck
+                                            className="h-3 w-3 text-emerald-600/75"
+                                            aria-hidden
+                                        />
+                                    ) : (
+                                        <FiX
+                                            className="h-3 w-3 text-gray-400/90"
+                                            aria-hidden
+                                        />
+                                    )}
+                                </span>
+                                <span className="min-w-0">{s.label}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function TeamMembers() {
-    const { members, loading, avatarAnimKey, customerId } = useTeamMembersData();
+    const { members, customerServices, loading, avatarAnimKey, customerId } =
+        useTeamMembersData();
+    const [servicesOpen, setServicesOpen] = useState(false);
+
+    const hasServiceData = customerServices.length > 0;
+    const hasTeamMembers = members.length > 0;
+    const showPopoverContent = hasServiceData || hasTeamMembers;
 
     const displayMembers =
         members.length > 0
@@ -143,48 +231,65 @@ export default function TeamMembers() {
               }));
 
     const keyBase = customerId ?? "none";
+    const totalMembers = displayMembers.length;
+
+    const renderMemberAvatar = (member, idx) => {
+        const serviceInfo = serviceConfig[member.service] || {
+            label: member.service,
+            color: "#999",
+        };
+        const uniqueKey = `member-${member.id || `placeholder-${idx}`}-${idx}`;
+        const isLast = idx === totalMembers - 1;
+        return (
+            <div
+                key={uniqueKey}
+                className="animate-team-member-in relative w-[35px] shrink-0"
+                style={{ animationDelay: `${idx * 52}ms` }}
+                id={uniqueKey}
+            >
+                {isLast && hasServiceData && (
+                    <span
+                        className="pointer-events-none absolute top-1/2 z-[5] -translate-y-1/2 translate-x-1 text-gray-400"
+                        style={{ right: "calc(100% - 4px)" }}
+                        aria-hidden
+                    >
+                        <FiInfo className="h-3.5 w-3.5" strokeWidth={2} />
+                    </span>
+                )}
+                <div
+                    className="flex h-[35px] w-[35px] items-center justify-center rounded-full border-2 border-white transition-transform duration-150 hover:scale-105"
+                    style={{
+                        backgroundColor: serviceInfo.color,
+                        transform: `translateX(-${idx * 12}px)`,
+                    }}
+                >
+                    <MemberFace member={member} />
+                </div>
+            </div>
+        );
+    };
 
     return (
-        <div className="flex items-center gap-1">
-            <p className="text-gray-500 mr-1 text-sm">Team</p>
+        <div
+            className="relative flex min-w-0 items-center gap-1 sm:gap-1.5"
+            onMouseEnter={() => hasServiceData && setServicesOpen(true)}
+            onMouseLeave={() => setServicesOpen(false)}
+        >
+            <p className="mr-0.5 shrink-0 text-sm text-gray-500">Team</p>
             <div
                 className="flex items-center gap-1"
                 key={`${keyBase}-${avatarAnimKey}`}
                 aria-busy={loading}
             >
-                {displayMembers.map((member, idx) => {
-                    const serviceInfo = serviceConfig[member.service] || {
-                        label: member.service,
-                        color: "#999",
-                    };
-                    const uniqueKey = `member-${member.id || `placeholder-${idx}`}-${idx}`;
-                    return (
-                        <div
-                            key={uniqueKey}
-                            className="relative group animate-team-member-in"
-                            style={{ animationDelay: `${idx * 52}ms` }}
-                            id={uniqueKey}
-                        >
-                            <div
-                                className="rounded-full border-2 hover:scale-105 transition-transform duration-150 flex items-center justify-center"
-                                style={{
-                                    width: "35px",
-                                    height: "35px",
-                                    backgroundColor: serviceInfo.color,
-                                    borderColor: "white",
-                                    transform: `translateX(-${idx * 12}px)`,
-                                }}
-                                title={member.username}
-                            >
-                                <MemberFace member={member} />
-                            </div>
-                            <span className="absolute left-1/2 -translate-x-1/2 mt-2 px-2 py-1 text-xs bg-gray-900 text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10">
-                                {member.username} ({serviceInfo.label})
-                            </span>
-                        </div>
-                    );
-                })}
+                {displayMembers.map((member, idx) =>
+                    renderMemberAvatar(member, idx)
+                )}
             </div>
+            <TeamServicesPopover
+                services={customerServices}
+                members={members}
+                open={servicesOpen && showPopoverContent}
+            />
         </div>
     );
 }

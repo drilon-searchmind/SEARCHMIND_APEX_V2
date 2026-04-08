@@ -2,6 +2,10 @@
 import Customer from '@/models/Customer';
 import connectToDatabase from '../../../../../lib/mongodb';
 import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
+import {
+    buildCustomerServicesStatus,
+    CLICKUP_CUSTOMER_SERVICES_FIELD_ID,
+} from '@/lib/clickupCustomerServices';
 
 /** Fixed ClickUp list whose /member endpoint includes profile pictures for Searchmind team. */
 const CLICKUP_TEAM_LIST_ID = '210313781';
@@ -152,7 +156,20 @@ export async function GET(request, { params }) {
         const customerId = resolvedParams.customerId;
 
         if (isDemoCustomerId(customerId)) {
-            return Response.json(getDemoPayload('clickupTeamMembers'), { status: 200 });
+            const demo = getDemoPayload('clickupTeamMembers') ?? { members: [] };
+            const customerServices =
+                demo.customerServices ??
+                buildCustomerServicesStatus([
+                    '11ce14ac-2324-4f56-83c9-c480c86a3a39',
+                    '5ba9c5f7-72ac-4538-ac09-af88da2950b5',
+                    '760b9c31-350c-4560-9e9a-a30ba75fd32b',
+                    'e1e6850e-3aec-42db-84d1-5e0d29df2ead',
+                    'e6db202f-2b5a-42c2-aff6-b9993a34513f',
+                ]);
+            return Response.json(
+                { members: demo.members ?? [], customerServices },
+                { status: 200 }
+            );
         }
 
         await connectToDatabase();
@@ -167,7 +184,10 @@ export async function GET(request, { params }) {
         const clickupId = customer?.CustomerSettings?.customerClickupID;
         
         if (!clickupId) {
-            return Response.json({ members: [] }, { status: 200 });
+            return Response.json(
+                { members: [], customerServices: buildCustomerServicesStatus([]) },
+                { status: 200 }
+            );
         }
 
         const clickupUrl = `https://api.clickup.com/api/v2/task/${clickupId}`;
@@ -183,10 +203,21 @@ export async function GET(request, { params }) {
 
         if (!clickupResponse.ok) {
             console.warn(`ClickUp API error for task ${clickupId}:`, clickupResponse.status);
-            return Response.json({ members: [] }, { status: 200 });
+            return Response.json(
+                { members: [], customerServices: buildCustomerServicesStatus([]) },
+                { status: 200 }
+            );
         }
 
         const clickupData = await clickupResponse.json();
+
+        const servicesField = clickupData.custom_fields?.find(
+            (f) => f.id === CLICKUP_CUSTOMER_SERVICES_FIELD_ID
+        );
+        const selectedServiceIds = Array.isArray(servicesField?.value)
+            ? servicesField.value
+            : [];
+        const customerServices = buildCustomerServicesStatus(selectedServiceIds);
 
         // Service field IDs
         const userFields = [
@@ -295,9 +326,16 @@ export async function GET(request, { params }) {
             listProfileLookup
         );
 
-        return Response.json({ members }, { status: 200 });
+        return Response.json({ members, customerServices }, { status: 200 });
     } catch (error) {
         console.error('Error fetching team members:', error);
-        return Response.json({ error: error.message, members: [] }, { status: 500 });
+        return Response.json(
+            {
+                error: error.message,
+                members: [],
+                customerServices: buildCustomerServicesStatus([]),
+            },
+            { status: 500 }
+        );
     }
 }
