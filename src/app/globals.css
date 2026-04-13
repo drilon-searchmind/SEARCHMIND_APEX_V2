@@ -316,6 +316,12 @@ select {
 .dark .text-gray-800 {
 	color: #cbd5e1 !important;
 }
+.dark .bg-gray-50\/80 {
+	background-color: #323b4280 !important;
+}
+.dark .text-gray-900.bg-\[\#fde8e8\] {
+	color: #323b42 !important;
+}
 
 /* AI Chat */
 #chatAiMessage * {
@@ -511,14 +517,16 @@ select {
 	animation: dataWrappedPanelFadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-#mainSidebar * {
+#mainSidebar *,
+#apexRadarSidebar * {
 	color: #fff;
 }
-#mainSidebar #logoApex {
+#mainSidebar #logoApex,
+#apexRadarSidebar #logoApex {
 	filter: invert(1);
 }
-
-#mainSidebar #smallLabel {
+#mainSidebar #smallLabel,
+#apexRadarSidebar #smallLabel {
 	color: #000;
 }
 

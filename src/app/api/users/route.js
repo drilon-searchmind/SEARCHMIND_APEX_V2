@@ -46,9 +46,21 @@ export async function POST(req) {
             return new Response(JSON.stringify({ error: 'Missing name or email' }), { status: 400 });
         }
 
-        // Use the userService helper to create the external user
         const { createExternalUser } = await import('../../../../lib/userService');
-        const created = await createExternalUser({ name, email, password });
+        const { sendExternalUserWelcomeEmail } = await import('../../../../lib/postmarkWelcomeEmail.js');
+
+        const { user: created, plainPassword } = await createExternalUser({ name, email, password });
+
+        const emailResult = await sendExternalUserWelcomeEmail({
+            to: created.email,
+            name: created.name,
+            email: created.email,
+            plainPassword,
+        });
+        if (!emailResult.ok && !emailResult.skipped) {
+            console.error('[api/users] Welcome email failed after user create:', emailResult.error);
+        }
+
         return new Response(JSON.stringify(created), { status: 201 });
     } catch (err) {
         return new Response(JSON.stringify({ error: err.message }), { status: 500 });

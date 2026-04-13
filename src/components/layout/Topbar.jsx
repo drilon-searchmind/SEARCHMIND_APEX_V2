@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import Image from "next/image";
 import { FaMoon, FaSun } from "react-icons/fa";
 import { FiBell } from "react-icons/fi";
@@ -6,7 +6,11 @@ import { FiChevronDown, FiHome, FiUser, FiSettings, FiBarChart2, FiLogOut, FiSea
 import { useUser } from "@/contexts/UserContext";
 import { signOut } from "next-auth/react";
 import { useCustomers } from "@/hooks/useCustomers";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
+import { parseApexRadarPath, APEX_RADAR_CHANNEL_FACEBOOK, apexRadarOverviewHref } from "@/lib/apexRadarChannels";
+
+/** Sentinel value for Apex Radar "All properties" in the customer Select. */
+const APEX_RADAR_CUSTOMER_SELECT_ALL = "__apex_radar_all__";
 import Select from 'react-select';
 import TeamMembers, { ClickupTeamMembersProvider } from './TeamMembers';
 import TrackingScore from './TrackingScore';
@@ -18,6 +22,7 @@ import { LuRadar } from "react-icons/lu";
 import { RiToolsFill } from "react-icons/ri";
 import { getDemoCustomerIds } from "@/lib/demoCustomerId";
 import { normalizeInternalNotificationHref } from "@/lib/notificationLink";
+import { canAccessApexRadar } from "@/lib/apexRadarAccess";
 
 function getLastMonthPeriod() {
     const d = new Date();
@@ -68,6 +73,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
     });
     const { customers } = useCustomers();
     const params = useParams();
+    const pathname = usePathname();
     const router = useRouter();
     const activeCustomerId = params?.customerId;
     const [activeCustomer, setActiveCustomer] = useState([]);
@@ -138,22 +144,49 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
     };
 
     // Prepare options for react-select
-    const customerOptions = accessibleCustomers.map((customer) => ({
-        value: customer._id,
-        label: `${customer.customerName}`,
-        customer: customer
-    }));
+    const baseCustomerOptions = useMemo(
+        () =>
+            accessibleCustomers.map((customer) => ({
+                value: customer._id,
+                label: `${customer.customerName}`,
+                customer,
+            })),
+        [accessibleCustomers]
+    );
+
+    const apexRadarPath = parseApexRadarPath(pathname);
+
+    const customerSelectOptions = useMemo(() => {
+        if (!apexRadarPath.isApexRadar) return baseCustomerOptions;
+        return [{ value: APEX_RADAR_CUSTOMER_SELECT_ALL, label: "All" }, ...baseCustomerOptions];
+    }, [apexRadarPath.isApexRadar, baseCustomerOptions]);
 
     // Check if activeCustomerId is accessible, if not redirect to first accessible customer
-    const isActiveCustomerAccessible = accessibleCustomers.some(c => c._id === activeCustomerId);
+    const isActiveCustomerAccessible = accessibleCustomers.some((c) => c._id === activeCustomerId);
     React.useEffect(() => {
-        if (activeCustomerId && !isActiveCustomerAccessible && accessibleCustomers.length > 0) {
-            // Redirect to first accessible customer if current one is not accessible
-            router.push(`/dashboard/${accessibleCustomers[0]._id}/performance-dashboard`);
+        if (!activeCustomerId || isActiveCustomerAccessible || accessibleCustomers.length === 0) return;
+        const first = accessibleCustomers[0]._id;
+        const { isApexRadar, channel } = parseApexRadarPath(pathname);
+        if (isApexRadar) {
+            const ch = channel ?? APEX_RADAR_CHANNEL_FACEBOOK;
+            router.push(`/apex-radar/${ch}/${first}`);
+            return;
         }
-    }, [activeCustomerId, isActiveCustomerAccessible, accessibleCustomers, router]);
+        router.push(`/dashboard/${first}/performance-dashboard`);
+    }, [activeCustomerId, isActiveCustomerAccessible, accessibleCustomers, router, pathname]);
 
-    const selectedOption = customerOptions.find(option => option.value === activeCustomerId);
+    const selectedOption = useMemo(() => {
+        if (apexRadarPath.isApexRadar && !apexRadarPath.customerId) {
+            return customerSelectOptions.find((o) => o.value === APEX_RADAR_CUSTOMER_SELECT_ALL) ?? null;
+        }
+        return baseCustomerOptions.find((option) => option.value === activeCustomerId) ?? null;
+    }, [
+        apexRadarPath.isApexRadar,
+        apexRadarPath.customerId,
+        activeCustomerId,
+        baseCustomerOptions,
+        customerSelectOptions,
+    ]);
 
     const handleToggleTheme = () => {
         const newTheme = theme === "light" ? "dark" : "light";
@@ -181,9 +214,18 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
     }, [theme]);
 
     const handleCustomerChange = (selectedOption) => {
-        if (selectedOption) {
-            router.push(`/dashboard/${selectedOption.value}/performance-dashboard`);
+        if (!selectedOption) return;
+        const { isApexRadar, channel } = parseApexRadarPath(pathname);
+        if (isApexRadar) {
+            const ch = channel ?? APEX_RADAR_CHANNEL_FACEBOOK;
+            if (selectedOption.value === APEX_RADAR_CUSTOMER_SELECT_ALL) {
+                router.push(apexRadarOverviewHref(ch));
+                return;
+            }
+            router.push(`/apex-radar/${ch}/${selectedOption.value}`);
+            return;
         }
+        router.push(`/dashboard/${selectedOption.value}/performance-dashboard`);
     };
 
     // Close menu on outside click
@@ -382,7 +424,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                 <Select
                                     value={selectedOption}
                                     onChange={handleCustomerChange}
-                                    options={customerOptions}
+                                    options={customerSelectOptions}
                                     placeholder="Select"
                                     isSearchable={true}
                                     isClearable={false}
@@ -586,18 +628,19 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                             </li>
                                         )}
                                         {user?.isAdmin && (
-                                            <>
-                                                <li className="flex items-center gap-2">
-                                                    <FiSettings />
-                                                    <Link href="/admin" className="text-sm text-slate-800 font-semibold">Admin</Link>
-                                                </li>
-                                                <li
-                                                    id="apexRadar-link"
-                                                    className="flex items-center gap-2 bg-[var(--color-primary-searchmind-lighter)] text-white rounded py-2 px-3">
-                                                    <Link href="#" className="text-sm font-semibold">Apex Radar</Link>
-                                                    <span className="text-[0.5rem] text-black bg-gray-200 rounded px-3 py-1">BETA</span>
-                                                </li>
-                                            </>
+                                            <li className="flex items-center gap-2">
+                                                <FiSettings />
+                                                <Link href="/admin" className="text-sm text-slate-800 font-semibold">Admin</Link>
+                                            </li>
+                                        )}
+                                        {canAccessApexRadar(user) && (
+                                            <li
+                                                id="apexRadar-link"
+                                                className="flex items-center gap-2 bg-[var(--color-primary-searchmind-lighter)] text-white rounded py-2 px-3"
+                                            >
+                                                <Link href="/apex-radar" className="text-sm font-semibold">Apex Radar</Link>
+                                                <span className="text-[0.5rem] text-black bg-gray-200 rounded px-3 py-1">BETA</span>
+                                            </li>
                                         )}
                                         <hr className="text-gray-200" />
                                         <li className="flex items-center gap-2">
@@ -799,6 +842,17 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                         >
                                             <FiSettings className="text-gray-400 h-5 w-5" />
                                             <span className="text-gray-900 font-medium text-sm">Admin</span>
+                                        </Link>
+                                    )}
+                                    {canAccessApexRadar(user) && (
+                                        <Link
+                                            href="/apex-radar"
+                                            onClick={() => setMobileMenuOpen(false)}
+                                            className="flex items-center space-x-3 py-2 px-3 rounded-lg bg-[var(--color-primary-searchmind-lighter)]/30 hover:bg-[var(--color-primary-searchmind-lighter)]/50 transition-colors"
+                                        >
+                                            <LuRadar className="text-[var(--color-primary-searchmind)] h-5 w-5" />
+                                            <span className="text-gray-900 font-medium text-sm">Apex Radar</span>
+                                            <span className="text-[0.6rem] font-semibold text-gray-600 bg-gray-200 rounded px-1.5 py-0.5">BETA</span>
                                         </Link>
                                     )}
                                     <Link

@@ -29,7 +29,7 @@ export default function MetricCard({
             extraContent={popOverContent}
         >
             <div
-                className={`flex flex-col justify-between border border-gray-200 rounded-xl px-6 py-5 min-w-[160px] min-h-[110px] ${isActive ? "shadow-md" : "bg-white"}`}
+                className={`flex w-full flex-col justify-between border border-gray-200 rounded-xl px-6 py-5 min-w-[160px] min-h-[110px] ${isActive ? "shadow-md" : "bg-white"}`}
                 style={{ background: activeBg, transition: "background 0.2s, color 0.2s" }}
             >
                 <div className="flex items-center justify-between mb-4">

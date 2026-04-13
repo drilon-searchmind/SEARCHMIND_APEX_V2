@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "google-ads-token": "node scripts/get-google-ads-refresh-token.js",
-    "microsoft-ads-token": "node scripts/get-microsoft-ads-refresh-token.js"
+    "microsoft-ads-token": "node scripts/get-microsoft-ads-refresh-token.js",
+    "postmark:test-welcome": "node scripts/send-postmark-welcome-test.js"
   },
   "dependencies": {
     "@googleapis/searchconsole": "^6.0.1",

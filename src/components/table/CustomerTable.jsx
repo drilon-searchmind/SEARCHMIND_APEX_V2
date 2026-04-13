@@ -3,7 +3,10 @@
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import SearchInput from "@/components/search/SearchInput";
-import { FiArrowRight, FiLogOut, FiUsers, FiUser, FiStar, FiServer } from "react-icons/fi";
+import { FiArrowRight, FiLogOut, FiUsers, FiUser, FiStar, FiServer, FiBookOpen, FiFileText, FiBell } from "react-icons/fi";
+import { LuRadar } from "react-icons/lu";
+import { RiToolsFill } from "react-icons/ri";
+import { canAccessApexRadar } from "@/lib/apexRadarAccess";
 import { useUser } from "@/contexts/UserContext";
 import { signOut } from "next-auth/react";
 import { useCustomers } from "@/hooks/useCustomers";
@@ -327,7 +330,7 @@ export default function CustomerTable({ showLatestNews = true }) {
 
                     {!showCreate && (
                         <div className="w-72 xl:w-80 shrink-0 flex flex-col gap-4 min-h-0">
-                            <div className="flex flex-col gap-2 shrink-0">
+                            <div className="flex flex-col gap-2 shrink-0 mt-2">
                                 {user?.isAdmin && (
                                     <button
                                         type="button"
@@ -337,13 +340,6 @@ export default function CustomerTable({ showLatestNews = true }) {
                                         New Property
                                     </button>
                                 )}
-                                <button
-                                    type="button"
-                                    onClick={handleLogout}
-                                    className="w-full py-2.5 px-3 rounded-lg border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <FiLogOut /> Logout
-                                </button>
                             </div>
                             <div className="flex-1 min-h-0 h-full flex flex-col border border-gray-200 rounded-xl bg-gray-50 p-3 overflow-hidden">
                                 <h3 className="font-semibold text-gray-700 mb-2 flex items-center gap-2 shrink-0">
@@ -383,10 +379,99 @@ export default function CustomerTable({ showLatestNews = true }) {
                 </div>
             </div>
 
-            <div className="col-span-2 w-full h-full">
+            <div className="col-span-2 w-full h-full flex flex-col gap-4 min-h-0">
+                {!user?.isExternal && (
+                    <section
+                        className="shrink-0 flex flex-col border border-gray-200 bg-white rounded-xl overflow-hidden shadow-none"
+                        aria-labelledby="customer-table-quick-nav-heading"
+                    >
+                        <div className="p-4 border-b border-gray-100 shrink-0">
+                            <h2
+                                id="customer-table-quick-nav-heading"
+                                className="text-sm font-semibold text-[var(--color-primary-searchmind)]"
+                            >
+                                Quick links
+                            </h2>
+                        </div>
+                        <nav className="p-2" aria-label="App menu">
+                            <ul className="flex flex-col gap-0.5">
+                                <li>
+                                    <Link
+                                        href="/profile"
+                                        className="flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <FiUser className="h-3.5 w-3.5 text-gray-400 shrink-0" aria-hidden />
+                                        My Account
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link
+                                        href="/lib/guides"
+                                        className="flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <FiBookOpen className="h-3.5 w-3.5 text-gray-400 shrink-0" aria-hidden />
+                                        Guides
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link
+                                        href="/news"
+                                        className="flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <FiFileText className="h-3.5 w-3.5 text-gray-400 shrink-0" aria-hidden />
+                                        News
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link
+                                        href="/notifications"
+                                        className="flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <FiBell className="h-3.5 w-3.5 text-gray-400 shrink-0" aria-hidden />
+                                        Notifications
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link
+                                        href="/our-tools"
+                                        className="flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors"
+                                    >
+                                        <RiToolsFill className="h-3.5 w-3.5 text-gray-400 shrink-0" aria-hidden />
+                                        Our Tools
+                                    </Link>
+                                </li>
+                                {canAccessApexRadar(user) && (
+                                    <li>
+                                        <Link
+                                            href="/apex-radar"
+                                            className="flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-medium text-gray-800 hover:bg-gray-50 transition-colors"
+                                        >
+                                            <LuRadar className="h-3.5 w-3.5 text-[var(--color-primary-searchmind)] shrink-0" aria-hidden />
+                                            <span className="flex items-center gap-1.5 flex-wrap">
+                                                Apex Radar
+                                                <span className="text-[0.6rem] font-semibold text-gray-600 bg-gray-200 rounded px-1.5 py-0.5">
+                                                    WIP
+                                                </span>
+                                            </span>
+                                        </Link>
+                                    </li>
+                                )}
+                            </ul>
+
+                            <button
+                                type="button"
+                                onClick={handleLogout}
+                                className="w-full py-2.5 px-3 text-xs mt-5 rounded-lg border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <FiLogOut /> Logout
+                            </button>
+                        </nav>
+                    </section>
+                )}
+
                 {showLatestNews && (
                     <section
-                        className="flex-1 min-h-0 flex flex-col border-b border-gray-200 bg-gray-100 rounded-xl overflow-hidden"
+                        className="flex-1 min-h-0 flex flex-col border border-gray-200 bg-gray-100 rounded-xl overflow-hidden min-h-[200px]"
                         aria-labelledby="customer-table-latest-news-heading"
                     >
                         <div className="p-4 border-b border-gray-200 shrink-0">
