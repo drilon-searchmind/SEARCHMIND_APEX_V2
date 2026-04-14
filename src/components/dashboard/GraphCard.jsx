@@ -25,6 +25,18 @@ function deepMerge(target, source) {
     return result;
 }
 
+/** Deep clone chart options while preserving functions (formatters, etc.). */
+function deepClonePreserveFunctions(obj) {
+    if (obj === null || typeof obj !== "object") return obj;
+    if (typeof obj === "function") return obj;
+    if (Array.isArray(obj)) return obj.map(deepClonePreserveFunctions);
+    const out = {};
+    for (const k of Object.keys(obj)) {
+        out[k] = deepClonePreserveFunctions(obj[k]);
+    }
+    return out;
+}
+
 export default function GraphCard({ title, chartOptions, chartSeries, chartType = "line", height = 300, children, hideChartToggle = false }) {
     // Toggle state (Period active by default). When hideChartToggle, always use Period view.
     const [toggle, setToggle] = React.useState("Period");
@@ -90,8 +102,8 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
 
     // Process chart data based on toggle - always create fresh copies
     const processedData = React.useMemo(() => {
-        // Create deep copies to prevent mutation
-        let optionsCopy = JSON.parse(JSON.stringify(chartOptions));
+        // Deep copy without stripping Apex formatters (functions)
+        let optionsCopy = deepClonePreserveFunctions(chartOptions);
         const seriesCopy = JSON.parse(JSON.stringify(chartSeries));
 
         if (isDark) {

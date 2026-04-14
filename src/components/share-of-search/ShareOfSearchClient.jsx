@@ -21,7 +21,11 @@ import { Button } from "@/components/ui/button";
 import Spinner from "@/components/ui/Spinner";
 import { useCustomers } from "@/hooks/useCustomers";
 import { cn } from "@/lib/utils";
-import { getCountrySelectOptions, matchCountryOption } from "@/lib/countrySelectOptions";
+import {
+    getCountrySelectOptions,
+    isWorldwideGeoValue,
+    matchCountryOption,
+} from "@/lib/countrySelectOptions";
 
 const MONTH_OF_YEAR = {
     JANUARY: 1,
@@ -115,7 +119,7 @@ function totalSeriesByMonth(brandSeries) {
     return out;
 }
 
-/** Per month: each series value becomes % of the sum of selected series that month (2 decimals). */
+/** Per month: each series value becomes integer % of the sum of selected series that month. */
 function toSharePercentSeries(series) {
     if (!series.length) return [];
     const len = series[0].data.length;
@@ -128,7 +132,7 @@ function toSharePercentSeries(series) {
         for (const s of out) sum += s.data[j];
         for (const s of out) {
             const v = s.data[j];
-            s.data[j] = sum > 0 ? Math.round((v / sum) * 1000) / 10 : 0;
+            s.data[j] = sum > 0 ? Math.round((v / sum) * 100) : 0;
         }
     }
     return out;
@@ -207,6 +211,8 @@ export default function ShareOfSearchClient() {
     const [deletingId, setDeletingId] = useState(null);
     const [selectedChartKeys, setSelectedChartKeys] = useState([]);
     const [chartDisplayMode, setChartDisplayMode] = useState("share");
+    /** stacked area (default) vs overlapping lines */
+    const [chartVisualMode, setChartVisualMode] = useState("stacked");
 
     const countryValue = useMemo(() => {
         return (
@@ -403,13 +409,34 @@ export default function ShareOfSearchClient() {
             return CHART_COLORS[(idx >= 0 ? idx : 0) % CHART_COLORS.length];
         });
 
+        const stacked = chartVisualMode === "stacked";
+        const formatYAxis = (val) =>
+            isShare
+                ? `${Math.round(Number(val))}%`
+                : typeof val === "number" && val >= 1000
+                  ? `${Math.round(val / 1000)}k`
+                  : String(Math.round(Number(val) || 0));
+        const formatTooltipY = (val) =>
+            isShare
+                ? `${Math.round(Number(val))}%`
+                : typeof val === "number"
+                  ? Math.round(val).toLocaleString()
+                  : val;
+
         const options = {
             chart: {
                 toolbar: { show: false },
                 zoom: { enabled: false },
+                stacked,
             },
             stroke: { width: 2, curve: "smooth" },
-            markers: { size: 0, hover: { size: 5 } },
+            // ApexCharts: a single fill.opacity on multi-series line charts can hide strokes; area uses fill, line omits it.
+            ...(stacked
+                ? {
+                      fill: { type: "solid", opacity: 0.72 },
+                  }
+                : {}),
+            markers: { size: stacked ? 0 : 2, hover: { size: stacked ? 5 : 6 } },
             xaxis: { categories },
             legend: { position: "top" },
             colors: seriesColors,
@@ -418,27 +445,17 @@ export default function ShareOfSearchClient() {
                 min: isShare ? 0 : undefined,
                 max: isShare ? 100 : undefined,
                 labels: {
-                    formatter: (val) =>
-                        isShare
-                            ? `${Math.round(Number(val))}%`
-                            : typeof val === "number" && val >= 1000
-                              ? `${Math.round(val / 1000)}k`
-                              : String(val ?? ""),
+                    formatter: formatYAxis,
                 },
             },
             tooltip: {
                 y: {
-                    formatter: (val) =>
-                        isShare
-                            ? `${typeof val === "number" ? val.toFixed(1) : val}%`
-                            : typeof val === "number"
-                              ? val.toLocaleString()
-                              : val,
+                    formatter: formatTooltipY,
                 },
             },
         };
         return { chartSeries: series, chartOptions: options, chartTitle: title };
-    }, [categories, brandLineSeries, selectedChartKeys, chartDisplayMode, metricsRows]);
+    }, [categories, brandLineSeries, selectedChartKeys, chartDisplayMode, chartVisualMode, metricsRows]);
 
     const totalVolume = useMemo(
         () => (metricsRows || []).reduce((s, r) => s + Number(r.volumeInRange || 0), 0),
@@ -457,7 +474,7 @@ export default function ShareOfSearchClient() {
             dashboard: "Share of Search",
             dataSource: "Google Ads Keyword Planner (historical search volumes)",
             country: countryValue?.label || geoLabel,
-            countryCode: geoLabel,
+            countryCode: isWorldwideGeoValue(geoLabel) ? null : geoLabel,
             period: {
                 startDate: appliedRange.startDate,
                 endDate: appliedRange.endDate,
@@ -715,6 +732,31 @@ export default function ShareOfSearchClient() {
                             >
                                 Search volume
                             </button>
+                            <span className="w-px h-5 bg-gray-200 self-center mx-1 hidden sm:block" aria-hidden />
+                            <button
+                                type="button"
+                                className={cn(
+                                    "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150",
+                                    chartVisualMode === "stacked"
+                                        ? "bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]"
+                                        : "bg-white text-gray-700 border-gray-200 hover:bg-gray-100"
+                                )}
+                                onClick={() => setChartVisualMode("stacked")}
+                            >
+                                Stacked
+                            </button>
+                            <button
+                                type="button"
+                                className={cn(
+                                    "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150",
+                                    chartVisualMode === "lines"
+                                        ? "bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]"
+                                        : "bg-white text-gray-700 border-gray-200 hover:bg-gray-100"
+                                )}
+                                onClick={() => setChartVisualMode("lines")}
+                            >
+                                Lines
+                            </button>
                         </div>
                         {loading ? (
                             <div className="flex items-center justify-center h-64">
@@ -722,8 +764,9 @@ export default function ShareOfSearchClient() {
                             </div>
                         ) : chartSeries.length > 0 ? (
                             <GraphCard
+                                key={`sos-chart-${chartVisualMode}`}
                                 title={chartTitle}
-                                chartType="line"
+                                chartType={chartVisualMode === "stacked" ? "area" : "line"}
                                 chartOptions={chartOptions}
                                 chartSeries={chartSeries}
                                 height={360}

@@ -11,6 +11,7 @@ import {
     mergeShareComparisonIntoRows,
 } from '@/lib/shareOfSearchComparisonRanges';
 import { isDemoCustomerId } from '@/lib/demoCustomer';
+import { isWorldwideGeoValue } from '@/lib/countrySelectOptions';
 
 function isValidIntegrationId(value) {
     const s = String(value ?? '').trim();
@@ -271,12 +272,16 @@ export async function POST(request, { params }) {
             lastYear: { ...lyRange, ok: lastYearRows != null },
         };
 
+        const persistedGeoLabel = isWorldwideGeoValue(geoLabel)
+            ? 'Worldwide'
+            : String(geoLabel || 'Denmark');
+
         const snapshot = await ShareOfSearchSnapshot.create({
             customerId,
             view: 'share',
             brands: metrics.rows.map((r) => r.brand),
-            geoLabel: String(geoLabel || 'Denmark'),
-            geoCriterionId: metrics.geoCriterionId,
+            geoLabel: persistedGeoLabel,
+            geoCriterionId: metrics.geoCriterionId ?? null,
             languageCode: String(languageCode || 'en'),
             startDate: metrics.normalizedStartDate,
             endDate: metrics.normalizedEndDate,

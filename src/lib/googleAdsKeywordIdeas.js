@@ -2,6 +2,7 @@
 import { GoogleAdsApi } from 'google-ads-api';
 import dayjs from 'dayjs';
 import { resolveCountryToCriterionId } from '@/lib/googleAdsApi';
+import { isWorldwideGeoValue } from '@/lib/countrySelectOptions';
 
 const GOOGLE_ADS_API_VERSION = 'v21';
 
@@ -222,16 +223,22 @@ export async function fetchBrandSearchMetrics({
     const endIso = endD.format('YYYY-MM-DD');
 
     const customer = createGoogleAdsCustomer(googleAdsCustomerId);
-    const geoId = await resolveCountryToCriterionId(customer, geoLabel || 'Denmark');
-    if (geoId == null) {
-        throw new Error(`Unknown location: ${geoLabel || 'Denmark'}`);
+    const worldwide = isWorldwideGeoValue(geoLabel);
+    let geoId = null;
+    if (!worldwide) {
+        geoId = await resolveCountryToCriterionId(customer, geoLabel || 'Denmark');
+        if (geoId == null) {
+            throw new Error(`Unknown location: ${geoLabel || 'Denmark'}`);
+        }
     }
     const language = await resolveLanguageResourceName(customer, languageCode);
     const monthSet = monthsKeySet(startIso, endIso);
 
     const baseBody = {
         language,
-        geoTargetConstants: [`geoTargetConstants/${geoId}`],
+        ...(worldwide
+            ? {}
+            : { geoTargetConstants: [`geoTargetConstants/${geoId}`] }),
         includeAdultKeywords: false,
         keywordPlanNetwork: 'GOOGLE_SEARCH',
         historicalMetricsOptions: {
@@ -291,6 +298,7 @@ export async function fetchBrandSearchMetrics({
 
     return {
         geoCriterionId: geoId,
+        worldwide,
         language,
         rows,
         rawResultCount: apiRows.length,
