@@ -37,12 +37,10 @@ export default function CampaignPlannerV2Page() {
 	const {
 		filters,
 		updateFilter,
-		sortBy,
-		setSortBy,
 		resetFilters,
 		filteredParents,
 		activeFilterCount,
-	} = usePlannerOverviewFilters(parents, services, lineItems);
+	} = usePlannerOverviewFilters(parents);
 
 	const filteredParentIds = useMemo(
 		() => new Set(filteredParents.map((p) => p.id)),
@@ -71,6 +69,10 @@ export default function CampaignPlannerV2Page() {
 	const handleSaveLineItem = (data) => {
 		if (lineModal?.mode === "edit" && lineModal.lineItem) {
 			updateLineItem(lineModal.lineItem.id, data);
+		} else if (lineModal?.service && Array.isArray(data.bulkPayloads)) {
+			for (const payload of data.bulkPayloads) {
+				createLineItem(lineModal.service.id, payload);
+			}
 		} else if (lineModal?.service) {
 			createLineItem(lineModal.service.id, data);
 		}
@@ -129,8 +131,6 @@ export default function CampaignPlannerV2Page() {
 				<CampaignOverviewFilters
 					filters={filters}
 					updateFilter={updateFilter}
-					sortBy={sortBy}
-					setSortBy={setSortBy}
 					resetFilters={resetFilters}
 					activeFilterCount={activeFilterCount}
 					totalCount={parents.length}
@@ -179,6 +179,7 @@ export default function CampaignPlannerV2Page() {
 				open={!!lineModal}
 				onClose={() => setLineModal(null)}
 				onSave={handleSaveLineItem}
+				customerId={customerId}
 				mode={lineModal?.mode === "edit" ? "edit" : "create"}
 				serviceName={lineModalServiceName}
 				initialLineItem={lineModal?.lineItem}

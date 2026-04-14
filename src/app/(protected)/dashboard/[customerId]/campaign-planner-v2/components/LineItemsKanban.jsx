@@ -73,7 +73,14 @@ export default function LineItemsKanban({
                   {...provided.droppableProps}
                   className="bg-white border border-gray-200 rounded-lg p-4 min-h-[200px] flex flex-col gap-1"
                 >
-                  <div className="font-medium text-gray-900 mb-2">{status}</div>
+                  <div className="mb-2">
+                    <div className="font-medium text-gray-900">{status}</div>
+                    {status === "Pending" && (
+                      <div className="text-xs text-gray-500 mt-0.5 font-normal">
+                        Pending Searchmind
+                      </div>
+                    )}
+                  </div>
                   {activeByStatus[status].length === 0 && (
                     <div className="text-gray-400 py-8 text-center text-sm">
                       None
@@ -117,7 +124,21 @@ export default function LineItemsKanban({
                                 {item._parentName}
                               </span>
                             )}
-                            {[item.media, item.format].filter(Boolean).join(" · ")}
+                            {[
+                              item.media,
+                              Array.isArray(item.formats) && item.formats.length
+                                ? item.formats.join(", ")
+                                : item.format,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                            {item.budget != null &&
+                              !Number.isNaN(Number(item.budget)) &&
+                              Number(item.budget) > 0 && (
+                                <span className="block text-gray-500">
+                                  Budget: {Number(item.budget).toLocaleString("da-DK")}
+                                </span>
+                              )}
                           </div>
                         </div>
                       )}

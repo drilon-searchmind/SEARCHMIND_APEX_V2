@@ -11,16 +11,37 @@ function emptyState() {
   return { parents: [], services: [], lineItems: [] };
 }
 
+function normalizeLineItem(li) {
+  const { comments: _ignored, ...rest } = li;
+  const formats = Array.isArray(rest.formats)
+    ? rest.formats
+    : rest.format
+      ? [rest.format]
+      : [];
+  return {
+    ...rest,
+    formats,
+    format: formats[0] || rest.format || "",
+    budget:
+      rest.budget === "" || rest.budget == null || Number.isNaN(Number(rest.budget))
+        ? null
+        : Number(rest.budget),
+  };
+}
+
 function loadState(customerId) {
   if (typeof window === "undefined") return emptyState();
   try {
     const raw = localStorage.getItem(storageKey(customerId));
     if (!raw) return emptyState();
     const parsed = JSON.parse(raw);
+    const lineItems = Array.isArray(parsed.lineItems)
+      ? parsed.lineItems.map(normalizeLineItem)
+      : [];
     return {
       parents: Array.isArray(parsed.parents) ? parsed.parents : [],
       services: Array.isArray(parsed.services) ? parsed.services : [],
-      lineItems: Array.isArray(parsed.lineItems) ? parsed.lineItems : [],
+      lineItems,
     };
   } catch {
     return emptyState();
@@ -93,10 +114,12 @@ export default function usePlannerV2Store(customerId) {
   const [state, setState] = useState(emptyState);
   const [hydrated, setHydrated] = useState(false);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- hydrate from localStorage after mount */
   useEffect(() => {
     setState(loadState(customerId));
     setHydrated(true);
   }, [customerId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!hydrated) return;
@@ -202,18 +225,28 @@ export default function usePlannerV2Store(customerId) {
   }, []);
 
   const createLineItem = useCallback((serviceId, payload) => {
-    const item = {
+    const formats = Array.isArray(payload.formats)
+      ? payload.formats
+      : payload.format
+        ? [payload.format]
+        : [];
+    const item = normalizeLineItem({
       id: createId(),
       serviceId,
       name: payload.name,
       media: payload.media || "",
-      format: payload.format || "",
+      format: formats[0] || "",
+      formats,
       startDate: payload.startDate || "",
       endDate: payload.alwaysOn ? "" : payload.endDate || "",
       alwaysOn: !!payload.alwaysOn,
       status: payload.status || "Pending",
       approvalLink: payload.approvalLink || "",
-    };
+      budget:
+        payload.budget === "" || payload.budget == null
+          ? null
+          : Number(payload.budget),
+    });
     setState((prev) => ({
       ...prev,
       lineItems: [...prev.lineItems, item],
@@ -228,7 +261,17 @@ export default function usePlannerV2Store(customerId) {
         if (li.id !== lineItemId) return li;
         const next = { ...li, ...patch };
         if (patch.alwaysOn === true) next.endDate = "";
-        return next;
+        if (Array.isArray(patch.formats)) {
+          next.formats = patch.formats;
+          next.format = patch.formats[0] || "";
+        }
+        if (patch.budget !== undefined) {
+          next.budget =
+            patch.budget === "" || patch.budget == null
+              ? null
+              : Number(patch.budget);
+        }
+        return normalizeLineItem(next);
       }),
     }));
   }, []);
