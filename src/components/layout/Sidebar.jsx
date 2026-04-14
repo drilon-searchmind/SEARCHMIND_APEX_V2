@@ -19,6 +19,7 @@ import {
     FiLayers,
     FiAlertTriangle,
     FiGlobe,
+    FiPieChart,
 } from "react-icons/fi";
 import Image from "next/image";
 import { useParams, usePathname } from "next/navigation";
@@ -75,6 +76,7 @@ const getIconForRoute = (href) => {
     if (href.includes("service-dashboard/bing-webmaster")) return <FiGlobe className="w-4 h-4" />;
     if (href.includes("service-dashboard/bing")) return <FiLayers className="w-4 h-4" />;
     if (href.includes("campaign-planner")) return <FiCalendar className="w-4 h-4" />;
+    if (href.includes("share-of-search")) return <FiPieChart className="w-4 h-4" />;
     if (href.includes("config")) return <FiSettings className="w-4 h-4" />;
     if (href.includes("test-page")) return <FiFolder className="w-4 h-4" />;
     return <FiFolder className="w-4 h-4" />;
@@ -369,10 +371,18 @@ const Sidebar = ({ showLinks = true }) => {
                                             /> */}
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/campaign-planner-v2`}
-                                                label="Campaign Planner (v2)"
+                                                label="Campaign Planner"
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 subLabel={"WIP"}
+                                                isSmallScreen={isSmallScreen}
+                                            />
+                                            <NavItem
+                                                href={`/dashboard/${activeCustomerId}/share-of-search`}
+                                                label="SoS"
+                                                activeCustomerId={activeCustomerId}
+                                                pathname={pathname}
+                                                subLabel={"NEW"}
                                                 isSmallScreen={isSmallScreen}
                                             />
                                             <NavItem

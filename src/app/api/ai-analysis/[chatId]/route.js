@@ -65,10 +65,22 @@ export async function POST(request, { params }) {
             timestamp: new Date()
         });
 
+        const isShareOfSearch = chat.dashboardType === 'share-of-search';
+        const sosContext = isShareOfSearch
+            ? `
+Context: **Share of Search** uses Google Ads Keyword Planner historical monthly search volumes by market.
+- **shareOfSearchPercent** (sharePct): each brand's share of the sum of volumes for all brands in the list for the selected period (not total market).
+- **sharePctPreviousPeriod**: same share metric for the immediately preceding period of equal length.
+- **sharePctLastYear**: same share metric for the same calendar dates shifted back one year.
+- **volumeInPeriod**: estimated searches in the date range for that brand line.
+If status is no_data, tell the user to fetch data on the dashboard first.
+`
+            : '';
+
         // Prepare context for AI
         const systemPrompt = `You are an expert data analyst helping business owners understand their performance metrics. 
 You have access to their dashboard data for the period ${chat.dateRange.startDate} to ${chat.dateRange.endDate}.
-
+${sosContext}
 Data snapshot:
 ${JSON.stringify(chat.dataSnapshot, null, 2)}
 

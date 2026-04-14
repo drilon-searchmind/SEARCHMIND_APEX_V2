@@ -109,7 +109,7 @@ const AiAnalysisChatSchema = new mongoose.Schema({
     // Dashboard type this chat belongs to (e.g., 'performance-dashboard', 'daily-overview', 'seo-dashboard', etc.)
     dashboardType: {
         type: String,
-        enum: ['performance-dashboard', 'daily-overview', 'seo-dashboard', 'ppc-dashboard', 'ps-dashboard', 'pinterest-dashboard', 'pace-report', 'pnl', 'ecommerce', 'analytics', 'parent-property', 'other'],
+        enum: ['performance-dashboard', 'daily-overview', 'seo-dashboard', 'ppc-dashboard', 'ps-dashboard', 'pinterest-dashboard', 'pace-report', 'pnl', 'ecommerce', 'analytics', 'parent-property', 'share-of-search', 'other'],
         default: 'other',
         index: true
     }

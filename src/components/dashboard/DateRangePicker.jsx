@@ -71,6 +71,8 @@ export default function DateRangePicker({
     comparisonMethod = "Last Year",
     onComparisonMethodChange,
     monthOnly = false,
+    /** When set (non-empty), replaces default day-range presets. Ignored when monthOnly. */
+    customPresets = null,
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const popoverRef = useRef(null);
@@ -123,6 +125,9 @@ export default function DateRangePicker({
 
     const displayText = startDate && endDate ? `${startDate} to ${endDate}` : "Select date range";
 
+    const presetList =
+        monthOnly ? MONTH_PRESETS : customPresets?.length ? customPresets : PRESETS;
+
     return (
         <div className="flex items-center gap-2 flex-wrap" ref={popoverRef}>
             <div className="relative">
@@ -142,7 +147,7 @@ export default function DateRangePicker({
                             <div className="p-3 w-full">
                                 <div className="text-xs font-medium text-gray-500 mb-2">Presets</div>
                                 <div className="flex flex-wrap gap-1">
-                                    {(monthOnly ? MONTH_PRESETS : PRESETS).map((preset) => (
+                                    {presetList.map((preset) => (
                                         <button
                                             key={preset.label}
                                             type="button"
