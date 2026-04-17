@@ -20,12 +20,6 @@ export default function DailyMetricsTotalsRow({
 						{t.orders}
 					</td>
 				);
-			case 'totalSales':
-				return (
-					<td key={key} className={`px-3 py-2 whitespace-nowrap${borderCls}`}>
-						{t.totalSales}
-					</td>
-				);
 			case 'netRevenue':
 				return (
 					<td key={key} className={`px-3 py-2 whitespace-nowrap${borderCls}`}>

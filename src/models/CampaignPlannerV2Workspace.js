@@ -7,6 +7,8 @@ const CampaignPlannerV2WorkspaceSchema = new mongoose.Schema(
 		parents: { type: [mongoose.Schema.Types.Mixed], default: [] },
 		services: { type: [mongoose.Schema.Types.Mixed], default: [] },
 		lineItems: { type: [mongoose.Schema.Types.Mixed], default: [] },
+		customFormats: { type: [String], default: [] },
+		extraMediaByService: { type: mongoose.Schema.Types.Mixed, default: {} },
 	},
 	{ timestamps: true }
 );

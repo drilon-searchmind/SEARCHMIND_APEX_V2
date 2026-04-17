@@ -3,8 +3,7 @@ import mongoose from "mongoose";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import connectToDatabase from "@root/lib/mongodb";
 import { getCustomerById } from "@root/lib/customerOperations";
-import { isDemoCustomerId } from "@/lib/demoCustomer";
-import CampaignPlannerV2Workspace from "@/models/CampaignPlannerV2Workspace";
+import CampaignPlannerComment from "@/models/CampaignPlannerComment";
 
 async function assertCustomerAccess(session, customerId) {
 	const customer = await getCustomerById(customerId);
@@ -21,75 +20,18 @@ async function assertCustomerAccess(session, customerId) {
 	return customer;
 }
 
-export async function GET(request, { params }) {
-	const session = await getServerSession(authOptions);
-	if (!session?.user?.id) {
-		return Response.json({ error: "Unauthorized" }, { status: 401 });
-	}
-
-	const resolvedParams = await params;
-	const customerId = resolvedParams.customerId;
-	if (!customerId || !mongoose.Types.ObjectId.isValid(customerId)) {
-		return Response.json({ error: "Invalid customer id" }, { status: 400 });
-	}
-
-	if (isDemoCustomerId(customerId)) {
-		return Response.json({
-			parents: [],
-			services: [],
-			lineItems: [],
-			customFormats: [],
-			extraMediaByService: {},
-		});
-	}
-
-	try {
-		await connectToDatabase();
-		try {
-			await assertCustomerAccess(session, customerId);
-		} catch (accessErr) {
-			if (accessErr.statusCode === 403) {
-				return Response.json({ error: "Forbidden" }, { status: 403 });
-			}
-			if (String(accessErr.message || "")
-				.toLowerCase()
-				.includes("not found")) {
-				return Response.json({ error: "Customer not found" }, { status: 404 });
-			}
-			throw accessErr;
-		}
-
-		const doc = await CampaignPlannerV2Workspace.findOne({ customerId }).lean();
-		if (!doc) {
-			return Response.json({
-				parents: [],
-				services: [],
-				lineItems: [],
-				customFormats: [],
-				extraMediaByService: {},
-			});
-		}
-		return Response.json({
-			parents: doc.parents || [],
-			services: doc.services || [],
-			lineItems: doc.lineItems || [],
-			customFormats: doc.customFormats || [],
-			extraMediaByService:
-				doc.extraMediaByService && typeof doc.extraMediaByService === "object"
-					? doc.extraMediaByService
-					: {},
-			updatedAt: doc.updatedAt,
-		});
-	} catch (error) {
-		console.error("campaign-planner workspace GET:", error);
-		return Response.json(
-			{ error: error.message || "Failed to load workspace" },
-			{ status: 500 }
-		);
-	}
+function serializeComment(doc) {
+	return {
+		id: String(doc._id),
+		text: doc.text,
+		createdAt: doc.createdAt,
+		userName: doc.userName || "",
+		userImage: doc.userImage || "",
+		userId: String(doc.userId),
+	};
 }
 
-export async function PUT(request, { params }) {
+export async function PATCH(request, { params }) {
 	const session = await getServerSession(authOptions);
 	if (!session?.user?.id) {
 		return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -97,8 +39,12 @@ export async function PUT(request, { params }) {
 
 	const resolvedParams = await params;
 	const customerId = resolvedParams.customerId;
+	const commentId = resolvedParams.commentId;
 	if (!customerId || !mongoose.Types.ObjectId.isValid(customerId)) {
 		return Response.json({ error: "Invalid customer id" }, { status: 400 });
+	}
+	if (!commentId || !mongoose.Types.ObjectId.isValid(commentId)) {
+		return Response.json({ error: "Invalid comment id" }, { status: 400 });
 	}
 
 	let body;
@@ -107,23 +53,12 @@ export async function PUT(request, { params }) {
 	} catch {
 		return Response.json({ error: "Invalid JSON body" }, { status: 400 });
 	}
-
-	const { parents, services, lineItems, customFormats, extraMediaByService } =
-		body || {};
-	if (!Array.isArray(parents) || !Array.isArray(services) || !Array.isArray(lineItems)) {
-		return Response.json(
-			{ error: "parents, services, and lineItems must be arrays" },
-			{ status: 400 }
-		);
+	const text = body?.text != null ? String(body.text).trim() : "";
+	if (!text) {
+		return Response.json({ error: "text is required" }, { status: 400 });
 	}
-	const cf = Array.isArray(customFormats) ? customFormats : [];
-	const em =
-		extraMediaByService && typeof extraMediaByService === "object"
-			? extraMediaByService
-			: {};
-
-	if (isDemoCustomerId(customerId)) {
-		return Response.json({ ok: true });
+	if (text.length > 8000) {
+		return Response.json({ error: "Comment is too long" }, { status: 400 });
 	}
 
 	try {
@@ -142,17 +77,79 @@ export async function PUT(request, { params }) {
 			throw accessErr;
 		}
 
-		await CampaignPlannerV2Workspace.findOneAndUpdate(
-			{ customerId },
-			{ $set: { parents, services, lineItems, customFormats: cf, extraMediaByService: em } },
-			{ upsert: true, new: true }
-		);
+		const doc = await CampaignPlannerComment.findOne({
+			_id: commentId,
+			customerId,
+		});
+		if (!doc) {
+			return Response.json({ error: "Comment not found" }, { status: 404 });
+		}
+		if (String(doc.userId) !== String(session.user.id)) {
+			return Response.json({ error: "Forbidden" }, { status: 403 });
+		}
 
+		doc.text = text;
+		await doc.save();
+
+		return Response.json({ comment: serializeComment(doc.toObject()) });
+	} catch (error) {
+		console.error("campaign-planner comments PATCH:", error);
+		return Response.json(
+			{ error: error.message || "Failed to update comment" },
+			{ status: 500 }
+		);
+	}
+}
+
+export async function DELETE(request, { params }) {
+	const session = await getServerSession(authOptions);
+	if (!session?.user?.id) {
+		return Response.json({ error: "Unauthorized" }, { status: 401 });
+	}
+
+	const resolvedParams = await params;
+	const customerId = resolvedParams.customerId;
+	const commentId = resolvedParams.commentId;
+	if (!customerId || !mongoose.Types.ObjectId.isValid(customerId)) {
+		return Response.json({ error: "Invalid customer id" }, { status: 400 });
+	}
+	if (!commentId || !mongoose.Types.ObjectId.isValid(commentId)) {
+		return Response.json({ error: "Invalid comment id" }, { status: 400 });
+	}
+
+	try {
+		await connectToDatabase();
+		try {
+			await assertCustomerAccess(session, customerId);
+		} catch (accessErr) {
+			if (accessErr.statusCode === 403) {
+				return Response.json({ error: "Forbidden" }, { status: 403 });
+			}
+			if (String(accessErr.message || "")
+				.toLowerCase()
+				.includes("not found")) {
+				return Response.json({ error: "Customer not found" }, { status: 404 });
+			}
+			throw accessErr;
+		}
+
+		const doc = await CampaignPlannerComment.findOne({
+			_id: commentId,
+			customerId,
+		});
+		if (!doc) {
+			return Response.json({ error: "Comment not found" }, { status: 404 });
+		}
+		if (String(doc.userId) !== String(session.user.id)) {
+			return Response.json({ error: "Forbidden" }, { status: 403 });
+		}
+
+		await CampaignPlannerComment.deleteOne({ _id: commentId, customerId });
 		return Response.json({ ok: true });
 	} catch (error) {
-		console.error("campaign-planner workspace PUT:", error);
+		console.error("campaign-planner comments DELETE:", error);
 		return Response.json(
-			{ error: error.message || "Failed to save workspace" },
+			{ error: error.message || "Failed to delete comment" },
 			{ status: 500 }
 		);
 	}

@@ -5,12 +5,23 @@ import {
 	FiAlertTriangle,
 	FiChevronDown,
 	FiChevronRight,
+	FiCopy,
 	FiEdit2,
 	FiExternalLink,
 	FiPlus,
 	FiTrash2,
 } from "react-icons/fi";
-import { PLANNER_V2_DEFAULT_CURRENCY, SERVICE_COLORS } from "../constants";
+import {
+	PLANNER_V2_DEFAULT_CURRENCY,
+	SERVICE_COLORS,
+	LINE_ITEM_STATUSES,
+} from "../constants";
+import {
+	defaultLineItemStatusStyle,
+	isLineItemEndedVisual,
+	LINE_ITEM_STATUS_STYLES,
+	normalizeLineItemStatus,
+} from "../lib/lineItemStatus";
 import { formatBudgetAmount } from "../lib/formatBudget";
 
 function startOfToday() {
@@ -96,6 +107,7 @@ export default function CampaignOverview({
 	onAddLineItem,
 	onEditLineItem,
 	onDeleteLineItem,
+	onDuplicateLineItem,
 }) {
 	const [expanded, setExpanded] = useState({});
 
@@ -365,8 +377,9 @@ export default function CampaignOverview({
 									<div
 										className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2.5 border-b border-black/5"
 										style={{
-											backgroundColor:
-												SERVICE_COLORS[svc.serviceName] || "#e5e7eb",
+											backgroundColor: groundedStyle
+												? "#ffedd5"
+												: SERVICE_COLORS[svc.serviceName] || "#e5e7eb",
 										}}
 									>
 										<span className="font-semibold text-sm text-gray-900">
@@ -409,57 +422,120 @@ export default function CampaignOverview({
 												</label>
 											</div>
 										)}
-										<div className="space-y-2">
-										{(lineByService[svc.id] || []).map((li) => (
-											<div
-												key={li.id}
-												className="flex items-stretch gap-2 rounded-lg border border-gray-200 bg-white hover:border-[var(--color-primary-searchmind)]/50 transition-colors"
-											>
-												<button
-													type="button"
-													onClick={() => onEditLineItem(li, svc)}
-													className="text-left flex-1 min-w-0 px-3 py-2 flex flex-col gap-0.5"
-												>
-													<div className="font-medium text-sm text-gray-900">
-														{li.name}
+										<div className="space-y-3">
+										{(() => {
+											const items = lineByService[svc.id] || [];
+											const byStatus = {};
+										LINE_ITEM_STATUSES.forEach((s) => {
+												byStatus[s] = [];
+											});
+											items.forEach((li) => {
+												const st = normalizeLineItemStatus(li.status);
+												if (byStatus[st]) byStatus[st].push(li);
+												else byStatus["Pending Searchmind"].push(li);
+											});
+											return LINE_ITEM_STATUSES.map((st) => {
+												const group = byStatus[st];
+												if (!group.length) return null;
+												const stPal =
+													LINE_ITEM_STATUS_STYLES[st] ||
+													defaultLineItemStatusStyle();
+												return (
+													<div
+														key={`${svc.id}-${st}`}
+														className="rounded-lg border border-gray-200 bg-white p-3 space-y-2"
+													>
+														<div className="flex items-center gap-2 text-xs font-semibold text-gray-800">
+															<span
+																className="w-2.5 h-2.5 rounded-sm shrink-0"
+																style={{
+																	backgroundColor: stPal.bg,
+																	border: `1px solid ${stPal.border}`,
+																}}
+															/>
+															{st}
+														</div>
+														<div className="space-y-2">
+															{group.map((li) => {
+																const lineEnded = isLineItemEndedVisual(li);
+																return (
+																	<div
+																		key={li.id}
+																		className={`flex items-stretch gap-2 rounded-lg border bg-white hover:border-[var(--color-primary-searchmind)]/50 transition-colors ${
+																			lineEnded
+																				? "border-[#9a3412] border-l-4 border-l-[#c2410c] bg-[#fff7ed]/60"
+																				: "border-gray-200"
+																		}`}
+																	>
+																		<button
+																			type="button"
+																			onClick={() => onEditLineItem(li, svc)}
+																			className="text-left flex-1 min-w-0 px-3 py-2 flex flex-col gap-0.5"
+																		>
+																			<div className="font-medium text-sm text-gray-900">
+																				{li.name}
+																			</div>
+																			<div className="text-xs text-gray-600">
+																				{[li.media, lineFormatsLabel(li)]
+																					.filter(Boolean)
+																					.join(" · ") || "—"}
+																			</div>
+																			<div className="text-xs text-gray-500">
+																				{lineItemDateRangeLabel(li)}
+																			</div>
+																			<div
+																				className="text-xs font-medium"
+																				style={{ color: stPal.border }}
+																			>
+																				{normalizeLineItemStatus(li.status)}
+																				{hasCap &&
+																					li.budget != null &&
+																					!Number.isNaN(Number(li.budget)) &&
+																					Number(li.budget) > 0 && (
+																						<>
+																							{" · "}
+																							{formatBudgetAmount(
+																								Number(li.budget),
+																								currency
+																							)}
+																						</>
+																					)}
+																			</div>
+																		</button>
+																		<div className="flex flex-col justify-center shrink-0 pr-1 gap-1">
+																			{onDuplicateLineItem && (
+																				<button
+																					type="button"
+																					onClick={(e) => {
+																						e.stopPropagation();
+																						onDuplicateLineItem(li);
+																					}}
+																					className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+																					title="Duplicate"
+																				>
+																					<FiCopy className="w-4 h-4" />
+																				</button>
+																			)}
+																			<button
+																				type="button"
+																				onClick={(e) => {
+																					e.stopPropagation();
+																					onDeleteLineItem(li.id);
+																				}}
+																				className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+																				title="Delete"
+																			>
+																				<FiTrash2 className="w-4 h-4" />
+																			</button>
+																		</div>
+																	</div>
+																);
+															})}
+														</div>
 													</div>
-													<div className="text-xs text-gray-600">
-														{[li.media, lineFormatsLabel(li)]
-															.filter(Boolean)
-															.join(" · ") || "—"}
-													</div>
-													<div className="text-xs text-gray-500">
-														{lineItemDateRangeLabel(li)}
-													</div>
-													<div className="text-xs text-[var(--color-primary-searchmind)]">
-														{li.status}
-														{hasCap &&
-															li.budget != null &&
-															!Number.isNaN(Number(li.budget)) &&
-															Number(li.budget) > 0 && (
-																<>
-																	{" · "}
-																	{formatBudgetAmount(
-																		Number(li.budget),
-																		currency
-																	)}
-																</>
-															)}
-													</div>
-												</button>
-												<button
-													type="button"
-													onClick={(e) => {
-														e.stopPropagation();
-														onDeleteLineItem(li.id);
-													}}
-													className="px-2 text-red-500 hover:bg-red-50 shrink-0 self-center"
-													title="Delete"
-												>
-													<FiTrash2 className="w-4 h-4" />
-												</button>
-											</div>
-										))}
+												);
+											});
+										})()}
 										<button
 											type="button"
 											onClick={() => onAddLineItem(svc)}

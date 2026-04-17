@@ -6,7 +6,6 @@ import { METRIC_COLUMNS } from './metricConfig';
 
 const POPOVER_LABELS = {
 	orders: 'Orders',
-	totalSales: 'Total Sales',
 	netRevenue: 'Net Revenue',
 	cogs: 'COGS',
 	aov: 'AOV',
@@ -55,8 +54,6 @@ export default function RowComparisonPopover({
 		switch (key) {
 			case 'orders':
 				return comparisonRow.orders;
-			case 'totalSales':
-				return formatCurrency(comparisonRow.totalSales ?? 0);
 			case 'netRevenue':
 				return formatCurrency(comparisonRow.netRevenue ?? 0);
 			case 'cogs':

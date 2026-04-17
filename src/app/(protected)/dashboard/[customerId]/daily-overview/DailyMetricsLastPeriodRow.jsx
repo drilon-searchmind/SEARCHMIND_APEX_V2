@@ -9,7 +9,6 @@ export default function DailyMetricsLastPeriodRow({
 	if (!rows?.length) return null;
 
 	const totalOrders = rows.reduce((sum, r) => sum + r.orders, 0);
-	const totalTotalSales = rows.reduce((sum, r) => sum + (r.totalSales ?? 0), 0);
 	const totalNetRevenue = rows.reduce((sum, r) => sum + (r.netRevenue ?? 0), 0);
 	const totalCogs = rows.reduce((sum, r) => sum + (r.cogs || 0), 0);
 	const totalPpcCost = rows.reduce((sum, r) => sum + r.ppcCost, 0);
@@ -39,7 +38,6 @@ export default function DailyMetricsLastPeriodRow({
 
 	const values = {
 		orders: totalOrders,
-		totalSales: formatCurrency(totalTotalSales, 0),
 		netRevenue: formatCurrency(totalNetRevenue, 0),
 		cogs: formatCurrency(totalCogs, 0),
 		aov: totalOrders > 0 ? formatCurrency(totalNetRevenue / totalOrders, 0) : '-',

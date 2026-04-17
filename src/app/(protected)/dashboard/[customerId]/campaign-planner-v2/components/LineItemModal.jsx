@@ -1,14 +1,18 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { FiEdit2, FiEye, FiX } from "react-icons/fi";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FiCopy, FiEdit2, FiEye, FiTrash2, FiX } from "react-icons/fi";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
 import Spinner from "@/components/ui/Spinner";
+import { useUser } from "@/contexts/UserContext";
 import {
 	CAMPAIGN_TYPE_FORMATS,
 	SERVICE_MEDIA_OPTIONS,
+	LINE_ITEM_STATUSES,
 } from "../constants";
+import { normalizeLineItemStatus } from "../lib/lineItemStatus";
+import { useInternalUsers } from "@/hooks/useInternalUsers";
 
 const defaultForm = () => ({
 	name: "",
@@ -18,7 +22,7 @@ const defaultForm = () => ({
 	startDate: "",
 	endDate: "",
 	alwaysOn: false,
-	status: "Pending",
+	status: "Pending Searchmind",
 	approvalLink: "",
 	budget: "",
 });
@@ -43,13 +47,110 @@ function buildFormFromLineItem(initialLineItem) {
 		startDate: initialLineItem.startDate || "",
 		endDate: initialLineItem.endDate || "",
 		alwaysOn: !!initialLineItem.alwaysOn,
-		status: initialLineItem.status || "Pending",
+		status: normalizeLineItemStatus(initialLineItem.status),
 		approvalLink: initialLineItem.approvalLink || "",
 		budget:
 			initialLineItem.budget != null && initialLineItem.budget !== ""
 				? String(initialLineItem.budget)
 				: "",
 	};
+}
+
+function parentDateBounds(parent) {
+	if (!parent) return { min: "", max: "", alwaysOn: false };
+	const min = parent.startDate ? String(parent.startDate).slice(0, 10) : "";
+	if (parent.alwaysOn) return { min, max: "", alwaysOn: true };
+	const max = parent.endDate ? String(parent.endDate).slice(0, 10) : "";
+	return { min, max, alwaysOn: false };
+}
+
+function clampDateStr(value, min, max) {
+	let v = value;
+	if (min && v && v < min) v = min;
+	if (max && v && v > max) v = max;
+	return v;
+}
+
+/** Active @mention at caret: text from @ to caret must not contain whitespace. */
+function getActiveMention(text, caretPos) {
+	if (caretPos == null || caretPos < 0) return null;
+	const before = text.slice(0, caretPos);
+	const at = before.lastIndexOf("@");
+	if (at === -1) return null;
+	const chunk = before.slice(at + 1);
+	if (/[\s\n]/.test(chunk)) return null;
+	return { start: at, query: chunk };
+}
+
+function filterUsersForMention(users, query) {
+	const list = Array.isArray(users) ? users : [];
+	const q = (query || "").toLowerCase().trim();
+	if (!q) return list;
+	return list.filter((u) => (u.name || "").toLowerCase().includes(q));
+}
+
+/** Split comment text into plain runs and @mentions matched against known user names (longest name first). */
+function splitCommentIntoSegments(text, users) {
+	const raw = text ?? "";
+	const list = [];
+	const safeUsers = Array.isArray(users) ? users : [];
+	const byNameLen = [...safeUsers].sort(
+		(a, b) => (b.name || "").length - (a.name || "").length
+	);
+	let i = 0;
+	while (i < raw.length) {
+		if (raw[i] === "@") {
+			const after = raw.slice(i + 1);
+			let matchedLen = 0;
+			for (const u of byNameLen) {
+				const n = (u.name || "").trim();
+				if (!n) continue;
+				if (after.startsWith(n)) {
+					const boundary = after[n.length];
+					if (
+						boundary === undefined ||
+						/\s/.test(boundary) ||
+						/[.,!?;:)\]"'…]/.test(boundary)
+					) {
+						matchedLen = 1 + n.length;
+						break;
+					}
+				}
+			}
+			if (matchedLen > 0) {
+				list.push({ type: "mention", value: raw.slice(i, i + matchedLen) });
+				i += matchedLen;
+				continue;
+			}
+		}
+		const start = i;
+		while (i < raw.length && raw[i] !== "@") i++;
+		list.push({ type: "text", value: raw.slice(start, i) });
+	}
+	return list;
+}
+
+function CommentTextWithMentions({ text, users }) {
+	const segments = useMemo(
+		() => splitCommentIntoSegments(text, users),
+		[text, users]
+	);
+	return (
+		<>
+			{segments.map((seg, idx) =>
+				seg.type === "mention" ? (
+					<span
+						key={idx}
+						className="rounded px-1 py-0.5 bg-sky-100 text-sky-700 font-medium"
+					>
+						{seg.value}
+					</span>
+				) : (
+					<React.Fragment key={idx}>{seg.value}</React.Fragment>
+				)
+			)}
+		</>
+	);
 }
 
 function CommentAvatar({ name, imageUrl }) {
@@ -80,11 +181,20 @@ export default function LineItemModal({
 	open,
 	onClose,
 	onSave,
+	onDuplicate,
 	customerId,
 	serviceName,
 	initialLineItem,
 	mode = "create",
+	parentCampaign = null,
+	customFormats = [],
+	extraMediaByService = {},
+	onAddCustomFormat,
+	onAddExtraMedia,
 }) {
+	const sessionUser = useUser();
+	const sessionUserId = sessionUser?.id || sessionUser?._id || null;
+
 	const isCreate = mode === "create";
 	const [form, setForm] = useState(defaultForm);
 	const [editing, setEditing] = useState(true);
@@ -94,10 +204,40 @@ export default function LineItemModal({
 	const [commentsLoading, setCommentsLoading] = useState(false);
 	const [commentsError, setCommentsError] = useState("");
 	const [commentPosting, setCommentPosting] = useState(false);
+	const [newFormatLabel, setNewFormatLabel] = useState("");
+	const [newMediaLabel, setNewMediaLabel] = useState("");
+	const [editingComment, setEditingComment] = useState(null);
+	const [editCommentText, setEditCommentText] = useState("");
+	const [mentionPick, setMentionPick] = useState(null);
+	const commentTextareaRef = useRef(null);
+	const editCommentTextareaRef = useRef(null);
+	const { internalUsers } = useInternalUsers();
+
+	const bounds = useMemo(() => parentDateBounds(parentCampaign), [parentCampaign]);
+
+	const mentionFiltered = useMemo(() => {
+		if (!mentionPick) return [];
+		return filterUsersForMention(internalUsers, mentionPick.query);
+	}, [mentionPick, internalUsers]);
 
 	const mediaOptions = useMemo(() => {
-		return SERVICE_MEDIA_OPTIONS[serviceName] || [];
-	}, [serviceName]);
+		const base = SERVICE_MEDIA_OPTIONS[serviceName] || [];
+		const extra = extraMediaByService?.[serviceName] || [];
+		const add = Array.isArray(extra) ? extra : [];
+		const out = [...base];
+		add.forEach((x) => {
+			if (x && !out.includes(x)) out.push(x);
+		});
+		return out;
+	}, [serviceName, extraMediaByService]);
+
+	const allFormatOptions = useMemo(() => {
+		const out = [...CAMPAIGN_TYPE_FORMATS];
+		(customFormats || []).forEach((f) => {
+			if (f && !out.includes(f)) out.push(f);
+		});
+		return out;
+	}, [customFormats]);
 
 	const readOnly = !isCreate && !editing;
 
@@ -136,7 +276,90 @@ export default function LineItemModal({
 			setForm(buildFormFromLineItem(initialLineItem));
 			setEditing(false);
 		}
+		setEditingComment(null);
+		setEditCommentText("");
+		setMentionPick(null);
 	}, [open, initialLineItem, isCreate]);
+
+	const syncMention = useCallback((text, caret, field) => {
+		const m = getActiveMention(text, caret);
+		if (m) {
+			setMentionPick((prev) => {
+				const same =
+					prev &&
+					prev.field === field &&
+					prev.start === m.start &&
+					prev.query === m.query;
+				return {
+					field,
+					start: m.start,
+					query: m.query,
+					highlight: same ? prev.highlight : 0,
+				};
+			});
+		} else {
+			setMentionPick(null);
+		}
+	}, []);
+
+	const insertMentionUser = useCallback(
+		(text, setText, textareaRef, pick, user) => {
+			const el = textareaRef.current;
+			const caret = el?.selectionStart ?? text.length;
+			const before = text.slice(0, pick.start);
+			const after = text.slice(caret);
+			const tag = `@${user.name} `;
+			setText(before + tag + after);
+			setMentionPick(null);
+			requestAnimationFrame(() => {
+				if (!el) return;
+				const pos = before.length + tag.length;
+				el.focus();
+				el.setSelectionRange(pos, pos);
+			});
+		},
+		[]
+	);
+
+	const handleMentionKeyDown = useCallback(
+		(e, field, text, setText, textareaRef) => {
+			if (!mentionPick || mentionPick.field !== field) return;
+			if (e.key === "Escape") {
+				e.preventDefault();
+				setMentionPick(null);
+				return;
+			}
+			const filtered = filterUsersForMention(internalUsers, mentionPick.query);
+			if (filtered.length === 0) return;
+			if (e.key === "ArrowDown") {
+				e.preventDefault();
+				setMentionPick((p) => {
+					if (!p || p.field !== field) return p;
+					const f = filterUsersForMention(internalUsers, p.query);
+					if (!f.length) return p;
+					return { ...p, highlight: Math.min(f.length - 1, p.highlight + 1) };
+				});
+				return;
+			}
+			if (e.key === "ArrowUp") {
+				e.preventDefault();
+				setMentionPick((p) => {
+					if (!p || p.field !== field) return p;
+					const f = filterUsersForMention(internalUsers, p.query);
+					if (!f.length) return p;
+					return { ...p, highlight: Math.max(0, p.highlight - 1) };
+				});
+				return;
+			}
+			if (e.key === "Enter" && !e.shiftKey) {
+				e.preventDefault();
+				const hi = Math.min(mentionPick.highlight, filtered.length - 1);
+				const u = filtered[hi];
+				if (u) insertMentionUser(text, setText, textareaRef, mentionPick, u);
+			}
+		},
+		[mentionPick, internalUsers, insertMentionUser]
+	);
 
 	useEffect(() => {
 		if (!open || isCreate || !initialLineItem?.id || !customerId) return;
@@ -159,6 +382,16 @@ export default function LineItemModal({
 				alwaysOn: checked,
 				endDate: checked ? "" : prev.endDate,
 			}));
+			return;
+		}
+		if (name === "startDate" && !readOnly) {
+			const v = clampDateStr(value, bounds.min, bounds.max || undefined);
+			setForm((prev) => ({ ...prev, startDate: v }));
+			return;
+		}
+		if (name === "endDate" && !readOnly) {
+			const v = clampDateStr(value, bounds.min || undefined, bounds.max || undefined);
+			setForm((prev) => ({ ...prev, endDate: v }));
 			return;
 		}
 		setForm((prev) => ({
@@ -187,7 +420,7 @@ export default function LineItemModal({
 		startDate: form.startDate,
 		endDate: form.alwaysOn ? "" : form.endDate,
 		alwaysOn: form.alwaysOn,
-		status: form.status,
+		status: normalizeLineItemStatus(form.status),
 		approvalLink: form.approvalLink.trim(),
 		budget: form.budget === "" ? null : Number(form.budget),
 	});
@@ -255,6 +488,55 @@ export default function LineItemModal({
 		}
 	};
 
+	const saveEditedComment = async () => {
+		if (!editingComment || !customerId) return;
+		const t = editCommentText.trim();
+		if (!t) return;
+		setCommentPosting(true);
+		setCommentsError("");
+		try {
+			const res = await fetch(
+				`/api/campaign-planner/${customerId}/comments/${editingComment}`,
+				{
+					method: "PATCH",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ text: t }),
+				}
+			);
+			const data = await res.json();
+			if (!res.ok) throw new Error(data.error || "Could not update comment");
+			if (data.comment) {
+				setRemoteComments((prev) =>
+					prev.map((c) => (c.id === data.comment.id ? data.comment : c))
+				);
+			}
+			setEditingComment(null);
+			setEditCommentText("");
+			setMentionPick(null);
+		} catch (e) {
+			setCommentsError(e.message || "Could not update comment");
+		} finally {
+			setCommentPosting(false);
+		}
+	};
+
+	const deleteComment = async (commentId) => {
+		if (!commentId || !customerId) return;
+		if (!window.confirm("Delete this comment?")) return;
+		setCommentsError("");
+		try {
+			const res = await fetch(
+				`/api/campaign-planner/${customerId}/comments/${commentId}`,
+				{ method: "DELETE" }
+			);
+			const data = await res.json().catch(() => ({}));
+			if (!res.ok) throw new Error(data.error || "Could not delete comment");
+			setRemoteComments((prev) => prev.filter((c) => c.id !== commentId));
+		} catch (e) {
+			setCommentsError(e.message || "Could not delete comment");
+		}
+	};
+
 	if (!open) return null;
 
 	return (
@@ -280,29 +562,49 @@ export default function LineItemModal({
 							</p>
 						)}
 					</div>
-					{!isCreate && (
-						<button
-							type="button"
-							onClick={() => {
-								if (editing) exitEditMode();
-								else setEditing(true);
-							}}
-							className="inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 shrink-0"
-						>
-							{editing ? (
-								<>
-									<FiEye className="w-4 h-4" />
-									View
-								</>
-							) : (
-								<>
-									<FiEdit2 className="w-4 h-4" />
-									Edit
-								</>
-							)}
-						</button>
-					)}
+					<div className="flex flex-wrap items-center gap-2 shrink-0">
+						{!isCreate && onDuplicate && (
+							<button
+								type="button"
+								onClick={onDuplicate}
+								className="inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+							>
+								<FiCopy className="w-4 h-4" />
+								Duplicate
+							</button>
+						)}
+						{!isCreate && (
+							<button
+								type="button"
+								onClick={() => {
+									if (editing) exitEditMode();
+									else setEditing(true);
+								}}
+								className="inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+							>
+								{editing ? (
+									<>
+										<FiEye className="w-4 h-4" />
+										View
+									</>
+								) : (
+									<>
+										<FiEdit2 className="w-4 h-4" />
+										Edit
+									</>
+								)}
+							</button>
+						)}
+					</div>
 				</div>
+
+				{parentCampaign && (bounds.min || bounds.max) && (
+					<p className="text-xs text-gray-500 mb-4 -mt-1">
+						Dates must stay within the campaign window						{bounds.min ? ` (from ${bounds.min}` : ""}
+						{bounds.max ? ` to ${bounds.max}` : bounds.alwaysOn ? " onward" : ""}
+						{bounds.min || bounds.max ? ")" : ""}.
+					</p>
+				)}
 
 				<form className="grid grid-cols-1 gap-4" onSubmit={handleSubmit}>
 					<div>
@@ -375,6 +677,49 @@ export default function LineItemModal({
 									))}
 								</select>
 							)}
+							{!readOnly && onAddExtraMedia && serviceName && (
+								<div className="mt-2 flex flex-wrap gap-2 items-center">
+									<input
+										type="text"
+										value={newMediaLabel}
+										onChange={(e) => setNewMediaLabel(e.target.value)}
+										placeholder="New channel / media type"
+										className="flex-1 min-w-[140px] h-9 rounded-lg border border-gray-300 px-3 text-sm"
+									/>
+									<button
+										type="button"
+										onClick={() => {
+											onAddExtraMedia(serviceName, newMediaLabel);
+											setNewMediaLabel("");
+										}}
+										className="h-9 px-3 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+									>
+										Add media
+									</button>
+								</div>
+							)}
+						</div>
+					)}
+
+					{isCreate && onAddExtraMedia && serviceName && mediaOptions.length > 0 && (
+						<div className="flex flex-wrap gap-2 items-center -mt-2">
+							<input
+								type="text"
+								value={newMediaLabel}
+								onChange={(e) => setNewMediaLabel(e.target.value)}
+								placeholder="Add custom channel for this service"
+								className="flex-1 min-w-[140px] h-9 rounded-lg border border-gray-300 px-3 text-sm"
+							/>
+							<button
+								type="button"
+								onClick={() => {
+									onAddExtraMedia(serviceName, newMediaLabel);
+									setNewMediaLabel("");
+								}}
+								className="h-9 px-3 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+							>
+								Add channel
+							</button>
 						</div>
 					)}
 
@@ -397,7 +742,7 @@ export default function LineItemModal({
 							</div>
 						) : (
 							<div className="mt-2 flex flex-wrap gap-2 max-h-36 overflow-y-auto p-2 rounded-lg border border-gray-100 bg-gray-50/80">
-								{CAMPAIGN_TYPE_FORMATS.map((f) => (
+								{allFormatOptions.map((f) => (
 									<label
 										key={f}
 										className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-md border text-xs cursor-pointer ${form.selectedFormats.includes(f)
@@ -414,6 +759,27 @@ export default function LineItemModal({
 										{f}
 									</label>
 								))}
+								{onAddCustomFormat && (
+									<div className="flex flex-wrap gap-2 items-center w-full mt-1 pt-2 border-t border-gray-200">
+										<input
+											type="text"
+											value={newFormatLabel}
+											onChange={(e) => setNewFormatLabel(e.target.value)}
+											placeholder="New format name"
+											className="flex-1 min-w-[120px] h-9 rounded-lg border border-gray-300 px-3 text-xs"
+										/>
+										<button
+											type="button"
+											onClick={() => {
+												onAddCustomFormat(newFormatLabel);
+												setNewFormatLabel("");
+											}}
+											className="h-9 px-3 rounded-lg border border-gray-300 text-xs text-gray-700 hover:bg-gray-50"
+										>
+											Add format
+										</button>
+									</div>
+								)}
 							</div>
 						)}
 					</div>
@@ -474,6 +840,8 @@ export default function LineItemModal({
 								name="startDate"
 								value={form.startDate}
 								onChange={handleChange}
+								min={bounds.min || undefined}
+								max={bounds.max || undefined}
 								className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300"
 							/>
 						)}
@@ -491,6 +859,8 @@ export default function LineItemModal({
 									name="endDate"
 									value={form.endDate}
 									onChange={handleChange}
+									min={bounds.min || undefined}
+									max={bounds.max || undefined}
 									className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300"
 								/>
 							)}
@@ -511,13 +881,7 @@ export default function LineItemModal({
 								onChange={handleChange}
 								className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300"
 							>
-								{[
-									"Pending",
-									"Pending Customer Approval",
-									"Approved",
-									"Live",
-									"Ended",
-								].map((s) => (
+								{LINE_ITEM_STATUSES.map((s) => (
 									<option key={s} value={s}>
 										{s}
 									</option>
@@ -558,7 +922,8 @@ export default function LineItemModal({
 						<div className="rounded-lg border border-gray-200 bg-gray-50/90 p-4">
 							<FormLabel>Comments</FormLabel>
 							<p className="text-xs text-gray-500 mt-0.5 mb-2">
-								Saved for this campaign type. Add a note for your team.
+								Saved for this campaign type. Add a note for your team — type @ to
+								mention someone.
 							</p>
 							{commentsError && (
 								<p className="text-sm text-red-600 mb-2">{commentsError}</p>
@@ -572,50 +937,252 @@ export default function LineItemModal({
 									{remoteComments.length === 0 ? (
 										<li className="text-sm text-gray-400">No comments yet.</li>
 									) : (
-										remoteComments.map((c) => (
-											<li
-												key={c.id}
-												className="flex gap-3 text-sm bg-white border border-gray-100 rounded-lg px-3 py-2.5"
-											>
-												<CommentAvatar
-													name={c.userName}
-													imageUrl={c.userImage}
-												/>
-												<div className="min-w-0 flex-1">
-													<div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
-														<span className="font-semibold text-gray-900">
-															{c.userName || "User"}
-														</span>
-														<span className="text-xs text-gray-400">
-															{c.createdAt
-																? new Date(c.createdAt).toLocaleString("en-GB", {
-																	day: "numeric",
-																	month: "short",
-																	year: "numeric",
-																	hour: "2-digit",
-																	minute: "2-digit",
-																})
-																: ""}
-														</span>
+										remoteComments.map((c) => {
+											const own =
+												sessionUserId &&
+												String(c.userId) === String(sessionUserId);
+											return (
+												<li
+													key={c.id}
+													className="flex gap-3 text-sm bg-white border border-gray-100 rounded-lg px-3 py-2.5"
+												>
+													<CommentAvatar
+														name={c.userName}
+														imageUrl={c.userImage}
+													/>
+													<div className="min-w-0 flex-1">
+														<div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
+															<span className="font-semibold text-gray-900">
+																{c.userName || "User"}
+															</span>
+															<span className="text-xs text-gray-400">
+																{c.createdAt
+																	? new Date(c.createdAt).toLocaleString("en-GB", {
+																		day: "numeric",
+																		month: "short",
+																		year: "numeric",
+																		hour: "2-digit",
+																		minute: "2-digit",
+																	})
+																	: ""}
+															</span>
+														</div>
+														{editingComment === c.id ? (
+															<div className="mt-2 space-y-2 relative">
+																<textarea
+																	ref={editCommentTextareaRef}
+																	value={editCommentText}
+																	onChange={(e) => {
+																		setEditCommentText(e.target.value);
+																		syncMention(
+																			e.target.value,
+																			e.target.selectionStart,
+																			"edit"
+																		);
+																	}}
+																	onClick={(e) =>
+																		syncMention(
+																			e.target.value,
+																			e.target.selectionStart,
+																			"edit"
+																		)
+																	}
+																	onKeyUp={(e) =>
+																		syncMention(
+																			e.target.value,
+																			e.target.selectionStart,
+																			"edit"
+																		)
+																	}
+																	onKeyDown={(e) =>
+																		handleMentionKeyDown(
+																			e,
+																			"edit",
+																			editCommentText,
+																			setEditCommentText,
+																			editCommentTextareaRef
+																		)
+																	}
+																	rows={3}
+																	className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+																/>
+																{mentionPick?.field === "edit" &&
+																	mentionFiltered.length > 0 && (
+																		<ul className="absolute left-0 right-0 top-full mt-1 z-[70] max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg py-1">
+																			{mentionFiltered.map((u, i) => (
+																				<li key={u.id}>
+																					<button
+																						type="button"
+																						className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-gray-50 ${
+																							i === mentionPick.highlight
+																								? "bg-gray-100"
+																								: ""
+																						}`}
+																						onMouseDown={(ev) => {
+																							ev.preventDefault();
+																							insertMentionUser(
+																								editCommentText,
+																								setEditCommentText,
+																								editCommentTextareaRef,
+																								mentionPick,
+																								u
+																							);
+																						}}
+																						onMouseEnter={() =>
+																							setMentionPick((p) =>
+																								p?.field === "edit"
+																									? { ...p, highlight: i }
+																									: p
+																							)
+																						}
+																					>
+																						<CommentAvatar
+																							name={u.name}
+																							imageUrl={u.image}
+																						/>
+																						<span className="truncate font-medium text-gray-900">
+																							{u.name}
+																						</span>
+																					</button>
+																				</li>
+																			))}
+																		</ul>
+																	)}
+																<div className="flex gap-2">
+																	<button
+																		type="button"
+																		onClick={saveEditedComment}
+																		disabled={commentPosting}
+																		className="px-3 py-1.5 rounded-lg bg-[var(--color-primary-searchmind)] text-white text-xs font-medium disabled:opacity-50"
+																	>
+																		Save
+																	</button>
+																	<button
+																		type="button"
+																		onClick={() => {
+																			setEditingComment(null);
+																			setEditCommentText("");
+																			setMentionPick(null);
+																		}}
+																		className="px-3 py-1.5 rounded-lg border text-xs"
+																	>
+																		Cancel
+																	</button>
+																</div>
+															</div>
+														) : (
+															<p className="text-gray-800 whitespace-pre-wrap mt-1">
+																<CommentTextWithMentions
+																	text={c.text}
+																	users={internalUsers}
+																/>
+															</p>
+														)}
+														{own && editingComment !== c.id && (
+															<div className="mt-2 flex gap-2">
+																<button
+																	type="button"
+																	onClick={() => {
+																		setEditingComment(c.id);
+																		setEditCommentText(c.text);
+																		setMentionPick(null);
+																	}}
+																	className="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900"
+																>
+																	<FiEdit2 className="w-3.5 h-3.5" />
+																	Edit
+																</button>
+																<button
+																	type="button"
+																	onClick={() => deleteComment(c.id)}
+																	className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-800"
+																>
+																	<FiTrash2 className="w-3.5 h-3.5" />
+																	Delete
+																</button>
+															</div>
+														)}
 													</div>
-													<p className="text-gray-800 whitespace-pre-wrap mt-1">
-														{c.text}
-													</p>
-												</div>
-											</li>
-										))
+												</li>
+											);
+										})
 									)}
 								</ul>
 							)}
-							<div className="flex gap-2">
+							<div className="relative flex gap-2 w-full">
 								<textarea
+									ref={commentTextareaRef}
 									value={commentDraft}
-									onChange={(e) => setCommentDraft(e.target.value)}
+									onChange={(e) => {
+										setCommentDraft(e.target.value);
+										syncMention(
+											e.target.value,
+											e.target.selectionStart,
+											"draft"
+										);
+									}}
+									onClick={(e) =>
+										syncMention(e.target.value, e.target.selectionStart, "draft")
+									}
+									onKeyUp={(e) =>
+										syncMention(e.target.value, e.target.selectionStart, "draft")
+									}
+									onKeyDown={(e) =>
+										handleMentionKeyDown(
+											e,
+											"draft",
+											commentDraft,
+											setCommentDraft,
+											commentTextareaRef
+										)
+									}
 									rows={2}
-									placeholder="Add a comment…"
+									placeholder="Add a comment… (type @ to mention)"
 									disabled={commentPosting}
 									className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm resize-none disabled:opacity-60"
 								/>
+								{mentionPick?.field === "draft" &&
+									mentionFiltered.length > 0 && (
+										<ul className="absolute left-0 right-0 top-full mt-1 z-[70] max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg py-1">
+											{mentionFiltered.map((u, i) => (
+												<li key={u.id}>
+													<button
+														type="button"
+														className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-gray-50 ${
+															i === mentionPick.highlight
+																? "bg-gray-100"
+																: ""
+														}`}
+														onMouseDown={(ev) => {
+															ev.preventDefault();
+															insertMentionUser(
+																commentDraft,
+																setCommentDraft,
+																commentTextareaRef,
+																mentionPick,
+																u
+															);
+														}}
+														onMouseEnter={() =>
+															setMentionPick((p) =>
+																p?.field === "draft"
+																	? { ...p, highlight: i }
+																	: p
+															)
+														}
+													>
+														<CommentAvatar
+															name={u.name}
+															imageUrl={u.image}
+														/>
+														<span className="truncate font-medium text-gray-900">
+															{u.name}
+														</span>
+													</button>
+												</li>
+											))}
+										</ul>
+									)}
 								<button
 									type="button"
 									onClick={handleAddComment}

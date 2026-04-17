@@ -5,10 +5,10 @@ export const PLANNER_V2_SERVICES = [
   "SEO",
 ];
 
-/** Default media options per service (line items pick one) */
+/** Default media options per service (line items pick one). YouTube lives under PPC. */
 export const SERVICE_MEDIA_OPTIONS = {
-  "Paid Social": ["META", "LinkedIn", "Pinterest", "TikTok", "YouTube"],
-  "Paid Search": ["Google"],
+  "Paid Social": ["META", "LinkedIn", "Pinterest", "TikTok"],
+  "Paid Search": ["Google", "YouTube"],
   "Email Marketing": ["Email"],
   SEO: ["Website"],
 };
@@ -26,7 +26,7 @@ export const CAMPAIGN_TYPE_FORMATS = [
 ];
 
 export const LINE_ITEM_STATUSES = [
-  "Pending",
+  "Pending Searchmind",
   "Pending Customer Approval",
   "Approved",
   "Live",

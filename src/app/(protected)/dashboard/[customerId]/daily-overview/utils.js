@@ -35,7 +35,6 @@ export function computeRowMax(rows) {
 	if (!rows?.length) return {};
 	return {
 		orders: Math.max(...rows.map((r) => r.orders)),
-		totalSales: Math.max(...rows.map((r) => r.totalSales ?? 0)),
 		netRevenue: Math.max(...rows.map((r) => r.netRevenue ?? 0)),
 		ppcCost: Math.max(...rows.map((r) => r.ppcCost)),
 		psCost: Math.max(...rows.map((r) => r.psCost)),
@@ -55,7 +54,6 @@ export function computeTotals(rows, variant = 'current') {
 	if (!rows?.length)
 		return {
 			orders: 0,
-			totalSales: formatCurrency(0),
 			netRevenue: formatCurrency(0),
 			cogs: formatCurrency(0),
 			ppcCost: formatCurrency(0),
@@ -69,7 +67,6 @@ export function computeTotals(rows, variant = 'current') {
 		};
 
 	const totalOrders = rows.reduce((sum, r) => sum + r.orders, 0);
-	const totalTotalSales = rows.reduce((sum, r) => sum + (r.totalSales ?? 0), 0);
 	const totalNetRevenue = rows.reduce((sum, r) => sum + (r.netRevenue ?? 0), 0);
 	const totalCogs = rows.reduce((sum, r) => sum + (r.cogs || 0), 0);
 	const totalPpcCost = rows.reduce((sum, r) => sum + r.ppcCost, 0);
@@ -91,7 +88,6 @@ export function computeTotals(rows, variant = 'current') {
 
 	return {
 		orders: totalOrders,
-		totalSales: formatCurrency(totalTotalSales),
 		netRevenue: formatCurrency(totalNetRevenue),
 		cogs: formatCurrency(totalCogs),
 		ppcCost: formatCurrency(totalPpcCost),
@@ -113,7 +109,6 @@ export function computeRawTotals(rows) {
 	if (!rows?.length)
 		return {
 			orders: 0,
-			totalSales: 0,
 			netRevenue: 0,
 			cogs: 0,
 			ppcCost: 0,
@@ -127,7 +122,6 @@ export function computeRawTotals(rows) {
 		};
 
 	const totalOrders = rows.reduce((sum, r) => sum + r.orders, 0);
-	const totalTotalSales = rows.reduce((sum, r) => sum + (r.totalSales ?? 0), 0);
 	const totalNetRevenue = rows.reduce((sum, r) => sum + (r.netRevenue ?? 0), 0);
 	const totalCogs = rows.reduce((sum, r) => sum + (r.cogs || 0), 0);
 	const totalPpcCost = rows.reduce((sum, r) => sum + r.ppcCost, 0);
@@ -149,7 +143,6 @@ export function computeRawTotals(rows) {
 
 	return {
 		orders: totalOrders,
-		totalSales: totalTotalSales,
 		netRevenue: totalNetRevenue,
 		cogs: totalCogs,
 		ppcCost: totalPpcCost,
@@ -166,7 +159,6 @@ export function computeRawTotals(rows) {
 /** Metrics where higher is better (green up, red down) */
 const HIGHER_IS_BETTER = new Set([
 	'orders',
-	'totalSales',
 	'netRevenue',
 	'aov',
 	'roas',

@@ -12,7 +12,8 @@ import LineItemModal from "./components/LineItemModal";
 import CampaignOverview from "./components/CampaignOverview";
 import CampaignOverviewFilters from "./components/CampaignOverviewFilters";
 import LineItemsKanban from "./components/LineItemsKanban";
-import PlannerV2CalendarSection from "./components/PlannerV2CalendarSection";
+import PlannerV2ScheduleSection from "./components/PlannerV2ScheduleSection";
+import { isLineItemEndedVisual } from "./lib/lineItemStatus";
 
 export default function CampaignPlannerV2Page() {
 	const params = useParams();
@@ -32,6 +33,11 @@ export default function CampaignPlannerV2Page() {
 		updateLineItem,
 		deleteLineItem,
 		setLineItemStatus,
+		duplicateLineItem,
+		customFormats,
+		extraMediaByService,
+		addCustomFormat,
+		addExtraMedia,
 	} = usePlannerV2Store(customerId);
 
 	const {
@@ -47,16 +53,41 @@ export default function CampaignPlannerV2Page() {
 		[filteredParents]
 	);
 
+	const boardParentIds = useMemo(() => {
+		const ids = new Set(filteredParentIds);
+		lineItemsWithContext.forEach((li) => {
+			if (li.status === "Ended" || isLineItemEndedVisual(li)) {
+				ids.add(li._parentId);
+			}
+		});
+		return ids;
+	}, [filteredParentIds, lineItemsWithContext]);
+
 	const filteredLineItemsWithContext = useMemo(
 		() =>
-			lineItemsWithContext.filter((li) =>
-				filteredParentIds.has(li._parentId)
-			),
-		[lineItemsWithContext, filteredParentIds]
+			lineItemsWithContext.filter((li) => boardParentIds.has(li._parentId)),
+		[lineItemsWithContext, boardParentIds]
 	);
+
+	const scheduleParents = useMemo(() => {
+		const fromLines = new Set(
+			filteredLineItemsWithContext.map((li) => li._parentId)
+		);
+		return parents.filter(
+			(p) => filteredParentIds.has(p.id) || fromLines.has(p.id)
+		);
+	}, [parents, filteredParentIds, filteredLineItemsWithContext]);
 
 	const [parentModal, setParentModal] = useState(null);
 	const [lineModal, setLineModal] = useState(null);
+
+	const parentForLineModal = useMemo(() => {
+		const sid = lineModal?.service?.id;
+		const fromService = sid ? services.find((s) => s.id === sid) : null;
+		const parentId =
+			lineModal?.lineItem?._parentId || fromService?.parentId || null;
+		return parentId ? parents.find((p) => p.id === parentId) : null;
+	}, [lineModal, parents, services]);
 
 	const handleSaveParent = (data) => {
 		if (parentModal?.mode === "edit" && parentModal.parent) {
@@ -151,17 +182,19 @@ export default function CampaignPlannerV2Page() {
 						setLineModal({ mode: "edit", lineItem: li, service: svc })
 					}
 					onDeleteLineItem={handleDeleteLineItem}
+					onDuplicateLineItem={(li) => duplicateLineItem(li.id)}
 				/>
 
 				<LineItemsKanban
 					lineItemsWithContext={filteredLineItemsWithContext}
 					onStatusChange={setLineItemStatus}
 					onOpenLineItem={openLineItemFromKanban}
+					filterDateRange={filters.dateRange}
 				/>
 			</div>
 
-			<PlannerV2CalendarSection
-				parents={filteredParents}
+			<PlannerV2ScheduleSection
+				parents={scheduleParents}
 				lineItemsWithContext={filteredLineItemsWithContext}
 				onSelectParent={(p) => setParentModal({ mode: "edit", parent: p })}
 				onSelectLineItem={openLineItemFromKanban}
@@ -179,10 +212,23 @@ export default function CampaignPlannerV2Page() {
 				open={!!lineModal}
 				onClose={() => setLineModal(null)}
 				onSave={handleSaveLineItem}
+				onDuplicate={
+					lineModal?.mode === "edit" && lineModal?.lineItem
+						? () => {
+								duplicateLineItem(lineModal.lineItem.id);
+								setLineModal(null);
+							}
+						: undefined
+				}
 				customerId={customerId}
 				mode={lineModal?.mode === "edit" ? "edit" : "create"}
 				serviceName={lineModalServiceName}
 				initialLineItem={lineModal?.lineItem}
+				parentCampaign={parentForLineModal}
+				customFormats={customFormats}
+				extraMediaByService={extraMediaByService}
+				onAddCustomFormat={addCustomFormat}
+				onAddExtraMedia={addExtraMedia}
 			/>
 		</div>
 	);

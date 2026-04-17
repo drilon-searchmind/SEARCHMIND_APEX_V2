@@ -71,20 +71,6 @@ export default function DailyMetricsDataRow({
 						{row.orders}
 					</td>
 				);
-			case 'totalSales':
-				return (
-					<td
-						key={key}
-						className={`px-3 py-2 whitespace-nowrap${borderCls}`}
-						style={getCellStyles(
-							row.totalSales,
-							max.totalSales,
-							row.totalSales === max.totalSales
-						)}
-					>
-						{formatCurrency(row.totalSales, { maximumFractionDigits: 0 })}
-					</td>
-				);
 			case 'netRevenue':
 				return (
 					<td

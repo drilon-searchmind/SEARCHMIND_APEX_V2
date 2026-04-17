@@ -6,20 +6,13 @@ import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { FiCalendar } from "react-icons/fi";
 import "../styles/planner-v2-calendar.css";
+import {
+  LINE_ITEM_STATUS_STYLES,
+  defaultLineItemStatusStyle,
+  normalizeLineItemStatus,
+} from "../lib/lineItemStatus";
 
 const localizer = momentLocalizer(moment);
-
-const LINE_STATUS_STYLES = {
-  Pending: { bg: "#fde68a", border: "#d97706" },
-  "Pending Customer Approval": { bg: "#fed7aa", border: "#ea580c" },
-  Approved: { bg: "#bfdbfe", border: "#2563eb" },
-  Live: { bg: "#bbf7d0", border: "#16a34a" },
-  Ended: { bg: "#e5e7eb", border: "#64748b" },
-};
-
-function defaultStatusStyle() {
-  return { bg: "#e2e8f0", border: "#64748b" };
-}
 
 /**
  * All-day range for react-big-calendar (end is exclusive).
@@ -66,6 +59,7 @@ export default function PlannerV2CalendarSection({
   lineItemsWithContext = [],
   onSelectParent,
   onSelectLineItem,
+  embedded = false,
 }) {
   const [calDate, setCalDate] = useState(() => new Date());
   const [calView, setCalView] = useState(Views.MONTH);
@@ -128,7 +122,10 @@ export default function PlannerV2CalendarSection({
         },
       };
     }
-    const st = LINE_STATUS_STYLES[event.lineItem?.status] || defaultStatusStyle();
+    const st =
+      LINE_ITEM_STATUS_STYLES[
+        normalizeLineItemStatus(event.lineItem?.status)
+      ] || defaultLineItemStatusStyle();
     return {
       style: {
         backgroundColor: st.bg,
@@ -156,7 +153,7 @@ export default function PlannerV2CalendarSection({
 
   return (
     <section
-      className="mt-10 rounded-xl border border-gray-200 bg-gray-100 p-4 md:p-6"
+      className={`${embedded ? "mt-0" : "mt-10"} rounded-xl border border-gray-200 bg-gray-100 p-4 md:p-6`}
       aria-labelledby="planner-v2-calendar-heading"
     >
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">

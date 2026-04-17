@@ -4,12 +4,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isDemoCustomerId } from "@/lib/demoCustomerId";
 import { PLANNER_V2_DEFAULT_CURRENCY } from "../constants";
 import { createId } from "../lib/ids";
+import { normalizeLineItemStatus } from "../lib/lineItemStatus";
 
 const storageKey = (customerId) =>
   `campaign-planner-v2:${customerId || "default"}`;
 
 function emptyState() {
-  return { parents: [], services: [], lineItems: [] };
+  return {
+    parents: [],
+    services: [],
+    lineItems: [],
+    customFormats: [],
+    extraMediaByService: {},
+  };
 }
 
 function normalizeLineItem(li) {
@@ -23,11 +30,21 @@ function normalizeLineItem(li) {
     ...rest,
     formats,
     format: formats[0] || rest.format || "",
+    status: normalizeLineItemStatus(rest.status),
     budget:
       rest.budget === "" || rest.budget == null || Number.isNaN(Number(rest.budget))
         ? null
         : Number(rest.budget),
   };
+}
+
+function normalizeExtraMedia(raw) {
+  if (!raw || typeof raw !== "object") return {};
+  const out = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (Array.isArray(v)) out[k] = v.map(String);
+  }
+  return out;
 }
 
 function loadState(customerId) {
@@ -43,6 +60,8 @@ function loadState(customerId) {
       parents: Array.isArray(parsed.parents) ? parsed.parents : [],
       services: Array.isArray(parsed.services) ? parsed.services : [],
       lineItems,
+      customFormats: Array.isArray(parsed.customFormats) ? parsed.customFormats : [],
+      extraMediaByService: normalizeExtraMedia(parsed.extraMediaByService),
     };
   } catch {
     return emptyState();
@@ -156,12 +175,18 @@ export default function usePlannerV2Store(customerId) {
             parents: remote.parents || [],
             services: remote.services || [],
             lineItems: (remote.lineItems || []).map(normalizeLineItem),
+            customFormats: Array.isArray(remote.customFormats)
+              ? remote.customFormats
+              : [],
+            extraMediaByService: normalizeExtraMedia(remote.extraMediaByService),
           });
         } else if (hasWorkspaceRows(local)) {
           const next = {
             parents: local.parents,
             services: local.services,
             lineItems: local.lineItems,
+            customFormats: local.customFormats || [],
+            extraMediaByService: local.extraMediaByService || {},
           };
           setState(next);
           await fetch(`/api/campaign-planner/${customerId}/workspace`, {
@@ -241,9 +266,9 @@ export default function usePlannerV2Store(customerId) {
     const serviceRows = buildServiceRowsFromParent(parent);
 
     setState((prev) => ({
+      ...prev,
       parents: [...prev.parents, parent],
       services: [...prev.services, ...serviceRows],
-      lineItems: prev.lineItems,
     }));
 
     return parent.id;
@@ -285,7 +310,7 @@ export default function usePlannerV2Store(customerId) {
         p.id === parentId ? nextParent : p
       );
 
-      return { parents, services, lineItems };
+      return { ...prev, parents, services, lineItems };
     });
   }, []);
 
@@ -295,6 +320,7 @@ export default function usePlannerV2Store(customerId) {
         prev.services.filter((s) => s.parentId === parentId).map((s) => s.id)
       );
       return {
+        ...prev,
         parents: prev.parents.filter((p) => p.id !== parentId),
         services: prev.services.filter((s) => s.parentId !== parentId),
         lineItems: prev.lineItems.filter((li) => !serviceIds.has(li.serviceId)),
@@ -327,7 +353,7 @@ export default function usePlannerV2Store(customerId) {
       startDate: payload.startDate || "",
       endDate: payload.alwaysOn ? "" : payload.endDate || "",
       alwaysOn: !!payload.alwaysOn,
-      status: payload.status || "Pending",
+      status: normalizeLineItemStatus(payload.status || "Pending Searchmind"),
       approvalLink: payload.approvalLink || "",
       budget:
         payload.budget === "" || payload.budget == null
@@ -347,6 +373,9 @@ export default function usePlannerV2Store(customerId) {
       lineItems: prev.lineItems.map((li) => {
         if (li.id !== lineItemId) return li;
         const next = { ...li, ...patch };
+        if (patch.status !== undefined) {
+          next.status = normalizeLineItemStatus(patch.status);
+        }
         if (patch.alwaysOn === true) next.endDate = "";
         if (Array.isArray(patch.formats)) {
           next.formats = patch.formats;
@@ -371,8 +400,44 @@ export default function usePlannerV2Store(customerId) {
   }, []);
 
   const setLineItemStatus = useCallback((lineItemId, status) => {
-    updateLineItem(lineItemId, { status });
+    updateLineItem(lineItemId, { status: normalizeLineItemStatus(status) });
   }, [updateLineItem]);
+
+  const duplicateLineItem = useCallback((lineItemId) => {
+    setState((prev) => {
+      const li = prev.lineItems.find((x) => x.id === lineItemId);
+      if (!li) return prev;
+      const base = normalizeLineItem({
+        ...li,
+        id: createId(),
+        name: li.name ? `${li.name} (copy)` : "Copy",
+      });
+      return { ...prev, lineItems: [...prev.lineItems, base] };
+    });
+  }, []);
+
+  const addCustomFormat = useCallback((label) => {
+    const t = String(label || "").trim();
+    if (!t) return;
+    setState((prev) => ({
+      ...prev,
+      customFormats: prev.customFormats.includes(t)
+        ? prev.customFormats
+        : [...prev.customFormats, t],
+    }));
+  }, []);
+
+  const addExtraMedia = useCallback((serviceName, label) => {
+    const t = String(label || "").trim();
+    if (!t || !serviceName) return;
+    setState((prev) => {
+      const by = { ...normalizeExtraMedia(prev.extraMediaByService) };
+      const list = [...(by[serviceName] || [])];
+      if (!list.includes(t)) list.push(t);
+      by[serviceName] = list;
+      return { ...prev, extraMediaByService: by };
+    });
+  }, []);
 
   const lineItemsWithContext = useMemo(() => {
     return state.lineItems.map((li) => {
@@ -401,5 +466,8 @@ export default function usePlannerV2Store(customerId) {
     updateLineItem,
     deleteLineItem,
     setLineItemStatus,
+    duplicateLineItem,
+    addCustomFormat,
+    addExtraMedia,
   };
 }

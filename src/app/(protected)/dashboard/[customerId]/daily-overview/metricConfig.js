@@ -4,7 +4,6 @@
  */
 export const METRIC_COLUMNS = [
 	{ key: 'orders', label: 'Orders', group: 'sales' },
-	{ key: 'totalSales', label: 'Total Sales', group: 'sales' },
 	{ key: 'netRevenue', label: 'Net Revenue', group: 'sales' },
 	{ key: 'cogs', label: 'COGS', group: 'sales' },
 	{ key: 'aov', label: 'AOV', group: 'sales' },
