@@ -276,7 +276,31 @@ const CustomerSchema = new mongoose.Schema({
             revenueTarget: { type: Number, default: 1 },
             marketingBudget: { type: Number, default: 1 }
         }
-    }
+    },
+    /**
+     * Apex Radar per-channel targets (budget, ROAS/CPA, static vs dynamic budget).
+     * Extend with e.g. `google` when Google Ads overview ships.
+     */
+    customerApexRadarSettings: {
+        facebook: {
+            /** Target / planned budget amount (same currency as reporting). */
+            targetBudget: { type: Number, default: null },
+            /** Whether `targetValue` is interpreted as ROAS or CPA. */
+            targetMetricType: {
+                type: String,
+                enum: ["ROAS", "CPA"],
+                default: "ROAS",
+            },
+            /** Target ROAS (e.g. 5) or target CPA in account currency. */
+            targetValue: { type: Number, default: null },
+            /** Statisk vs dynamisk — static caps vs dynamic pacing. */
+            budgetMode: {
+                type: String,
+                enum: ["STATIC", "DYNAMIC"],
+                default: "DYNAMIC",
+            },
+        },
+    },
 });
 
 export default mongoose.models.Customer || mongoose.model('Customer', CustomerSchema);

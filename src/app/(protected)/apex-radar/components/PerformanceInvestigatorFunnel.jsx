@@ -11,7 +11,8 @@ import {
     FiTrendingUp,
 } from "react-icons/fi";
 import MetricCard from "@/components/dashboard/MetricCard";
-import { MOCK_PI_FUNNEL as F } from "../lib/mockPerformanceInvestigatorData";
+import Spinner from "@/components/ui/Spinner";
+import { MOCK_PI_FUNNEL as MOCK_FUNNEL } from "../lib/mockPerformanceInvestigatorData";
 
 const iconClass = "text-[var(--color-primary-searchmind-lighter)] font-bold text-lg";
 
@@ -53,12 +54,25 @@ function StepDivider() {
 /**
  * Full-width waterfall: outcome at top, inputs below in clear grid rows (no cramped tree).
  */
-export default function PerformanceInvestigatorFunnel() {
+export default function PerformanceInvestigatorFunnel({ funnel = null, loading = false, compareHint = null }) {
+    const F = funnel != null ? funnel : MOCK_FUNNEL;
+
+    if (loading && funnel == null) {
+        return (
+            <div className="rounded-xl border border-gray-200 bg-white p-12 flex flex-col items-center gap-3" aria-busy="true">
+                <Spinner size={40} color="#406969" />
+                <p className="text-sm text-gray-500">Loading funnel…</p>
+            </div>
+        );
+    }
+
     return (
         <div className="rounded-xl border border-gray-200 bg-white p-6">
             <h3 className="mb-5 text-lg font-semibold text-gray-900">Performance funnel</h3>
             <p className="mb-6 text-sm text-gray-500">
-                Top-line outcome first, then supporting metrics in reading order (static demo data).
+                Top-line outcome first, then supporting metrics in reading order. Change vs the prior period of the same
+                length as your selected date range.
+                {compareHint ? ` ${compareHint}` : ""}
             </p>
 
             <div className="flex w-full flex-col gap-1">

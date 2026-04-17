@@ -3,6 +3,8 @@
  * Replace with API responses later.
  */
 
+import { buildFacebookOverviewApexOnlySlice } from "@/lib/apexRadarCustomerSettings";
+
 export const MOCK_INTERNAL_USERS = [
     { id: "all", name: "All team members" },
     { id: "u1", name: "Asger Nielsen" },
@@ -21,17 +23,51 @@ export function formatTeamMemberShort(fullName) {
     return `${first} ${lastInitial}`;
 }
 
-export function teamMemberShortFromUserId(userId) {
+/**
+ * @param {string} userId
+ * @param {Array<{ id: string, name: string }>} [assignableUsers] — real internal users (no synthetic "all" entry)
+ */
+export function teamMemberShortFromUserId(userId, assignableUsers = []) {
     if (!userId) return "—";
-    const u = MOCK_INTERNAL_USERS.find((x) => x.id === userId);
-    if (!u || u.id === "all") return "—";
+    const u = assignableUsers.find((x) => String(x.id) === String(userId));
+    if (!u) return "—";
     return formatTeamMemberShort(u.name);
 }
 
 /** Comma-separated short names for assigned user ids (localStorage assignments). */
-export function formatAssignedUsersList(userIds) {
+export function formatAssignedUsersList(userIds, assignableUsers = []) {
     if (!userIds || !userIds.length) return "—";
-    return userIds.map((id) => teamMemberShortFromUserId(id)).join(", ");
+    return userIds.map((id) => teamMemberShortFromUserId(id, assignableUsers)).join(", ");
+}
+
+/** Placeholder metrics until Facebook / ads APIs exist; one row per customer. */
+export function buildCustomerOverviewRow(customer) {
+    const id = String(customer._id);
+    const entity = customer.customerName || "Unnamed customer";
+    const apexSlice = buildFacebookOverviewApexOnlySlice(customer);
+    return {
+        id,
+        customerId: id,
+        entity,
+        value: {
+            conversions2d: null,
+            value7d: null,
+            minExpectedValue7d: null,
+            value30d: null,
+            minExpectedValue30d: null,
+        },
+        targets: apexSlice.targets,
+        budget: apexSlice.budget,
+        ads: {
+            adFatigue: null,
+            ctr7d: null,
+            ctr30d: null,
+            freq7d: null,
+            freq30d: null,
+        },
+        alerts: apexSlice.alerts,
+        customerApexRadarSettings: customer.customerApexRadarSettings || { facebook: {} },
+    };
 }
 
 /** @typedef {typeof MOCK_OVERVIEW_ROWS[0]} ApexRadarOverviewRow */

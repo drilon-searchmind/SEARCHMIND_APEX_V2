@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import ApexRadarOverviewTable from "../components/ApexRadarOverviewTable";
 import ApexRadarAssignUsersModal from "../components/ApexRadarAssignUsersModal";
-import { MOCK_INTERNAL_USERS, MOCK_OVERVIEW_ROWS } from "../lib/mockOverviewData";
+import ApexRadarFacebookSettingsModal from "../components/ApexRadarFacebookSettingsModal";
+import { buildCustomerOverviewRow } from "../lib/mockOverviewData";
 import { APEX_RADAR_CHANNEL_FACEBOOK, APEX_RADAR_CHANNEL_META } from "@/lib/apexRadarChannels";
 import { useCustomers } from "@/hooks/useCustomers";
+import { useInternalUsers } from "@/hooks/useInternalUsers";
 import { useApexRadarAssignments } from "../hooks/useApexRadarAssignments";
 
 function normName(s) {
@@ -17,7 +19,8 @@ function normName(s) {
 }
 
 export default function ApexRadarOverviewClient({ channel, customerId = null }) {
-    const { customers } = useCustomers();
+    const { customers, loading: customersLoading, fetchCustomers } = useCustomers();
+    const { internalUsers, loading: internalUsersLoading } = useInternalUsers();
     const meta = APEX_RADAR_CHANNEL_META[channel];
     const isFacebook = channel === APEX_RADAR_CHANNEL_FACEBOOK;
 
@@ -46,8 +49,57 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
 
     const [userFilter, setUserFilter] = useState("all");
     const [assignModalRow, setAssignModalRow] = useState(null);
+    const [apexSettingsRow, setApexSettingsRow] = useState(null);
+    const [fbOverviewRefreshKey, setFbOverviewRefreshKey] = useState(0);
 
     const { assignmentMap, setAssignmentsForAccount } = useApexRadarAssignments(channel);
+
+    const [fbRows, setFbRows] = useState(null);
+    const [fbLoading, setFbLoading] = useState(false);
+    const [fbError, setFbError] = useState(null);
+
+    useEffect(() => {
+        if (!isFacebook || customersLoading) return undefined;
+
+        let cancelled = false;
+        (async () => {
+            setFbLoading(true);
+            setFbError(null);
+            try {
+                const params = new URLSearchParams({
+                    startDate: appliedDateRange.startDate,
+                    endDate: appliedDateRange.endDate,
+                });
+                if (customerId) params.set("customerId", String(customerId));
+                const res = await fetch(`/api/apex-radar/facebook/overview?${params.toString()}`);
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    throw new Error(data.error || "Failed to load Facebook overview");
+                }
+                if (!cancelled) {
+                    setFbRows(Array.isArray(data.rows) ? data.rows : []);
+                }
+            } catch (e) {
+                if (!cancelled) {
+                    setFbError(e?.message || "Failed to load Facebook overview");
+                    setFbRows(null);
+                }
+            } finally {
+                if (!cancelled) setFbLoading(false);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        isFacebook,
+        customersLoading,
+        appliedDateRange.startDate,
+        appliedDateRange.endDate,
+        customerId,
+        fbOverviewRefreshKey,
+    ]);
 
     const handleDateRangeApply = ({ startDate, endDate }) => {
         setAppliedDateRange({ startDate, endDate });
@@ -64,11 +116,24 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
         return meta.label;
     }, [meta, customerId, customer]);
 
+    const facebookOverviewRows = useMemo(() => {
+        if (!isFacebook) return [];
+        if (fbRows && fbRows.length > 0) return fbRows;
+        return (customers || []).map((c) => buildCustomerOverviewRow(c));
+    }, [isFacebook, customers, fbRows]);
+
+    const teamFilterOptions = useMemo(
+        () => [{ id: "all", name: "All team members" }, ...internalUsers],
+        [internalUsers]
+    );
+
     const filteredRows = useMemo(() => {
+        if (!isFacebook) return [];
+
         let list =
             userFilter === "all"
-                ? MOCK_OVERVIEW_ROWS
-                : MOCK_OVERVIEW_ROWS.filter((r) => (assignmentMap[r.id] || []).includes(userFilter));
+                ? facebookOverviewRows
+                : facebookOverviewRows.filter((r) => (assignmentMap[r.id] || []).includes(userFilter));
 
         if (customerId) {
             const idStr = String(customerId);
@@ -81,7 +146,14 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
         }
 
         return list;
-    }, [userFilter, customerId, customer, assignmentMap]);
+    }, [isFacebook, userFilter, customerId, customer, assignmentMap, facebookOverviewRows]);
+
+    /** Empty body while Meta overview is loading (first fetch); avoids placeholder dashes under the spinner. */
+    const tableRowsForDisplay = useMemo(() => {
+        if (!isFacebook) return [];
+        if (fbLoading && fbRows == null && !fbError) return [];
+        return filteredRows;
+    }, [isFacebook, fbLoading, fbRows, fbError, filteredRows]);
 
     return (
         <div id="ApexRadarOverviewPage" className="w-full max-w-[1920px] mx-auto">
@@ -91,7 +163,7 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                 showAnalyzeWithAi={false}
                 showPdfExport={false}
                 dateRange={appliedDateRange}
-                loading={false}
+                loading={customersLoading}
                 right={
                     <DateRangePicker
                         onApply={handleDateRangeApply}
@@ -118,32 +190,59 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                                     id="apex-radar-user"
                                     value={userFilter}
                                     onChange={(e) => setUserFilter(e.target.value)}
-                                    className="w-full max-w-md rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)]"
+                                    disabled={internalUsersLoading}
+                                    className="w-full max-w-md rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)] disabled:opacity-60"
                                 >
-                                    {MOCK_INTERNAL_USERS.map((u) => (
+                                    {teamFilterOptions.map((u) => (
                                         <option key={u.id} value={u.id}>
                                             {u.name}
                                         </option>
                                     ))}
                                 </select>
-                                                               <p className="text-[0.7rem] text-gray-400 mt-1.5">
-                                    Filter by who is assigned to each account (use + under Team members). Assignments
-                                    are stored in this browser only until the API is wired.
+                                <p className="text-[0.7rem] text-gray-400 mt-1.5">
+                                    Filter by who is assigned to each account (use + under Team members).
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    <ApexRadarOverviewTable
-                        rows={filteredRows}
-                        assignmentMap={assignmentMap}
-                        onAssignClick={(row) => setAssignModalRow(row)}
-                    />
+                    {fbError ? (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 mb-4">
+                            {fbError} — showing placeholder rows until the overview loads.
+                        </div>
+                    ) : null}
+
+                    {customersLoading ? (
+                        <div className="rounded-xl border border-gray-200 bg-white p-12 text-center text-sm text-gray-500">
+                            Loading customers…
+                        </div>
+                    ) : (
+                        <ApexRadarOverviewTable
+                            rows={tableRowsForDisplay}
+                            loading={fbLoading}
+                            assignmentMap={assignmentMap}
+                            assignableUsers={internalUsers}
+                            onAssignClick={(row) => setAssignModalRow(row)}
+                            onApexSettingsClick={(row) => setApexSettingsRow(row)}
+                        />
+                    )}
+
+                    {apexSettingsRow ? (
+                        <ApexRadarFacebookSettingsModal
+                            row={apexSettingsRow}
+                            onClose={() => setApexSettingsRow(null)}
+                            onSaved={() => {
+                                fetchCustomers();
+                                setFbOverviewRefreshKey((k) => k + 1);
+                            }}
+                        />
+                    ) : null}
 
                     {assignModalRow ? (
                         <ApexRadarAssignUsersModal
                             row={assignModalRow}
                             selectedIds={assignmentMap[assignModalRow.id] || []}
+                            assignableUsers={internalUsers}
                             onSave={(accountKey, userIds) => setAssignmentsForAccount(accountKey, userIds)}
                             onClose={() => setAssignModalRow(null)}
                         />

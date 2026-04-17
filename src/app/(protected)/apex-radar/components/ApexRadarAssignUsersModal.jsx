@@ -2,11 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { FiX } from "react-icons/fi";
-import { MOCK_INTERNAL_USERS } from "../lib/mockOverviewData";
-
-const ASSIGNABLE_USERS = MOCK_INTERNAL_USERS.filter((u) => u.id !== "all");
-
-export default function ApexRadarAssignUsersModal({ row, selectedIds, onSave, onClose }) {
+export default function ApexRadarAssignUsersModal({ row, selectedIds, onSave, onClose, assignableUsers = [] }) {
     const [checked, setChecked] = useState(() => new Set(selectedIds || []));
 
     useEffect(() => {
@@ -59,19 +55,23 @@ export default function ApexRadarAssignUsersModal({ row, selectedIds, onSave, on
                         available.
                     </p>
                     <ul className="space-y-2">
-                        {ASSIGNABLE_USERS.map((u) => (
-                            <li key={u.id}>
-                                <label className="flex items-center gap-3 cursor-pointer rounded-lg px-2 py-2 hover:bg-gray-50">
-                                    <input
-                                        type="checkbox"
-                                        checked={checked.has(u.id)}
-                                        onChange={() => toggle(u.id)}
-                                        className="rounded border-gray-300 text-[var(--color-primary-searchmind)] focus:ring-[var(--color-primary-searchmind)]"
-                                    />
-                                    <span className="text-sm text-gray-900">{u.name}</span>
-                                </label>
-                            </li>
-                        ))}
+                        {assignableUsers.length === 0 ? (
+                            <li className="text-sm text-gray-500 py-2">No internal users available.</li>
+                        ) : (
+                            assignableUsers.map((u) => (
+                                <li key={u.id}>
+                                    <label className="flex items-center gap-3 cursor-pointer rounded-lg px-2 py-2 hover:bg-gray-50">
+                                        <input
+                                            type="checkbox"
+                                            checked={checked.has(u.id)}
+                                            onChange={() => toggle(u.id)}
+                                            className="rounded border-gray-300 text-[var(--color-primary-searchmind)] focus:ring-[var(--color-primary-searchmind)]"
+                                        />
+                                        <span className="text-sm text-gray-900">{u.name}</span>
+                                    </label>
+                                </li>
+                            ))
+                        )}
                     </ul>
                 </div>
                 <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100 bg-gray-50">

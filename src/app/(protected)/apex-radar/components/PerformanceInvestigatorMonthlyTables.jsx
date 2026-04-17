@@ -1,13 +1,12 @@
 "use client";
 
 import React, { useMemo } from "react";
+import Spinner from "@/components/ui/Spinner";
 import {
     PI_METRIC_HEADERS,
     PI_METRIC_KEYS,
-    MOCK_PI_CURRENT_YEAR_ROWS,
-    MOCK_PI_PREV_YEAR_ROWS,
-    MOCK_PI_DIFF_ROWS,
     aggregatePiRows,
+    computePiYearOverYearDiff,
 } from "../lib/mockPerformanceInvestigatorData";
 
 /** Same palette / structure as `DailyMetricsTableHeader` (daily-overview) */
@@ -244,16 +243,41 @@ function DiffTable({ rows }) {
     );
 }
 
-export default function PerformanceInvestigatorMonthlyTables({ currentYear = 2026, previousYear = 2025 }) {
-    const currentFooter = useMemo(
-        () => [aggregatePiRows(MOCK_PI_CURRENT_YEAR_ROWS.filter((r) => r.impr != null))].filter(Boolean),
-        []
+export default function PerformanceInvestigatorMonthlyTables({
+    currentYear,
+    previousYear,
+    currentYearRows = [],
+    previousYearRows = [],
+    diffRows: diffRowsProp,
+    loading = false,
+    error = null,
+}) {
+    const diffRows = useMemo(() => {
+        if (diffRowsProp && diffRowsProp.length) return diffRowsProp;
+        if (!currentYearRows.length || !previousYearRows.length) return [];
+        return computePiYearOverYearDiff(currentYearRows, previousYearRows);
+    }, [diffRowsProp, currentYearRows, previousYearRows]);
+
+    const currentFooter = useMemo(() => {
+        const rows = currentYearRows.filter((r) => r.impr != null);
+        const t = aggregatePiRows(rows);
+        return t ? [t] : [];
+    }, [currentYearRows]);
+
+    const monthsWithData = useMemo(
+        () => currentYearRows.filter((r) => r.impr != null).length,
+        [currentYearRows]
     );
-    const prevYtdFooter = useMemo(
-        () => aggregatePiRows(MOCK_PI_PREV_YEAR_ROWS.slice(0, 4)),
-        []
+
+    const prevYtdFooter = useMemo(() => {
+        if (!monthsWithData) return null;
+        return aggregatePiRows(previousYearRows.slice(0, monthsWithData));
+    }, [previousYearRows, monthsWithData]);
+
+    const prevFullFooter = useMemo(
+        () => aggregatePiRows(previousYearRows.filter((r) => r.impr != null)),
+        [previousYearRows]
     );
-    const prevFullFooter = useMemo(() => aggregatePiRows(MOCK_PI_PREV_YEAR_ROWS), []);
 
     const prevFooters = useMemo(() => {
         const out = [];
@@ -262,13 +286,28 @@ export default function PerformanceInvestigatorMonthlyTables({ currentYear = 202
         return out;
     }, [prevYtdFooter, prevFullFooter]);
 
+    if (loading && !currentYearRows.length) {
+        return (
+            <section className="rounded-xl border border-gray-200 bg-white p-12 flex flex-col items-center gap-3" aria-busy="true">
+                <Spinner size={40} color="#406969" />
+                <p className="text-sm text-gray-500">Loading monthly metrics…</p>
+            </section>
+        );
+    }
+
     return (
         <section className="space-y-8" aria-label="Monthly performance tables">
+            {error ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    {error}
+                </div>
+            ) : null}
+
             <div className="rounded-xl border border-gray-200 bg-white p-6">
                 <h3 className="mb-5 text-lg font-semibold text-gray-900">Monthly metrics ({currentYear})</h3>
                 <DataTable
                     yearLabel={String(currentYear)}
-                    rows={MOCK_PI_CURRENT_YEAR_ROWS}
+                    rows={currentYearRows}
                     footerRows={currentFooter}
                     variant="default"
                 />
@@ -278,7 +317,7 @@ export default function PerformanceInvestigatorMonthlyTables({ currentYear = 202
                 <h3 className="mb-5 text-lg font-semibold text-gray-900">Monthly metrics ({previousYear})</h3>
                 <DataTable
                     yearLabel={String(previousYear)}
-                    rows={MOCK_PI_PREV_YEAR_ROWS}
+                    rows={previousYearRows}
                     footerRows={prevFooters}
                     variant="lastYear"
                 />
@@ -286,7 +325,7 @@ export default function PerformanceInvestigatorMonthlyTables({ currentYear = 202
 
             <div className="rounded-xl border border-gray-200 bg-white p-6">
                 <h3 className="mb-5 text-lg font-semibold text-gray-900">Difference (year over year)</h3>
-                <DiffTable rows={MOCK_PI_DIFF_ROWS} />
+                <DiffTable rows={diffRows} />
             </div>
         </section>
     );

@@ -312,6 +312,24 @@ export const MOCK_PI_PREV_YEAR_ROWS = [
     },
 ];
 
+/** YoY % change per month row (aligned by index: jan vs jan, …). */
+export function computePiYearOverYearDiff(currentYearRows, previousYearRows) {
+    return currentYearRows.map((cur, i) => {
+        const prev = previousYearRows[i];
+        const pct = {};
+        for (const k of PI_METRIC_KEYS) {
+            const a = cur[k];
+            const b = prev?.[k];
+            if (a == null || b == null || b === 0) {
+                pct[k] = null;
+            } else {
+                pct[k] = ((a - b) / Math.abs(b)) * 100;
+            }
+        }
+        return { label: cur.label, pct };
+    });
+}
+
 /** Aggregate monthly rows into a Total row (sums + derived metrics). */
 export function aggregatePiRows(rows) {
     const valid = rows.filter(
@@ -361,16 +379,8 @@ export function aggregatePiRows(rows) {
     };
 }
 
-export const MOCK_PI_DIFF_ROWS = [
-    { label: "jan.", pct: { impr: 22.3, clicks: 14.6, ctr: -6.2, freq: 5.4, avgCpc: 11.9, cost: 28.4, conv: 23.6, convValue: 21.8, convRate: 7.8, aov: -1.4, roas: -5.2, cpa: 3.8 } },
-    { label: "feb.", pct: { impr: 16.8, clicks: 9.2, ctr: -6.7, freq: 4.5, avgCpc: 10.5, cost: 20.7, conv: 21.1, convValue: 18.6, convRate: 10.8, aov: -2.0, roas: -1.9, cpa: -0.3 } },
-    { label: "mar.", pct: { impr: 19.5, clicks: 10.6, ctr: -7.4, freq: 5.2, avgCpc: 10.4, cost: 22.0, conv: 21.0, convValue: 19.8, convRate: 9.6, aov: -1.0, roas: -1.9, cpa: 0.9 } },
-    { label: "apr.", pct: { impr: 18.9, clicks: 9.4, ctr: -7.9, freq: 5.3, avgCpc: 10.3, cost: 20.7, conv: 19.0, convValue: 17.0, convRate: 8.7, aov: -1.6, roas: -3.0, cpa: 1.4 } },
-    ...PI_MONTH_LABELS.slice(4).map((label) => ({
-        label,
-        pct: Object.fromEntries(PI_METRIC_KEYS.map((k) => [k, null])),
-    })),
-];
+/** @deprecated Use computePiYearOverYearDiff(MOCK_PI_CURRENT_YEAR_ROWS, MOCK_PI_PREV_YEAR_ROWS) for demos. */
+export const MOCK_PI_DIFF_ROWS = computePiYearOverYearDiff(MOCK_PI_CURRENT_YEAR_ROWS, MOCK_PI_PREV_YEAR_ROWS);
 
 /** Funnel nodes — static demo */
 export const MOCK_PI_FUNNEL = {
@@ -385,3 +395,16 @@ export const MOCK_PI_FUNNEL = {
     cost: { value: "7.351", changePct: -34.64, label: "Cost" },
     freq: { value: "1,24", changePct: 12.7, label: "Freq" },
 };
+
+/** Demo payload for `/api/apex-radar/facebook/performance-investigator` (demo customer ids). */
+export function getDemoFacebookPerformanceInvestigatorPayload(currentYear, previousYear) {
+    return {
+        currentYear,
+        previousYear,
+        currentYearRows: MOCK_PI_CURRENT_YEAR_ROWS,
+        previousYearRows: MOCK_PI_PREV_YEAR_ROWS,
+        diffRows: computePiYearOverYearDiff(MOCK_PI_CURRENT_YEAR_ROWS, MOCK_PI_PREV_YEAR_ROWS),
+        funnel: MOCK_PI_FUNNEL,
+        source: "demo",
+    };
+}

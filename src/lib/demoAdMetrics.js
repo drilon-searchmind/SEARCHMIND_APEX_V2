@@ -2,6 +2,8 @@
  * Deterministic demo metrics for any [startDate, endDate] (ad dashboards).
  */
 
+import { buildFacebookOverviewTargetsBudgetAlerts } from "@/lib/apexRadarCustomerSettings";
+
 export function eachDayInclusive(startDate, endDate) {
     const out = [];
     const d = new Date(`${startDate}T12:00:00.000Z`);
@@ -323,6 +325,74 @@ export function getDemoGoogleAdsAdPerformanceForRange(startDate, endDate) {
         ads,
         currency: "DKK",
         adPerformanceNote: null,
+    };
+}
+
+/**
+ * Deterministic Apex Radar overview row (Facebook) for demo customers.
+ * Mirrors the nested shape from `mockOverviewData` / API overview.
+ */
+export function buildDemoApexRadarFacebookOverviewRow(customer, startDate, endDate) {
+    const id = String(customer._id);
+    const h = numHash(`apex-radar-fb-${id}-${startDate}-${endDate}`);
+    const days = Math.max(1, eachDayInclusive(startDate, endDate).length);
+    const scale = Math.min(1, 30 / days);
+    const conv30 = Math.round((95 + (h % 55)) * scale);
+    const val30 = Math.round((520_000 + (h % 280_000)) * scale);
+    const spend30 = Math.round((38_000 + (h % 12_000)) * scale);
+    const roas30 = spend30 > 0 ? val30 / spend30 : 0;
+    const conv7 = Math.round(conv30 * (7 / 30) * (0.92 + (h % 8) / 100));
+    const val7 = Math.round(val30 * (7 / 30) * (0.9 + (h % 12) / 100));
+    const spend7 = Math.round(spend30 * (7 / 30) * (0.93 + (h % 10) / 100));
+    const roas7 = spend7 > 0 ? val7 / spend7 : 0;
+    const conv2 = Math.round(conv30 * (2 / 30) * (0.95 + (h % 6) / 100));
+    const spendY = Math.round((900 + (h % 400)) * (0.85 + (h % 15) / 100));
+    const ctr7 = 0.85 + (h % 40) / 100;
+    const ctr30 = 0.8 + (h % 45) / 100;
+    const freq7 = 1.8 + (h % 15) / 10;
+    const freq30 = 1.9 + (h % 18) / 10;
+
+    const r7 = {
+        spend: spend7,
+        conversions: conv7,
+        value: val7,
+        roas: roas7,
+        ctrPct: ctr7,
+        freq: freq7,
+    };
+    const r30 = {
+        spend: spend30,
+        conversions: conv30,
+        value: val30,
+        roas: roas30,
+        ctrPct: ctr30,
+        freq: freq30,
+    };
+    const tbb = buildFacebookOverviewTargetsBudgetAlerts(customer, r7, r30, spendY);
+
+    return {
+        id,
+        customerId: id,
+        entity: customer.customerName || "Demo customer",
+        value: {
+            conversions2d: conv2,
+            value7d: val7,
+            minExpectedValue7d: null,
+            value30d: val30,
+            minExpectedValue30d: null,
+        },
+        targets: tbb.targets,
+        budget: tbb.budget,
+        ads: {
+            adFatigue: null,
+            ctr7d: ctr7,
+            ctr30d: ctr30,
+            freq7d: freq7,
+            freq30d: freq30,
+        },
+        alerts: tbb.alerts,
+        customerApexRadarSettings: customer.customerApexRadarSettings || { facebook: {} },
+        apexRadarMeta: { channel: "facebook", demo: true },
     };
 }
 
