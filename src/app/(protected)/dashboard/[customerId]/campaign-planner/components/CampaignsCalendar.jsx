@@ -2,6 +2,7 @@ import React from "react";
 import { Calendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
+import "../../campaign-planner-v2/styles/planner-v2-calendar.css";
 
 const localizer = momentLocalizer(moment);
 
@@ -39,7 +40,7 @@ export default function CampaignsCalendar({ campaigns = [], onViewDetails }) {
     };
 
     return (
-        <div className="w-full bg-white border border-gray-200 rounded-xl p-4">
+        <div className="cp-rbc w-full bg-white border border-gray-200 rounded-xl p-4">
             <Calendar
                 localizer={localizer}
                 events={events}

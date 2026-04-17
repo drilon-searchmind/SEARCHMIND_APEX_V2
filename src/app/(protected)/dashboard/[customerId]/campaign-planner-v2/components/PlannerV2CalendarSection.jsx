@@ -156,13 +156,13 @@ export default function PlannerV2CalendarSection({
 
   return (
     <section
-      className="mt-10 rounded-2xl border border-slate-200/90 bg-gradient-to-br from-slate-100 via-slate-50 to-slate-200/70 p-5 md:p-8"
+      className="mt-10 rounded-xl border border-gray-200 bg-gray-100 p-4 md:p-6"
       aria-labelledby="planner-v2-calendar-heading"
     >
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
         <div className="flex gap-3">
           <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white border border-slate-200/90 shadow-sm text-[var(--color-primary-searchmind)]"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white border border-gray-200 text-[var(--color-primary-searchmind)]"
             aria-hidden
           >
             <FiCalendar className="w-5 h-5" />
@@ -170,20 +170,20 @@ export default function PlannerV2CalendarSection({
           <div>
             <h2
               id="planner-v2-calendar-heading"
-              className="text-lg font-semibold text-slate-900 tracking-tight"
+              className="text-lg font-semibold text-gray-900 tracking-tight"
             >
               Calendar
             </h2>
-            <p className="text-sm text-slate-600 mt-0.5 max-w-xl">
+            <p className="text-sm text-gray-600 mt-0.5 max-w-xl">
               Campaign windows and campaign-type schedules from your current
               filters. Click an event to edit.
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-3 text-xs text-slate-600 sm:justify-end">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/90 border border-slate-200/80 px-3 py-1.5">
+        <div className="flex flex-wrap gap-3 text-xs text-gray-600 sm:justify-end">
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-gray-200 px-3 py-1.5">
             <span
-              className="h-2.5 w-2.5 rounded-sm border-l-2 border-[var(--color-primary-searchmind)] bg-blue-200/80"
+              className="h-2.5 w-2.5 rounded-sm border-l-2 border-[var(--color-primary-searchmind)] bg-blue-100"
               aria-hidden
             />
             Campaign
@@ -191,18 +191,18 @@ export default function PlannerV2CalendarSection({
         </div>
       </div>
 
-      <div className="rounded-xl bg-white border border-slate-200/90 p-3 md:p-5 shadow-sm">
+      <div className="rounded-xl bg-white border border-gray-200 p-3 md:p-4">
         {events.length === 0 ? (
-          <div className="flex flex-col items-center justify-center min-h-[400px] text-center px-4 text-slate-500">
-            <FiCalendar className="w-12 h-12 text-slate-300 mb-3" />
-            <p className="font-medium text-slate-700">Nothing to show yet</p>
+          <div className="flex flex-col items-center justify-center min-h-[400px] text-center px-4 text-gray-500">
+            <FiCalendar className="w-12 h-12 text-gray-300 mb-3" />
+            <p className="font-medium text-gray-700">Nothing to show yet</p>
             <p className="text-sm mt-1 max-w-sm">
               Add start dates to campaigns or campaign types, or widen your
               filters above.
             </p>
           </div>
         ) : (
-          <div className="planner-v2-rbc">
+          <div className="cp-rbc">
             <Calendar
               localizer={localizer}
               events={events}

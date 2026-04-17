@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { isDemoCustomerId } from "@/lib/demoCustomerId";
 import { PLANNER_V2_DEFAULT_CURRENCY } from "../constants";
 import { createId } from "../lib/ids";
 
@@ -110,20 +111,106 @@ function reconcileServices(prevServices, prevLineItems, parent) {
   };
 }
 
+function hasWorkspaceRows(s) {
+  return (
+    (s.parents?.length > 0) ||
+    (s.services?.length > 0) ||
+    (s.lineItems?.length > 0)
+  );
+}
+
 export default function usePlannerV2Store(customerId) {
   const [state, setState] = useState(emptyState);
   const [hydrated, setHydrated] = useState(false);
+  const remoteSaveTimerRef = useRef(null);
 
-  /* eslint-disable react-hooks/set-state-in-effect -- hydrate from localStorage after mount */
   useEffect(() => {
-    setState(loadState(customerId));
-    setHydrated(true);
+    if (!customerId) {
+      setState(emptyState());
+      setHydrated(true);
+      return;
+    }
+
+    let cancelled = false;
+    setHydrated(false);
+    setState(emptyState());
+
+    if (isDemoCustomerId(customerId)) {
+      setState(loadState(customerId));
+      setHydrated(true);
+      return;
+    }
+
+    (async () => {
+      const local = loadState(customerId);
+      try {
+        const res = await fetch(
+          `/api/campaign-planner/${customerId}/workspace`
+        );
+        if (!res.ok) throw new Error("workspace fetch failed");
+        const remote = await res.json();
+        if (cancelled) return;
+
+        if (hasWorkspaceRows(remote)) {
+          setState({
+            parents: remote.parents || [],
+            services: remote.services || [],
+            lineItems: (remote.lineItems || []).map(normalizeLineItem),
+          });
+        } else if (hasWorkspaceRows(local)) {
+          const next = {
+            parents: local.parents,
+            services: local.services,
+            lineItems: local.lineItems,
+          };
+          setState(next);
+          await fetch(`/api/campaign-planner/${customerId}/workspace`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(next),
+          });
+        }
+      } catch {
+        if (!cancelled) setState(local);
+      } finally {
+        if (!cancelled) setHydrated(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [customerId]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || !customerId) return;
+
     saveState(customerId, state);
+
+    if (isDemoCustomerId(customerId)) return;
+
+    if (remoteSaveTimerRef.current) {
+      clearTimeout(remoteSaveTimerRef.current);
+    }
+    remoteSaveTimerRef.current = setTimeout(() => {
+      fetch(`/api/campaign-planner/${customerId}/workspace`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          parents: state.parents,
+          services: state.services,
+          lineItems: state.lineItems,
+        }),
+      }).catch((e) =>
+        console.error("campaign-planner-v2: failed to save workspace", e)
+      );
+    }, 600);
+
+    return () => {
+      if (remoteSaveTimerRef.current) {
+        clearTimeout(remoteSaveTimerRef.current);
+      }
+    };
   }, [customerId, state, hydrated]);
 
   const createParent = useCallback((payload) => {
