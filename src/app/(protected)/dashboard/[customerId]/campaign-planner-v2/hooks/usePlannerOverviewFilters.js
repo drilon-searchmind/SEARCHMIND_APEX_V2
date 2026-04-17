@@ -2,16 +2,16 @@
 
 import { useCallback, useMemo, useState } from "react";
 
-/** Default: ±1 year so most campaigns show until user narrows the range. */
+/** Default filter window: first through last day of the current month (local calendar). */
 function defaultDateRange() {
-  const end = new Date();
-  end.setFullYear(end.getFullYear() + 1);
-  const start = new Date();
-  start.setFullYear(start.getFullYear() - 1);
-  return {
-    startDate: start.toISOString().slice(0, 10),
-    endDate: end.toISOString().slice(0, 10),
-  };
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const pad = (n) => String(n).padStart(2, "0");
+  const startDate = `${y}-${pad(m + 1)}-01`;
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  const endDate = `${y}-${pad(m + 1)}-${pad(lastDay)}`;
+  return { startDate, endDate };
 }
 
 export function getDefaultOverviewFilters() {

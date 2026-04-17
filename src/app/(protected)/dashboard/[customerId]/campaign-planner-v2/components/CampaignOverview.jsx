@@ -51,6 +51,17 @@ function lineFormatsLabel(li) {
 	return arr.length ? arr.join(", ") : "—";
 }
 
+function lineItemDateRangeLabel(li) {
+	if (li.alwaysOn) {
+		const start = li.startDate ? formatDate(li.startDate) : null;
+		return start ? `${start} · Always on` : "Always on";
+	}
+	const a = formatDate(li.startDate);
+	const b = formatDate(li.endDate);
+	if (a === "—" && b === "—") return "—";
+	return `${a} – ${b}`;
+}
+
 function Detail({ label, children }) {
 	return (
 		<div>
@@ -373,63 +384,31 @@ export default function CampaignOverview({
 												</span>
 											)}
 									</div>
-									<div className="px-3 py-3 space-y-3 bg-white">
-										<div className="rounded-lg border border-gray-200 bg-gray-50/80 px-3 py-2.5">
-											<p className="text-xs font-semibold text-gray-700 mb-2">
-												Campaign types — channel schedule
-											</p>
-											<div className="flex flex-wrap gap-4 text-xs text-gray-600 items-end">
-												<label className="inline-flex flex-col gap-1">
-													<span className="text-gray-500">Start</span>
-													<input
-														type="date"
-														value={svc.startDate || ""}
-														onChange={(e) =>
-															onUpdateService(svc.id, {
-																startDate: e.target.value,
-															})
-														}
-														className="h-8 rounded border border-gray-300 px-2 text-xs bg-white"
-													/>
+									<div className="px-3 py-3 space-y-2 bg-white">
+										{hasCap && (
+											<div className="flex flex-wrap items-center gap-3 pb-2 mb-1 border-b border-gray-100 text-xs text-gray-600">
+												<label className="inline-flex items-center gap-2">
+													<span className="text-gray-500">Service budget</span>
+													<span className="inline-flex items-center gap-1">
+														<input
+															type="number"
+															min="0"
+															step="1"
+															placeholder="—"
+															value={svc.budget ?? ""}
+															onChange={(e) => {
+																const v = e.target.value;
+																onUpdateService(svc.id, {
+																	budget: v === "" ? null : Number(v),
+																});
+															}}
+															className="w-28 h-8 rounded border border-gray-300 px-2 text-xs tabular-nums bg-white"
+														/>
+														<span className="text-gray-400">{currency}</span>
+													</span>
 												</label>
-												<label className="inline-flex flex-col gap-1">
-													<span className="text-gray-500">End</span>
-													<input
-														type="date"
-														value={svc.endDate || ""}
-														onChange={(e) =>
-															onUpdateService(svc.id, {
-																endDate: e.target.value,
-															})
-														}
-														disabled={!!svc.alwaysOn}
-														className="h-8 rounded border border-gray-300 px-2 text-xs bg-white disabled:opacity-50"
-													/>
-												</label>
-												{hasCap && (
-													<label className="inline-flex flex-col gap-1">
-														<span className="text-gray-500">Service budget</span>
-														<span className="inline-flex items-center gap-1">
-															<input
-																type="number"
-																min="0"
-																step="1"
-																placeholder="—"
-																value={svc.budget ?? ""}
-																onChange={(e) => {
-																	const v = e.target.value;
-																	onUpdateService(svc.id, {
-																		budget: v === "" ? null : Number(v),
-																	});
-																}}
-																className="w-28 h-8 rounded border border-gray-300 px-2 text-xs tabular-nums bg-white"
-															/>
-															<span className="text-gray-400">{currency}</span>
-														</span>
-													</label>
-												)}
 											</div>
-										</div>
+										)}
 										<div className="space-y-2">
 										{(lineByService[svc.id] || []).map((li) => (
 											<div
@@ -448,6 +427,9 @@ export default function CampaignOverview({
 														{[li.media, lineFormatsLabel(li)]
 															.filter(Boolean)
 															.join(" · ") || "—"}
+													</div>
+													<div className="text-xs text-gray-500">
+														{lineItemDateRangeLabel(li)}
 													</div>
 													<div className="text-xs text-[var(--color-primary-searchmind)]">
 														{li.status}
