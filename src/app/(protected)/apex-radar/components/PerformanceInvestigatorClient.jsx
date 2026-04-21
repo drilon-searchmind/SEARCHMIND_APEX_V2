@@ -8,6 +8,7 @@ import { buildPiFunnelFromAggregates } from "@/lib/apexRadarPerformanceInvestiga
 import { useCustomers } from "@/hooks/useCustomers";
 import PerformanceInvestigatorMonthlyTables from "./PerformanceInvestigatorMonthlyTables";
 import PerformanceInvestigatorFunnel from "./PerformanceInvestigatorFunnel";
+import PerformanceInvestigatorCopyToSlides from "./PerformanceInvestigatorCopyToSlides";
 
 const ZERO_METRICS = {
     impr: 0,
@@ -122,15 +123,31 @@ export default function PerformanceInvestigatorClient({ channel, customerId }) {
                 dateRange={appliedDateRange}
                 loading={isFacebook && piLoading}
                 right={
-                    <DateRangePicker
-                        onApply={({ startDate, endDate }) =>
-                            setAppliedDateRange({ startDate, endDate })
-                        }
-                        startDate={tempDateRange.startDate}
-                        endDate={tempDateRange.endDate}
-                        onStartDateChange={(v) => setTempDateRange((d) => ({ ...d, startDate: v }))}
-                        onEndDateChange={(v) => setTempDateRange((d) => ({ ...d, endDate: v }))}
-                    />
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:flex-wrap sm:justify-end">
+                        {isFacebook && (
+                            <PerformanceInvestigatorCopyToSlides
+                                disabled={piLoading || !!piError}
+                                headingLabel={headingLabel}
+                                currentYear={piPayload?.currentYear ?? yyyy}
+                                previousYear={piPayload?.previousYear ?? yyyy - 1}
+                                currentYearRows={piPayload?.currentYearRows ?? []}
+                                previousYearRows={piPayload?.previousYearRows ?? []}
+                                diffRows={piPayload?.diffRows}
+                                funnel={funnelForUi}
+                                funnelRange={piPayload?.funnelRange}
+                                compareHint={compareHint}
+                            />
+                        )}
+                        <DateRangePicker
+                            onApply={({ startDate, endDate }) =>
+                                setAppliedDateRange({ startDate, endDate })
+                            }
+                            startDate={tempDateRange.startDate}
+                            endDate={tempDateRange.endDate}
+                            onStartDateChange={(v) => setTempDateRange((d) => ({ ...d, startDate: v }))}
+                            onEndDateChange={(v) => setTempDateRange((d) => ({ ...d, endDate: v }))}
+                        />
+                    </div>
                 }
             />
 
