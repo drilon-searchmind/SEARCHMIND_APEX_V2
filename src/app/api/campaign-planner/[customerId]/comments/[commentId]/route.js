@@ -4,6 +4,10 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import connectToDatabase from "@root/lib/mongodb";
 import { getCustomerById } from "@root/lib/customerOperations";
 import CampaignPlannerComment from "@/models/CampaignPlannerComment";
+import {
+	resolveRecipientIdsForMentionNotification,
+	sendCampaignPlannerMentionNotifications,
+} from "@root/lib/campaignPlannerCommentMentions.js";
 
 async function assertCustomerAccess(session, customerId) {
 	const customer = await getCustomerById(customerId);
@@ -54,6 +58,8 @@ export async function PATCH(request, { params }) {
 		return Response.json({ error: "Invalid JSON body" }, { status: 400 });
 	}
 	const text = body?.text != null ? String(body.text).trim() : "";
+	const campaignTypeName =
+		body?.campaignTypeName != null ? String(body.campaignTypeName).trim().slice(0, 500) : "";
 	if (!text) {
 		return Response.json({ error: "text is required" }, { status: 400 });
 	}
@@ -63,8 +69,9 @@ export async function PATCH(request, { params }) {
 
 	try {
 		await connectToDatabase();
+		let customer;
 		try {
-			await assertCustomerAccess(session, customerId);
+			customer = await assertCustomerAccess(session, customerId);
 		} catch (accessErr) {
 			if (accessErr.statusCode === 403) {
 				return Response.json({ error: "Forbidden" }, { status: 403 });
@@ -88,8 +95,31 @@ export async function PATCH(request, { params }) {
 			return Response.json({ error: "Forbidden" }, { status: 403 });
 		}
 
+		const previousText = doc.text;
 		doc.text = text;
 		await doc.save();
+
+		try {
+			const customerName = customer?.customerName || customer?.name || "";
+			const recipientIds = await resolveRecipientIdsForMentionNotification(
+				text,
+				session.user.id,
+				previousText
+			);
+			if (recipientIds.length > 0) {
+				await sendCampaignPlannerMentionNotifications({
+					customerId: String(customerId),
+					lineItemId: String(doc.lineItemId),
+					authorUserId: String(session.user.id),
+					authorName: session.user.name || session.user.email || "User",
+					customerName,
+					campaignTypeName,
+					recipientUserIds: recipientIds,
+				});
+			}
+		} catch (notifyErr) {
+			console.error("campaign-planner mention notifications (PATCH):", notifyErr);
+		}
 
 		return Response.json({ comment: serializeComment(doc.toObject()) });
 	} catch (error) {

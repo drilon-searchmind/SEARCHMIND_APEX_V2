@@ -153,6 +153,21 @@ function CommentTextWithMentions({ text, users }) {
 	);
 }
 
+/** Grouped block with header for cleaner modal layout */
+function ModalSection({ title, description, children }) {
+	return (
+		<section className="rounded-xl border border-gray-200 bg-white overflow-hidden h-full min-h-0 flex flex-col">
+			<div className="px-4 py-3 bg-gradient-to-b from-gray-50/95 to-gray-50/60 border-b border-gray-100">
+				<h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+				{description ? (
+					<p className="text-xs text-gray-500 mt-1 leading-relaxed">{description}</p>
+				) : null}
+			</div>
+			<div className="p-4 sm:p-5 space-y-4 flex-1 min-h-0">{children}</div>
+		</section>
+	);
+}
+
 function CommentAvatar({ name, imageUrl }) {
 	const [broken, setBroken] = useState(false);
 	const initial = (name || "?").trim().slice(0, 1).toUpperCase();
@@ -473,7 +488,11 @@ export default function LineItemModal({
 			const res = await fetch(`/api/campaign-planner/${customerId}/comments`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ lineItemId: initialLineItem.id, text: t }),
+				body: JSON.stringify({
+					lineItemId: initialLineItem.id,
+					text: t,
+					campaignTypeName: initialLineItem.name || "",
+				}),
 			});
 			const data = await res.json();
 			if (!res.ok) throw new Error(data.error || "Could not save comment");
@@ -500,7 +519,10 @@ export default function LineItemModal({
 				{
 					method: "PATCH",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ text: t }),
+					body: JSON.stringify({
+					text: t,
+					campaignTypeName: initialLineItem?.name || "",
+				}),
 				}
 			);
 			const data = await res.json();
@@ -541,7 +563,7 @@ export default function LineItemModal({
 
 	return (
 		<div className="fixed inset-0 z-[60] flex items-center justify-center glassmorphism2 p-4">
-			<div className="bg-white rounded-xl shadow-xl p-8 w-full max-w-3xl relative max-h-[90vh] overflow-y-auto">
+			<div className="bg-white rounded-xl border border-gray-200/90 p-6 sm:p-8 w-full max-w-6xl relative max-h-[90vh] overflow-y-auto">
 				<button
 					type="button"
 					className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-xl z-10"
@@ -598,15 +620,12 @@ export default function LineItemModal({
 					</div>
 				</div>
 
-				{parentCampaign && (bounds.min || bounds.max) && (
-					<p className="text-xs text-gray-500 mb-4 -mt-1">
-						Dates must stay within the campaign window						{bounds.min ? ` (from ${bounds.min}` : ""}
-						{bounds.max ? ` to ${bounds.max}` : bounds.alwaysOn ? " onward" : ""}
-						{bounds.min || bounds.max ? ")" : ""}.
-					</p>
-				)}
-
-				<form className="grid grid-cols-1 gap-4" onSubmit={handleSubmit}>
+				<form className="grid grid-cols-1 gap-6 mt-2" onSubmit={handleSubmit}>
+					<div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6 items-stretch">
+					<ModalSection
+						title="Campaign type"
+						description="Name, channel selection, and formats for this campaign type row."
+					>
 					<div>
 						<FormLabel htmlFor="li-name" required>
 							Name
@@ -783,7 +802,16 @@ export default function LineItemModal({
 							</div>
 						)}
 					</div>
+					</ModalSection>
 
+					<ModalSection
+						title="Budget & schedule"
+						description={
+							parentCampaign && (bounds.min || bounds.max)
+								? `Stay within the parent campaign window${bounds.min ? ` (from ${bounds.min}` : ""}${bounds.max ? ` to ${bounds.max}` : bounds.alwaysOn ? " onward" : ""}${bounds.min || bounds.max ? ")." : ""}`
+								: "Optional budget and when this campaign type runs."
+						}
+					>
 					<div>
 						<FormLabel htmlFor="li-budget">Budget (optional)</FormLabel>
 						{readOnly ? (
@@ -866,7 +894,12 @@ export default function LineItemModal({
 							)}
 						</div>
 					)}
+					</ModalSection>
 
+					<ModalSection
+						title="Workflow & approval"
+						description="Kanban status and optional client approval link."
+					>
 					<div>
 						<FormLabel htmlFor="li-status">Status</FormLabel>
 						{readOnly ? (
@@ -917,14 +950,14 @@ export default function LineItemModal({
 							/>
 						)}
 					</div>
+					</ModalSection>
+					</div>
 
 					{!isCreate && initialLineItem?.id && customerId && (
-						<div className="rounded-lg border border-gray-200 bg-gray-50/90 p-4">
-							<FormLabel>Comments</FormLabel>
-							<p className="text-xs text-gray-500 mt-0.5 mb-2">
-								Saved for this campaign type. Add a note for your team — type @ to
-								mention someone.
-							</p>
+						<ModalSection
+							title="Team comments"
+							description="Notes for this campaign type. Type @ to mention a teammate."
+						>
 							{commentsError && (
 								<p className="text-sm text-red-600 mb-2">{commentsError}</p>
 							)}
@@ -1192,10 +1225,10 @@ export default function LineItemModal({
 									{commentPosting ? "…" : "Add"}
 								</button>
 							</div>
-						</div>
+						</ModalSection>
 					)}
 
-					<div className="flex justify-end gap-2 pt-4 flex-wrap">
+					<div className="flex justify-end gap-2 pt-2 flex-wrap border-t border-gray-100 mt-2">
 						<button
 							type="button"
 							onClick={onClose}

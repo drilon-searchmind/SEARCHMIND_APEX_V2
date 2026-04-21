@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import FormButton from "@/components/form/FormButton";
 import Spinner from "@/components/ui/Spinner";
@@ -15,9 +15,12 @@ import LineItemsKanban from "./components/LineItemsKanban";
 import PlannerV2ScheduleSection from "./components/PlannerV2ScheduleSection";
 import { isLineItemEndedVisual } from "./lib/lineItemStatus";
 
-export default function CampaignPlannerV2Page() {
+function CampaignPlannerV2Page() {
 	const params = useParams();
+	const router = useRouter();
+	const searchParams = useSearchParams();
 	const customerId = params.customerId;
+	const lineItemIdFromUrl = searchParams.get("lineItemId");
 
 	const {
 		parents,
@@ -133,6 +136,29 @@ export default function CampaignPlannerV2Page() {
 		});
 	};
 
+	/** Open campaign type modal from ?lineItemId= (e.g. notification deep link) */
+	useEffect(() => {
+		if (!hydrated || !lineItemIdFromUrl || !customerId) return;
+		const item = lineItemsWithContext.find(
+			(li) => String(li.id) === String(lineItemIdFromUrl)
+		);
+		if (!item) return;
+		const svc = services.find((s) => s.id === item.serviceId);
+		setLineModal({
+			mode: "edit",
+			lineItem: item,
+			service: svc || { serviceName: item._serviceName },
+		});
+		router.replace(`/dashboard/${customerId}/campaign-planner-v2`, { scroll: false });
+	}, [
+		hydrated,
+		lineItemIdFromUrl,
+		customerId,
+		lineItemsWithContext,
+		services,
+		router,
+	]);
+
 	if (!hydrated) {
 		return (
 			<div className="w-full flex justify-center py-24">
@@ -231,5 +257,19 @@ export default function CampaignPlannerV2Page() {
 				onAddExtraMedia={addExtraMedia}
 			/>
 		</div>
+	);
+}
+
+export default function CampaignPlannerV2PageWithSuspense() {
+	return (
+		<Suspense
+			fallback={
+				<div className="w-full flex justify-center py-24">
+					<Spinner />
+				</div>
+			}
+		>
+			<CampaignPlannerV2Page />
+		</Suspense>
 	);
 }

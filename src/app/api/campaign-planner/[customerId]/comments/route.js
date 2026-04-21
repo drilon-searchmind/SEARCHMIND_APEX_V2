@@ -4,6 +4,10 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import connectToDatabase from '@root/lib/mongodb';
 import { getCustomerById } from '@root/lib/customerOperations';
 import CampaignPlannerComment from '@/models/CampaignPlannerComment';
+import {
+	resolveRecipientIdsForMentionNotification,
+	sendCampaignPlannerMentionNotifications,
+} from '@root/lib/campaignPlannerCommentMentions.js';
 
 async function assertCustomerAccess(session, customerId) {
 	const customer = await getCustomerById(customerId);
@@ -100,6 +104,8 @@ export async function POST(request, { params }) {
 
 	const lineItemId = body?.lineItemId != null ? String(body.lineItemId).trim() : '';
 	const text = body?.text != null ? String(body.text).trim() : '';
+	const campaignTypeName =
+		body?.campaignTypeName != null ? String(body.campaignTypeName).trim().slice(0, 500) : '';
 	if (!lineItemId) {
 		return Response.json({ error: 'lineItemId is required' }, { status: 400 });
 	}
@@ -112,8 +118,9 @@ export async function POST(request, { params }) {
 
 	try {
 		await connectToDatabase();
+		let customer;
 		try {
-			await assertCustomerAccess(session, customerId);
+			customer = await assertCustomerAccess(session, customerId);
 		} catch (accessErr) {
 			if (accessErr.statusCode === 403) {
 				return Response.json({ error: 'Forbidden' }, { status: 403 });
@@ -139,6 +146,29 @@ export async function POST(request, { params }) {
 		});
 
 		const lean = doc.toObject();
+
+		try {
+			const customerName = customer?.customerName || customer?.name || '';
+			const recipientIds = await resolveRecipientIdsForMentionNotification(
+				text,
+				userId,
+				null
+			);
+			if (recipientIds.length > 0) {
+				await sendCampaignPlannerMentionNotifications({
+					customerId: String(customerId),
+					lineItemId,
+					authorUserId: String(userId),
+					authorName: session.user.name || session.user.email || 'User',
+					customerName,
+					campaignTypeName,
+					recipientUserIds: recipientIds,
+				});
+			}
+		} catch (notifyErr) {
+			console.error('campaign-planner mention notifications:', notifyErr);
+		}
+
 		return Response.json({ comment: serializeComment(lean) });
 	} catch (error) {
 		console.error('campaign-planner comments POST:', error);
