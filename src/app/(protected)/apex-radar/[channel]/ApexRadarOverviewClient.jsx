@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { FiInfo } from "react-icons/fi";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import ApexRadarOverviewTable from "../components/ApexRadarOverviewTable";
 import ApexRadarAssignUsersModal from "../components/ApexRadarAssignUsersModal";
 import ApexRadarFacebookSettingsModal from "../components/ApexRadarFacebookSettingsModal";
+import ApexRadarOverviewMetricsInfoModal from "../components/ApexRadarOverviewMetricsInfoModal";
 import { buildCustomerOverviewRow } from "../lib/mockOverviewData";
 import { APEX_RADAR_CHANNEL_FACEBOOK, APEX_RADAR_CHANNEL_META } from "@/lib/apexRadarChannels";
 import { useCustomers } from "@/hooks/useCustomers";
@@ -51,6 +53,7 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
     const [assignModalRow, setAssignModalRow] = useState(null);
     const [apexSettingsRow, setApexSettingsRow] = useState(null);
     const [fbOverviewRefreshKey, setFbOverviewRefreshKey] = useState(0);
+    const [metricsInfoOpen, setMetricsInfoOpen] = useState(false);
 
     const { assignmentMap, setAssignmentsForAccount } = useApexRadarAssignments(channel);
 
@@ -178,7 +181,7 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
             {isFacebook ? (
                 <>
                     <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 mb-6">
-                        <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+                        <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
                                 <label
                                     htmlFor="apex-radar-user"
@@ -203,6 +206,15 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                                     Filter by who is assigned to each account (use + under Team members).
                                 </p>
                             </div>
+                            <button
+                                type="button"
+                                onClick={() => setMetricsInfoOpen(true)}
+                                className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:text-[var(--color-primary-searchmind)] hover:border-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)]"
+                                aria-label="How overview metrics are calculated"
+                                title="How metrics are calculated"
+                            >
+                                <FiInfo className="h-4 w-4" aria-hidden />
+                            </button>
                         </div>
                     </div>
 
@@ -246,6 +258,10 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                             onSave={(accountKey, userIds) => setAssignmentsForAccount(accountKey, userIds)}
                             onClose={() => setAssignModalRow(null)}
                         />
+                    ) : null}
+
+                    {metricsInfoOpen ? (
+                        <ApexRadarOverviewMetricsInfoModal onClose={() => setMetricsInfoOpen(false)} />
                     ) : null}
                 </>
             ) : (

@@ -145,6 +145,8 @@ export default function ApexRadarOverviewTable({
                                 const a = row.alerts || {};
                                 const assignedIds = assignmentMap[row.id] || [];
                                 const teamLabel = formatAssignedUsersList(assignedIds, assignableUsers);
+                                const valueIsConversions = row.targets?.targetType === "CPA";
+                                const fmtValueMetric = (n) => (valueIsConversions ? fmtInt(n) : fmtMoney(n));
                                 return (
                                     <tr key={row.id} className="hover:bg-gray-50/80">
                                         <td className={`${tdEntity}`} title={row.entity}>
@@ -174,10 +176,10 @@ export default function ApexRadarOverviewTable({
                                             </div>
                                         </td>
                                         <Cell warn={false}>{fmtInt(row.value?.conversions2d)}</Cell>
-                                        <Cell warn={a.value7dBelowMin}>{fmtMoney(row.value?.value7d)}</Cell>
-                                        <Cell warn={false}>{fmtMoney(row.value?.minExpectedValue7d)}</Cell>
-                                        <Cell warn={a.value30dBelowMin}>{fmtMoney(row.value?.value30d)}</Cell>
-                                        <Cell warn={false}>{fmtMoney(row.value?.minExpectedValue30d)}</Cell>
+                                        <Cell warn={a.value7dBelowMin}>{fmtValueMetric(row.value?.value7d)}</Cell>
+                                        <Cell warn={false}>{fmtValueMetric(row.value?.minExpectedValue7d)}</Cell>
+                                        <Cell warn={a.value30dBelowMin}>{fmtValueMetric(row.value?.value30d)}</Cell>
+                                        <Cell warn={false}>{fmtValueMetric(row.value?.minExpectedValue30d)}</Cell>
                                         <Cell warn={false}>{row.targets?.targetType}</Cell>
                                         <Cell warn={false}>{fmtDecimal(row.targets?.target, 2)}</Cell>
                                         <Cell warn={a.target7dMiss}>{fmtDecimal(row.targets?.actual7d, 2)}</Cell>

@@ -29,6 +29,44 @@ export function budgetModeToTableLabel(budgetMode) {
     return budgetMode === "STATIC" ? "S" : "D";
 }
 
+/**
+ * Linear budget pace: realized MTD spend vs expected spend by the same calendar rule as the spec —
+ * expected = (targetBudget / daysInMonth) * (dayOfMonth - 1), as-of `asOfDateIso`.
+ * @returns {number|null} ratio realized / expected, or null if undefined
+ */
+export function computeBudgetLinearPace(realizedBudget, targetBudget, asOfDateIso) {
+    if (
+        targetBudget == null ||
+        targetBudget <= 0 ||
+        realizedBudget == null ||
+        !asOfDateIso ||
+        typeof asOfDateIso !== "string"
+    ) {
+        return null;
+    }
+    const parts = asOfDateIso.split("-").map(Number);
+    const y = parts[0];
+    const m = parts[1];
+    const d = parts[2];
+    if (!y || !m || !d) return null;
+    const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const dayOfMonth = d;
+    const expectedToDate = (targetBudget / daysInMonth) * Math.max(0, dayOfMonth - 1);
+    if (expectedToDate <= 0) return null;
+    return realizedBudget / expectedToDate;
+}
+
+/** ROAS mode: sum of conversion value. CPA mode: sum of conversions (purchase actions). */
+export function displayValueMetricFromRollup(rollup, targetMetricType) {
+    if (!rollup) return null;
+    if (targetMetricType === "CPA") {
+        const c = rollup.conversions;
+        return c != null ? c : null;
+    }
+    const v = rollup.value;
+    return v != null ? v : null;
+}
+
 export function rollupToCpa(rollup) {
     if (!rollup) return null;
     const conv = rollup.conversions;
@@ -54,10 +92,26 @@ function emptyAlertsBase() {
  * @param {object} customer
  * @param {RollupSlice} r7
  * @param {RollupSlice} r30
- * @param {number|null} yesterdaySpend
+ * @param {object} [opts]
+ * @param {number|null} [opts.spendOnAsOfDate] — spend on the overview end date (single day; UI label "yesterday" when range ends there)
+ * @param {number|null} [opts.realizedBudgetMonthToDate] — spend from calendar month start through as-of date inclusive
+ * @param {string|null} [opts.asOfDate] — YYYY-MM-DD (overview endDate) for linear pace divisor
+ * @param {number|null} [opts.displayValue7d] — Value (7d) column: conv. value sum if ROAS, conversion count if CPA
+ * @param {number|null} [opts.displayValue30d]
+ * @param {number|null} [opts.minExpected7d] — 10^(mean log10 weekly − 2·std)
+ * @param {number|null} [opts.minExpected30d] — 10^(mean log10 weekly − std)
  */
-export function buildFacebookOverviewTargetsBudgetAlerts(customer, r7, r30, yesterdaySpend) {
+export function buildFacebookOverviewTargetsBudgetAlerts(customer, r7, r30, opts = {}) {
     const apex = getFacebookApexRadarSettings(customer);
+    const {
+        spendOnAsOfDate = null,
+        realizedBudgetMonthToDate = null,
+        asOfDate = null,
+        displayValue7d = null,
+        displayValue30d = null,
+        minExpected7d = null,
+        minExpected30d = null,
+    } = opts;
 
     let actual7d = null;
     let actual30d = null;
@@ -69,10 +123,10 @@ export function buildFacebookOverviewTargetsBudgetAlerts(customer, r7, r30, yest
         actual30d = r30?.roas != null ? r30.roas : null;
     }
 
-    const realizedBudget = r30?.spend != null ? r30.spend : null;
+    const realizedBudget = realizedBudgetMonthToDate;
     let budgetPace = null;
-    if (apex.targetBudget != null && apex.targetBudget > 0 && realizedBudget != null) {
-        budgetPace = realizedBudget / apex.targetBudget;
+    if (apex.targetBudget != null && apex.targetBudget > 0 && realizedBudget != null && asOfDate) {
+        budgetPace = computeBudgetLinearPace(realizedBudget, apex.targetBudget, asOfDate);
     }
 
     const alerts = emptyAlertsBase();
@@ -88,6 +142,12 @@ export function buildFacebookOverviewTargetsBudgetAlerts(customer, r7, r30, yest
     if (budgetPace != null) {
         alerts.budgetPaceOff = budgetPace < 0.9 || budgetPace > 1.1;
     }
+    if (minExpected7d != null && displayValue7d != null) {
+        alerts.value7dBelowMin = displayValue7d < minExpected7d;
+    }
+    if (minExpected30d != null && displayValue30d != null) {
+        alerts.value30dBelowMin = displayValue30d < minExpected30d;
+    }
 
     return {
         targets: {
@@ -99,7 +159,7 @@ export function buildFacebookOverviewTargetsBudgetAlerts(customer, r7, r30, yest
         budget: {
             targetBudget: apex.targetBudget,
             realizedBudget,
-            spendYesterday: yesterdaySpend,
+            spendYesterday: spendOnAsOfDate,
             budgetPace,
             budgetType: budgetModeToTableLabel(apex.budgetMode),
         },

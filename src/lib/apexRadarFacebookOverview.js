@@ -9,6 +9,8 @@
 import {
     buildFacebookOverviewApexOnlySlice,
     buildFacebookOverviewTargetsBudgetAlerts,
+    displayValueMetricFromRollup,
+    getFacebookApexRadarSettings,
 } from "@/lib/apexRadarCustomerSettings";
 
 const GRAPH_VERSION = "v21.0";
@@ -33,12 +35,12 @@ export function addDaysIso(iso, deltaDays) {
 }
 
 /** @returns {string} later of a, b */
-function maxIso(a, b) {
+export function maxIso(a, b) {
     return a >= b ? a : b;
 }
 
 /** @returns {string} earlier of a, b */
-function minIso(a, b) {
+export function minIso(a, b) {
     return a <= b ? a : b;
 }
 
@@ -86,6 +88,42 @@ export function buildAccountInsightsRelativeUrl(adAccountId, since, until, metaI
         fields,
         time_range: JSON.stringify({ since, until }),
         time_increment: "1",
+        level: "account",
+        limit: "100",
+    });
+
+    const { effectiveInclude, exclude } = parseMetaIdFilter(metaIdInclude, metaIdExclude);
+    if (effectiveInclude.length > 0) {
+        params.append("filtering", JSON.stringify([{ field: "country", operator: "IN", value: effectiveInclude }]));
+    }
+    const useBreakdown = exclude.length > 0 && effectiveInclude.length === 0;
+    if (useBreakdown) {
+        params.append("breakdowns", JSON.stringify(["country"]));
+    }
+
+    return `${accountId}/insights?${params.toString()}`;
+}
+
+/**
+ * Same as daily insights but `time_increment=7` (~53 rows for a year — fits one Graph page; use for min-expected floors only).
+ * Batch API returns only the first page of insights; never use this for 300+ daily rows.
+ */
+export function buildAccountInsightsWeeklyRelativeUrl(adAccountId, since, until, metaIdInclude, metaIdExclude) {
+    const accountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
+    const fields = [
+        "spend",
+        "impressions",
+        "clicks",
+        "ctr",
+        "frequency",
+        "actions",
+        "action_values",
+    ].join(",");
+
+    const params = new URLSearchParams({
+        fields,
+        time_range: JSON.stringify({ since, until }),
+        time_increment: "7",
         level: "account",
         limit: "100",
     });
@@ -181,7 +219,7 @@ export function normalizeDailyInsightRows(rawRows, { useBreakdown, exclude }) {
     return rows;
 }
 
-function rollupDaily(dailyRows, fromDate, toDate) {
+export function rollupDaily(dailyRows, fromDate, toDate) {
     const days = dailyRows.filter((d) => d.date_start >= fromDate && d.date_start <= toDate);
     let spend = 0;
     let impressions = 0;
@@ -208,16 +246,115 @@ function rollupDaily(dailyRows, fromDate, toDate) {
     return { spend, impressions, clicks, conversions, value, ctrPct, freq, roas, daysUsed: days.length };
 }
 
+function monthStartIso(endIso) {
+    const [y, m] = endIso.split("-").map(Number);
+    if (!y || !m) return endIso;
+    return `${y}-${String(m).padStart(2, "0")}-01`;
+}
+
+/** Monday UTC of the ISO week containing `dateIso` (YYYY-MM-DD). */
+function weekMondayIsoUtc(dateIso) {
+    const [y, mo, d] = dateIso.split("-").map(Number);
+    const dt = new Date(Date.UTC(y, mo - 1, d));
+    const dow = dt.getUTCDay();
+    const mondayOffset = (dow + 6) % 7;
+    dt.setUTCDate(dt.getUTCDate() - mondayOffset);
+    return dt.toISOString().slice(0, 10);
+}
+
+function sampleStdDev(values) {
+    const n = values.length;
+    if (n < 2) return 0;
+    const mean = values.reduce((a, b) => a + b, 0) / n;
+    let s = 0;
+    for (const x of values) s += (x - mean) ** 2;
+    return Math.sqrt(s / (n - 1));
+}
+
+/**
+ * Weekly sums of conversion value (ROAS) or conversions (CPA); log10 per week; lower bounds
+ * min7d = 10^(mean − 2·std), min30d = 10^(mean − std).
+ * @param {Array<object>} dailyRows — normalized insight rows with date_start, actions, action_values
+ * @param {"ROAS"|"CPA"} targetMetricType
+ */
+export function computeLog10WeeklyFloors(dailyRows, targetMetricType) {
+    const byWeek = new Map();
+    for (const row of dailyRows || []) {
+        const conv = purchaseConversionsFromActions(row.actions);
+        const val = purchaseValueFromActionValues(row.action_values);
+        const add = targetMetricType === "CPA" ? conv : val;
+        if (!Number.isFinite(add)) continue;
+        const ds = row.date_start;
+        if (!ds) continue;
+        const wk = weekMondayIsoUtc(ds);
+        byWeek.set(wk, (byWeek.get(wk) || 0) + add);
+    }
+    const totals = [...byWeek.values()].filter((t) => t > 0);
+    const logs = totals.map((t) => Math.log10(t)).filter((x) => Number.isFinite(x));
+    if (!logs.length) {
+        return { minExpected7d: null, minExpected30d: null };
+    }
+    const mean = logs.reduce((a, b) => a + b, 0) / logs.length;
+    const std = sampleStdDev(logs);
+    return {
+        minExpected7d: Math.pow(10, mean - 2 * std),
+        minExpected30d: Math.pow(10, mean - std),
+    };
+}
+
+/**
+ * Min-expected floors from API rows that are already one aggregate per period (e.g. time_increment=7).
+ * Each row must have merged `actions` / `action_values` like normalized daily rows.
+ */
+export function computeLog10FloorsFromPeriodRows(periodRows, targetMetricType) {
+    const totals = [];
+    for (const row of periodRows || []) {
+        const conv = purchaseConversionsFromActions(row.actions);
+        const val = purchaseValueFromActionValues(row.action_values);
+        const v = targetMetricType === "CPA" ? conv : val;
+        if (Number.isFinite(v) && v > 0) totals.push(v);
+    }
+    const logs = totals.map((t) => Math.log10(t)).filter((x) => Number.isFinite(x));
+    if (!logs.length) {
+        return { minExpected7d: null, minExpected30d: null };
+    }
+    const mean = logs.reduce((a, b) => a + b, 0) / logs.length;
+    const std = sampleStdDev(logs);
+    return {
+        minExpected7d: Math.pow(10, mean - 2 * std),
+        minExpected30d: Math.pow(10, mean - std),
+    };
+}
+
 /**
  * @param {object} customer — Mongo customer doc (plain)
  * @param {string} startDate
  * @param {string} endDate
- * @param {object} roll — { r2, r7, r30, yesterdaySpend }
+ * @param {object} roll — { r2, r7, r30, rMonthToDate, spendOnEndDate, minExpected7d, minExpected30d, … }
  */
 export function buildOverviewRowFromRollups(customer, startDate, endDate, roll) {
     const id = String(customer._id);
-    const { r2, r7, r30, yesterdaySpend } = roll;
-    const tbb = buildFacebookOverviewTargetsBudgetAlerts(customer, r7, r30, yesterdaySpend);
+    const {
+        r2,
+        r7,
+        r30,
+        rMonthToDate,
+        spendOnEndDate,
+        minExpected7d,
+        minExpected30d,
+    } = roll;
+    const apex = getFacebookApexRadarSettings(customer);
+    const display7 = displayValueMetricFromRollup(r7, apex.targetMetricType);
+    const display30 = displayValueMetricFromRollup(r30, apex.targetMetricType);
+    const tbb = buildFacebookOverviewTargetsBudgetAlerts(customer, r7, r30, {
+        spendOnAsOfDate: spendOnEndDate,
+        realizedBudgetMonthToDate: rMonthToDate?.spend != null ? rMonthToDate.spend : null,
+        asOfDate: endDate,
+        displayValue7d: display7,
+        displayValue30d: display30,
+        minExpected7d,
+        minExpected30d,
+    });
 
     return {
         id,
@@ -225,10 +362,10 @@ export function buildOverviewRowFromRollups(customer, startDate, endDate, roll) 
         entity: customer.customerName || "Unnamed customer",
         value: {
             conversions2d: r2.conversions || null,
-            value7d: r7.value || null,
-            minExpectedValue7d: null,
-            value30d: r30.value || null,
-            minExpectedValue30d: null,
+            value7d: display7,
+            minExpectedValue7d: minExpected7d,
+            value30d: display30,
+            minExpectedValue30d: minExpected30d,
         },
         targets: tbb.targets,
         budget: tbb.budget,
@@ -249,24 +386,25 @@ export function buildOverviewRowFromRollups(customer, startDate, endDate, roll) 
 }
 
 /**
- * Compute fetch window and metric windows clipped to [startDate, endDate].
+ * Compute metric windows and daily fetch range (small — fits one Graph “page” so Batch API isn’t truncated).
+ * Long history for min-expected floors uses a separate weekly insights call (`weeklyFloorsSince`).
  */
 export function computeDateWindows(startDate, endDate) {
     const win2Start = maxIso(startDate, addDaysIso(endDate, -1));
     const win7Start = maxIso(startDate, addDaysIso(endDate, -6));
     const win30Start = maxIso(startDate, addDaysIso(endDate, -29));
-    const fetchSince = win30Start;
+    const monthStart = monthStartIso(endDate);
+    const fetchSince = minIso(win30Start, monthStart);
     const fetchUntil = endDate;
-    const yesterdayStr = addDaysIso(endDate, -1);
-    const yesterdayInRange = yesterdayStr >= startDate && yesterdayStr <= endDate;
+    const weeklyFloorsSince = addDaysIso(endDate, -371);
     return {
         fetchSince,
         fetchUntil,
+        weeklyFloorsSince,
         win2: { from: win2Start, to: endDate },
         win7: { from: win7Start, to: endDate },
         win30: { from: win30Start, to: endDate },
-        yesterdayStr,
-        yesterdayInRange,
+        monthStart,
     };
 }
 
@@ -402,23 +540,35 @@ async function runInsightsJobs(accessToken, jobs) {
     return out;
 }
 
-function rollCustomerWindows(customer, startDate, endDate, daily) {
+function rollCustomerWindows(customer, startDate, endDate, daily, weeklyPeriodRows = null) {
     const w = computeDateWindows(startDate, endDate);
     const r2 = rollupDaily(daily, w.win2.from, w.win2.to);
     const r7 = rollupDaily(daily, w.win7.from, w.win7.to);
     const r30 = rollupDaily(daily, w.win30.from, w.win30.to);
 
-    let yesterdaySpend = null;
-    if (w.yesterdayInRange) {
-        const y = daily.find((d) => d.date_start === w.yesterdayStr);
-        yesterdaySpend = y ? parseFloat(y.spend || 0) : 0;
+    const rMonthToDate = rollupDaily(daily, w.monthStart, endDate);
+
+    const endRow = daily.find((d) => d.date_start === endDate);
+    const spendOnEndDate =
+        endRow != null ? parseFloat(endRow.spend || 0) : endDate <= w.fetchUntil && endDate >= w.fetchSince ? 0 : null;
+
+    const apex = getFacebookApexRadarSettings(customer);
+    let minExpected7d;
+    let minExpected30d;
+    if (weeklyPeriodRows && weeklyPeriodRows.length > 0) {
+        ({ minExpected7d, minExpected30d } = computeLog10FloorsFromPeriodRows(weeklyPeriodRows, apex.targetMetricType));
+    } else {
+        ({ minExpected7d, minExpected30d } = computeLog10WeeklyFloors(daily, apex.targetMetricType));
     }
 
     const row = buildOverviewRowFromRollups(customer, startDate, endDate, {
         r2,
         r7,
         r30,
-        yesterdaySpend,
+        rMonthToDate,
+        spendOnEndDate,
+        minExpected7d,
+        minExpected30d,
         win2: w.win2,
         win7: w.win7,
         win30: w.win30,
@@ -517,19 +667,46 @@ export async function fetchApexRadarFacebookOverviewRows({
             metaIdExclude
         );
 
+        const weeklyRelativeUrl = buildAccountInsightsWeeklyRelativeUrl(
+            adId,
+            windows.weeklyFloorsSince,
+            windows.fetchUntil,
+            metaIdInclude,
+            metaIdExclude
+        );
+
         jobs.push({
             customer,
             relativeUrl,
+            weeklyRelativeUrl,
             meta: { effectiveInclude, exclude, useBreakdown },
         });
     }
 
-    const insightResults = await runInsightsJobs(accessToken, jobs);
+    const dailyJobs = jobs.map(({ customer, relativeUrl, meta }) => ({ customer, relativeUrl, meta }));
+    const weeklyJobs = jobs.map(({ customer, weeklyRelativeUrl, meta }) => ({
+        customer,
+        relativeUrl: weeklyRelativeUrl,
+        meta,
+    }));
 
-    for (const res of insightResults) {
+    const [insightResults, weeklyInsightResults] = await Promise.all([
+        runInsightsJobs(accessToken, dailyJobs),
+        runInsightsJobs(accessToken, weeklyJobs),
+    ]);
+
+    const weeklyByCustomerId = new Map();
+    for (const res of weeklyInsightResults) {
         const id = String(res.customer._id);
+        weeklyByCustomerId.set(id, res.error ? null : res.daily);
+    }
+
+    for (let i = 0; i < insightResults.length; i++) {
+        const res = insightResults[i];
+        const id = String(res.customer._id);
+        const weeklyRows = weeklyByCustomerId.get(id) || null;
         if (res.error) {
-            const emptyRow = rollCustomerWindows(res.customer, startDate, endDate, []);
+            const emptyRow = rollCustomerWindows(res.customer, startDate, endDate, [], weeklyRows);
             byCustomerId.set(id, {
                 ...emptyRow,
                 apexRadarMeta: {
@@ -539,7 +716,7 @@ export async function fetchApexRadarFacebookOverviewRows({
                 },
             });
         } else {
-            byCustomerId.set(id, rollCustomerWindows(res.customer, startDate, endDate, res.daily));
+            byCustomerId.set(id, rollCustomerWindows(res.customer, startDate, endDate, res.daily, weeklyRows));
         }
     }
 
