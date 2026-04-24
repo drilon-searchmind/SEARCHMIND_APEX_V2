@@ -2,8 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import { FiX } from "react-icons/fi";
+
 export default function ApexRadarAssignUsersModal({ row, selectedIds, onSave, onClose, assignableUsers = [] }) {
     const [checked, setChecked] = useState(() => new Set(selectedIds || []));
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         setChecked(new Set(selectedIds || []));
@@ -20,9 +22,14 @@ export default function ApexRadarAssignUsersModal({ row, selectedIds, onSave, on
         });
     };
 
-    const handleSave = () => {
-        onSave(row.id, Array.from(checked));
-        onClose();
+    const handleSave = async () => {
+        try {
+            setSaving(true);
+            await Promise.resolve(onSave(row.id, Array.from(checked)));
+            onClose();
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -43,7 +50,8 @@ export default function ApexRadarAssignUsersModal({ row, selectedIds, onSave, on
                     <button
                         type="button"
                         onClick={onClose}
-                        className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                        disabled={saving}
+                        className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-50"
                         aria-label="Close"
                     >
                         <FiX className="h-5 w-5" />
@@ -51,8 +59,8 @@ export default function ApexRadarAssignUsersModal({ row, selectedIds, onSave, on
                 </div>
                 <div className="px-5 py-4 max-h-[50vh] overflow-y-auto">
                     <p className="text-xs text-gray-500 mb-3">
-                        Choose one or more internal users for this account. Saved only in this browser until the API is
-                        available.
+                        Choose one or more internal users for this account. Assignments are saved for everyone on this
+                        channel.
                     </p>
                     <ul className="space-y-2">
                         {assignableUsers.length === 0 ? (
@@ -78,23 +86,26 @@ export default function ApexRadarAssignUsersModal({ row, selectedIds, onSave, on
                     <button
                         type="button"
                         onClick={() => setChecked(new Set())}
-                        className="text-xs font-semibold text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+                        disabled={saving}
+                        className="text-xs font-semibold text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
                     >
                         Clear all
                     </button>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="text-xs font-semibold text-gray-700 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
+                        disabled={saving}
+                        className="text-xs font-semibold text-gray-700 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
                     >
                         Cancel
                     </button>
                     <button
                         type="button"
                         onClick={handleSave}
-                        className="text-xs font-semibold text-white px-3 py-2 rounded-lg bg-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind-hover)] transition-colors"
+                        disabled={saving}
+                        className="text-xs font-semibold text-white px-3 py-2 rounded-lg bg-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind-hover)] transition-colors disabled:opacity-60"
                     >
-                        Save
+                        {saving ? "Saving…" : "Save"}
                     </button>
                 </div>
             </div>

@@ -1,6 +1,7 @@
 /**
- * Apex Radar — per-customer targets / budget configuration (`customerApexRadarSettings`).
- * Pure helpers shared by the Facebook overview API and the overview UI.
+ * Apex Radar — per-customer targets / budget configuration.
+ * Primary store: Mongo collection `apex_radar_channel_settings` (merged onto customers in the overview API).
+ * Fallback: embedded `Customer.customerApexRadarSettings.facebook` for legacy rows without a channel doc.
  */
 
 /** @typedef {{ spend: number, conversions: number, value: number, roas: number|null, ctrPct: number|null, freq: number|null }} RollupSlice */

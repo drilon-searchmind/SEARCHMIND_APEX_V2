@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import connectToDatabase from "@root/lib/mongodb";
 import Customer from "@/models/Customer";
+import ApexRadarChannelSettings from "@/models/ApexRadarChannelSettings";
+import { APEX_RADAR_CHANNEL_FACEBOOK } from "@/lib/apexRadarChannels";
 import { isDemoCustomerId } from "@/lib/demoCustomer";
 
 function parseOptionalNumber(v) {
@@ -52,27 +55,36 @@ export async function PATCH(request, { params }) {
 
     try {
         await connectToDatabase();
-        const updated = await Customer.findByIdAndUpdate(
-            customerId,
-            {
-                $set: {
-                    "customerApexRadarSettings.facebook.targetBudget": targetBudget,
-                    "customerApexRadarSettings.facebook.targetMetricType": targetMetricType,
-                    "customerApexRadarSettings.facebook.targetValue": targetValue,
-                    "customerApexRadarSettings.facebook.budgetMode": budgetMode,
-                    updatedAt: new Date(),
-                },
-            },
-            { new: true, runValidators: true }
-        ).lean();
-
-        if (!updated) {
+        const exists = await Customer.findById(customerId).select("_id").lean();
+        if (!exists) {
             return NextResponse.json({ error: "Customer not found" }, { status: 404 });
         }
 
+        const cid = new mongoose.Types.ObjectId(String(customerId));
+        const saved = await ApexRadarChannelSettings.findOneAndUpdate(
+            { channel: APEX_RADAR_CHANNEL_FACEBOOK, customerId: cid },
+            {
+                $set: {
+                    targetBudget,
+                    targetMetricType,
+                    targetValue,
+                    budgetMode,
+                    updatedAt: new Date(),
+                },
+            },
+            { upsert: true, new: true, runValidators: true }
+        ).lean();
+
+        const facebook = {
+            targetBudget: saved.targetBudget ?? null,
+            targetMetricType: saved.targetMetricType === "CPA" ? "CPA" : "ROAS",
+            targetValue: saved.targetValue ?? null,
+            budgetMode: saved.budgetMode === "STATIC" ? "STATIC" : "DYNAMIC",
+        };
+
         return NextResponse.json({
-            customerId: String(updated._id),
-            customerApexRadarSettings: updated.customerApexRadarSettings || {},
+            customerId: String(customerId),
+            customerApexRadarSettings: { facebook },
         });
     } catch (e) {
         console.error("[apex-radar/facebook/customer-settings PATCH]", e);

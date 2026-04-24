@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getAllCustomers } from "@root/lib/customerOperations";
+import connectToDatabase from "@root/lib/mongodb";
 import { isDemoCustomerId, mergeDemoCustomerDocument } from "@/lib/demoCustomer";
 import { fetchApexRadarFacebookOverviewRows } from "@/lib/apexRadarFacebookOverview";
 import { buildDemoApexRadarFacebookOverviewRow } from "@/lib/demoAdMetrics";
+import { APEX_RADAR_CHANNEL_FACEBOOK } from "@/lib/apexRadarChannels";
+import ApexRadarChannelSettings from "@/models/ApexRadarChannelSettings";
+import { mergeFacebookChannelSettingsIntoCustomers } from "@/lib/apexRadarChannelSettingsMerge";
 
 function toPlainCustomer(doc) {
     if (doc && typeof doc.toObject === "function") return doc.toObject();
@@ -56,6 +60,13 @@ export async function GET(req) {
         if (customerId) {
             customers = customers.filter((c) => String(c._id) === String(customerId));
         }
+
+        await connectToDatabase();
+        const channelSettingsDocs = await ApexRadarChannelSettings.find({
+            channel: APEX_RADAR_CHANNEL_FACEBOOK,
+            customerId: { $in: customers.map((c) => c._id) },
+        }).lean();
+        customers = mergeFacebookChannelSettingsIntoCustomers(customers, channelSettingsDocs);
 
         const { rows, windows } = await fetchApexRadarFacebookOverviewRows({
             accessToken: token,

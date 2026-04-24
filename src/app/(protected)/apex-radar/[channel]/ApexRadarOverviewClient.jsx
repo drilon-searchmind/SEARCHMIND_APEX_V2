@@ -55,7 +55,7 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
     const [fbOverviewRefreshKey, setFbOverviewRefreshKey] = useState(0);
     const [metricsInfoOpen, setMetricsInfoOpen] = useState(false);
 
-    const { assignmentMap, setAssignmentsForAccount } = useApexRadarAssignments(channel);
+    const { assignmentMap, assignmentsLoading, setAssignmentsForAccount } = useApexRadarAssignments(channel);
 
     const [fbRows, setFbRows] = useState(null);
     const [fbLoading, setFbLoading] = useState(false);
@@ -193,7 +193,7 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                                     id="apex-radar-user"
                                     value={userFilter}
                                     onChange={(e) => setUserFilter(e.target.value)}
-                                    disabled={internalUsersLoading}
+                                    disabled={internalUsersLoading || assignmentsLoading}
                                     className="w-full max-w-md rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)] disabled:opacity-60"
                                 >
                                     {teamFilterOptions.map((u) => (

@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getAllCustomers, createCustomer } from '../../../../lib/customerOperations';
+import connectToDatabase from '@root/lib/mongodb';
 import { isDemoCustomerId, mergeDemoCustomerDocument } from '@/lib/demoCustomer';
+import { APEX_RADAR_CHANNEL_FACEBOOK } from '@/lib/apexRadarChannels';
+import ApexRadarChannelSettings from '@/models/ApexRadarChannelSettings';
+import { mergeFacebookChannelSettingsIntoCustomers } from '@/lib/apexRadarChannelSettingsMerge';
 
 function toPlainCustomer(doc) {
     if (doc && typeof doc.toObject === 'function') return doc.toObject();
@@ -11,12 +15,20 @@ function toPlainCustomer(doc) {
 export async function GET() {
     try {
         const customers = await getAllCustomers();
-        const merged = customers.map((c) => {
+        let merged = customers.map((c) => {
             const plain = toPlainCustomer(c);
             const id = String(plain._id);
             if (!isDemoCustomerId(id)) return plain;
             return mergeDemoCustomerDocument(plain);
         });
+
+        await connectToDatabase();
+        const fbSettings = await ApexRadarChannelSettings.find({
+            channel: APEX_RADAR_CHANNEL_FACEBOOK,
+            customerId: { $in: merged.map((c) => c._id) },
+        }).lean();
+        merged = mergeFacebookChannelSettingsIntoCustomers(merged, fbSettings);
+
         return NextResponse.json(merged);
     } catch (error) {
         console.error('Error fetching customers:', error);
