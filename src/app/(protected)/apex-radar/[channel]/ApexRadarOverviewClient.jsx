@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { FiInfo } from "react-icons/fi";
+import { FiInfo, FiSearch } from "react-icons/fi";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import ApexRadarOverviewTable from "../components/ApexRadarOverviewTable";
@@ -54,6 +54,7 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
     const [apexSettingsRow, setApexSettingsRow] = useState(null);
     const [fbOverviewRefreshKey, setFbOverviewRefreshKey] = useState(0);
     const [metricsInfoOpen, setMetricsInfoOpen] = useState(false);
+    const [customerSearch, setCustomerSearch] = useState("");
 
     const { assignmentMap, assignmentsLoading, setAssignmentsForAccount } = useApexRadarAssignments(channel);
 
@@ -148,8 +149,19 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
             });
         }
 
+        const q = normName(customerSearch);
+        if (q) {
+            list = list.filter((r) => {
+                const name = normName(r.entity);
+                if (name.includes(q)) return true;
+                const idStr = String(r.id ?? r.customerId ?? "").toLowerCase();
+                if (idStr.includes(q)) return true;
+                return false;
+            });
+        }
+
         return list;
-    }, [isFacebook, userFilter, customerId, customer, assignmentMap, facebookOverviewRows]);
+    }, [isFacebook, userFilter, customerId, customer, assignmentMap, facebookOverviewRows, customerSearch]);
 
     /** Empty body while Meta overview is loading (first fetch); avoids placeholder dashes under the spinner. */
     const tableRowsForDisplay = useMemo(() => {
@@ -181,35 +193,64 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
             {isFacebook ? (
                 <>
                     <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 mb-6">
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                                <label
-                                    htmlFor="apex-radar-user"
-                                    className="block text-xs font-semibold text-gray-500 mb-1.5"
-                                >
-                                    Team members
-                                </label>
-                                <select
-                                    id="apex-radar-user"
-                                    value={userFilter}
-                                    onChange={(e) => setUserFilter(e.target.value)}
-                                    disabled={internalUsersLoading || assignmentsLoading}
-                                    className="w-full max-w-md rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)] disabled:opacity-60"
-                                >
-                                    {teamFilterOptions.map((u) => (
-                                        <option key={u.id} value={u.id}>
-                                            {u.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                <p className="text-[0.7rem] text-gray-400 mt-1.5">
-                                    Filter by who is assigned to each account (use + under Team members).
-                                </p>
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                            <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-end gap-4">
+                                <div className="flex-1 min-w-0 max-w-md">
+                                    <label
+                                        htmlFor="apex-radar-user"
+                                        className="block text-xs font-semibold text-gray-500 mb-1.5"
+                                    >
+                                        Team members
+                                    </label>
+                                    <select
+                                        id="apex-radar-user"
+                                        value={userFilter}
+                                        onChange={(e) => setUserFilter(e.target.value)}
+                                        disabled={internalUsersLoading || assignmentsLoading}
+                                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)] disabled:opacity-60"
+                                    >
+                                        {teamFilterOptions.map((u) => (
+                                            <option key={u.id} value={u.id}>
+                                                {u.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <p className="text-[0.7rem] text-gray-400 mt-1.5">
+                                        Filter by who is assigned to each account (use + under Team members).
+                                    </p>
+                                </div>
+                                <div className="w-full sm:flex-1 sm:min-w-[200px] sm:max-w-md">
+                                    <label
+                                        htmlFor="apex-radar-customer-search"
+                                        className="block text-xs font-semibold text-gray-500 mb-1.5"
+                                    >
+                                        Search customers
+                                    </label>
+                                    <div className="relative">
+                                        <FiSearch
+                                            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                                            aria-hidden
+                                        />
+                                        <input
+                                            id="apex-radar-customer-search"
+                                            type="search"
+                                            value={customerSearch}
+                                            onChange={(e) => setCustomerSearch(e.target.value)}
+                                            placeholder="Search properties…"
+                                            autoComplete="off"
+                                            className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[var(--color-primary-searchmind-lighter)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind-lighter)]/30"
+                                            aria-label="Search customers"
+                                        />
+                                    </div>
+                                    <p className="text-[0.7rem] text-gray-400 mt-1.5">
+                                        Search for customers by name or ID.
+                                    </p>
+                                </div>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setMetricsInfoOpen(true)}
-                                className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:text-[var(--color-primary-searchmind)] hover:border-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)]"
+                                className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:text-[var(--color-primary-searchmind)] hover:border-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] self-start lg:self-center"
                                 aria-label="How overview metrics are calculated"
                                 title="How metrics are calculated"
                             >
