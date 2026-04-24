@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { FiChevronDown, FiChevronUp, FiFilter, FiRotateCcw } from "react-icons/fi";
+import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
 import { PLANNER_V2_SERVICES } from "../constants";
@@ -39,27 +40,23 @@ export default function CampaignOverviewFilters({
 						/>
 					</div>
 					<div className="flex flex-wrap items-end gap-3 sm:gap-4 flex-1 min-w-0">
-						<div className="min-w-[140px]">
-							<FormLabel htmlFor="cpv2-dr-start">Period from</FormLabel>
-							<input
-								id="cpv2-dr-start"
-								type="date"
-								value={filters.dateRange.startDate}
-								onChange={(e) =>
-									setDateRange({ startDate: e.target.value })
-								}
-								className="mt-1 h-10 w-full rounded-lg border border-gray-300 px-3 text-sm"
-							/>
-						</div>
-						<div className="min-w-[140px]">
-							<FormLabel htmlFor="cpv2-dr-end">Period to</FormLabel>
-							<input
-								id="cpv2-dr-end"
-								type="date"
-								value={filters.dateRange.endDate}
-								onChange={(e) => setDateRange({ endDate: e.target.value })}
-								className="mt-1 h-10 w-full rounded-lg border border-gray-300 px-3 text-sm"
-							/>
+						<div className="min-w-0 flex-1 sm:max-w-md">
+							<FormLabel>Period</FormLabel>
+							<div className="mt-2 flex flex-wrap items-center gap-2">
+								<DateRangePicker
+									usePortal
+									triggerClassName="h-11 px-4 py-0 text-sm inline-flex items-center justify-center"
+									onApply={() => {}}
+									startDate={filters.dateRange.startDate}
+									endDate={filters.dateRange.endDate}
+									onStartDateChange={(v) =>
+										setDateRange({ startDate: v })
+									}
+									onEndDateChange={(v) =>
+										setDateRange({ endDate: v })
+									}
+								/>
+							</div>
 						</div>
 					</div>
 					<div className="flex flex-wrap items-center gap-2 shrink-0">

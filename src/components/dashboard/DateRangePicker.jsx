@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import dayjs from "dayjs";
@@ -73,24 +74,60 @@ export default function DateRangePicker({
     monthOnly = false,
     /** When set (non-empty), replaces default day-range presets. Ignored when monthOnly. */
     customPresets = null,
+    /** Render the popover in a portal with fixed position (avoids overflow:hidden / scroll clipping in modals). */
+    usePortal = false,
+    /** Merged onto the trigger button (e.g. match a form input height in a filter bar). */
+    triggerClassName = "",
 }) {
     const [isOpen, setIsOpen] = useState(false);
+    const [portalStyle, setPortalStyle] = useState({ top: 0, right: 0 });
     const popoverRef = useRef(null);
+    const triggerRef = useRef(null);
+    const portalContentRef = useRef(null);
 
     const startDateObj = toDate(startDate);
     const endDateObj = toDate(endDate);
 
+    const updatePortalPosition = useCallback(() => {
+        const el = triggerRef.current;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        setPortalStyle({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    }, []);
+
+    useLayoutEffect(() => {
+        if (!isOpen || !usePortal) return;
+        updatePortalPosition();
+        const t = requestAnimationFrame(updatePortalPosition);
+        return () => cancelAnimationFrame(t);
+    }, [isOpen, usePortal, updatePortalPosition]);
+
+    useEffect(() => {
+        if (!isOpen || !usePortal) return;
+        const onScrollOrResize = () => updatePortalPosition();
+        window.addEventListener("resize", onScrollOrResize);
+        document.addEventListener("scroll", onScrollOrResize, true);
+        return () => {
+            window.removeEventListener("resize", onScrollOrResize);
+            document.removeEventListener("scroll", onScrollOrResize, true);
+        };
+    }, [isOpen, usePortal, updatePortalPosition]);
+
     useEffect(() => {
         function handleClickOutside(e) {
-            if (popoverRef.current && !popoverRef.current.contains(e.target)) {
-                setIsOpen(false);
+            if (usePortal) {
+                if (triggerRef.current?.contains(e.target)) return;
+                if (portalContentRef.current?.contains(e.target)) return;
+            } else if (popoverRef.current?.contains(e.target)) {
+                return;
             }
+            setIsOpen(false);
         }
         if (isOpen) {
             document.addEventListener("mousedown", handleClickOutside);
             return () => document.removeEventListener("mousedown", handleClickOutside);
         }
-    }, [isOpen]);
+    }, [isOpen, usePortal]);
 
     const handleChange = (dates) => {
         const [start, end] = dates;
@@ -128,110 +165,128 @@ export default function DateRangePicker({
     const presetList =
         monthOnly ? MONTH_PRESETS : customPresets?.length ? customPresets : PRESETS;
 
+    const dropdownInner = (
+        <span className="flex flex-row gap-2">
+            <div className="p-3 w-full">
+                <div className="text-xs font-medium text-gray-500 mb-2">Presets</div>
+                <div className="flex flex-wrap gap-1 max-w-[200px]">
+                    {presetList.map((preset) => (
+                        <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => handlePreset(preset)}
+                            disabled={loading}
+                            className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-colors disabled:opacity-50 w-full text-nowrap text-left"
+                        >
+                            {preset.label}
+                        </button>
+                    ))}
+                </div>
+                {showComparisonMethodToggler && (
+                    <div className="mt-3 pt-3">
+                        <div className="text-xs font-medium text-gray-500 mb-2">Comparison</div>
+                        <div className="flex border border-gray-200 bg-gray-100 rounded-lg overflow-hidden">
+                            <button
+                                type="button"
+                                disabled={loading}
+                                onClick={() => onComparisonMethodChange?.("Last Year")}
+                                className={`text-nowrap flex-1 px-2 py-1 text-xs font-medium focus:outline-none transition-colors duration-150 ${comparisonMethod === "Last Year" ? "bg-white text-[var(--color-primary-searchmind)] shadow-sm" : "text-gray-500 hover:text-[var(--color-primary-searchmind)]"}`}
+                                style={{ borderRadius: "6px 0 0 6px" }}
+                            >
+                                Last Year
+                            </button>
+                            <button
+                                type="button"
+                                disabled={loading}
+                                onClick={() => onComparisonMethodChange?.("Last Period")}
+                                className={`text-nowrap flex-1 px-2 py-1 text-xs font-medium focus:outline-none transition-colors duration-150 ${comparisonMethod === "Last Period" ? "bg-white text-[var(--color-primary-searchmind)] shadow-sm" : "text-gray-500 hover:text-[var(--color-primary-searchmind)]"}`}
+                                style={{ borderRadius: "0 6px 6px 0" }}
+                            >
+                                Last Period
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+            <span className="relative">
+                <div className="flex flex-col justify-between h-auto p-2">
+                    <div className="text-xs font-medium text-gray-500 mb-2">
+                        {monthOnly ? "Month" : "Date Range"}
+                    </div>
+                    {monthOnly ? (
+                        <DatePicker
+                            selected={startDateObj}
+                            onChange={handleMonthChange}
+                            showMonthYearPicker
+                            inline
+                            dateFormat="yyyy-MM"
+                            disabled={loading}
+                        />
+                    ) : (
+                        <DatePicker
+                            selected={startDateObj}
+                            startDate={startDateObj}
+                            endDate={endDateObj}
+                            onChange={handleChange}
+                            selectsRange
+                            inline
+                            dateFormat={DATE_FORMAT}
+                            disabled={loading}
+                        />
+                    )}
+                </div>
+                <div className="flex justify-end px-2">
+                    <button
+                        type="button"
+                        onClick={handleApply}
+                        disabled={loading}
+                        className="mt-3 h-auto text-xs px-4 py-2 rounded-lg text-white bg-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind-lighter)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Apply
+                    </button>
+                </div>
+            </span>
+        </span>
+    );
+
+    const portalNode =
+        isOpen &&
+        usePortal &&
+        typeof document !== "undefined" &&
+        createPortal(
+            <div
+                ref={portalContentRef}
+                className={`fixed z-[10000] bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden max-w-[calc(100vw-1.5rem)] ${monthOnly ? "datepicker-monthly" : ""}`}
+                style={{ top: portalStyle.top, right: portalStyle.right }}
+            >
+                {dropdownInner}
+            </div>,
+            document.body
+        );
+
     return (
-        <div className="flex items-center gap-2 flex-wrap" ref={popoverRef}>
+        <div className="flex items-center gap-2 flex-wrap" ref={!usePortal ? popoverRef : null}>
             <div className="relative">
                 <button
+                    ref={triggerRef}
                     id="date-range-picker-button"
                     type="button"
                     onClick={() => !loading && setIsOpen((o) => !o)}
                     disabled={loading}
-                    className="text-nowrap text-center border border-gray-200 rounded-lg px-3 py-2 text-xs w-full min-w-[50px] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`text-nowrap text-center border border-gray-200 rounded-lg px-3 py-2 text-xs w-full min-w-[50px] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:opacity-50 disabled:cursor-not-allowed${triggerClassName ? ` ${triggerClassName}` : ""}`}
                 >
                     {displayText}
                 </button>
 
-                {isOpen && (
-                    <div className={`absolute right-0 top-full mt-1 z-[100] bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden ${monthOnly ? "datepicker-monthly" : ""}`}>
-                        <span className="flex flex-row gap-2">
-                            <div className="p-3 w-full">
-                                <div className="text-xs font-medium text-gray-500 mb-2">Presets</div>
-                                <div className="flex flex-wrap gap-1">
-                                    {presetList.map((preset) => (
-                                        <button
-                                            key={preset.label}
-                                            type="button"
-                                            onClick={() => handlePreset(preset)}
-                                            disabled={loading}
-                                            className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-colors disabled:opacity-50 w-full text-nowrap text-left"
-                                        >
-                                            {preset.label}
-                                        </button>
-                                    ))}
-                                </div>
-                                {showComparisonMethodToggler && (
-                                    <div className="mt-3 pt-3">
-                                        <div className="text-xs font-medium text-gray-500 mb-2">Comparison</div>
-                                        <div className="flex border border-gray-200 bg-gray-100 rounded-lg overflow-hidden">
-                                            <button
-                                                type="button"
-                                                disabled={loading}
-                                                onClick={() => onComparisonMethodChange?.("Last Year")}
-                                                className={`text-nowrap flex-1 px-2 py-1 text-xs font-medium focus:outline-none transition-colors duration-150 ${comparisonMethod === "Last Year" ? "bg-white text-[var(--color-primary-searchmind)] shadow-sm" : "text-gray-500 hover:text-[var(--color-primary-searchmind)]"}`}
-                                                style={{ borderRadius: "6px 0 0 6px" }}
-                                            >
-                                                Last Year
-                                            </button>
-                                            <button
-                                                type="button"
-                                                disabled={loading}
-                                                onClick={() => onComparisonMethodChange?.("Last Period")}
-                                                className={`text-nowrap flex-1 px-2 py-1 text-xs font-medium focus:outline-none transition-colors duration-150 ${comparisonMethod === "Last Period" ? "bg-white text-[var(--color-primary-searchmind)] shadow-sm" : "text-gray-500 hover:text-[var(--color-primary-searchmind)]"}`}
-                                                style={{ borderRadius: "0 6px 6px 0" }}
-                                            >
-                                                Last Period
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                            <span className="relative">
-                                <div className="flex flex-col justify-between h-auto p-2">
-                                    <div className="text-xs font-medium text-gray-500 mb-2">
-                                        {monthOnly ? "Month" : "Date Range"}
-                                    </div>
-                                    {monthOnly ? (
-                                        <DatePicker
-                                            selected={startDateObj}
-                                            onChange={handleMonthChange}
-                                            showMonthYearPicker
-                                            inline
-                                            dateFormat="yyyy-MM"
-                                            disabled={loading}
-                                        />
-                                    ) : (
-                                        <DatePicker
-                                            selected={startDateObj}
-                                            startDate={startDateObj}
-                                            endDate={endDateObj}
-                                            onChange={handleChange}
-                                            selectsRange
-                                            inline
-                                            dateFormat={DATE_FORMAT}
-                                            disabled={loading}
-                                        />
-                                    )}
-                                </div>
-                                <div className="flex justify-end px-2">
-                                    <button
-                                        type="button"
-                                        onClick={handleApply}
-                                        disabled={loading}
-                                        className="mt-3 h-auto text-xs px-4 py-2 rounded-lg text-white bg-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind-lighter)] disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        Apply
-                                    </button>
-                                </div>
-                            </span>
-                        </span>
+                {isOpen && !usePortal && (
+                    <div
+                        className={`absolute right-0 top-full mt-1 z-[100] bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden ${monthOnly ? "datepicker-monthly" : ""}`}
+                    >
+                        {dropdownInner}
                     </div>
                 )}
             </div>
-            {/* <span onClick={handleApply} style={{ cursor: loading ? "not-allowed" : "pointer" }}>
-                <FormButton buttonSize="small" disabled={loading}>
-                    Apply
-                </FormButton>
-            </span> */}
+            {portalNode}
         </div>
     );
 }

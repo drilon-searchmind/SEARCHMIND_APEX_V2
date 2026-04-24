@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import MetricCard from "@/components/dashboard/MetricCard";
@@ -33,6 +33,9 @@ const METRIC_OPTIONS = [
 
 export default function PinterestServiceDashboardPage() {
     const params = useParams();
+    const searchParams = useSearchParams();
+    const rangeStartQ = searchParams.get("startDate");
+    const rangeEndQ = searchParams.get("endDate");
     const { customers } = useCustomers();
     const customer = customers.find((c) => c._id === params.customerId);
 
@@ -74,6 +77,13 @@ export default function PinterestServiceDashboardPage() {
             setSelectedMetrics(["ad_spend"]);
         }
     }, [selectedMetrics]);
+
+    useEffect(() => {
+        if (rangeStartQ && rangeEndQ) {
+            setTempRange({ startDate: rangeStartQ, endDate: rangeEndQ });
+            setAppliedRange({ startDate: rangeStartQ, endDate: rangeEndQ });
+        }
+    }, [rangeStartQ, rangeEndQ]);
 
     useEffect(() => {
         if (!customer) {

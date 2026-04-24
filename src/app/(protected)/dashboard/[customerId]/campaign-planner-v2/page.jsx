@@ -198,6 +198,7 @@ function CampaignPlannerV2Page() {
 					storedParentCount={parents.length}
 					services={services}
 					lineItems={lineItems}
+					customerId={customerId}
 					onEditParent={(p) => setParentModal({ mode: "edit", parent: p })}
 					onDeleteParent={handleDeleteParent}
 					onUpdateService={updateService}
@@ -209,6 +210,7 @@ function CampaignPlannerV2Page() {
 					}
 					onDeleteLineItem={handleDeleteLineItem}
 					onDuplicateLineItem={(li) => duplicateLineItem(li.id)}
+					onLineItemStatusChange={setLineItemStatus}
 				/>
 
 				<LineItemsKanban

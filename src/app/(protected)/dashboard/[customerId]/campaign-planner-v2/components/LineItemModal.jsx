@@ -6,12 +6,17 @@ import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
 import Spinner from "@/components/ui/Spinner";
 import { useUser } from "@/contexts/UserContext";
+import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import {
 	CAMPAIGN_TYPE_FORMATS,
 	SERVICE_MEDIA_OPTIONS,
 	LINE_ITEM_STATUSES,
 } from "../constants";
-import { normalizeLineItemStatus } from "../lib/lineItemStatus";
+import {
+	defaultLineItemStatusStyle,
+	LINE_ITEM_STATUS_STYLES,
+	normalizeLineItemStatus,
+} from "../lib/lineItemStatus";
 import { useInternalUsers } from "@/hooks/useInternalUsers";
 
 const defaultForm = () => ({
@@ -30,6 +35,20 @@ const defaultForm = () => ({
 function toggleInArray(arr, value) {
 	if (arr.includes(value)) return arr.filter((x) => x !== value);
 	return [...arr, value];
+}
+
+/** Split a total budget (whole currency units) fairly across n rows; remainder to first rows. */
+function splitBudgetTotal(total, n) {
+	if (n <= 0 || total == null || Number.isNaN(total)) {
+		return () => null;
+	}
+	const t = Math.max(0, Math.floor(Number(total)));
+	const each = n > 0 ? Math.floor(t / n) : 0;
+	const rem = n > 0 ? t - each * n : 0;
+	return (index) => {
+		if (n <= 0) return null;
+		return each + (index < rem ? 1 : 0);
+	};
 }
 
 function buildFormFromLineItem(initialLineItem) {
@@ -156,7 +175,7 @@ function CommentTextWithMentions({ text, users }) {
 /** Grouped block with header for cleaner modal layout */
 function ModalSection({ title, description, children }) {
 	return (
-		<section className="rounded-xl border border-gray-200 bg-white overflow-hidden h-full min-h-0 flex flex-col">
+		<section className="rounded-xl border border-gray-200 bg-white overflow-visible h-full min-h-0 flex flex-col">
 			<div className="px-4 py-3 bg-gradient-to-b from-gray-50/95 to-gray-50/60 border-b border-gray-100">
 				<h3 className="text-sm font-semibold text-gray-900">{title}</h3>
 				{description ? (
@@ -212,6 +231,8 @@ export default function LineItemModal({
 
 	const isCreate = mode === "create";
 	const [form, setForm] = useState(defaultForm);
+	/** per media key — optional; empty means “use shared total and split” */
+	const [channelBudgets, setChannelBudgets] = useState({});
 	const [editing, setEditing] = useState(true);
 	const [channelError, setChannelError] = useState("");
 	const [commentDraft, setCommentDraft] = useState("");
@@ -254,6 +275,30 @@ export default function LineItemModal({
 		return out;
 	}, [customFormats]);
 
+	const isEmailNewsletter = useMemo(() => {
+		const formats =
+			isCreate
+				? form.selectedFormats
+				: initialLineItem?.formats?.length
+					? initialLineItem.formats
+					: initialLineItem?.format
+						? [initialLineItem.format]
+						: [];
+		const hasNewsletter = (formats || []).some((f) => f === "Newsletter");
+		const hasEmail =
+			isCreate
+				? form.selectedChannels.includes("Email")
+				: (initialLineItem?.media || form.media) === "Email";
+		return serviceName === "Email Marketing" && hasNewsletter && hasEmail;
+	}, [
+		isCreate,
+		serviceName,
+		form.selectedFormats,
+		form.selectedChannels,
+		form.media,
+		initialLineItem,
+	]);
+
 	const readOnly = !isCreate && !editing;
 
 	const loadComments = useCallback(async () => {
@@ -285,6 +330,7 @@ export default function LineItemModal({
 		setCommentsError("");
 		if (isCreate) {
 			setForm(defaultForm());
+			setChannelBudgets({});
 			setEditing(true);
 			setRemoteComments([]);
 		} else if (initialLineItem) {
@@ -295,6 +341,20 @@ export default function LineItemModal({
 		setEditCommentText("");
 		setMentionPick(null);
 	}, [open, initialLineItem, isCreate]);
+
+	useEffect(() => {
+		if (!isCreate) return;
+		setChannelBudgets((prev) => {
+			const next = { ...prev };
+			form.selectedChannels.forEach((ch) => {
+				if (next[ch] === undefined) next[ch] = "";
+			});
+			Object.keys(next).forEach((k) => {
+				if (!form.selectedChannels.includes(k)) delete next[k];
+			});
+			return next;
+		});
+	}, [isCreate, form.selectedChannels]);
 
 	const syncMention = useCallback((text, caret, field) => {
 		const m = getActiveMention(text, caret);
@@ -392,6 +452,7 @@ export default function LineItemModal({
 	const handleChange = (e) => {
 		const { name, value, type, checked } = e.target;
 		if (name === "alwaysOn") {
+			if (isEmailNewsletter) return;
 			setForm((prev) => ({
 				...prev,
 				alwaysOn: checked,
@@ -401,11 +462,29 @@ export default function LineItemModal({
 		}
 		if (name === "startDate" && !readOnly) {
 			const v = clampDateStr(value, bounds.min, bounds.max || undefined);
+			if (isEmailNewsletter) {
+				setForm((prev) => ({
+					...prev,
+					startDate: v,
+					endDate: v,
+					alwaysOn: false,
+				}));
+				return;
+			}
 			setForm((prev) => ({ ...prev, startDate: v }));
 			return;
 		}
 		if (name === "endDate" && !readOnly) {
 			const v = clampDateStr(value, bounds.min || undefined, bounds.max || undefined);
+			if (isEmailNewsletter) {
+				setForm((prev) => ({
+					...prev,
+					startDate: v,
+					endDate: v,
+					alwaysOn: false,
+				}));
+				return;
+			}
 			setForm((prev) => ({ ...prev, endDate: v }));
 			return;
 		}
@@ -424,21 +503,68 @@ export default function LineItemModal({
 	};
 
 	const toggleFormat = (f) => {
-		setForm((prev) => ({
-			...prev,
-			selectedFormats: toggleInArray(prev.selectedFormats, f),
-		}));
+		setForm((prev) => {
+			const selectedFormats = toggleInArray(prev.selectedFormats, f);
+			let next = { ...prev, selectedFormats };
+			if (
+				f === "Newsletter" &&
+				serviceName === "Email Marketing" &&
+				selectedFormats.includes("Newsletter")
+			) {
+				const d = next.startDate || next.endDate;
+				next = { ...next, startDate: d, endDate: d, alwaysOn: false };
+			}
+			return next;
+		});
 	};
 
-	const buildPayloadCore = () => ({
-		name: form.name.trim(),
-		startDate: form.startDate,
-		endDate: form.alwaysOn ? "" : form.endDate,
-		alwaysOn: form.alwaysOn,
-		status: normalizeLineItemStatus(form.status),
-		approvalLink: form.approvalLink.trim(),
-		budget: form.budget === "" ? null : Number(form.budget),
-	});
+	const buildPayloadCore = () => {
+		const startDate = form.startDate;
+		let endDate = form.alwaysOn ? "" : form.endDate;
+		if (isEmailNewsletter) {
+			endDate = startDate;
+		}
+		return {
+			name: form.name.trim(),
+			startDate,
+			endDate,
+			alwaysOn: isEmailNewsletter ? false : form.alwaysOn,
+			status: normalizeLineItemStatus(form.status),
+			approvalLink: form.approvalLink.trim(),
+			budget: form.budget === "" ? null : Number(form.budget),
+		};
+	};
+
+	function budgetForLineItemChannel(channels, media) {
+		const n = channels.length;
+		const parseField = (ch) => {
+			const raw = channelBudgets[ch];
+			if (raw == null || String(raw).trim() === "") return null;
+			const x = Number(raw);
+			return Number.isNaN(x) ? null : x;
+		};
+		const hasAny = channels.some((ch) => parseField(ch) != null);
+		if (hasAny) {
+			return parseField(media);
+		}
+		const g =
+			form.budget === "" || form.budget == null
+				? null
+				: Number(form.budget);
+		if (g == null || Number.isNaN(g) || n === 0) return null;
+		const i = channels.indexOf(media);
+		return splitBudgetTotal(g, n)(i);
+	}
+
+	const handleStatusChange = (e) => {
+		const value = e.target.value;
+		if (!isCreate && !editing) {
+			setForm((prev) => ({ ...prev, status: value }));
+			onSave({ status: normalizeLineItemStatus(value) });
+			return;
+		}
+		handleChange(e);
+	};
 
 	const handleSubmit = (e) => {
 		e.preventDefault();
@@ -470,6 +596,7 @@ export default function LineItemModal({
 
 		const bulkPayloads = channels.map((media) => ({
 			...core,
+			budget: budgetForLineItemChannel(channels, media),
 			media,
 			formats,
 			format: formatFirst,
@@ -820,6 +947,54 @@ export default function LineItemModal({
 									? Number(form.budget).toLocaleString("da-DK")
 									: "—"}
 							</p>
+						) : isCreate &&
+						  mediaOptions.length > 0 &&
+						  form.selectedChannels.length > 1 ? (
+							<>
+								<p className="text-xs text-gray-500 mt-0.5 mb-2">
+									Total is split evenly across the selected channels unless you set
+									per-channel amounts (overrides split).
+								</p>
+								<FormInputText
+									id="li-budget"
+									name="budget"
+									type="number"
+									min="0"
+									step="1"
+									value={form.budget}
+									onChange={handleChange}
+									placeholder="Total to split across channels"
+								/>
+								<div className="mt-3 rounded-lg border border-gray-200 overflow-hidden">
+									<div className="grid grid-cols-[1fr,minmax(0,7.5rem)] gap-2 px-3 py-2 bg-gray-50 text-xs font-semibold text-gray-600">
+										<span>Channel</span>
+										<span className="text-right">Budget</span>
+									</div>
+									{form.selectedChannels.map((ch) => (
+										<div
+											key={ch}
+											className="grid grid-cols-[1fr,minmax(0,7.5rem)] gap-2 px-3 py-2 border-t border-gray-100 items-center"
+										>
+											<span className="text-sm text-gray-800">{ch}</span>
+											<input
+												type="number"
+												min="0"
+												step="1"
+												className="w-full h-9 rounded border border-gray-300 px-2 text-sm tabular-nums"
+												placeholder="Override"
+												aria-label={`Budget for ${ch}`}
+												value={channelBudgets[ch] ?? ""}
+												onChange={(e) =>
+													setChannelBudgets((prev) => ({
+														...prev,
+														[ch]: e.target.value,
+													}))
+												}
+											/>
+										</div>
+									))}
+								</div>
+							</>
 						) : (
 							<FormInputText
 								id="li-budget"
@@ -834,34 +1009,75 @@ export default function LineItemModal({
 						)}
 					</div>
 
-					<div className="flex items-center gap-2">
-						{readOnly ? (
-							<p className="text-sm text-gray-900">
-								<span className="text-gray-500">Always on: </span>
-								{form.alwaysOn ? "Yes" : "No"}
-							</p>
-						) : (
-							<>
-								<input
-									id="li-alwaysOn"
-									name="alwaysOn"
-									type="checkbox"
-									checked={form.alwaysOn}
-									onChange={handleChange}
-									className="rounded border-gray-300"
-								/>
-								<label htmlFor="li-alwaysOn" className="text-sm text-gray-700">
-									Always on
-								</label>
-							</>
-						)}
-					</div>
+					{!isEmailNewsletter && (
+						<div className="flex items-center gap-2">
+							{readOnly ? (
+								<p className="text-sm text-gray-900">
+									<span className="text-gray-500">Always on: </span>
+									{form.alwaysOn ? "Yes" : "No"}
+								</p>
+							) : (
+								<>
+									<input
+										id="li-alwaysOn"
+										name="alwaysOn"
+										type="checkbox"
+										checked={form.alwaysOn}
+										onChange={handleChange}
+										className="rounded border-gray-300"
+									/>
+									<label htmlFor="li-alwaysOn" className="text-sm text-gray-700">
+										Always on
+									</label>
+								</>
+							)}
+						</div>
+					)}
 
-					<div>
-						<FormLabel htmlFor="li-start">Start date</FormLabel>
-						{readOnly ? (
-							<p className="mt-2 text-sm text-gray-900">{form.startDate || "—"}</p>
-						) : (
+					{readOnly && isEmailNewsletter ? (
+						<div>
+							<FormLabel>Send date</FormLabel>
+							<p className="mt-2 text-sm text-gray-900">
+								{form.startDate || "—"}
+								<span className="text-gray-500 text-xs ml-2">
+									(start and end match for newsletters)
+								</span>
+							</p>
+						</div>
+					) : readOnly ? (
+						<>
+							<div>
+								<FormLabel>Start date</FormLabel>
+								<p className="mt-2 text-sm text-gray-900">{form.startDate || "—"}</p>
+							</div>
+							{!form.alwaysOn && (
+								<div>
+									<FormLabel>End date</FormLabel>
+									<p className="mt-2 text-sm text-gray-900">{form.endDate || "—"}</p>
+								</div>
+							)}
+						</>
+					) : isEmailNewsletter ? (
+						<div>
+							<FormLabel htmlFor="li-newsletter-date">Send date</FormLabel>
+							<p className="text-xs text-gray-500 mt-0.5 mb-2">
+								Newsletters use a single send date; start and end are stored as the
+								same day.
+							</p>
+							<input
+								id="li-newsletter-date"
+								type="date"
+								name="startDate"
+								value={form.startDate}
+								onChange={handleChange}
+								min={bounds.min || undefined}
+								max={bounds.max || undefined}
+								className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300"
+							/>
+						</div>
+					) : form.alwaysOn ? (
+						<div>
+							<FormLabel htmlFor="li-start">Start date</FormLabel>
 							<input
 								id="li-start"
 								type="date"
@@ -872,26 +1088,34 @@ export default function LineItemModal({
 								max={bounds.max || undefined}
 								className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300"
 							/>
-						)}
-					</div>
-
-					{!form.alwaysOn && (
+						</div>
+					) : (
 						<div>
-							<FormLabel htmlFor="li-end">End date</FormLabel>
-							{readOnly ? (
-								<p className="mt-2 text-sm text-gray-900">{form.endDate || "—"}</p>
-							) : (
-								<input
-									id="li-end"
-									type="date"
-									name="endDate"
-									value={form.endDate}
-									onChange={handleChange}
-									min={bounds.min || undefined}
-									max={bounds.max || undefined}
-									className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300"
+							<FormLabel>Schedule</FormLabel>
+							<div className="mt-2 flex flex-wrap items-center gap-2">
+								<DateRangePicker
+									usePortal
+									onApply={() => {}}
+									startDate={form.startDate}
+									endDate={form.endDate}
+									onStartDateChange={(v) => {
+										const x = clampDateStr(
+											v,
+											bounds.min,
+											bounds.max || undefined
+										);
+										setForm((prev) => ({ ...prev, startDate: x }));
+									}}
+									onEndDateChange={(v) => {
+										const x = clampDateStr(
+											v,
+											bounds.min || undefined,
+											bounds.max || undefined
+										);
+										setForm((prev) => ({ ...prev, endDate: x }));
+									}}
 								/>
-							)}
+							</div>
 						</div>
 					)}
 					</ModalSection>
@@ -902,24 +1126,37 @@ export default function LineItemModal({
 					>
 					<div>
 						<FormLabel htmlFor="li-status">Status</FormLabel>
-						{readOnly ? (
-							<p className="mt-2 text-sm font-medium text-[var(--color-primary-searchmind)]">
-								{form.status}
+						{(() => {
+							const st =
+								LINE_ITEM_STATUS_STYLES[normalizeLineItemStatus(form.status)] ||
+								defaultLineItemStatusStyle();
+							return (
+								<select
+									id="li-status"
+									name="status"
+									value={form.status}
+									onChange={
+										!isCreate && !editing ? handleStatusChange : handleChange
+									}
+									className="mt-2 h-11 w-full max-w-md rounded-lg border-2 px-4 py-2.5 text-sm font-semibold border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)]/40"
+									style={{
+										backgroundColor: st.bg,
+										borderColor: st.border,
+										color: "#0f172a",
+									}}
+								>
+									{LINE_ITEM_STATUSES.map((s) => (
+										<option key={s} value={s}>
+											{s}
+										</option>
+									))}
+								</select>
+							);
+						})()}
+						{!isCreate && !editing && (
+							<p className="text-xs text-gray-500 mt-1.5">
+								Click to change status — no need to open edit mode.
 							</p>
-						) : (
-							<select
-								id="li-status"
-								name="status"
-								value={form.status}
-								onChange={handleChange}
-								className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300"
-							>
-								{LINE_ITEM_STATUSES.map((s) => (
-									<option key={s} value={s}>
-										{s}
-									</option>
-								))}
-							</select>
 						)}
 					</div>
 

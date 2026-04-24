@@ -48,7 +48,14 @@ function PlatformBadge({ platform }) {
  * @param {string[]} props.errors — optional error messages
  * @param {'google'|'facebook'} props.platform
  */
-export default function AdsPerformanceTable({ rows = [], loading = false, errors = [], platform = "google" }) {
+export default function AdsPerformanceTable({
+    rows = [],
+    loading = false,
+    errors = [],
+    platform = "google",
+    /** Pre-fills the search box (e.g. from ?adSearch= campaign planner deep link) */
+    initialSearch = "",
+}) {
     const [search, setSearch] = useState("");
     const [sortKey, setSortKey] = useState("revenue");
     const [sortDir, setSortDir] = useState("desc");
@@ -74,6 +81,12 @@ export default function AdsPerformanceTable({ rows = [], loading = false, errors
     /** At most two pages: page size = ceil(n/2) for n ≥ 1 */
     const pageSize = totalCount <= 0 ? 1 : Math.max(1, Math.ceil(totalCount / 2));
     const totalPages = totalCount <= 0 ? 1 : Math.ceil(totalCount / pageSize);
+
+    useEffect(() => {
+        if (typeof initialSearch === "string" && initialSearch.trim()) {
+            setSearch(initialSearch);
+        }
+    }, [initialSearch]);
 
     useEffect(() => {
         setPage(1);

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { FiChevronDown, FiChevronUp, FiX } from "react-icons/fi";
+import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
 import {
@@ -199,30 +200,35 @@ export default function ParentCampaignModal({
             </label>
           </div>
 
-          <div>
-            <FormLabel htmlFor="v2-startDate">Start date</FormLabel>
-            <input
-              id="v2-startDate"
-              type="date"
-              name="startDate"
-              value={form.startDate}
-              onChange={handleChange}
-              className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20"
-            />
-          </div>
-
-          <div>
-            <FormLabel htmlFor="v2-endDate">End date</FormLabel>
-            <input
-              id="v2-endDate"
-              type="date"
-              name="endDate"
-              value={form.endDate}
-              onChange={handleChange}
-              disabled={form.alwaysOn}
-              className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20 disabled:bg-gray-100"
-            />
-          </div>
+          {form.alwaysOn ? (
+            <div className="md:col-span-2">
+              <FormLabel htmlFor="v2-startDate-ao">Start date (always on)</FormLabel>
+              <input
+                id="v2-startDate-ao"
+                type="date"
+                name="startDate"
+                value={form.startDate}
+                onChange={handleChange}
+                className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20"
+              />
+            </div>
+          ) : (
+            <div className="md:col-span-2">
+              <FormLabel>Schedule (same date range control as in Apex / Overview)</FormLabel>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <DateRangePicker
+                  usePortal
+                  onApply={() => {}}
+                  startDate={form.startDate}
+                  endDate={form.endDate}
+                  onStartDateChange={(v) =>
+                    setForm((p) => ({ ...p, startDate: v }))
+                  }
+                  onEndDateChange={(v) => setForm((p) => ({ ...p, endDate: v }))}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="md:col-span-2">
             <FormLabel htmlFor="v2-materialLink">Link to material</FormLabel>

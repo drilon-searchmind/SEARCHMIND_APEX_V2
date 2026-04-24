@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import DashboardHeading from '@/components/dashboard/DashboardHeading';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import MetricCard from '@/components/dashboard/MetricCard';
@@ -51,6 +51,9 @@ const defaultRange = () => {
 
 export default function SEODashboardPage() {
     const params = useParams();
+    const searchParams = useSearchParams();
+    const rangeStartQ = searchParams.get('startDate');
+    const rangeEndQ = searchParams.get('endDate');
     const customerId = params.customerId;
     const defaultRangeValue = defaultRange();
     const [tempRange, setTempRange] = useState(defaultRangeValue);
@@ -68,6 +71,14 @@ export default function SEODashboardPage() {
             setSelectedMetrics(['clicks']);
         }
     }, [selectedMetrics]);
+
+    useEffect(() => {
+        if (rangeStartQ && rangeEndQ) {
+            setTempRange({ startDate: rangeStartQ, endDate: rangeEndQ });
+            setAppliedRange({ startDate: rangeStartQ, endDate: rangeEndQ });
+        }
+    }, [rangeStartQ, rangeEndQ]);
+
     const [siteUrl, setSiteUrl] = useState('');
 
     // Keyword filtering state
