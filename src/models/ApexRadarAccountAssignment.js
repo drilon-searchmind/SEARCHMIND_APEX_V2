@@ -17,6 +17,14 @@ const ApexRadarAccountAssignmentSchema = new mongoose.Schema(
             type: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
             default: [],
         },
+        /**
+         * ClickUp member IDs excluded from the Paid Social roster default for Apex Radar (Facebook/PS channel).
+         * Empty = nobody excluded → full PS roster behaves as assigned.
+         */
+        clickUpExcludedMemberIds: {
+            type: [String],
+            default: [],
+        },
         updatedAt: {
             type: Date,
             default: Date.now,

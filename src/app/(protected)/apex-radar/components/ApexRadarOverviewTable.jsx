@@ -3,7 +3,7 @@
 import React from "react";
 import { FiSettings } from "react-icons/fi";
 import Spinner from "@/components/ui/Spinner";
-import { formatAssignedUsersList } from "../lib/mockOverviewData";
+import { formatApexRadarTeamAssignmentLabel } from "@/lib/apexRadarTeamAssignmentsFormat";
 
 const COL_COUNT = 21;
 
@@ -100,7 +100,8 @@ function TableHead() {
 
 export default function ApexRadarOverviewTable({
     rows,
-    assignmentMap = {},
+    assignmentDetailMap = {},
+    customersById = {},
     onAssignClick,
     onApexSettingsClick,
     assignableUsers = [],
@@ -143,8 +144,16 @@ export default function ApexRadarOverviewTable({
                         ) : (
                             rows.map((row) => {
                                 const a = row.alerts || {};
-                                const assignedIds = assignmentMap[row.id] || [];
-                                const teamLabel = formatAssignedUsersList(assignedIds, assignableUsers);
+                                const detail = assignmentDetailMap[row.id] || {
+                                    userIds: [],
+                                    excludedClickUpMemberIds: [],
+                                };
+                                const cust = customersById[row.id] || null;
+                                const teamLabel = formatApexRadarTeamAssignmentLabel(
+                                    detail,
+                                    cust,
+                                    assignableUsers
+                                );
                                 const valueIsConversions = row.targets?.targetType === "CPA";
                                 const fmtValueMetric = (n) => (valueIsConversions ? fmtInt(n) : fmtMoney(n));
                                 return (

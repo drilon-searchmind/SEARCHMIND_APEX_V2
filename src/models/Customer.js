@@ -301,6 +301,38 @@ const CustomerSchema = new mongoose.Schema({
             },
         },
     },
+    /**
+     * Cached ClickUp roster + services flags (bulk-sync from CLI/API; Apex Radar reads this to avoid per-customer live calls).
+     * Live GET /api/clickup-team-members/[id] unchanged for dashboards.
+     */
+    customerTeam: {
+        members: {
+            type: [
+                {
+                    id: mongoose.Schema.Types.Mixed,
+                    username: { type: String, default: "" },
+                    email: { type: String, default: null },
+                    service: { type: String, default: "" },
+                    avatar: { type: String, default: null },
+                },
+            ],
+            default: undefined,
+        },
+        customerServices: {
+            type: [
+                {
+                    key: { type: String },
+                    label: { type: String },
+                    optionId: { type: String },
+                    active: { type: Boolean },
+                },
+            ],
+            default: undefined,
+        },
+        syncedAt: { type: Date },
+        lastSyncAttemptAt: { type: Date },
+        lastSyncError: { type: String, default: null },
+    },
 });
 
 export default mongoose.models.Customer || mongoose.model('Customer', CustomerSchema);

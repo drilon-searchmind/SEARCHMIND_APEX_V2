@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { FiInfo, FiSearch } from "react-icons/fi";
+import { FiInfo, FiRefreshCw, FiSearch } from "react-icons/fi";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import ApexRadarOverviewTable from "../components/ApexRadarOverviewTable";
 import ApexRadarAssignUsersModal from "../components/ApexRadarAssignUsersModal";
 import ApexRadarFacebookSettingsModal from "../components/ApexRadarFacebookSettingsModal";
+import ApexRadarCustomerTeamResyncModal from "../components/ApexRadarCustomerTeamResyncModal";
 import ApexRadarOverviewMetricsInfoModal from "../components/ApexRadarOverviewMetricsInfoModal";
 import { buildCustomerOverviewRow } from "../lib/mockOverviewData";
 import { APEX_RADAR_CHANNEL_FACEBOOK, APEX_RADAR_CHANNEL_META } from "@/lib/apexRadarChannels";
@@ -55,8 +56,17 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
     const [fbOverviewRefreshKey, setFbOverviewRefreshKey] = useState(0);
     const [metricsInfoOpen, setMetricsInfoOpen] = useState(false);
     const [customerSearch, setCustomerSearch] = useState("");
+    const [resyncTeamOpen, setResyncTeamOpen] = useState(false);
 
-    const { assignmentMap, assignmentsLoading, setAssignmentsForAccount } = useApexRadarAssignments(channel);
+    const { assignmentDetailMap, assignmentsLoading, setAssignmentsForAccount } = useApexRadarAssignments(channel);
+
+    const customersById = useMemo(() => {
+        const m = {};
+        for (const c of customers || []) {
+            m[String(c._id)] = c;
+        }
+        return m;
+    }, [customers]);
 
     const [fbRows, setFbRows] = useState(null);
     const [fbLoading, setFbLoading] = useState(false);
@@ -137,7 +147,9 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
         let list =
             userFilter === "all"
                 ? facebookOverviewRows
-                : facebookOverviewRows.filter((r) => (assignmentMap[r.id] || []).includes(userFilter));
+                : facebookOverviewRows.filter((r) =>
+                    (assignmentDetailMap[r.id]?.userIds || []).includes(userFilter)
+                );
 
         if (customerId) {
             const idStr = String(customerId);
@@ -161,7 +173,7 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
         }
 
         return list;
-    }, [isFacebook, userFilter, customerId, customer, assignmentMap, facebookOverviewRows, customerSearch]);
+    }, [isFacebook, userFilter, customerId, customer, assignmentDetailMap, facebookOverviewRows, customerSearch]);
 
     /** Empty body while Meta overview is loading (first fetch); avoids placeholder dashes under the spinner. */
     const tableRowsForDisplay = useMemo(() => {
@@ -219,32 +231,53 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                                         Filter by who is assigned to each account (use + under Team members).
                                     </p>
                                 </div>
-                                <div className="w-full sm:flex-1 sm:min-w-[200px] sm:max-w-md">
-                                    <label
-                                        htmlFor="apex-radar-customer-search"
-                                        className="block text-xs font-semibold text-gray-500 mb-1.5"
-                                    >
-                                        Search customers
-                                    </label>
-                                    <div className="relative">
-                                        <FiSearch
-                                            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-                                            aria-hidden
-                                        />
-                                        <input
-                                            id="apex-radar-customer-search"
-                                            type="search"
-                                            value={customerSearch}
-                                            onChange={(e) => setCustomerSearch(e.target.value)}
-                                            placeholder="Search properties…"
-                                            autoComplete="off"
-                                            className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[var(--color-primary-searchmind-lighter)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind-lighter)]/30"
-                                            aria-label="Search customers"
-                                        />
+                                <div className="w-full sm:flex-1 sm:min-w-[200px] sm:max-w-md flex flex-col sm:flex-row gap-3 sm:items-end">
+                                    <div className="flex-1 min-w-0 flex flex-col">
+                                        <label
+                                            htmlFor="apex-radar-customer-search"
+                                            className="block text-xs font-semibold text-gray-500 mb-1.5"
+                                        >
+                                            Search customers
+                                        </label>
+                                        <div className="relative">
+                                            <FiSearch
+                                                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                                                aria-hidden
+                                            />
+                                            <input
+                                                id="apex-radar-customer-search"
+                                                type="search"
+                                                value={customerSearch}
+                                                onChange={(e) => setCustomerSearch(e.target.value)}
+                                                placeholder="Search properties…"
+                                                autoComplete="off"
+                                                className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[var(--color-primary-searchmind-lighter)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind-lighter)]/30"
+                                                aria-label="Search customers"
+                                            />
+                                        </div>
+                                        <p className="text-[0.7rem] text-gray-400 mt-1.5">
+                                            Search for customers by name or ID.
+                                        </p>
                                     </div>
-                                    <p className="text-[0.7rem] text-gray-400 mt-1.5">
-                                        Search for customers by name or ID.
-                                    </p>
+                                    <div className="flex-1 min-w-0 flex flex-col">
+                                        <label
+                                            htmlFor="apex-radar-customer-search"
+                                            className="block text-xs font-semibold text-gray-500 mb-1.5"
+                                        >
+                                            Resync users
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setResyncTeamOpen(true)}
+                                            className="shrink-0 inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800  hover:border-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] bg-[var(--color-primary-searchmind)] text-white"
+                                        >
+                                            <FiRefreshCw className="h-4 w-4 text-white" aria-hidden />
+                                            Re-sync members
+                                        </button>
+                                        <p className="text-[0.7rem] text-gray-400 mt-1.5">
+                                            Re-sync the users assigned to each account.
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                             <button
@@ -273,7 +306,8 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                         <ApexRadarOverviewTable
                             rows={tableRowsForDisplay}
                             loading={fbLoading}
-                            assignmentMap={assignmentMap}
+                            assignmentDetailMap={assignmentDetailMap}
+                            customersById={customersById}
                             assignableUsers={internalUsers}
                             onAssignClick={(row) => setAssignModalRow(row)}
                             onApexSettingsClick={(row) => setApexSettingsRow(row)}
@@ -293,13 +327,32 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
 
                     {assignModalRow ? (
                         <ApexRadarAssignUsersModal
+                            key={assignModalRow.id}
                             row={assignModalRow}
-                            selectedIds={assignmentMap[assignModalRow.id] || []}
+                            customer={customersById[assignModalRow.id]}
+                            assignment={
+                                assignmentDetailMap[assignModalRow.id] || {
+                                    userIds: [],
+                                    excludedClickUpMemberIds: [],
+                                }
+                            }
                             assignableUsers={internalUsers}
-                            onSave={(accountKey, userIds) => setAssignmentsForAccount(accountKey, userIds)}
+                            onSave={(accountKey, detail) =>
+                                setAssignmentsForAccount(accountKey, detail)
+                            }
                             onClose={() => setAssignModalRow(null)}
                         />
                     ) : null}
+
+                    <ApexRadarCustomerTeamResyncModal
+                        open={resyncTeamOpen}
+                        onClose={() => setResyncTeamOpen(false)}
+                        customers={customers}
+                        onSynced={async () => {
+                            fetchCustomers();
+                            setFbOverviewRefreshKey((k) => k + 1);
+                        }}
+                    />
 
                     {metricsInfoOpen ? (
                         <ApexRadarOverviewMetricsInfoModal onClose={() => setMetricsInfoOpen(false)} />

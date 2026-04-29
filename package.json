@@ -10,7 +10,8 @@
     "lint": "eslint",
     "google-ads-token": "node scripts/get-google-ads-refresh-token.js",
     "microsoft-ads-token": "node scripts/get-microsoft-ads-refresh-token.js",
-    "postmark:test-welcome": "node scripts/send-postmark-welcome-test.js"
+    "postmark:test-welcome": "node scripts/send-postmark-welcome-test.js",
+    "sync:customer-teams": "node scripts/sync-customer-teams-from-clickup.mjs"
   },
   "dependencies": {
     "@googleapis/searchconsole": "^6.0.1",
