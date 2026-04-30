@@ -26,28 +26,7 @@ import { useParams, usePathname } from "next/navigation";
 import SmallLabel from "../ui/SmallLabel";
 import { useUser } from "@/contexts/UserContext";
 import { useCustomers } from "@/hooks/useCustomers";
-
-/** Treats empty, "0", and "1" as missing/placeholder (per Customer settings). */
-function isValidIntegrationId(value) {
-    const s = String(value ?? "").trim();
-    if (!s) return false;
-    if (s === "0" || s === "1") return false;
-    return true;
-}
-
-function getServiceDashboardConfigWarnings(settings) {
-    const s = settings || {};
-    return {
-        seo: !isValidIntegrationId(s.googleSearchConsoleProperty),
-        ppc: !isValidIntegrationId(s.googleAdsCustomerId),
-        ps: !isValidIntegrationId(s.facebookAdAccountId),
-        pinterest: !isValidIntegrationId(s.pinterestAdAccountId),
-        bing: !(
-            isValidIntegrationId(s.bingAdsAccountId) && isValidIntegrationId(s.bingAdsCustomerId)
-        ),
-        em: !isValidIntegrationId(s.klaviyoPrivateApiKey),
-    };
-}
+import { getServiceDashboardConfigWarnings } from "@/lib/customerServiceIntegrations";
 
 function serviceDashboardWarningKeyForHref(href) {
     if (href.includes("service-dashboard/seo")) return "seo";

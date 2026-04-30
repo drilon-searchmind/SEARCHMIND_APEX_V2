@@ -2,9 +2,10 @@
 
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
-import { FiDownload } from "react-icons/fi";
+import { FiDownload, FiClipboard } from "react-icons/fi";
 import { LuBrainCircuit } from "react-icons/lu";
 import AiAnalysisModal from "../ai-analysis/AiAnalysisModal";
+import RunAuditModal, { canUserRunAudit } from "./RunAuditModal";
 import PdfReportContent from "./PdfReportContent";
 import { useUser } from "@/contexts/UserContext";
 import { exportElementToPdf } from "@/lib/pdfExport";
@@ -23,10 +24,14 @@ export default function DashboardHeading({
     loading = false,
     showRight = true,
     showPdfExport = true,
+    showRunAudit = true,
 }) {
     const user = useUser();
     const [showAnalyzeWithAiModal, setShowAnalyzeWithAiModal] = useState(false);
     const [isExportingPdf, setIsExportingPdf] = useState(false);
+    const [runAuditOpen, setRunAuditOpen] = useState(false);
+
+    const auditEligible = Boolean(showRunAudit && customerId && canUserRunAudit(user));
 
     const handleOpenAiModal = () => {
         setShowAnalyzeWithAiModal(true);
@@ -88,48 +93,76 @@ export default function DashboardHeading({
                 </div>
 
                 {/* Right Section - Responsive */}
-                {(showRight && (right || showAnalyzeWithAi)) && (
-                    <div 
-                        className={`flex flex-col sm:flex-row md:items-center gap-3 md:gap-4 w-full md:w-auto ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                {(showRight &&
+                    (right || showAnalyzeWithAi || showPdfExport || auditEligible)) && (
+                    <div
+                        className={`flex flex-col lg:flex-row lg:items-end lg:justify-end gap-3 lg:gap-4 w-full lg:w-auto lg:min-w-0 lg:shrink-0 ${
+                            loading ? "opacity-50 cursor-not-allowed" : ""
+                        }`}
                     >
-                        {/* Right Component (DateRangePicker, buttons, etc.) */}
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                            {auditEligible && (
+                                <button
+                                    type="button"
+                                    onClick={() => setRunAuditOpen(true)}
+                                    disabled={loading}
+                                    className={`inline-flex shrink-0 items-center justify-center border border-[var(--color-primary-searchmind)] text-[var(--color-primary-searchmind)] py-2 px-4 text-xs rounded-lg gap-2 transition-colors bg-white shadow-none ${
+                                        loading ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"
+                                    }`}
+                                >
+                                    <FiClipboard className="text-base shrink-0" aria-hidden />
+                                    Run audit
+                                </button>
+                            )}
                             {showPdfExport && (
                                 <button
                                     type="button"
                                     onClick={handleExportPdf}
                                     disabled={loading || isExportingPdf}
-                                    className={`w-full shadow-none bg-[var(--color-primary-searchmind)] text-white py-2 px-4 text-xs rounded-lg flex items-center gap-2 transition-colors ${
+                                    className={`inline-flex shrink-0 items-center justify-center bg-[var(--color-primary-searchmind)] text-white py-2 px-4 text-xs rounded-lg gap-2 transition-colors shadow-none ${
                                         loading || isExportingPdf
                                             ? "opacity-50 cursor-not-allowed"
                                             : "hover:bg-[var(--color-primary-searchmind-hover)]"
                                     }`}
                                 >
-                                    <FiDownload className="text-base" />
+                                    <FiDownload className="text-base shrink-0" />
                                     {isExportingPdf ? "Exporting…" : "Export to PDF"}
                                 </button>
                             )}
                             {showAnalyzeWithAi && user?.isAdmin && (
-                                <div className="w-full h-full">
-                                    <button 
-                                        onClick={handleOpenAiModal}
-                                        disabled={loading}
-                                        className={`whitespace-nowrap w-full shadow-none bg-purple-50 border border-purple-500 text-purple-700 py-2 px-4 text-xs rounded-lg flex items-center gap-2 transition-colors ${
-                                            loading 
-                                                ? 'opacity-50 cursor-not-allowed hover:bg-purple-50' 
-                                                : 'hover:bg-purple-100'
-                                        }`}
-                                    >
-                                        <LuBrainCircuit className="text-base" />
-                                        Analyze with AI
-                                    </button>
-                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleOpenAiModal}
+                                    disabled={loading}
+                                    className={`inline-flex shrink-0 items-center justify-center whitespace-nowrap bg-purple-50 border border-purple-500 text-purple-700 py-2 px-4 text-xs rounded-lg gap-2 transition-colors shadow-none ${
+                                        loading
+                                            ? "opacity-50 cursor-not-allowed hover:bg-purple-50"
+                                            : "hover:bg-purple-100"
+                                    }`}
+                                >
+                                    <LuBrainCircuit className="text-base shrink-0" />
+                                    Analyze with AI
+                                </button>
                             )}
-                            {right}
                         </div>
+                        {right ? (
+                            <div className="flex flex-wrap items-end justify-end gap-2 min-w-0 w-full lg:w-auto">
+                                {right}
+                            </div>
+                        ) : null}
                     </div>
                 )}
             </div>
+
+            {auditEligible ? (
+                <RunAuditModal
+                    open={runAuditOpen}
+                    onClose={() => setRunAuditOpen(false)}
+                    customerId={customerId}
+                    dateRange={dateRange}
+                    dataSnapshot={dataSnapshot}
+                />
+            ) : null}
 
             {showAnalyzeWithAiModal && (
                 <AiAnalysisModal 
