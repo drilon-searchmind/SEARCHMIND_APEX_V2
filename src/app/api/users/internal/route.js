@@ -20,7 +20,7 @@ export async function GET() {
             isExternal: { $ne: true },
             isArchived: { $ne: true },
         })
-            .select("name image")
+            .select("name image clickupId")
             .sort({ name: 1 })
             .lean();
 
@@ -28,6 +28,7 @@ export async function GET() {
             id: String(u._id),
             name: u.name,
             image: u.image || null,
+            clickupId: (u.clickupId && String(u.clickupId).trim()) || "",
         }));
 
         return NextResponse.json(users);

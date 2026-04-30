@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { FiInfo, FiRefreshCw, FiSearch } from "react-icons/fi";
+import { FiChevronDown, FiInfo, FiRefreshCw, FiSearch } from "react-icons/fi";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import ApexRadarOverviewTable from "../components/ApexRadarOverviewTable";
@@ -14,6 +14,11 @@ import { APEX_RADAR_CHANNEL_FACEBOOK, APEX_RADAR_CHANNEL_META } from "@/lib/apex
 import { useCustomers } from "@/hooks/useCustomers";
 import { useInternalUsers } from "@/hooks/useInternalUsers";
 import { useApexRadarAssignments } from "../hooks/useApexRadarAssignments";
+import { getEffectiveApexRadarAssignmentUserIds } from "@/lib/apexRadarPaidSocialAssignments";
+import {
+    APEX_RADAR_SPEND_DOD_WARN_PCT_THRESHOLD,
+    meetsSpendDodThreshold,
+} from "@/lib/apexRadarFacebookOverview";
 
 function normName(s) {
     return String(s || "")
@@ -57,8 +62,13 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
     const [metricsInfoOpen, setMetricsInfoOpen] = useState(false);
     const [customerSearch, setCustomerSearch] = useState("");
     const [resyncTeamOpen, setResyncTeamOpen] = useState(false);
+    const [moreSettingsOpen, setMoreSettingsOpen] = useState(false);
+    /** Client-only DoD % threshold (session only; default matches server). */
+    const [spendDodThresholdDraft, setSpendDodThresholdDraft] = useState("-90");
+    const [dodVisibilityFilter, setDodVisibilityFilter] = useState("all");
 
-    const { assignmentDetailMap, assignmentsLoading, setAssignmentsForAccount } = useApexRadarAssignments(channel);
+    const { assignmentDetailMap, assignmentsLoading, setAssignmentsForAccount, refetchAssignments } =
+        useApexRadarAssignments(channel);
 
     const customersById = useMemo(() => {
         const m = {};
@@ -141,15 +151,33 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
         [internalUsers]
     );
 
-    const filteredRows = useMemo(() => {
+    const normalizedDodDraft = String(spendDodThresholdDraft).trim().replace(",", ".");
+    let spendDodThresholdPct = APEX_RADAR_SPEND_DOD_WARN_PCT_THRESHOLD;
+    if (
+        normalizedDodDraft !== "" &&
+        normalizedDodDraft !== "-" &&
+        normalizedDodDraft !== "+"
+    ) {
+        const parsed = Number.parseFloat(normalizedDodDraft);
+        if (Number.isFinite(parsed)) spendDodThresholdPct = parsed;
+    }
+
+    const filteredRows = (() => {
         if (!isFacebook) return [];
 
         let list =
             userFilter === "all"
                 ? facebookOverviewRows
-                : facebookOverviewRows.filter((r) =>
-                    (assignmentDetailMap[r.id]?.userIds || []).includes(userFilter)
-                );
+                : facebookOverviewRows.filter((r) => {
+                      const cust = customersById[r.id];
+                      const detail = assignmentDetailMap[r.id] || {
+                          userIds: [],
+                          paidSocialExcludedUserIds: [],
+                      };
+                      return getEffectiveApexRadarAssignmentUserIds(detail, cust, internalUsers).includes(
+                          userFilter
+                      );
+                  });
 
         if (customerId) {
             const idStr = String(customerId);
@@ -172,8 +200,12 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
             });
         }
 
+        if (dodVisibilityFilter === "alerts") {
+            list = list.filter((r) => meetsSpendDodThreshold(r, spendDodThresholdPct));
+        }
+
         return list;
-    }, [isFacebook, userFilter, customerId, customer, assignmentDetailMap, facebookOverviewRows, customerSearch]);
+    })();
 
     /** Empty body while Meta overview is loading (first fetch); avoids placeholder dashes under the spinner. */
     const tableRowsForDisplay = useMemo(() => {
@@ -260,14 +292,16 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                                         </p>
                                     </div>
                                     <div className="flex-1 min-w-0 flex flex-col">
-                                        <label
-                                            htmlFor="apex-radar-customer-search"
+                                        <span
                                             className="block text-xs font-semibold text-gray-500 mb-1.5"
+                                            id="apex-radar-resync-label"
                                         >
-                                            Resync users
-                                        </label>
+                                            Re-sync ClickUp teams
+                                        </span>
                                         <button
                                             type="button"
+                                            id="apex-radar-resync-button"
+                                            aria-labelledby="apex-radar-resync-label"
                                             onClick={() => setResyncTeamOpen(true)}
                                             className="shrink-0 inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800  hover:border-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] bg-[var(--color-primary-searchmind)] text-white"
                                         >
@@ -275,7 +309,7 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                                             Re-sync members
                                         </button>
                                         <p className="text-[0.7rem] text-gray-400 mt-1.5">
-                                            Re-sync the users assigned to each account.
+                                            Resync ClickUp.
                                         </p>
                                     </div>
                                 </div>
@@ -289,6 +323,99 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                             >
                                 <FiInfo className="h-4 w-4" aria-hidden />
                             </button>
+                        </div>
+
+                        <div className="mt-4 border-t border-gray-100 pt-2">
+                            <button
+                                type="button"
+                                id="apex-radar-more-settings-trigger"
+                                aria-expanded={moreSettingsOpen}
+                                aria-controls="apex-radar-more-settings-panel"
+                                onClick={() => setMoreSettingsOpen((o) => !o)}
+                                className="flex w-full items-center justify-between gap-2 rounded-lg px-1 py-2 text-left text-sm font-semibold text-gray-700 outline-none transition hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)]"
+                            >
+                                <span>More settings</span>
+                                <FiChevronDown
+                                    className={`h-4 w-4 shrink-0 text-gray-500 transition-transform ${moreSettingsOpen ? "rotate-180" : ""}`}
+                                    aria-hidden
+                                />
+                            </button>
+                            {moreSettingsOpen ? (
+                                <div
+                                    id="apex-radar-more-settings-panel"
+                                    role="region"
+                                    aria-labelledby="apex-radar-more-settings-trigger"
+                                    className="mt-2 rounded-lg border border-gray-100 bg-gray-50/80 p-4"
+                                >
+                                    <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+                                        <div className="min-w-0 flex-1 sm:max-w-xs">
+                                            <label
+                                                htmlFor="apex-radar-dod-threshold"
+                                                className="mb-1.5 block text-xs font-semibold text-gray-500"
+                                            >
+                                                DoD spend alert threshold (% change)
+                                            </label>
+                                            <input
+                                                id="apex-radar-dod-threshold"
+                                                type="text"
+                                                inputMode="decimal"
+                                                value={spendDodThresholdDraft}
+                                                onChange={(e) => setSpendDodThresholdDraft(e.target.value)}
+                                                placeholder="-90"
+                                                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[var(--color-primary-searchmind-lighter)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind-lighter)]/30"
+                                                aria-describedby="apex-radar-dod-threshold-hint"
+                                            />
+                                            <p
+                                                id="apex-radar-dod-threshold-hint"
+                                                className="mt-1.5 text-[0.7rem] text-gray-400"
+                                            >
+                                                Highlights when day-over-day change is at or below this value
+                                            </p>
+                                        </div>
+                                        <div className="min-w-0 shrink-0 sm:min-w-[220px]">
+                                            <span
+                                                className="mb-1.5 block text-xs font-semibold text-gray-500"
+                                                id="apex-radar-dod-view-label"
+                                            >
+                                                Spend DoD view
+                                            </span>
+                                            <div
+                                                role="group"
+                                                aria-labelledby="apex-radar-dod-view-label"
+                                                className="inline-flex rounded-lg border border-gray-200 bg-gray-100 p-0.5 shadow-inner"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDodVisibilityFilter("all")}
+                                                    aria-pressed={dodVisibilityFilter === "all"}
+                                                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] ${
+                                                        dodVisibilityFilter === "all"
+                                                            ? "bg-white text-gray-900 shadow-sm"
+                                                            : "text-gray-600 hover:text-gray-800"
+                                                    }`}
+                                                >
+                                                    All
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDodVisibilityFilter("alerts")}
+                                                    aria-pressed={dodVisibilityFilter === "alerts"}
+                                                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] ${
+                                                        dodVisibilityFilter === "alerts"
+                                                            ? "bg-white text-gray-900 shadow-sm"
+                                                            : "text-gray-600 hover:text-gray-800"
+                                                    }`}
+                                                >
+                                                    Meets threshold
+                                                </button>
+                                            </div>
+                                            <p className="mt-1.5 text-[0.7rem] text-gray-400">
+                                                Show every account or only those at or below the threshold above.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : null}
                         </div>
                     </div>
 
@@ -309,6 +436,7 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                             assignmentDetailMap={assignmentDetailMap}
                             customersById={customersById}
                             assignableUsers={internalUsers}
+                            spendDodThresholdPct={spendDodThresholdPct}
                             onAssignClick={(row) => setAssignModalRow(row)}
                             onApexSettingsClick={(row) => setApexSettingsRow(row)}
                         />
@@ -327,13 +455,13 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
 
                     {assignModalRow ? (
                         <ApexRadarAssignUsersModal
-                            key={assignModalRow.id}
+                            key={`assign-${assignModalRow.id}_${(assignmentDetailMap[assignModalRow.id]?.userIds || []).join("-")}_${(assignmentDetailMap[assignModalRow.id]?.paidSocialExcludedUserIds || []).join("-")}_${internalUsers.length}`}
                             row={assignModalRow}
                             customer={customersById[assignModalRow.id]}
                             assignment={
                                 assignmentDetailMap[assignModalRow.id] || {
                                     userIds: [],
-                                    excludedClickUpMemberIds: [],
+                                    paidSocialExcludedUserIds: [],
                                 }
                             }
                             assignableUsers={internalUsers}
@@ -350,6 +478,11 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                         customers={customers}
                         onSynced={async () => {
                             fetchCustomers();
+                            try {
+                                await refetchAssignments();
+                            } catch (e) {
+                                console.error("refetchAssignments:", e);
+                            }
                             setFbOverviewRefreshKey((k) => k + 1);
                         }}
                     />

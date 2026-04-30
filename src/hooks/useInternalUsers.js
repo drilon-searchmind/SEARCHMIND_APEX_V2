@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 
 /**
  * Loads internal (non-external) users for Apex Radar and similar UIs.
- * @returns {{ internalUsers: Array<{ id: string, name: string, image?: string|null }>, loading: boolean, error: string|null }}
+ * @returns {{
+ *   internalUsers: Array<{ id: string, name: string, image?: string|null, clickupId: string }>,
+ *   loading: boolean,
+ *   error: string|null
+ * }}
  */
 export function useInternalUsers() {
     const [internalUsers, setInternalUsers] = useState([]);

@@ -3,8 +3,47 @@
 import { useCallback, useEffect, useState } from "react";
 
 /**
- * @typedef {{ userIds: string[], excludedClickUpMemberIds: string[] }} ApexRadarAssignmentDetail
+ * @typedef {{ userIds: string[], paidSocialExcludedUserIds: string[] }} ApexRadarAssignmentDetail
  */
+
+/**
+ * @param {object} parsed
+ * @param {unknown} parsed.assignments
+ * @returns {Record<string, ApexRadarAssignmentDetail>}
+ */
+function normalizeAssignmentsPayload(assignmentsRaw) {
+    /** @type {Record<string, ApexRadarAssignmentDetail>} */
+    const next = {};
+    if (!assignmentsRaw || typeof assignmentsRaw !== "object" || Array.isArray(assignmentsRaw)) {
+        return next;
+    }
+    for (const [key, entry] of Object.entries(assignmentsRaw)) {
+        const oid = String(key || "").trim();
+        if (!oid) continue;
+
+        /** @type {ApexRadarAssignmentDetail} */
+        let normalized;
+
+        if (Array.isArray(entry)) {
+            normalized = {
+                userIds: entry.map((x) => String(x)).filter(Boolean),
+                paidSocialExcludedUserIds: [],
+            };
+        } else if (entry && typeof entry === "object") {
+            const u = entry.userIds;
+            const exPs = entry.paidSocialExcludedUserIds;
+            normalized = {
+                userIds: Array.isArray(u) ? u.map((x) => String(x)).filter(Boolean) : [],
+                paidSocialExcludedUserIds: Array.isArray(exPs)
+                    ? exPs.map((x) => String(x)).filter(Boolean)
+                    : [],
+            };
+        } else continue;
+
+        next[oid] = normalized;
+    }
+    return next;
+}
 
 /**
  * @param {string} channel
@@ -13,6 +52,7 @@ import { useCallback, useEffect, useState } from "react";
  *   assignmentsLoading: boolean,
  *   assignmentsError: string | null,
  *   setAssignmentsForAccount: (accountKey: string, detail: ApexRadarAssignmentDetail) => Promise<void>,
+ *   refetchAssignments: () => Promise<void>,
  * }}
  */
 export function useApexRadarAssignments(channel) {
@@ -22,6 +62,19 @@ export function useApexRadarAssignments(channel) {
     const [assignmentsError, setAssignmentsError] = useState(null);
 
     const ch = String(channel || "").trim();
+
+    const refetchAssignments = useCallback(async () => {
+        if (!ch) {
+            setAssignmentDetailMap({});
+            return;
+        }
+        const res = await fetch(`/api/apex-radar/assignments?channel=${encodeURIComponent(ch)}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(data.error || "Failed to load assignments");
+        }
+        setAssignmentDetailMap(normalizeAssignmentsPayload(data.assignments));
+    }, [ch]);
 
     useEffect(() => {
         if (!ch) {
@@ -36,44 +89,8 @@ export function useApexRadarAssignments(channel) {
             try {
                 setAssignmentsLoading(true);
                 setAssignmentsError(null);
-                const res = await fetch(`/api/apex-radar/assignments?channel=${encodeURIComponent(ch)}`);
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok) {
-                    throw new Error(data.error || "Failed to load assignments");
-                }
+                await refetchAssignments();
                 if (cancelled) return;
-                const raw = data.assignments;
-                /** @type {Record<string, ApexRadarAssignmentDetail>} */
-                const next = {};
-                if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-                    for (const [key, entry] of Object.entries(raw)) {
-                        const oid = String(key || "").trim();
-                        if (!oid) continue;
-
-                        /** @type {{ userIds?: unknown, excludedClickUpMemberIds?: unknown }} */
-                        const normalized = {};
-
-                        /** Old shape Record<customerId, string[]> */
-                        if (Array.isArray(entry)) {
-                            normalized.userIds = entry.map((x) => String(x)).filter(Boolean);
-                            normalized.excludedClickUpMemberIds = [];
-                        } else if (entry && typeof entry === "object") {
-                            const u = entry.userIds;
-                            const ex = entry.excludedClickUpMemberIds;
-                            normalized.userIds = Array.isArray(u)
-                                ? u.map((x) => String(x)).filter(Boolean)
-                                : [];
-                            normalized.excludedClickUpMemberIds = Array.isArray(ex)
-                                ? ex.map((x) => String(x)).filter(Boolean)
-                                : [];
-                        } else continue;
-
-                        next[oid] = normalized;
-                    }
-                    setAssignmentDetailMap(next);
-                } else {
-                    setAssignmentDetailMap({});
-                }
             } catch (e) {
                 if (!cancelled) {
                     setAssignmentsError(e?.message || "Failed to load assignments");
@@ -87,7 +104,7 @@ export function useApexRadarAssignments(channel) {
         return () => {
             cancelled = true;
         };
-    }, [ch]);
+    }, [ch, refetchAssignments]);
 
     const setAssignmentsForAccount = useCallback(
         async (accountKey, detail) => {
@@ -96,8 +113,8 @@ export function useApexRadarAssignments(channel) {
             const userIds = Array.from(
                 new Set((detail?.userIds || []).map((x) => String(x)).filter(Boolean))
             );
-            const excludedClickUpMemberIds = Array.from(
-                new Set((detail?.excludedClickUpMemberIds || []).map((x) => String(x)).filter(Boolean))
+            const paidSocialExcludedUserIds = Array.from(
+                new Set((detail?.paidSocialExcludedUserIds || []).map((x) => String(x)).filter(Boolean))
             );
             try {
                 const res = await fetch("/api/apex-radar/assignments", {
@@ -107,7 +124,7 @@ export function useApexRadarAssignments(channel) {
                         channel: ch,
                         customerId: key,
                         userIds,
-                        excludedClickUpMemberIds,
+                        paidSocialExcludedUserIds,
                     }),
                 });
                 const data = await res.json().catch(() => ({}));
@@ -120,13 +137,14 @@ export function useApexRadarAssignments(channel) {
                         ? data.userIds.map((x) => String(x)).filter(Boolean)
                         : userIds;
                     const savedEx =
-                        data.excludedClickUpMemberIds != null && Array.isArray(data.excludedClickUpMemberIds)
-                            ? data.excludedClickUpMemberIds.map((x) => String(x)).filter(Boolean)
-                            : excludedClickUpMemberIds;
+                        data.paidSocialExcludedUserIds != null &&
+                        Array.isArray(data.paidSocialExcludedUserIds)
+                            ? data.paidSocialExcludedUserIds.map((x) => String(x)).filter(Boolean)
+                            : paidSocialExcludedUserIds;
 
                     const empty = savedUserIds.length === 0 && savedEx.length === 0;
                     if (empty) delete n[key];
-                    else n[key] = { userIds: savedUserIds, excludedClickUpMemberIds: savedEx };
+                    else n[key] = { userIds: savedUserIds, paidSocialExcludedUserIds: savedEx };
                     return n;
                 });
             } catch (e) {
@@ -136,5 +154,11 @@ export function useApexRadarAssignments(channel) {
         [ch]
     );
 
-    return { assignmentDetailMap, assignmentsLoading, assignmentsError, setAssignmentsForAccount };
+    return {
+        assignmentDetailMap,
+        assignmentsLoading,
+        assignmentsError,
+        setAssignmentsForAccount,
+        refetchAssignments,
+    };
 }

@@ -408,6 +408,62 @@ export function computeDateWindows(startDate, endDate) {
     };
 }
 
+/** UTC calendar “today” and the two preceding days (insights date_start alignment). */
+export function getUtcCalendarSpendDodRange() {
+    const utcToday = new Date().toISOString().slice(0, 10);
+    return {
+        utcToday,
+        calendarYesterday: addDaysIso(utcToday, -1),
+        calendarDayBeforeYesterday: addDaysIso(utcToday, -2),
+    };
+}
+
+/** Day-over-day spend warning: alert when pctChangeFromPrior ≤ this value (default −90 = at least ~90% drop vs prior). */
+export const APEX_RADAR_SPEND_DOD_WARN_PCT_THRESHOLD = -90;
+
+/**
+ * Row meets the DoD threshold when % change from prior UTC day to yesterday is at or below threshold (e.g. −90%).
+ */
+export function meetsSpendDodThreshold(row, thresholdPct = APEX_RADAR_SPEND_DOD_WARN_PCT_THRESHOLD) {
+    const p = row?.spendDayOverDay?.pctChangeFromPrior;
+    if (p == null || !Number.isFinite(p)) return false;
+    return p <= thresholdPct;
+}
+
+/**
+ * Percent change from prior UTC day to yesterday: ((yesterday − prior) / prior) × 100.
+ * Warn when pctChangeFromPrior is below {@link APEX_RADAR_SPEND_DOD_WARN_PCT_THRESHOLD} (more than a 90% drop by default).
+ */
+export function computeSpendDayOverDayFromDaily(dailyRows) {
+    const { calendarYesterday: y, calendarDayBeforeYesterday: d2 } = getUtcCalendarSpendDodRange();
+    const rowY = (dailyRows || []).find((d) => d.date_start === y);
+    const rowD2 = (dailyRows || []).find((d) => d.date_start === d2);
+    const spendYesterday = rowY != null ? parseFloat(rowY.spend || 0) : null;
+    const spendDayBeforeYesterday = rowD2 != null ? parseFloat(rowD2.spend || 0) : null;
+
+    let pctChangeFromPrior = null;
+    if (
+        spendDayBeforeYesterday != null &&
+        spendDayBeforeYesterday > 0 &&
+        spendYesterday != null
+    ) {
+        pctChangeFromPrior =
+            ((spendYesterday - spendDayBeforeYesterday) / spendDayBeforeYesterday) * 100;
+    }
+
+    const warnDrop =
+        pctChangeFromPrior != null && pctChangeFromPrior <= APEX_RADAR_SPEND_DOD_WARN_PCT_THRESHOLD;
+
+    return {
+        calendarYesterday: y,
+        calendarDayBeforeYesterday: d2,
+        spendYesterday,
+        spendDayBeforeYesterday,
+        pctChangeFromPrior,
+        warnDrop,
+    };
+}
+
 async function postFacebookBatch(accessToken, batchItems) {
     const form = new URLSearchParams();
     form.set("access_token", accessToken);
@@ -542,6 +598,9 @@ async function runInsightsJobs(accessToken, jobs) {
 
 function rollCustomerWindows(customer, startDate, endDate, daily, weeklyPeriodRows = null) {
     const w = computeDateWindows(startDate, endDate);
+    const dodRef = getUtcCalendarSpendDodRange();
+    const effFetchUntil = maxIso(w.fetchUntil, dodRef.calendarYesterday);
+    const effFetchSince = minIso(w.fetchSince, dodRef.calendarDayBeforeYesterday);
     const r2 = rollupDaily(daily, w.win2.from, w.win2.to);
     const r7 = rollupDaily(daily, w.win7.from, w.win7.to);
     const r30 = rollupDaily(daily, w.win30.from, w.win30.to);
@@ -550,7 +609,11 @@ function rollCustomerWindows(customer, startDate, endDate, daily, weeklyPeriodRo
 
     const endRow = daily.find((d) => d.date_start === endDate);
     const spendOnEndDate =
-        endRow != null ? parseFloat(endRow.spend || 0) : endDate <= w.fetchUntil && endDate >= w.fetchSince ? 0 : null;
+        endRow != null
+            ? parseFloat(endRow.spend || 0)
+            : endDate <= effFetchUntil && endDate >= effFetchSince
+              ? 0
+              : null;
 
     const apex = getFacebookApexRadarSettings(customer);
     let minExpected7d;
@@ -573,7 +636,8 @@ function rollCustomerWindows(customer, startDate, endDate, daily, weeklyPeriodRo
         win7: w.win7,
         win30: w.win30,
     });
-    return row;
+    const spendDayOverDay = computeSpendDayOverDayFromDaily(daily);
+    return { ...row, spendDayOverDay };
 }
 
 /**
@@ -588,6 +652,7 @@ function rollCustomerWindows(customer, startDate, endDate, daily, weeklyPeriodRo
  */
 function placeholderRowNoAdAccount(customer, startDate, endDate) {
     const w = computeDateWindows(startDate, endDate);
+    const dod = getUtcCalendarSpendDodRange();
     const id = String(customer._id);
     const apexSlice = buildFacebookOverviewApexOnlySlice(customer);
     return {
@@ -612,6 +677,14 @@ function placeholderRowNoAdAccount(customer, startDate, endDate) {
         },
         alerts: apexSlice.alerts,
         customerApexRadarSettings: customer.customerApexRadarSettings || { facebook: {} },
+        spendDayOverDay: {
+            calendarYesterday: dod.calendarYesterday,
+            calendarDayBeforeYesterday: dod.calendarDayBeforeYesterday,
+            spendYesterday: null,
+            spendDayBeforeYesterday: null,
+            pctChangeFromPrior: null,
+            warnDrop: false,
+        },
         apexRadarMeta: {
             channel: "facebook",
             skipReason: "no_ad_account",
@@ -636,6 +709,10 @@ export async function fetchApexRadarFacebookOverviewRows({
     }
 
     const windows = computeDateWindows(startDate, endDate);
+    const dod = getUtcCalendarSpendDodRange();
+    const fetchUntilExtended = maxIso(windows.fetchUntil, dod.calendarYesterday);
+    const fetchSinceExtended = minIso(windows.fetchSince, dod.calendarDayBeforeYesterday);
+
     const byCustomerId = new Map();
     const jobs = [];
 
@@ -661,8 +738,8 @@ export async function fetchApexRadarFacebookOverviewRows({
 
         const relativeUrl = buildAccountInsightsRelativeUrl(
             adId,
-            windows.fetchSince,
-            windows.fetchUntil,
+            fetchSinceExtended,
+            fetchUntilExtended,
             metaIdInclude,
             metaIdExclude
         );
@@ -670,7 +747,7 @@ export async function fetchApexRadarFacebookOverviewRows({
         const weeklyRelativeUrl = buildAccountInsightsWeeklyRelativeUrl(
             adId,
             windows.weeklyFloorsSince,
-            windows.fetchUntil,
+            fetchUntilExtended,
             metaIdInclude,
             metaIdExclude
         );

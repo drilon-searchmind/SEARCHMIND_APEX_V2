@@ -7,6 +7,10 @@ import {
     buildOverviewRowFromRollups,
     computeDateWindows,
     computeLog10WeeklyFloors,
+    computeSpendDayOverDayFromDaily,
+    getUtcCalendarSpendDodRange,
+    maxIso,
+    minIso,
     rollupDaily,
 } from "@/lib/apexRadarFacebookOverview";
 
@@ -364,7 +368,10 @@ function syntheticMetaDailyForDemo(customerId, startIso, endIso) {
 export function buildDemoApexRadarFacebookOverviewRow(customer, startDate, endDate) {
     const id = String(customer._id);
     const w = computeDateWindows(startDate, endDate);
-    const daily = syntheticMetaDailyForDemo(id, w.fetchSince, endDate);
+    const dod = getUtcCalendarSpendDodRange();
+    const fetchSinceDemo = minIso(w.fetchSince, dod.calendarDayBeforeYesterday);
+    const fetchUntilDemo = maxIso(endDate, dod.calendarYesterday);
+    const daily = syntheticMetaDailyForDemo(id, fetchSinceDemo, fetchUntilDemo);
     const r2 = rollupDaily(daily, w.win2.from, w.win2.to);
     const r7 = rollupDaily(daily, w.win7.from, w.win7.to);
     const r30 = rollupDaily(daily, w.win30.from, w.win30.to);
@@ -386,8 +393,10 @@ export function buildDemoApexRadarFacebookOverviewRow(customer, startDate, endDa
         win7: w.win7,
         win30: w.win30,
     });
+    const spendDayOverDay = computeSpendDayOverDayFromDaily(daily);
     return {
         ...row,
+        spendDayOverDay,
         ads: { ...row.ads, adFatigue: null },
         apexRadarMeta: { channel: "facebook", demo: true },
     };

@@ -5,10 +5,11 @@
 import Customer from "../models/Customer.js";
 import connectToDatabase from "../../lib/mongodb.js";
 import { fetchClickupTeamPayloadForCustomer } from "./clickupCustomerTeamFetch.js";
+import { reconcileFacebookAssignmentsAfterCustomerTeamSync } from "./apexRadarPaidSocialReconcile.js";
 
-/** @param {{ dryRun?: boolean }} [options] */
+/** @param {{ dryRun?: boolean, skipPaidSocialAssignmentReconcile?: boolean }} [options] */
 export async function syncCustomerTeamForCustomerId(customerId, options = {}) {
-    const { dryRun = false } = options;
+    const { dryRun = false, skipPaidSocialAssignmentReconcile = false } = options;
     await connectToDatabase();
 
     const customer = await Customer.findById(customerId).exec();
@@ -57,6 +58,14 @@ export async function syncCustomerTeamForCustomerId(customerId, options = {}) {
                 },
             }
         );
+
+        if (!skipPaidSocialAssignmentReconcile) {
+            try {
+                await reconcileFacebookAssignmentsAfterCustomerTeamSync(customerId);
+            } catch (e) {
+                console.warn("[customerTeamSync] PS assignment reconcile failed:", e?.message || e);
+            }
+        }
 
         return {
             ok: true,

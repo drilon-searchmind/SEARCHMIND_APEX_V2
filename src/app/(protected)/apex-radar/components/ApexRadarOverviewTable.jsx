@@ -1,11 +1,15 @@
 "use client";
 
 import React from "react";
-import { FiSettings } from "react-icons/fi";
+import { FiAlertTriangle, FiSettings } from "react-icons/fi";
 import Spinner from "@/components/ui/Spinner";
 import { formatApexRadarTeamAssignmentLabel } from "@/lib/apexRadarTeamAssignmentsFormat";
+import {
+    APEX_RADAR_SPEND_DOD_WARN_PCT_THRESHOLD,
+    meetsSpendDodThreshold,
+} from "@/lib/apexRadarFacebookOverview";
 
-const COL_COUNT = 21;
+const COL_COUNT = 24;
 
 function fmtInt(n) {
     if (n == null || Number.isNaN(n)) return "—";
@@ -47,53 +51,59 @@ function Cell({ children, warn }) {
 function TableHead() {
     return (
         <thead>
-                        <tr>
-                            <th
-                                rowSpan={2}
-                                className={`${thGroup} text-left sticky left-0 z-30 bg-gray-200 min-w-[200px]`}
-                            >
-                                Account
-                            </th>
-                            <th
-                                rowSpan={2}
-                                className={`${thGroup} text-left sticky left-[200px] z-30 bg-gray-200 min-w-[120px]`}
-                            >
-                                Team members
-                            </th>
-                            <th colSpan={5} className={thGroup}>
-                                Value
-                            </th>
-                            <th colSpan={4} className={thGroup}>
-                                Targets
-                            </th>
-                            <th colSpan={5} className={thGroup}>
-                                Budget
-                            </th>
-                            <th colSpan={5} className={thGroup}>
-                                Ad performance
-                            </th>
-                        </tr>
-                        <tr>
-                            <th className={thSub}>Conv. (2d)</th>
-                            <th className={thSub}>Value (7d)</th>
-                            <th className={thSub}>Min. value (7d)</th>
-                            <th className={thSub}>Value (30d)</th>
-                            <th className={thSub}>Min. value (30d)</th>
-                            <th className={thSub}>Type</th>
-                            <th className={thSub}>Target</th>
-                            <th className={thSub}>Actual (7d)</th>
-                            <th className={thSub}>Actual (30d)</th>
-                            <th className={thSub}>Target</th>
-                            <th className={thSub}>Spend</th>
-                            <th className={thSub}>Spend (yesterday)</th>
-                            <th className={thSub}>Pace</th>
-                            <th className={thSub}>Type</th>
-                            <th className={thSub}># Fatigue</th>
-                            <th className={thSub}>CTR (7d)</th>
-                            <th className={thSub}>CTR (30d)</th>
-                            <th className={thSub}>Freq (7d)</th>
-                            <th className={thSub}>Freq (30d)</th>
-                        </tr>
+            <tr>
+                <th
+                    rowSpan={2}
+                    className={`${thGroup} text-left sticky left-0 z-30 bg-gray-200 min-w-[200px]`}
+                >
+                    Account
+                </th>
+                <th
+                    rowSpan={2}
+                    className={`${thGroup} text-left sticky left-[200px] z-30 bg-gray-200 min-w-[120px]`}
+                >
+                    Team members
+                </th>
+                <th colSpan={5} className={thGroup}>
+                    Value
+                </th>
+                <th colSpan={4} className={thGroup}>
+                    Targets
+                </th>
+                <th colSpan={5} className={thGroup}>
+                    Budget
+                </th>
+                <th colSpan={5} className={thGroup}>
+                    Ad performance
+                </th>
+                <th colSpan={3} className={thGroup}>
+                    Spend day-over-day
+                </th>
+            </tr>
+            <tr>
+                <th className={thSub}>Conv. (2d)</th>
+                <th className={thSub}>Value (7d)</th>
+                <th className={thSub}>Min. value (7d)</th>
+                <th className={thSub}>Value (30d)</th>
+                <th className={thSub}>Min. value (30d)</th>
+                <th className={thSub}>Type</th>
+                <th className={thSub}>Target</th>
+                <th className={thSub}>Actual (7d)</th>
+                <th className={thSub}>Actual (30d)</th>
+                <th className={thSub}>Target</th>
+                <th className={thSub}>Spend</th>
+                <th className={thSub}>Spend (range end)</th>
+                <th className={thSub}>Pace</th>
+                <th className={thSub}>Type</th>
+                <th className={thSub}># Fatigue</th>
+                <th className={thSub}>CTR (7d)</th>
+                <th className={thSub}>CTR (30d)</th>
+                <th className={thSub}>Freq (7d)</th>
+                <th className={thSub}>Freq (30d)</th>
+                <th className={thSub}>Spend (yest. UTC)</th>
+                <th className={thSub}>Spend (prior UTC)</th>
+                <th className={thSub}>DoD change %</th>
+            </tr>
         </thead>
     );
 }
@@ -106,6 +116,7 @@ export default function ApexRadarOverviewTable({
     onApexSettingsClick,
     assignableUsers = [],
     loading = false,
+    spendDodThresholdPct = APEX_RADAR_SPEND_DOD_WARN_PCT_THRESHOLD,
 }) {
     const showSpinnerOnly = loading && (!rows || rows.length === 0);
     const showOverlay = loading && rows && rows.length > 0;
@@ -146,20 +157,36 @@ export default function ApexRadarOverviewTable({
                                 const a = row.alerts || {};
                                 const detail = assignmentDetailMap[row.id] || {
                                     userIds: [],
-                                    excludedClickUpMemberIds: [],
+                                    paidSocialExcludedUserIds: [],
                                 };
                                 const cust = customersById[row.id] || null;
-                                const teamLabel = formatApexRadarTeamAssignmentLabel(
-                                    detail,
-                                    cust,
-                                    assignableUsers
-                                );
+                                const teamLabel = formatApexRadarTeamAssignmentLabel(detail, cust, assignableUsers);
                                 const valueIsConversions = row.targets?.targetType === "CPA";
                                 const fmtValueMetric = (n) => (valueIsConversions ? fmtInt(n) : fmtMoney(n));
+                                const dod = row.spendDayOverDay || {};
+                                const dodWarn = meetsSpendDodThreshold(row, spendDodThresholdPct);
+                                const dodTitle =
+                                    dodWarn &&
+                                    dod.calendarYesterday &&
+                                    dod.calendarDayBeforeYesterday &&
+                                    dod.pctChangeFromPrior != null
+                                        ? `${fmtDecimal(dod.pctChangeFromPrior, 1)}% vs prior UTC day (${dod.calendarDayBeforeYesterday} → ${dod.calendarYesterday}); change is at or below alert threshold (${fmtDecimal(spendDodThresholdPct, 1)}%).`
+                                        : undefined;
                                 return (
                                     <tr key={row.id} className="hover:bg-gray-50/80">
                                         <td className={`${tdEntity}`} title={row.entity}>
                                             <div className="flex items-center gap-1.5 min-w-0">
+                                                {dodWarn ? (
+                                                    <span
+                                                        className="shrink-0 text-red-600"
+                                                        title={dodTitle}
+                                                        aria-label={`Spend day-over-day change is at or below ${fmtDecimal(spendDodThresholdPct, 1)} percent versus the prior UTC calendar day`}
+                                                    >
+                                                        <FiAlertTriangle className="h-4 w-4" aria-hidden />
+                                                    </span>
+                                                ) : (
+                                                    <span className="shrink-0 w-4" aria-hidden />
+                                                )}
                                                 <button
                                                     type="button"
                                                     onClick={() => onApexSettingsClick?.(row)}
@@ -203,6 +230,16 @@ export default function ApexRadarOverviewTable({
                                         <Cell warn={false}>{fmtPct(row.ads?.ctr30d)}</Cell>
                                         <Cell warn={false}>{fmtDecimal(row.ads?.freq7d, 2)}</Cell>
                                         <Cell warn={false}>{fmtDecimal(row.ads?.freq30d, 2)}</Cell>
+                                        <Cell warn={dodWarn}>{fmtMoney(dod.spendYesterday)}</Cell>
+                                        <Cell warn={dodWarn}>{fmtMoney(dod.spendDayBeforeYesterday)}</Cell>
+                                        <Cell warn={dodWarn}>
+                                            {(() => {
+                                                const p = dod.pctChangeFromPrior;
+                                                if (p == null || !Number.isFinite(p)) return "—";
+                                                const sign = p > 0 ? "+" : "";
+                                                return `${sign}${fmtDecimal(p, 1)}%`;
+                                            })()}
+                                        </Cell>
                                     </tr>
                                 );
                             })

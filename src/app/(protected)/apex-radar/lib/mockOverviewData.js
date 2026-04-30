@@ -4,6 +4,7 @@
  */
 
 import { buildFacebookOverviewApexOnlySlice } from "@/lib/apexRadarCustomerSettings";
+import { getUtcCalendarSpendDodRange } from "@/lib/apexRadarFacebookOverview";
 
 export const MOCK_INTERNAL_USERS = [
     { id: "all", name: "All team members" },
@@ -67,6 +68,17 @@ export function buildCustomerOverviewRow(customer) {
         },
         alerts: apexSlice.alerts,
         customerApexRadarSettings: customer.customerApexRadarSettings || { facebook: {} },
+        spendDayOverDay: (() => {
+            const dod = getUtcCalendarSpendDodRange();
+            return {
+                calendarYesterday: dod.calendarYesterday,
+                calendarDayBeforeYesterday: dod.calendarDayBeforeYesterday,
+                spendYesterday: null,
+                spendDayBeforeYesterday: null,
+                pctChangeFromPrior: null,
+                warnDrop: false,
+            };
+        })(),
     };
 }
 
