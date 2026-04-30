@@ -437,6 +437,7 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                             customersById={customersById}
                             assignableUsers={internalUsers}
                             spendDodThresholdPct={spendDodThresholdPct}
+                            channel={channel}
                             onAssignClick={(row) => setAssignModalRow(row)}
                             onApexSettingsClick={(row) => setApexSettingsRow(row)}
                         />

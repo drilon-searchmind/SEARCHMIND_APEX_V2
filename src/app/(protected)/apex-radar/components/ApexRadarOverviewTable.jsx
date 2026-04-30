@@ -1,9 +1,14 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { FiAlertTriangle, FiSettings } from "react-icons/fi";
 import Spinner from "@/components/ui/Spinner";
 import { formatApexRadarTeamAssignmentLabel } from "@/lib/apexRadarTeamAssignmentsFormat";
+import {
+    APEX_RADAR_CHANNEL_FACEBOOK,
+    apexRadarPerformanceInvestigatorHref,
+} from "@/lib/apexRadarChannels";
 import {
     APEX_RADAR_SPEND_DOD_WARN_PCT_THRESHOLD,
     meetsSpendDodThreshold,
@@ -117,6 +122,8 @@ export default function ApexRadarOverviewTable({
     assignableUsers = [],
     loading = false,
     spendDodThresholdPct = APEX_RADAR_SPEND_DOD_WARN_PCT_THRESHOLD,
+    /** Enables account name links to Performance Investigator when this is Meta (paid social). */
+    channel = null,
 }) {
     const showSpinnerOnly = loading && (!rows || rows.length === 0);
     const showOverlay = loading && rows && rows.length > 0;
@@ -172,6 +179,12 @@ export default function ApexRadarOverviewTable({
                                     dod.pctChangeFromPrior != null
                                         ? `${fmtDecimal(dod.pctChangeFromPrior, 1)}% vs prior UTC day (${dod.calendarDayBeforeYesterday} → ${dod.calendarYesterday}); change is at or below alert threshold (${fmtDecimal(spendDodThresholdPct, 1)}%).`
                                         : undefined;
+                                const piHref =
+                                    channel === APEX_RADAR_CHANNEL_FACEBOOK
+                                        ? apexRadarPerformanceInvestigatorHref(channel, row.id)
+                                        : null;
+                                const nameClass =
+                                    "min-w-0 truncate font-medium text-[var(--color-primary-searchmind)] underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] focus-visible:ring-offset-1 rounded-sm";
                                 return (
                                     <tr key={row.id} className="hover:bg-gray-50/80">
                                         <td className={`${tdEntity}`} title={row.entity}>
@@ -195,7 +208,18 @@ export default function ApexRadarOverviewTable({
                                                 >
                                                     <FiSettings className="h-3.5 w-3.5" aria-hidden />
                                                 </button>
-                                                <span className="truncate">{row.entity}</span>
+                                                {piHref ? (
+                                                    <Link
+                                                        href={piHref}
+                                                        className={nameClass}
+                                                        title={`Open Performance Investigator — ${row.entity}`}
+                                                        prefetch={false}
+                                                    >
+                                                        {row.entity}
+                                                    </Link>
+                                                ) : (
+                                                    <span className="truncate">{row.entity}</span>
+                                                )}
                                             </div>
                                         </td>
                                         <td className={tdTeamMember} title={teamLabel === "—" ? undefined : teamLabel}>

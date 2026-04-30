@@ -114,7 +114,7 @@ export default function PerformanceInvestigatorClient({ channel, customerId }) {
     }, [piError, piPayload?.funnel]);
 
     return (
-        <div id="ApexRadarPerformanceInvestigatorPage" className="w-full max-w-[1920px] mx-auto">
+        <div id="ApexRadarPerformanceInvestigatorPage" className="w-full max-w-[min(100%,1920px)] mx-auto px-2 sm:px-4 lg:px-6">
             <DashboardHeading
                 title="Performance Investigator"
                 label={headingLabel}
