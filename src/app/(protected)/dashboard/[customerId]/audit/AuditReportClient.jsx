@@ -1,10 +1,17 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { FiArrowLeft, FiClipboard } from "react-icons/fi";
+import { FiArrowLeft, FiClipboard, FiList, FiShare2 } from "react-icons/fi";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
+import Spinner from "@/components/ui/Spinner";
+import { showToast } from "@/components/ui/ToastProvider";
+import {
+    gradeFromNumericScore,
+    isMongoObjectIdString,
+    meanChannelHealthFromReport,
+} from "@/lib/channelAuditReport";
 
 const STORAGE_PREFIX = "apex_audit:";
 
@@ -16,29 +23,6 @@ function severityStyles(s) {
     return "bg-gray-50 text-gray-700 border-gray-200";
 }
 
-function gradeFromNumericScore(score) {
-    if (score == null || !Number.isFinite(Number(score))) return "—";
-    const s = Number(score);
-    if (s >= 90) return "A";
-    if (s >= 75) return "B";
-    if (s >= 60) return "C";
-    if (s >= 40) return "D";
-    return "F";
-}
-
-function aggregateChannels(channels) {
-    const nums = (channels || [])
-        .map((c) => c.healthScore)
-        .filter((n) => n != null && Number.isFinite(Number(n)))
-        .map(Number);
-    if (nums.length === 0) return { avg: null, grade: "—" };
-    const avg = Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
-    return { avg, grade: gradeFromNumericScore(avg) };
-}
-
-/**
- * Three tiers aligned to 25 / 75 (50 marks the midpoint of orange): red, orange, green.
- */
 function scoreTierClasses(score) {
     if (score == null || !Number.isFinite(Number(score))) {
         return {
@@ -69,17 +53,12 @@ function scoreTierClasses(score) {
     };
 }
 
-/** Large pill + grade chip: rounded-lg, no shadow, tiered colors. */
 function ScoreHighlight({ score, gradeLabel, size = "lg" }) {
     const isLg = size === "lg";
     const grade = gradeLabel ?? gradeFromNumericScore(score);
     const tier = scoreTierClasses(score);
-
-    /** Grade chip tracks same numeric tiers when score exists; neutral when missing. */
     const gradeTier =
-        score != null && Number.isFinite(Number(score))
-            ? tier
-            : scoreTierClasses(null);
+        score != null && Number.isFinite(Number(score)) ? tier : scoreTierClasses(null);
 
     return (
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -93,8 +72,7 @@ function ScoreHighlight({ score, gradeLabel, size = "lg" }) {
             <span
                 className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold ${gradeTier.gradeWrap}`}
             >
-                Grade{" "}
-                <span className={`ml-1.5 tabular-nums ${gradeTier.gradeAccent}`}>{grade}</span>
+                Grade <span className={`ml-1.5 tabular-nums ${gradeTier.gradeAccent}`}>{grade}</span>
             </span>
         </div>
     );
@@ -113,37 +91,100 @@ function ScoreMetricCard({ title, score, gradeLabel }) {
     );
 }
 
+function readLegacySessionPayload(auditId, customerId) {
+    if (typeof window === "undefined" || !auditId || !customerId) {
+        return { payload: null, loadError: null };
+    }
+    if (isMongoObjectIdString(auditId)) {
+        return { payload: null, loadError: null };
+    }
+    try {
+        const raw = sessionStorage.getItem(`${STORAGE_PREFIX}${auditId}`);
+        if (!raw) {
+            return {
+                payload: null,
+                loadError: "Audit not found in this session. Run a new audit from the dashboard.",
+            };
+        }
+        const parsed = JSON.parse(raw);
+        if (String(parsed.customerId) !== String(customerId)) {
+            return { payload: null, loadError: "This audit belongs to another customer." };
+        }
+        return { payload: parsed, loadError: null };
+    } catch (e) {
+        console.error(e);
+        return { payload: null, loadError: "Could not load audit." };
+    }
+}
+
 export default function AuditReportClient() {
     const params = useParams();
     const searchParams = useSearchParams();
     const customerId = params?.customerId;
     const auditId = searchParams.get("audit_id");
 
-    const { payload, loadError } = useMemo(() => {
-        if (typeof window === "undefined") {
-            return { payload: null, loadError: null };
+    const [serverPayload, setServerPayload] = useState(null);
+    const [serverError, setServerError] = useState(null);
+    const [serverLoading, setServerLoading] = useState(false);
+
+    const mongoAudit = Boolean(auditId && isMongoObjectIdString(auditId));
+
+    useEffect(() => {
+        if (!auditId || !customerId || !mongoAudit) {
+            setServerPayload(null);
+            setServerError(null);
+            setServerLoading(false);
+            return undefined;
         }
-        if (!auditId || !customerId) {
-            return { payload: null, loadError: "Missing audit or customer." };
-        }
-        try {
-            const raw = sessionStorage.getItem(`${STORAGE_PREFIX}${auditId}`);
-            if (!raw) {
-                return {
-                    payload: null,
-                    loadError: "Audit not found in this session. Run a new audit from the dashboard.",
-                };
+        let cancelled = false;
+        setServerLoading(true);
+        setServerError(null);
+        setServerPayload(null);
+        (async () => {
+            try {
+                const url = `/api/dashboard-audit?customerId=${encodeURIComponent(customerId)}&auditId=${encodeURIComponent(auditId)}`;
+                const res = await fetch(url);
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || "Failed to load audit");
+                if (cancelled) return;
+                setServerPayload({
+                    auditId: data.auditId,
+                    customerId: data.customerId,
+                    customerName: data.customerName,
+                    dateRange: data.dateRange,
+                    services: data.services,
+                    report: data.report,
+                    generatedAt: data.generatedAt,
+                });
+            } catch (e) {
+                if (!cancelled) setServerError(e?.message || "Failed to load audit");
+            } finally {
+                if (!cancelled) setServerLoading(false);
             }
-            const parsed = JSON.parse(raw);
-            if (String(parsed.customerId) !== String(customerId)) {
-                return { payload: null, loadError: "This audit belongs to another customer." };
-            }
-            return { payload: parsed, loadError: null };
-        } catch (e) {
-            console.error(e);
-            return { payload: null, loadError: "Could not load audit." };
-        }
-    }, [auditId, customerId]);
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [auditId, customerId, mongoAudit]);
+
+    const { payload: legacyPayload, loadError: legacyError } = useMemo(
+        () => readLegacySessionPayload(auditId, customerId),
+        [auditId, customerId]
+    );
+
+    const missingParams = !auditId || !customerId;
+
+    const payload = serverPayload ?? (!mongoAudit ? legacyPayload : null);
+
+    let loadError = null;
+    if (missingParams) loadError = "Missing audit or customer.";
+    else if (mongoAudit) {
+        if (serverLoading) loadError = null;
+        else if (serverError) loadError = serverError;
+        else if (!serverPayload && !serverLoading) loadError = "Audit not found.";
+    } else {
+        loadError = legacyError;
+    }
 
     const report = payload?.report;
     const channels = useMemo(() => {
@@ -153,10 +194,31 @@ export default function AuditReportClient() {
 
     const headingLabel = payload?.customerName || "Audit";
 
-    const { avg: aggregateScore, grade: aggregateGrade } = useMemo(
-        () => aggregateChannels(channels),
-        [channels]
-    );
+    const overall = useMemo(() => {
+        if (!report) return { score: null, grade: "—" };
+        const c = report.canonicalOverall;
+        if (c?.score != null && Number.isFinite(Number(c.score))) {
+            const sc = Number(c.score);
+            return {
+                score: sc,
+                grade: c.grade && String(c.grade) !== "—" ? String(c.grade) : gradeFromNumericScore(sc),
+            };
+        }
+        return meanChannelHealthFromReport(report);
+    }, [report]);
+
+    const handleShareLink = async () => {
+        if (typeof window === "undefined") return;
+        try {
+            await navigator.clipboard.writeText(window.location.href);
+            showToast({ message: "Link copied", type: "success", position: "top-center" });
+        } catch {
+            showToast({ message: "Could not copy link", type: "error", position: "top-center" });
+        }
+    };
+
+    const showSpinner = mongoAudit && serverLoading && !payload;
+    const backHref = `/dashboard/${customerId}/performance-dashboard`;
 
     return (
         <div className="w-full">
@@ -168,13 +230,30 @@ export default function AuditReportClient() {
                 showPdfExport={false}
                 showRunAudit={false}
                 right={
-                    <Link
-                        href={`/dashboard/${customerId}`}
-                        className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)]"
-                    >
-                        <FiArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-                        Back to dashboard
-                    </Link>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                        <button
+                            type="button"
+                            onClick={handleShareLink}
+                            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)]"
+                        >
+                            <FiShare2 className="h-4 w-4 shrink-0" aria-hidden />
+                            Share link
+                        </button>
+                        <Link
+                            href={`/dashboard/${customerId}/audit`}
+                            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)]"
+                        >
+                            <FiList className="h-4 w-4 shrink-0" aria-hidden />
+                            View all audits
+                        </Link>
+                        <Link
+                            href={backHref}
+                            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)]"
+                        >
+                            <FiArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+                            Back to dashboard
+                        </Link>
+                    </div>
                 }
             />
 
@@ -182,13 +261,22 @@ export default function AuditReportClient() {
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-6 text-center text-sm text-amber-900 mb-8">
                     <p>{loadError}</p>
                     {customerId ? (
-                        <Link
-                            href={`/dashboard/${customerId}`}
-                            className="mt-4 inline-block text-sm font-semibold text-[var(--color-primary-searchmind)] underline"
-                        >
-                            Go back
-                        </Link>
+                        <div className="mt-4 flex flex-wrap justify-center gap-3">
+                            <Link
+                                href={`/dashboard/${customerId}/audit`}
+                                className="text-sm font-semibold text-[var(--color-primary-searchmind)] underline"
+                            >
+                                View all audits
+                            </Link>
+                            <Link href={backHref} className="text-sm font-semibold text-gray-700 underline">
+                                Back to dashboard
+                            </Link>
+                        </div>
                     ) : null}
+                </div>
+            ) : showSpinner ? (
+                <div className="flex min-h-[40vh] items-center justify-center rounded-xl border border-gray-200 bg-white">
+                    <Spinner size={40} color="#406969" />
                 </div>
             ) : !payload ? (
                 <div className="rounded-xl border border-gray-200 bg-white p-12 text-center text-sm text-gray-500">
@@ -225,7 +313,11 @@ export default function AuditReportClient() {
                                 <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50 h-full">
                                     <div className="text-sm font-medium text-gray-500 mb-1">Overall health</div>
                                     <div className="text-[0.65rem] text-gray-400 mb-3">Average across audited channels</div>
-                                    <ScoreHighlight score={aggregateScore} gradeLabel={aggregateGrade} size="lg" />
+                                    <ScoreHighlight
+                                        score={overall.score}
+                                        gradeLabel={overall.grade}
+                                        size="lg"
+                                    />
                                 </div>
                             </div>
                             <div className="flex flex-wrap gap-4 flex-1 min-w-0 justify-start">
@@ -234,7 +326,9 @@ export default function AuditReportClient() {
                                         key={ch.id || ch.label}
                                         title={ch.label || ch.id}
                                         score={ch.healthScore}
-                                        gradeLabel={ch.grade != null ? String(ch.grade) : gradeFromNumericScore(ch.healthScore)}
+                                        gradeLabel={
+                                            ch.grade != null ? String(ch.grade) : gradeFromNumericScore(ch.healthScore)
+                                        }
                                     />
                                 ))}
                             </div>
@@ -260,7 +354,9 @@ export default function AuditReportClient() {
                                     <h3 className="text-base font-bold text-gray-900">{ch.label || ch.id}</h3>
                                     <ScoreHighlight
                                         score={ch.healthScore}
-                                        gradeLabel={ch.grade != null ? String(ch.grade) : gradeFromNumericScore(ch.healthScore)}
+                                        gradeLabel={
+                                            ch.grade != null ? String(ch.grade) : gradeFromNumericScore(ch.healthScore)
+                                        }
                                         size="sm"
                                     />
                                 </div>

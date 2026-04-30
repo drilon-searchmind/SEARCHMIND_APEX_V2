@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
+import mongoose from "mongoose";
 import path from "path";
 import { getServerSession } from "next-auth";
 import OpenAI from "openai";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import connectToDatabase from "@root/lib/mongodb";
 import { getCustomerById } from "@root/lib/customerOperations";
+import { normalizeAuditReport } from "@/lib/channelAuditReport";
 import {
     AUDITABLE_SERVICE_IDS,
     getConfiguredAuditServices,
 } from "@/lib/customerServiceIntegrations";
+import CustomerChannelAudit from "@/models/CustomerChannelAudit";
 
 const openai =
     typeof process.env.OPENAI_API_KEY === "string" && process.env.OPENAI_API_KEY.trim()
@@ -120,8 +124,6 @@ export async function POST(request) {
         const services = configured.filter((c) => ids.includes(c.id));
         const customerName = plain.customerName || "Customer";
 
-        const auditId = `audit_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-
         let report;
         if (!openai) {
             report = buildFallbackReport(customerName, services, startDate, endDate);
@@ -132,6 +134,7 @@ Each channel needs healthScore 0-100 (integer estimate from context if needed), 
 Align with professional paid media audit practice: prioritize revenue impact, tracking integrity, waste, and scaling opportunities.
 Output keys: executiveSummary (string), methodologyNote (string, one sentence), channels (array), crossChannelNotes (array of strings).
 Each channel object: id, label, healthScore, grade, summary, topPriorities.
+In executiveSummary: do NOT state any overall, mean, or aggregate numeric health score or letter grade for the account (those are computed from channel scores). Focus on channel-level themes, risks, and opportunities only.
 JSON only.`;
 
             const skillExcerpt = loadAdsAuditSkillExcerpt();
@@ -166,6 +169,26 @@ Return the JSON report for these channels only.`;
                     " (AI generation failed; showing placeholder.)";
             }
         }
+
+        normalizeAuditReport(report);
+
+        await connectToDatabase();
+        const createdByUserId =
+            session.user?.id && mongoose.Types.ObjectId.isValid(String(session.user.id))
+                ? new mongoose.Types.ObjectId(String(session.user.id))
+                : null;
+
+        const doc = await CustomerChannelAudit.create({
+            customerId: plain._id,
+            createdByUserId,
+            dateRange: { startDate, endDate },
+            serviceIds: ids,
+            report,
+            canonicalOverall: report.canonicalOverall || { score: null, grade: "—" },
+            customerNameSnapshot: customerName,
+        });
+
+        const auditId = String(doc._id);
 
         return NextResponse.json({
             auditId,
