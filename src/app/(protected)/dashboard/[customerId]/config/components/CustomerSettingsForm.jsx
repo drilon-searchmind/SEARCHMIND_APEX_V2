@@ -3,7 +3,7 @@
 import React from "react";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
-import { FiSettings, FiShoppingBag, FiPackage, FiDatabase, FiFacebook, FiTrendingUp, FiSearch, FiMail, FiImage, FiLayers } from "react-icons/fi";
+import { FiSettings, FiShoppingBag, FiPackage, FiDatabase, FiFacebook, FiTrendingUp, FiSearch, FiMail, FiImage, FiLayers, FiZap } from "react-icons/fi";
 
 function SettingsSection({ title, icon: Icon, children, sectionId }) {
     return (
@@ -122,6 +122,7 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
         { id: "meta", label: "Meta" },
         { id: "google-ads", label: "Google Ads" },
         { id: "pinterest-ads", label: "Pinterest Ads" },
+        { id: "snapchat-ads", label: "Snapchat Ads" },
         { id: "microsoft-ads", label: "Microsoft Ads" },
         { id: "seo", label: "SEO" },
         { id: "email", label: "Email" },
@@ -377,6 +378,69 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
                     value={form.pinterestAdAccountId}
                     onChange={onChange}
                     placeholder="Numeric id from Pinterest Ads Manager or GET /api/pinterest-ad-accounts"
+                />
+            </SettingsSection>
+
+            <SettingsSection title="Snapchat Ads" icon={FiZap} sectionId="snapchat-ads">
+                <FormField
+                    id="snapchat-clientId"
+                    name="snapchat.clientId"
+                    label="OAuth client ID"
+                    value={(form.snapchat && form.snapchat.clientId) || ""}
+                    onChange={onChange}
+                    placeholder="From OAuth app in Snap Business Manager"
+                />
+                <FormField
+                    id="snapchat-organizationId"
+                    name="snapchat.organizationId"
+                    label="Organization ID"
+                    value={(form.snapchat && form.snapchat.organizationId) || ""}
+                    onChange={onChange}
+                    placeholder="Snap business organization UUID — not the ad account"
+                />
+                <FormField
+                    id="snapchat-adAccountId"
+                    name="snapchat.adAccountId"
+                    label="Ad account UUID (dashboard)"
+                    value={(form.snapchat && form.snapchat.adAccountId) || ""}
+                    onChange={onChange}
+                    placeholder="Ads account id from Ads Manager — used for stats"
+                />
+                <FormField
+                    id="snapchat-accessToken"
+                    name="snapchat.accessToken"
+                    label="Marketing API access token"
+                    type="password"
+                    value={(form.snapchat && form.snapchat.accessToken) || ""}
+                    onChange={onChange}
+                    placeholder="Bearer token (~1h); or use refresh fields below instead"
+                />
+                <FormField
+                    id="snapchat-clientSecret"
+                    name="snapchat.clientSecret"
+                    label="OAuth client secret (optional)"
+                    type="password"
+                    value={(form.snapchat && form.snapchat.clientSecret) || ""}
+                    onChange={onChange}
+                    placeholder="Shown once at app creation — with refresh token to renew access"
+                />
+                <FormField
+                    id="snapchat-refreshToken"
+                    name="snapchat.refreshToken"
+                    label="OAuth refresh token (optional)"
+                    type="password"
+                    value={(form.snapchat && form.snapchat.refreshToken) || ""}
+                    onChange={onChange}
+                    placeholder="Long-lived; used with client id + secret when access token is empty/expired"
+                />
+                <FormField
+                    id="snapchat-conversionsApiToken"
+                    name="snapchat.conversionsApiToken"
+                    label="Conversions API token"
+                    type="password"
+                    value={(form.snapchat && form.snapchat.conversionsApiToken) || ""}
+                    onChange={onChange}
+                    placeholder="For CAPI / offline conversions — not used by the Snapchat dashboard charts yet"
                 />
             </SettingsSection>
 

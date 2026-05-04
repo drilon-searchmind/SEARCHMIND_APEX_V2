@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import FormLabel from "@/components/form/FormLabel";
 import FormInputText from "@/components/form/FormInputText";
 import FormButton from "@/components/form/FormButton";
+import { defaultSnapchatSettings } from "@/lib/snapchatCustomerSettings";
 
 const initialState = {
     customerName: "",
@@ -31,6 +32,7 @@ const initialState = {
         facebookAdAccountId: "",
         googleAdsCustomerId: "",
         pinterestAdAccountId: "",
+        snapchat: defaultSnapchatSettings(),
         googleSearchConsoleProperty: "",
         bingWebmasterSiteUrl: "",
     }
@@ -45,6 +47,21 @@ export default function CustomerCreateForm({ onSuccess }) {
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
+        if (typeof name === "string" && name.startsWith("snapchat.")) {
+            const field = name.slice("snapchat.".length);
+            setForm((prev) => ({
+                ...prev,
+                CustomerSettings: {
+                    ...prev.CustomerSettings,
+                    snapchat: {
+                        ...defaultSnapchatSettings(),
+                        ...prev.CustomerSettings.snapchat,
+                        [field]: type === "checkbox" ? checked : value,
+                    },
+                },
+            }));
+            return;
+        }
         // If the field is in CustomerSettings, update nested
         if (name in initialState.CustomerSettings) {
             setForm((prev) => ({
@@ -201,6 +218,46 @@ export default function CustomerCreateForm({ onSuccess }) {
             <div>
                 <FormLabel htmlFor="pinterestAdAccountId">Pinterest ad account ID</FormLabel>
                 <FormInputText id="pinterestAdAccountId" name="pinterestAdAccountId" value={form.CustomerSettings.pinterestAdAccountId} onChange={handleChange} />
+            </div>
+            <div>
+                <FormLabel htmlFor="snapchat.organizationId">Snapchat organization ID</FormLabel>
+                <FormInputText
+                    id="snapchat.organizationId"
+                    name="snapchat.organizationId"
+                    value={(form.CustomerSettings.snapchat && form.CustomerSettings.snapchat.organizationId) || ""}
+                    onChange={handleChange}
+                    placeholder="Business organization UUID (not ad account)"
+                />
+            </div>
+            <div>
+                <FormLabel htmlFor="snapchat.adAccountId">Snapchat ad account UUID</FormLabel>
+                <FormInputText
+                    id="snapchat.adAccountId"
+                    name="snapchat.adAccountId"
+                    value={(form.CustomerSettings.snapchat && form.CustomerSettings.snapchat.adAccountId) || ""}
+                    onChange={handleChange}
+                    placeholder="Ads Manager ad account UUID (for dashboards)"
+                />
+            </div>
+            <div>
+                <FormLabel htmlFor="snapchat.clientId">Snapchat OAuth client ID</FormLabel>
+                <FormInputText id="snapchat.clientId" name="snapchat.clientId" value={(form.CustomerSettings.snapchat && form.CustomerSettings.snapchat.clientId) || ""} onChange={handleChange} />
+            </div>
+            <div>
+                <FormLabel htmlFor="snapchat.accessToken">Snapchat Marketing API access token</FormLabel>
+                <FormInputText id="snapchat.accessToken" name="snapchat.accessToken" type="password" value={(form.CustomerSettings.snapchat && form.CustomerSettings.snapchat.accessToken) || ""} onChange={handleChange} />
+            </div>
+            <div>
+                <FormLabel htmlFor="snapchat.clientSecret">Snapchat OAuth client secret (optional)</FormLabel>
+                <FormInputText id="snapchat.clientSecret" name="snapchat.clientSecret" type="password" value={(form.CustomerSettings.snapchat && form.CustomerSettings.snapchat.clientSecret) || ""} onChange={handleChange} />
+            </div>
+            <div>
+                <FormLabel htmlFor="snapchat.refreshToken">Snapchat OAuth refresh token (optional)</FormLabel>
+                <FormInputText id="snapchat.refreshToken" name="snapchat.refreshToken" type="password" value={(form.CustomerSettings.snapchat && form.CustomerSettings.snapchat.refreshToken) || ""} onChange={handleChange} />
+            </div>
+            <div>
+                <FormLabel htmlFor="snapchat.conversionsApiToken">Snapchat Conversions API token</FormLabel>
+                <FormInputText id="snapchat.conversionsApiToken" name="snapchat.conversionsApiToken" type="password" value={(form.CustomerSettings.snapchat && form.CustomerSettings.snapchat.conversionsApiToken) || ""} onChange={handleChange} />
             </div>
             {/* Optional fields */}
             <div>

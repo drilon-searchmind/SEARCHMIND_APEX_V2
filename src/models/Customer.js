@@ -101,6 +101,20 @@ const CustomerSchema = new mongoose.Schema({
             type: String,
             default: ""
         },
+        /**
+         * Snapchat — Marketing API OAuth + ads account; Conversions API token stored for offline sends.
+         * Organization ID is the business organization (different from ad account UUID).
+         */
+        snapchat: {
+            clientId: { type: String, default: "" },
+            organizationId: { type: String, default: "" },
+            /** UUID for `/v1/adaccounts/{id}/stats`; not the same as organization ID. */
+            adAccountId: { type: String, default: "" },
+            conversionsApiToken: { type: String, default: "" },
+            accessToken: { type: String, default: "" },
+            refreshToken: { type: String, default: "" },
+            clientSecret: { type: String, default: "" },
+        },
         bingAdsAccountId: {
             type: String,
             default: ""

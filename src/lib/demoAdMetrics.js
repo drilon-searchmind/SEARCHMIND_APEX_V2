@@ -175,6 +175,59 @@ export function getDemoPinterestDashboardForRange(startDate, endDate) {
     };
 }
 
+function snapchatRow(date) {
+    const di = dayIndexFrom20250101(date);
+    const revScale = 1 + di * 0.000065;
+    const spendScale = 1 + di * 0.00004;
+    const wRev = dateWiggle(date, "scr-v");
+    const wSpend = dateWiggle(date, "scs-v");
+    const h = numHash(`snap-${date}`);
+    const impressions = Math.round((88000 + (h % 4200)) * (1 + di * 0.00006) * dateWiggle(date, "simp"));
+    const clicks = Math.round((1900 + (h % 180)) * (1 + di * 0.00008) * dateWiggle(date, "sclk"));
+    const ad_spend = Math.round((480 + (h % 72)) * spendScale * wSpend);
+    const conversions = Math.round((11 + (h % 6)) * (1 + di * 0.00008) * dateWiggle(date, "sconv"));
+    const conversion_value = Math.round((1650 + (h % 180)) * revScale * wRev);
+    const saves = Math.round(clicks * 0.92);
+    return {
+        date,
+        conversion_value,
+        ad_spend,
+        conversions,
+        impressions,
+        clicks,
+        saves,
+        roas: ad_spend > 0 ? conversion_value / ad_spend : 0,
+        aov: conversions > 0 ? conversion_value / conversions : 0,
+        ctr: impressions > 0 ? clicks / impressions : 0,
+        cpc: clicks > 0 ? ad_spend / clicks : 0,
+        cpm: impressions > 0 ? (ad_spend / impressions) * 1000 : 0,
+    };
+}
+
+export function getDemoSnapchatDashboardForRange(startDate, endDate) {
+    const days = eachDayInclusive(startDate, endDate);
+    return {
+        metrics_by_date: days.map(snapchatRow),
+        top_campaigns: [
+            {
+                campaign_name: "Snapchat — Reach",
+                clicks: 1780,
+                impressions: 92000,
+                ctr: 0.019,
+                saves: 1620,
+            },
+            {
+                campaign_name: "Snapchat — Conversions demo",
+                clicks: 1120,
+                impressions: 64000,
+                ctr: 0.0175,
+                saves: 1010,
+            },
+        ],
+        campaigns_by_date: [],
+    };
+}
+
 function bingRow(date) {
     const di = dayIndexFrom20250101(date);
     const revScale = 1 + di * 0.000065;

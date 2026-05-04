@@ -118,6 +118,14 @@ Archive a customer (soft delete)
 - `shopifyApiPassword` (String): Shopify API credentials
 - `facebookAdAccountId` (String): Facebook Ads account ID
 - `googleAdsCustomerId` (String): Google Ads customer ID
+- `pinterestAdAccountId` (String): Pinterest Ads account ID (numeric)
+- `snapchat` (Object): Snapchat integration
+  - `clientId` (String): OAuth client ID
+  - `organizationId` (String): Business organization UUID (not the ad account)
+  - `adAccountId` (String): Ads account UUID for Marketing API stats
+  - `conversionsApiToken` (String): Conversions / CAPI token (password field in UI)
+  - `accessToken` (String): Marketing API bearer (~1h); per customer
+  - `refreshToken`, `clientSecret` (String): Optional — used to refresh access when access token is omitted or expired
 
 ## Usage in Components
 

@@ -24,6 +24,9 @@ export function getChannelPerformancePath({
 	if (serviceName === "Paid Social" && media === "Pinterest") {
 		return q ? `${base}/pinterest?${q}` : `${base}/pinterest`;
 	}
+	if (serviceName === "Paid Social" && media === "Snapchat") {
+		return q ? `${base}/snapchat?${q}` : `${base}/snapchat`;
+	}
 	if (serviceName === "Paid Social" && media) {
 		// One Meta / Facebook “PS” view; filter ads by name + period.
 		return q ? `${base}/ps?${q}` : `${base}/ps`;

@@ -10,6 +10,7 @@ import GeneralSettingsForm from './components/GeneralSettingsForm';
 import CustomerSettingsForm from './components/CustomerSettingsForm';
 import StaticExpensesForm from './components/StaticExpensesForm';
 import PropertyObjectives from './components/PropertyObjectives';
+import { defaultSnapchatSettings, normalizeSnapchatSettings } from '@/lib/snapchatCustomerSettings';
 
 export default function ConfigPage() {
     const { customerId } = useParams();
@@ -45,6 +46,7 @@ export default function ConfigPage() {
         googleAdsCountryFilter: "",
         googleAdsCountryExclude: "",
         pinterestAdAccountId: "",
+        snapchat: defaultSnapchatSettings(),
         bingAdsCustomerId: "",
         bingAdsAccountId: "",
         googleSearchConsoleProperty: "",
@@ -82,6 +84,7 @@ export default function ConfigPage() {
                     ...defaultFormState,
                     ...data,
                     ...(data.CustomerSettings || {}),
+                    snapchat: normalizeSnapchatSettings(data.CustomerSettings || {}),
                     CustomerStaticExpenses: {
                         ...defaultFormState.CustomerStaticExpenses,
                         ...(data.CustomerStaticExpenses || {}),
@@ -110,6 +113,16 @@ export default function ConfigPage() {
                     ...prev.CustomerStaticExpenses,
                     [name]: type === 'number' ? Number(value) : (Array.isArray(value) ? value : value)
                 }
+            }));
+        } else if (typeof name === 'string' && name.startsWith('snapchat.')) {
+            const field = name.slice('snapchat.'.length);
+            setForm((prev) => ({
+                ...prev,
+                snapchat: {
+                    ...defaultSnapchatSettings(),
+                    ...prev.snapchat,
+                    [field]: type === 'checkbox' ? checked : value,
+                },
             }));
         } else {
             setForm((prev) => ({
@@ -158,6 +171,7 @@ export default function ConfigPage() {
                 facebookAdAccountId,
                 googleAdsCustomerId,
                 pinterestAdAccountId,
+                snapchat,
                 bingAdsCustomerId,
                 bingAdsAccountId,
                 googleSearchConsoleProperty,
@@ -236,6 +250,10 @@ export default function ConfigPage() {
                             facebookAdAccountId,
                             googleAdsCustomerId,
                             pinterestAdAccountId,
+                            snapchat: {
+                                ...defaultSnapchatSettings(),
+                                ...snapchat,
+                            },
                             bingAdsCustomerId,
                             bingAdsAccountId,
                             googleAdsCountryFilter,
@@ -255,6 +273,7 @@ export default function ConfigPage() {
                 ...defaultFormState,
                 ...saved,
                 ...(saved.CustomerSettings || {}),
+                snapchat: normalizeSnapchatSettings(saved.CustomerSettings || {}),
                 CustomerStaticExpenses: {
                     ...defaultFormState.CustomerStaticExpenses,
                     ...(saved.CustomerStaticExpenses || {}),

@@ -1,6 +1,7 @@
 /**
  * Shared integration checks for service dashboards (sidebar warnings, audit scope, etc.).
  */
+import { normalizeSnapchatSettings } from "@/lib/snapchatCustomerSettings";
 
 /** Treats empty, "0", and "1" as missing/placeholder (per Customer settings). */
 export function isValidIntegrationId(value) {
@@ -17,6 +18,15 @@ export function getServiceDashboardConfigWarnings(settings) {
         ppc: !isValidIntegrationId(s.googleAdsCustomerId),
         ps: !isValidIntegrationId(s.facebookAdAccountId),
         pinterest: !isValidIntegrationId(s.pinterestAdAccountId),
+        snapchat: (() => {
+            const sn = normalizeSnapchatSettings(s);
+            const hasAuth =
+                !!(sn.accessToken && sn.accessToken.trim()) ||
+                (Boolean(sn.clientId?.trim()) &&
+                    Boolean(sn.clientSecret?.trim()) &&
+                    Boolean(sn.refreshToken?.trim()));
+            return !isValidIntegrationId(sn.adAccountId) || !hasAuth;
+        })(),
         bing: !(isValidIntegrationId(s.bingAdsAccountId) && isValidIntegrationId(s.bingAdsCustomerId)),
         em: !isValidIntegrationId(s.klaviyoPrivateApiKey),
     };
