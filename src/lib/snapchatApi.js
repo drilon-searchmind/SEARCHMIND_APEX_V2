@@ -1,3 +1,10 @@
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 /**
  * Snapchat Marketing API (https://adsapi.snapchat.com/v1).
  *
@@ -22,6 +29,17 @@ function snapDebugEnabled() {
 
 function dbg(...args) {
     if (snapDebugEnabled()) console.log("[Snapchat]", ...args);
+}
+
+/** dayjs timezone plugin has no `dayjs.tz.zone()` (that is moment-timezone). Use Intl for IANA validation. */
+function isValidIanaTimeZone(tz) {
+    if (!tz || typeof tz !== "string") return false;
+    try {
+        Intl.DateTimeFormat(undefined, { timeZone: tz });
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -80,16 +98,24 @@ export async function resolveSnapchatAccessTokenFromEnv() {
 export async function resolveSnapchatAccessTokenForCustomer(snapNormalized) {
     const snap = snapNormalized || {};
     const direct = typeof snap.accessToken === "string" ? snap.accessToken.trim() : "";
-    if (direct) return direct;
+    if (direct) {
+        if (snapDebugEnabled()) {
+            dbg("Bearer source: CustomerSettings.snapchat.accessToken", { tokenLengthChars: direct.length });
+        }
+        return direct;
+    }
 
     const clientId = typeof snap.clientId === "string" ? snap.clientId.trim() : "";
     const clientSecret = typeof snap.clientSecret === "string" ? snap.clientSecret.trim() : "";
     const refreshToken = typeof snap.refreshToken === "string" ? snap.refreshToken.trim() : "";
     if (clientId && clientSecret && refreshToken) {
+        if (snapDebugEnabled()) dbg("Bearer source: refresh_token grant (per-customer client id)");
         return refreshSnapchatAccessToken({ clientId, clientSecret, refreshToken });
     }
 
-    return resolveSnapchatAccessTokenFromEnv();
+    const envFallback = await resolveSnapchatAccessTokenFromEnv();
+    if (envFallback && snapDebugEnabled()) dbg("Bearer source: server env SNAPCHAT_* fallback");
+    return envFallback;
 }
 
 /**
@@ -99,16 +125,26 @@ export async function resolveSnapchatAccessToken() {
     return resolveSnapchatAccessTokenFromEnv();
 }
 
-function utcExclusiveEndDate(endDateYmd) {
-    const [y, m, d] = endDateYmd.split("-").map((x) => parseInt(x, 10));
-    if (!Number.isFinite(y)) return `${endDateYmd}T00:00:00.000Z`;
-    const end = Date.UTC(y, (m || 1) - 1, d || 1, 0, 0, 0);
-    const next = new Date(end + 86400000);
-    return next.toISOString().replace(/\.\d{3}Z$/, ".000Z");
-}
+/**
+ * Snapchat DAY stats require `start_time` / `end_time` on calendar-day boundaries in the **ad account timezone**
+ * (see Measurement API). We send ISO timestamps in UTC that correspond to those local midnights.
+ * @returns {{ start_time: string, end_time: string }} `end_time` exclusive (start of day after last date in account TZ).
+ */
+function statsWindowUtcIso(startDateYmd, endDateYmd, accountIanaTz) {
+    let tz = typeof accountIanaTz === "string" && accountIanaTz.trim() ? accountIanaTz.trim() : "UTC";
+    if (!isValidIanaTimeZone(tz)) {
+        dbg("Unknown ad account timezone, using UTC:", tz);
+        tz = "UTC";
+    }
 
-function utcStartDate(startDateYmd) {
-    return `${startDateYmd.trim()}T00:00:00.000Z`;
+    const s = `${String(startDateYmd).trim()}T00:00:00`;
+    const startLocal = dayjs.tz(s, tz).startOf("day");
+    const endExclusiveLocal = dayjs.tz(`${String(endDateYmd).trim()}T00:00:00`, tz).startOf("day").add(1, "day");
+
+    return {
+        start_time: startLocal.toDate().toISOString(),
+        end_time: endExclusiveLocal.toDate().toISOString(),
+    };
 }
 
 async function snapFetchJson(path, accessToken, searchParams) {
@@ -125,15 +161,29 @@ async function snapFetchJson(path, accessToken, searchParams) {
         },
         cache: "no-store",
     });
-    const data = await res.json().catch(() => ({}));
+    const text = await res.text();
+    let data = {};
+    try {
+        data = text ? JSON.parse(text) : {};
+    } catch {
+        data = { _nonJsonBody: text?.slice?.(0, 500) || "" };
+    }
     if (!res.ok) {
+        if (snapDebugEnabled()) {
+            dbg(`HTTP ${res.status} body`, typeof data === "object" ? data : text?.slice?.(0, 300));
+        }
         const msg =
             data?.debug_message ||
             data?.display_message ||
+            data?.message ||
+            data?.error_description ||
+            data?.error ||
             data?.request_status_reason ||
-            (typeof data === "string" ? data : "") ||
+            (typeof data?._nonJsonBody === "string" && data._nonJsonBody
+                ? data._nonJsonBody.slice(0, 200)
+                : "") ||
             res.statusText;
-        throw new Error(`Snapchat API ${res.status}: ${msg}`);
+        throw new Error(`Snapchat API ${res.status}: ${msg || "Unauthorized"}`);
     }
     const status = String(data?.request_status || "").toLowerCase();
     if (status && status !== "success") {
@@ -142,15 +192,101 @@ async function snapFetchJson(path, accessToken, searchParams) {
     return data;
 }
 
-function extractDayTimeseries(statsJson) {
+/**
+ * IANA timezone from GET /v1/adaccounts/{id} (e.g. America/Los_Angeles), required for DAY stats windows.
+ */
+async function fetchAdAccountTimezone(accessToken, adAccountId) {
+    const trimmed = String(adAccountId || "").trim();
+    if (!trimmed) return "UTC";
+    const data = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}`, accessToken, {});
+    const list = data?.adaccounts;
+    const first = Array.isArray(list) && list[0] ? list[0] : null;
+    const acc = first?.adaccount ?? first?.ad_account;
+    const tz = acc?.timezone;
+    if (typeof tz === "string" && tz.trim()) return tz.trim();
+    return "UTC";
+}
+
+/**
+ * All DAY (or HOUR) stat points. When `breakdown=campaign` (or adsquad on campaign entity), points live under
+ * `timeseries_stat.breakdown_stats.campaign[].timeseries`, not on `timeseries_stat.timeseries` alone.
+ */
+function extractAllTimeseriesPoints(statsJson) {
     const chunks = statsJson?.timeseries_stats;
-    if (!Array.isArray(chunks) || !chunks.length) return [];
-    const first = chunks[0];
-    const ts =
-        first?.timeseries_stat?.timeseries ||
-        first?.timeseriesStat?.timeseries ||
-        [];
-    return Array.isArray(ts) ? ts : [];
+    if (!Array.isArray(chunks)) return [];
+    const out = [];
+
+    function pushSeries(series) {
+        if (!Array.isArray(series)) return;
+        for (const pt of series) out.push(pt);
+    }
+
+    for (const item of chunks) {
+        const root = item?.timeseries_stat || item?.timeseriesStat;
+        if (!root) continue;
+        pushSeries(root.timeseries);
+
+        const breakdown = root.breakdown_stats || root.breakdownStats;
+        if (breakdown && typeof breakdown === "object") {
+            for (const key of Object.keys(breakdown)) {
+                const entities = breakdown[key];
+                if (!Array.isArray(entities)) continue;
+                for (const ent of entities) {
+                    pushSeries(ent.timeseries);
+                }
+            }
+        }
+    }
+    return out;
+}
+
+function dateKeyInAccountTz(isoTime, accountIanaTz) {
+    if (!isoTime || typeof isoTime !== "string") return "";
+    let tz = typeof accountIanaTz === "string" && accountIanaTz.trim() ? accountIanaTz.trim() : "UTC";
+    if (!isValidIanaTimeZone(tz)) tz = "UTC";
+    return dayjs(isoTime).tz(tz).format("YYYY-MM-DD");
+}
+
+function aggregateEngagementAndConversionsByDate(statsJson, accountIanaTz) {
+    const points = extractAllTimeseriesPoints(statsJson);
+    const map = {};
+    for (const pt of points) {
+        const iso = pt.start_time || pt.startTime;
+        const d = dateKeyInAccountTz(iso, accountIanaTz);
+        if (!d) continue;
+        const st = pt.stats || {};
+        if (!map[d]) {
+            map[d] = {
+                impressions: 0,
+                swipes: 0,
+                spend_micro: 0,
+                conversion_purchases: 0,
+                conversion_purchases_value_micro: 0,
+                conversion_add_cart: 0,
+            };
+        }
+        map[d].impressions += num(st.impressions);
+        map[d].swipes += num(st.swipes);
+        map[d].spend_micro += num(st.spend);
+        map[d].conversion_purchases += num(st.conversion_purchases);
+        map[d].conversion_purchases_value_micro += num(st.conversion_purchases_value);
+        map[d].conversion_add_cart += num(st.conversion_add_cart);
+    }
+    return map;
+}
+
+/** Map YYYY-MM-DD → spend microcurrency from Ad Account DAY stats (`fields` must be `spend` only). */
+function spendMicroByDateFromAccountDayStats(statsJson, accountIanaTz) {
+    const points = extractAllTimeseriesPoints(statsJson);
+    const map = {};
+    for (const pt of points) {
+        const iso = pt.start_time || pt.startTime;
+        const d = dateKeyInAccountTz(iso, accountIanaTz);
+        if (!d) continue;
+        const m = num(pt.stats?.spend);
+        map[d] = (map[d] || 0) + m;
+    }
+    return map;
 }
 
 /**
@@ -160,11 +296,17 @@ function normalizeDayRow(startTimeIso, stats) {
     const st = stats && typeof stats === "object" ? stats : {};
     const impressions = num(st.impressions);
     const swipes = num(st.swipes);
-    const ad_spend = Math.round(spendMajor(st.spend) * 100) / 100;
+    const spendMicroRaw = num(st.spend);
+    const ad_spend = Math.round(spendMajor(spendMicroRaw) * 100) / 100;
     const clicks = swipes;
     const ctr = impressions > 0 ? clicks / impressions : 0;
     const cpc = clicks > 0 ? ad_spend / clicks : 0;
     const cpm = impressions > 0 ? (ad_spend / impressions) * 1000 : 0;
+    const purchases = num(st.conversion_purchases);
+    const purchase_value_major = spendMajor(num(st.conversion_purchases_value));
+    const purchase_value = Math.round(purchase_value_major * 100) / 100;
+    const adds_to_cart = num(st.conversion_add_cart);
+    const roas = ad_spend > 0 ? purchase_value_major / ad_spend : 0;
     const dateStr =
         typeof startTimeIso === "string" && startTimeIso.length >= 10 ? startTimeIso.slice(0, 10) : "";
 
@@ -174,24 +316,29 @@ function normalizeDayRow(startTimeIso, stats) {
         impressions,
         clicks,
         saves: swipes,
-        conversions: 0,
-        conversion_value: 0,
+        /** @deprecated use `purchases` — kept for older UI / exports */
+        conversions: purchases,
+        purchases,
+        purchase_value,
+        conversion_value: purchase_value,
+        adds_to_cart,
         ctr,
         cpc,
         cpm,
-        roas: 0,
-        aov: 0,
+        roas,
+        purchase_roas: roas,
+        aov: purchases > 0 ? purchase_value / purchases : 0,
     };
 }
 
-/** Best-effort: campaign-level TOTAL stats for range — response shape varies; may return []. */
+/** Campaign rows from TOTAL stats (`breakdown_stats.campaign[]` when requesting ad account + breakdown=campaign). */
 function extractCampaignTotals(statsJson) {
     const totals = statsJson?.total_stats;
     if (!Array.isArray(totals)) return [];
     const rows = [];
-    for (const item of totals) {
-        const ts = item?.total_stat;
-        if (!ts || typeof ts !== "object") continue;
+
+    function pushFromEntity(ts) {
+        if (!ts || typeof ts !== "object") return;
         const id = ts.id || ts.entity_id;
         const name =
             ts.name ||
@@ -199,10 +346,13 @@ function extractCampaignTotals(statsJson) {
             ts.campaign?.name ||
             (id ? String(id).slice(0, 8) + "…" : "Campaign");
         const st = ts.stats;
-        if (!st || typeof st !== "object") continue;
+        if (!st || typeof st !== "object") return;
         const impressions = num(st.impressions);
         const swipes = num(st.swipes);
         const ad_spend = spendMajor(st.spend);
+        const purchases = num(st.conversion_purchases);
+        const adds_to_cart = num(st.conversion_add_cart);
+        const purchase_value = spendMajor(st.conversion_purchases_value);
         const ctr = impressions > 0 ? swipes / impressions : 0;
         rows.push({
             campaign_id: id,
@@ -212,7 +362,21 @@ function extractCampaignTotals(statsJson) {
             saves: swipes,
             ctr,
             ad_spend,
+            purchases,
+            adds_to_cart,
+            purchase_value,
         });
+    }
+
+    for (const item of totals) {
+        const aggregate = item?.total_stat;
+        if (!aggregate) continue;
+        const campaigns = aggregate.breakdown_stats?.campaign || aggregate.breakdownStats?.campaign;
+        if (Array.isArray(campaigns) && campaigns.length > 0) {
+            for (const c of campaigns) pushFromEntity(c);
+            continue;
+        }
+        pushFromEntity(aggregate);
     }
     rows.sort((a, b) => (b.ad_spend || 0) - (a.ad_spend || 0));
     return rows.slice(0, 20);
@@ -227,20 +391,79 @@ export async function fetchSnapchatDashboardMetrics({
     const trimmed = String(adAccountId || "").trim();
     if (!trimmed) throw new Error("Missing adAccountId");
 
-    const start_time = utcStartDate(startDate);
-    const end_time = utcExclusiveEndDate(endDate);
-    const fields = "impressions,swipes,spend";
+    const accountTz = await fetchAdAccountTimezone(accessToken, trimmed);
+    const { start_time, end_time } = statsWindowUtcIso(startDate, endDate, accountTz);
+    if (snapDebugEnabled()) dbg("DAY stats window (account TZ)", { accountTz, start_time, end_time });
 
-    const dayParams = {
+    /**
+     * Ad Account stats **without** breakdown only allow fields=spend. With breakdown=campaign, DAY rows live under
+     * `breakdown_stats.campaign[].timeseries` — we aggregate by account-local calendar date.
+     * Prefer one request including spend + engagement + Pixel-style conversions when the API accepts it.
+     */
+    const dayStatsBase = {
         granularity: "DAY",
         start_time,
         end_time,
-        fields,
+        swipe_up_attribution_window: "28_DAY",
+        view_attribution_window: "1_DAY",
     };
 
-    const dayJson = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, dayParams);
+    const fieldsDayFull =
+        "spend,impressions,swipes,conversion_purchases,conversion_purchases_value,conversion_add_cart";
 
-    const series = extractDayTimeseries(dayJson);
+    let rollupByDate = {};
+
+    try {
+        const combinedDay = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
+            ...dayStatsBase,
+            breakdown: "campaign",
+            fields: fieldsDayFull,
+        });
+        rollupByDate = aggregateEngagementAndConversionsByDate(combinedDay, accountTz);
+    } catch (eCombo) {
+        dbg("Combined DAY breakdown=campaign request failed — falling back split calls", eCombo?.message || eCombo);
+        const spendDayJson = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
+            ...dayStatsBase,
+            fields: "spend",
+        });
+        const spendByDateMicro = spendMicroByDateFromAccountDayStats(spendDayJson, accountTz);
+
+        try {
+            const convDayJson = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
+                ...dayStatsBase,
+                breakdown: "campaign",
+                fields:
+                    "impressions,swipes,conversion_purchases,conversion_purchases_value,conversion_add_cart",
+            });
+            rollupByDate = aggregateEngagementAndConversionsByDate(convDayJson, accountTz);
+        } catch (eConv) {
+            dbg("Campaign DAY impressions + conversions aggregation skipped", eConv?.message || eConv);
+            try {
+                const engDayJson = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
+                    ...dayStatsBase,
+                    breakdown: "campaign",
+                    fields: "impressions,swipes",
+                });
+                rollupByDate = aggregateEngagementAndConversionsByDate(engDayJson, accountTz);
+            } catch (eEng) {
+                dbg("Campaign DAY impressions/swipes aggregation skipped", eEng?.message || eEng);
+            }
+        }
+
+        for (const d of Object.keys(spendByDateMicro)) {
+            if (!rollupByDate[d])
+                rollupByDate[d] = {
+                    impressions: 0,
+                    swipes: 0,
+                    spend_micro: 0,
+                    conversion_purchases: 0,
+                    conversion_purchases_value_micro: 0,
+                    conversion_add_cart: 0,
+                };
+            rollupByDate[d].spend_micro = spendByDateMicro[d];
+        }
+    }
+
     /** Fill gaps so charts align with calendar range (snap may omit zero days when omit_empty). */
     function eachDayInclusive(s, e) {
         const out = [];
@@ -252,38 +475,66 @@ export async function fetchSnapchatDashboardMetrics({
         }
         return out;
     }
-    const byDate = Object.fromEntries(
-        series.map((pt) => {
-            const iso = pt.start_time || pt.startTime;
-            const row = normalizeDayRow(iso, pt.stats);
-            return [row.date, row];
-        })
-    );
 
-    let metrics_by_date = eachDayInclusive(startDate, endDate).map((d) =>
-        byDate[d] ||
-        normalizeDayRow(`${d}T00:00:00.000Z`, {
-            impressions: 0,
-            swipes: 0,
-            spend: 0,
-        })
-    );
+    const emptyAgg = () => ({
+        impressions: 0,
+        swipes: 0,
+        spend_micro: 0,
+        conversion_purchases: 0,
+        conversion_purchases_value_micro: 0,
+        conversion_add_cart: 0,
+    });
+
+    let metrics_by_date = eachDayInclusive(startDate, endDate).map((d) => {
+        const agg = rollupByDate[d] || emptyAgg();
+        return normalizeDayRow(`${d}T12:00:00.000Z`, {
+            spend: agg.spend_micro,
+            impressions: agg.impressions,
+            swipes: agg.swipes,
+            conversion_purchases: agg.conversion_purchases,
+            conversion_purchases_value: agg.conversion_purchases_value_micro,
+            conversion_add_cart: agg.conversion_add_cart,
+        });
+    });
 
     metrics_by_date = metrics_by_date.filter((r) => r.date);
 
     let top_campaigns = [];
+    const totalStatsBase = {
+        granularity: "TOTAL",
+        start_time,
+        end_time,
+        breakdown: "campaign",
+        limit: 50,
+        swipe_up_attribution_window: "28_DAY",
+        view_attribution_window: "1_DAY",
+    };
     try {
         const campJson = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
-            granularity: "TOTAL",
-            start_time,
-            end_time,
-            fields,
-            breakdown: "campaign",
-            limit: 50,
+            ...totalStatsBase,
+            fields: "impressions,swipes,spend,conversion_purchases,conversion_purchases_value,conversion_add_cart",
         });
         top_campaigns = extractCampaignTotals(campJson);
     } catch (e) {
-        dbg("Campaign breakdown stats skipped", e?.message || e);
+        dbg("Campaign TOTAL with conversions failed, trying impressions+swipes+spend", e?.message || e);
+        try {
+            const campJson2 = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
+                ...totalStatsBase,
+                fields: "impressions,swipes,spend",
+            });
+            top_campaigns = extractCampaignTotals(campJson2);
+        } catch (e2) {
+            dbg("Campaign TOTAL stats failed, trying spend-only for top campaigns", e2?.message || e2);
+            try {
+                const campSpendJson = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
+                    ...totalStatsBase,
+                    fields: "spend",
+                });
+                top_campaigns = extractCampaignTotals(campSpendJson);
+            } catch (e3) {
+                dbg("Campaign breakdown stats skipped", e3?.message || e3);
+            }
+        }
     }
 
     return {

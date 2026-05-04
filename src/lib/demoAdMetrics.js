@@ -188,15 +188,23 @@ function snapchatRow(date) {
     const conversions = Math.round((11 + (h % 6)) * (1 + di * 0.00008) * dateWiggle(date, "sconv"));
     const conversion_value = Math.round((1650 + (h % 180)) * revScale * wRev);
     const saves = Math.round(clicks * 0.92);
+    const purchases = conversions;
+    const purchase_value = conversion_value;
+    const adds_to_cart = Math.round((12 + (h % 40)) * (1 + di * 0.00005) * dateWiggle(date, "scart"));
+    const purchase_roas = ad_spend > 0 ? purchase_value / ad_spend : 0;
     return {
         date,
         conversion_value,
+        purchase_value,
         ad_spend,
         conversions,
+        purchases,
+        adds_to_cart,
         impressions,
         clicks,
         saves,
-        roas: ad_spend > 0 ? conversion_value / ad_spend : 0,
+        roas: purchase_roas,
+        purchase_roas,
         aov: conversions > 0 ? conversion_value / conversions : 0,
         ctr: impressions > 0 ? clicks / impressions : 0,
         cpc: clicks > 0 ? ad_spend / clicks : 0,
@@ -215,6 +223,10 @@ export function getDemoSnapchatDashboardForRange(startDate, endDate) {
                 impressions: 92000,
                 ctr: 0.019,
                 saves: 1620,
+                ad_spend: 4200.5,
+                purchases: 38,
+                adds_to_cart: 102,
+                purchase_value: 15230.75,
             },
             {
                 campaign_name: "Snapchat — Conversions demo",
@@ -222,6 +234,10 @@ export function getDemoSnapchatDashboardForRange(startDate, endDate) {
                 impressions: 64000,
                 ctr: 0.0175,
                 saves: 1010,
+                ad_spend: 2890,
+                purchases: 24,
+                adds_to_cart: 68,
+                purchase_value: 9800,
             },
         ],
         campaigns_by_date: [],

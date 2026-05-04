@@ -15,6 +15,9 @@ import {
     FiPercent,
     FiArrowDownRight,
     FiArrowUpRight,
+    FiDollarSign,
+    FiBarChart2,
+    FiPlusCircle,
 } from "react-icons/fi";
 import { useCustomers } from "@/hooks/useCustomers";
 import dayjs from "dayjs";
@@ -181,7 +184,8 @@ export default function SnapchatServiceDashboardPage() {
     }, [customer, appliedRange.startDate, appliedRange.endDate, comparisonMethod]);
 
     const percentChange = (current, prev) => {
-        if (prev === 0 || prev === null || prev === undefined) return null;
+        if (current === null || current === undefined || isNaN(Number(current))) return null;
+        if (prev === 0 || prev === null || prev === undefined || isNaN(Number(prev))) return null;
         return ((current - prev) / Math.abs(prev)) * 100;
     };
     const changeType = (val) => {
@@ -193,8 +197,22 @@ export default function SnapchatServiceDashboardPage() {
         if (!metricsByDate.length) return [];
 
         const agg = (key, data) => {
-            if (key === "conversions") {
-                return data.reduce((sum, row) => sum + (row.conversions || 0), 0);
+            if (key === "purchases") {
+                return data.reduce((sum, row) => sum + (Number(row.purchases ?? row.conversions) || 0), 0);
+            }
+            if (key === "adds_to_cart") {
+                return data.reduce((sum, row) => sum + (Number(row.adds_to_cart) || 0), 0);
+            }
+            if (key === "purchase_value") {
+                return data.reduce((sum, row) => sum + (Number(row.purchase_value ?? row.conversion_value) || 0), 0);
+            }
+            if (key === "purchase_roas") {
+                const spend = data.reduce((sum, row) => sum + (Number(row.ad_spend) || 0), 0);
+                const val = data.reduce(
+                    (sum, row) => sum + (Number(row.purchase_value ?? row.conversion_value) || 0),
+                    0
+                );
+                return spend > 0 ? val / spend : null;
             }
             if (key === "ctr") {
                 const totalClicks = data.reduce((sum, row) => sum + (row.clicks || 0), 0);
@@ -221,6 +239,32 @@ export default function SnapchatServiceDashboardPage() {
     const { chartOptions, chartSeries } = useMemo(() => {
         const chartCategories = metricsByDate.map((row) => row.date);
         const metricsByDatePrevMap = Object.fromEntries(metricsByDatePrev.map((row) => [row.date, row]));
+
+        /** Chart Y value for one day row — ROAS derived from spend + purchase value like Ads Manager cards. */
+        const pointChartValue = (row, metricKey) => {
+            if (!row) return null;
+            let val = row[metricKey];
+            if (metricKey === "ctr" && row.impressions > 0) {
+                val = ((row.clicks || 0) / row.impressions) * 100;
+            }
+            if (metricKey === "purchase_roas") {
+                const pv = Number(row.purchase_value ?? row.conversion_value) || 0;
+                const sp = Number(row.ad_spend) || 0;
+                val = sp > 0 ? pv / sp : null;
+            }
+            if (typeof val === "number" && !isNaN(val)) {
+                if (
+                    metricKey === "ctr" ||
+                    metricKey === "purchase_roas" ||
+                    metricKey === "purchase_value"
+                ) {
+                    return Number(val.toFixed(2));
+                }
+                return Math.round(val);
+            }
+            return val ?? null;
+        };
+
         const series = [];
 
         selectedMetrics.forEach((metricKey) => {
@@ -229,15 +273,7 @@ export default function SnapchatServiceDashboardPage() {
                 name: `${metricOption?.label || "Metric"} (Current)`,
                 data: chartCategories.map((date) => {
                     const row = metricsByDate.find((r) => r.date === date);
-                    if (!row) return null;
-                    let val = row[metricKey];
-                    if (metricKey === "ctr" && row.impressions > 0) {
-                        val = ((row.clicks || 0) / row.impressions) * 100;
-                    }
-                    if (typeof val === "number" && !isNaN(val)) {
-                        return metricKey === "ctr" ? Number(val.toFixed(2)) : Math.round(val);
-                    }
-                    return val ?? null;
+                    return pointChartValue(row, metricKey);
                 }),
             });
         });
@@ -261,15 +297,7 @@ export default function SnapchatServiceDashboardPage() {
                     }
 
                     const row = metricsByDatePrevMap[prevDate];
-                    if (!row) return null;
-                    let val = row[metricKey];
-                    if (metricKey === "ctr" && row.impressions > 0) {
-                        val = ((row.clicks || 0) / row.impressions) * 100;
-                    }
-                    if (typeof val === "number" && !isNaN(val)) {
-                        return metricKey === "ctr" ? Number(val.toFixed(2)) : Math.round(val);
-                    }
-                    return val ?? null;
+                    return pointChartValue(row, metricKey);
                 }),
             });
         });
@@ -359,13 +387,15 @@ export default function SnapchatServiceDashboardPage() {
                 }
             />
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6 w-full mb-8">
+            <div
+                className="grid w-full gap-6 mb-8 [grid-template-columns:repeat(auto-fill,minmax(13.5rem,1fr))]"
+            >
                 {loading ? (
-                    <div className="col-span-5 text-center">
+                    <div className="col-span-full text-center">
                         <Spinner size={40} color="#406969" />
                     </div>
                 ) : error ? (
-                    <div className="col-span-5 text-center text-red-500">{error}</div>
+                    <div className="col-span-full text-center text-red-500">{error}</div>
                 ) : (
                     metrics.map((metric, idx) => {
                         const Icon = METRIC_OPTIONS.find((opt) => opt.label === metric.label)?.icon;
@@ -373,6 +403,7 @@ export default function SnapchatServiceDashboardPage() {
                         return (
                             <div
                                 key={idx}
+                                className="min-w-0"
                                 onClick={() =>
                                     setSelectedMetrics((prev) => {
                                         const metricKey = METRIC_OPTIONS[idx].key;
@@ -385,30 +416,35 @@ export default function SnapchatServiceDashboardPage() {
                                 style={{ cursor: "pointer" }}
                             >
                                 <MetricCard
+                                    className="h-full"
                                     label={metric.label}
                                     value={
                                         metric.value !== null && metric.value !== undefined
                                             ? typeof metric.value === "number" && !isNaN(metric.value)
-                                                ? metric.label === "Ad spend"
+                                                ? metric.label === "Ad spend" || metric.label === "Purchase value"
                                                     ? metric.value.toLocaleString("da-DK", {
                                                           style: "currency",
                                                           currency: "DKK",
-                                                          maximumFractionDigits: 0,
-                                                          minimumFractionDigits: 0,
+                                                          maximumFractionDigits:
+                                                              metric.label === "Purchase value" ? 2 : 0,
+                                                          minimumFractionDigits:
+                                                              metric.label === "Purchase value" ? 2 : 0,
                                                       })
                                                     : metric.label === "CTR"
                                                       ? `${metric.value.toFixed(2)}%`
-                                                      : metric.label === "CPC" || metric.label === "CPM"
-                                                        ? metric.value.toLocaleString("da-DK", {
-                                                              style: "currency",
-                                                              currency: "DKK",
-                                                              maximumFractionDigits: 2,
-                                                              minimumFractionDigits: 2,
-                                                          })
-                                                        : metric.value.toLocaleString(undefined, {
-                                                              maximumFractionDigits: 0,
-                                                              minimumFractionDigits: 0,
-                                                          })
+                                                      : metric.label === "Purchase ROAS"
+                                                        ? `${metric.value.toFixed(2)}×`
+                                                        : metric.label === "CPC" || metric.label === "CPM"
+                                                          ? metric.value.toLocaleString("da-DK", {
+                                                                style: "currency",
+                                                                currency: "DKK",
+                                                                maximumFractionDigits: 2,
+                                                                minimumFractionDigits: 2,
+                                                            })
+                                                          : metric.value.toLocaleString(undefined, {
+                                                                maximumFractionDigits: 0,
+                                                                minimumFractionDigits: 0,
+                                                            })
                                                 : metric.value
                                             : "-"
                                     }
@@ -481,6 +517,9 @@ export default function SnapchatServiceDashboardPage() {
                             <thead>
                                 <tr className="bg-gray-50">
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">Campaign</th>
+                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Spend (DKK)</th>
+                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Purchases</th>
+                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Adds to cart</th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">Swipe-ups</th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">Impressions</th>
                                     <th className="px-3 py-1.5 font-semibold text-gray-700">CTR</th>
@@ -489,22 +528,71 @@ export default function SnapchatServiceDashboardPage() {
                             <tbody className="text-[12px]">
                                 {topCampaigns.length === 0 ? (
                                     <tr>
-                                        <td colSpan={4} className="text-center py-8 text-gray-400">
+                                        <td colSpan={7} className="text-center py-8 text-gray-400">
                                             No campaign data for selected range.
                                         </td>
                                     </tr>
                                 ) : (
                                     topCampaigns.map((row, idx) => {
+                                        const spendNum = Number(row.ad_spend) || 0;
+                                        const purchasesNum = Number(row.purchases) || 0;
+                                        const addsNum = Number(row.adds_to_cart) || 0;
                                         const max = {
+                                            ad_spend: Math.max(...topCampaigns.map((r) => Number(r.ad_spend) || 0)),
                                             clicks: Math.max(...topCampaigns.map((r) => Number(r.clicks) || 0)),
                                             impressions: Math.max(
                                                 ...topCampaigns.map((r) => Number(r.impressions) || 0)
+                                            ),
+                                            purchases: Math.max(...topCampaigns.map((r) => Number(r.purchases) || 0)),
+                                            adds_to_cart: Math.max(
+                                                ...topCampaigns.map((r) => Number(r.adds_to_cart) || 0)
                                             ),
                                             ctr: Math.max(...topCampaigns.map((r) => (Number(r.ctr) || 0) * 100)),
                                         };
                                         return (
                                             <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                                                 <td className="px-3 py-2 whitespace-nowrap">{row.campaign_name}</td>
+                                                <td
+                                                    className="px-3 py-2 whitespace-nowrap"
+                                                    style={{
+                                                        ...(spendNum > 0 && max.ad_spend > 0
+                                                            ? {
+                                                                  backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (spendNum / max.ad_spend)})`,
+                                                              }
+                                                            : {}),
+                                                    }}
+                                                >
+                                                    {spendNum.toLocaleString("da-DK", {
+                                                        style: "currency",
+                                                        currency: "DKK",
+                                                        maximumFractionDigits: 2,
+                                                        minimumFractionDigits: 2,
+                                                    })}
+                                                </td>
+                                                <td
+                                                    className="px-3 py-2 whitespace-nowrap"
+                                                    style={{
+                                                        ...(purchasesNum > 0 && max.purchases > 0
+                                                            ? {
+                                                                  backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (purchasesNum / max.purchases)})`,
+                                                              }
+                                                            : {}),
+                                                    }}
+                                                >
+                                                    {purchasesNum.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                                </td>
+                                                <td
+                                                    className="px-3 py-2 whitespace-nowrap"
+                                                    style={{
+                                                        ...(addsNum > 0 && max.adds_to_cart > 0
+                                                            ? {
+                                                                  backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (addsNum / max.adds_to_cart)})`,
+                                                              }
+                                                            : {}),
+                                                    }}
+                                                >
+                                                    {addsNum.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                                </td>
                                                 <td
                                                     className="px-3 py-2 whitespace-nowrap"
                                                     style={{
