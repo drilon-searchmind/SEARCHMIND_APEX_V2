@@ -88,7 +88,7 @@ export async function GET(req) {
         return new Response(
             JSON.stringify({
                 error:
-                    "Missing Reddit Ads authorization for this customer: add Access token, or Client id + Client secret (+ optional Refresh token), or set server REDDIT_ADS_ACCESS_TOKEN / REDDIT_APP_ID + REDDIT_APP_SECRET.",
+                    "Missing Reddit Ads authorization: use a user OAuth access token (and refresh token) from the Reddit account that can access this ad account — client id + secret alone only obtain an app token that often cannot read reports. Optionally set REDDIT_ADS_ACCESS_TOKEN. See https://ads-api.reddit.com/docs/v3/",
             }),
             {
                 status: 500,

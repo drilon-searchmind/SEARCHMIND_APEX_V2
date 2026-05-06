@@ -1,5 +1,5 @@
 /**
- * Reddit Ads API v3 (https://ads-api.reddit.com/api/v3).
+ * Reddit Ads API v3 — base URL matches https://ads-api.reddit.com/docs/v3/
  *
  * Credentials: `CustomerSettings.reddit` (see `redditCustomerSettings.js`).
  * Server env overrides: REDDIT_APP_ID, REDDIT_APP_SECRET, optional REDDIT_ADS_ACCESS_TOKEN / REDDIT_USERNAME.
@@ -22,10 +22,88 @@ function dbg(...args) {
     if (redditDebugEnabled()) console.log("[RedditAds]", ...args);
 }
 
+function dbgErr(...args) {
+    if (redditDebugEnabled()) console.error("[RedditAds]", ...args);
+}
+
+/** Human-readable snippet for logs and thrown errors (avoids [object Object]). */
+function stringifyRedditPayload(value, maxLen = 3500) {
+    if (value == null) return "";
+    if (typeof value === "string") return value.length > maxLen ? `${value.slice(0, maxLen)}…` : value;
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+    try {
+        const s = JSON.stringify(value, null, 2);
+        return s.length > maxLen ? `${s.slice(0, maxLen)}…` : s;
+    } catch {
+        return String(value);
+    }
+}
+
+/**
+ * Reddit error bodies vary: `message` can be a string or structured object; see `field_errors`, `errors`.
+ * @param {unknown} data - Parsed JSON (or { _raw })
+ * @param {Response} res
+ */
+export function formatRedditAdsApiError(data, res) {
+    const status = res?.status;
+    if (!data || typeof data !== "object") {
+        return res?.statusText || (status != null ? String(status) : "Error");
+    }
+    const root =
+        data.error && typeof data.error === "object" && !Array.isArray(data.error) ? data.error : data;
+    /** @type {string[]} */
+    const bits = [];
+    const msg = root.message ?? data.message;
+    if (msg != null) bits.push(typeof msg === "string" ? msg : stringifyRedditPayload(msg, 2500));
+    if (data.error != null && data.error !== msg && typeof data.error === "string") bits.push(data.error);
+    if (root.reason) bits.push(String(root.reason));
+    if (root.error_description) bits.push(String(root.error_description));
+    if (root.field_errors) bits.push(`field_errors: ${stringifyRedditPayload(root.field_errors)}`);
+    if (root.errors != null) bits.push(`errors: ${stringifyRedditPayload(root.errors)}`);
+    if (root.detail) bits.push(stringifyRedditPayload(root.detail));
+    const fieldList = Array.isArray(root.fields) ? root.fields : Array.isArray(data.fields) ? data.fields : [];
+    if (fieldList.length) bits.push(`fields: ${stringifyRedditPayload(fieldList)}`);
+    if (data._raw && typeof data._raw === "string") bits.push(data._raw.slice(0, 600));
+
+    const joined = bits.filter(Boolean).join(" — ");
+    return joined || res?.statusText || (status != null ? `HTTP ${status}` : "Reddit Ads API error");
+}
+
 /** Reddit requires a descriptive User-Agent for API calls. */
 export function buildRedditUserAgent(redditUsername) {
     const u = String(redditUsername || process.env.REDDIT_USERNAME || "apex").trim() || "apex";
     return `web:SEARCHMIND_APEX:v1.0 (by /u/${u})`;
+}
+
+/**
+ * Reddit Ads API v3 reporting (OpenAPI): POST body uses JSON:API-style `data` with:
+ * `starts_at`, `ends_at` (ISO-8601 UTC), `fields` (uppercase metric enums), `breakdowns` (dimensions).
+ * @see https://github.com/modelslab/reddit-ads-mcp (verified examples against live API)
+ */
+function redditReportPostBody(spec) {
+    return { data: spec };
+}
+
+/** @param {string} ymd - YYYY-MM-DD */
+function addOneCalendarDayYmd(ymd) {
+    const d = new Date(`${ymd}T12:00:00.000Z`);
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+}
+
+/** @param {string} startDateYmd @param {string} endDateYmd */
+function redditReportTimeRange(startDateYmd, endDateYmd) {
+    // Both bounds must be hourly-only: YYYY-MM-DDTHH:00:00Z (see Reddit validation errors).
+    // Use [starts_at, ends_at) with ends_at = midnight after the last reporting day so the range is inclusive of endDateYmd.
+    return {
+        starts_at: `${startDateYmd}T00:00:00Z`,
+        ends_at: `${addOneCalendarDayYmd(endDateYmd)}T00:00:00Z`,
+    };
+}
+
+/** Appended to 401 responses from ads-api.reddit.com (reports require a user-context token). */
+function redditAdsUnauthorizedHint() {
+    return " Use a user OAuth access token for the Reddit account that has access to this ad account (authorization-code flow; include scope adsread; store access + refresh token on the customer). App-only client_credentials tokens often return 401 on reporting. Docs: https://ads-api.reddit.com/docs/v3/";
 }
 
 async function redditAdsFetch(accessToken, path, { method = "GET", body: jsonBody, redditUsername } = {}) {
@@ -50,12 +128,19 @@ async function redditAdsFetch(accessToken, path, { method = "GET", body: jsonBod
         data = { _raw: text?.slice?.(0, 500) || "" };
     }
     if (!res.ok) {
-        const msg =
-            data?.message ||
-            data?.error ||
-            data?.reason ||
-            (typeof data?._raw === "string" && data._raw.slice(0, 200)) ||
-            res.statusText;
+        let msg = formatRedditAdsApiError(data, res);
+        if (res.status === 401) {
+            msg = `${msg}${redditAdsUnauthorizedHint()}`;
+        }
+        dbgErr("API error response", {
+            status: res.status,
+            url,
+            message: msg,
+            body: redditDebugEnabled() ? data : "(set DEBUG_REDDIT=1 for full body)",
+        });
+        if (redditDebugEnabled()) {
+            dbgErr("Full error JSON", stringifyRedditPayload(data));
+        }
         throw new Error(`Reddit Ads API ${res.status}: ${msg || "Error"}`);
     }
     return data.data !== undefined ? data.data : data;
@@ -157,30 +242,62 @@ export async function resolveRedditAccessTokenForCustomer(redditNormalized) {
 }
 
 function spendToMajor(row) {
-    const micro = num(row.spend_micro ?? row.spendMicro);
+    const micro = num(row.spend_micro ?? row.spendMicro ?? row.SPEND_MICRO);
     if (micro > 0) return micro / 1_000_000;
-    const s = num(row.spend ?? row.spend_dollars);
+    const s = num(row.spend ?? row.spend_dollars ?? row.SPEND);
     if (s <= 0) return 0;
     if (s >= 50_000) return s / 1_000_000;
     return s;
 }
 
+function rowImpressions(r) {
+    return num(r.impressions ?? r.IMPRESSIONS);
+}
+
+function rowClicks(r) {
+    return num(r.clicks ?? r.CLICKS);
+}
+
+function rowConversions(r) {
+    return num(r.conversions ?? r.CONVERSIONS);
+}
+
 function rowDateKey(row) {
-    const d = row.date ?? row.day ?? row.report_date ?? row.reportDate ?? row.time ?? row.event_date;
-    if (typeof d === "string") return d.trim().slice(0, 10);
+    const d =
+        row.date ??
+        row.day ??
+        row.DATE ??
+        row.report_date ??
+        row.reportDate ??
+        row.time ??
+        row.event_date;
+    if (typeof d === "string") {
+        const t = d.trim();
+        if (t.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
+        if (t.includes("T")) return t.slice(0, 10);
+    }
     return "";
+}
+
+function rowLooksLikeReportRecord(x) {
+    return (
+        x &&
+        typeof x === "object" &&
+        (x.impressions != null ||
+            x.IMPRESSIONS != null ||
+            x.clicks != null ||
+            x.CLICKS != null ||
+            x.spend != null ||
+            x.SPEND != null ||
+            rowDateKey(x))
+    );
 }
 
 /** Find arrays in payloads that resemble reporting rows */
 function extractReportRows(payload) {
     if (!payload) return [];
     if (Array.isArray(payload)) {
-        const ok = payload.some(
-            (x) =>
-                x &&
-                typeof x === "object" &&
-                (x.impressions != null || x.clicks != null || x.spend != null || rowDateKey(x))
-        );
+        const ok = payload.some((x) => rowLooksLikeReportRecord(x));
         return ok ? payload : [];
     }
 
@@ -193,14 +310,7 @@ function extractReportRows(payload) {
         seen.add(cur);
 
         if (Array.isArray(cur)) {
-            if (
-                cur.length &&
-                typeof cur[0] === "object" &&
-                (cur[0].impressions != null ||
-                    cur[0].clicks != null ||
-                    cur[0].spend != null ||
-                    rowDateKey(cur[0]))
-            ) {
+            if (cur.length && typeof cur[0] === "object" && rowLooksLikeReportRecord(cur[0])) {
                 return cur;
             }
             for (const x of cur) stack.push(x);
@@ -209,8 +319,8 @@ function extractReportRows(payload) {
 
         for (const k of Object.keys(cur)) {
             const v = cur[k];
-            if (Array.isArray(v) && k === "metrics" && v.length && typeof v[0] === "object") {
-                return v;
+            if (Array.isArray(v) && (k === "metrics" || k === "rows" || k === "data") && v.length && typeof v[0] === "object") {
+                if (rowLooksLikeReportRecord(v[0])) return v;
             }
             stack.push(v);
         }
@@ -255,9 +365,20 @@ function normalizeDayRow(dateStr, agg) {
 
 function campaignLabel(row) {
     const name =
-        row.campaign_name || row.name || row.campaignName || (row.metadata && row.metadata.name) || "";
+        row.campaign_name ||
+        row.name ||
+        row.campaignName ||
+        row.CAMPAIGN_NAME ||
+        (row.metadata && row.metadata.name) ||
+        "";
     const id =
-        row.campaign_id ?? row.campaignId ?? row.id ?? row.entity_id ?? row.campaign?.id ?? "";
+        row.campaign_id ??
+        row.campaignId ??
+        row.CAMPAIGN_ID ??
+        row.id ??
+        row.entity_id ??
+        row.campaign?.id ??
+        "";
     const n = String(name || "").trim();
     if (n) return n;
     if (id) return typeof id === "string" ? id : `Campaign ${String(id)}`;
@@ -266,7 +387,13 @@ function campaignLabel(row) {
 
 function campaignKey(row) {
     const id =
-        row.campaign_id ?? row.campaignId ?? row.campaign?.id ?? row.id ?? campaignLabel(row) ?? "";
+        row.campaign_id ??
+        row.campaignId ??
+        row.CAMPAIGN_ID ??
+        row.campaign?.id ??
+        row.id ??
+        campaignLabel(row) ??
+        "";
     return String(id);
 }
 
@@ -285,32 +412,30 @@ export async function fetchRedditDashboardMetrics({ accessToken, accountId, star
 
     const uaOpt = { redditUsername };
 
-    const baseMetrics = ["impressions", "clicks", "spend", "conversions"];
-    const safeMetrics = ["impressions", "clicks", "spend"];
-
-    const dailyBodies = [
-        { level: "ACCOUNT", group_by: ["DATE"], metrics: baseMetrics },
-        { level: "CAMPAIGN", group_by: ["DATE"], metrics: safeMetrics },
-        { level: "ACCOUNT", group_by: ["DATE"], metrics: safeMetrics },
-        { level: "CAMPAIGN", metrics: safeMetrics },
-    ];
+    /**
+     * `fields` must be enums from Reddit’s reporting schema — not `CONVERSIONS`.
+     * Conversion counts use specific names (e.g. APP_INSTALL_*_COUNT). See docs.
+     */
+    const reportFields = ["IMPRESSIONS", "CLICKS", "SPEND"];
 
     let dailyRows = [];
-    for (const extra of dailyBodies) {
-        const body = { start_date: startDate, end_date: endDate, ...extra };
-        try {
-            dbg("reports try", body);
-            const payload = await redditAdsFetch(
-                accessToken,
-                `/ad_accounts/${encodeURIComponent(acc)}/reports`,
-                { method: "POST", body, ...uaOpt }
-            );
-            dailyRows = extractReportRows(payload);
-            if (dailyRows.length > 0) break;
-            dbg("reports empty rows");
-        } catch (e) {
-            dbg("reports failed", e?.message || e);
-        }
+    try {
+        const body = redditReportPostBody({
+            ...redditReportTimeRange(startDate, endDate),
+            fields: reportFields,
+            breakdowns: ["DATE"],
+        });
+        dbg("reports try", body);
+        const payload = await redditAdsFetch(
+            accessToken,
+            `/ad_accounts/${encodeURIComponent(acc)}/reports`,
+            { method: "POST", body, ...uaOpt }
+        );
+        dailyRows = extractReportRows(payload);
+        if (dailyRows.length === 0) dbg("reports empty rows");
+    } catch (e) {
+        if (String(e?.message || "").includes("Reddit Ads API 401")) throw e;
+        dbgErr("reports failed", e?.message || e);
     }
 
     const byDate = {};
@@ -322,18 +447,18 @@ export async function fetchRedditDashboardMetrics({ accessToken, accountId, star
             if (!dk) continue;
             if (!byDate[dk]) byDate[dk] = { impressions: 0, clicks: 0, spend: 0, conversions: 0 };
             const m = byDate[dk];
-            m.impressions += num(row.impressions);
-            m.clicks += num(row.clicks);
+            m.impressions += rowImpressions(row);
+            m.clicks += rowClicks(row);
             m.spend += spendToMajor(row);
-            m.conversions += num(row.conversions);
+            m.conversions += rowConversions(row);
         }
     } else if (dailyRows.length) {
         const total = dailyRows.reduce(
             (a, row) => {
-                a.impressions += num(row.impressions);
-                a.clicks += num(row.clicks);
+                a.impressions += rowImpressions(row);
+                a.clicks += rowClicks(row);
                 a.spend += spendToMajor(row);
-                a.conversions += num(row.conversions);
+                a.conversions += rowConversions(row);
                 return a;
             },
             { impressions: 0, clicks: 0, spend: 0, conversions: 0 }
@@ -357,39 +482,19 @@ export async function fetchRedditDashboardMetrics({ accessToken, accountId, star
 
     let top_campaigns = [];
     try {
-        let campPayload;
-        try {
-            campPayload = await redditAdsFetch(
-                accessToken,
-                `/ad_accounts/${encodeURIComponent(acc)}/reports`,
-                {
-                    method: "POST",
-                    body: {
-                        start_date: startDate,
-                        end_date: endDate,
-                        level: "CAMPAIGN",
-                        group_by: ["CAMPAIGN"],
-                        metrics: baseMetrics,
-                    },
-                    ...uaOpt,
-                }
-            );
-        } catch {
-            campPayload = await redditAdsFetch(
-                accessToken,
-                `/ad_accounts/${encodeURIComponent(acc)}/reports`,
-                {
-                    method: "POST",
-                    body: {
-                        start_date: startDate,
-                        end_date: endDate,
-                        level: "CAMPAIGN",
-                        metrics: safeMetrics,
-                    },
-                    ...uaOpt,
-                }
-            );
-        }
+        const campPayload = await redditAdsFetch(
+            accessToken,
+            `/ad_accounts/${encodeURIComponent(acc)}/reports`,
+            {
+                method: "POST",
+                body: redditReportPostBody({
+                    ...redditReportTimeRange(startDate, endDate),
+                    fields: reportFields,
+                    breakdowns: ["CAMPAIGN_ID"],
+                }),
+                ...uaOpt,
+            }
+        );
 
         const campRows = extractReportRows(campPayload);
         const merged = new Map();
@@ -401,8 +506,8 @@ export async function fetchRedditDashboardMetrics({ accessToken, accountId, star
                 spend: 0,
                 name: campaignLabel(row),
             };
-            prev.impressions += num(row.impressions);
-            prev.clicks += num(row.clicks);
+            prev.impressions += rowImpressions(row);
+            prev.clicks += rowClicks(row);
             prev.spend += spendToMajor(row);
             merged.set(cid, prev);
         }
@@ -423,7 +528,11 @@ export async function fetchRedditDashboardMetrics({ accessToken, accountId, star
         top_campaigns.sort((a, b) => (b.ad_spend || 0) - (a.ad_spend || 0));
         top_campaigns = top_campaigns.slice(0, 20);
     } catch (e2) {
-        dbg("top campaigns failed", e2?.message || e2);
+        if (String(e2?.message || "").includes("Reddit Ads API 401")) throw e2;
+        dbgErr("top campaigns failed", e2?.message || e2);
+        if (e2 && typeof e2 === "object" && e2.stack && redditDebugEnabled()) {
+            dbgErr(e2.stack);
+        }
     }
 
     return { metrics_by_date, top_campaigns, campaigns_by_date: [] };
