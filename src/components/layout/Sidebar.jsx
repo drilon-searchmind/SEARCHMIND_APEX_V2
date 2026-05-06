@@ -21,6 +21,7 @@ import {
     FiGlobe,
     FiPieChart,
     FiZap,
+    FiMessageCircle,
 } from "react-icons/fi";
 import Image from "next/image";
 import { useParams, usePathname } from "next/navigation";
@@ -35,6 +36,7 @@ function serviceDashboardWarningKeyForHref(href) {
     if (href.includes("service-dashboard/ps")) return "ps";
     if (href.includes("service-dashboard/pinterest")) return "pinterest";
     if (href.includes("service-dashboard/snapchat")) return "snapchat";
+    if (href.includes("service-dashboard/reddit")) return "reddit";
     if (href.includes("service-dashboard/bing-webmaster")) return null;
     if (href.includes("service-dashboard/bing")) return "bing";
     if (href.includes("service-dashboard/em")) return "em";
@@ -55,6 +57,7 @@ const getIconForRoute = (href) => {
     if (href.includes("service-dashboard/ps")) return <FiShoppingCart className="w-4 h-4" />;
     if (href.includes("service-dashboard/pinterest")) return <FiImage className="w-4 h-4" />;
     if (href.includes("service-dashboard/snapchat")) return <FiZap className="w-4 h-4" />;
+    if (href.includes("service-dashboard/reddit")) return <FiMessageCircle className="w-4 h-4" />;
     if (href.includes("service-dashboard/bing-webmaster")) return <FiGlobe className="w-4 h-4" />;
     if (href.includes("service-dashboard/bing")) return <FiLayers className="w-4 h-4" />;
     if (href.includes("campaign-planner")) return <FiCalendar className="w-4 h-4" />;
@@ -309,6 +312,15 @@ const Sidebar = ({ showLinks = true }) => {
                                                 isSmallScreen={isSmallScreen}
                                                 subLabel={"BETA"}
                                                 configWarning={configWarningForHref(serviceDashboardHref("snapchat"))}
+                                            />
+                                            <NavItem
+                                                href={serviceDashboardHref("reddit")}
+                                                label="Reddit"
+                                                activeCustomerId={activeCustomerId}
+                                                pathname={pathname}
+                                                isSmallScreen={isSmallScreen}
+                                                subLabel={"BETA"}
+                                                configWarning={configWarningForHref(serviceDashboardHref("reddit"))}
                                             />
                                             <NavItem
                                                 href={serviceDashboardHref("bing")}

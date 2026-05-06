@@ -4,6 +4,7 @@ import FormLabel from "@/components/form/FormLabel";
 import FormInputText from "@/components/form/FormInputText";
 import FormButton from "@/components/form/FormButton";
 import { defaultSnapchatSettings } from "@/lib/snapchatCustomerSettings";
+import { defaultRedditSettings } from "@/lib/redditCustomerSettings";
 
 const initialState = {
     customerName: "",
@@ -33,6 +34,7 @@ const initialState = {
         googleAdsCustomerId: "",
         pinterestAdAccountId: "",
         snapchat: defaultSnapchatSettings(),
+        reddit: defaultRedditSettings(),
         googleSearchConsoleProperty: "",
         bingWebmasterSiteUrl: "",
     }
@@ -47,6 +49,21 @@ export default function CustomerCreateForm({ onSuccess }) {
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
+        if (typeof name === "string" && name.startsWith("reddit.")) {
+            const field = name.slice("reddit.".length);
+            setForm((prev) => ({
+                ...prev,
+                CustomerSettings: {
+                    ...prev.CustomerSettings,
+                    reddit: {
+                        ...defaultRedditSettings(),
+                        ...prev.CustomerSettings.reddit,
+                        [field]: type === "checkbox" ? checked : value,
+                    },
+                },
+            }));
+            return;
+        }
         if (typeof name === "string" && name.startsWith("snapchat.")) {
             const field = name.slice("snapchat.".length);
             setForm((prev) => ({
@@ -258,6 +275,22 @@ export default function CustomerCreateForm({ onSuccess }) {
             <div>
                 <FormLabel htmlFor="snapchat.conversionsApiToken">Snapchat Conversions API token</FormLabel>
                 <FormInputText id="snapchat.conversionsApiToken" name="snapchat.conversionsApiToken" type="password" value={(form.CustomerSettings.snapchat && form.CustomerSettings.snapchat.conversionsApiToken) || ""} onChange={handleChange} />
+            </div>
+            <div>
+                <FormLabel htmlFor="reddit.appId">Reddit app ID</FormLabel>
+                <FormInputText id="reddit.appId" name="reddit.appId" value={(form.CustomerSettings.reddit && form.CustomerSettings.reddit.appId) || ""} onChange={handleChange} />
+            </div>
+            <div>
+                <FormLabel htmlFor="reddit.appSecret">Reddit app secret</FormLabel>
+                <FormInputText id="reddit.appSecret" name="reddit.appSecret" type="password" value={(form.CustomerSettings.reddit && form.CustomerSettings.reddit.appSecret) || ""} onChange={handleChange} />
+            </div>
+            <div>
+                <FormLabel htmlFor="reddit.accountId">Reddit Ads account ID</FormLabel>
+                <FormInputText id="reddit.accountId" name="reddit.accountId" value={(form.CustomerSettings.reddit && form.CustomerSettings.reddit.accountId) || ""} onChange={handleChange} placeholder="t2_…" />
+            </div>
+            <div>
+                <FormLabel htmlFor="reddit.accessToken">Reddit Ads access token (optional)</FormLabel>
+                <FormInputText id="reddit.accessToken" name="reddit.accessToken" type="password" value={(form.CustomerSettings.reddit && form.CustomerSettings.reddit.accessToken) || ""} onChange={handleChange} />
             </div>
             {/* Optional fields */}
             <div>

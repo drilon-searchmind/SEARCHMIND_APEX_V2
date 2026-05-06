@@ -3,7 +3,7 @@
 import React from "react";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
-import { FiSettings, FiShoppingBag, FiPackage, FiDatabase, FiFacebook, FiTrendingUp, FiSearch, FiMail, FiImage, FiLayers, FiZap } from "react-icons/fi";
+import { FiSettings, FiShoppingBag, FiPackage, FiDatabase, FiFacebook, FiTrendingUp, FiSearch, FiMail, FiImage, FiLayers, FiZap, FiMessageCircle } from "react-icons/fi";
 
 function SettingsSection({ title, icon: Icon, children, sectionId }) {
     return (
@@ -123,6 +123,7 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
         { id: "google-ads", label: "Google Ads" },
         { id: "pinterest-ads", label: "Pinterest Ads" },
         { id: "snapchat-ads", label: "Snapchat Ads" },
+        { id: "reddit-ads", label: "Reddit Ads" },
         { id: "microsoft-ads", label: "Microsoft Ads" },
         { id: "seo", label: "SEO" },
         { id: "email", label: "Email" },
@@ -441,6 +442,58 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
                     value={(form.snapchat && form.snapchat.conversionsApiToken) || ""}
                     onChange={onChange}
                     placeholder="For CAPI / offline conversions — not used by the Snapchat dashboard charts yet"
+                />
+            </SettingsSection>
+
+            <SettingsSection title="Reddit Ads" icon={FiMessageCircle} sectionId="reddit-ads">
+                <FormField
+                    id="reddit-appId"
+                    name="reddit.appId"
+                    label="Reddit app (client) ID"
+                    value={(form.reddit && form.reddit.appId) || ""}
+                    onChange={onChange}
+                    placeholder="From reddit.com/prefs/apps"
+                />
+                <FormField
+                    id="reddit-appSecret"
+                    name="reddit.appSecret"
+                    label="Reddit app secret"
+                    type="password"
+                    value={(form.reddit && form.reddit.appSecret) || ""}
+                    onChange={onChange}
+                />
+                <FormField
+                    id="reddit-accountId"
+                    name="reddit.accountId"
+                    label="Ads account ID"
+                    value={(form.reddit && form.reddit.accountId) || ""}
+                    onChange={onChange}
+                    placeholder="Often t2_… from Reddit Ads Manager"
+                />
+                <FormField
+                    id="reddit-accessToken"
+                    name="reddit.accessToken"
+                    label="OAuth access token (recommended)"
+                    type="password"
+                    value={(form.reddit && form.reddit.accessToken) || ""}
+                    onChange={onChange}
+                    placeholder="User OAuth token — or leave empty if using app secret + refresh or client_credentials"
+                />
+                <FormField
+                    id="reddit-refreshToken"
+                    name="reddit.refreshToken"
+                    label="OAuth refresh token (optional)"
+                    type="password"
+                    value={(form.reddit && form.reddit.refreshToken) || ""}
+                    onChange={onChange}
+                />
+                <FormField
+                    id="reddit-username"
+                    name="reddit.redditUsername"
+                    label="Reddit username for API User-Agent (optional)"
+                    value={(form.reddit && form.reddit.redditUsername) || ""}
+                    onChange={onChange}
+                    placeholder="Your Reddit username (without u/)"
                 />
             </SettingsSection>
 

@@ -244,6 +244,59 @@ export function getDemoSnapchatDashboardForRange(startDate, endDate) {
     };
 }
 
+function redditRow(date) {
+    const di = dayIndexFrom20250101(date);
+    const spendScale = 1 + di * 0.00004;
+    const h = numHash(`reddit-${date}`);
+    const impressions = Math.round((62000 + (h % 3800)) * (1 + di * 0.00005) * dateWiggle(date, "rimp"));
+    const clicks = Math.round((1100 + (h % 140)) * (1 + di * 0.00007) * dateWiggle(date, "rclk"));
+    const ad_spend = Math.round((320 + (h % 55)) * spendScale * dateWiggle(date, "rsp"));
+    const conversions = Math.round((9 + (h % 5)) * (1 + di * 0.00008) * dateWiggle(date, "rcv"));
+    const ctr = impressions > 0 ? clicks / impressions : 0;
+    const cpc = clicks > 0 ? ad_spend / clicks : 0;
+    const cpm = impressions > 0 ? (ad_spend / impressions) * 1000 : 0;
+    return {
+        date,
+        ad_spend,
+        impressions,
+        clicks,
+        saves: 0,
+        conversions,
+        conversion_value: 0,
+        ctr,
+        cpc,
+        cpm,
+        roas: 0,
+        aov: 0,
+    };
+}
+
+export function getDemoRedditDashboardForRange(startDate, endDate) {
+    const days = eachDayInclusive(startDate, endDate);
+    return {
+        metrics_by_date: days.map(redditRow),
+        top_campaigns: [
+            {
+                campaign_name: "Reddit — Conversions demo",
+                clicks: 980,
+                impressions: 52000,
+                ctr: 0.0188,
+                saves: 980,
+                ad_spend: 2100.75,
+            },
+            {
+                campaign_name: "Reddit — Reach",
+                clicks: 760,
+                impressions: 48000,
+                ctr: 0.0158,
+                saves: 760,
+                ad_spend: 1680,
+            },
+        ],
+        campaigns_by_date: [],
+    };
+}
+
 function bingRow(date) {
     const di = dayIndexFrom20250101(date);
     const revScale = 1 + di * 0.000065;

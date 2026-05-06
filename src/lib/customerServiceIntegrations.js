@@ -2,6 +2,7 @@
  * Shared integration checks for service dashboards (sidebar warnings, audit scope, etc.).
  */
 import { normalizeSnapchatSettings } from "@/lib/snapchatCustomerSettings";
+import { normalizeRedditSettings } from "@/lib/redditCustomerSettings";
 
 /** Treats empty, "0", and "1" as missing/placeholder (per Customer settings). */
 export function isValidIntegrationId(value) {
@@ -26,6 +27,14 @@ export function getServiceDashboardConfigWarnings(settings) {
                     Boolean(sn.clientSecret?.trim()) &&
                     Boolean(sn.refreshToken?.trim()));
             return !isValidIntegrationId(sn.adAccountId) || !hasAuth;
+        })(),
+        reddit: (() => {
+            const rd = normalizeRedditSettings(s);
+            const hasAuth =
+                !!(rd.accessToken && rd.accessToken.trim()) ||
+                !!(rd.refreshToken?.trim() && rd.appId?.trim() && rd.appSecret?.trim()) ||
+                !!(rd.appId?.trim() && rd.appSecret?.trim());
+            return !isValidIntegrationId(rd.accountId) || !hasAuth;
         })(),
         bing: !(isValidIntegrationId(s.bingAdsAccountId) && isValidIntegrationId(s.bingAdsCustomerId)),
         em: !isValidIntegrationId(s.klaviyoPrivateApiKey),

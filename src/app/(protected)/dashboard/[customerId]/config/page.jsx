@@ -11,6 +11,7 @@ import CustomerSettingsForm from './components/CustomerSettingsForm';
 import StaticExpensesForm from './components/StaticExpensesForm';
 import PropertyObjectives from './components/PropertyObjectives';
 import { defaultSnapchatSettings, normalizeSnapchatSettings } from '@/lib/snapchatCustomerSettings';
+import { defaultRedditSettings, normalizeRedditSettings } from '@/lib/redditCustomerSettings';
 
 export default function ConfigPage() {
     const { customerId } = useParams();
@@ -47,6 +48,7 @@ export default function ConfigPage() {
         googleAdsCountryExclude: "",
         pinterestAdAccountId: "",
         snapchat: defaultSnapchatSettings(),
+        reddit: defaultRedditSettings(),
         bingAdsCustomerId: "",
         bingAdsAccountId: "",
         googleSearchConsoleProperty: "",
@@ -85,6 +87,7 @@ export default function ConfigPage() {
                     ...data,
                     ...(data.CustomerSettings || {}),
                     snapchat: normalizeSnapchatSettings(data.CustomerSettings || {}),
+                    reddit: normalizeRedditSettings(data.CustomerSettings || {}),
                     CustomerStaticExpenses: {
                         ...defaultFormState.CustomerStaticExpenses,
                         ...(data.CustomerStaticExpenses || {}),
@@ -113,6 +116,16 @@ export default function ConfigPage() {
                     ...prev.CustomerStaticExpenses,
                     [name]: type === 'number' ? Number(value) : (Array.isArray(value) ? value : value)
                 }
+            }));
+        } else if (typeof name === 'string' && name.startsWith('reddit.')) {
+            const field = name.slice('reddit.'.length);
+            setForm((prev) => ({
+                ...prev,
+                reddit: {
+                    ...defaultRedditSettings(),
+                    ...prev.reddit,
+                    [field]: type === 'checkbox' ? checked : value,
+                },
             }));
         } else if (typeof name === 'string' && name.startsWith('snapchat.')) {
             const field = name.slice('snapchat.'.length);
@@ -172,6 +185,7 @@ export default function ConfigPage() {
                 googleAdsCustomerId,
                 pinterestAdAccountId,
                 snapchat,
+                reddit,
                 bingAdsCustomerId,
                 bingAdsAccountId,
                 googleSearchConsoleProperty,
@@ -254,6 +268,10 @@ export default function ConfigPage() {
                                 ...defaultSnapchatSettings(),
                                 ...snapchat,
                             },
+                            reddit: {
+                                ...defaultRedditSettings(),
+                                ...reddit,
+                            },
                             bingAdsCustomerId,
                             bingAdsAccountId,
                             googleAdsCountryFilter,
@@ -274,6 +292,7 @@ export default function ConfigPage() {
                 ...saved,
                 ...(saved.CustomerSettings || {}),
                 snapchat: normalizeSnapchatSettings(saved.CustomerSettings || {}),
+                reddit: normalizeRedditSettings(saved.CustomerSettings || {}),
                 CustomerStaticExpenses: {
                     ...defaultFormState.CustomerStaticExpenses,
                     ...(saved.CustomerStaticExpenses || {}),

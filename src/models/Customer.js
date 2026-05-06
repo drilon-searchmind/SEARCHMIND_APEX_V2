@@ -115,6 +115,15 @@ const CustomerSchema = new mongoose.Schema({
             refreshToken: { type: String, default: "" },
             clientSecret: { type: String, default: "" },
         },
+        /** Reddit Ads API v3 — developer app + optional user tokens; ads account id often `t2_…`. */
+        reddit: {
+            appId: { type: String, default: "" },
+            appSecret: { type: String, default: "" },
+            accessToken: { type: String, default: "" },
+            refreshToken: { type: String, default: "" },
+            accountId: { type: String, default: "" },
+            redditUsername: { type: String, default: "" },
+        },
         bingAdsAccountId: {
             type: String,
             default: ""
