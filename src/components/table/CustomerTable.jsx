@@ -3,7 +3,7 @@
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import SearchInput from "@/components/search/SearchInput";
-import { FiArrowRight, FiLogOut, FiUsers, FiUser, FiStar, FiServer, FiBookOpen, FiFileText, FiBell } from "react-icons/fi";
+import { FiArrowRight, FiLogOut, FiUsers, FiUser, FiStar, FiServer, FiBookOpen, FiFileText, FiBell, FiCopy, FiX } from "react-icons/fi";
 import { LuRadar } from "react-icons/lu";
 import { RiToolsFill } from "react-icons/ri";
 import { canAccessApexRadar } from "@/lib/apexRadarAccess";
@@ -11,6 +11,7 @@ import { useUser } from "@/contexts/UserContext";
 import { signOut } from "next-auth/react";
 import { useCustomers } from "@/hooks/useCustomers";
 import CustomerCreateForm from "../form/CustomerCreateForm";
+import { buildCustomerCreateFormStateFromCustomer } from "@/lib/customerCreateFormState";
 import { SiShopify, SiWordpress, SiMagento } from "react-icons/si";
 
 const FONT = "text-xs";
@@ -31,6 +32,7 @@ export default function CustomerTable({ showLatestNews = true }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [showCreate, setShowCreate] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [customerToCopy, setCustomerToCopy] = useState(null);
     const [parentNames, setParentNames] = useState({});
     const [favoritedCustomers, setFavoritedCustomers] = useState([]);
     const [loadingFavorites, setLoadingFavorites] = useState({});
@@ -255,14 +257,14 @@ export default function CustomerTable({ showLatestNews = true }) {
                                                         <col className="w-[40%]" />
                                                         <col className="w-[25%]" />
                                                         <col className="w-[80px]" />
-                                                        <col className="w-[100px]" />
+                                                        <col className="w-[160px]" />
                                                     </colgroup>
                                                     <thead>
                                                         <tr className="border-b border-gray-200">
                                                             <th className="px-4 py-3 text-left font-medium text-gray-500">Property</th>
                                                             <th className="px-4 py-3 text-left font-medium text-gray-500">Platform</th>
                                                             <th className="px-4 py-3 text-center font-medium text-gray-500">Favorite</th>
-                                                            <th className="px-4 py-3 text-right font-medium text-gray-500">Action</th>
+                                                            <th className="px-4 py-3 text-right font-medium text-gray-500">Actions</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -304,12 +306,25 @@ export default function CustomerTable({ showLatestNews = true }) {
                                                                     </div>
                                                                 </td>
                                                                 <td className="px-4 py-3 align-middle text-right">
-                                                                    <Link
-                                                                        href={`/dashboard/${customer._id}/performance-dashboard`}
-                                                                        className="inline-flex items-center gap-1 font-medium text-[var(--color-primary-searchmind)] hover:underline"
-                                                                    >
-                                                                        View <FiArrowRight className="w-4 h-4" />
-                                                                    </Link>
+                                                                    <div className="flex justify-end items-center gap-2 flex-wrap">
+                                                                        {user?.isAdmin && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setCustomerToCopy(customer)}
+                                                                                title="Copy settings into new property"
+                                                                                className="inline-flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-[var(--color-primary-searchmind)] transition-colors"
+                                                                            >
+                                                                                <FiCopy className="w-3.5 h-3.5" />
+                                                                                Copy
+                                                                            </button>
+                                                                        )}
+                                                                        <Link
+                                                                            href={`/dashboard/${customer._id}/performance-dashboard`}
+                                                                            className="inline-flex items-center gap-1 font-medium text-[var(--color-primary-searchmind)] hover:underline"
+                                                                        >
+                                                                            View <FiArrowRight className="w-4 h-4" />
+                                                                        </Link>
+                                                                    </div>
                                                                 </td>
                                                             </tr>
                                                         ))}
@@ -530,6 +545,58 @@ export default function CustomerTable({ showLatestNews = true }) {
                     </section>
                 )}
             </div>
+
+            {customerToCopy && user?.isAdmin ? (
+                <div
+                    className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-6"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="customer-copy-modal-title"
+                >
+                    <button
+                        type="button"
+                        className="absolute inset-0 bg-black/40"
+                        aria-label="Close dialog"
+                        onClick={() => setCustomerToCopy(null)}
+                    />
+                    <div
+                        className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border border-gray-200 bg-white p-5 md:p-6 shadow-xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                            <h2
+                                id="customer-copy-modal-title"
+                                className="text-base md:text-lg font-bold text-[var(--color-primary-searchmind)] pr-2"
+                            >
+                                New property from copy
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={() => setCustomerToCopy(null)}
+                                className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                                aria-label="Close"
+                            >
+                                <FiX className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <p className="text-xs text-gray-500 mb-4">
+                            Settings match <span className="font-medium text-gray-700">{customerToCopy.customerName}</span>{" "}
+                            (same fields as &quot;Create new customer&quot;). Change the name and details, then create.
+                        </p>
+                        <CustomerCreateForm
+                            key={String(customerToCopy._id)}
+                            initialValues={buildCustomerCreateFormStateFromCustomer(customerToCopy)}
+                            heading="Create New Customer"
+                            submitLabel="Create Customer"
+                            submittingLabel="Creating..."
+                            onSuccess={() => {
+                                setCustomerToCopy(null);
+                                setRefreshKey((k) => k + 1);
+                            }}
+                        />
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }

@@ -124,8 +124,8 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
             <span className="flex flex-row gap-4">
                 <span className="border border-gray-200 rounded-lg p-4 flex-1">
                     <div className="mb-2">
-                        <label for="email" class="block text-sm font-medium text-gray-700">Variable Costs</label>
-                        <p class="text-xs text-gray-500 mt-0.5">Per month</p>
+                        <div className="block text-sm font-medium text-gray-700">Variable Costs</div>
+                        <p className="text-xs text-gray-500 mt-0.5">Per month</p>
                     </div>
 
                     <div className="mb-3">

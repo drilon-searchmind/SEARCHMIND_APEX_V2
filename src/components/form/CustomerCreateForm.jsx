@@ -5,43 +5,25 @@ import FormInputText from "@/components/form/FormInputText";
 import FormButton from "@/components/form/FormButton";
 import { defaultSnapchatSettings } from "@/lib/snapchatCustomerSettings";
 import { defaultRedditSettings } from "@/lib/redditCustomerSettings";
+import {
+    getDefaultCustomerCreateFormState,
+    customerCreateFormCustomerSettingsKeys,
+} from "@/lib/customerCreateFormState";
 
-const initialState = {
-    customerName: "",
-    customerType: "Shopify",
-    isArchived: false,
-    CustomerSettings: {
-        metricPreference: "ROAS/POAS",
-        customerStoreValutaCode: "DKK",
-        customerClickupID: "",
-        customerMetaID: "DK",
-        customerMetaIDExclude: "",
-        changeCurrency: true,
-        changeCurrencyShopifyBillingCountryName: "",
-        changeCurrencyShopifyBillingCountryExclude: "",
-        customerRevenueType: "total_sales",
-        shopifyUrl: "",
-        shopifyApiPassword: "",
-        wooCommerceApiKey: "",
-        wooCommerceApiSecret: "",
-        wooCommerceApiUrl: "",
-        magentoBaseUrl: "",
-        magentoAccessToken: "",
-        magentoConsumerKey: "",
-        magentoConsumerSecret: "",
-        magentoAccessTokenSecret: "",
-        facebookAdAccountId: "",
-        googleAdsCustomerId: "",
-        pinterestAdAccountId: "",
-        snapchat: defaultSnapchatSettings(),
-        reddit: defaultRedditSettings(),
-        googleSearchConsoleProperty: "",
-        bingWebmasterSiteUrl: "",
-    }
-};
+function cloneFormState(source) {
+    return JSON.parse(JSON.stringify(source));
+}
 
-export default function CustomerCreateForm({ onSuccess }) {
-    const [form, setForm] = useState(initialState);
+export default function CustomerCreateForm({
+    onSuccess,
+    initialValues,
+    heading = "Create New Customer",
+    submitLabel = "Create Customer",
+    submittingLabel = "Creating...",
+}) {
+    const [form, setForm] = useState(() =>
+        cloneFormState(initialValues ?? getDefaultCustomerCreateFormState())
+    );
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
     const router = useRouter();
@@ -80,7 +62,7 @@ export default function CustomerCreateForm({ onSuccess }) {
             return;
         }
         // If the field is in CustomerSettings, update nested
-        if (name in initialState.CustomerSettings) {
+        if (customerCreateFormCustomerSettingsKeys().has(name)) {
             setForm((prev) => ({
                 ...prev,
                 CustomerSettings: {
@@ -130,7 +112,7 @@ export default function CustomerCreateForm({ onSuccess }) {
             });
             if (!res.ok) throw new Error("Failed to create customer");
             const data = await res.json();
-            setForm(initialState);
+            setForm(cloneFormState(getDefaultCustomerCreateFormState()));
             if (onSuccess) onSuccess();
             // Redirect to dashboard if customerId is available
             const customerId = data?._id || data?.customer?._id || data?.id;
@@ -146,7 +128,7 @@ export default function CustomerCreateForm({ onSuccess }) {
 
     return (
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-            <h5 className="text-lg font-semibold text-[var(--color-primary-searchmind)] mb-2">Create New Customer</h5>
+            <h5 className="text-lg font-semibold text-[var(--color-primary-searchmind)] mb-2">{heading}</h5>
             <div>
                 <FormLabel htmlFor="customerName" required>Customer Name</FormLabel>
                 <FormInputText id="customerName" name="customerName" value={form.customerName} onChange={handleChange} required />
@@ -320,7 +302,7 @@ export default function CustomerCreateForm({ onSuccess }) {
             {error && <div className="text-red-500 text-sm">{error}</div>}
             <div className="flex justify-end mt-4">
                 <FormButton type="submit" disabled={saving}>
-                    {saving ? "Creating..." : "Create Customer"}
+                    {saving ? submittingLabel : submitLabel}
                 </FormButton>
             </div>
         </form>
