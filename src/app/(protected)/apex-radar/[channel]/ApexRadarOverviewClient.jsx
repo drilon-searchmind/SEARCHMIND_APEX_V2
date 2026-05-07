@@ -7,10 +7,15 @@ import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import ApexRadarOverviewTable from "../components/ApexRadarOverviewTable";
 import ApexRadarAssignUsersModal from "../components/ApexRadarAssignUsersModal";
 import ApexRadarFacebookSettingsModal from "../components/ApexRadarFacebookSettingsModal";
+import ApexRadarGoogleSettingsModal from "../components/ApexRadarGoogleSettingsModal";
 import ApexRadarCustomerTeamResyncModal from "../components/ApexRadarCustomerTeamResyncModal";
 import ApexRadarOverviewMetricsInfoModal from "../components/ApexRadarOverviewMetricsInfoModal";
 import { buildCustomerOverviewRow } from "../lib/mockOverviewData";
-import { APEX_RADAR_CHANNEL_FACEBOOK, APEX_RADAR_CHANNEL_META } from "@/lib/apexRadarChannels";
+import {
+    APEX_RADAR_CHANNEL_FACEBOOK,
+    APEX_RADAR_CHANNEL_GOOGLE_ADS,
+    APEX_RADAR_CHANNEL_META,
+} from "@/lib/apexRadarChannels";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useInternalUsers } from "@/hooks/useInternalUsers";
 import { useApexRadarAssignments } from "../hooks/useApexRadarAssignments";
@@ -30,7 +35,9 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
     const { customers, loading: customersLoading, fetchCustomers } = useCustomers();
     const { internalUsers, loading: internalUsersLoading } = useInternalUsers();
     const meta = APEX_RADAR_CHANNEL_META[channel];
-    const isFacebook = channel === APEX_RADAR_CHANNEL_FACEBOOK;
+    const isGoogleAds = channel === APEX_RADAR_CHANNEL_GOOGLE_ADS;
+    const supportsOverviewTable =
+        channel === APEX_RADAR_CHANNEL_FACEBOOK || channel === APEX_RADAR_CHANNEL_GOOGLE_ADS;
 
     const customer = useMemo(
         () => (customerId ? customers.find((c) => String(c._id) === String(customerId)) : null),
@@ -58,7 +65,7 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
     const [userFilter, setUserFilter] = useState("all");
     const [assignModalRow, setAssignModalRow] = useState(null);
     const [apexSettingsRow, setApexSettingsRow] = useState(null);
-    const [fbOverviewRefreshKey, setFbOverviewRefreshKey] = useState(0);
+    const [overviewRefreshKey, setOverviewRefreshKey] = useState(0);
     const [metricsInfoOpen, setMetricsInfoOpen] = useState(false);
     const [customerSearch, setCustomerSearch] = useState("");
     const [resyncTeamOpen, setResyncTeamOpen] = useState(false);
@@ -78,38 +85,50 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
         return m;
     }, [customers]);
 
-    const [fbRows, setFbRows] = useState(null);
-    const [fbLoading, setFbLoading] = useState(false);
-    const [fbError, setFbError] = useState(null);
+    const [overviewRows, setOverviewRows] = useState(null);
+    const [overviewLoading, setOverviewLoading] = useState(false);
+    const [overviewError, setOverviewError] = useState(null);
 
     useEffect(() => {
-        if (!isFacebook || customersLoading) return undefined;
+        if (!supportsOverviewTable || customersLoading) return undefined;
+
+        const overviewUrl =
+            channel === APEX_RADAR_CHANNEL_FACEBOOK
+                ? "/api/apex-radar/facebook/overview"
+                : channel === APEX_RADAR_CHANNEL_GOOGLE_ADS
+                  ? "/api/apex-radar/google-ads/overview"
+                  : null;
 
         let cancelled = false;
         (async () => {
-            setFbLoading(true);
-            setFbError(null);
+            setOverviewLoading(true);
+            setOverviewError(null);
             try {
                 const params = new URLSearchParams({
                     startDate: appliedDateRange.startDate,
                     endDate: appliedDateRange.endDate,
                 });
                 if (customerId) params.set("customerId", String(customerId));
-                const res = await fetch(`/api/apex-radar/facebook/overview?${params.toString()}`);
+                const res = await fetch(`${overviewUrl}?${params.toString()}`);
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) {
-                    throw new Error(data.error || "Failed to load Facebook overview");
+                    throw new Error(
+                        data.error ||
+                            (channel === APEX_RADAR_CHANNEL_FACEBOOK
+                                ? "Failed to load Facebook overview"
+                                : "Failed to load Google Ads overview")
+                    );
                 }
                 if (!cancelled) {
-                    setFbRows(Array.isArray(data.rows) ? data.rows : []);
+                    setOverviewRows(Array.isArray(data.rows) ? data.rows : []);
                 }
             } catch (e) {
                 if (!cancelled) {
-                    setFbError(e?.message || "Failed to load Facebook overview");
-                    setFbRows(null);
+                    setOverviewError(e?.message || "Failed to load overview");
+                    setOverviewRows(null);
                 }
             } finally {
-                if (!cancelled) setFbLoading(false);
+                if (!cancelled) setOverviewLoading(false);
             }
         })();
 
@@ -117,12 +136,13 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
             cancelled = true;
         };
     }, [
-        isFacebook,
+        supportsOverviewTable,
+        channel,
         customersLoading,
         appliedDateRange.startDate,
         appliedDateRange.endDate,
         customerId,
-        fbOverviewRefreshKey,
+        overviewRefreshKey,
     ]);
 
     const handleDateRangeApply = ({ startDate, endDate }) => {
@@ -140,11 +160,11 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
         return meta.label;
     }, [meta, customerId, customer]);
 
-    const facebookOverviewRows = useMemo(() => {
-        if (!isFacebook) return [];
-        if (fbRows && fbRows.length > 0) return fbRows;
-        return (customers || []).map((c) => buildCustomerOverviewRow(c));
-    }, [isFacebook, customers, fbRows]);
+    const portfolioOverviewRows = useMemo(() => {
+        if (!supportsOverviewTable) return [];
+        if (overviewRows && overviewRows.length > 0) return overviewRows;
+        return (customers || []).map((c) => buildCustomerOverviewRow(c, channel));
+    }, [supportsOverviewTable, customers, overviewRows, channel]);
 
     const teamFilterOptions = useMemo(
         () => [{ id: "all", name: "All team members" }, ...internalUsers],
@@ -163,18 +183,18 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
     }
 
     const filteredRows = (() => {
-        if (!isFacebook) return [];
+        if (!supportsOverviewTable) return [];
 
         let list =
             userFilter === "all"
-                ? facebookOverviewRows
-                : facebookOverviewRows.filter((r) => {
+                ? portfolioOverviewRows
+                : portfolioOverviewRows.filter((r) => {
                       const cust = customersById[r.id];
                       const detail = assignmentDetailMap[r.id] || {
                           userIds: [],
                           paidSocialExcludedUserIds: [],
                       };
-                      return getEffectiveApexRadarAssignmentUserIds(detail, cust, internalUsers).includes(
+                      return getEffectiveApexRadarAssignmentUserIds(detail, cust, internalUsers, channel).includes(
                           userFilter
                       );
                   });
@@ -207,12 +227,12 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
         return list;
     })();
 
-    /** Empty body while Meta overview is loading (first fetch); avoids placeholder dashes under the spinner. */
+    /** Empty table body while overview is loading (first fetch); avoids placeholder dashes under the spinner. */
     const tableRowsForDisplay = useMemo(() => {
-        if (!isFacebook) return [];
-        if (fbLoading && fbRows == null && !fbError) return [];
+        if (!supportsOverviewTable) return [];
+        if (overviewLoading && overviewRows == null && !overviewError) return [];
         return filteredRows;
-    }, [isFacebook, fbLoading, fbRows, fbError, filteredRows]);
+    }, [supportsOverviewTable, overviewLoading, overviewRows, overviewError, filteredRows]);
 
     return (
         <div id="ApexRadarOverviewPage" className="w-full max-w-[1920px] mx-auto">
@@ -234,7 +254,7 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                 }
             />
 
-            {isFacebook ? (
+            {supportsOverviewTable ? (
                 <>
                     <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 mb-6">
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -419,9 +439,9 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                         </div>
                     </div>
 
-                    {fbError ? (
+                    {overviewError ? (
                         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 mb-4">
-                            {fbError} — showing placeholder rows until the overview loads.
+                            {overviewError} — showing placeholder rows until the overview loads.
                         </div>
                     ) : null}
 
@@ -432,7 +452,7 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                     ) : (
                         <ApexRadarOverviewTable
                             rows={tableRowsForDisplay}
-                            loading={fbLoading}
+                            loading={overviewLoading}
                             assignmentDetailMap={assignmentDetailMap}
                             customersById={customersById}
                             assignableUsers={internalUsers}
@@ -444,19 +464,30 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                     )}
 
                     {apexSettingsRow ? (
-                        <ApexRadarFacebookSettingsModal
-                            row={apexSettingsRow}
-                            onClose={() => setApexSettingsRow(null)}
-                            onSaved={() => {
-                                fetchCustomers();
-                                setFbOverviewRefreshKey((k) => k + 1);
-                            }}
-                        />
+                        isGoogleAds ? (
+                            <ApexRadarGoogleSettingsModal
+                                row={apexSettingsRow}
+                                onClose={() => setApexSettingsRow(null)}
+                                onSaved={() => {
+                                    fetchCustomers();
+                                    setOverviewRefreshKey((k) => k + 1);
+                                }}
+                            />
+                        ) : (
+                            <ApexRadarFacebookSettingsModal
+                                row={apexSettingsRow}
+                                onClose={() => setApexSettingsRow(null)}
+                                onSaved={() => {
+                                    fetchCustomers();
+                                    setOverviewRefreshKey((k) => k + 1);
+                                }}
+                            />
+                        )
                     ) : null}
 
                     {assignModalRow ? (
                         <ApexRadarAssignUsersModal
-                            key={`assign-${assignModalRow.id}_${(assignmentDetailMap[assignModalRow.id]?.userIds || []).join("-")}_${(assignmentDetailMap[assignModalRow.id]?.paidSocialExcludedUserIds || []).join("-")}_${internalUsers.length}`}
+                            key={`assign-${channel}-${assignModalRow.id}_${(assignmentDetailMap[assignModalRow.id]?.userIds || []).join("-")}_${(assignmentDetailMap[assignModalRow.id]?.paidSocialExcludedUserIds || []).join("-")}_${internalUsers.length}`}
                             row={assignModalRow}
                             customer={customersById[assignModalRow.id]}
                             assignment={
@@ -466,6 +497,7 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                                 }
                             }
                             assignableUsers={internalUsers}
+                            channel={channel}
                             onSave={(accountKey, detail) =>
                                 setAssignmentsForAccount(accountKey, detail)
                             }
@@ -484,7 +516,7 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                             } catch (e) {
                                 console.error("refetchAssignments:", e);
                             }
-                            setFbOverviewRefreshKey((k) => k + 1);
+                            setOverviewRefreshKey((k) => k + 1);
                         }}
                     />
 
@@ -494,13 +526,9 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                 </>
             ) : (
                 <div className="rounded-xl border border-gray-200 bg-white p-10 text-center">
-                    <h2 className="text-lg font-semibold text-gray-900">Google Ads overview</h2>
+                    <h2 className="text-lg font-semibold text-gray-900">Apex Radar</h2>
                     <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
-                        This view is not wired up yet. The table, filters, and metrics will mirror the Facebook (PS)
-                        overview once Google Ads data is available.
-                        {customer?.customerName ? (
-                            <span className="block mt-2 font-medium text-gray-700">{customer.customerName}</span>
-                        ) : null}
+                        This channel is not available. Open Facebook (PS) or Google Ads from the Apex Radar menu.
                     </p>
                 </div>
             )}

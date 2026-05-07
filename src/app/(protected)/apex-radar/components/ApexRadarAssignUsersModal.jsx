@@ -6,6 +6,7 @@ import {
     getEffectiveApexRadarAssignmentUserIds,
     listMatchedPaidSocialUserIds,
 } from "@/lib/apexRadarPaidSocialAssignments";
+import { APEX_RADAR_CHANNEL_FACEBOOK } from "@/lib/apexRadarChannels";
 
 export default function ApexRadarAssignUsersModal({
     row,
@@ -14,15 +15,22 @@ export default function ApexRadarAssignUsersModal({
     onSave,
     onClose,
     assignableUsers = [],
+    channel = APEX_RADAR_CHANNEL_FACEBOOK,
 }) {
     const matchedIds = useMemo(
-        () => new Set(listMatchedPaidSocialUserIds(customer, assignableUsers)),
-        [customer, assignableUsers]
+        () => new Set(listMatchedPaidSocialUserIds(customer, assignableUsers, channel)),
+        [customer, assignableUsers, channel]
     );
 
     const initialCheckedIds = useMemo(
-        () => getEffectiveApexRadarAssignmentUserIds(assignment || {}, customer, assignableUsers),
-        [assignment, customer, assignableUsers]
+        () =>
+            getEffectiveApexRadarAssignmentUserIds(
+                assignment || {},
+                customer,
+                assignableUsers,
+                channel
+            ),
+        [assignment, customer, assignableUsers, channel]
     );
 
     const [checked, setChecked] = useState(() => new Set(initialCheckedIds));

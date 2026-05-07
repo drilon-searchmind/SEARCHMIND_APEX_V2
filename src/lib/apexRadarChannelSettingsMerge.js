@@ -36,3 +36,36 @@ export function mergeFacebookChannelSettingsIntoCustomers(customers, docs) {
         };
     });
 }
+
+/**
+ * @param {object[]} customers — plain customer docs
+ * @param {object[]} docs — lean ApexRadarChannelSettings docs for `google-ads`
+ * @returns {object[]}
+ */
+export function mergeGoogleChannelSettingsIntoCustomers(customers, docs) {
+    const map = new Map();
+    for (const d of docs) {
+        map.set(String(d.customerId), d);
+    }
+    return customers.map((c) => {
+        const id = String(c._id);
+        const doc = map.get(id);
+        if (!doc) return c;
+        const prev =
+            c.customerApexRadarSettings && typeof c.customerApexRadarSettings === "object"
+                ? c.customerApexRadarSettings
+                : {};
+        return {
+            ...c,
+            customerApexRadarSettings: {
+                ...prev,
+                google: {
+                    targetBudget: doc.targetBudget ?? null,
+                    targetMetricType: doc.targetMetricType === "CPA" ? "CPA" : "ROAS",
+                    targetValue: doc.targetValue ?? null,
+                    budgetMode: doc.budgetMode === "STATIC" ? "STATIC" : "DYNAMIC",
+                },
+            },
+        };
+    });
+}

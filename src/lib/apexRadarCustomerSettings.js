@@ -1,7 +1,7 @@
 /**
  * Apex Radar — per-customer targets / budget configuration.
  * Primary store: Mongo collection `apex_radar_channel_settings` (merged onto customers in the overview API).
- * Fallback: embedded `Customer.customerApexRadarSettings.facebook` for legacy rows without a channel doc.
+ * Fallback: embedded `Customer.customerApexRadarSettings.{facebook|google}` when no channel doc exists.
  */
 
 /** @typedef {{ spend: number, conversions: number, value: number, roas: number|null, ctrPct: number|null, freq: number|null }} RollupSlice */
@@ -23,6 +23,26 @@ export function getFacebookApexRadarSettings(customer) {
         targetMetricType: fb.targetMetricType === "CPA" ? "CPA" : "ROAS",
         targetValue: tv != null && tv !== "" && !Number.isNaN(Number(tv)) ? Number(tv) : null,
         budgetMode: fb.budgetMode === "STATIC" ? "STATIC" : "DYNAMIC",
+    };
+}
+
+export function getGoogleApexRadarSettings(customer) {
+    const g = customer?.customerApexRadarSettings?.google;
+    if (!g || typeof g !== "object") {
+        return {
+            targetBudget: null,
+            targetMetricType: "ROAS",
+            targetValue: null,
+            budgetMode: "DYNAMIC",
+        };
+    }
+    const tb = g.targetBudget;
+    const tv = g.targetValue;
+    return {
+        targetBudget: tb != null && tb !== "" && !Number.isNaN(Number(tb)) ? Number(tb) : null,
+        targetMetricType: g.targetMetricType === "CPA" ? "CPA" : "ROAS",
+        targetValue: tv != null && tv !== "" && !Number.isNaN(Number(tv)) ? Number(tv) : null,
+        budgetMode: g.budgetMode === "STATIC" ? "STATIC" : "DYNAMIC",
     };
 }
 
@@ -89,8 +109,8 @@ function emptyAlertsBase() {
 }
 
 /**
- * Targets + budget columns + alert flags derived from Meta rollups and saved Apex settings.
- * @param {object} customer
+ * Targets + budget columns + alert flags from rolled-up slices and saved Apex settings (`apex`).
+ * @param {ReturnType<typeof getFacebookApexRadarSettings>} apex — normalized targets/budget mode (any channel)
  * @param {RollupSlice} r7
  * @param {RollupSlice} r30
  * @param {object} [opts]
@@ -102,8 +122,7 @@ function emptyAlertsBase() {
  * @param {number|null} [opts.minExpected7d] — 10^(mean log10 weekly − 2·std)
  * @param {number|null} [opts.minExpected30d] — 10^(mean log10 weekly − std)
  */
-export function buildFacebookOverviewTargetsBudgetAlerts(customer, r7, r30, opts = {}) {
-    const apex = getFacebookApexRadarSettings(customer);
+export function buildOverviewTargetsBudgetAlerts(apex, r7, r30, opts = {}) {
     const {
         spendOnAsOfDate = null,
         realizedBudgetMonthToDate = null,
@@ -168,11 +187,19 @@ export function buildFacebookOverviewTargetsBudgetAlerts(customer, r7, r30, opts
     };
 }
 
+export function buildFacebookOverviewTargetsBudgetAlerts(customer, r7, r30, opts = {}) {
+    return buildOverviewTargetsBudgetAlerts(getFacebookApexRadarSettings(customer), r7, r30, opts);
+}
+
+export function buildGoogleOverviewTargetsBudgetAlerts(customer, r7, r30, opts = {}) {
+    return buildOverviewTargetsBudgetAlerts(getGoogleApexRadarSettings(customer), r7, r30, opts);
+}
+
 /**
- * Row slice for customers without Meta data (no ad account / error): only configured targets & budget type.
+ * Row slice for customers without platform data (no ad account / error): only configured targets & budget type.
+ * @param {ReturnType<typeof getFacebookApexRadarSettings>} apex
  */
-export function buildFacebookOverviewApexOnlySlice(customer) {
-    const apex = getFacebookApexRadarSettings(customer);
+export function buildOverviewApexOnlySlice(apex) {
     return {
         targets: {
             targetType: apex.targetMetricType,
@@ -189,4 +216,12 @@ export function buildFacebookOverviewApexOnlySlice(customer) {
         },
         alerts: emptyAlertsBase(),
     };
+}
+
+export function buildFacebookOverviewApexOnlySlice(customer) {
+    return buildOverviewApexOnlySlice(getFacebookApexRadarSettings(customer));
+}
+
+export function buildGoogleOverviewApexOnlySlice(customer) {
+    return buildOverviewApexOnlySlice(getGoogleApexRadarSettings(customer));
 }

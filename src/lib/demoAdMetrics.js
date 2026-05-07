@@ -2,7 +2,8 @@
  * Deterministic demo metrics for any [startDate, endDate] (ad dashboards).
  */
 
-import { getFacebookApexRadarSettings } from "@/lib/apexRadarCustomerSettings";
+import { APEX_RADAR_CHANNEL_GOOGLE_ADS } from "@/lib/apexRadarChannels";
+import { getFacebookApexRadarSettings, getGoogleApexRadarSettings } from "@/lib/apexRadarCustomerSettings";
 import {
     buildOverviewRowFromRollups,
     computeDateWindows,
@@ -521,6 +522,76 @@ export function buildDemoApexRadarFacebookOverviewRow(customer, startDate, endDa
         spendDayOverDay,
         ads: { ...row.ads, adFatigue: null },
         apexRadarMeta: { channel: "facebook", demo: true },
+    };
+}
+
+/** Deterministic Google-shaped daily rows (purchase action types aligned with `aggregateGoogleAdsMetricsToDaily`). */
+function syntheticGoogleDailyForDemo(customerId, startIso, endIso) {
+    const days = eachDayInclusive(startIso, endIso);
+    return days.map((date) => {
+        const h = numHash(`ga-d-${customerId}-${date}`);
+        const conv = Math.max(1, Math.round((2 + (h % 7)) * dateWiggle(date, "dc")));
+        const val = Math.round(conv * (230 + (h % 58)));
+        const spend = Math.round(270 + (h % 175));
+        const impr = 11500 + (h % 780);
+        const clicks = 290 + (h % 36);
+        return {
+            date_start: date,
+            spend,
+            impressions: impr,
+            clicks,
+            frequency: null,
+            ctr: impr > 0 ? (clicks / impr) * 100 : null,
+            actions: [{ action_type: "purchase", value: String(conv) }],
+            action_values: [{ action_type: "purchase", value: String(val) }],
+        };
+    });
+}
+
+export function buildDemoApexRadarGoogleAdsOverviewRow(customer, startDate, endDate) {
+    const id = String(customer._id);
+    const w = computeDateWindows(startDate, endDate);
+    const dod = getUtcCalendarSpendDodRange();
+    const fetchSinceDemo = minIso(w.fetchSince, dod.calendarDayBeforeYesterday);
+    const fetchUntilDemo = maxIso(endDate, dod.calendarYesterday);
+    const daily = syntheticGoogleDailyForDemo(id, fetchSinceDemo, fetchUntilDemo);
+    const r2 = rollupDaily(daily, w.win2.from, w.win2.to);
+    const r7 = rollupDaily(daily, w.win7.from, w.win7.to);
+    const r30 = rollupDaily(daily, w.win30.from, w.win30.to);
+    const rMonthToDate = rollupDaily(daily, w.monthStart, endDate);
+    const endRow = daily.find((d) => d.date_start === endDate);
+    const spendOnEndDate = endRow != null ? parseFloat(endRow.spend || 0) : 0;
+    const apex = getGoogleApexRadarSettings(customer);
+    const { minExpected7d, minExpected30d } = computeLog10WeeklyFloors(daily, apex.targetMetricType);
+
+    const row = buildOverviewRowFromRollups(
+        customer,
+        startDate,
+        endDate,
+        {
+            r2,
+            r7,
+            r30,
+            rMonthToDate,
+            spendOnEndDate,
+            minExpected7d,
+            minExpected30d,
+            win2: w.win2,
+            win7: w.win7,
+            win30: w.win30,
+        },
+        {
+            getApexSettings: getGoogleApexRadarSettings,
+            channel: APEX_RADAR_CHANNEL_GOOGLE_ADS,
+            defaultCustomerSettings: { google: {} },
+        }
+    );
+    const spendDayOverDay = computeSpendDayOverDayFromDaily(daily);
+    return {
+        ...row,
+        spendDayOverDay,
+        ads: { ...row.ads, adFatigue: null },
+        apexRadarMeta: { channel: APEX_RADAR_CHANNEL_GOOGLE_ADS, demo: true },
     };
 }
 

@@ -3,7 +3,11 @@
  * Replace with API responses later.
  */
 
-import { buildFacebookOverviewApexOnlySlice } from "@/lib/apexRadarCustomerSettings";
+import { APEX_RADAR_CHANNEL_GOOGLE_ADS } from "@/lib/apexRadarChannels";
+import {
+    buildFacebookOverviewApexOnlySlice,
+    buildGoogleOverviewApexOnlySlice,
+} from "@/lib/apexRadarCustomerSettings";
 import { getUtcCalendarSpendDodRange } from "@/lib/apexRadarFacebookOverview";
 
 export const MOCK_INTERNAL_USERS = [
@@ -41,11 +45,14 @@ export function formatAssignedUsersList(userIds, assignableUsers = []) {
     return userIds.map((id) => teamMemberShortFromUserId(id, assignableUsers)).join(", ");
 }
 
-/** Placeholder metrics until Facebook / ads APIs exist; one row per customer. */
-export function buildCustomerOverviewRow(customer) {
+/** Placeholder metrics when the overview API is unavailable; one row per customer. */
+export function buildCustomerOverviewRow(customer, channel = null) {
     const id = String(customer._id);
     const entity = customer.customerName || "Unnamed customer";
-    const apexSlice = buildFacebookOverviewApexOnlySlice(customer);
+    const isGoogle = channel === APEX_RADAR_CHANNEL_GOOGLE_ADS;
+    const apexSlice = isGoogle
+        ? buildGoogleOverviewApexOnlySlice(customer)
+        : buildFacebookOverviewApexOnlySlice(customer);
     return {
         id,
         customerId: id,
@@ -67,7 +74,8 @@ export function buildCustomerOverviewRow(customer) {
             freq30d: null,
         },
         alerts: apexSlice.alerts,
-        customerApexRadarSettings: customer.customerApexRadarSettings || { facebook: {} },
+        customerApexRadarSettings:
+            customer.customerApexRadarSettings || (isGoogle ? { google: {} } : { facebook: {} }),
         spendDayOverDay: (() => {
             const dod = getUtcCalendarSpendDodRange();
             return {

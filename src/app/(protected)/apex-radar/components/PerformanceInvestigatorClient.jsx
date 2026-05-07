@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
-import { APEX_RADAR_CHANNEL_FACEBOOK, APEX_RADAR_CHANNEL_META } from "@/lib/apexRadarChannels";
+import { APEX_RADAR_CHANNEL_FACEBOOK, APEX_RADAR_CHANNEL_GOOGLE_ADS, APEX_RADAR_CHANNEL_META } from "@/lib/apexRadarChannels";
 import { buildPiFunnelFromAggregates } from "@/lib/apexRadarPerformanceInvestigatorFacebook";
 import { useCustomers } from "@/hooks/useCustomers";
 import PerformanceInvestigatorMonthlyTables from "./PerformanceInvestigatorMonthlyTables";
@@ -26,7 +26,8 @@ const ZERO_METRICS = {
 export default function PerformanceInvestigatorClient({ channel, customerId }) {
     const { customers } = useCustomers();
     const meta = APEX_RADAR_CHANNEL_META[channel];
-    const isFacebook = channel === APEX_RADAR_CHANNEL_FACEBOOK;
+    const supportsPerformanceInvestigator =
+        channel === APEX_RADAR_CHANNEL_FACEBOOK || channel === APEX_RADAR_CHANNEL_GOOGLE_ADS;
 
     const customer = useMemo(
         () => (customerId ? customers.find((c) => String(c._id) === String(customerId)) : null),
@@ -56,7 +57,12 @@ export default function PerformanceInvestigatorClient({ channel, customerId }) {
     const [piError, setPiError] = useState(null);
 
     useEffect(() => {
-        if (!isFacebook || !customerId) return undefined;
+        if (!supportsPerformanceInvestigator || !customerId) return undefined;
+
+        const apiBase =
+            channel === APEX_RADAR_CHANNEL_FACEBOOK
+                ? "/api/apex-radar/facebook/performance-investigator"
+                : "/api/apex-radar/google-ads/performance-investigator";
 
         let cancelled = false;
         (async () => {
@@ -69,7 +75,7 @@ export default function PerformanceInvestigatorClient({ channel, customerId }) {
                     funnelStartDate: appliedDateRange.startDate,
                     funnelEndDate: appliedDateRange.endDate,
                 });
-                const res = await fetch(`/api/apex-radar/facebook/performance-investigator?${params.toString()}`);
+                const res = await fetch(`${apiBase}?${params.toString()}`);
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) {
                     throw new Error(data.error || "Failed to load performance investigator");
@@ -88,7 +94,7 @@ export default function PerformanceInvestigatorClient({ channel, customerId }) {
         return () => {
             cancelled = true;
         };
-    }, [isFacebook, customerId, yyyy, appliedDateRange.startDate, appliedDateRange.endDate]);
+    }, [supportsPerformanceInvestigator, channel, customerId, yyyy, appliedDateRange.startDate, appliedDateRange.endDate]);
 
     const headingLabel = useMemo(() => {
         if (!meta) return "Portfolio";
@@ -121,10 +127,10 @@ export default function PerformanceInvestigatorClient({ channel, customerId }) {
                 showAnalyzeWithAi={false}
                 showPdfExport={false}
                 dateRange={appliedDateRange}
-                loading={isFacebook && piLoading}
+                loading={supportsPerformanceInvestigator && piLoading}
                 right={
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:flex-wrap sm:justify-end">
-                        {isFacebook && (
+                        {supportsPerformanceInvestigator && (
                             <PerformanceInvestigatorCopyToSlides
                                 disabled={piLoading || !!piError}
                                 headingLabel={headingLabel}
@@ -152,10 +158,9 @@ export default function PerformanceInvestigatorClient({ channel, customerId }) {
             />
 
             <div className="space-y-10">
-                {!isFacebook ? (
+                {!supportsPerformanceInvestigator ? (
                     <div className="rounded-xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-600">
-                        Performance investigator API is only available for Facebook (PS) today. Google Ads support will
-                        mirror this view when data is wired.
+                        Performance investigator is only available for Facebook (PS) or Google Ads.
                     </div>
                 ) : (
                     <>

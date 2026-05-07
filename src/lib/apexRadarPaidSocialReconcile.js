@@ -18,9 +18,10 @@ import { resolvePaidSocialExcludedUserIdsFromDoc } from "@/lib/apexRadarAssignme
 
 /**
  * @param {string|mongoose.Types.ObjectId} customerId
+ * @param {string} channel — `facebook` or `google-ads`
  * @returns {{ ok: boolean, skipped?: boolean, reason?: string, updated?: boolean }}
  */
-export async function reconcileFacebookAssignmentsAfterCustomerTeamSync(customerId) {
+export async function reconcileApexAssignmentsAfterCustomerTeamSync(customerId, channel) {
     await connectToDatabase();
     const cidStr = String(customerId);
     if (!mongoose.Types.ObjectId.isValid(cidStr)) return { ok: false, skipped: true, reason: "invalid_id" };
@@ -40,8 +41,7 @@ export async function reconcileFacebookAssignmentsAfterCustomerTeamSync(customer
             .select("_id clickupId")
             .lean();
 
-        const matched = listMatchedPaidSocialUserIds(customer, internals);
-        const channel = APEX_RADAR_CHANNEL_FACEBOOK;
+        const matched = listMatchedPaidSocialUserIds(customer, internals, channel);
         const cid = new mongoose.Types.ObjectId(cidStr);
 
         const doc = await ApexRadarAccountAssignment.findOne({ channel, customerId: cid })
@@ -78,4 +78,9 @@ export async function reconcileFacebookAssignmentsAfterCustomerTeamSync(customer
         console.error("[apexRadarPaidSocialReconcile]", e);
         return { ok: false, reason: e?.message || String(e) };
     }
+}
+
+/** @deprecated Use {@link reconcileApexAssignmentsAfterCustomerTeamSync} with `APEX_RADAR_CHANNEL_FACEBOOK`. */
+export async function reconcileFacebookAssignmentsAfterCustomerTeamSync(customerId) {
+    return reconcileApexAssignmentsAfterCustomerTeamSync(customerId, APEX_RADAR_CHANNEL_FACEBOOK);
 }

@@ -1,7 +1,5 @@
-import {
-    getPaidSocialClickUpMembers,
-    normClickUpMemberId,
-} from "@/lib/apexRadarPaidSocialConstants";
+import { APEX_RADAR_CHANNEL_FACEBOOK } from "@/lib/apexRadarChannels";
+import { getApexRadarClickUpMembersForChannel, normClickUpMemberId } from "@/lib/apexRadarPaidSocialConstants";
 
 /** @typedef {{ customerTeam?: { members?: unknown[] } } | null | undefined} CustomerLite */
 /** @typedef {{ userIds?: string[], paidSocialExcludedUserIds?: string[] }} ApexAssignmentDetailLite */
@@ -13,11 +11,12 @@ export function normalizeInternalUserLean(u) {
 }
 
 /**
- * Internal user ids whose User.clickupId appears on this customer’s Paid Social (Meta) ClickUp roster.
+ * Internal user ids whose User.clickupId appears on this customer’s channel roster (Meta PS or PPC).
+ * @param {string} [channel] — `facebook` (default) or `google-ads`
  */
-export function listMatchedPaidSocialUserIds(customer, assignableUsers) {
+export function listMatchedPaidSocialUserIds(customer, assignableUsers, channel = APEX_RADAR_CHANNEL_FACEBOOK) {
     const rosterIds = new Set(
-        getPaidSocialClickUpMembers(customer)
+        getApexRadarClickUpMembersForChannel(customer, channel)
             .map((m) => normClickUpMemberId(m.id))
             .filter(Boolean)
     );
@@ -34,8 +33,13 @@ export function listMatchedPaidSocialUserIds(customer, assignableUsers) {
 /**
  * Who is effectively assigned: explicit userIds plus PS roster matches that are not excluded.
  */
-export function getEffectiveApexRadarAssignmentUserIds(detail, customer, assignableUsers) {
-    const matched = new Set(listMatchedPaidSocialUserIds(customer, assignableUsers));
+export function getEffectiveApexRadarAssignmentUserIds(
+    detail,
+    customer,
+    assignableUsers,
+    channel = APEX_RADAR_CHANNEL_FACEBOOK
+) {
+    const matched = new Set(listMatchedPaidSocialUserIds(customer, assignableUsers, channel));
     const excluded = new Set((detail?.paidSocialExcludedUserIds || []).map((x) => String(x)));
     const assigned = new Set((detail?.userIds || []).map((x) => String(x)));
     const fromPs = [...matched].filter((id) => !excluded.has(id));

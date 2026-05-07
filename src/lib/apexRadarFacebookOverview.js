@@ -8,7 +8,7 @@
 
 import {
     buildFacebookOverviewApexOnlySlice,
-    buildFacebookOverviewTargetsBudgetAlerts,
+    buildOverviewTargetsBudgetAlerts,
     displayValueMetricFromRollup,
     getFacebookApexRadarSettings,
 } from "@/lib/apexRadarCustomerSettings";
@@ -331,8 +331,15 @@ export function computeLog10FloorsFromPeriodRows(periodRows, targetMetricType) {
  * @param {string} startDate
  * @param {string} endDate
  * @param {object} roll — { r2, r7, r30, rMonthToDate, spendOnEndDate, minExpected7d, minExpected30d, … }
+ * @param {object} [overviewOpts]
+ * @param {(c: object) => object} [overviewOpts.getApexSettings]
+ * @param {string} [overviewOpts.channel]
+ * @param {object} [overviewOpts.defaultCustomerSettings] — default shape when customer has no `customerApexRadarSettings`
  */
-export function buildOverviewRowFromRollups(customer, startDate, endDate, roll) {
+export function buildOverviewRowFromRollups(customer, startDate, endDate, roll, overviewOpts = {}) {
+    const getApex = overviewOpts.getApexSettings ?? getFacebookApexRadarSettings;
+    const channelSlug = overviewOpts.channel ?? "facebook";
+    const defaultSettings = overviewOpts.defaultCustomerSettings ?? { facebook: {} };
     const id = String(customer._id);
     const {
         r2,
@@ -343,10 +350,10 @@ export function buildOverviewRowFromRollups(customer, startDate, endDate, roll) 
         minExpected7d,
         minExpected30d,
     } = roll;
-    const apex = getFacebookApexRadarSettings(customer);
+    const apex = getApex(customer);
     const display7 = displayValueMetricFromRollup(r7, apex.targetMetricType);
     const display30 = displayValueMetricFromRollup(r30, apex.targetMetricType);
-    const tbb = buildFacebookOverviewTargetsBudgetAlerts(customer, r7, r30, {
+    const tbb = buildOverviewTargetsBudgetAlerts(apex, r7, r30, {
         spendOnAsOfDate: spendOnEndDate,
         realizedBudgetMonthToDate: rMonthToDate?.spend != null ? rMonthToDate.spend : null,
         asOfDate: endDate,
@@ -377,9 +384,9 @@ export function buildOverviewRowFromRollups(customer, startDate, endDate, roll) 
             freq30d: r30.freq,
         },
         alerts: tbb.alerts,
-        customerApexRadarSettings: customer.customerApexRadarSettings || { facebook: {} },
+        customerApexRadarSettings: customer.customerApexRadarSettings || defaultSettings,
         apexRadarMeta: {
-            channel: "facebook",
+            channel: channelSlug,
             windows: { startDate, endDate, win2: roll.win2, win7: roll.win7, win30: roll.win30 },
         },
     };
@@ -596,7 +603,24 @@ async function runInsightsJobs(accessToken, jobs) {
     return out;
 }
 
-function rollCustomerWindows(customer, startDate, endDate, daily, weeklyPeriodRows = null) {
+const DEFAULT_FB_ROLL_OPTS = {
+    getApexSettings: getFacebookApexRadarSettings,
+    channel: "facebook",
+    defaultCustomerSettings: { facebook: {} },
+};
+
+/**
+ * @param {object} [overviewOpts] — passed to {@link buildOverviewRowFromRollups} (defaults: Facebook)
+ */
+export function rollOverviewWindows(
+    customer,
+    startDate,
+    endDate,
+    daily,
+    weeklyPeriodRows = null,
+    overviewOpts = DEFAULT_FB_ROLL_OPTS
+) {
+    const getApex = overviewOpts.getApexSettings ?? getFacebookApexRadarSettings;
     const w = computeDateWindows(startDate, endDate);
     const dodRef = getUtcCalendarSpendDodRange();
     const effFetchUntil = maxIso(w.fetchUntil, dodRef.calendarYesterday);
@@ -615,7 +639,7 @@ function rollCustomerWindows(customer, startDate, endDate, daily, weeklyPeriodRo
               ? 0
               : null;
 
-    const apex = getFacebookApexRadarSettings(customer);
+    const apex = getApex(customer);
     let minExpected7d;
     let minExpected30d;
     if (weeklyPeriodRows && weeklyPeriodRows.length > 0) {
@@ -624,20 +648,30 @@ function rollCustomerWindows(customer, startDate, endDate, daily, weeklyPeriodRo
         ({ minExpected7d, minExpected30d } = computeLog10WeeklyFloors(daily, apex.targetMetricType));
     }
 
-    const row = buildOverviewRowFromRollups(customer, startDate, endDate, {
-        r2,
-        r7,
-        r30,
-        rMonthToDate,
-        spendOnEndDate,
-        minExpected7d,
-        minExpected30d,
-        win2: w.win2,
-        win7: w.win7,
-        win30: w.win30,
-    });
+    const row = buildOverviewRowFromRollups(
+        customer,
+        startDate,
+        endDate,
+        {
+            r2,
+            r7,
+            r30,
+            rMonthToDate,
+            spendOnEndDate,
+            minExpected7d,
+            minExpected30d,
+            win2: w.win2,
+            win7: w.win7,
+            win30: w.win30,
+        },
+        overviewOpts
+    );
     const spendDayOverDay = computeSpendDayOverDayFromDaily(daily);
     return { ...row, spendDayOverDay };
+}
+
+function rollCustomerWindows(customer, startDate, endDate, daily, weeklyPeriodRows = null) {
+    return rollOverviewWindows(customer, startDate, endDate, daily, weeklyPeriodRows, DEFAULT_FB_ROLL_OPTS);
 }
 
 /**

@@ -5,7 +5,8 @@
 import Customer from "../models/Customer.js";
 import connectToDatabase from "../../lib/mongodb.js";
 import { fetchClickupTeamPayloadForCustomer } from "./clickupCustomerTeamFetch.js";
-import { reconcileFacebookAssignmentsAfterCustomerTeamSync } from "./apexRadarPaidSocialReconcile.js";
+import { APEX_RADAR_CHANNEL_FACEBOOK, APEX_RADAR_CHANNEL_GOOGLE_ADS } from "@/lib/apexRadarChannels";
+import { reconcileApexAssignmentsAfterCustomerTeamSync } from "./apexRadarPaidSocialReconcile.js";
 
 /** @param {{ dryRun?: boolean, skipPaidSocialAssignmentReconcile?: boolean }} [options] */
 export async function syncCustomerTeamForCustomerId(customerId, options = {}) {
@@ -61,7 +62,8 @@ export async function syncCustomerTeamForCustomerId(customerId, options = {}) {
 
         if (!skipPaidSocialAssignmentReconcile) {
             try {
-                await reconcileFacebookAssignmentsAfterCustomerTeamSync(customerId);
+                await reconcileApexAssignmentsAfterCustomerTeamSync(customerId, APEX_RADAR_CHANNEL_FACEBOOK);
+                await reconcileApexAssignmentsAfterCustomerTeamSync(customerId, APEX_RADAR_CHANNEL_GOOGLE_ADS);
             } catch (e) {
                 console.warn("[customerTeamSync] PS assignment reconcile failed:", e?.message || e);
             }

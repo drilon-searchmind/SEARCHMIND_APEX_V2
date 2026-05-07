@@ -2,6 +2,22 @@
 import { GoogleAdsApi } from 'google-ads-api';
 
 /**
+ * Normalize google-ads-api / gRPC rejection objects to a short message for UI and logs.
+ * @param {unknown} err
+ * @returns {string}
+ */
+export function extractGoogleAdsClientErrorMessage(err) {
+    if (err == null) return 'Google Ads request failed';
+    if (typeof err === 'string') return err;
+    const any = /** @type {{ message?: string; errors?: Array<{ message?: string }> }} */ (err);
+    if (Array.isArray(any.errors) && any.errors[0]?.message) {
+        return String(any.errors[0].message);
+    }
+    if (any.message) return String(any.message);
+    return 'Google Ads request failed';
+}
+
+/**
  * Resolve country name or ISO code to criterion ID via geo_target_constant API (no static mapping).
  * @param {object} customer - Google Ads customer instance
  * @param {string} input - Country name (e.g. "Germany") or ISO code (e.g. "DE")
@@ -41,11 +57,20 @@ export async function resolveCountryToCriterionId(customer, input) {
  * @param {string} endDate - End date (YYYY-MM-DD)
  * @param {string} [countryFilter] - Optional comma-separated countries to INCLUDE (e.g. "Germany,Denmark,Norway")
  * @param {string} [countryExclude] - Optional comma-separated countries to EXCLUDE (e.g. "France,Spain")
+ * @param {{ quietLog?: boolean }} [requestOptions] - When `quietLog`, avoid console noise for expected per-customer failures (overview batch).
  * @returns {Promise<{metrics: object[], currencyCode: string}>} - Raw rows from Google Ads API and customer currency code
  */
-export async function fetchGoogleAdsMetrics(customerId, startDate, endDate, countryFilter, countryExclude) {
+export async function fetchGoogleAdsMetrics(
+    customerId,
+    startDate,
+    endDate,
+    countryFilter,
+    countryExclude,
+    requestOptions = {}
+) {
+        const quietLog = requestOptions.quietLog === true;
         if (!customerId) {
-                console.error('Google Ads customerId is missing or undefined:', customerId);
+                if (!quietLog) console.error('Google Ads customerId is missing or undefined:', customerId);
                 throw new Error('Google Ads customerId is missing or undefined');
         }
         const customerIdStr = String(customerId);
@@ -81,7 +106,12 @@ export async function fetchGoogleAdsMetrics(customerId, startDate, endDate, coun
                         currencyCode = customerData.customer.currency_code;
                 }
         } catch (err) {
-                console.warn('Could not fetch customer currency code, using default USD:', err.message);
+                if (!quietLog) {
+                        console.warn(
+                                'Could not fetch customer currency code, using default:',
+                                err?.message ?? err
+                        );
+                }
         }
 
         const hasInclude = typeof countryFilter === 'string' && countryFilter.trim().length > 0;
@@ -146,7 +176,7 @@ export async function fetchGoogleAdsMetrics(customerId, startDate, endDate, coun
                                 }
                                 metrics = rows;
                         } catch (err) {
-                                console.error('Google Ads API error (user_location_view):', err);
+                                if (!quietLog) console.error('Google Ads API error (user_location_view):', err);
                                 throw err;
                         }
                 }
@@ -171,7 +201,7 @@ export async function fetchGoogleAdsMetrics(customerId, startDate, endDate, coun
                         const res = await customer.query(metricsQuery);
                         metrics = Array.isArray(res) ? res : (res.results || []);
                 } catch (err) {
-                        console.error('Google Ads API error:', err);
+                        if (!quietLog) console.error('Google Ads API error:', err);
                         throw err;
                 }
         }

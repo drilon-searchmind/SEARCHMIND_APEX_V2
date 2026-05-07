@@ -2,11 +2,12 @@
 
 import React from "react";
 import Link from "next/link";
-import { FiAlertTriangle, FiSettings } from "react-icons/fi";
+import { FiAlertCircle, FiAlertTriangle, FiSettings } from "react-icons/fi";
 import Spinner from "@/components/ui/Spinner";
 import { formatApexRadarTeamAssignmentLabel } from "@/lib/apexRadarTeamAssignmentsFormat";
 import {
     APEX_RADAR_CHANNEL_FACEBOOK,
+    APEX_RADAR_CHANNEL_GOOGLE_ADS,
     apexRadarPerformanceInvestigatorHref,
 } from "@/lib/apexRadarChannels";
 import {
@@ -122,11 +123,17 @@ export default function ApexRadarOverviewTable({
     assignableUsers = [],
     loading = false,
     spendDodThresholdPct = APEX_RADAR_SPEND_DOD_WARN_PCT_THRESHOLD,
-    /** Enables account name links to Performance Investigator when this is Meta (paid social). */
+    /** Enables account name links to Performance Investigator for Facebook or Google Ads. */
     channel = null,
 }) {
     const showSpinnerOnly = loading && (!rows || rows.length === 0);
     const showOverlay = loading && rows && rows.length > 0;
+    const loadingLabel =
+        channel === APEX_RADAR_CHANNEL_FACEBOOK
+            ? "Meta"
+            : channel === APEX_RADAR_CHANNEL_GOOGLE_ADS
+              ? "Google Ads"
+              : "Apex Radar";
 
     if (!loading && !rows?.length) {
         return (
@@ -155,7 +162,7 @@ export default function ApexRadarOverviewTable({
                                         aria-busy="true"
                                     >
                                         <Spinner size={40} color="#406969" />
-                                        <p className="text-sm text-gray-500">Loading Meta metrics…</p>
+                                        <p className="text-sm text-gray-500">Loading {loadingLabel} metrics…</p>
                                     </div>
                                 </td>
                             </tr>
@@ -167,7 +174,16 @@ export default function ApexRadarOverviewTable({
                                     paidSocialExcludedUserIds: [],
                                 };
                                 const cust = customersById[row.id] || null;
-                                const teamLabel = formatApexRadarTeamAssignmentLabel(detail, cust, assignableUsers);
+                                const teamLabel = formatApexRadarTeamAssignmentLabel(
+                                    detail,
+                                    cust,
+                                    assignableUsers,
+                                    channel
+                                );
+                                const platformError =
+                                    channel === APEX_RADAR_CHANNEL_GOOGLE_ADS
+                                        ? row.apexRadarMeta?.googleError
+                                        : row.apexRadarMeta?.facebookError;
                                 const valueIsConversions = row.targets?.targetType === "CPA";
                                 const fmtValueMetric = (n) => (valueIsConversions ? fmtInt(n) : fmtMoney(n));
                                 const dod = row.spendDayOverDay || {};
@@ -180,7 +196,8 @@ export default function ApexRadarOverviewTable({
                                         ? `${fmtDecimal(dod.pctChangeFromPrior, 1)}% vs prior UTC day (${dod.calendarDayBeforeYesterday} → ${dod.calendarYesterday}); change is at or below alert threshold (${fmtDecimal(spendDodThresholdPct, 1)}%).`
                                         : undefined;
                                 const piHref =
-                                    channel === APEX_RADAR_CHANNEL_FACEBOOK
+                                    channel === APEX_RADAR_CHANNEL_FACEBOOK ||
+                                    channel === APEX_RADAR_CHANNEL_GOOGLE_ADS
                                         ? apexRadarPerformanceInvestigatorHref(channel, row.id)
                                         : null;
                                 const nameClass =
@@ -189,7 +206,15 @@ export default function ApexRadarOverviewTable({
                                     <tr key={row.id} className="hover:bg-gray-50/80">
                                         <td className={`${tdEntity}`} title={row.entity}>
                                             <div className="flex items-center gap-1.5 min-w-0">
-                                                {dodWarn ? (
+                                                {platformError ? (
+                                                    <span
+                                                        className="shrink-0 text-amber-600"
+                                                        title={platformError}
+                                                        aria-label={`Data source error: ${platformError}`}
+                                                    >
+                                                        <FiAlertCircle className="h-4 w-4" aria-hidden />
+                                                    </span>
+                                                ) : dodWarn ? (
                                                     <span
                                                         className="shrink-0 text-red-600"
                                                         title={dodTitle}
