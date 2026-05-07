@@ -15,6 +15,7 @@ export default function LastYearPeriodTable({
 	onRowHover,
 	onRowHoverLeave,
 	visibleMetrics = {},
+	metricColumns = METRIC_COLUMNS,
 }) {
 	if (loading) {
 		return (
@@ -26,7 +27,7 @@ export default function LastYearPeriodTable({
 
 	const max = rowsLastYear?.length ? computeRowMax(rowsLastYear) : {};
 	const visibleCount =
-		1 + METRIC_COLUMNS.filter((m) => visibleMetrics[m.key]).length;
+		1 + metricColumns.filter((m) => visibleMetrics[m.key]).length;
 
 	return (
 		<div className="overflow-x-auto">
@@ -37,6 +38,7 @@ export default function LastYearPeriodTable({
 				<DailyMetricsTableHeader
 					variant="lastYear"
 					visibleMetrics={visibleMetrics}
+					metricColumns={metricColumns}
 				/>
 				<tbody className="text-[12px]">
 					{!rowsLastYear?.length ? (
@@ -54,6 +56,7 @@ export default function LastYearPeriodTable({
 								rows={rowsLastYear}
 								label="Total"
 								visibleMetrics={visibleMetrics}
+								metricColumns={metricColumns}
 							/>
 							{rowsLastYear.map((row, idx) => {
 								const currentDate = dayjs(row.date)

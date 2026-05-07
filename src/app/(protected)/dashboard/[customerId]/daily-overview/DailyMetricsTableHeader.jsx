@@ -1,19 +1,19 @@
 import { METRIC_COLUMNS } from './metricConfig';
 
-function countVisibleInGroup(visibleMetrics, group) {
-	return METRIC_COLUMNS.filter((m) => m.group === group && visibleMetrics[m.key])
-		.length;
+function countVisibleInGroup(metricColumns, visibleMetrics, group) {
+	return metricColumns.filter((m) => m.group === group && visibleMetrics[m.key]).length;
 }
 
 export default function DailyMetricsTableHeader({
 	variant = 'default',
 	visibleMetrics = {},
+	metricColumns = METRIC_COLUMNS,
 }) {
 	const headerBg = variant === 'lastYear' ? 'bg-gray-100' : 'bg-gray-50';
 
-	const salesCount = countVisibleInGroup(visibleMetrics, 'sales');
-	const marketingCount = countVisibleInGroup(visibleMetrics, 'marketing');
-	const resultCount = countVisibleInGroup(visibleMetrics, 'result');
+	const salesCount = countVisibleInGroup(metricColumns, visibleMetrics, 'sales');
+	const marketingCount = countVisibleInGroup(metricColumns, visibleMetrics, 'marketing');
+	const resultCount = countVisibleInGroup(metricColumns, visibleMetrics, 'result');
 
 	const showSales = salesCount > 0;
 	const showMarketing = marketingCount > 0;
@@ -60,14 +60,14 @@ export default function DailyMetricsTableHeader({
 				{!showGroupRow && (
 					<th className="px-3 py-1.5 font-semibold text-gray-700">Date</th>
 				)}
-				{METRIC_COLUMNS.map((m, idx) => {
+				{metricColumns.map((m, idx) => {
 					if (!visibleMetrics[m.key]) return null;
-					const visibleBefore = METRIC_COLUMNS.filter(
+					const visibleBefore = metricColumns.filter(
 						(p, i) =>
 							i < idx && visibleMetrics[p.key]
 					).length;
 					const isFirstVisible = visibleBefore === 0;
-					const prevInGroup = METRIC_COLUMNS.slice(0, idx).filter(
+					const prevInGroup = metricColumns.slice(0, idx).filter(
 						(p) => p.group === m.group && visibleMetrics[p.key]
 					);
 					const showBorderL =

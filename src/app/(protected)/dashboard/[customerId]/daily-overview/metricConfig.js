@@ -19,3 +19,11 @@ export const METRIC_COLUMNS = [
 export const DEFAULT_VISIBLE_METRICS = Object.fromEntries(
 	METRIC_COLUMNS.map((m) => [m.key, true])
 );
+
+/** Parent group view only: rename Net Revenue column when showing gross-sales basis */
+export function mapMetricColumnsForRevenueBasis(shopifyRevenueField = 'net_sales') {
+	if (shopifyRevenueField !== 'gross_sales') return METRIC_COLUMNS;
+	return METRIC_COLUMNS.map((c) =>
+		c.key === 'netRevenue' ? { ...c, label: 'Gross Sales' } : c
+	);
+}

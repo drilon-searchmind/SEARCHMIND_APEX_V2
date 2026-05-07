@@ -20,6 +20,7 @@ export default function DailyMetricsTable({
 	onRowHover,
 	onRowHoverLeave,
 	visibleMetrics = {},
+	metricColumns = METRIC_COLUMNS,
 }) {
 	if (loading) {
 		return (
@@ -35,7 +36,7 @@ export default function DailyMetricsTable({
 
 	const max = rows?.length ? computeRowMax(rows) : {};
 	const visibleCount =
-		1 + METRIC_COLUMNS.filter((m) => visibleMetrics[m.key]).length;
+		1 + metricColumns.filter((m) => visibleMetrics[m.key]).length;
 
 	return (
 		<div className="overflow-x-auto">
@@ -43,7 +44,7 @@ export default function DailyMetricsTable({
 				className="min-w-full text-xs text-left border-collapse"
 				style={{ fontSize: '12px' }}
 			>
-				<DailyMetricsTableHeader visibleMetrics={visibleMetrics} />
+				<DailyMetricsTableHeader visibleMetrics={visibleMetrics} metricColumns={metricColumns} />
 				<tbody className="text-[12px]">
 					{!rows?.length ? (
 						<tr>
@@ -82,20 +83,24 @@ export default function DailyMetricsTable({
 								rows={rows}
 								label="Total"
 								visibleMetrics={visibleMetrics}
+								metricColumns={metricColumns}
 							/>
 							<DailyMetricsLastPeriodRow
 								rows={rowsPrev}
 								visibleMetrics={visibleMetrics}
+								metricColumns={metricColumns}
 							/>
 							<DailyMetricsIndexRow
 								rows={rows}
 								rowsPrev={rowsPrev}
 								visibleMetrics={visibleMetrics}
+								metricColumns={metricColumns}
 							/>
 							<DailyMetricsDifferenceRow
 								rows={rows}
 								rowsPrev={rowsPrev}
 								visibleMetrics={visibleMetrics}
+								metricColumns={metricColumns}
 							/>
 						</>
 					)}

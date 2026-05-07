@@ -7,7 +7,7 @@ import DailyMetricsTable from "@/app/(protected)/dashboard/[customerId]/daily-ov
 import RowComparisonPopover from "@/app/(protected)/dashboard/[customerId]/daily-overview/RowComparisonPopover";
 import LastYearPeriodTable from "@/app/(protected)/dashboard/[customerId]/daily-overview/LastYearPeriodTable";
 import MetricToggleBar from "@/app/(protected)/dashboard/[customerId]/daily-overview/MetricToggleBar";
-import { DEFAULT_VISIBLE_METRICS } from "@/app/(protected)/dashboard/[customerId]/daily-overview/metricConfig";
+import { DEFAULT_VISIBLE_METRICS, mapMetricColumnsForRevenueBasis } from "@/app/(protected)/dashboard/[customerId]/daily-overview/metricConfig";
 import GraphCard from "@/components/dashboard/GraphCard";
 import { buildParentDailyRows } from "../utils/buildParentDailyRows";
 import dayjs from "dayjs";
@@ -27,9 +27,15 @@ export default function ParentDailyView({ sharedData }) {
         handleStartDateChange,
         handleEndDateChange,
         predominantMetricPreference,
+        shopifyRevenueField = "net_sales",
     } = sharedData || {};
 
-    const rows = filteredDailyRows || [];
+    const metricColumnsParent = useMemo(
+        () => mapMetricColumnsForRevenueBasis(shopifyRevenueField),
+        [shopifyRevenueField]
+    );
+
+    const rows = useMemo(() => filteredDailyRows || [], [filteredDailyRows]);
     const rowsPrev = filteredDailyRowsPrev || [];
 
     const [rowsLastYear, setRowsLastYear] = useState([]);
@@ -81,7 +87,10 @@ export default function ParentDailyView({ sharedData }) {
                 if (!res.ok) throw new Error("Failed to fetch last year data");
                 const data = await res.json();
                 const dailyDataList = (data.dailyData || []).filter((r) => enabledProperties[r._id]);
-                const lastYearRows = buildParentDailyRows(dailyDataList, data.parent?.customers || childCustomers, { usePrev: false });
+                const lastYearRows = buildParentDailyRows(dailyDataList, data.parent?.customers || childCustomers, {
+                    usePrev: false,
+                    shopifyRevenueField,
+                });
                 setRowsLastYear(lastYearRows);
             } catch (err) {
                 console.error("Error fetching last year data:", err);
@@ -90,16 +99,19 @@ export default function ParentDailyView({ sharedData }) {
                 setLoadingLastYear(false);
             }
         })();
-    }, [parentCustomerId, appliedDateRange?.startDate, childCustomers, enabledProperties]);
+    }, [parentCustomerId, appliedDateRange?.startDate, childCustomers, enabledProperties, shopifyRevenueField]);
+
+    const revenueTrendLabel =
+        shopifyRevenueField === "gross_sales" ? "Gross sales" : "Net revenue";
 
     const trendChartSeries = useMemo(() => {
         if (!rows?.length) return [];
         return [
-            { name: "Net Revenue", data: rows.map((r) => Math.round(r.netRevenue || 0)), color: "#406969" },
+            { name: revenueTrendLabel, data: rows.map((r) => Math.round(r.netRevenue || 0)), color: "#406969" },
             { name: "Spend", data: rows.map((r) => Math.round((r.ppcCost || 0) + (r.psCost || 0))), color: "#D6CDB6" },
             { name: "Net Profit", data: rows.map((r) => Math.round(r.netProfit ?? 0)), color: "#1E2B2B" },
         ];
-    }, [rows]);
+    }, [rows, revenueTrendLabel]);
 
     const trendChartOptions = useMemo(
         () => ({
@@ -158,13 +170,14 @@ export default function ParentDailyView({ sharedData }) {
                         onToggle={handleMetricToggle}
                         showTrendChart={showTrendChart}
                         onTrendChartToggle={() => setShowTrendChart((v) => !v)}
+                        metricColumns={metricColumnsParent}
                     />
                     <h3 className="text-lg font-semibold">Daily Metrics</h3>
                 </div>
                 {showTrendChart && rows?.length > 0 && (
                     <div className="mb-6">
                         <GraphCard
-                            title="Net Revenue, Spend & Net Profit Over Time"
+                            title={`${revenueTrendLabel}, Spend & Net Profit Over Time`}
                             chartOptions={trendChartOptions}
                             chartSeries={trendChartSeries}
                             chartType="line"
@@ -179,6 +192,7 @@ export default function ParentDailyView({ sharedData }) {
                     loading={loading}
                     error={null}
                     visibleMetrics={visibleMetrics}
+                    metricColumns={metricColumnsParent}
                     onRowHover={handleRowHover}
                     onRowHoverLeave={handleRowHoverLeave}
                 />
@@ -202,6 +216,7 @@ export default function ParentDailyView({ sharedData }) {
                     rows={rows}
                     loading={loadingLastYear}
                     visibleMetrics={visibleMetrics}
+                    metricColumns={metricColumnsParent}
                     onRowHover={handleRowHover}
                     onRowHoverLeave={handleRowHoverLeave}
                 />

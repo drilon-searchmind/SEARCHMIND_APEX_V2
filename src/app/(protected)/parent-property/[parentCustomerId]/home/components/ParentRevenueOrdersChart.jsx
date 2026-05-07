@@ -6,7 +6,7 @@ import GraphCard from '@/components/dashboard/GraphCard';
 
 const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
-export default function ParentRevenueOrdersChart({ dailyData, loading }) {
+export default function ParentRevenueOrdersChart({ dailyData, loading, shopifyRevenueField = "net_sales" }) {
     if (loading) {
         return (
             <div className="bg-white border border-gray-200 rounded-xl p-6">
@@ -18,9 +18,13 @@ export default function ParentRevenueOrdersChart({ dailyData, loading }) {
     }
 
     if (!dailyData || dailyData.length === 0) {
+        const emptyTitle =
+            shopifyRevenueField === "gross_sales"
+                ? "Gross sales & orders over time"
+                : "Revenue & orders over time";
         return (
             <div className="bg-white border border-gray-200 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue & Orders Over Time</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">{emptyTitle}</h3>
                 <div className="flex justify-center items-center h-80 text-gray-400">
                     No data available for the selected period
                 </div>
@@ -28,13 +32,21 @@ export default function ParentRevenueOrdersChart({ dailyData, loading }) {
         );
     }
 
+    const cardTitle =
+        shopifyRevenueField === "gross_sales"
+            ? "Gross sales & orders over time"
+            : "Revenue & orders over time";
+    const revenueSeriesLabel =
+        shopifyRevenueField === "gross_sales" ? "Gross sales (DKK)" : "Revenue (DKK)";
+    const yTitle = revenueSeriesLabel;
+
     // Prepare chart data
     const categories = dailyData.map(d => d.period);
     const revenueData = dailyData.map(d => (d.revenue || 0).toFixed(2));
     const ordersData = dailyData.map(d => d.orders || 0);
 
     const chartSeries = [
-        { name: 'Revenue (DKK)', data: revenueData },
+        { name: revenueSeriesLabel, data: revenueData },
         { name: 'Orders', data: ordersData }
     ];
 
@@ -71,7 +83,7 @@ export default function ParentRevenueOrdersChart({ dailyData, loading }) {
         },
         yaxis: [
             {
-                title: { text: 'Revenue (DKK)', style: { color: '#C6ED62' } },
+                title: { text: yTitle, style: { color: '#C6ED62' } },
                 labels: {
                     style: { colors: '#1E2B2B' },
                     formatter: (val) => val !== undefined ? Number(val).toLocaleString() : val
@@ -105,5 +117,5 @@ export default function ParentRevenueOrdersChart({ dailyData, loading }) {
         grid: { borderColor: '#e5e7eb', strokeDashArray: 0 }
     };
 
-    return <GraphCard title="Revenue & Orders Over Time" chartOptions={chartOptions} chartSeries={chartSeries} chartType="area" height={380} />;
+    return <GraphCard title={cardTitle} chartOptions={chartOptions} chartSeries={chartSeries} chartType="area" height={380} />;
 }

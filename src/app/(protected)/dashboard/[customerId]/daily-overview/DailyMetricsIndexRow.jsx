@@ -7,12 +7,13 @@ export default function DailyMetricsIndexRow({
 	rows,
 	rowsPrev,
 	visibleMetrics = {},
+	metricColumns = METRIC_COLUMNS,
 }) {
 	if (!rows?.length) return null;
 
 	const indexData = computeIndex(rows, rowsPrev);
 
-	const visibleCols = METRIC_COLUMNS.filter((m) => visibleMetrics[m.key]);
+	const visibleCols = metricColumns.filter((m) => visibleMetrics[m.key]);
 	const getBorderLClass = (key) => {
 		const idx = visibleCols.findIndex((m) => m.key === key);
 		const col = visibleCols[idx];

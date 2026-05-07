@@ -14,6 +14,7 @@ import ParenteAdspendChart from "./components/ParentAdspendChart";
 import ParentROASChart from "./components/ParentROASChart";
 import { useParentPropertyView, PARENT_VIEWS } from "@/contexts/ParentPropertyViewContext";
 import { useParentPropertyFilter } from "@/contexts/ParentPropertyFilterContext";
+import { useParentPropertyGroupSettings } from "@/contexts/ParentPropertyGroupSettingsContext";
 import ParentPropertyLoadingOverlay from "@/components/layout/ParentPropertyLoadingOverlay";
 import {
     ParentOverviewView,
@@ -24,9 +25,48 @@ import {
 } from "./views";
 import { buildParentDailyRows } from "./utils/buildParentDailyRows";
 
+function deriveDisplayedChildRow(row, shopifyRevenueField, groupMetricPreference) {
+    const fm = row.fullMetrics;
+    let revenue;
+    let revenuePrev;
+    if (fm) {
+        revenue = shopifyRevenueField === "gross_sales" ? fm.grossSales ?? 0 : fm.netRevenue ?? 0;
+        revenuePrev =
+            shopifyRevenueField === "gross_sales" ? fm.grossSalesPrev ?? 0 : fm.netRevenuePrev ?? 0;
+    } else {
+        revenue = row.revenue ?? 0;
+        revenuePrev = row.prevData?.revenue ?? 0;
+    }
+    const adspend = row.adspend ?? 0;
+    const orders = row.orders ?? 0;
+    const roas = adspend > 0 ? revenue / adspend : null;
+    const spendshare = revenue > 0 ? adspend / revenue : null;
+    const aov = orders > 0 ? revenue / orders : null;
+    const adspendPrev = row.prevData?.adspend ?? 0;
+    return {
+        ...row,
+        revenue,
+        roas,
+        spendshare,
+        aov,
+        metricPreference: groupMetricPreference,
+        prevData: row.prevData
+            ? {
+                  ...row.prevData,
+                  revenue: revenuePrev,
+                  roas: adspendPrev > 0 ? revenuePrev / adspendPrev : null,
+                  spendshare: revenuePrev > 0 ? adspendPrev / revenuePrev : null,
+              }
+            : row.prevData,
+    };
+}
+
 export default function ParentPropertyHome() {
     const { activeView } = useParentPropertyView();
     const { enabledProperties, setChildCustomers: setFilterChildCustomers, setEnabledProperties: setFilterEnabledProperties, toggleProperty } = useParentPropertyFilter();
+    const groupSettings = useParentPropertyGroupSettings();
+    const shopifyRevenueField = groupSettings?.shopifyRevenueField ?? "net_sales";
+    const predominantMetricPreference = groupSettings?.groupMetricPreference ?? "ROAS/POAS";
     const params = useParams();
     const parentCustomerId = params.parentCustomerId;
     const [parentCustomer, setParentCustomer] = useState(null);
@@ -54,9 +94,6 @@ export default function ParentPropertyHome() {
     // Comparison method: applied (triggers fetch) vs temp (picker until Apply)
     const [comparisonMethod, setComparisonMethod] = useState("Last Year");
     const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Year");
-    // Determine the predominant metric preference from child customers
-    const [predominantMetricPreference, setPredominantMetricPreference] = useState('ROAS/POAS');
-
     // Handlers for DateRangePicker (controlled) - comparison only applies on Apply
     const handleDateRangeApply = ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
         setAppliedDateRange({ startDate, endDate });
@@ -131,7 +168,6 @@ export default function ParentPropertyHome() {
                                 setChildCustomers(children);
                                 setAllTableRows(event.rows || []);
                                 setAllDailyChartData(event.dailyData || []);
-                                setPredominantMetricPreference(event.predominantMetricPreference || "ROAS/POAS");
                                 setFilterChildCustomers(children);
                                 const initialEnabled = {};
                                 children.forEach((c) => { initialEnabled[c._id] = true; });
@@ -167,21 +203,25 @@ export default function ParentPropertyHome() {
 
     // Filter data based on enabled properties
     const { filteredTableRows, filteredDailyData, metrics, metricsPrev, aggregatedMetrics, aggregatedMetricsPrev, filteredDailyRows, filteredDailyRowsPrev } = useMemo(() => {
-        const filtered = allTableRows.filter(row => enabledProperties[row._id]);
+        const filteredRaw = allTableRows.filter(row => enabledProperties[row._id]);
+        const filtered = filteredRaw.map((row) =>
+            deriveDisplayedChildRow(row, shopifyRevenueField, predominantMetricPreference)
+        );
         const filteredDailyDataList = allDailyChartData.filter((r) => enabledProperties[r._id]);
 
-        // Aggregate filtered daily data
+        // Aggregate filtered daily data (Shopify slice uses parent group revenue basis)
         const dailyMap = {};
         allDailyChartData
             .filter(result => enabledProperties[result._id])
             .forEach(result => {
-                const { shopifyDaily, facebookDaily, googleDaily, revenueType } = result;
+                const { shopifyDaily, facebookDaily, googleDaily } = result;
 
                 shopifyDaily.forEach(d => {
                     if (!dailyMap[d.period]) {
                         dailyMap[d.period] = { period: d.period, revenue: 0, orders: 0, facebookSpend: 0, googleSpend: 0 };
                     }
-                    dailyMap[d.period].revenue += d[revenueType] || 0;
+                    const rv = (d[shopifyRevenueField] ?? d.net_sales ?? 0) || 0;
+                    dailyMap[d.period].revenue += rv;
                     dailyMap[d.period].orders += d.orders || 0;
                 });
 
@@ -202,7 +242,7 @@ export default function ParentPropertyHome() {
 
         const aggregatedDaily = Object.values(dailyMap).sort((a, b) => a.period.localeCompare(b.period));
 
-        // Calculate metrics from filtered data
+        // Calculate metrics from filtered data (revenue aligns with chosen Shopify basis + group metric prefs)
         const totalRevenue = filtered.reduce((sum, r) => sum + r.revenue, 0);
         const totalAdspend = filtered.reduce((sum, r) => sum + r.adspend, 0);
         const totalOrders = filtered.reduce((sum, r) => sum + r.orders, 0);
@@ -216,7 +256,7 @@ export default function ParentPropertyHome() {
         const combinedSpendsharePrev = totalRevenuePrev > 0 ? totalAdspendPrev / totalRevenuePrev : null;
 
         // Aggregate full metrics from filtered rows (for parent overview)
-        const agg = (key) => filtered.reduce((s, r) => s + (r.fullMetrics?.[key] ?? 0), 0);
+        const agg = (key) => filteredRaw.reduce((s, r) => s + (r.fullMetrics?.[key] ?? 0), 0);
         const totalSales = agg("totalSales");
         const grossSales = agg("grossSales");
         const discounts = agg("discounts");
@@ -259,52 +299,115 @@ export default function ParentPropertyHome() {
         const ebitPrev = agg("ebitPrev");
         const grossProfitPrev = agg("grossProfitPrev");
 
-        const aov = orders > 0 ? netRevenue / orders : null;
-        const aovPrev = ordersPrev > 0 ? netRevenuePrev / ordersPrev : null;
-        const roas = cost > 0 ? netRevenue / cost : null;
-        const roasPrev = costPrev > 0 ? netRevenuePrev / costPrev : null;
+        const revKeyCur = shopifyRevenueField === "gross_sales" ? "grossSales" : "netRevenue";
+        const revKeyPrev = shopifyRevenueField === "gross_sales" ? "grossSalesPrev" : "netRevenuePrev";
+        const reportingRevenue = filteredRaw.reduce((s, r) => s + (r.fullMetrics?.[revKeyCur] ?? 0), 0);
+        const reportingRevenuePrev = filteredRaw.reduce((s, r) => s + (r.fullMetrics?.[revKeyPrev] ?? 0), 0);
+
+        const aov = orders > 0 ? reportingRevenue / orders : null;
+        const aovPrev = ordersPrev > 0 ? reportingRevenuePrev / ordersPrev : null;
+        const roas = cost > 0 ? reportingRevenue / cost : null;
+        const roasPrev = costPrev > 0 ? reportingRevenuePrev / costPrev : null;
         const poas = cost > 0 ? ebit / cost : null;
         const poasPrev = costPrev > 0 ? ebitPrev / costPrev : null;
         const cac = orders > 0 ? cost / orders : null;
         const cacPrev = ordersPrev > 0 ? costPrev / ordersPrev : null;
         const ebitPct = netRevenue > 0 ? (ebit / netRevenue) * 100 : null;
         const ebitPctPrev = netRevenuePrev > 0 ? (ebitPrev / netRevenuePrev) * 100 : null;
-        const spendshare = netRevenue > 0 ? cost / netRevenue : null;
-        const spendsharePrev = netRevenuePrev > 0 ? costPrev / netRevenuePrev : null;
+        const spendshare = reportingRevenue > 0 ? cost / reportingRevenue : null;
+        const spendsharePrev =
+            reportingRevenuePrev > 0 ? costPrev / reportingRevenuePrev : null;
 
-        const aggregatedMetrics = filtered.length > 0 ? {
-            totalSales, grossSales, discounts, returns, netRevenue, orders, shippingCharges, taxes,
-            metaSpend, googleSpend, cost, totalCogs, fixedCosts, variableCosts, shippingCost, pickPackCost,
-            transactionFee, allCosts, ebit, grossProfit, aov, roas, poas, cac, ebitPct, spendshare,
+        const aggregatedMetrics = filteredRaw.length > 0 ? {
+            totalSales,
+            grossSales,
+            discounts,
+            returns,
+            netRevenue,
+            reportingRevenue,
+            orders,
+            shippingCharges,
+            taxes,
+            metaSpend,
+            googleSpend,
+            cost,
+            totalCogs,
+            fixedCosts,
+            variableCosts,
+            shippingCost,
+            pickPackCost,
+            transactionFee,
+            allCosts,
+            ebit,
+            grossProfit,
+            aov,
+            roas,
+            poas,
+            cac,
+            ebitPct,
+            spendshare,
         } : null;
-        const aggregatedMetricsPrev = filtered.length > 0 ? {
+        const aggregatedMetricsPrev = filteredRaw.length > 0 ? {
             totalSales: totalSalesPrev, grossSales: grossSalesPrev, discounts: discountsPrev, returns: returnsPrev,
-            netRevenue: netRevenuePrev, orders: ordersPrev, shippingCharges: shippingChargesPrev, taxes: taxesPrev,
+            netRevenue: netRevenuePrev,
+            reportingRevenue: reportingRevenuePrev,
+            orders: ordersPrev, shippingCharges: shippingChargesPrev, taxes: taxesPrev,
             metaSpend: metaSpendPrev, googleSpend: googleSpendPrev, cost: costPrev, totalCogs: prevTotalCogs,
             fixedCosts: fixedCostsPrev, variableCosts: variableCostsPrev, shippingCost: shippingCostPrev, pickPackCost: pickPackCostPrev,
             transactionFee: transactionFeePrev, allCosts: allCostsPrev, ebit: ebitPrev, grossProfit: grossProfitPrev,
             aov: aovPrev, roas: roasPrev, poas: poasPrev, cac: cacPrev, ebitPct: ebitPctPrev, spendshare: spendsharePrev,
         } : null;
 
-        const filteredDailyRows = buildParentDailyRows(filteredDailyDataList, childCustomers, { usePrev: false });
-        const filteredDailyRowsPrev = buildParentDailyRows(filteredDailyDataList, childCustomers, { usePrev: true });
+        const dailyRowOpts = { usePrev: false, shopifyRevenueField };
+        const filteredDailyRows = buildParentDailyRows(filteredDailyDataList, childCustomers, dailyRowOpts);
+        const filteredDailyRowsPrev = buildParentDailyRows(filteredDailyDataList, childCustomers, {
+            usePrev: true,
+            shopifyRevenueField,
+        });
 
         return {
             filteredTableRows: filtered,
             filteredDailyData: aggregatedDaily,
-            metrics: { revenue: totalRevenue, adspend: totalAdspend, orders: totalOrders, roas: combinedRoas, spendshare: combinedSpendshare },
-            metricsPrev: { revenue: totalRevenuePrev, adspend: totalAdspendPrev, orders: totalOrdersPrev, roas: combinedRoasPrev, spendshare: combinedSpendsharePrev },
+            metrics: {
+                revenue: totalRevenue,
+                adspend: totalAdspend,
+                orders: totalOrders,
+                roas: combinedRoas,
+                spendshare: combinedSpendshare,
+            },
+            metricsPrev: {
+                revenue: totalRevenuePrev,
+                adspend: totalAdspendPrev,
+                orders: totalOrdersPrev,
+                roas: combinedRoasPrev,
+                spendshare: combinedSpendsharePrev,
+            },
             aggregatedMetrics,
             aggregatedMetricsPrev,
             filteredDailyRows,
             filteredDailyRowsPrev,
         };
-    }, [allTableRows, allDailyChartData, enabledProperties, childCustomers]);
+    }, [
+        allTableRows,
+        allDailyChartData,
+        enabledProperties,
+        childCustomers,
+        shopifyRevenueField,
+        predominantMetricPreference,
+    ]);
+
+    const childPropertyRowsForUi = useMemo(
+        () =>
+            allTableRows.map((row) =>
+                deriveDisplayedChildRow(row, shopifyRevenueField, predominantMetricPreference)
+            ),
+        [allTableRows, shopifyRevenueField, predominantMetricPreference]
+    );
 
     // Metric cards config - conditionally show either ROAS or Spendshare
     const metricCards = [
         {
-            label: "Combined Revenue",
+            label: shopifyRevenueField === "gross_sales" ? "Combined Revenue (gross)" : "Combined Revenue",
             value: metrics.revenue.toLocaleString("da-DK", { style: "currency", currency: "DKK" }),
             change: percentChange(metrics.revenue, metricsPrev.revenue) !== null ? Math.abs(percentChange(metrics.revenue, metricsPrev.revenue)).toFixed(1) : undefined,
             changeType: percentChange(metrics.revenue, metricsPrev.revenue) > 0 ? "up" : percentChange(metrics.revenue, metricsPrev.revenue) < 0 ? "down" : undefined,
@@ -366,6 +469,7 @@ export default function ParentPropertyHome() {
         tempComparisonMethod,
         setTempComparisonMethod,
         predominantMetricPreference,
+        shopifyRevenueField,
         loading,
         chartLoading,
         toggleProperty,
@@ -464,7 +568,7 @@ export default function ParentPropertyHome() {
                             <tbody>
                                 {allTableRows.length === 0 ? (
                                     <tr><td colSpan={9} className="text-center py-8 text-gray-400">No child properties found.</td></tr>
-                                ) : allTableRows.map((row, idx) => {
+                                ) : childPropertyRowsForUi.map((row, idx) => {
                                     const isEnabled = enabledProperties[row._id];
                                     return (
                                         <tr 
@@ -474,8 +578,11 @@ export default function ParentPropertyHome() {
                                             <td className="px-3 py-2 whitespace-nowrap">{row.customerName}</td>
                                             <td className="px-3 py-2 whitespace-nowrap">
                                                 {row.revenue.toLocaleString("da-DK", { style: "currency", currency: "DKK" })}
-                                                {row.revenueType === 'net_sales' && (
+                                                {shopifyRevenueField === "net_sales" && (
                                                     <span className="ml-1 text-xs text-gray-400">(net sales)</span>
+                                                )}
+                                                {shopifyRevenueField === "gross_sales" && (
+                                                    <span className="ml-1 text-xs text-gray-400">(gross sales)</span>
                                                 )}
                                             </td>
                                             <td className="px-3 py-2 whitespace-nowrap">{row.orders.toLocaleString()}</td>
@@ -483,7 +590,7 @@ export default function ParentPropertyHome() {
                                             <td className="px-3 py-2 whitespace-nowrap">{(row.facebookAdspend ?? 0).toLocaleString("da-DK", { style: "currency", currency: "DKK" })}</td>
                                             <td className="px-3 py-2 whitespace-nowrap">{(row.googleAdspend ?? 0).toLocaleString("da-DK", { style: "currency", currency: "DKK" })}</td>
                                             <td className="px-3 py-2 whitespace-nowrap">
-                                                {row.metricPreference === 'Spendshare' ? (
+                                                {predominantMetricPreference === 'Spendshare' ? (
                                                     row.spendshare !== null ? `${(row.spendshare * 100).toFixed(2)}%` : "-"
                                                 ) : (
                                                     row.roas !== null ? row.roas.toFixed(2) : "-"
@@ -508,7 +615,11 @@ export default function ParentPropertyHome() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
-                <ParentRevenueOrdersChart dailyData={filteredDailyData} loading={chartLoading} />
+                <ParentRevenueOrdersChart
+                    dailyData={filteredDailyData}
+                    loading={chartLoading}
+                    shopifyRevenueField={shopifyRevenueField}
+                />
                 <ParenteAdspendChart dailyData={filteredDailyData} loading={chartLoading} />
                 <ParentROASChart
                     dailyData={filteredDailyData}

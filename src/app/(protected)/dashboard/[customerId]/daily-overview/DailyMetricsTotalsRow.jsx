@@ -7,6 +7,7 @@ export default function DailyMetricsTotalsRow({
 	rows,
 	label = 'Total',
 	visibleMetrics = {},
+	metricColumns = METRIC_COLUMNS,
 }) {
 	if (!rows?.length) return null;
 
@@ -85,7 +86,7 @@ export default function DailyMetricsTotalsRow({
 		}
 	};
 
-	const visibleCols = METRIC_COLUMNS.filter((m) => visibleMetrics[m.key]);
+	const visibleCols = metricColumns.filter((m) => visibleMetrics[m.key]);
 	const getBorderLClass = (key) => {
 		const idx = visibleCols.findIndex((m) => m.key === key);
 		const col = visibleCols[idx];

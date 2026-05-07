@@ -7,11 +7,12 @@ export default function MetricToggleBar({
 	onToggle,
 	showTrendChart = false,
 	onTrendChartToggle,
+	metricColumns = METRIC_COLUMNS,
 }) {
 	return (
 		<div className="flex flex-wrap items-center gap-2 mb-4">
 			<span className="text-sm text-gray-600 mr-2">Toggle metrics:</span>
-			{METRIC_COLUMNS.map((opt) => (
+			{metricColumns.map((opt) => (
 				<button
 					key={opt.key}
 					type="button"

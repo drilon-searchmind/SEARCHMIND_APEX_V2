@@ -16,6 +16,7 @@ import TeamMembers, { ClickupTeamMembersProvider } from './TeamMembers';
 import TrackingScore from './TrackingScore';
 import SharePropertyModal from '@/components/dashboard/SharePropertyModal';
 import ParentPropertyFilterDropdown from './ParentPropertyFilterDropdown';
+import ParentPropertyGroupSettingsTrigger from './ParentPropertyGroupSettingsTrigger';
 import Link from "next/link";
 import FormButton from "../form/FormButton";
 import { LuRadar } from "react-icons/lu";
@@ -545,7 +546,10 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                         )}
 
                         {isParentProperty && (
-                            <ParentPropertyFilterDropdown />
+                            <div className="flex items-center gap-2">
+                                <ParentPropertyFilterDropdown />
+                                <ParentPropertyGroupSettingsTrigger />
+                            </div>
                         )}
                         <div>
                             <button

@@ -5,13 +5,16 @@ import dayjs from "dayjs";
  * Matches the structure expected by DailyMetricsTable (daily-overview).
  * @param {Array} dailyDataList - Filtered allDailyChartData (per child: shopifyDaily, facebookDaily, googleDaily, shopifyDailyPrev, etc.)
  * @param {Array} childCustomers - Full customer objects with CustomerStaticExpenses
- * @param {Object} options - { usePrev: boolean } - use prev daily arrays when true
+ * @param {Object} options - { usePrev: boolean, shopifyRevenueField?: 'net_sales'|'gross_sales' }
+ *   Display revenue / ROAS / Spendshare / AOV use shopifyRevenueField; COGS%, transaction fees, net profit use net_sales.
  */
 export function buildParentDailyRows(dailyDataList, childCustomers, options = {}) {
-    const { usePrev = false } = options;
+    const { usePrev = false, shopifyRevenueField = "net_sales" } = options;
     const shopifyKey = usePrev ? "shopifyDailyPrev" : "shopifyDaily";
     const facebookKey = usePrev ? "facebookDailyPrev" : "facebookDaily";
     const googleKey = usePrev ? "googleDailyPrev" : "googleDaily";
+
+    const revenueField = shopifyRevenueField === "gross_sales" ? "gross_sales" : "net_sales";
 
     const periodMap = {};
 
@@ -37,7 +40,8 @@ export function buildParentDailyRows(dailyDataList, childCustomers, options = {}
             const date = d.period;
             const orders = d.orders || 0;
             const totalSales = d.total_sales || 0;
-            const netRevenue = d.net_sales || 0;
+            const economicsNetSales = d.net_sales || 0;
+            const displaySales = (d[revenueField] != null ? d[revenueField] : economicsNetSales) || 0;
             const ppcCost = googleMap[date] || 0;
             const psCost = fbMap[date] || 0;
             const cogsStore = d.cost_of_goods_sold || 0;
@@ -47,22 +51,24 @@ export function buildParentDailyRows(dailyDataList, childCustomers, options = {}
                     date,
                     orders: 0,
                     totalSales: 0,
-                    netRevenue: 0,
+                    displayRevenue: 0,
+                    economicsNetSales: 0,
                     ppcCost: 0,
                     psCost: 0,
                     childContribs: [],
                 };
             }
 
-            const cogs = fetchCogs ? cogsStore : netRevenue * cogsPercentage;
+            const cogs = fetchCogs ? cogsStore : economicsNetSales * cogsPercentage;
             const variableExpense = shippingCostPerOrder * orders + pickNPackCostPerOrder * orders;
             const daysInMonth = dayjs(date).daysInMonth();
             const fixedExpense = fixedExpensesMonthly / daysInMonth;
-            const transactionFee = netRevenue * transactionCostPercentage;
+            const transactionFee = economicsNetSales * transactionCostPercentage;
 
             periodMap[date].orders += orders;
             periodMap[date].totalSales += totalSales;
-            periodMap[date].netRevenue += netRevenue;
+            periodMap[date].displayRevenue += displaySales;
+            periodMap[date].economicsNetSales += economicsNetSales;
             periodMap[date].ppcCost += ppcCost;
             periodMap[date].psCost += psCost;
             periodMap[date].childContribs.push({
@@ -77,7 +83,7 @@ export function buildParentDailyRows(dailyDataList, childCustomers, options = {}
     return Object.values(periodMap)
         .sort((a, b) => a.date.localeCompare(b.date))
         .map((day) => {
-            const { date, orders, totalSales, netRevenue, ppcCost, psCost, childContribs } = day;
+            const { date, orders, totalSales, displayRevenue, economicsNetSales, ppcCost, psCost, childContribs } = day;
             const cost = ppcCost + psCost;
             const cogs = childContribs.reduce((s, c) => s + c.cogs, 0);
             const variableExpense = childContribs.reduce((s, c) => s + c.variableExpense, 0);
@@ -85,18 +91,18 @@ export function buildParentDailyRows(dailyDataList, childCustomers, options = {}
             const transactionFee = childContribs.reduce((s, c) => s + c.transactionFee, 0);
 
             const allCosts = cogs + fixedExpense + variableExpense + transactionFee + cost;
-            const netProfit = netRevenue - allCosts;
-            const roas = cost > 0 ? netRevenue / cost : null;
-            const spendshare = netRevenue > 0 ? cost / netRevenue : null;
-            const grossProfit = netRevenue - cogs;
+            const netProfit = economicsNetSales - allCosts;
+            const roas = cost > 0 ? displayRevenue / cost : null;
+            const spendshare = displayRevenue > 0 ? cost / displayRevenue : null;
+            const grossProfit = economicsNetSales - cogs;
             const poas = cost > 0 ? grossProfit / cost : null;
-            const aov = orders > 0 ? netRevenue / orders : null;
+            const aov = orders > 0 ? displayRevenue / orders : null;
 
             return {
                 date,
                 orders,
                 totalSales,
-                netRevenue,
+                netRevenue: displayRevenue,
                 ppcCost,
                 psCost,
                 roas,
