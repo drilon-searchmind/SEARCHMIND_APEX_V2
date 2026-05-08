@@ -3,10 +3,14 @@ import {
     APEX_RADAR_CHANNEL_GOOGLE_ADS,
 } from "@/lib/apexRadarChannels";
 
-/** ClickUp task user-field id for PPC / Google Ads roster (same UUID as PPC option in TOPBAR customer services). */
-export const CLICKUP_PPC_ROSTER_FIELD_UUID = "11ce14ac-2324-4f56-83c9-c480c86a3a39";
+/**
+ * ClickUp **custom field id** (Users type) for PPC / Paid Search roster on the customer task.
+ * Must be the field’s id from the task JSON — not the PPC option id inside “Service(s)” labels
+ * (`11ce14ac-…` in {@link clickupCustomerServices.js} is only for topbar service flags).
+ */
+export const CLICKUP_PPC_ROSTER_FIELD_UUID = "bee4b7c5-c9d0-4808-8a4f-b00ee6df311e";
 
-/** ClickUp task user-field id for Paid Social (Meta) roster. */
+/** ClickUp custom field id (Users type) for Paid Social (Meta) roster. */
 export const CLICKUP_PS_META_SERVICE_UUID = "2df85265-d5eb-4e86-a111-5d55623851fa";
 
 /**

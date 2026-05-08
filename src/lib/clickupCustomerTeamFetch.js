@@ -6,7 +6,7 @@ import {
     buildCustomerServicesStatus,
     CLICKUP_CUSTOMER_SERVICES_FIELD_ID,
 } from "./clickupCustomerServices.js";
-import { CLICKUP_PPC_ROSTER_FIELD_UUID } from "./apexRadarPaidSocialConstants.js";
+import { CLICKUP_PPC_ROSTER_FIELD_UUID, CLICKUP_PS_META_SERVICE_UUID } from "./apexRadarPaidSocialConstants.js";
 
 /** Fixed ClickUp list whose /member endpoint includes profile pictures for Searchmind team. */
 export const CLICKUP_TEAM_LIST_ID = "210313781";
@@ -160,9 +160,8 @@ export async function fetchClickupTeamPayloadForCustomer(clickupTaskId) {
 
     const userFields = [
         "51ed563e-4a2c-489b-9506-be385c49a354",
-        "bee4b7c5-c9d0-4808-8a4f-b00ee6df311e",
-        "2df85265-d5eb-4e86-a111-5d55623851fa",
         CLICKUP_PPC_ROSTER_FIELD_UUID,
+        CLICKUP_PS_META_SERVICE_UUID,
         "55b3e92d-5972-4246-8160-73d7ba04401a",
         "28b06356-6f19-4633-bfa4-416c150a562c",
     ];
