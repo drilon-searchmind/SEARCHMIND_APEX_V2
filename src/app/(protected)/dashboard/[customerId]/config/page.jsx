@@ -12,6 +12,7 @@ import StaticExpensesForm from './components/StaticExpensesForm';
 import PropertyObjectives from './components/PropertyObjectives';
 import { defaultSnapchatSettings, normalizeSnapchatSettings } from '@/lib/snapchatCustomerSettings';
 import { defaultRedditSettings, normalizeRedditSettings } from '@/lib/redditCustomerSettings';
+import { pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
 
 export default function ConfigPage() {
     const { customerId } = useParams();
@@ -305,6 +306,9 @@ export default function ConfigPage() {
             });
             setObjectives(saved.CustomerPropertyObjectives || {});
             showToast({ message: 'Settings updated successfully!', type: 'success', position: 'top-center' });
+            pushGTMEvent(GTM_EVENTS.DASHBOARD_CONFIG_SAVED, {
+                eventData: { customerId: String(customerId) },
+            });
         } catch (err) {
             showToast({ message: err.message || 'Failed to update customer', type: 'error', position: 'top-center' });
         } finally {

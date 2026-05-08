@@ -10,6 +10,7 @@ import { FiMail, FiMousePointer, FiTrendingUp, FiDollarSign, FiSend, FiUserX } f
 import { useCustomers } from "@/hooks/useCustomers";
 import dayjs from "dayjs";
 import { isDemoCustomerId } from "@/lib/demoCustomerId";
+import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 
 const METRIC_OPTIONS = [
     { key: "revenue", label: "Revenue", icon: FiDollarSign },
@@ -89,6 +90,13 @@ export default function EmailDashboardPage() {
     }, [rangeStartQ, rangeEndQ]);
 
     const handleDateRangeApply = ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
+        pushDashboardDateRangeApplied({
+            page: "service_dashboard_em",
+            customerId,
+            startDate,
+            endDate,
+            comparisonMethod: appliedComparison,
+        });
         setAppliedRange({ startDate, endDate });
         if (appliedComparison) setComparisonMethod(appliedComparison);
     };

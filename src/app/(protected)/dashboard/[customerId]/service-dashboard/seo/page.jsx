@@ -9,6 +9,7 @@ import GraphCard from '@/components/dashboard/GraphCard';
 import Spinner from '@/components/ui/Spinner';
 import SEOKeywordSettings from '@/components/seo/SEOKeywordSettings';
 import { FiMousePointer, FiEye, FiPercent, FiTrendingUp } from 'react-icons/fi';
+import { pushDashboardDateRangeApplied } from '@root/lib/gtmFunctions';
 
 const METRIC_OPTIONS = [
     { key: 'clicks', label: 'Clicks', icon: FiMousePointer },
@@ -88,6 +89,12 @@ export default function SEODashboardPage() {
     const [partialGroups, setPartialGroups] = useState([]);
 
     const handleDateRangeApply = ({ startDate, endDate }) => {
+        pushDashboardDateRangeApplied({
+            page: 'service_dashboard_seo',
+            customerId,
+            startDate,
+            endDate,
+        });
         setAppliedRange({ startDate, endDate });
     };
 

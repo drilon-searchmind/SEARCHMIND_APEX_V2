@@ -1,5 +1,5 @@
-
 import React, { useEffect, useState } from "react";
+import { pushGTMEvent, GTM_EVENTS } from "@root/lib/gtmFunctions";
 import FormButton from '@/components/form/FormButton';
 import FormInputText from '@/components/form/FormInputText';
 import FormLabel from '@/components/form/FormLabel';
@@ -52,6 +52,12 @@ export default function GeneralSettingsForm({ form, onChange, saving }) {
             const newParent = await res.json();
             setParentCustomers((prev) => [...prev, newParent]);
             setShowCreateModal(false);
+            pushGTMEvent(GTM_EVENTS.DASHBOARD_PARENT_CUSTOMER_CREATED, {
+                eventData: {
+                    parentCustomerId: newParent?._id != null ? String(newParent._id) : undefined,
+                    parentCustomerName: typeof name === "string" ? name.trim() : "",
+                },
+            });
         } catch (err) {
             // Optionally show error
         } finally {

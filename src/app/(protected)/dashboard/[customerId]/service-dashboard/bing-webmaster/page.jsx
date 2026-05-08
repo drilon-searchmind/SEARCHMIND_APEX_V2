@@ -18,6 +18,7 @@ import {
     FiServer,
     FiShield,
 } from "react-icons/fi";
+import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 
 const SEARCH_METRIC_OPTIONS = [
     { key: "impressions", label: "Impressions", icon: FiEye },
@@ -76,6 +77,12 @@ export default function BingWebmasterDashboardPage() {
     }, [selectedAiMetrics]);
 
     const handleDateRangeApply = ({ startDate, endDate }) => {
+        pushDashboardDateRangeApplied({
+            page: "service_dashboard_bing_webmaster",
+            customerId,
+            startDate,
+            endDate,
+        });
         setAppliedRange({ startDate, endDate });
     };
 

@@ -18,6 +18,7 @@ import {
 	normalizeLineItemStatus,
 } from "../lib/lineItemStatus";
 import { useInternalUsers } from "@/hooks/useInternalUsers";
+import { pushGTMEvent, GTM_EVENTS } from "@root/lib/gtmFunctions";
 
 const defaultForm = () => ({
 	name: "",
@@ -625,6 +626,12 @@ export default function LineItemModal({
 			if (!res.ok) throw new Error(data.error || "Could not save comment");
 			if (data.comment) {
 				setRemoteComments((prev) => [...prev, data.comment]);
+				pushGTMEvent(GTM_EVENTS.CAMPAIGN_PLANNER_V2_LINE_ITEM_COMMENT_ADDED, {
+					eventData: {
+						customerId: customerId ? String(customerId) : "",
+						lineItemId: String(initialLineItem.id),
+					},
+				});
 			}
 			setCommentDraft("");
 		} catch (e) {

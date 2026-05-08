@@ -22,8 +22,7 @@ import {
 import { useCustomers } from "@/hooks/useCustomers";
 import dayjs from "dayjs";
 import { normalizeSnapchatSettings } from "@/lib/snapchatCustomerSettings";
-
-const METRIC_OPTIONS = [
+import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
     { key: "ad_spend", label: "Ad spend", icon: FiTrendingUp },
     { key: "conversions", label: "Conversions", icon: FiShoppingCart },
     { key: "impressions", label: "Impressions", icon: FiEye },
@@ -54,6 +53,12 @@ export default function SnapchatServiceDashboardPage() {
     const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
 
     const handleDateRangeApply = ({ startDate, endDate }) => {
+        pushDashboardDateRangeApplied({
+            page: "service_dashboard_snapchat",
+            customerId: params.customerId,
+            startDate,
+            endDate,
+        });
         setAppliedRange({ startDate, endDate });
     };
     const handleStartDateChange = (newStart) => {

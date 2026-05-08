@@ -12,6 +12,7 @@ import LastYearPeriodTable from './LastYearPeriodTable';
 import MetricToggleBar from './MetricToggleBar';
 import { DEFAULT_VISIBLE_METRICS } from './metricConfig';
 import GraphCard from '@/components/dashboard/GraphCard';
+import { pushDashboardDateRangeApplied } from '@root/lib/gtmFunctions';
 
 const DailyOverviewPage = () => {
     const params = useParams();
@@ -37,6 +38,12 @@ const DailyOverviewPage = () => {
     });
 
     const handleDateRangeApply = ({ startDate, endDate }) => {
+        pushDashboardDateRangeApplied({
+            page: 'daily_overview',
+            customerId: params.customerId,
+            startDate,
+            endDate,
+        });
         setAppliedDateRange({ startDate, endDate });
     };
     const handleStartDateChange = (newStart) => {

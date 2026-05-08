@@ -13,6 +13,7 @@ import Spinner from "@/components/ui/Spinner";
 import { FiDollarSign, FiTrendingUp, FiBarChart2, FiPieChart, FiShoppingCart, FiEye, FiMousePointer, FiPercent, FiArrowDownRight } from "react-icons/fi";
 import { useCustomers } from "@/hooks/useCustomers";
 import dayjs from "dayjs";
+import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 
 const METRIC_OPTIONS = [
 	{ key: "conversion_value", label: "Conv. Value", icon: FiDollarSign },
@@ -53,6 +54,13 @@ export default function GoogleAdsPPCPage() {
 
 	// Handlers for DateRangePicker (controlled) - comparison only applies on Apply
 	const handleDateRangeApply = ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
+		pushDashboardDateRangeApplied({
+			page: "service_dashboard_ppc",
+			customerId: params.customerId,
+			startDate,
+			endDate,
+			comparisonMethod: appliedComparison,
+		});
 		setAppliedRange({ startDate, endDate });
 		if (appliedComparison) setComparisonMethod(appliedComparison);
 	};

@@ -8,6 +8,7 @@ import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import { usePnlData } from "./usePnlData";
 import PnlLeftSection from "./PnlLeftSection";
 import PnlChartsSidebar from "./PnlChartsSidebar";
+import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 
 export default function PNLPage() {
     const params = useParams();
@@ -27,6 +28,13 @@ export default function PNLPage() {
     const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Year");
 
     const handleDateRangeApply = ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
+        pushDashboardDateRangeApplied({
+            page: "tools_pnl",
+            customerId: params.customerId,
+            startDate,
+            endDate,
+            comparisonMethod: appliedComparison,
+        });
         setAppliedDateRange({ startDate, endDate });
         if (appliedComparison) setComparisonMethod(appliedComparison);
     };

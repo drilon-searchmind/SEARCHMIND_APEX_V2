@@ -7,6 +7,7 @@ import { useSetUser } from "@/contexts/UserContext";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DataWrappedModalMaskScroll from "./components/DataWrappedModalMaskScroll";
 import { FiGift, FiCalendar, FiChevronRight } from "react-icons/fi";
+import { pushGTMEvent, GTM_EVENTS } from "@root/lib/gtmFunctions";
 
 function getCurrentPeriod() {
     const d = new Date();
@@ -101,11 +102,24 @@ export default function DataWrappedPage() {
     }, [params.customerId]);
 
     const openLatest = () => {
-        setModalPeriod(getLatestAvailablePeriod());
+        const period = getLatestAvailablePeriod();
+        pushGTMEvent(GTM_EVENTS.DATA_WRAPPED_MODAL_OPENED, {
+            eventData: {
+                customerId: params.customerId ? String(params.customerId) : "",
+                period,
+            },
+        });
+        setModalPeriod(period);
         setShowWrapped(true);
     };
 
     const openPeriod = (period) => {
+        pushGTMEvent(GTM_EVENTS.DATA_WRAPPED_MODAL_OPENED, {
+            eventData: {
+                customerId: params.customerId ? String(params.customerId) : "",
+                period: period != null ? String(period) : "",
+            },
+        });
         setModalPeriod(period);
         setShowWrapped(true);
     };

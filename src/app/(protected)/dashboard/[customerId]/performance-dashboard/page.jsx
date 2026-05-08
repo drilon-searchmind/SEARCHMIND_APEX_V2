@@ -15,6 +15,7 @@ import dayjs from "dayjs";
 import { getChartColors } from "@/components/dashboard/chartColors";
 import Spinner from "@/components/ui/Spinner";
 import Custom from "./components/Custom";
+import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 
 export default function PerformanceDashboard() {
     const params = useParams();
@@ -38,6 +39,13 @@ export default function PerformanceDashboard() {
 
     // Handlers for DateRangePicker (controlled) - comparison only applies on Apply
     const handleDateRangeApply = ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
+        pushDashboardDateRangeApplied({
+            page: "performance_dashboard",
+            customerId: params.customerId,
+            startDate,
+            endDate,
+            comparisonMethod: appliedComparison,
+        });
         setAppliedDateRange({ startDate, endDate });
         if (appliedComparison) setComparisonMethod(appliedComparison);
     };

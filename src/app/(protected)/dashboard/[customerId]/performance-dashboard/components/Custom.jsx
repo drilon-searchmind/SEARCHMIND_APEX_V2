@@ -23,6 +23,7 @@ import {
 } from "./kpiFormulaUtils";
 import { AVAILABLE_METRICS } from "./AddKpiModal";
 import Spinner from "@/components/ui/Spinner";
+import { pushGTMEvent, GTM_EVENTS } from "@root/lib/gtmFunctions";
 
 const METRIC_LABELS = Object.fromEntries(
     AVAILABLE_METRICS.map((m) => [m.key, m.label])
@@ -369,6 +370,9 @@ export default function Custom({
                 setKpis((prev) =>
                     prev.map((k) => (k.id === kpi.id ? updated : k))
                 );
+                pushGTMEvent(GTM_EVENTS.PERFORMANCE_DASHBOARD_CUSTOM_KPI_SAVED, {
+                    eventData: { customerId: String(customerId), action: "update" },
+                });
             } else {
                 const res = await fetch(
                     `${baseUrl}/api/custom-kpis/${customerId}`,
@@ -388,6 +392,9 @@ export default function Custom({
                 const created = await res.json();
                 setKpis((prev) => [...prev, created]);
                 setSelectedKpis((p) => [...p, created.id]);
+                pushGTMEvent(GTM_EVENTS.PERFORMANCE_DASHBOARD_CUSTOM_KPI_SAVED, {
+                    eventData: { customerId: String(customerId), action: "create" },
+                });
             }
             setModalOpen(false);
             setEditingKpi(null);
@@ -413,6 +420,9 @@ export default function Custom({
             if (!res.ok) throw new Error("Failed to delete KPI");
             setKpis((prev) => prev.filter((k) => k.id !== kpi.id));
             setSelectedKpis((p) => p.filter((id) => id !== kpi.id));
+            pushGTMEvent(GTM_EVENTS.PERFORMANCE_DASHBOARD_CUSTOM_KPI_DELETED, {
+                eventData: { customerId: String(customerId), kpiId: String(kpi.id) },
+            });
         } catch (err) {
             setError(err.message);
         }

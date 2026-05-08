@@ -8,7 +8,7 @@ import ProfileForm from "./components/ProfileForm";
 import ProfileIntegrations from "./components/ProfileIntegrations";
 import SharedCustomersCard from "./components/SharedCustomersCard";
 import { useSession } from "next-auth/react";
-import { pushGTMEvent } from "../../../../lib/gtmFunctions";
+import { pushGTMEvent, GTM_EVENTS } from "@root/lib/gtmFunctions";
 
 export default function ProfilePage() {
     // TODO: Test Cursor
@@ -79,10 +79,10 @@ export default function ProfilePage() {
                 const msg = data?.error || "Failed to save profile";
                 showToast({ type: "error", message: msg });
             } else {
-                pushGTMEvent('profile_update', {
+                pushGTMEvent(GTM_EVENTS.PROFILE_UPDATE, {
                     eventData: {
                         userId: userId,
-                    }
+                    },
                 })
 
                 showToast({ type: "success", message: "Profile updated" });
@@ -147,10 +147,10 @@ export default function ProfilePage() {
                 showToast({ type: "error", message: msg });
             } else {
                 showToast({ type: "success", message: "Integrations updated" });
-                pushGTMEvent('profile_update', {
+                pushGTMEvent(GTM_EVENTS.PROFILE_UPDATE, {
                     eventData: {
                         userId: userId,
-                    }
+                    },
                 })
 
                 setIntegrations({

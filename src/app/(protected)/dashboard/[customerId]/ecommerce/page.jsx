@@ -9,6 +9,7 @@ import { FiPackage, FiUsers } from 'react-icons/fi';
 
 import ProductPerfomance from './components/ProductPerfomance';
 import CustomerPerformance from './components/CustomerPerformance';
+import { pushDashboardDateRangeApplied, pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
 
 const TABS = [
     { id: 'products', label: 'Product Performance', icon: FiPackage },
@@ -55,6 +56,9 @@ export default function EcommercePage() {
 
     const setActiveTab = (tab) => {
         setActiveTabState(tab);
+        pushGTMEvent(GTM_EVENTS.ECOMMERCE_TAB_CHANGED, {
+            eventData: { customerId: String(customerId), tab },
+        });
         const url = new URL(window.location.href);
         url.searchParams.set('tab', tab);
         router.replace(url.pathname + url.search, { scroll: false });
@@ -67,6 +71,12 @@ export default function EcommercePage() {
     }, [searchParams]);
 
     const handleDateRangeApply = ({ startDate, endDate }) => {
+        pushDashboardDateRangeApplied({
+            page: 'ecommerce',
+            customerId,
+            startDate,
+            endDate,
+        });
         setAppliedRange({ startDate, endDate });
     };
 

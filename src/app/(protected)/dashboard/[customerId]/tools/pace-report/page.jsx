@@ -10,6 +10,7 @@ import { usePaceReportData } from './usePaceReportData';
 import PropertyObjectivesSidebar from './PropertyObjectivesSidebar';
 import CostPaceSection from './CostPaceSection';
 import RevenuePaceSection from './RevenuePaceSection';
+import { pushDashboardDateRangeApplied, pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
 
 export default function PaceReportPage() {
 	const params = useParams();
@@ -38,6 +39,12 @@ export default function PaceReportPage() {
 	});
 
 	const handleDateRangeApply = ({ startDate, endDate }) => {
+		pushDashboardDateRangeApplied({
+			page: 'tools_pace_report',
+			customerId: params.customerId,
+			startDate,
+			endDate,
+		});
 		setAppliedDateRange({ startDate, endDate });
 	};
 	const handleStartDateChange = (newStart) => {
@@ -93,6 +100,9 @@ export default function PaceReportPage() {
 				message: 'Property objectives updated successfully!',
 				type: 'success',
 				position: 'top-center',
+			});
+			pushGTMEvent(GTM_EVENTS.DASHBOARD_PACE_REPORT_OBJECTIVES_SAVED, {
+				eventData: { customerId: String(customer._id) },
 			});
 			setSidebarOpen(false);
 		} catch (err) {

@@ -11,6 +11,7 @@ import TableCard from "./components/TableCard";
 import ActiveUsersCard from "./components/ActiveUsersCard";
 import AcquisitionChannelsChart from "./components/AcquisitionChannelsChart";
 import SessionsByDeviceChart from "./components/SessionsByDeviceChart";
+import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 
 function defaultRange() {
     // Date range state
@@ -91,6 +92,12 @@ export default function AnalyticsPage() {
     const [deviceData, setDeviceData] = useState([]);
 
     const handleDateRangeApply = ({ startDate, endDate }) => {
+        pushDashboardDateRangeApplied({
+            page: "analytics",
+            customerId,
+            startDate,
+            endDate,
+        });
         setAppliedRange({ startDate, endDate });
     };
 

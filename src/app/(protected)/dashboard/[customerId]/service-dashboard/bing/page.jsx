@@ -19,6 +19,7 @@ import {
 } from "react-icons/fi";
 import { useCustomers } from "@/hooks/useCustomers";
 import dayjs from "dayjs";
+import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 
 const METRIC_OPTIONS = [
     { key: "ad_spend", label: "Ad spend", icon: FiTrendingUp },
@@ -49,6 +50,12 @@ export default function BingAdsServiceDashboardPage() {
     const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
 
     const handleDateRangeApply = ({ startDate, endDate }) => {
+        pushDashboardDateRangeApplied({
+            page: "service_dashboard_bing",
+            customerId: params.customerId,
+            startDate,
+            endDate,
+        });
         setAppliedRange({ startDate, endDate });
     };
     const handleStartDateChange = (newStart) => {

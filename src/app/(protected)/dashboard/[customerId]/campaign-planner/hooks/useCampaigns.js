@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { pushGTMEvent, GTM_EVENTS } from "@root/lib/gtmFunctions";
 
 export default function useCampaigns(customerId) {
   const [campaigns, setCampaigns] = useState([]);
@@ -37,6 +38,10 @@ export default function useCampaigns(customerId) {
       }
       const created = await res.json();
       await fetchCampaigns();
+      const count = Array.isArray(created) ? created.length : created ? 1 : 0;
+      pushGTMEvent(GTM_EVENTS.CAMPAIGN_PLANNER_V1_CAMPAIGN_CREATED, {
+        eventData: { customerId: String(customerId), count },
+      });
       return created; // Return created campaigns
     } catch (err) {
       setError(err.message);
@@ -58,6 +63,9 @@ export default function useCampaigns(customerId) {
       });
       if (!res.ok) throw new Error("Failed to update campaign");
       await fetchCampaigns();
+      pushGTMEvent(GTM_EVENTS.CAMPAIGN_PLANNER_V1_CAMPAIGN_UPDATED, {
+        eventData: { customerId: String(customerId), campaignId: String(id) },
+      });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -77,6 +85,9 @@ export default function useCampaigns(customerId) {
       });
       if (!res.ok) throw new Error("Failed to delete campaign");
       await fetchCampaigns();
+      pushGTMEvent(GTM_EVENTS.CAMPAIGN_PLANNER_V1_CAMPAIGN_DELETED, {
+        eventData: { customerId: String(customerId), campaignId: String(id) },
+      });
     } catch (err) {
       setError(err.message);
     } finally {

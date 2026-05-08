@@ -14,6 +14,7 @@ import { FiDollarSign, FiTrendingUp, FiBarChart2, FiPieChart, FiShoppingCart, Fi
 import { useCustomers } from "@/hooks/useCustomers";
 // import { fetchFacebookAdsPSDashboardMetrics } from "@/lib/facebookApi";
 import dayjs from "dayjs";
+import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 
 const METRIC_OPTIONS = [
     { key: "conversion_value", label: "Conv. Value", icon: FiDollarSign },
@@ -71,6 +72,13 @@ export default function FacebookPSPage() {
 
     // Handlers for DateRangePicker (controlled) - comparison only applies on Apply
     const handleDateRangeApply = ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
+        pushDashboardDateRangeApplied({
+            page: "service_dashboard_paid_social",
+            customerId: params.customerId,
+            startDate,
+            endDate,
+            comparisonMethod: appliedComparison,
+        });
         setAppliedRange({ startDate, endDate });
         if (appliedComparison) setComparisonMethod(appliedComparison);
     };
