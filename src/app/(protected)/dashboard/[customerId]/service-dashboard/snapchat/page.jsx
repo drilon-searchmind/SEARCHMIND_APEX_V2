@@ -23,6 +23,8 @@ import { useCustomers } from "@/hooks/useCustomers";
 import dayjs from "dayjs";
 import { normalizeSnapchatSettings } from "@/lib/snapchatCustomerSettings";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
+
+const METRIC_OPTIONS = [
     { key: "ad_spend", label: "Ad spend", icon: FiTrendingUp },
     { key: "conversions", label: "Conversions", icon: FiShoppingCart },
     { key: "impressions", label: "Impressions", icon: FiEye },
