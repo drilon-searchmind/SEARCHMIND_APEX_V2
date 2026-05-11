@@ -51,6 +51,15 @@ export default function DailyMetricsTotalsRow({
 						{t.psCost}
 					</td>
 				);
+			case 'pinterestCost':
+			case 'snapchatCost':
+			case 'bingCost':
+			case 'redditCost':
+				return (
+					<td key={key} className={`px-3 py-2 whitespace-nowrap${borderCls}`}>
+						{t[key]}
+					</td>
+				);
 			case 'roas':
 				return (
 					<td key={key} className={`px-3 py-2 whitespace-nowrap${borderCls}`}>

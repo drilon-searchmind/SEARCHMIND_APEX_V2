@@ -3,6 +3,8 @@
  * Supports both legacy format (metricA, metricB, operator) and new parts format.
  */
 
+import { AD_SPEND_CHANNELS } from "@/lib/mergeAdSpendDaily";
+
 export function toParts(kpi) {
     if (kpi.parts && Array.isArray(kpi.parts) && kpi.parts.length >= 1) {
         return kpi.parts;
@@ -32,7 +34,8 @@ function aggRowToMetrics(v) {
     const cost = v.cost ?? 0;
     const orders = v.orders ?? 0;
     const totalRevenue = v.totalRevenue ?? revenue;
-    return {
+    /** @type {Record<string, number>} */
+    const out = {
         total_sales: totalRevenue,
         revenue,
         gross_profit: grossProfit,
@@ -45,6 +48,11 @@ function aggRowToMetrics(v) {
         cac: orders > 0 ? cost / orders : 0,
         spendshare: revenue > 0 ? cost / revenue : 0,
     };
+    for (const c of AD_SPEND_CHANNELS) {
+        const bk = c.bucketKey;
+        out[c.metricsDataKey] = Number(v[bk] ?? 0);
+    }
+    return out;
 }
 
 export function evaluateFormula(kpi, data) {

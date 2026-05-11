@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { FiDownload, FiClipboard } from "react-icons/fi";
+import { FiDownload, FiClipboard, FiChevronDown } from "react-icons/fi";
 import { LuBrainCircuit } from "react-icons/lu";
 import AiAnalysisModal from "../ai-analysis/AiAnalysisModal";
 import RunAuditModal, { canUserRunAudit } from "./RunAuditModal";
@@ -10,6 +10,27 @@ import PdfReportContent from "./PdfReportContent";
 import { useUser } from "@/contexts/UserContext";
 import { exportElementToPdf } from "@/lib/pdfExport";
 import { showToast } from "@/components/ui/ToastProvider";
+
+/**
+ * Optional Shopify Markets filter (only passed when enabled for the customer).
+ * Checkbox list like Group view: all markets included by default (`excludedMarkets[id] !== true`).
+ * @typedef {object} ShopifyMarketFilterProps
+ * @property {boolean} loading
+ * @property {Array<{ shopifyqlMarketId: string, name: string, handle?: string }>} [options]
+ * @property {Record<string, boolean>} excludedMarkets — when `excludedMarkets[id] === true`, that market is excluded
+ * @property {(marketId: string, included: boolean) => void} onToggleMarket — `included` true = include in revenue aggregate
+ * @property {Record<string, boolean>} [appliedExcludedMarkets] — for button summary (defaults to draft `excludedMarkets`)
+ * @property {() => void} [onMenuWillOpen] — copy applied → draft before opening dropdown
+ * @property {() => void} [onApplyMarkets] — commit draft; closes menu
+ * @typedef {object} AdSpendPlatformFilterProps
+ * @property {boolean} [loading=false]
+ * @property {Array<{ id: string, label: string }>} [options]
+ * @property {Record<string, boolean>} excludedPlatforms — `true` = excluded from aggregates
+ * @property {Record<string, boolean>} [appliedExcludedPlatforms]
+ * @property {(platformId: string, included: boolean) => void} [onTogglePlatform]
+ * @property {() => void} [onMenuWillOpen]
+ * @property {() => void} [onApplySpend]
+ */
 
 export default function DashboardHeading({
     title,
@@ -25,6 +46,10 @@ export default function DashboardHeading({
     showRight = true,
     showPdfExport = true,
     showRunAudit = true,
+    /** @type {ShopifyMarketFilterProps | null} */
+    shopifyMarketFilter = null,
+    /** @type {AdSpendPlatformFilterProps | null} */
+    adSpendPlatformFilter = null,
 }) {
     const user = useUser();
     const [showAnalyzeWithAiModal, setShowAnalyzeWithAiModal] = useState(false);
@@ -32,6 +57,23 @@ export default function DashboardHeading({
     const [runAuditOpen, setRunAuditOpen] = useState(false);
 
     const auditEligible = Boolean(showRunAudit && customerId && canUserRunAudit(user));
+
+    const [shopifyMarketMenuOpen, setShopifyMarketMenuOpen] = useState(false);
+    const [adSpendMenuOpen, setAdSpendMenuOpen] = useState(false);
+    const shopifyMarketMenuRef = useRef(null);
+    const adSpendMenuRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(e) {
+            const m = shopifyMarketMenuRef.current?.contains(e.target);
+            const s = adSpendMenuRef.current?.contains(e.target);
+            if (m || s) return;
+            setShopifyMarketMenuOpen(false);
+            setAdSpendMenuOpen(false);
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     const handleOpenAiModal = () => {
         setShowAnalyzeWithAiModal(true);
@@ -94,7 +136,12 @@ export default function DashboardHeading({
 
                 {/* Right Section - Responsive */}
                 {(showRight &&
-                    (right || showAnalyzeWithAi || showPdfExport || auditEligible)) && (
+                    (right ||
+                        shopifyMarketFilter ||
+                        adSpendPlatformFilter ||
+                        showAnalyzeWithAi ||
+                        showPdfExport ||
+                        auditEligible)) && (
                     <div
                         className={`flex flex-col lg:flex-row lg:items-end lg:justify-end gap-3 lg:gap-4 w-full lg:w-auto lg:min-w-0 lg:shrink-0 ${
                             loading ? "opacity-50 cursor-not-allowed" : ""
@@ -145,8 +192,195 @@ export default function DashboardHeading({
                                 </button>
                             )}
                         </div>
-                        {right ? (
-                            <div className="flex flex-wrap items-end justify-end gap-2 min-w-0 w-full lg:w-auto">
+                        {(shopifyMarketFilter || adSpendPlatformFilter || right) ? (
+                            <div className="flex flex-wrap items-center justify-end gap-2 min-w-0 w-full lg:w-auto">
+                                {shopifyMarketFilter ? (
+                                    <div
+                                        className="inline-flex max-w-full min-w-0 shrink-0 items-center gap-2"
+                                        ref={shopifyMarketMenuRef}
+                                    >
+                                        <span className="text-sm text-gray-600 whitespace-nowrap">
+                                            market(s)
+                                        </span>
+                                        <div className="relative">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const next = !shopifyMarketMenuOpen;
+                                                    if (next) {
+                                                        shopifyMarketFilter.onMenuWillOpen?.();
+                                                        setAdSpendMenuOpen(false);
+                                                    }
+                                                    setShopifyMarketMenuOpen(next);
+                                                }}
+                                                disabled={loading || shopifyMarketFilter.loading}
+                                                className="flex items-center justify-between gap-2 min-w-[140px] px-3 py-2 text-sm text-left bg-white border border-gray-300 rounded-lg hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <span className="text-gray-700 truncate">
+                                                    {(() => {
+                                                        const appl =
+                                                            shopifyMarketFilter.appliedExcludedMarkets ??
+                                                            shopifyMarketFilter.excludedMarkets ??
+                                                            {};
+                                                        return (shopifyMarketFilter.options || []).filter(
+                                                            (m) =>
+                                                                appl[m.shopifyqlMarketId] !== true
+                                                        ).length;
+                                                    })()}
+                                                    {" "}
+                                                    of {(shopifyMarketFilter.options || []).length} selected
+                                                </span>
+                                                <FiChevronDown
+                                                    className={`w-4 h-4 text-gray-500 flex-shrink-0 transition-transform ${shopifyMarketMenuOpen ? "rotate-180" : ""}`}
+                                                />
+                                            </button>
+                                            {shopifyMarketMenuOpen && (
+                                                <div className="absolute right-0 mt-1 flex w-64 flex-col max-h-[min(20rem,calc(100vh-12rem))] rounded-lg border border-gray-200 bg-white shadow-lg z-50 overflow-hidden">
+                                                    <div className="overflow-y-auto py-2 flex-1 min-h-0">
+                                                    {(shopifyMarketFilter.options || []).length === 0 ? (
+                                                        <div className="px-3 py-2 text-sm text-gray-500">
+                                                            No markets
+                                                        </div>
+                                                    ) : (
+                                                        (shopifyMarketFilter.options || []).map((m) => {
+                                                            const isIncluded =
+                                                                shopifyMarketFilter.excludedMarkets?.[
+                                                                    m.shopifyqlMarketId
+                                                                ] !== true;
+                                                            return (
+                                                                <label
+                                                                    key={m.shopifyqlMarketId}
+                                                                    className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                                                                >
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={isIncluded}
+                                                                        onChange={(e) =>
+                                                                            shopifyMarketFilter.onToggleMarket?.(
+                                                                                m.shopifyqlMarketId,
+                                                                                e.target.checked
+                                                                            )
+                                                                        }
+                                                                        disabled={
+                                                                            loading ||
+                                                                            shopifyMarketFilter.loading
+                                                                        }
+                                                                        className="rounded border-gray-300 text-[var(--color-primary-searchmind)] focus:ring-[var(--color-primary-searchmind)] shrink-0"
+                                                                    />
+                                                                    <span className="text-sm text-gray-800 truncate">
+                                                                        {m.name}
+                                                                    </span>
+                                                                </label>
+                                                            );
+                                                        })
+                                                    )}
+                                                    </div>
+                                                    <div className="border-t border-gray-100 p-2 bg-gray-50/80 shrink-0">
+                                                        <button
+                                                            type="button"
+                                                            disabled={loading || shopifyMarketFilter.loading}
+                                                            onClick={() => {
+                                                                shopifyMarketFilter.onApplyMarkets?.();
+                                                                setShopifyMarketMenuOpen(false);
+                                                            }}
+                                                            className="w-full rounded-lg bg-[var(--color-primary-searchmind)] text-white text-xs py-2 px-3 font-medium shadow-none hover:bg-[var(--color-primary-searchmind-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                        >
+                                                            Apply
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : null}
+                                {adSpendPlatformFilter && (adSpendPlatformFilter.options || []).length > 0 ? (
+                                    <div
+                                        className="inline-flex max-w-full min-w-0 shrink-0 items-center gap-2"
+                                        ref={adSpendMenuRef}
+                                    >
+                                        <span className="text-sm text-gray-600 whitespace-nowrap">
+                                            Adspend
+                                        </span>
+                                        <div className="relative">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const next = !adSpendMenuOpen;
+                                                    if (next) {
+                                                        adSpendPlatformFilter.onMenuWillOpen?.();
+                                                        setShopifyMarketMenuOpen(false);
+                                                    }
+                                                    setAdSpendMenuOpen(next);
+                                                }}
+                                                disabled={loading || adSpendPlatformFilter.loading}
+                                                className="flex items-center justify-between gap-2 min-w-[140px] px-3 py-2 text-sm text-left bg-white border border-gray-300 rounded-lg hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <span className="text-gray-700 truncate">
+                                                    {(() => {
+                                                        const appl =
+                                                            adSpendPlatformFilter.appliedExcludedPlatforms ??
+                                                            adSpendPlatformFilter.excludedPlatforms ??
+                                                            {};
+                                                        return (adSpendPlatformFilter.options || []).filter(
+                                                            (c) => appl[c.id] !== true
+                                                        ).length;
+                                                    })()}
+                                                    {" "}
+                                                    of {(adSpendPlatformFilter.options || []).length}{" "}
+                                                    included
+                                                </span>
+                                                <FiChevronDown
+                                                    className={`w-4 h-4 text-gray-500 flex-shrink-0 transition-transform ${adSpendMenuOpen ? "rotate-180" : ""}`}
+                                                />
+                                            </button>
+                                            {adSpendMenuOpen && (
+                                                <div className="absolute right-0 mt-1 flex w-64 flex-col max-h-[min(20rem,calc(100vh-12rem))] rounded-lg border border-gray-200 bg-white shadow-lg z-50 overflow-hidden">
+                                                    <div className="overflow-y-auto py-2 flex-1 min-h-0">
+                                                    {(adSpendPlatformFilter.options || []).map((c) => {
+                                                        const included =
+                                                            adSpendPlatformFilter.excludedPlatforms?.[c.id] !== true;
+                                                        return (
+                                                            <label
+                                                                key={c.id}
+                                                                className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={included}
+                                                                    onChange={(e) =>
+                                                                        adSpendPlatformFilter.onTogglePlatform?.(
+                                                                            c.id,
+                                                                            e.target.checked
+                                                                        )
+                                                                    }
+                                                                    disabled={loading || adSpendPlatformFilter.loading}
+                                                                    className="rounded border-gray-300 text-[var(--color-primary-searchmind)] focus:ring-[var(--color-primary-searchmind)] shrink-0"
+                                                                />
+                                                                <span className="text-sm text-gray-800 truncate">
+                                                                    {c.label}
+                                                                </span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                    </div>
+                                                    <div className="border-t border-gray-100 p-2 bg-gray-50/80 shrink-0">
+                                                        <button
+                                                            type="button"
+                                                            disabled={loading || adSpendPlatformFilter.loading}
+                                                            onClick={() => {
+                                                                adSpendPlatformFilter.onApplySpend?.();
+                                                                setAdSpendMenuOpen(false);
+                                                            }}
+                                                            className="w-full rounded-lg bg-[var(--color-primary-searchmind)] text-white text-xs py-2 px-3 font-medium shadow-none hover:bg-[var(--color-primary-searchmind-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                        >
+                                                            Apply
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : null}
                                 {right}
                             </div>
                         ) : null}

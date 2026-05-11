@@ -1,3 +1,5 @@
+import { totalAdSpendFromMerged, channelSpendTotalsFromMerged } from '@/lib/mergeAdSpendDaily';
+
 /**
  * Fetch new vs returning customer counts via ShopifyQL using the built-in
  * new_or_returning_customer dimension from the sales dataset.
@@ -132,16 +134,18 @@ export async function fetchCustomerSegmentationShopifyql(customerId, startDate, 
  * @param {string} customerId
  * @param {string} startDate - YYYY-MM-DD
  * @param {string} endDate - YYYY-MM-DD
+ * @param {{ mergedSourcesQuerySuffix?: string }} [options] — e.g. Shopify Markets: `&shopifyMarkets=...` or `&shopifyMarketNoSelection=1`
  * @returns {Promise<object>} Segmentation object for CustomerPerformance
  */
-export async function fetchCustomerSegmentationShopifyqlFull(customerId, startDate, endDate) {
+export async function fetchCustomerSegmentationShopifyqlFull(customerId, startDate, endDate, options = {}) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const suffix = typeof options.mergedSourcesQuerySuffix === 'string' ? options.mergedSourcesQuerySuffix : '';
 
     const [shopifyqlData, merged] = await Promise.all([
         fetchCustomerSegmentationShopifyql(customerId, startDate, endDate),
-        fetch(`${baseUrl}/api/merged-sources/${customerId}?startDate=${startDate}&endDate=${endDate}`).then((r) =>
-            r.ok ? r.json() : {}
-        ),
+        fetch(
+            `${baseUrl}/api/merged-sources/${customerId}?startDate=${startDate}&endDate=${endDate}${suffix}`
+        ).then((r) => (r.ok ? r.json() : {})),
     ]);
 
     const shopifyDaily = merged.shopifyDaily || merged.shopify_daily || merged.shopify || [];
@@ -174,9 +178,8 @@ export async function fetchCustomerSegmentationShopifyqlFull(customerId, startDa
           })
         : [];
 
-    const adSpend =
-        (merged.facebookDaily || []).reduce((s, d) => s + (d.spend || 0), 0) +
-        (merged.googleDaily || []).reduce((s, d) => s + (d.spend || 0), 0);
+    const adSpend = totalAdSpendFromMerged(merged);
+    const adSpendByChannel = channelSpendTotalsFromMerged(merged);
 
     return {
         totalCustomers: totalCustomers || totalOrders,
@@ -207,6 +210,7 @@ export async function fetchCustomerSegmentationShopifyqlFull(customerId, startDa
         insights: ['New vs returning from ShopifyQL (fast). LTV loads in background.'],
         cac: merged.CACTotalSales ?? null,
         adSpend,
+        adSpendByChannel,
         source: 'shopifyql',
     };
 }

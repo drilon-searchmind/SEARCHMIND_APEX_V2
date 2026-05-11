@@ -37,6 +37,7 @@ export default function MetricSection({
                 <MetricRow
                     key={i}
                     label={row.label}
+                    labelClassName={row.labelClassName}
                     tooltip={row.tooltip}
                     prevVal={row.prevVal}
                     currVal={row.currVal}

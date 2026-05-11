@@ -10,9 +10,12 @@ import DailyMetricsTable from './DailyMetricsTable';
 import RowComparisonPopover from './RowComparisonPopover';
 import LastYearPeriodTable from './LastYearPeriodTable';
 import MetricToggleBar from './MetricToggleBar';
-import { DEFAULT_VISIBLE_METRICS } from './metricConfig';
+import { DEFAULT_VISIBLE_METRICS, METRIC_COLUMNS } from './metricConfig';
+import { AD_SPEND_DAILY_COLUMN_KEYS } from '@/lib/mergeAdSpendDaily';
 import GraphCard from '@/components/dashboard/GraphCard';
 import { pushDashboardDateRangeApplied } from '@root/lib/gtmFunctions';
+import { useShopifyMarketsFilter } from '@/hooks/useShopifyMarketsFilter';
+import { useAdSpendPlatformsFilter } from '@/hooks/useAdSpendPlatformsFilter';
 
 const DailyOverviewPage = () => {
     const params = useParams();
@@ -54,6 +57,30 @@ const DailyOverviewPage = () => {
     };
 
     const {
+        shopifyMarketsFeatureOn,
+        shopifyMarkets,
+        shopifyMarketsLoading,
+        excludedShopifyMarkets,
+        appliedExcludedShopifyMarkets,
+        toggleShopifyMarket,
+        applyShopifyMarketFilters,
+        syncDraftFromAppliedMarkets,
+        marketQuerySuffix,
+    } = useShopifyMarketsFilter(customer, params.customerId);
+
+    const {
+        configuredAdSpendChannels,
+        draftExcludedPlatforms,
+        appliedExcludedPlatforms,
+        toggleAdSpendPlatformDraft,
+        applyAdSpendPlatformFilters,
+        syncDraftFromAppliedSpend,
+        spendQuerySuffix,
+    } = useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn);
+
+    const mergedSourcesQuerySuffix = `${marketQuerySuffix}${spendQuerySuffix}`;
+
+    const {
         rows,
         rowsPrev,
         rowsLastYear,
@@ -62,7 +89,8 @@ const DailyOverviewPage = () => {
         error,
         revenueTypeState,
         customerMetricPreference,
-    } = useDailyOverviewData(customer, appliedDateRange);
+        visibleMarketingColumnKeys,
+    } = useDailyOverviewData(customer, appliedDateRange, mergedSourcesQuerySuffix);
 
     const [hoveredRowIndex, setHoveredRowIndex] = useState(null);
     const [hoveredRowTable, setHoveredRowTable] = useState(null);
@@ -84,11 +112,38 @@ const DailyOverviewPage = () => {
         setTableWidth(null);
     };
 
-    const [visibleMetrics, setVisibleMetrics] = useState(DEFAULT_VISIBLE_METRICS);
+    const [userColumnVisibility, setUserColumnVisibility] = useState({});
+
+    const metricColumns = useMemo(() => {
+        const adKeySet = new Set(AD_SPEND_DAILY_COLUMN_KEYS);
+        if (visibleMarketingColumnKeys == null) return METRIC_COLUMNS;
+        const allow = new Set(visibleMarketingColumnKeys);
+        return METRIC_COLUMNS.filter(
+            (col) => !adKeySet.has(col.key) || allow.has(col.key)
+        );
+    }, [visibleMarketingColumnKeys]);
+
+    const visibleMetrics = useMemo(() => {
+        const out = {};
+        for (const m of metricColumns) {
+            out[m.key] =
+                userColumnVisibility[m.key] !== undefined
+                    ? userColumnVisibility[m.key]
+                    : DEFAULT_VISIBLE_METRICS[m.key] ?? true;
+        }
+        return out;
+    }, [metricColumns, userColumnVisibility]);
+
     const handleMetricToggle = (key) => {
-        setVisibleMetrics((prev) => {
-            const next = { ...prev, [key]: !prev[key] };
-            const count = Object.values(next).filter(Boolean).length;
+        if (!metricColumns.some((m) => m.key === key)) return;
+        setUserColumnVisibility((prev) => {
+            const defaults = DEFAULT_VISIBLE_METRICS[key] ?? true;
+            const current = prev[key] !== undefined ? prev[key] : defaults;
+            const next = { ...prev, [key]: !current };
+            const count = metricColumns.filter((m) => {
+                const v = next[m.key] !== undefined ? next[m.key] : DEFAULT_VISIBLE_METRICS[m.key] ?? true;
+                return v;
+            }).length;
             if (count === 0) return prev;
             return next;
         });
@@ -106,9 +161,7 @@ const DailyOverviewPage = () => {
             },
             {
                 name: 'Spend',
-                data: rows.map((r) =>
-                    Math.round((r.ppcCost || 0) + (r.psCost || 0))
-                ),
+				data: rows.map((r) => Math.round(r.totalMarketingSpend ?? ((r.ppcCost || 0) + (r.psCost || 0)))),
                 color: '#D6CDB6',
             },
             {
@@ -162,6 +215,34 @@ const DailyOverviewPage = () => {
                     metricPreference: customerMetricPreference,
                     revenueType: revenueTypeState,
                 }}
+                shopifyMarketFilter={
+                    shopifyMarketsFeatureOn
+                        ? {
+                              loading: shopifyMarketsLoading,
+                              options: shopifyMarkets,
+                              excludedMarkets: excludedShopifyMarkets,
+                              appliedExcludedMarkets: appliedExcludedShopifyMarkets,
+                              onToggleMarket: toggleShopifyMarket,
+                              onMenuWillOpen: syncDraftFromAppliedMarkets,
+                              onApplyMarkets: applyShopifyMarketFilters,
+                          }
+                        : null
+                }
+                adSpendPlatformFilter={
+                    shopifyMarketsFeatureOn && configuredAdSpendChannels.length > 0
+                        ? {
+                              options: configuredAdSpendChannels.map((c) => ({
+                                  id: c.id,
+                                  label: c.label,
+                              })),
+                              excludedPlatforms: draftExcludedPlatforms,
+                              appliedExcludedPlatforms,
+                              onTogglePlatform: toggleAdSpendPlatformDraft,
+                              onMenuWillOpen: syncDraftFromAppliedSpend,
+                              onApplySpend: applyAdSpendPlatformFilters,
+                          }
+                        : null
+                }
                 right={
                     <DateRangePicker
                         onApply={handleDateRangeApply}
@@ -180,6 +261,7 @@ const DailyOverviewPage = () => {
                         onToggle={handleMetricToggle}
                         showTrendChart={showTrendChart}
                         onTrendChartToggle={() => setShowTrendChart((v) => !v)}
+                        metricColumns={metricColumns}
                     />
                     <h3 className="text-lg font-semibold">Daily Metrics</h3>
                 </div>
@@ -203,6 +285,7 @@ const DailyOverviewPage = () => {
                     visibleMetrics={visibleMetrics}
                     onRowHover={handleRowHover}
                     onRowHoverLeave={handleRowHoverLeave}
+                    metricColumns={metricColumns}
                 />
             </div>
 
@@ -215,6 +298,7 @@ const DailyOverviewPage = () => {
                 rows={rows}
                 rowsLastYear={rowsLastYear}
                 visibleMetrics={visibleMetrics}
+                metricColumns={metricColumns}
             />
 
             <div className="mt-8 bg-gray-50 rounded-xl border border-gray-200 p-6">
@@ -226,6 +310,7 @@ const DailyOverviewPage = () => {
                     visibleMetrics={visibleMetrics}
                     onRowHover={handleRowHover}
                     onRowHoverLeave={handleRowHoverLeave}
+                    metricColumns={metricColumns}
                 />
             </div>
         </div>

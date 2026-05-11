@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
-export function useCustomers() {
+export function useCustomers(refreshKey = 0) {
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     // Fetch all customers
-    const fetchCustomers = async () => {
+    const fetchCustomers = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
@@ -24,7 +24,7 @@ export function useCustomers() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     // Create a new customer
     const createCustomer = async (customerData) => {
@@ -106,10 +106,9 @@ export function useCustomers() {
         }
     };
 
-    // Load customers on mount
     useEffect(() => {
         fetchCustomers();
-    }, []);
+    }, [refreshKey, fetchCustomers]);
 
     return {
         customers,

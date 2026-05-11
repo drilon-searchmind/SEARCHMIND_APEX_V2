@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
+import {
+	adSpendByPeriodMap,
+	buildChannelCumulativeSpendSeriesForPace,
+	channelSpendTotalsFromMerged,
+	adSpendChannelsForSpendTotals,
+} from '@/lib/mergeAdSpendDaily';
 
-export function usePaceReportData(customer, objectives, appliedDateRange) {
+export function usePaceReportData(customer, objectives, appliedDateRange, mergedSourcesQuerySuffix = '') {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 	const [costData, setCostData] = useState([]);
+	const [costByChannelSeries, setCostByChannelSeries] = useState([]);
 	const [budget, setBudget] = useState(0);
 	const [paceAnalysis, setPaceAnalysis] = useState(null);
 	const [conversionValueData, setConversionValueData] = useState([]);
@@ -22,7 +29,7 @@ export function usePaceReportData(customer, objectives, appliedDateRange) {
 				const baseUrl =
 					process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 				const res = await fetch(
-					`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}`
+					`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&source=pace-report${mergedSourcesQuerySuffix}`
 				);
 				if (!res.ok) throw new Error('Failed to fetch merged data');
 				const merged = await res.json();
@@ -30,14 +37,7 @@ export function usePaceReportData(customer, objectives, appliedDateRange) {
 				const startDateObj = dayjs(appliedDateRange.startDate);
 				const endDateObj = dayjs(appliedDateRange.endDate);
 
-				const costMap = {};
-				[
-					...(merged.facebookDaily || []),
-					...(merged.googleDaily || []),
-				].forEach((d) => {
-					if (!costMap[d.period]) costMap[d.period] = 0;
-					costMap[d.period] += Number(d.spend || 0);
-				});
+				const costMap = adSpendByPeriodMap(merged);
 				// Generate all days from startDate to endDate for consistent chart display
 				const allPeriods = [];
 				let dayCursor = startDateObj;
@@ -51,6 +51,17 @@ export function usePaceReportData(customer, objectives, appliedDateRange) {
 					return { period, spend: Number(cumulative.toFixed(2)) };
 				});
 				setCostData(costDaily);
+				const visibleSpendChannels = adSpendChannelsForSpendTotals(
+					customer?.CustomerSettings,
+					channelSpendTotalsFromMerged(merged)
+				);
+				setCostByChannelSeries(
+					buildChannelCumulativeSpendSeriesForPace(
+						merged,
+						allPeriods,
+						visibleSpendChannels
+					)
+				);
 
 				const totalDays = endDateObj.diff(startDateObj, 'day') + 1;
 
@@ -207,12 +218,13 @@ export function usePaceReportData(customer, objectives, appliedDateRange) {
 				setLoading(false);
 			}
 		})();
-	}, [customer, objectives, appliedDateRange]);
+	}, [customer, objectives, appliedDateRange, mergedSourcesQuerySuffix]);
 
 	return {
 		loading,
 		error,
 		costData,
+		costByChannelSeries,
 		budget,
 		paceAnalysis,
 		conversionValueData,

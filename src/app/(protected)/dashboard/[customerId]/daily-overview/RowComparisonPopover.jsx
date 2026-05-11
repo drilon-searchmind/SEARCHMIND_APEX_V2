@@ -10,7 +10,11 @@ const POPOVER_LABELS = {
 	cogs: 'COGS',
 	aov: 'AOV',
 	ppcCost: 'Google Ads',
-	psCost: 'Paid Social',
+	psCost: 'Meta Ads',
+	pinterestCost: 'Pinterest Ads',
+	snapchatCost: 'Snapchat Ads',
+	bingCost: 'Microsoft (Bing)',
+	redditCost: 'Reddit Ads',
 	roas: 'ROAS',
 	variableExpense: 'Var Exp',
 	fixedExpenses: 'Fixed Exp',
@@ -27,6 +31,7 @@ export default function RowComparisonPopover({
 	rows,
 	rowsLastYear,
 	visibleMetrics = {},
+	metricColumns = METRIC_COLUMNS,
 }) {
 	if (!visible || !hoveredRowTable || hoveredRowIndex == null) return null;
 
@@ -48,7 +53,7 @@ export default function RowComparisonPopover({
 		? comparisonRow.netRevenue - (comparisonRow.cogs || 0)
 		: 0;
 
-	const visibleCols = METRIC_COLUMNS.filter((m) => visibleMetrics[m.key]);
+	const visibleCols = metricColumns.filter((m) => visibleMetrics[m.key]);
 	const getCellValue = (key) => {
 		if (!comparisonRow) return null;
 		switch (key) {
@@ -66,6 +71,11 @@ export default function RowComparisonPopover({
 				return formatCurrency(comparisonRow.ppcCost);
 			case 'psCost':
 				return formatCurrency(comparisonRow.psCost);
+			case 'pinterestCost':
+			case 'snapchatCost':
+			case 'bingCost':
+			case 'redditCost':
+				return formatCurrency(comparisonRow[key] ?? 0);
 			case 'roas':
 				return comparisonRow.roas != null
 					? comparisonRow.roas.toFixed(2)

@@ -24,6 +24,7 @@ import {
 import { AVAILABLE_METRICS } from "./AddKpiModal";
 import Spinner from "@/components/ui/Spinner";
 import { pushGTMEvent, GTM_EVENTS } from "@root/lib/gtmFunctions";
+import { aggregateShopifyAndAdSpendByPeriodFromRows } from "@/lib/mergeAdSpendDaily";
 
 const METRIC_LABELS = Object.fromEntries(
     AVAILABLE_METRICS.map((m) => [m.key, m.label])
@@ -35,6 +36,12 @@ Object.assign(METRIC_LABELS, {
     variable_costs: "Variable Costs",
     pick_pack: "Pick & Pack",
     ebit_pct: "EBIT%",
+    meta_spend: "Meta spend",
+    google_spend: "Google Ads spend",
+    pinterest_spend: "Pinterest spend",
+    snapchat_spend: "Snapchat spend",
+    bing_spend: "Bing Ads spend",
+    reddit_spend: "Reddit spend",
 });
 
 const fmt = (n, decimals = 0) =>
@@ -132,6 +139,12 @@ const METRIC_ICONS = {
     orders: FiShoppingCart,
     returns: FiTrendingUp,
     cost: FiCreditCard,
+    meta_spend: FiCreditCard,
+    google_spend: FiCreditCard,
+    pinterest_spend: FiCreditCard,
+    snapchat_spend: FiCreditCard,
+    bing_spend: FiCreditCard,
+    reddit_spend: FiCreditCard,
     roas: FiBarChart2,
     poas: FiPieChart,
     aov: FiShoppingBag,
@@ -160,6 +173,12 @@ const CURRENCY_KEYS = [
     "gross_profit",
     "returns",
     "cost",
+    "meta_spend",
+    "google_spend",
+    "pinterest_spend",
+    "snapchat_spend",
+    "bing_spend",
+    "reddit_spend",
     "aov",
     "cac",
 ];
@@ -228,57 +247,20 @@ function loadKpisFromStorage(customerId) {
     }
 }
 
-function aggregateDaily(shopifyArr, facebookArr, googleArr, keyFn) {
-    const map = {};
-    const push = (k, obj) => {
-        if (!map[k])
-            map[k] = {
-                revenue: 0,
-                totalRevenue: 0,
-                orders: 0,
-                cost: 0,
-                cogs: 0,
-                returns: 0,
-            };
-        map[k].totalRevenue += Number(obj.total_sales || 0);
-        map[k].revenue += Number(obj.net_sales || obj.total_sales || 0);
-        map[k].orders += Number(obj.orders || 0);
-        map[k].cogs += Number(obj.cost_of_goods_sold || 0);
-        map[k].returns += Number(obj.returns || 0);
-    };
-    (shopifyArr || []).forEach((d) => push(keyFn(d.period), d));
-    const addSpend = (k, spend) => {
-        if (!map[k])
-            map[k] = {
-                revenue: 0,
-                totalRevenue: 0,
-                orders: 0,
-                cost: 0,
-                cogs: 0,
-                returns: 0,
-            };
-        map[k].cost += Number(spend || 0);
-    };
-    (facebookArr || []).forEach((d) => addSpend(keyFn(d.period), d.spend));
-    (googleArr || []).forEach((d) => addSpend(keyFn(d.period), d.spend));
-    return map;
-}
-
 export default function Custom({
     customerId = "",
     metricsData = null,
     metrics = [],
     showCalcs = false,
     shopifyDaily = [],
-    facebookDaily = [],
-    googleDaily = [],
     shopifyDailyPrev = [],
-    facebookDailyPrev = [],
-    googleDailyPrev = [],
+    adChannelRowsCurr = {},
+    adChannelRowsPrev = {},
     appliedDateRange = { startDate: "", endDate: "" },
     comparisonMethod = "Last Year",
     aggregateBy = "period",
     chartColors = {},
+    visibleSpendMetricKeys,
 }) {
     const [kpis, setKpis] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -456,16 +438,14 @@ export default function Custom({
             aggregateBy === "monthly"
                 ? (p) => dayjs(p).format("YYYY-MM")
                 : (p) => p;
-        const currAgg = aggregateDaily(
+        const currAgg = aggregateShopifyAndAdSpendByPeriodFromRows(
             shopifyDaily,
-            facebookDaily,
-            googleDaily,
+            adChannelRowsCurr,
             keyFn
         );
-        const prevAgg = aggregateDaily(
+        const prevAgg = aggregateShopifyAndAdSpendByPeriodFromRows(
             shopifyDailyPrev,
-            facebookDailyPrev,
-            googleDailyPrev,
+            adChannelRowsPrev,
             keyFn
         );
 
@@ -594,11 +574,9 @@ export default function Custom({
         kpis,
         selectedKpis,
         shopifyDaily,
-        facebookDaily,
-        googleDaily,
+        adChannelRowsCurr,
         shopifyDailyPrev,
-        facebookDailyPrev,
-        googleDailyPrev,
+        adChannelRowsPrev,
         appliedDateRange,
         comparisonMethod,
         aggregateBy,
@@ -866,6 +844,7 @@ export default function Custom({
                     onSave={handleSave}
                     editingKpi={editingKpi}
                     saving={saving}
+                    visibleSpendMetricKeys={visibleSpendMetricKeys}
                 />
             )}
         </div>

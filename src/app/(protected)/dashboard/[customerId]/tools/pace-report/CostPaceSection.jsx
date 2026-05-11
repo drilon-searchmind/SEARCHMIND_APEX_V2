@@ -10,6 +10,7 @@ import {
 
 export default function CostPaceSection({
 	costData,
+	costByChannelSeries = [],
 	paceAnalysis,
 	appliedDateRange,
 	loading,
@@ -23,6 +24,30 @@ export default function CostPaceSection({
 		paceAnalysis,
 		appliedDateRange
 	);
+
+	const channelColors = [
+		'#4267B2',
+		'#4285F4',
+		'#E60023',
+		'#FFFC00',
+		'#0078D4',
+		'#FF4500',
+	];
+	const channelChartOptions =
+		costByChannelSeries.length > 0
+			? {
+					...BASE_CHART_OPTIONS,
+					colors: channelColors,
+					xaxis: {
+						...BASE_CHART_OPTIONS.xaxis,
+						categories: chartCategoriesWithStart,
+					},
+					stroke: {
+						width: costByChannelSeries.map(() => 2),
+						curve: 'smooth',
+					},
+				}
+			: null;
 
 	const chartOptions = {
 		...BASE_CHART_OPTIONS,
@@ -68,6 +93,14 @@ export default function CostPaceSection({
 				showCalcs={showCalcs}
 			/>
 			</div>
+			{!loading && channelChartOptions && costByChannelSeries.length > 0 && (
+				<GraphCard
+					title="Cumulative paid media by channel"
+					chartOptions={channelChartOptions}
+					chartSeries={costByChannelSeries}
+					chartType="line"
+				/>
+			)}
 		</div>
 	);
 }

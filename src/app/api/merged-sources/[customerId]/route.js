@@ -3,6 +3,7 @@ import { fetchMergedSources } from '@/lib/mergedSourcesApi';
 import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
 import { getDemoMergedSourcesForRange } from '@/lib/demoMergedSources';
 import { getCustomerById } from '../../../../../lib/customerOperations';
+import { parseAdSpendExcludeQueryParam } from '@/lib/adSpendExcludeParam';
 
 export async function GET(request, { params }) {
     const resolvedParams = await params;
@@ -11,6 +12,39 @@ export async function GET(request, { params }) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const source = searchParams.get('source');
+    const shopifyMarketNoSelection = searchParams.get('shopifyMarketNoSelection') === '1';
+    const shopifyMarketsRaw = searchParams.get('shopifyMarkets');
+    const legacyShopifyMarketId = searchParams.get('shopifyMarketId');
+    const excludeAdSpendPlatforms = parseAdSpendExcludeQueryParam(searchParams.get('adSpendExclude'));
+
+    /** @type {Array<{ shopifyqlMarketId: string, handle?: string }> | undefined} */
+    let shopifyMarketsSelection;
+    if (shopifyMarketsRaw) {
+        try {
+            const decoded = decodeURIComponent(shopifyMarketsRaw);
+            const parsed = JSON.parse(decoded);
+            if (Array.isArray(parsed)) {
+                shopifyMarketsSelection = parsed.map((row) => ({
+                    shopifyqlMarketId: String(row?.shopifyqlMarketId ?? row?.id ?? "").trim(),
+                    handle:
+                        row?.handle != null && String(row.handle).trim() !== ""
+                            ? String(row.handle).trim()
+                            : undefined,
+                })).filter((m) => m.shopifyqlMarketId);
+            }
+        } catch {
+            shopifyMarketsSelection = undefined;
+        }
+    }
+    if (
+        !shopifyMarketsSelection &&
+        legacyShopifyMarketId &&
+        String(legacyShopifyMarketId).trim() !== ""
+    ) {
+        shopifyMarketsSelection = [
+            { shopifyqlMarketId: String(legacyShopifyMarketId).trim(), handle: undefined },
+        ];
+    }
 
     if (!startDate || !endDate) {
         return Response.json({ error: 'Missing startDate or endDate' }, { status: 400 });
@@ -24,7 +58,7 @@ export async function GET(request, { params }) {
         } catch {
             customer = getDemoPayload('customer');
         }
-        return Response.json(getDemoMergedSourcesForRange(startDate, endDate, customer));
+        return Response.json(getDemoMergedSourcesForRange(startDate, endDate, customer, { excludeAdSpendPlatforms }));
     }
 
     // Rule: parent-property, daily-overview, and performance-dashboard need daily breakdown for Facebook (PS cost per day, Ad Spend Allocation chart)
@@ -49,6 +83,9 @@ export async function GET(request, { params }) {
         const merged = await fetchMergedSources(settings, startDate, endDate, {
             dailyBreakdown,
             source: source || undefined,
+            shopifyMarketNoSelection,
+            shopifyMarketsSelection,
+            excludeAdSpendPlatforms,
         });
         return Response.json(merged);
     } catch (error) {

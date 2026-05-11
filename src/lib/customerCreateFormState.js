@@ -16,6 +16,7 @@ export function getDefaultCustomerCreateFormState() {
             changeCurrency: true,
             changeCurrencyShopifyBillingCountryName: "",
             changeCurrencyShopifyBillingCountryExclude: "",
+            shopifyMarketsEnabled: false,
             customerRevenueType: "total_sales",
             shopifyUrl: "",
             shopifyApiPassword: "",
@@ -113,6 +114,7 @@ export function buildCustomerCreateFormStateFromCustomer(customer) {
             changeCurrency: cs.changeCurrency !== false,
             changeCurrencyShopifyBillingCountryName: str(cs.changeCurrencyShopifyBillingCountryName),
             changeCurrencyShopifyBillingCountryExclude: str(cs.changeCurrencyShopifyBillingCountryExclude),
+            shopifyMarketsEnabled: cs.shopifyMarketsEnabled === true,
         },
     };
 }

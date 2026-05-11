@@ -14,7 +14,11 @@ export default function DailyMetricsLastPeriodRow({
 	const totalCogs = rows.reduce((sum, r) => sum + (r.cogs || 0), 0);
 	const totalPpcCost = rows.reduce((sum, r) => sum + r.ppcCost, 0);
 	const totalPsCost = rows.reduce((sum, r) => sum + r.psCost, 0);
-	const totalCost = totalPpcCost + totalPsCost;
+	const totalPinterest = rows.reduce((sum, r) => sum + (r.pinterestCost ?? 0), 0);
+	const totalSnapchat = rows.reduce((sum, r) => sum + (r.snapchatCost ?? 0), 0);
+	const totalBing = rows.reduce((sum, r) => sum + (r.bingCost ?? 0), 0);
+	const totalReddit = rows.reduce((sum, r) => sum + (r.redditCost ?? 0), 0);
+	const totalCost = rows.reduce((sum, r) => sum + (r.totalMarketingSpend ?? 0), 0);
 	const totalVariableExpense = rows.reduce(
 		(sum, r) => sum + (r.variableExpense || 0),
 		0
@@ -44,6 +48,10 @@ export default function DailyMetricsLastPeriodRow({
 		aov: totalOrders > 0 ? formatCurrency(totalNetRevenue / totalOrders, 0) : '-',
 		ppcCost: formatCurrency(totalPpcCost, 0),
 		psCost: formatCurrency(totalPsCost, 0),
+		pinterestCost: formatCurrency(totalPinterest, 0),
+		snapchatCost: formatCurrency(totalSnapchat, 0),
+		bingCost: formatCurrency(totalBing, 0),
+		redditCost: formatCurrency(totalReddit, 0),
 		roas: totalCost > 0 ? (totalNetRevenue / totalCost).toFixed(2) : '-',
 		variableExpense: formatCurrency(totalVariableExpense, 0),
 		fixedExpenses: formatCurrency(totalFixedExpenses, 0),

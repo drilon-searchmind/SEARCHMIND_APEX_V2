@@ -127,6 +127,23 @@ export default function DailyMetricsDataRow({
 						{formatCurrency(row.psCost, { maximumFractionDigits: 0 })}
 					</td>
 				);
+			case 'pinterestCost':
+			case 'snapchatCost':
+			case 'bingCost':
+			case 'redditCost':
+				return (
+					<td
+						key={key}
+						className={`px-3 py-2 whitespace-nowrap${borderCls}`}
+						style={getCellStyles(
+							row[key] ?? 0,
+							max[key] ?? 0,
+							row[key] === max[key]
+						)}
+					>
+						{formatCurrency(row[key] ?? 0, { maximumFractionDigits: 0 })}
+					</td>
+				);
 			case 'roas':
 				return (
 					<td

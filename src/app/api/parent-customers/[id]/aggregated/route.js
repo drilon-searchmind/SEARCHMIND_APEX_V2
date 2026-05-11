@@ -5,6 +5,7 @@ import { getParentCustomerById } from "../../../../../../lib/parentCustomerOpera
 import { fetchMergedSources } from "@/lib/mergedSourcesApi";
 import { isDemoCustomerId, mergeDemoCustomerDocument } from "@/lib/demoCustomer";
 import { getDemoMergedSourcesForRange } from "@/lib/demoMergedSources";
+import { normalizeAdSpendExcludeList } from "@/lib/adSpendExcludeParam";
 
 function plainCustomer(c) {
     if (!c) return c;
@@ -156,6 +157,36 @@ export async function GET(request, { params }) {
         const children = parent.customers || [];
         const stream = searchParams.get("stream") === "1";
 
+        /** @type {Record<string, { noSelection?: boolean, markets?: Array<{ shopifyqlMarketId: string, handle?: string }> }>} */
+        let shopifyMarketOverrides = {};
+        const rawOverrides = searchParams.get("shopifyMarketOverrides");
+        if (rawOverrides && rawOverrides.length <= 24_000) {
+            try {
+                const decoded = decodeURIComponent(rawOverrides);
+                const parsed = JSON.parse(decoded);
+                if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                    shopifyMarketOverrides = parsed;
+                }
+            } catch {
+                shopifyMarketOverrides = {};
+            }
+        }
+
+        /** @type {Record<string, { exclude?: string[] }>} */
+        let adSpendPlatformOverrides = {};
+        const rawAdSpendOv = searchParams.get("adSpendPlatformOverrides");
+        if (rawAdSpendOv && rawAdSpendOv.length <= 24_000) {
+            try {
+                const decoded = decodeURIComponent(rawAdSpendOv);
+                const parsed = JSON.parse(decoded);
+                if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                    adSpendPlatformOverrides = parsed;
+                }
+            } catch {
+                adSpendPlatformOverrides = {};
+            }
+        }
+
         if (children.length === 0) {
             const emptyResponse = {
                 parent: { _id: parent._id, name: parent.name, customers: [] },
@@ -180,14 +211,52 @@ export async function GET(request, { params }) {
             const revenueType = cust?.CustomerSettings?.customerRevenueType || "total_sales";
             const metricPreference = cust?.CustomerSettings?.metricPreference || "ROAS/POAS";
 
+            const mergeOptsBase = { dailyBreakdown };
+            const cid = String(cust._id);
+            const ov = shopifyMarketOverrides[cid];
+            if (
+                settings.shopifyMarketsEnabled === true &&
+                ov &&
+                typeof ov === "object"
+            ) {
+                if (ov.noSelection === true) {
+                    mergeOptsBase.shopifyMarketNoSelection = true;
+                } else if (Array.isArray(ov.markets) && ov.markets.length > 0) {
+                    mergeOptsBase.shopifyMarketsSelection = ov.markets
+                        .filter((m) => m && String(m.shopifyqlMarketId || "").trim() !== "")
+                        .map((m) => ({
+                            shopifyqlMarketId: String(m.shopifyqlMarketId).trim(),
+                            handle: m.handle != null ? String(m.handle) : "",
+                        }));
+                }
+            }
+
+            const spendOv = adSpendPlatformOverrides[cid];
+            if (
+                settings.shopifyMarketsEnabled === true &&
+                spendOv &&
+                Array.isArray(spendOv.exclude) &&
+                spendOv.exclude.length > 0
+            ) {
+                mergeOptsBase.excludeAdSpendPlatforms = normalizeAdSpendExcludeList(spendOv.exclude);
+            }
+
             const demo = isDemoCustomerId(String(cust._id));
             const [mergedCurrent, mergedPrev] = await Promise.all([
                 demo
-                    ? Promise.resolve(getDemoMergedSourcesForRange(startDate, endDate, cust))
-                    : fetchMergedSources(settings, startDate, endDate, { dailyBreakdown }),
+                    ? Promise.resolve(
+                          getDemoMergedSourcesForRange(startDate, endDate, cust, {
+                              excludeAdSpendPlatforms: mergeOptsBase.excludeAdSpendPlatforms,
+                          })
+                      )
+                    : fetchMergedSources(settings, startDate, endDate, mergeOptsBase),
                 demo
-                    ? Promise.resolve(getDemoMergedSourcesForRange(prevStartStr, prevEndStr, cust))
-                    : fetchMergedSources(settings, prevStartStr, prevEndStr, { dailyBreakdown }),
+                    ? Promise.resolve(
+                          getDemoMergedSourcesForRange(prevStartStr, prevEndStr, cust, {
+                              excludeAdSpendPlatforms: mergeOptsBase.excludeAdSpendPlatforms,
+                          })
+                      )
+                    : fetchMergedSources(settings, prevStartStr, prevEndStr, mergeOptsBase),
             ]);
 
             const shopify = mergedCurrent.shopifyDaily || [];

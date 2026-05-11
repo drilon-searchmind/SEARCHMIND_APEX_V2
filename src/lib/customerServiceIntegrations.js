@@ -63,3 +63,27 @@ export function getConfiguredAuditServices(customerSettings) {
         label: AUDIT_SERVICE_META[id].label,
     }));
 }
+
+/** Maps paid-media dashboard channel ids to integration warning keys used above. */
+const AD_SPEND_PLATFORM_WARNING_KEY = {
+    facebook: "ps",
+    google: "ppc",
+    pinterest: "pinterest",
+    snapchat: "snapchat",
+    reddit: "reddit",
+    bing: "bing",
+};
+
+/**
+ * True when Apex should treat this ad platform as connected for this customer
+ * (valid account/app IDs, not placeholder "0"/"1", plus OAuth where required).
+ * @param {Record<string, unknown>} customerSettings - CustomerSettings
+ * @param {"facebook"|"google"|"pinterest"|"snapchat"|"bing"|"reddit"} platformId
+ */
+export function isAdSpendPlatformConfigured(customerSettings, platformId) {
+    const s = customerSettings || {};
+    const wk = AD_SPEND_PLATFORM_WARNING_KEY[platformId];
+    if (!wk) return false;
+    const w = getServiceDashboardConfigWarnings(s);
+    return !w[wk];
+}

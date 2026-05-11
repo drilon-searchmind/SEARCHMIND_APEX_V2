@@ -38,6 +38,10 @@ export function computeRowMax(rows) {
 		netRevenue: Math.max(...rows.map((r) => r.netRevenue ?? 0)),
 		ppcCost: Math.max(...rows.map((r) => r.ppcCost)),
 		psCost: Math.max(...rows.map((r) => r.psCost)),
+		pinterestCost: Math.max(...rows.map((r) => r.pinterestCost ?? 0)),
+		snapchatCost: Math.max(...rows.map((r) => r.snapchatCost ?? 0)),
+		bingCost: Math.max(...rows.map((r) => r.bingCost ?? 0)),
+		redditCost: Math.max(...rows.map((r) => r.redditCost ?? 0)),
 		roas: Math.max(...rows.map((r) => r.roas ?? 0)),
 		spendshare: Math.max(...rows.map((r) => r.spendshare ?? 0)),
 		poas: Math.max(...rows.map((r) => r.poas ?? 0)),
@@ -58,6 +62,10 @@ export function computeTotals(rows, variant = 'current') {
 			cogs: formatCurrency(0),
 			ppcCost: formatCurrency(0),
 			psCost: formatCurrency(0),
+			pinterestCost: formatCurrency(0),
+			snapchatCost: formatCurrency(0),
+			bingCost: formatCurrency(0),
+			redditCost: formatCurrency(0),
 			variableExpense: formatCurrency(0),
 			fixedExpenses: formatCurrency(0),
 			aov: '-',
@@ -71,7 +79,11 @@ export function computeTotals(rows, variant = 'current') {
 	const totalCogs = rows.reduce((sum, r) => sum + (r.cogs || 0), 0);
 	const totalPpcCost = rows.reduce((sum, r) => sum + r.ppcCost, 0);
 	const totalPsCost = rows.reduce((sum, r) => sum + r.psCost, 0);
-	const totalCost = totalPpcCost + totalPsCost;
+	const totalPinterest = rows.reduce((sum, r) => sum + (r.pinterestCost ?? 0), 0);
+	const totalSnapchat = rows.reduce((sum, r) => sum + (r.snapchatCost ?? 0), 0);
+	const totalBing = rows.reduce((sum, r) => sum + (r.bingCost ?? 0), 0);
+	const totalReddit = rows.reduce((sum, r) => sum + (r.redditCost ?? 0), 0);
+	const totalCost = rows.reduce((sum, r) => sum + (r.totalMarketingSpend ?? 0), 0);
 	const totalVariableExpense = rows.reduce(
 		(sum, r) => sum + (r.variableExpense || 0),
 		0
@@ -92,6 +104,10 @@ export function computeTotals(rows, variant = 'current') {
 		cogs: formatCurrency(totalCogs),
 		ppcCost: formatCurrency(totalPpcCost),
 		psCost: formatCurrency(totalPsCost),
+		pinterestCost: formatCurrency(totalPinterest),
+		snapchatCost: formatCurrency(totalSnapchat),
+		bingCost: formatCurrency(totalBing),
+		redditCost: formatCurrency(totalReddit),
 		variableExpense: formatCurrency(totalVariableExpense),
 		fixedExpenses: formatCurrency(totalFixedExpenses),
 		aov: totalOrders > 0 ? formatCurrency(totalNetRevenue / totalOrders) : '-',
@@ -113,6 +129,10 @@ export function computeRawTotals(rows) {
 			cogs: 0,
 			ppcCost: 0,
 			psCost: 0,
+			pinterestCost: 0,
+			snapchatCost: 0,
+			bingCost: 0,
+			redditCost: 0,
 			variableExpense: 0,
 			fixedExpenses: 0,
 			aov: 0,
@@ -126,7 +146,11 @@ export function computeRawTotals(rows) {
 	const totalCogs = rows.reduce((sum, r) => sum + (r.cogs || 0), 0);
 	const totalPpcCost = rows.reduce((sum, r) => sum + r.ppcCost, 0);
 	const totalPsCost = rows.reduce((sum, r) => sum + r.psCost, 0);
-	const totalCost = totalPpcCost + totalPsCost;
+	const totalPinterest = rows.reduce((sum, r) => sum + (r.pinterestCost ?? 0), 0);
+	const totalSnapchat = rows.reduce((sum, r) => sum + (r.snapchatCost ?? 0), 0);
+	const totalBing = rows.reduce((sum, r) => sum + (r.bingCost ?? 0), 0);
+	const totalReddit = rows.reduce((sum, r) => sum + (r.redditCost ?? 0), 0);
+	const totalCost = rows.reduce((sum, r) => sum + (r.totalMarketingSpend ?? 0), 0);
 	const totalVariableExpense = rows.reduce(
 		(sum, r) => sum + (r.variableExpense || 0),
 		0
@@ -147,6 +171,10 @@ export function computeRawTotals(rows) {
 		cogs: totalCogs,
 		ppcCost: totalPpcCost,
 		psCost: totalPsCost,
+		pinterestCost: totalPinterest,
+		snapchatCost: totalSnapchat,
+		bingCost: totalBing,
+		redditCost: totalReddit,
 		variableExpense: totalVariableExpense,
 		fixedExpenses: totalFixedExpenses,
 		aov: totalOrders > 0 ? totalNetRevenue / totalOrders : 0,

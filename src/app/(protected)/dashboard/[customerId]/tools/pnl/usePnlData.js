@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
+import { totalAdSpendFromMerged, channelSpendTotalsFromMerged, adSpendChannelsForSpendTotals } from "@/lib/mergeAdSpendDaily";
 
 /**
  * Fetches merged data (current + previous period) and computes all P&L metrics.
@@ -10,7 +11,7 @@ import dayjs from "dayjs";
  * LEVEL 3 (DB3): DB2 - Marketing Costs (Ad Spend + Bureau + Tooling)
  * RESULT: DB3 - Fixed Expenses (Net Profit/Loss)
  */
-export function usePnlData(customer, appliedDateRange, comparisonMethod) {
+export function usePnlData(customer, appliedDateRange, comparisonMethod, mergedSourcesQuerySuffix = "") {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [merged, setMerged] = useState(null);
@@ -44,8 +45,12 @@ export function usePnlData(customer, appliedDateRange, comparisonMethod) {
                 }
 
                 const [res, resPrev] = await Promise.all([
-                    fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}`),
-                    fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${prevStart.format("YYYY-MM-DD")}&endDate=${prevEnd.format("YYYY-MM-DD")}`),
+                    fetch(
+                        `${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&source=pnl${mergedSourcesQuerySuffix}`
+                    ),
+                    fetch(
+                        `${baseUrl}/api/merged-sources/${customer._id}?startDate=${prevStart.format("YYYY-MM-DD")}&endDate=${prevEnd.format("YYYY-MM-DD")}&source=pnl${mergedSourcesQuerySuffix}`
+                    ),
                 ]);
                 if (!res.ok || !resPrev.ok) throw new Error("Failed to fetch merged data");
                 const mergedData = await res.json();
@@ -58,7 +63,10 @@ export function usePnlData(customer, appliedDateRange, comparisonMethod) {
                 setLoading(false);
             }
         })();
-    }, [customer, appliedDateRange, comparisonMethod]);
+    }, [customer, appliedDateRange, comparisonMethod, mergedSourcesQuerySuffix]);
+
+    let channelSpendTotals = {};
+    let channelSpendTotalsPrev = {};
 
     // Current period calculations
     let totalSales = 0, orders = 0, cogs = 0, db1 = 0, shipping = 0, transactionCosts = 0, db2 = 0;
@@ -85,9 +93,7 @@ export function usePnlData(customer, appliedDateRange, comparisonMethod) {
         transactionCosts = totalSales * (staticExpenses.transactionCostPercentage || 0);
         db2 = db1 - shipping - transactionCosts;
 
-        marketingSpend =
-            (merged.facebookDaily?.reduce((sum, d) => sum + (d.spend || 0), 0) || 0) +
-            (merged.googleDaily?.reduce((sum, d) => sum + (d.spend || 0), 0) || 0);
+        marketingSpend = totalAdSpendFromMerged(merged);
         marketingBureau = (staticExpenses.marketingBureauCost || 0) / days;
         marketingTooling = (staticExpenses.marketingToolingCost || 0) / days;
         db3 = db2 - marketingSpend - marketingBureau - marketingTooling;
@@ -100,6 +106,7 @@ export function usePnlData(customer, appliedDateRange, comparisonMethod) {
         db1Pct = totalSales !== 0 ? (db1 / totalSales) * 100 : 0;
         db2Pct = totalSales !== 0 ? (db2 / totalSales) * 100 : 0;
         db3Pct = totalSales !== 0 ? (db3 / totalSales) * 100 : 0;
+        channelSpendTotals = channelSpendTotalsFromMerged(merged);
     }
 
     // Previous period calculations
@@ -127,14 +134,13 @@ export function usePnlData(customer, appliedDateRange, comparisonMethod) {
         shippingPrev = ordersPrev * (staticExpenses.shippingCostPerOrder || 0);
         transactionCostsPrev = totalSalesPrev * (staticExpenses.transactionCostPercentage || 0);
         db2Prev = db1Prev - shippingPrev - transactionCostsPrev;
-        marketingSpendPrev =
-            (mergedPrev.facebookDaily?.reduce((sum, d) => sum + (d.spend || 0), 0) || 0) +
-            (mergedPrev.googleDaily?.reduce((sum, d) => sum + (d.spend || 0), 0) || 0);
+        marketingSpendPrev = totalAdSpendFromMerged(mergedPrev);
         marketingBureauPrev = (staticExpenses.marketingBureauCost || 0) / days;
         marketingToolingPrev = (staticExpenses.marketingToolingCost || 0) / days;
         db3Prev = db2Prev - marketingSpendPrev - marketingBureauPrev - marketingToolingPrev;
         fixedExpensesPrev = (staticExpenses.fixedExpenses || 0) / days;
         resultPrev = db3Prev - fixedExpensesPrev;
+        channelSpendTotalsPrev = channelSpendTotalsFromMerged(mergedPrev);
     }
 
     const db1CTS = totalSales ? cogs / totalSales : 0;
@@ -143,6 +149,15 @@ export function usePnlData(customer, appliedDateRange, comparisonMethod) {
     const db1DG = totalSales ? 1 - db1CTS : 0;
     const db2DG = totalSales ? db1DG - db2CTS : 0;
     const db3DG = totalSales ? db2DG - db3CTS : 0;
+
+    const visibleAdSpendChannels =
+        merged && days > 0
+            ? adSpendChannelsForSpendTotals(
+                  customer?.CustomerSettings,
+                  channelSpendTotals,
+                  mergedPrev ? channelSpendTotalsPrev : undefined
+              )
+            : [];
 
     return {
         loading,
@@ -166,6 +181,7 @@ export function usePnlData(customer, appliedDateRange, comparisonMethod) {
         transactionCosts,
         db2,
         marketingSpend,
+        channelSpendTotals,
         marketingBureau,
         marketingTooling,
         db3,
@@ -197,10 +213,12 @@ export function usePnlData(customer, appliedDateRange, comparisonMethod) {
         transactionCostsPrev,
         db2Prev,
         marketingSpendPrev,
+        channelSpendTotalsPrev,
         marketingBureauPrev,
         marketingToolingPrev,
         db3Prev,
         fixedExpensesPrev,
         resultPrev,
+        visibleAdSpendChannels,
     };
 }

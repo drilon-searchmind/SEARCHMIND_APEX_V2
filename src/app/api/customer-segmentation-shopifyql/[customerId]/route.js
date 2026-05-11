@@ -10,6 +10,7 @@ import {
     getDemoShopifyqlSegmentationFromMerged,
 } from '@/lib/demoMergedSources';
 import { getCustomerById } from '../../../../../lib/customerOperations';
+import { parseAdSpendExcludeQueryParam } from '@/lib/adSpendExcludeParam';
 
 export async function GET(request, { params }) {
     const { searchParams } = new URL(request.url);
@@ -18,6 +19,18 @@ export async function GET(request, { params }) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const full = searchParams.get('full') === 'true';
+
+    const shopifyMarketNoSelection = searchParams.get('shopifyMarketNoSelection') === '1';
+    const shopifyMarketsRaw = searchParams.get('shopifyMarkets');
+    let mergedSourcesQuerySuffix = '';
+    if (shopifyMarketNoSelection) mergedSourcesQuerySuffix += '&shopifyMarketNoSelection=1';
+    if (shopifyMarketsRaw != null && String(shopifyMarketsRaw).trim() !== '') {
+        mergedSourcesQuerySuffix += `&shopifyMarkets=${encodeURIComponent(shopifyMarketsRaw)}`;
+    }
+    const adSpendExcludeRaw = searchParams.get('adSpendExclude');
+    if (adSpendExcludeRaw != null && String(adSpendExcludeRaw).trim() !== '') {
+        mergedSourcesQuerySuffix += `&adSpendExclude=${encodeURIComponent(adSpendExcludeRaw)}`;
+    }
 
     if (!customerId) return Response.json({ error: 'Missing customerId in path' }, { status: 400 });
     if (!startDate || !endDate) return Response.json({ error: 'Missing startDate or endDate' }, { status: 400 });
@@ -30,7 +43,10 @@ export async function GET(request, { params }) {
         } catch {
             customer = getDemoPayload('customer');
         }
-        const merged = getDemoMergedSourcesForRange(startDate, endDate, customer);
+        const excludeAdSpendPlatforms = parseAdSpendExcludeQueryParam(searchParams.get('adSpendExclude'));
+        const merged = getDemoMergedSourcesForRange(startDate, endDate, customer, {
+            excludeAdSpendPlatforms,
+        });
         const payload = full
             ? getDemoShopifyqlFullFromMerged(merged)
             : getDemoShopifyqlSegmentationFromMerged(merged);
@@ -39,7 +55,9 @@ export async function GET(request, { params }) {
 
     try {
         const data = full
-            ? await fetchCustomerSegmentationShopifyqlFull(customerId, startDate, endDate)
+            ? await fetchCustomerSegmentationShopifyqlFull(customerId, startDate, endDate, {
+                  mergedSourcesQuerySuffix,
+              })
             : await fetchCustomerSegmentationShopifyql(customerId, startDate, endDate);
         return Response.json(data);
     } catch (err) {

@@ -11,6 +11,8 @@ import PropertyObjectivesSidebar from './PropertyObjectivesSidebar';
 import CostPaceSection from './CostPaceSection';
 import RevenuePaceSection from './RevenuePaceSection';
 import { pushDashboardDateRangeApplied, pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
+import { useShopifyMarketsFilter } from '@/hooks/useShopifyMarketsFilter';
+import { useAdSpendPlatformsFilter } from '@/hooks/useAdSpendPlatformsFilter';
 
 export default function PaceReportPage() {
 	const params = useParams();
@@ -55,15 +57,40 @@ export default function PaceReportPage() {
 	};
 
 	const {
+		shopifyMarketsFeatureOn,
+		shopifyMarkets,
+		shopifyMarketsLoading,
+		excludedShopifyMarkets,
+		appliedExcludedShopifyMarkets,
+		toggleShopifyMarket,
+		applyShopifyMarketFilters,
+		syncDraftFromAppliedMarkets,
+		marketQuerySuffix,
+	} = useShopifyMarketsFilter(customer, params.customerId);
+
+	const {
+		configuredAdSpendChannels,
+		draftExcludedPlatforms,
+		appliedExcludedPlatforms,
+		toggleAdSpendPlatformDraft,
+		applyAdSpendPlatformFilters,
+		syncDraftFromAppliedSpend,
+		spendQuerySuffix,
+	} = useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn);
+
+	const mergedSourcesQuerySuffix = `${marketQuerySuffix}${spendQuerySuffix}`;
+
+	const {
 		loading,
 		error,
 		costData,
+		costByChannelSeries,
 		budget,
 		paceAnalysis,
 		conversionValueData,
 		conversionBudget,
 		conversionPaceAnalysis,
-	} = usePaceReportData(customer, objectives, appliedDateRange);
+	} = usePaceReportData(customer, objectives, appliedDateRange, mergedSourcesQuerySuffix);
 
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const [localObjectives, setLocalObjectives] = useState({});
@@ -141,6 +168,34 @@ export default function PaceReportPage() {
 					conversionBudget,
 					conversionPaceAnalysis,
 				}}
+				shopifyMarketFilter={
+					shopifyMarketsFeatureOn
+						? {
+								loading: shopifyMarketsLoading,
+								options: shopifyMarkets,
+								excludedMarkets: excludedShopifyMarkets,
+								appliedExcludedMarkets: appliedExcludedShopifyMarkets,
+								onToggleMarket: toggleShopifyMarket,
+								onMenuWillOpen: syncDraftFromAppliedMarkets,
+								onApplyMarkets: applyShopifyMarketFilters,
+							}
+						: null
+				}
+				adSpendPlatformFilter={
+					shopifyMarketsFeatureOn && configuredAdSpendChannels.length > 0
+						? {
+								options: configuredAdSpendChannels.map((c) => ({
+									id: c.id,
+									label: c.label,
+								})),
+								excludedPlatforms: draftExcludedPlatforms,
+								appliedExcludedPlatforms,
+								onTogglePlatform: toggleAdSpendPlatformDraft,
+								onMenuWillOpen: syncDraftFromAppliedSpend,
+								onApplySpend: applyAdSpendPlatformFilters,
+							}
+						: null
+				}
 				right={
 					<DateRangePicker
 						onApply={handleDateRangeApply}
@@ -154,6 +209,7 @@ export default function PaceReportPage() {
 			/>
 			<CostPaceSection
 				costData={costData}
+				costByChannelSeries={costByChannelSeries}
 				paceAnalysis={paceAnalysis}
 				appliedDateRange={appliedDateRange}
 				loading={loading}

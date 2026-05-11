@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { FiX, FiPlus, FiTrash2 } from "react-icons/fi";
 import {
     FiDollarSign,
@@ -19,13 +19,23 @@ export const AVAILABLE_METRICS = [
     { key: "gross_profit", label: "Net Profit", icon: FiDollarSign },
     { key: "orders", label: "Orders", icon: FiShoppingCart },
     { key: "returns", label: "Refunds", icon: FiTrendingUp },
-    { key: "cost", label: "Spend", icon: FiCreditCard },
+    { key: "cost", label: "Spend (paid media)", icon: FiCreditCard },
+    { key: "meta_spend", label: "Meta spend", icon: FiCreditCard },
+    { key: "google_spend", label: "Google Ads spend", icon: FiCreditCard },
+    { key: "pinterest_spend", label: "Pinterest spend", icon: FiCreditCard },
+    { key: "snapchat_spend", label: "Snapchat spend", icon: FiCreditCard },
+    { key: "bing_spend", label: "Bing Ads spend", icon: FiCreditCard },
+    { key: "reddit_spend", label: "Reddit spend", icon: FiCreditCard },
     { key: "roas", label: "Blended ROAS", icon: FiBarChart2 },
     { key: "poas", label: "Blended POAS", icon: FiPieChart },
     { key: "aov", label: "Net AOV", icon: FiShoppingBag },
     { key: "cac", label: "Blended CAC", icon: FiUserCheck },
     { key: "spendshare", label: "Spendshare", icon: FiBarChart2 },
 ];
+
+const PER_CHANNEL_SPEND_METRIC_KEYS = new Set(
+    AVAILABLE_METRICS.filter((m) => m.key.endsWith("_spend")).map((m) => m.key)
+);
 
 const OPERATORS = [
     { key: "/", label: "÷" },
@@ -52,7 +62,13 @@ function toPartsForm(kpi) {
     return [{ type: "metric", value: "" }];
 }
 
-export default function AddKpiModal({ onClose, onSave, editingKpi = null, saving = false }) {
+export default function AddKpiModal({
+    onClose,
+    onSave,
+    editingKpi = null,
+    saving = false,
+    visibleSpendMetricKeys,
+}) {
     const [name, setName] = useState("");
     const [parts, setParts] = useState([]);
 
@@ -64,6 +80,25 @@ export default function AddKpiModal({ onClose, onSave, editingKpi = null, saving
             setParts([{ type: "metric", value: "" }]);
         }
     }, [editingKpi]);
+
+    const modalMetricOptions = useMemo(() => {
+        const allow =
+            visibleSpendMetricKeys != null
+                ? new Set(visibleSpendMetricKeys)
+                : null;
+        const selectedKeys = new Set(
+            parts
+                .filter((p) => p.type === "metric")
+                .map((p) => p.value)
+                .filter(Boolean)
+        );
+        return AVAILABLE_METRICS.filter((m) => {
+            if (!PER_CHANNEL_SPEND_METRIC_KEYS.has(m.key)) return true;
+            if (selectedKeys.has(m.key)) return true;
+            if (!allow) return true;
+            return allow.has(m.key);
+        });
+    }, [parts, visibleSpendMetricKeys]);
 
     const setPart = (idx, field, val) => {
         setParts((p) => {
@@ -190,7 +225,7 @@ export default function AddKpiModal({ onClose, onSave, editingKpi = null, saving
                                                 className="min-w-[140px] border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)] focus:ring-opacity-20"
                                             >
                                                 <option value="">Select metric</option>
-                                                {AVAILABLE_METRICS.map((m) => (
+                                                {modalMetricOptions.map((m) => (
                                                     <option key={m.key} value={m.key}>
                                                         {m.label}
                                                     </option>

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
+import { adSpendByPeriodMap, channelDailyRowsFromMerged, adSpendChannelsForDashboard } from '@/lib/mergeAdSpendDaily';
 
-async function fetchPeriodData(customerId, startDate, endDate) {
+async function fetchPeriodData(customerId, startDate, endDate, mergedSourcesQuerySuffix = '') {
 	const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 	const res = await fetch(
-		`${baseUrl}/api/merged-sources/${customerId}?startDate=${startDate}&endDate=${endDate}&source=daily-overview`
+		`${baseUrl}/api/merged-sources/${customerId}?startDate=${startDate}&endDate=${endDate}&source=daily-overview${mergedSourcesQuerySuffix}`
 	);
 	if (!res.ok) throw new Error('Failed to fetch daily data');
 	return await res.json();
@@ -12,10 +13,19 @@ async function fetchPeriodData(customerId, startDate, endDate) {
 
 function buildDailyRows(merged, customer, revenueType) {
 	const shopify = merged.shopifyDaily || [];
-	const facebook = merged.facebookDaily || [];
-	const google = merged.googleDaily || [];
-	const fbMap = Object.fromEntries(facebook.map((d) => [d.period, d.spend]));
-	const googleMap = Object.fromEntries(google.map((d) => [d.period, d.spend]));
+	const spendByDate = adSpendByPeriodMap(merged);
+	const chRows = channelDailyRowsFromMerged(merged);
+	const channelMaps = Object.fromEntries(
+		Object.entries(chRows).map(([id, arr]) => [
+			id,
+			Object.fromEntries(
+				(arr || []).map((d) => [
+					String(d.period).slice(0, 10),
+					Number(d.spend) || 0,
+				])
+			),
+		])
+	);
 
 	let cogsPercentage = 0;
 	if (
@@ -36,12 +46,17 @@ function buildDailyRows(merged, customer, revenueType) {
 
 	return shopify.map((d) => {
 		const date = d.period;
+		const ymd = String(date).slice(0, 10);
 		const orders = d.orders || 0;
 		const totalSales = d.total_sales || 0;
 		const netRevenue = d.net_sales || 0;
-		const ppcCost = googleMap[date] || 0;
-		const psCost = fbMap[date] || 0;
-		const cost = ppcCost + psCost;
+		const ppcCost = channelMaps.google?.[ymd] ?? 0;
+		const psCost = channelMaps.facebook?.[ymd] ?? 0;
+		const pinterestCost = channelMaps.pinterest?.[ymd] ?? 0;
+		const snapchatCost = channelMaps.snapchat?.[ymd] ?? 0;
+		const bingCost = channelMaps.bing?.[ymd] ?? 0;
+		const redditCost = channelMaps.reddit?.[ymd] ?? 0;
+		const cost = spendByDate[ymd] ?? 0;
 		const roas = cost > 0 ? netRevenue / cost : null;
 		const spendshare = netRevenue > 0 ? cost / netRevenue : null;
 
@@ -81,6 +96,11 @@ function buildDailyRows(merged, customer, revenueType) {
 			netRevenue,
 			ppcCost,
 			psCost,
+			pinterestCost,
+			snapchatCost,
+			bingCost,
+			redditCost,
+			totalMarketingSpend: cost,
 			roas,
 			spendshare,
 			poas,
@@ -103,7 +123,7 @@ function buildPrevPeriodRows(mergedPrev, customer, revenueType) {
 	}));
 }
 
-export function useDailyOverviewData(customer, appliedDateRange) {
+export function useDailyOverviewData(customer, appliedDateRange, mergedSourcesQuerySuffix = '') {
 	const [revenueTypeState, setRevenueTypeState] = useState('total_sales');
 	const [customerMetricPreference, setCustomerMetricPreference] =
 		useState('ROAS/POAS');
@@ -113,6 +133,7 @@ export function useDailyOverviewData(customer, appliedDateRange) {
 	const [rowsPrev, setRowsPrev] = useState([]);
 	const [rowsLastYear, setRowsLastYear] = useState([]);
 	const [loadingLastYear, setLoadingLastYear] = useState(false);
+	const [visibleMarketingColumnKeys, setVisibleMarketingColumnKeys] = useState(null);
 
 	useEffect(() => {
 		if (!customer || !appliedDateRange) return;
@@ -127,13 +148,15 @@ export function useDailyOverviewData(customer, appliedDateRange) {
 
 		setLoading(true);
 		setError(null);
+		setVisibleMarketingColumnKeys(null);
 
 		(async () => {
 			try {
 				const merged = await fetchPeriodData(
 					customer._id,
 					appliedDateRange.startDate,
-					appliedDateRange.endDate
+					appliedDateRange.endDate,
+					mergedSourcesQuerySuffix
 				);
 				const dailyRows = buildDailyRows(merged, customer, revenueType);
 				setRows(dailyRows);
@@ -152,7 +175,8 @@ export function useDailyOverviewData(customer, appliedDateRange) {
 				const mergedPrev = await fetchPeriodData(
 					customer._id,
 					prevStartStr,
-					prevEndStr
+					prevEndStr,
+					mergedSourcesQuerySuffix
 				);
 				const dailyRowsPrev = buildPrevPeriodRows(
 					mergedPrev,
@@ -160,6 +184,13 @@ export function useDailyOverviewData(customer, appliedDateRange) {
 					revenueType
 				);
 				setRowsPrev(dailyRowsPrev);
+
+				const spendCols = adSpendChannelsForDashboard(
+					customer?.CustomerSettings,
+					merged,
+					mergedPrev
+				).map((s) => s.dailyOverviewColumnKey);
+				setVisibleMarketingColumnKeys(spendCols);
 
 				setLoadingLastYear(true);
 				try {
@@ -172,7 +203,8 @@ export function useDailyOverviewData(customer, appliedDateRange) {
 					const mergedLastYear = await fetchPeriodData(
 						customer._id,
 						lastYearStart,
-						lastYearEnd
+						lastYearEnd,
+						mergedSourcesQuerySuffix
 					);
           const dailyRowsLastYear = buildDailyRows(
             mergedLastYear,
@@ -188,11 +220,12 @@ export function useDailyOverviewData(customer, appliedDateRange) {
 				}
 			} catch (err) {
 				setError(err.message);
+				setVisibleMarketingColumnKeys(null);
 			} finally {
 				setLoading(false);
 			}
 		})();
-	}, [customer, appliedDateRange]);
+	}, [customer, appliedDateRange, mergedSourcesQuerySuffix]);
 
 	return {
 		rows,
@@ -203,5 +236,6 @@ export function useDailyOverviewData(customer, appliedDateRange) {
 		error,
 		revenueTypeState,
 		customerMetricPreference,
+		visibleMarketingColumnKeys,
 	};
 }

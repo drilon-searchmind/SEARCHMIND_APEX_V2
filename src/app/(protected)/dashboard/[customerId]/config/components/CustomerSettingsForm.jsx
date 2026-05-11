@@ -51,7 +51,7 @@ function TableOfContents({ items }) {
     );
 }
 
-function FormField({ id, name, label, value, onChange, type = "text", placeholder, required }) {
+function FormField({ id, name, label, value, onChange, type = "text", placeholder, required, disabled }) {
     return (
         <div>
             <FormLabel htmlFor={id} required={required}>
@@ -64,6 +64,7 @@ function FormField({ id, name, label, value, onChange, type = "text", placeholde
                 onChange={onChange}
                 type={type}
                 placeholder={placeholder}
+                disabled={disabled}
             />
         </div>
     );
@@ -107,6 +108,7 @@ function FormCheckbox({ id, name, label, checked, onChange }) {
 }
 
 export default function CustomerSettingsForm({ form, onChange, saving, customerType }) {
+    const shopifyMarketsOn = customerType === "Shopify" && form.shopifyMarketsEnabled === true;
     const storeSection =
         customerType === "Shopify"
             ? { id: "store-platform", label: "Shopify" }
@@ -208,6 +210,19 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
                         type="password"
                         placeholder="From Apps > Develop apps > API credentials"
                     />
+                    <FormCheckbox
+                        id="shopifyMarketsEnabled"
+                        name="shopifyMarketsEnabled"
+                        label="Shopify Markets — filter revenue by market on dashboards"
+                        checked={form.shopifyMarketsEnabled}
+                        onChange={onChange}
+                    />
+                    {shopifyMarketsOn ? (
+                        <p className="col-span-full text-xs text-gray-600 leading-snug">
+                            Shopify Analytics revenue uses the full store (billing-country include/exclude below is ignored).
+                            Listing markets requires the Admin API scope read_markets.
+                        </p>
+                    ) : null}
                     <FormField
                         id="changeCurrencyShopifyBillingCountryName"
                         name="changeCurrencyShopifyBillingCountryName"
@@ -215,6 +230,7 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
                         value={form.changeCurrencyShopifyBillingCountryName}
                         onChange={onChange}
                         placeholder="e.g. Sweden,Denmark,Norway"
+                        disabled={shopifyMarketsOn}
                     />
                     <FormField
                         id="changeCurrencyShopifyBillingCountryExclude"
@@ -223,6 +239,7 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
                         value={form.changeCurrencyShopifyBillingCountryExclude}
                         onChange={onChange}
                         placeholder="e.g. France,Spain to exclude"
+                        disabled={shopifyMarketsOn}
                     />
                 </SettingsSection>
             )}

@@ -154,6 +154,17 @@ export default function CustomerCreateForm({
                         <FormLabel htmlFor="shopifyApiPassword">Shopify API Password</FormLabel>
                         <FormInputText id="shopifyApiPassword" name="shopifyApiPassword" value={form.CustomerSettings.shopifyApiPassword} onChange={handleChange} />
                     </div>
+                    <div className="flex items-center gap-2">
+                        <input
+                            id="shopifyMarketsEnabled"
+                            name="shopifyMarketsEnabled"
+                            type="checkbox"
+                            checked={form.CustomerSettings.shopifyMarketsEnabled === true}
+                            onChange={handleChange}
+                            className="rounded border-gray-300"
+                        />
+                        <FormLabel htmlFor="shopifyMarketsEnabled">Enable Shopify Markets (revenue by market; needs read_markets scope)</FormLabel>
+                    </div>
                 </>
             )}
 

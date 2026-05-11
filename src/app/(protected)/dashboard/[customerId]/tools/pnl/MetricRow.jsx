@@ -6,6 +6,7 @@ import { displayVal, percentChange } from "./pnlUtils";
 
 export default function MetricRow({
     label,
+    labelClassName,
     tooltip,
     prevVal,
     currVal,
@@ -40,10 +41,10 @@ export default function MetricRow({
         >
             {tooltip ? (
                 <Tooltip content={tooltip}>
-                    <span className="flex-1 min-w-0">{label}</span>
+                    <span className={`flex-1 min-w-0 ${labelClassName || ""}`}>{label}</span>
                 </Tooltip>
             ) : (
-                <span className="flex-1 min-w-0">{label}</span>
+                <span className={`flex-1 min-w-0 ${labelClassName || ""}`}>{label}</span>
             )}
             <span
                 className={hasPrev ? "flex items-center gap-3" : ""}

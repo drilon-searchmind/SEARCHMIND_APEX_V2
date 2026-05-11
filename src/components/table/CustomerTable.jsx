@@ -12,6 +12,7 @@ import { signOut } from "next-auth/react";
 import { useCustomers } from "@/hooks/useCustomers";
 import CustomerCreateForm from "../form/CustomerCreateForm";
 import { buildCustomerCreateFormStateFromCustomer } from "@/lib/customerCreateFormState";
+import { getCustomerPlatformLabel } from "@/lib/customerPlatformDisplay";
 import { SiShopify, SiWordpress, SiMagento } from "react-icons/si";
 
 const FONT = "text-xs";
@@ -125,34 +126,36 @@ export default function CustomerTable({ showLatestNews = true }) {
                 (accessibleCustomers || [])
                     .map((c) => c.parentCustomer)
                     .filter((id) => id && id !== "none")
+                    .map((id) => String(id))
             )
         );
-        if (parentIds.length === 0) return;
-        let isMounted = true;
-        const cache = { ...parentNames };
-        const fetchWithRetry = async (url, retries = 3, delay = 300) => {
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const res = await fetch(url);
-                    if (res.ok) return await res.json();
-                } catch { }
-                if (i < retries - 1) await new Promise((r) => setTimeout(r, delay));
-            }
-            return null;
-        };
+        if (parentIds.length === 0) {
+            setParentNames({});
+            return undefined;
+        }
+        let cancelled = false;
         (async () => {
-            for (const parentId of parentIds) {
-                if (!cache[parentId]) {
-                    const data = await fetchWithRetry(`/api/parent-customers/${parentId}`);
-                    cache[parentId] = data?.name || parentId;
+            try {
+                const res = await fetch("/api/parent-customers?minimal=1");
+                if (!res.ok) throw new Error("parents");
+                const all = await res.json();
+                if (cancelled || !Array.isArray(all)) return;
+                const byId = Object.fromEntries(
+                    all.map((p) => [String(p._id), p.name || String(p._id)])
+                );
+                const next = {};
+                for (const id of parentIds) {
+                    next[id] = byId[id] || id;
                 }
+                if (!cancelled) setParentNames(next);
+            } catch {
+                if (!cancelled) setParentNames(Object.fromEntries(parentIds.map((id) => [id, id])));
             }
-            if (isMounted) setParentNames(cache);
         })();
         return () => {
-            isMounted = false;
+            cancelled = true;
         };
-    }, [customers]);
+    }, [accessibleCustomers]);
 
     const handleLogout = () => signOut({ callbackUrl: "/login" });
     const handleCreated = () => {
@@ -288,7 +291,7 @@ export default function CustomerTable({ showLatestNews = true }) {
                                                                 <td className="px-4 py-3 align-middle text-left">
                                                                     <span className="inline-flex items-center gap-2 text-gray-600">
                                                                         <PlatformIcon type={customer.customerType} />
-                                                                        {customer.customerType}
+                                                                        {getCustomerPlatformLabel(customer)}
                                                                     </span>
                                                                 </td>
                                                                 <td className="px-4 py-3 align-middle">
@@ -381,7 +384,7 @@ export default function CustomerTable({ showLatestNews = true }) {
                                                     </span>
                                                     <div className="min-w-0 flex-1">
                                                         <p className="font-medium text-gray-800 truncate">{customer.customerName}</p>
-                                                        <p className="text-gray-500 truncate">{customer.customerType}</p>
+                                                        <p className="text-gray-500 truncate">{getCustomerPlatformLabel(customer)}</p>
                                                     </div>
                                                 </Link>
                                             );

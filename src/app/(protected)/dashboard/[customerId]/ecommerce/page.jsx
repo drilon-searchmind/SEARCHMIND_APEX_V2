@@ -1,15 +1,19 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import DashboardHeading from '@/components/dashboard/DashboardHeading';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import Spinner from '@/components/ui/Spinner';
 import { FiPackage, FiUsers } from 'react-icons/fi';
+import { useCustomers } from '@/hooks/useCustomers';
+import { useShopifyMarketsFilter } from '@/hooks/useShopifyMarketsFilter';
+import { useAdSpendPlatformsFilter } from '@/hooks/useAdSpendPlatformsFilter';
 
 import ProductPerfomance from './components/ProductPerfomance';
 import CustomerPerformance from './components/CustomerPerformance';
 import { pushDashboardDateRangeApplied, pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
+import { adSpendChannelsForSpendTotals } from '@/lib/mergeAdSpendDaily';
 
 const TABS = [
     { id: 'products', label: 'Product Performance', icon: FiPackage },
@@ -37,6 +41,32 @@ export default function EcommercePage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const customerId = params?.customerId;
+    const { customers } = useCustomers();
+    const customer = customers.find((c) => c._id === customerId);
+    const {
+        shopifyMarketsFeatureOn,
+        shopifyMarkets,
+        shopifyMarketsLoading,
+        excludedShopifyMarkets,
+        appliedExcludedShopifyMarkets,
+        toggleShopifyMarket,
+        applyShopifyMarketFilters,
+        syncDraftFromAppliedMarkets,
+        marketQuerySuffix,
+    } = useShopifyMarketsFilter(customer, customerId);
+
+    const {
+        configuredAdSpendChannels,
+        draftExcludedPlatforms,
+        appliedExcludedPlatforms,
+        toggleAdSpendPlatformDraft,
+        applyAdSpendPlatformFilters,
+        syncDraftFromAppliedSpend,
+        spendQuerySuffix,
+    } = useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn);
+
+    const mergedSourcesQuerySuffix = `${marketQuerySuffix}${spendQuerySuffix}`;
+
     const defaultRangeValue = defaultRange();
     const [tempRange, setTempRange] = useState(defaultRangeValue);
     const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
@@ -53,6 +83,14 @@ export default function EcommercePage() {
     const [activeTab, setActiveTabState] = useState(() =>
         TAB_IDS.includes(tabFromUrl) ? tabFromUrl : 'products'
     );
+
+    const visibleAdSpendChannels = useMemo(() => {
+        if (!customer?.CustomerSettings || !segmentation?.adSpendByChannel) return null;
+        return adSpendChannelsForSpendTotals(
+            customer.CustomerSettings,
+            segmentation.adSpendByChannel
+        );
+    }, [customer?.CustomerSettings, segmentation?.adSpendByChannel]);
 
     const setActiveTab = (tab) => {
         setActiveTabState(tab);
@@ -80,7 +118,10 @@ export default function EcommercePage() {
         setAppliedRange({ startDate, endDate });
     };
 
-    const rangeKey = appliedRange.startDate && appliedRange.endDate ? `${appliedRange.startDate}-${appliedRange.endDate}` : null;
+    const rangeKey =
+        appliedRange.startDate && appliedRange.endDate
+            ? `${appliedRange.startDate}-${appliedRange.endDate}-${mergedSourcesQuerySuffix || 'all'}`
+            : null;
 
     useEffect(() => {
         if (!customerId || !appliedRange.startDate || !appliedRange.endDate || activeTab !== 'products') return;
@@ -149,7 +190,7 @@ export default function EcommercePage() {
             try {
                 // 1. Try ShopifyQL first (fast: new/returning + merged-sources)
                 const shopifyqlRes = await fetch(
-                    `/api/customer-segmentation-shopifyql/${customerId}?startDate=${appliedRange.startDate}&endDate=${appliedRange.endDate}&full=true`
+                    `/api/customer-segmentation-shopifyql/${customerId}?startDate=${appliedRange.startDate}&endDate=${appliedRange.endDate}&full=true${mergedSourcesQuerySuffix}`
                 );
                 const shopifyqlData = await shopifyqlRes.json();
 
@@ -228,7 +269,7 @@ export default function EcommercePage() {
         }
         fetchSegmentation();
         return () => { cancelled = true; };
-    }, [customerId, appliedRange.startDate, appliedRange.endDate, activeTab, rangeKey]);
+    }, [customerId, appliedRange.startDate, appliedRange.endDate, activeTab, rangeKey, mergedSourcesQuerySuffix]);
 
     if (!customerId) return null;
 
@@ -256,6 +297,34 @@ export default function EcommercePage() {
                     />
                 )}
                 showPdfExport={false}
+                shopifyMarketFilter={
+                    shopifyMarketsFeatureOn
+                        ? {
+                              loading: shopifyMarketsLoading,
+                              options: shopifyMarkets,
+                              excludedMarkets: excludedShopifyMarkets,
+                              appliedExcludedMarkets: appliedExcludedShopifyMarkets,
+                              onToggleMarket: toggleShopifyMarket,
+                              onMenuWillOpen: syncDraftFromAppliedMarkets,
+                              onApplyMarkets: applyShopifyMarketFilters,
+                          }
+                        : null
+                }
+                adSpendPlatformFilter={
+                    shopifyMarketsFeatureOn && configuredAdSpendChannels.length > 0
+                        ? {
+                              options: configuredAdSpendChannels.map((c) => ({
+                                  id: c.id,
+                                  label: c.label,
+                              })),
+                              excludedPlatforms: draftExcludedPlatforms,
+                              appliedExcludedPlatforms,
+                              onTogglePlatform: toggleAdSpendPlatformDraft,
+                              onMenuWillOpen: syncDraftFromAppliedSpend,
+                              onApplySpend: applyAdSpendPlatformFilters,
+                          }
+                        : null
+                }
             />
 
             {/* Horizontal Tabs */}
@@ -306,6 +375,7 @@ export default function EcommercePage() {
                                     loading={segmentationLoading}
                                     ltvLoading={ltvLoading}
                                     ltvError={ltvError}
+                                    visibleAdSpendChannels={visibleAdSpendChannels}
                                 />
                             </div>
                         </div>

@@ -1,5 +1,6 @@
 import { shopifyqlQuery } from './shopifyApi';
 import currencyApiValues from './static-data/currencyApiValues.json';
+import { totalAdSpendFromMerged, channelSpendTotalsFromMerged } from './mergeAdSpendDaily';
 
 /**
  * Fetch Shopify orders for customer segmentation (customer id, date, total, net).
@@ -154,6 +155,9 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
     let repeatRate = 0;
     let ordersPerReturning = 0;
     const insights = [];
+
+    const adSpendFromMerged = totalAdSpendFromMerged(merged);
+    const adSpendByChannelFromMerged = channelSpendTotalsFromMerged(merged);
 
     if (Array.isArray(orders) && orders.length > 0) {
         const s = new Date(startDate);
@@ -405,7 +409,8 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
             firstOrdersCount,
             insights,
             cac: merged.CACTotalSales ?? null,
-            adSpend: (merged.facebookDaily || []).reduce((s, d) => s + (d.spend || 0), 0) + (merged.googleDaily || []).reduce((s, d) => s + (d.spend || 0), 0),
+            adSpend: adSpendFromMerged,
+            adSpendByChannel: adSpendByChannelFromMerged,
         };
     }
 
@@ -462,7 +467,8 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
             firstOrdersCount: approxNew,
             insights,
             cac: merged.CACTotalSales ?? null,
-            adSpend: (merged.facebookDaily || []).reduce((s, d) => s + (d.spend || 0), 0) + (merged.googleDaily || []).reduce((s, d) => s + (d.spend || 0), 0),
+            adSpend: adSpendFromMerged,
+            adSpendByChannel: adSpendByChannelFromMerged,
         };
     }
 
@@ -496,7 +502,8 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
         firstOrdersCount: 0,
         insights,
         cac: merged.CACTotalSales ?? null,
-        adSpend: (merged.facebookDaily || []).reduce((s, d) => s + (d.spend || 0), 0) + (merged.googleDaily || []).reduce((s, d) => s + (d.spend || 0), 0),
+        adSpend: adSpendFromMerged,
+        adSpendByChannel: adSpendByChannelFromMerged,
     };
 }
 

@@ -9,6 +9,8 @@ import { usePnlData } from "./usePnlData";
 import PnlLeftSection from "./PnlLeftSection";
 import PnlChartsSidebar from "./PnlChartsSidebar";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
+import { useShopifyMarketsFilter } from "@/hooks/useShopifyMarketsFilter";
+import { useAdSpendPlatformsFilter } from "@/hooks/useAdSpendPlatformsFilter";
 
 export default function PNLPage() {
     const params = useParams();
@@ -45,7 +47,31 @@ export default function PNLPage() {
         setTempDateRange((dr) => ({ ...dr, endDate: newEnd }));
     };
 
-    const pnl = usePnlData(customer, appliedDateRange, comparisonMethod);
+    const {
+        shopifyMarketsFeatureOn,
+        shopifyMarkets,
+        shopifyMarketsLoading,
+        excludedShopifyMarkets,
+        appliedExcludedShopifyMarkets,
+        toggleShopifyMarket,
+        applyShopifyMarketFilters,
+        syncDraftFromAppliedMarkets,
+        marketQuerySuffix,
+    } = useShopifyMarketsFilter(customer, params.customerId);
+
+    const {
+        configuredAdSpendChannels,
+        draftExcludedPlatforms,
+        appliedExcludedPlatforms,
+        toggleAdSpendPlatformDraft,
+        applyAdSpendPlatformFilters,
+        syncDraftFromAppliedSpend,
+        spendQuerySuffix,
+    } = useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn);
+
+    const mergedSourcesQuerySuffix = `${marketQuerySuffix}${spendQuerySuffix}`;
+
+    const pnl = usePnlData(customer, appliedDateRange, comparisonMethod, mergedSourcesQuerySuffix);
     const comparisonLabel = comparisonMethod === "Last Year" ? "Last Year" : "Last Period";
 
     return (
@@ -74,6 +100,7 @@ export default function PNLPage() {
                     shipping: pnl.shipping,
                     transactionCosts: pnl.transactionCosts,
                     marketingSpend: pnl.marketingSpend,
+                    channelSpendTotals: pnl.channelSpendTotals,
                     marketingBureau: pnl.marketingBureau,
                     marketingTooling: pnl.marketingTooling,
                     fixedExpenses: pnl.fixedExpenses,
@@ -87,6 +114,34 @@ export default function PNLPage() {
                     staticExpenses: pnl.staticExpenses,
                     days: pnl.days,
                 }}
+                shopifyMarketFilter={
+                    shopifyMarketsFeatureOn
+                        ? {
+                              loading: shopifyMarketsLoading,
+                              options: shopifyMarkets,
+                              excludedMarkets: excludedShopifyMarkets,
+                              appliedExcludedMarkets: appliedExcludedShopifyMarkets,
+                              onToggleMarket: toggleShopifyMarket,
+                              onMenuWillOpen: syncDraftFromAppliedMarkets,
+                              onApplyMarkets: applyShopifyMarketFilters,
+                          }
+                        : null
+                }
+                adSpendPlatformFilter={
+                    shopifyMarketsFeatureOn && configuredAdSpendChannels.length > 0
+                        ? {
+                              options: configuredAdSpendChannels.map((c) => ({
+                                  id: c.id,
+                                  label: c.label,
+                              })),
+                              excludedPlatforms: draftExcludedPlatforms,
+                              appliedExcludedPlatforms,
+                              onTogglePlatform: toggleAdSpendPlatformDraft,
+                              onMenuWillOpen: syncDraftFromAppliedSpend,
+                              onApplySpend: applyAdSpendPlatformFilters,
+                          }
+                        : null
+                }
                 right={
                     <DateRangePicker
                         onApply={handleDateRangeApply}
@@ -123,6 +178,8 @@ export default function PNLPage() {
                     transactionCosts={pnl.transactionCosts}
                     db2={pnl.db2}
                     marketingSpend={pnl.marketingSpend}
+                    channelSpendTotals={pnl.channelSpendTotals}
+                    visibleAdSpendChannels={pnl.visibleAdSpendChannels}
                     marketingBureau={pnl.marketingBureau}
                     marketingTooling={pnl.marketingTooling}
                     db3={pnl.db3}
@@ -149,6 +206,7 @@ export default function PNLPage() {
                     transactionCostsPrev={pnl.transactionCostsPrev}
                     db2Prev={pnl.db2Prev}
                     marketingSpendPrev={pnl.marketingSpendPrev}
+                    channelSpendTotalsPrev={pnl.channelSpendTotalsPrev}
                     marketingBureauPrev={pnl.marketingBureauPrev}
                     marketingToolingPrev={pnl.marketingToolingPrev}
                     db3Prev={pnl.db3Prev}

@@ -27,6 +27,7 @@ export default function PnlLeftSection({
     transactionCosts,
     db2,
     marketingSpend,
+    channelSpendTotals = {},
     marketingBureau,
     marketingTooling,
     db3,
@@ -40,6 +41,8 @@ export default function PnlLeftSection({
     db1DGDisplay,
     db2DGDisplay,
     db3DGDisplay,
+    // Visibility: only breakdown rows for integrations with meaningful spend
+    visibleAdSpendChannels = [],
     // Previous
     grossSalesPrev,
     totalSalesDisplayPrev,
@@ -54,6 +57,7 @@ export default function PnlLeftSection({
     transactionCostsPrev,
     db2Prev,
     marketingSpendPrev,
+    channelSpendTotalsPrev = {},
     marketingBureauPrev,
     marketingToolingPrev,
     db3Prev,
@@ -196,13 +200,23 @@ export default function PnlLeftSection({
                 hasPrev={hasPrev}
                 rows={[
                     {
-                        label: "Marketing Spend",
-                        tooltip: "Marketing Spend = Facebook Adspend + Google Adspend (sum of daily spends)",
+                        label: "Marketing spend (total)",
+                        tooltip:
+                            "Total paid media: sum of daily spend across connected advertising platforms.",
                         prevVal: marketingSpendPrev,
                         currVal: marketingSpend,
                         zeroAsDash: false,
                         higherIsBetter: false,
                     },
+                    ...visibleAdSpendChannels.map((c) => ({
+                        label: `· ${c.label}`,
+                        labelClassName: "text-xs text-gray-600 pl-2",
+                        tooltip: `${c.label} — sum of daily spend in the period.`,
+                        prevVal: channelSpendTotalsPrev[c.metricsDataKey] ?? 0,
+                        currVal: channelSpendTotals[c.metricsDataKey] ?? 0,
+                        zeroAsDash: false,
+                        higherIsBetter: false,
+                    })),
                     {
                         label: "Marketing Bureau",
                         tooltip: `Marketing Bureau = Total bureau cost / days (${days})`,
@@ -257,7 +271,7 @@ export default function PnlLeftSection({
             />
             <div className="flex gap-4 mt-6">
                 <div className="flex-1 bg-[var(--color-primary-searchmind)] text-white rounded-lg p-4 flex flex-col items-center border border-gray-200 rounded-xl px-6 py-5">
-                    <Tooltip content="Realized ROAS = Net Sales / Marketing Spend">
+                    <Tooltip content="Realized ROAS = Net Sales / total paid media spend (all connected ad platforms)">
                         <span className="flex flex-col items-center">
                             <div className="text-xs text-gray-500 mb-1">Realized ROAS</div>
                             <div className="text-3xl font-bold text-white">{realizedROAS.toFixed(2)}</div>
@@ -265,7 +279,7 @@ export default function PnlLeftSection({
                     </Tooltip>
                 </div>
                 <div className="flex-1 bg-[var(--color-primary-searchmind)] rounded-lg p-4 flex flex-col items-center border border-gray-200 rounded-xl px-6 py-5">
-                    <Tooltip content="Break-even ROAS = Total Costs / Marketing Spend">
+                    <Tooltip content="Break-even ROAS = Total Costs / total paid media spend (all connected ad platforms)">
                         <span className="flex flex-col items-center">
                             <div className="text-xs text-gray-500 mb-1">Break-even ROAS</div>
                             <div className="text-3xl font-bold text-white">{breakEvenROAS.toFixed(2)}</div>

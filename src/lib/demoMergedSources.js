@@ -1,5 +1,9 @@
 import { getDemoPayload, mergeDemoStaticExpenses } from "@/lib/demoCustomer";
-
+import {
+    totalAdSpendFromMerged,
+    channelSpendTotalsFromMerged,
+    AD_SPEND_CHANNELS,
+} from "@/lib/mergeAdSpendDaily";
 /** YYYY-MM-DD rows with `period` */
 function filterDailyRows(rows, startDate, endDate) {
     if (!Array.isArray(rows)) return [];
@@ -17,6 +21,10 @@ export function sliceAndRecomputeMergedSources(fullMerged, startDate, endDate, s
     const shopifyDaily = filterDailyRows(fullMerged?.shopifyDaily, startDate, endDate);
     const facebookDaily = filterDailyRows(fullMerged?.facebookDaily, startDate, endDate);
     const googleDaily = filterDailyRows(fullMerged?.googleDaily, startDate, endDate);
+    const pinterestDaily = filterDailyRows(fullMerged?.pinterestDaily, startDate, endDate);
+    const snapchatDaily = filterDailyRows(fullMerged?.snapchatDaily, startDate, endDate);
+    const bingDaily = filterDailyRows(fullMerged?.bingDaily, startDate, endDate);
+    const redditDaily = filterDailyRows(fullMerged?.redditDaily, startDate, endDate);
 
     const staticExp = settings?.CustomerStaticExpenses || {};
     const cogsPercentage = staticExp.cogsPercentage ?? 0;
@@ -39,9 +47,14 @@ export function sliceAndRecomputeMergedSources(fullMerged, startDate, endDate, s
 
     const fbAdspend = facebookDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
     const googleAdspend = googleDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
+    const pinterestAdspend = pinterestDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
+    const snapchatAdspend = snapchatDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
+    const bingAdspend = bingDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
+    const redditAdspend = redditDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
+    const otherPaid = pinterestAdspend + snapchatAdspend + bingAdspend + redditAdspend;
     const grossProfitTotalSales = totalSales - totalCogs;
     const grossProfitNetSales = netRevenue - totalCogsForNet;
-    const totalAdspend = fbAdspend + googleAdspend;
+    const totalAdspend = fbAdspend + googleAdspend + otherPaid;
     const POASTotalSales = totalAdspend !== 0 ? grossProfitTotalSales / totalAdspend : 0;
     const CACTotalSales = orders > 0 ? totalAdspend / orders : 0;
 
@@ -93,6 +106,10 @@ export function sliceAndRecomputeMergedSources(fullMerged, startDate, endDate, s
         shopifyDaily,
         facebookDaily,
         googleDaily,
+        pinterestDaily,
+        snapchatDaily,
+        bingDaily,
+        redditDaily,
         grossProfitTotalSales,
         grossProfitNetSales,
         POASTotalSales,
@@ -118,9 +135,23 @@ function normalizeCustomerSettings(customer) {
 /**
  * Demo merged sources for [startDate, endDate] from the static template + customer COGS settings.
  * @param {object} [customer] - Mongo customer doc (optional; falls back to demo template customer)
+ * @param {{ excludeAdSpendPlatforms?: string[] }} [options]
  */
-export function getDemoMergedSourcesForRange(startDate, endDate, customer = null) {
-    const full = getDemoPayload("mergedSources");
+export function getDemoMergedSourcesForRange(startDate, endDate, customer = null, options = {}) {
+    const fullPayload = getDemoPayload("mergedSources");
+    /** @type {Record<string, unknown>} */
+    let full;
+    try {
+        full = JSON.parse(JSON.stringify(fullPayload));
+    } catch {
+        full = fullPayload;
+    }
+    const ex = Array.isArray(options.excludeAdSpendPlatforms) ? options.excludeAdSpendPlatforms : [];
+    for (const c of AD_SPEND_CHANNELS) {
+        if (ex.includes(c.id)) {
+            full[c.mergeKey] = [];
+        }
+    }
     const template = getDemoPayload("customer");
     const mergedCustomer = template
         ? {
@@ -187,9 +218,9 @@ export function getDemoShopifyqlFullFromMerged(merged) {
         };
     });
 
-    const adSpend =
-        (merged.facebookDaily || []).reduce((s, d) => s + (d.spend || 0), 0) +
-        (merged.googleDaily || []).reduce((s, d) => s + (d.spend || 0), 0);
+    const adSpend = totalAdSpendFromMerged(merged);
+    const adSpendByChannel = channelSpendTotalsFromMerged(merged);
+
 
     return {
         totalCustomers: totalCustomers || totalOrders,
@@ -220,6 +251,7 @@ export function getDemoShopifyqlFullFromMerged(merged) {
         insights: ["Demo: segmentation from merged-sources for the selected period."],
         cac: merged.CACTotalSales ?? null,
         adSpend,
+        adSpendByChannel,
         source: "shopifyql",
     };
 }

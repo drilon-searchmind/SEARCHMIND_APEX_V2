@@ -28,6 +28,7 @@ export default function ParentDailyView({ sharedData }) {
         handleEndDateChange,
         predominantMetricPreference,
         shopifyRevenueField = "net_sales",
+        parentAggregatedQueryExtras = "",
     } = sharedData || {};
 
     const metricColumnsParent = useMemo(
@@ -82,7 +83,7 @@ export default function ParentDailyView({ sharedData }) {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
                 const res = await fetch(
-                    `${baseUrl}/api/parent-customers/${parentCustomerId}/aggregated?startDate=${lastYearStart}&endDate=${lastYearEnd}&comparisonMethod=Last%20Year`
+                    `${baseUrl}/api/parent-customers/${parentCustomerId}/aggregated?startDate=${lastYearStart}&endDate=${lastYearEnd}&comparisonMethod=Last%20Year${parentAggregatedQueryExtras}`
                 );
                 if (!res.ok) throw new Error("Failed to fetch last year data");
                 const data = await res.json();
@@ -99,7 +100,14 @@ export default function ParentDailyView({ sharedData }) {
                 setLoadingLastYear(false);
             }
         })();
-    }, [parentCustomerId, appliedDateRange?.startDate, childCustomers, enabledProperties, shopifyRevenueField]);
+    }, [
+        parentCustomerId,
+        appliedDateRange?.startDate,
+        childCustomers,
+        enabledProperties,
+        shopifyRevenueField,
+        parentAggregatedQueryExtras,
+    ]);
 
     const revenueTrendLabel =
         shopifyRevenueField === "gross_sales" ? "Gross sales" : "Net revenue";

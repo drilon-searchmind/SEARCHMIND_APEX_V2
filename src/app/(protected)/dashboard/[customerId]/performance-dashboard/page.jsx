@@ -10,12 +10,21 @@ import ComparisonPeriodPopover from "@/components/dashboard/ComparisonPeriodPopo
 import { FiDollarSign, FiTrendingUp, FiTrendingDown, FiShoppingCart, FiCreditCard, FiBarChart2, FiPieChart, FiShoppingBag, FiUserCheck } from "react-icons/fi";
 import GraphCard from "@/components/dashboard/GraphCard";
 // import { revenueData, spendAllocationData, roasData, aovData } from "@/data/dashboardCharts";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import dayjs from "dayjs";
 import { getChartColors } from "@/components/dashboard/chartColors";
 import Spinner from "@/components/ui/Spinner";
 import Custom from "./components/Custom";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
+import { useShopifyMarketsFilter } from "@/hooks/useShopifyMarketsFilter";
+import { useAdSpendPlatformsFilter } from "@/hooks/useAdSpendPlatformsFilter";
+import {
+    adSpendByPeriodMap,
+    adSpendChannelsForDashboard,
+    aggregateShopifyAndAdSpendByPeriodFromRows,
+    channelSpendTotalsFromMerged,
+    totalAdSpendFromMerged,
+} from "@/lib/mergeAdSpendDaily";
 
 export default function PerformanceDashboard() {
     const params = useParams();
@@ -60,6 +69,30 @@ export default function PerformanceDashboard() {
     const [comparisonMethod, setComparisonMethod] = useState("Last Year");
     const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Year");
 
+    const {
+        shopifyMarketsFeatureOn,
+        shopifyMarkets,
+        shopifyMarketsLoading,
+        excludedShopifyMarkets,
+        appliedExcludedShopifyMarkets,
+        toggleShopifyMarket,
+        applyShopifyMarketFilters,
+        syncDraftFromAppliedMarkets,
+        marketQuerySuffix,
+    } = useShopifyMarketsFilter(customer, params?.customerId);
+
+    const {
+        configuredAdSpendChannels,
+        draftExcludedPlatforms,
+        appliedExcludedPlatforms,
+        toggleAdSpendPlatformDraft,
+        applyAdSpendPlatformFilters,
+        syncDraftFromAppliedSpend,
+        spendQuerySuffix,
+    } = useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn);
+
+    const mergedSourcesQuerySuffix = `${marketQuerySuffix}${spendQuerySuffix}`;
+
     // Metrics state
     const [metrics, setMetrics] = useState([]);
     const [metricsData, setMetricsData] = useState(null);
@@ -70,13 +103,66 @@ export default function PerformanceDashboard() {
     const [shopifyDaily, setShopifyDaily] = useState([]);
     const [facebookDaily, setFacebookDaily] = useState([]);
     const [googleDaily, setGoogleDaily] = useState([]);
+    const [pinterestDaily, setPinterestDaily] = useState([]);
+    const [snapchatDaily, setSnapchatDaily] = useState([]);
+    const [bingDaily, setBingDaily] = useState([]);
+    const [redditDaily, setRedditDaily] = useState([]);
     // Previous period data for comparison
     const [shopifyDailyPrev, setShopifyDailyPrev] = useState([]);
     const [facebookDailyPrev, setFacebookDailyPrev] = useState([]);
     const [googleDailyPrev, setGoogleDailyPrev] = useState([]);
+    const [pinterestDailyPrev, setPinterestDailyPrev] = useState([]);
+    const [snapchatDailyPrev, setSnapchatDailyPrev] = useState([]);
+    const [bingDailyPrev, setBingDailyPrev] = useState([]);
+    const [redditDailyPrev, setRedditDailyPrev] = useState([]);
     // Cached merged responses for metrics rebuild
     const [merged, setMerged] = useState(null);
     const [mergedPrev, setMergedPrev] = useState(null);
+
+    const channelRowsCurr = useMemo(
+        () => ({
+            facebook: facebookDaily,
+            google: googleDaily,
+            pinterest: pinterestDaily,
+            snapchat: snapchatDaily,
+            bing: bingDaily,
+            reddit: redditDaily,
+        }),
+        [facebookDaily, googleDaily, pinterestDaily, snapchatDaily, bingDaily, redditDaily]
+    );
+    const channelRowsPrev = useMemo(
+        () => ({
+            facebook: facebookDailyPrev,
+            google: googleDailyPrev,
+            pinterest: pinterestDailyPrev,
+            snapchat: snapchatDailyPrev,
+            bing: bingDailyPrev,
+            reddit: redditDailyPrev,
+        }),
+        [
+            facebookDailyPrev,
+            googleDailyPrev,
+            pinterestDailyPrev,
+            snapchatDailyPrev,
+            bingDailyPrev,
+            redditDailyPrev,
+        ]
+    );
+
+    const visibleAdSpendChannels = useMemo(
+        () =>
+            adSpendChannelsForDashboard(
+                customer?.CustomerSettings,
+                merged,
+                mergedPrev
+            ),
+        [customer?.CustomerSettings, merged, mergedPrev]
+    );
+
+    const visibleSpendMetricKeys = useMemo(
+        () => visibleAdSpendChannels.map((c) => c.metricsDataKey),
+        [visibleAdSpendChannels]
+    );
 
     // Main fetch: merged data
     useEffect(() => {
@@ -100,8 +186,8 @@ export default function PerformanceDashboard() {
                 }
 
                 const [res, resPrev] = await Promise.all([
-                    fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&source=performance-dashboard`),
-                    fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${prevStart.format('YYYY-MM-DD')}&endDate=${prevEnd.format('YYYY-MM-DD')}&source=performance-dashboard`)
+                    fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&source=performance-dashboard${mergedSourcesQuerySuffix}`),
+                    fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${prevStart.format('YYYY-MM-DD')}&endDate=${prevEnd.format('YYYY-MM-DD')}&source=performance-dashboard${mergedSourcesQuerySuffix}`)
                 ]);
                 if (!res.ok || !resPrev.ok) throw new Error('Failed to fetch merged data');
                 const merged = await res.json();
@@ -112,6 +198,10 @@ export default function PerformanceDashboard() {
                 setShopifyDaily(merged.shopifyDaily || []);
                 setFacebookDaily(merged.facebookDaily || []);
                 setGoogleDaily(merged.googleDaily || []);
+                setPinterestDaily(merged.pinterestDaily || []);
+                setSnapchatDaily(merged.snapchatDaily || []);
+                setBingDaily(merged.bingDaily || []);
+                setRedditDaily(merged.redditDaily || []);
 
                 console.log("::: MERGED DATA :::");
                 console.log({ merged });
@@ -120,6 +210,10 @@ export default function PerformanceDashboard() {
                 setShopifyDailyPrev(mergedPrev.shopifyDaily || []);
                 setFacebookDailyPrev(mergedPrev.facebookDaily || []);
                 setGoogleDailyPrev(mergedPrev.googleDaily || []);
+                setPinterestDailyPrev(mergedPrev.pinterestDaily || []);
+                setSnapchatDailyPrev(mergedPrev.snapchatDaily || []);
+                setBingDailyPrev(mergedPrev.bingDaily || []);
+                setRedditDailyPrev(mergedPrev.redditDaily || []);
 
                 setLoading(false);
             } catch (err) {
@@ -127,7 +221,7 @@ export default function PerformanceDashboard() {
                 setLoading(false);
             }
         })();
-    }, [customer, appliedDateRange, comparisonMethod]);
+    }, [customer, appliedDateRange, comparisonMethod, mergedSourcesQuerySuffix]);
 
     // Build metrics when merged data is available
     useEffect(() => {
@@ -140,11 +234,7 @@ export default function PerformanceDashboard() {
         const customerMetricPreference = customer?.CustomerSettings?.metricPreference || 'ROAS/POAS';
 
         const shopify = merged.shopifyDaily || [];
-        const facebook = merged.facebookDaily || [];
-        const google = merged.googleDaily || [];
         const shopifyPrev = mergedPrev.shopifyDaily || [];
-        const facebookPrev = mergedPrev.facebookDaily || [];
-        const googlePrev = mergedPrev.googleDaily || [];
 
         const revenue = shopify.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
         const totalSales = shopify.reduce((sum, d) => sum + (d.total_sales || 0), 0);
@@ -155,9 +245,10 @@ export default function PerformanceDashboard() {
         const returns = shopify.reduce((sum, d) => sum + (d.returns || 0), 0);
         const shippingCharges = shopify.reduce((sum, d) => sum + (d.shipping_charges || 0), 0);
         const taxes = shopify.reduce((sum, d) => sum + (d.taxes || 0), 0);
-        const cost = [...facebook, ...google].reduce((sum, d) => sum + (d.spend || 0), 0);
-        const metaSpend = facebook.reduce((sum, d) => sum + (d.spend || 0), 0);
-        const googleSpend = google.reduce((sum, d) => sum + (d.spend || 0), 0);
+        const cost = totalAdSpendFromMerged(merged);
+        const chTotals = channelSpendTotalsFromMerged(merged);
+        const metaSpend = chTotals.meta_spend;
+        const googleSpend = chTotals.google_spend;
         const aov = orders > 0 ? netRevenue / orders : 0;
         const roas = cost > 0 ? netRevenue / cost : null;
         const spendshare = netRevenue > 0 ? cost / netRevenue : 0;
@@ -171,9 +262,10 @@ export default function PerformanceDashboard() {
         const returnsPrev = shopifyPrev.reduce((sum, d) => sum + (d.returns || 0), 0);
         const shippingChargesPrev = shopifyPrev.reduce((sum, d) => sum + (d.shipping_charges || 0), 0);
         const taxesPrev = shopifyPrev.reduce((sum, d) => sum + (d.taxes || 0), 0);
-        const costPrev = [...facebookPrev, ...googlePrev].reduce((sum, d) => sum + (d.spend || 0), 0);
-        const metaSpendPrev = facebookPrev.reduce((sum, d) => sum + (d.spend || 0), 0);
-        const googleSpendPrev = googlePrev.reduce((sum, d) => sum + (d.spend || 0), 0);
+        const costPrev = totalAdSpendFromMerged(mergedPrev);
+        const chTotalsPrev = channelSpendTotalsFromMerged(mergedPrev);
+        const metaSpendPrev = chTotalsPrev.meta_spend;
+        const googleSpendPrev = chTotalsPrev.google_spend;
         const aovPrev = ordersPrev > 0 ? netRevenuePrev / ordersPrev : 0;
         const roasPrev = costPrev > 0 ? netRevenuePrev / costPrev : null;
         const spendsharePrev = netRevenuePrev > 0 ? costPrev / netRevenuePrev : 0;
@@ -382,28 +474,131 @@ export default function PerformanceDashboard() {
                         popOverContent: totalAdspendCalculation,
                         calcValueLabels: apiValueLabels.spend,
                     },
-                    {
-                        key: 'meta_spend',
-                        label: "- Meta Spend",
-                        value: metaSpend ? metaSpend.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
-                        icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange(metaSpend, metaSpendPrev) !== null ? Math.abs(percentChange(metaSpend, metaSpendPrev)).toFixed(0) : undefined,
-                        changeType: changeType(percentChange(metaSpend, metaSpendPrev)),
-                        changeAbsolute: formatDiff(metaSpend, metaSpendPrev, 'currency'),
-                        changePrevValue: metaSpendPrev != null ? metaSpendPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
-                        popOverContent: null,
-                    },
-                    {
-                        key: 'google_spend',
-                        label: "- Google Ads Spend",
-                        value: googleSpend ? googleSpend.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : '-',
-                        icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-                        change: percentChange(googleSpend, googleSpendPrev) !== null ? Math.abs(percentChange(googleSpend, googleSpendPrev)).toFixed(0) : undefined,
-                        changeType: changeType(percentChange(googleSpend, googleSpendPrev)),
-                        changeAbsolute: formatDiff(googleSpend, googleSpendPrev, 'currency'),
-                        changePrevValue: googleSpendPrev != null ? googleSpendPrev.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 }) : undefined,
-                        popOverContent: null,
-                    },
+                    ...(visibleAdSpendChannels.some((c) => c.id === "facebook")
+                        ? [
+                              {
+                                  key: "meta_spend",
+                                  label: "- Meta Spend",
+                                  value: metaSpend
+                                      ? metaSpend.toLocaleString("da-DK", {
+                                            style: "currency",
+                                            currency: "DKK",
+                                            maximumFractionDigits: 0,
+                                        })
+                                      : "-",
+                                  icon: (
+                                      <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />
+                                  ),
+                                  change:
+                                      percentChange(metaSpend, metaSpendPrev) !== null
+                                          ? Math.abs(
+                                                percentChange(metaSpend, metaSpendPrev)
+                                            ).toFixed(0)
+                                          : undefined,
+                                  changeType: changeType(
+                                      percentChange(metaSpend, metaSpendPrev)
+                                  ),
+                                  changeAbsolute: formatDiff(
+                                      metaSpend,
+                                      metaSpendPrev,
+                                      "currency"
+                                  ),
+                                  changePrevValue:
+                                      metaSpendPrev != null
+                                          ? metaSpendPrev.toLocaleString("da-DK", {
+                                                style: "currency",
+                                                currency: "DKK",
+                                                maximumFractionDigits: 0,
+                                            })
+                                          : undefined,
+                                  popOverContent: null,
+                              },
+                          ]
+                        : []),
+                    ...(visibleAdSpendChannels.some((c) => c.id === "google")
+                        ? [
+                              {
+                                  key: "google_spend",
+                                  label: "- Google Ads Spend",
+                                  value: googleSpend
+                                      ? googleSpend.toLocaleString("da-DK", {
+                                            style: "currency",
+                                            currency: "DKK",
+                                            maximumFractionDigits: 0,
+                                        })
+                                      : "-",
+                                  icon: (
+                                      <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />
+                                  ),
+                                  change:
+                                      percentChange(googleSpend, googleSpendPrev) !== null
+                                          ? Math.abs(
+                                                percentChange(googleSpend, googleSpendPrev)
+                                            ).toFixed(0)
+                                          : undefined,
+                                  changeType: changeType(
+                                      percentChange(googleSpend, googleSpendPrev)
+                                  ),
+                                  changeAbsolute: formatDiff(
+                                      googleSpend,
+                                      googleSpendPrev,
+                                      "currency"
+                                  ),
+                                  changePrevValue:
+                                      googleSpendPrev != null
+                                          ? googleSpendPrev.toLocaleString("da-DK", {
+                                                style: "currency",
+                                                currency: "DKK",
+                                                maximumFractionDigits: 0,
+                                            })
+                                          : undefined,
+                                  popOverContent: null,
+                              },
+                          ]
+                        : []),
+                    ...visibleAdSpendChannels
+                        .filter((c) => c.id !== "facebook" && c.id !== "google")
+                        .map((spec) => {
+                            const cur = chTotals[spec.metricsDataKey];
+                            const prevSpend = chTotalsPrev[spec.metricsDataKey];
+                            return {
+                                key: spec.metricsDataKey,
+                                label: `- ${spec.label}`,
+                                value: cur
+                                    ? cur.toLocaleString("da-DK", {
+                                          style: "currency",
+                                          currency: "DKK",
+                                          maximumFractionDigits: 0,
+                                      })
+                                    : "-",
+                                icon: (
+                                    <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />
+                                ),
+                                change:
+                                    percentChange(cur, prevSpend) !== null
+                                        ? Math.abs(
+                                              percentChange(cur, prevSpend)
+                                          ).toFixed(0)
+                                        : undefined,
+                                changeType: changeType(
+                                    percentChange(cur, prevSpend)
+                                ),
+                                changeAbsolute: formatDiff(
+                                    cur,
+                                    prevSpend,
+                                    "currency"
+                                ),
+                                changePrevValue:
+                                    prevSpend != null
+                                        ? prevSpend.toLocaleString("da-DK", {
+                                              style: "currency",
+                                              currency: "DKK",
+                                              maximumFractionDigits: 0,
+                                          })
+                                        : undefined,
+                                popOverContent: null,
+                            };
+                        }),
                     {
                         key: 'shipping_cost',
                         label: "- Shipping Cost",
@@ -588,6 +783,13 @@ export default function PerformanceDashboard() {
                     },
                 );
 
+        const filteredSpendMetricsData = Object.fromEntries(
+            visibleAdSpendChannels.map((c) => [
+                c.metricsDataKey,
+                chTotals[c.metricsDataKey] ?? 0,
+            ])
+        );
+
         setMetrics(metricsArray);
 
         setMetricsData({
@@ -599,6 +801,8 @@ export default function PerformanceDashboard() {
             orders,
             returns,
             cost,
+            marketing_spend: cost,
+            ...filteredSpendMetricsData,
             roas: roas ?? 0,
             poas: poas ?? 0,
             aov,
@@ -611,7 +815,7 @@ export default function PerformanceDashboard() {
             shipping_cost: shippingCost,
             pick_pack: pickPackCost,
         });
-    }, [customer, appliedDateRange, comparisonMethod, merged, mergedPrev]);
+    }, [customer, appliedDateRange, comparisonMethod, merged, mergedPrev, visibleAdSpendChannels]);
 
     // Chart color palette from CSS variables
     const [chartColors, setChartColors] = useState({});
@@ -646,55 +850,57 @@ export default function PerformanceDashboard() {
     const [viewMode, setViewMode] = useState('standard'); // 'standard' | 'custom'
     const [showCalcs, setShowCalcs] = useState(false); // Default ON for Standard view
 
-    // Standard view: 3 sections with metrics used in each calculation (primary metric excluded from breakdown)
-    const STANDARD_SECTIONS = [
-        {
-            key: 'net_revenue',
-            title: 'Net Revenue',
-            metricKeys: ['revenue', 'orders', 'aov', 'gross_sales', 'discounts', 'returns', 'shipping_revenue', 'transaction_fee', 'tax'],
-        },
-        {
-            key: 'total_expenses',
-            title: 'Total Expenses',
-            metricKeys: ['total_expenses', 'marketing_spend', 'meta_spend', 'google_spend', 'variable_costs', 'cogs', 'shipping_cost', 'pick_pack', 'fixed_costs'],
-            variableSubItems: ['cogs', 'shipping_cost', 'pick_pack'], // Indent these under Variable expenses
-        },
-        {
-            key: 'net_profit',
-            title: 'Net Profit',
-            metricKeys: ['ebit', 'roas', 'cac', 'poas', 'ebit_pct'],
-        },
-    ];
+    // Standard view: 3 sections — per-channel spend metrics only for connected + meaningful spend
+    const STANDARD_SECTIONS = useMemo(() => {
+        const expenseSpendKeys = [
+            "total_expenses",
+            "marketing_spend",
+            ...visibleAdSpendChannels.map((c) => c.metricsDataKey),
+            "variable_costs",
+            "cogs",
+            "shipping_cost",
+            "pick_pack",
+            "fixed_costs",
+        ];
+        return [
+            {
+                key: "net_revenue",
+                title: "Net Revenue",
+                metricKeys: [
+                    "revenue",
+                    "orders",
+                    "aov",
+                    "gross_sales",
+                    "discounts",
+                    "returns",
+                    "shipping_revenue",
+                    "transaction_fee",
+                    "tax",
+                ],
+            },
+            {
+                key: "total_expenses",
+                title: "Total Expenses",
+                metricKeys: expenseSpendKeys,
+                variableSubItems: ["cogs", "shipping_cost", "pick_pack"],
+            },
+            {
+                key: "net_profit",
+                title: "Net Profit",
+                metricKeys: ["ebit", "roas", "cac", "poas", "ebit_pct"],
+            },
+        ];
+    }, [visibleAdSpendChannels]);
 
     // Helper to aggregate daily arrays by keyFn (period or month)
-    const aggregateDaily = (shopifyArr, facebookArr, googleArr, keyFn) => {
-        const map = {};
-        const push = (k, obj) => {
-            if (!map[k]) map[k] = { revenue: 0, totalRevenue: 0, orders: 0, cost: 0, costFacebook: 0, costGoogle: 0, cogs: 0, returns: 0 };
-            map[k].totalRevenue += Number(obj.total_sales || 0);
-            map[k].revenue += Number(obj.net_sales || obj.total_sales || 0);
-            map[k].orders += Number(obj.orders || 0);
-            map[k].cogs += Number(obj.cost_of_goods_sold || 0);
-            map[k].returns += Number(obj.returns || 0);
-        };
-        (shopifyArr || []).forEach(d => push(keyFn(d.period), d));
-        const addSpend = (k, spend, source) => {
-            if (!map[k]) map[k] = { revenue: 0, totalRevenue: 0, orders: 0, cost: 0, costFacebook: 0, costGoogle: 0, cogs: 0, returns: 0 };
-            const val = Number(spend || 0);
-            map[k].cost += val;
-            if (source === 'facebook') map[k].costFacebook += val;
-            if (source === 'google') map[k].costGoogle += val;
-        };
-        (facebookArr || []).forEach(d => addSpend(keyFn(d.period), d.spend, 'facebook'));
-        (googleArr || []).forEach(d => addSpend(keyFn(d.period), d.spend, 'google'));
-        return map;
-    };
+    const aggregateDaily = (shopifyArr, channelRows, keyFn) =>
+        aggregateShopifyAndAdSpendByPeriodFromRows(shopifyArr, channelRows, keyFn);
 
     // Build series for selected metrics and current + comparison (aligned)
     const buildSeriesFromSelected = () => {
         const keyFn = (period) => aggregateBy === 'monthly' ? dayjs(period).format('YYYY-MM') : period;
-        const currAgg = aggregateDaily(shopifyDaily, facebookDaily, googleDaily, keyFn);
-        const prevAgg = aggregateDaily(shopifyDailyPrev, facebookDailyPrev, googleDailyPrev, keyFn);
+        const currAgg = aggregateDaily(shopifyDaily, channelRowsCurr, keyFn);
+        const prevAgg = aggregateDaily(shopifyDailyPrev, channelRowsPrev, keyFn);
 
         const categories = Object.keys(currAgg).sort();
         const series = [];
@@ -737,14 +943,20 @@ export default function PerformanceDashboard() {
 
         selectedMetrics.forEach((metric) => {
             if (metric === 'cost') {
-                const currDataPS = categories.map(k => { const v = currAgg[k]; return v ? Number((v.costFacebook || 0).toFixed(0)) : null; });
-                const currDataPPC = categories.map(k => { const v = currAgg[k]; return v ? Number((v.costGoogle || 0).toFixed(0)) : null; });
-                const prevDataPS = categories.map((k, idx) => { const prevKey = getPrevKeyForCategory(k, idx); const v = prevAgg[prevKey]; return v ? Number((v.costFacebook || 0).toFixed(0)) : null; });
-                const prevDataPPC = categories.map((k, idx) => { const prevKey = getPrevKeyForCategory(k, idx); const v = prevAgg[prevKey]; return v ? Number((v.costGoogle || 0).toFixed(0)) : null; });
-                series.push({ name: 'PS Spend (Current)', data: currDataPS });
-                series.push({ name: 'PPC Spend (Current)', data: currDataPPC });
-                series.push({ name: `PS Spend (${comparisonMethod})`, data: prevDataPS });
-                series.push({ name: `PPC Spend (${comparisonMethod})`, data: prevDataPPC });
+                for (const spec of visibleAdSpendChannels) {
+                    const field = spec.bucketKey;
+                    const currData = categories.map((k) => {
+                        const v = currAgg[k];
+                        return v ? Number((v[field] || 0).toFixed(0)) : null;
+                    });
+                    const prevData = categories.map((k, idx) => {
+                        const prevKey = getPrevKeyForCategory(k, idx);
+                        const v = prevAgg[prevKey];
+                        return v ? Number((v[field] || 0).toFixed(0)) : null;
+                    });
+                    series.push({ name: `${spec.label} (Current)`, data: currData });
+                    series.push({ name: `${spec.label} (${comparisonMethod})`, data: prevData });
+                }
                 return;
             }
 
@@ -893,81 +1105,82 @@ export default function PerformanceDashboard() {
         legend: { show: true, position: 'top', labels: { colors: chartColors.primary || '#1E2B2B' } },
     };
 
-    // Spend Allocation chart
-    const spendCategories = shopifyDaily.map(d => d.period); // Use same x-axis as revenue
-    // Align facebook and google spend by date (current)
-    const facebookSpendMap = Object.fromEntries(facebookDaily.map(d => [d.period, d.spend]));
-    const googleSpendMap = Object.fromEntries(googleDaily.map(d => [d.period, d.spend]));
-    const facebookSpendSeries = spendCategories.map(date => (facebookSpendMap[date] ? Number(facebookSpendMap[date]).toFixed(0) : '0'));
-    const googleSpendSeries = spendCategories.map(date => (googleSpendMap[date] ? Number(googleSpendMap[date]).toFixed(0) : '0'));
-
-    // Align facebook and google spend by date (previous)
-    const facebookSpendMapPrev = Object.fromEntries(facebookDailyPrev.map(d => [d.period, d.spend]));
-    const googleSpendMapPrev = Object.fromEntries(googleDailyPrev.map(d => [d.period, d.spend]));
-
-    // Map current period dates to corresponding previous period dates
-    const facebookSpendSeriesPrev = spendCategories.map(date => {
-        let prevDate;
+    // Spend Allocation chart — daily spend by platform (current + comparison period)
+    const spendCategories = shopifyDaily.map((d) => d.period);
+    const resolveSpendPrevDate = (date) => {
         if (comparisonMethod === "Last Year") {
-            // Same date last year
-            const currentDate = dayjs(date);
-            prevDate = currentDate.subtract(1, 'year').format('YYYY-MM-DD');
-        } else {
-            // Last Period - same date in previous contiguous period
-            const currentDate = dayjs(date);
-            const periodStart = dayjs(appliedDateRange.startDate);
-            const periodEnd = dayjs(appliedDateRange.endDate);
-            const daysDiff = currentDate.diff(periodStart, 'day');
-            const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, 'day') + 1, 'day');
-            prevDate = prevPeriodStart.add(daysDiff, 'day').format('YYYY-MM-DD');
+            return dayjs(date).subtract(1, "year").format("YYYY-MM-DD");
         }
-        return facebookSpendMapPrev[prevDate] ? Number(facebookSpendMapPrev[prevDate]).toFixed(0) : '0';
-    });
-
-    const googleSpendSeriesPrev = spendCategories.map(date => {
-        let prevDate;
-        if (comparisonMethod === "Last Year") {
-            // Same date last year
-            const currentDate = dayjs(date);
-            prevDate = currentDate.subtract(1, 'year').format('YYYY-MM-DD');
-        } else {
-            // Last Period - same date in previous contiguous period
-            const currentDate = dayjs(date);
-            const periodStart = dayjs(appliedDateRange.startDate);
-            const periodEnd = dayjs(appliedDateRange.endDate);
-            const daysDiff = currentDate.diff(periodStart, 'day');
-            const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, 'day') + 1, 'day');
-            prevDate = prevPeriodStart.add(daysDiff, 'day').format('YYYY-MM-DD');
-        }
-        return googleSpendMapPrev[prevDate] ? Number(googleSpendMapPrev[prevDate]).toFixed(0) : '0';
-    });
-
-    const spendAllocationSeries = [
-        { name: 'Facebook (Current)', data: facebookSpendSeries },
-        { name: 'Google (Current)', data: googleSpendSeries },
-        { name: `Facebook (${comparisonMethod})`, data: facebookSpendSeriesPrev },
-        { name: `Google (${comparisonMethod})`, data: googleSpendSeriesPrev },
+        const currentDate = dayjs(date);
+        const periodStart = dayjs(appliedDateRange.startDate);
+        const periodEnd = dayjs(appliedDateRange.endDate);
+        const daysDiff = currentDate.diff(periodStart, "day");
+        const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, "day") + 1, "day");
+        return prevPeriodStart.add(daysDiff, "day").format("YYYY-MM-DD");
+    };
+    const spendAllocationSeries = [];
+    for (const spec of visibleAdSpendChannels) {
+        const rowsCurr = channelRowsCurr[spec.id] || [];
+        const rowsPrev = channelRowsPrev[spec.id] || [];
+        const mapCurr = Object.fromEntries(rowsCurr.map((d) => [d.period, d.spend]));
+        const mapPrev = Object.fromEntries(rowsPrev.map((d) => [d.period, d.spend]));
+        const curSeries = spendCategories.map((date) =>
+            mapCurr[date] ? Number(mapCurr[date]).toFixed(0) : "0"
+        );
+        const prevSeries = spendCategories.map((date) => {
+            const prevDate = resolveSpendPrevDate(date);
+            return mapPrev[prevDate] ? Number(mapPrev[prevDate]).toFixed(0) : "0";
+        });
+        spendAllocationSeries.push({ name: `${spec.label} (Current)`, data: curSeries });
+        spendAllocationSeries.push({ name: `${spec.label} (${comparisonMethod})`, data: prevSeries });
+    }
+    const spendDashPattern = spendAllocationSeries.map((s) => (String(s.name).includes("(Current)") ? 0 : 5));
+    const spendStrokeWidth = spendAllocationSeries.map((s) => (String(s.name).includes("(Current)") ? 2 : 1));
+    const spendFillOpacity = spendAllocationSeries.map((s) => (String(s.name).includes("(Current)") ? 1 : 0.45));
+    const spendPalette = [
+        "#406969",
+        "#94a3b8",
+        "#C6ED62",
+        "#cbd5e1",
+        "#0d9488",
+        "#99f6e4",
+        "#2563eb",
+        "#93c5fd",
+        "#7c3aed",
+        "#c4b5fd",
+        "#ea580c",
+        "#fdba74",
     ];
     const spendOptions = {
-        chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
-        xaxis: { categories: spendCategories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
-        yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' } } },
-        colors: [
-            chartColors.primaryLighter || '#406969',  // Facebook Current
-            chartColors.lime || '#C6ED62',            // Google Current
-            '#94a3b8',                                // Facebook Previous (muted)
-            '#cbd5e1'                                 // Google Previous (muted)
-        ],
-        stroke: { width: [2, 2, 1, 1], curve: 'smooth', dashArray: [0, 0, 5, 5] },
-        fill: { type: 'solid', opacity: [1, 1, 0.5, 0.5] },
-        grid: { borderColor: '#e5e7eb', strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
+        chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "Outfit, sans-serif" },
+        xaxis: {
+            categories: spendCategories,
+            labels: { style: { colors: chartColors.primaryLighter || "#406969" } },
+            axisTicks: { show: true },
+            axisBorder: { show: true },
+        },
+        yaxis: { labels: { style: { colors: chartColors.primary || "#1E2B2B" } } },
+        colors: spendPalette.slice(0, spendAllocationSeries.length),
+        stroke: { width: spendStrokeWidth, curve: "smooth", dashArray: spendDashPattern },
+        fill: { type: "solid", opacity: spendFillOpacity },
+        grid: {
+            borderColor: "#e5e7eb",
+            strokeDashArray: 0,
+            xaxis: { lines: { show: false } },
+            yaxis: { lines: { show: true } },
+        },
         dataLabels: { enabled: false },
-        tooltip: { theme: 'light' },
-        legend: { show: true, position: 'top', labels: { colors: chartColors.primary || '#1E2B2B' } },
+        tooltip: { theme: "light" },
+        legend: { show: true, position: "top", labels: { colors: chartColors.primary || "#1E2B2B" } },
     };
 
     // Determine metric preference
     const customerMetricPreference = customer?.CustomerSettings?.metricPreference || 'ROAS/POAS';
+
+    const totalSpendByDay = merged ? adSpendByPeriodMap(merged) : {};
+    const totalSpendByDayPrev = mergedPrev ? adSpendByPeriodMap(mergedPrev) : {};
+    const spendOnDay = (map, period) =>
+        Number(map[String(period ?? "").slice(0, 10)]) || 0;
 
     // ROAS or Spendshare chart (conditional)
     const metricCategories = shopifyDaily.map(d => d.period);
@@ -979,7 +1192,7 @@ export default function PerformanceDashboard() {
             {
                 name: 'Spendshare (Current)',
                 data: shopifyDaily.map((d, i) => {
-                    const spend = (Number(facebookSpendMap[d.period]) || 0) + (Number(googleSpendMap[d.period]) || 0);
+                    const spend = spendOnDay(totalSpendByDay, d.period);
                     return d.total_sales > 0 ? ((spend / d.total_sales) * 100).toFixed(0) : null;
                 })
             },
@@ -1001,7 +1214,7 @@ export default function PerformanceDashboard() {
 
                     // Find corresponding previous period data
                     const prevShopifyData = shopifyDailyPrev.find(pd => pd.period === prevDate);
-                    const prevSpend = (Number(facebookSpendMapPrev[prevDate]) || 0) + (Number(googleSpendMapPrev[prevDate]) || 0);
+                    const prevSpend = spendOnDay(totalSpendByDayPrev, prevDate);
 
                     return prevShopifyData && prevShopifyData.total_sales > 0 ? ((prevSpend / prevShopifyData.total_sales) * 100).toFixed(0) : null;
                 })
@@ -1015,7 +1228,7 @@ export default function PerformanceDashboard() {
             {
                 name: `${roasLabel} (Current)`,
                 data: shopifyDaily.map((d, i) => {
-                    const spend = (Number(facebookSpendMap[d.period]) || 0) + (Number(googleSpendMap[d.period]) || 0);
+                    const spend = spendOnDay(totalSpendByDay, d.period);
                     return spend > 0 ? ( (Number(d.net_sales || d.total_sales) / spend) ).toFixed(2) : null;
                 })
             },
@@ -1037,7 +1250,7 @@ export default function PerformanceDashboard() {
 
                     // Find corresponding previous period data
                     const prevShopifyData = shopifyDailyPrev.find(pd => pd.period === prevDate);
-                    const prevSpend = (Number(facebookSpendMapPrev[prevDate]) || 0) + (Number(googleSpendMapPrev[prevDate]) || 0);
+                    const prevSpend = spendOnDay(totalSpendByDayPrev, prevDate);
 
                     return prevShopifyData && prevSpend > 0 ? ( (Number(prevShopifyData.net_sales || prevShopifyData.total_sales) / prevSpend) ).toFixed(2) : null;
                 })
@@ -1112,18 +1325,50 @@ export default function PerformanceDashboard() {
                 comparisonMethod={comparisonMethod}
                 loading={loading}
                 dashboardType="performance-dashboard"
+                shopifyMarketFilter={
+                    shopifyMarketsFeatureOn
+                        ? {
+                              loading: shopifyMarketsLoading,
+                              options: shopifyMarkets,
+                              excludedMarkets: excludedShopifyMarkets,
+                              appliedExcludedMarkets: appliedExcludedShopifyMarkets,
+                              onToggleMarket: toggleShopifyMarket,
+                              onMenuWillOpen: syncDraftFromAppliedMarkets,
+                              onApplyMarkets: applyShopifyMarketFilters,
+                          }
+                        : null
+                }
+                adSpendPlatformFilter={
+                    shopifyMarketsFeatureOn && configuredAdSpendChannels.length > 0
+                        ? {
+                              options: configuredAdSpendChannels.map((c) => ({
+                                  id: c.id,
+                                  label: c.label,
+                              })),
+                              excludedPlatforms: draftExcludedPlatforms,
+                              appliedExcludedPlatforms,
+                              onTogglePlatform: toggleAdSpendPlatformDraft,
+                              onMenuWillOpen: syncDraftFromAppliedSpend,
+                              onApplySpend: applyAdSpendPlatformFilters,
+                          }
+                        : null
+                }
                 dataSnapshot={{
                     metrics,
                     metricsData,
                     dailyData: {
                         shopify: shopifyDaily,
                         facebook: facebookDaily,
-                        google: googleDaily
+                        google: googleDaily,
+                        pinterest: pinterestDaily,
+                        snapchat: snapchatDaily,
+                        bing: bingDaily,
+                        reddit: redditDaily,
                     },
                     aggregates: {
                         revenue: shopifyDaily.reduce((sum, d) => sum + (d.total_sales || 0), 0),
                         orders: shopifyDaily.reduce((sum, d) => sum + (d.orders || 0), 0),
-                        cost: [...facebookDaily, ...googleDaily].reduce((sum, d) => sum + (d.spend || 0), 0),
+                        cost: merged ? totalAdSpendFromMerged(merged) : 0,
                     },
                     revenueType: customer?.CustomerSettings?.customerRevenueType || 'total_sales',
                     metricPreference: customer?.CustomerSettings?.metricPreference || 'ROAS/POAS'
@@ -1350,15 +1595,14 @@ export default function PerformanceDashboard() {
                     metrics={metrics}
                     showCalcs={showCalcs}
                     shopifyDaily={shopifyDaily}
-                    facebookDaily={facebookDaily}
-                    googleDaily={googleDaily}
                     shopifyDailyPrev={shopifyDailyPrev}
-                    facebookDailyPrev={facebookDailyPrev}
-                    googleDailyPrev={googleDailyPrev}
+                    adChannelRowsCurr={channelRowsCurr}
+                    adChannelRowsPrev={channelRowsPrev}
                     appliedDateRange={appliedDateRange}
                     comparisonMethod={comparisonMethod}
                     aggregateBy={aggregateBy}
                     chartColors={chartColors}
+                    visibleSpendMetricKeys={visibleSpendMetricKeys}
                 />
             </div>
             )}

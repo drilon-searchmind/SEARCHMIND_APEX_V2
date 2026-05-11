@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import connectToDatabase from '../../../../lib/mongodb.js';
+import ParentCustomer from '@/models/ParentCustomer';
 import {
     createParentCustomer,
     getParentCustomers,
@@ -11,6 +13,17 @@ import {
 export async function GET(request) {
     try {
         const url = new URL(request.url);
+        if (url.searchParams.get('minimal') === '1') {
+            await connectToDatabase();
+            const rows = await ParentCustomer.find({})
+                .select('_id name')
+                .lean();
+            const list = rows.map((p) => ({
+                _id: String(p._id),
+                name: p.name || String(p._id),
+            }));
+            return NextResponse.json(list);
+        }
         const id = url.searchParams.get('id');
         if (id) {
             const parent = await getParentCustomerById(id);

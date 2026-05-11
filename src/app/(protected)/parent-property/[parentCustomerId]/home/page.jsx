@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import { useParams } from "next/navigation";
@@ -24,6 +24,11 @@ import {
     ParentEcommerceView,
 } from "./views";
 import { buildParentDailyRows } from "./utils/buildParentDailyRows";
+import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
+import { buildParentShopifyMarketOverridesJson, buildParentAdSpendPlatformOverridesJson } from "@/lib/parentPropertyShopifyMarketOverrides";
+import ParentChildShopifyMarketsActions from "./components/ParentChildShopifyMarketsActions";
+import ParentChildAdSpendPlatformsActions from "./components/ParentChildAdSpendPlatformsActions";
+import { adSpendChannelsConfigured } from "@/lib/mergeAdSpendDaily";
 
 function deriveDisplayedChildRow(row, shopifyRevenueField, groupMetricPreference) {
     const fm = row.fullMetrics;
@@ -79,8 +84,21 @@ export default function ParentPropertyHome() {
     const [loadingPhase, setLoadingPhase] = useState("parent"); // 'parent' | 'properties' | 'aggregating' | 'complete'
     const [progressItems, setProgressItems] = useState([]); // [{ id, name, status: 'loading'|'loaded', source?, shop? }]
     const [overlayFading, setOverlayFading] = useState(false); // true during fade-out before unmount
+    /** Per Shopify Markets child: catalog + draft/applied exclusions (Apply commits draft) */
+    const [groupMarketCatalogs, setGroupMarketCatalogs] = useState({});
+    const [groupMarketExcludedDraft, setGroupMarketExcludedDraft] = useState({});
+    const [groupMarketExcludedApplied, setGroupMarketExcludedApplied] = useState({});
+    /** Per Shopify Markets child: excluded platform ids (draft / applied) */
+    const [groupSpendExcludedDraft, setGroupSpendExcludedDraft] = useState({});
+    const [groupSpendExcludedApplied, setGroupSpendExcludedApplied] = useState({});
 
-    // Separate temp (input) and applied (fetch-triggered) date ranges
+    useEffect(() => {
+        setGroupMarketCatalogs({});
+        setGroupMarketExcludedDraft({});
+        setGroupMarketExcludedApplied({});
+        setGroupSpendExcludedDraft({});
+        setGroupSpendExcludedApplied({});
+    }, [parentCustomerId]);
     const today = new Date();
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, "0");
@@ -112,6 +130,107 @@ export default function ParentPropertyHome() {
         return ((current - prev) / Math.abs(prev)) * 100;
     }
 
+    const shopifyMarketOverridesParam = useMemo(
+        () =>
+            buildParentShopifyMarketOverridesJson(
+                childCustomers,
+                groupMarketCatalogs,
+                groupMarketExcludedApplied
+            ),
+        [childCustomers, groupMarketCatalogs, groupMarketExcludedApplied]
+    );
+
+    const adSpendPlatformOverridesParam = useMemo(
+        () =>
+            buildParentAdSpendPlatformOverridesJson(childCustomers, groupSpendExcludedApplied),
+        [childCustomers, groupSpendExcludedApplied]
+    );
+
+    const parentAggregatedQueryExtras = useMemo(() => {
+        const qs = [];
+        if (shopifyMarketOverridesParam && shopifyMarketOverridesParam.length > 0) {
+            qs.push(`shopifyMarketOverrides=${encodeURIComponent(shopifyMarketOverridesParam)}`);
+        }
+        if (adSpendPlatformOverridesParam && adSpendPlatformOverridesParam.length > 0) {
+            qs.push(`adSpendPlatformOverrides=${encodeURIComponent(adSpendPlatformOverridesParam)}`);
+        }
+        return qs.length > 0 ? `&${qs.join("&")}` : "";
+    }, [shopifyMarketOverridesParam, adSpendPlatformOverridesParam]);
+
+    const handleGroupMarketCatalogLoaded = useCallback((childId, list) => {
+        setGroupMarketCatalogs((prev) => ({ ...prev, [String(childId)]: list }));
+    }, []);
+
+    const handleGroupMarketToggleDraft = useCallback((childId, marketId, included) => {
+        setGroupMarketExcludedDraft((prev) => {
+            const cid = String(childId);
+            const next = { ...prev };
+            const cur = { ...(next[cid] || {}) };
+            if (included) delete cur[marketId];
+            else cur[marketId] = true;
+            if (Object.keys(cur).length === 0) delete next[cid];
+            else next[cid] = cur;
+            return next;
+        });
+    }, []);
+
+    const handleApplyMarketsForChild = useCallback((childId) => {
+        const cid = String(childId);
+        const draft = groupMarketExcludedDraft[cid];
+        setGroupMarketExcludedApplied((prev) => {
+            const next = { ...prev };
+            if (!draft || Object.keys(draft).length === 0) delete next[cid];
+            else next[cid] = { ...draft };
+            return next;
+        });
+    }, [groupMarketExcludedDraft]);
+
+    const handleMarketsMenuOpen = useCallback(
+        (childId) => {
+            const cid = String(childId);
+            setGroupMarketExcludedDraft((prev) => ({
+                ...prev,
+                [cid]: { ...(groupMarketExcludedApplied[cid] || {}) },
+            }));
+        },
+        [groupMarketExcludedApplied]
+    );
+
+    const handleGroupSpendToggleDraft = useCallback((childId, platformId, included) => {
+        setGroupSpendExcludedDraft((prev) => {
+            const cid = String(childId);
+            const next = { ...prev };
+            const cur = { ...(next[cid] || {}) };
+            if (included) delete cur[platformId];
+            else cur[platformId] = true;
+            if (Object.keys(cur).length === 0) delete next[cid];
+            else next[cid] = cur;
+            return next;
+        });
+    }, []);
+
+    const handleApplySpendForChild = useCallback((childId) => {
+        const cid = String(childId);
+        const draft = groupSpendExcludedDraft[cid];
+        setGroupSpendExcludedApplied((prev) => {
+            const next = { ...prev };
+            if (!draft || Object.keys(draft).length === 0) delete next[cid];
+            else next[cid] = { ...draft };
+            return next;
+        });
+    }, [groupSpendExcludedDraft]);
+
+    const handleSpendMenuOpen = useCallback(
+        (childId) => {
+            const cid = String(childId);
+            setGroupSpendExcludedDraft((prev) => ({
+                ...prev,
+                [cid]: { ...(groupSpendExcludedApplied[cid] || {}) },
+            }));
+        },
+        [groupSpendExcludedApplied]
+    );
+
     // Streaming aggregated fetch: parent + all children's merged data with progressive progress updates.
     useEffect(() => {
         setLoading(true);
@@ -124,7 +243,7 @@ export default function ParentPropertyHome() {
         (async () => {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-                const url = `${baseUrl}/api/parent-customers/${parentCustomerId}/aggregated?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&comparisonMethod=${encodeURIComponent(comparisonMethod)}&stream=1`;
+                const url = `${baseUrl}/api/parent-customers/${parentCustomerId}/aggregated?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&comparisonMethod=${encodeURIComponent(comparisonMethod)}&stream=1${parentAggregatedQueryExtras}`;
                 const res = await fetch(url);
                 if (!res.ok) throw new Error("Failed to fetch parent property data");
                 if (!res.body) throw new Error("Streaming not supported");
@@ -199,7 +318,7 @@ export default function ParentPropertyHome() {
                 setChartLoading(false);
             }
         })();
-    }, [parentCustomerId, appliedDateRange, comparisonMethod]);
+    }, [parentCustomerId, appliedDateRange, comparisonMethod, parentAggregatedQueryExtras]);
 
     // Filter data based on enabled properties
     const { filteredTableRows, filteredDailyData, metrics, metricsPrev, aggregatedMetrics, aggregatedMetricsPrev, filteredDailyRows, filteredDailyRowsPrev } = useMemo(() => {
@@ -476,6 +595,7 @@ export default function ParentPropertyHome() {
         handleDateRangeApply,
         handleStartDateChange,
         handleEndDateChange,
+        parentAggregatedQueryExtras,
     };
 
     // Render views with loading overlay
@@ -597,13 +717,62 @@ export default function ParentPropertyHome() {
                                                 )}
                                             </td>
                                             <td className="px-3 py-2 whitespace-nowrap">{row.aov ? row.aov.toLocaleString("da-DK", { style: "currency", currency: "DKK" }) : "-"}</td>
-                                            <td className="px-3 py-2 whitespace-nowrap flex gap-2">
-                                                <Link href={`/dashboard/${row._id}/performance-dashboard`}>
-                                                    <FormButton buttonSize="small" borderType="outline">View Dashboard</FormButton>
-                                                </Link>
-                                                <Link href={`/dashboard/${row._id}/config`}>
-                                                    <FormButton buttonSize="small" borderType="outline">Config</FormButton>
-                                                </Link>
+                                            <td className="px-3 py-2 align-middle text-right">
+                                                <div className="flex flex-wrap gap-2 justify-end items-center">
+                                                    {(() => {
+                                                        const childDoc = childCustomers.find(
+                                                            (c) => String(c._id) === String(row._id)
+                                                        );
+                                                        return isShopifyMarketsCustomer(childDoc) ? (
+                                                            <>
+                                                                <ParentChildShopifyMarketsActions
+                                                                    customerId={String(row._id)}
+                                                                    propertyLabel={row.customerName}
+                                                                    excludedMarkets={
+                                                                        groupMarketExcludedDraft[
+                                                                            String(row._id)
+                                                                        ] || {}
+                                                                    }
+                                                                    onToggleMarket={handleGroupMarketToggleDraft}
+                                                                    onCatalogLoaded={handleGroupMarketCatalogLoaded}
+                                                                    onApplyMarkets={() =>
+                                                                        handleApplyMarketsForChild(row._id)
+                                                                    }
+                                                                    onMenuWillOpen={() =>
+                                                                        handleMarketsMenuOpen(row._id)
+                                                                    }
+                                                                    fetchDisabled={loading}
+                                                                />
+                                                                <ParentChildAdSpendPlatformsActions
+                                                                    customerId={String(row._id)}
+                                                                    propertyLabel={row.customerName}
+                                                                    platforms={adSpendChannelsConfigured(
+                                                                        childDoc?.CustomerSettings || {}
+                                                                    ).map((c) => ({ id: c.id, label: c.label }))}
+                                                                    excludedPlatforms={
+                                                                        groupSpendExcludedDraft[
+                                                                            String(row._id)
+                                                                        ] || {}
+                                                                    }
+                                                                    onTogglePlatform={handleGroupSpendToggleDraft}
+                                                                    onApplySpend={() =>
+                                                                        handleApplySpendForChild(row._id)
+                                                                    }
+                                                                    onMenuWillOpen={() =>
+                                                                        handleSpendMenuOpen(row._id)
+                                                                    }
+                                                                    fetchDisabled={loading}
+                                                                />
+                                                            </>
+                                                        ) : null;
+                                                    })()}
+                                                    <Link href={`/dashboard/${row._id}/performance-dashboard`}>
+                                                        <FormButton buttonSize="small" borderType="outline">View Dashboard</FormButton>
+                                                    </Link>
+                                                    <Link href={`/dashboard/${row._id}/config`}>
+                                                        <FormButton buttonSize="small" borderType="outline">Config</FormButton>
+                                                    </Link>
+                                                </div>
                                             </td>
                                         </tr>
                                     );

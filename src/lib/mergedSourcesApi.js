@@ -1,24 +1,47 @@
 // src/lib/mergedSourcesApi.js
-import { shopifyqlQuery, discoverSalesFields } from './shopifyApi';
+import { shopifyqlQuery } from './shopifyApi';
+import { fetchBillingCountryUnionForSelectedMarkets } from './shopifyMarketsApi';
+import { metricsByDateToSpendDaily } from './mergeAdSpendDaily';
+import { fetchPinterestDashboardMetrics } from './pinterestApi';
+import { fetchSnapchatDashboardMetrics, resolveSnapchatAccessTokenForCustomer } from './snapchatApi';
+import { normalizeSnapchatSettings } from './snapchatCustomerSettings';
+import { fetchBingAdsDashboardMetrics, isMicrosoftAdvertisingConfigured } from './microsoftAdvertisingApi';
+import { fetchRedditDashboardMetrics, resolveRedditAccessTokenForCustomer } from './redditApi';
+import { normalizeRedditSettings } from './redditCustomerSettings';
 import { fetchWooCommerceOrders } from './wooCommerceApi';
 import { fetchMagentoPerformanceDaily } from './magentoPerformanceDashboardApi';
 import { fetchFacebookAdsInsights } from './facebookApi';
 import { fetchGoogleAdsMetrics } from './googleAdsApi';
 import currencyApiValues from './static-data/currencyApiValues.json';
+import { isAdSpendPlatformConfigured } from './customerServiceIntegrations';
+import { AD_SPEND_CHANNELS } from './mergeAdSpendDaily';
 
 /**
- * Fetches and merges revenue (Shopify/WooCommerce), Facebook adspend, and Google Ads adspend for a customer.
+ * Fetches and merges revenue (Shopify/WooCommerce), Facebook, Google, and optional Pinterest, Snapchat, Microsoft, Reddit adspend for a customer.
  * @param {object} settings - Customer settings object containing all required credentials and customerType.
  * @param {string} startDate - Start date (YYYY-MM-DD)
  * @param {string} endDate - End date (YYYY-MM-DD)
  * @param {object} [options] - Optional settings
  * @param {boolean} [options.dailyBreakdown] - If true, Facebook uses time_increment for daily rows (parent-property)
  * @param {string} [options.source] - Caller id (e.g. merged-sources query); does not change Magento fetch path
+ * @param {boolean} [options.shopifyMarketNoSelection] - When true (no markets selected in UI), skip ShopifyQL and return empty revenue rows.
+ * @param {Array<{ shopifyqlMarketId: string, handle?: string }>} [options.shopifyMarketsSelection] - When set and shopifyMarketsEnabled: restrict sales to the union of each market's region countries via ShopifyQL `billing_country`. Omit for all markets.
+ * @param {string[]} [options.excludeAdSpendPlatforms] - e.g. `['facebook','google']` — skip fetching those platforms (empty daily rows).
  * @returns {Promise<object>} - { shopifyDaily, facebookDaily, googleDaily, ... }
  */
 
 export async function fetchMergedSources(settings, startDate, endDate, options = {}) {
     const FACEBOOK_APP_TOKEN = process.env.FACEBOOK_APP_TOKEN;
+    /** @type {Set<string>} */
+    const excludedSpend = new Set(
+        Array.isArray(options.excludeAdSpendPlatforms)
+            ? options.excludeAdSpendPlatforms.filter((id) =>
+                  AD_SPEND_CHANNELS.some((c) => c.id === id)
+              )
+            : []
+    );
+    const includeSpend = (platformId) =>
+        excludedSpend.size === 0 || !excludedSpend.has(platformId);
 
     // Determine customer type and fetch appropriate e-commerce data
     let shopifyDaily = [];
@@ -26,46 +49,85 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
 
     try {
         if (customerType === 'Shopify' && settings.shopifyUrl && settings.shopifyApiPassword) {
-            // Build ShopifyQL query with optional currency grouping for multi-domain Shopify stores
-            let shopifyql;
-            
-            // Check if fetchCogsFromStore is enabled
             const fetchCogs = settings.fetchCogsFromStore === true;
-            
-            // Build the SHOW clause - include cost_of_goods_sold if fetchCogs is enabled
             const showFields = fetchCogs 
                 ? 'orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales, cost_of_goods_sold'
                 : 'orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales';
-            
-            // Billing country filter: include and/or exclude (optional, only when changeCurrency)
+
+            // Billing-country filter is disabled when Shopify Markets mode is on (full-store rollup; optional subset via shopifyMarketsSelection).
+            const shopifyMarketsOn = settings.shopifyMarketsEnabled === true;
+            const marketNoSelection =
+                shopifyMarketsOn && options.shopifyMarketNoSelection === true;
+            const marketsSelection = Array.isArray(options.shopifyMarketsSelection)
+                ? options.shopifyMarketsSelection.filter(
+                      (m) => m && String(m.shopifyqlMarketId || "").trim() !== ""
+                  )
+                : [];
+
+            if (marketNoSelection) {
+                shopifyDaily = [];
+            } else {
             const parseCountries = (s) => (typeof s === 'string' ? s.split(',').map((c) => c.trim()).filter(Boolean) : []);
             const includeCountries = parseCountries(settings.changeCurrencyShopifyBillingCountryName);
             const excludeCountries = parseCountries(settings.changeCurrencyShopifyBillingCountryExclude);
             const hasInclude = includeCountries.length > 0;
             const hasExclude = excludeCountries.length > 0;
-            const hasBillingFilter = settings.changeCurrency === true && settings.customerStoreValutaCode && (hasInclude || hasExclude);
+            const hasBillingFilter =
+                !shopifyMarketsOn &&
+                settings.changeCurrency === true &&
+                settings.customerStoreValutaCode &&
+                (hasInclude || hasExclude);
 
+            const escape = (c) => String(c).replace(/'/g, "''");
+            const whereParts = [];
             if (hasBillingFilter) {
-                const escape = (c) => String(c).replace(/'/g, "''");
                 const includeClause = hasInclude
                     ? `(${includeCountries.map((c) => `billing_country = '${escape(c)}'`).join(' OR ')})`
                     : null;
                 const excludeClause = hasExclude
                     ? `NOT (${excludeCountries.map((c) => `billing_country = '${escape(c)}'`).join(' OR ')})`
                     : null;
-                const whereParts = [includeClause, excludeClause].filter(Boolean);
-                const whereClause = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '';
-                shopifyql = `
+                if (includeClause) whereParts.push(includeClause);
+                if (excludeClause) whereParts.push(excludeClause);
+            }
+
+            /** No region countries resolved for selected markets (e.g. non-region market types) — skip ShopifyQL */
+            let emptyShopifyNoMarketCountries = false;
+            if (shopifyMarketsOn && marketsSelection.length > 0) {
+                try {
+                    const marketCountryNames = await fetchBillingCountryUnionForSelectedMarkets(
+                        settings.shopifyUrl,
+                        settings.shopifyApiPassword,
+                        marketsSelection.map((m) => m.shopifyqlMarketId)
+                    );
+                    if (marketCountryNames.length === 0) {
+                        emptyShopifyNoMarketCountries = true;
+                        console.warn(
+                            `[Shopify] Markets filter: no region countries from Admin API for selected market(s). If these are company/B2B-only markets, region-based billing filters do not apply.`
+                        );
+                    } else {
+                        whereParts.push(
+                            `(${marketCountryNames
+                                .map((c) => `billing_country = '${escape(c)}'`)
+                                .join(' OR ')})`
+                        );
+                    }
+                } catch (e) {
+                    console.error('[Shopify] Markets filter: failed to load region countries:', e);
+                    emptyShopifyNoMarketCountries = true;
+                }
+            }
+
+            if (emptyShopifyNoMarketCountries) {
+                shopifyDaily = [];
+            } else {
+            const whereClause = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '';
+
+            const shopifyql = `
                     FROM sales 
                     SHOW ${showFields}
                     ${whereClause}
                     GROUP BY day SINCE ${startDate} UNTIL ${endDate}`;
-            } else {
-                shopifyql = `
-                    FROM sales 
-                    SHOW ${showFields}
-                    GROUP BY day SINCE ${startDate} UNTIL ${endDate}`;
-            }
             
             console.log(`[Shopify] Fetching for customer: ${settings.customerName || 'Unknown'}, shop: ${settings.shopifyUrl}`);
             const shopifyRes = await shopifyqlQuery(settings.shopifyUrl, settings.shopifyApiPassword, shopifyql);
@@ -115,6 +177,8 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 
                 return baseData;
             }).sort((a, b) => a.period.localeCompare(b.period));
+            }
+            }
         } else if (customerType === 'WooCommerce' && settings.wooCommerceApiKey && settings.wooCommerceApiSecret) {
             console.log("::: FETCHING WOOCOMMERCE DATA :::");
             console.log("Customer:", settings.customerName || 'Unknown', "- Date range:", { startDate, endDate });
@@ -201,7 +265,11 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
     // Facebook daily
     let facebookDaily = [];
     try {
-        if (settings.facebookAdAccountId && FACEBOOK_APP_TOKEN) {
+        if (
+            includeSpend("facebook") &&
+            isAdSpendPlatformConfigured(settings, "facebook") &&
+            FACEBOOK_APP_TOKEN
+        ) {
             const fbRes = await fetchFacebookAdsInsights(
                 settings.facebookAdAccountId,
                 settings.customerMetaID,
@@ -225,7 +293,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
     // Google daily
     let googleDaily = [];
     try {
-        if (settings.googleAdsCustomerId) {
+        if (includeSpend("google") && isAdSpendPlatformConfigured(settings, "google")) {
             const googleResponse = await fetchGoogleAdsMetrics(
                 settings.googleAdsCustomerId,
                 startDate,
@@ -262,6 +330,96 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
         googleDaily = [];
     }
 
+    let pinterestDaily = [];
+    try {
+        const pinAccountId = (settings.pinterestAdAccountId || '').trim();
+        const pinToken = (process.env.PINTEREST_ACCESS_TOKEN || '').trim();
+        if (
+            includeSpend("pinterest") &&
+            pinAccountId &&
+            pinToken &&
+            isAdSpendPlatformConfigured(settings, "pinterest")
+        ) {
+            const pinDash = await fetchPinterestDashboardMetrics({
+                accessToken: pinToken,
+                adAccountId: pinAccountId,
+                startDate,
+                endDate,
+            });
+            pinterestDaily = metricsByDateToSpendDaily(pinDash.metrics_by_date);
+        }
+    } catch (err) {
+        console.error('Pinterest Ads error:', err);
+        pinterestDaily = [];
+    }
+
+    let snapchatDaily = [];
+    try {
+        const snap = normalizeSnapchatSettings(settings);
+        const snapAdId = (snap.adAccountId || '').trim();
+        if (includeSpend("snapchat") && snapAdId && isAdSpendPlatformConfigured(settings, "snapchat")) {
+            const snapToken = await resolveSnapchatAccessTokenForCustomer(snap);
+            if (snapToken) {
+                const snapDash = await fetchSnapchatDashboardMetrics({
+                    accessToken: snapToken,
+                    adAccountId: snapAdId,
+                    startDate,
+                    endDate,
+                });
+                snapchatDaily = metricsByDateToSpendDaily(snapDash.metrics_by_date);
+            }
+        }
+    } catch (err) {
+        console.error('Snapchat Ads error:', err);
+        snapchatDaily = [];
+    }
+
+    let bingDaily = [];
+    try {
+        const msCustomerId = (settings.bingAdsCustomerId || '').trim();
+        const msAccountId = (settings.bingAdsAccountId || '').trim();
+        if (
+            msCustomerId &&
+            msAccountId &&
+            isMicrosoftAdvertisingConfigured() &&
+            isAdSpendPlatformConfigured(settings, "bing") &&
+            includeSpend("bing")
+        ) {
+            const bingDash = await fetchBingAdsDashboardMetrics({
+                customerId: msCustomerId,
+                accountId: msAccountId,
+                startDate,
+                endDate,
+            });
+            bingDaily = metricsByDateToSpendDaily(bingDash.metrics_by_date);
+        }
+    } catch (err) {
+        console.error('Microsoft Advertising error:', err);
+        bingDaily = [];
+    }
+
+    let redditDaily = [];
+    try {
+        const red = normalizeRedditSettings(settings);
+        const redditAcc = (red.accountId || '').trim();
+        if (includeSpend("reddit") && redditAcc && isAdSpendPlatformConfigured(settings, "reddit")) {
+            const redditToken = await resolveRedditAccessTokenForCustomer(red);
+            if (redditToken) {
+                const redditDash = await fetchRedditDashboardMetrics({
+                    accessToken: redditToken,
+                    accountId: redditAcc,
+                    startDate,
+                    endDate,
+                    redditUsername: red.redditUsername,
+                });
+                redditDaily = metricsByDateToSpendDaily(redditDash.metrics_by_date);
+            }
+        }
+    } catch (err) {
+        console.error('Reddit Ads error:', err);
+        redditDaily = [];
+    }
+
     // Calculate aggregates for metrics
     const totalSales = shopifyDaily.reduce((sum, d) => sum + (d.total_sales || 0), 0);
     const netRevenue = shopifyDaily.reduce((sum, d) => sum + (d.net_sales || 0), 0);
@@ -284,10 +442,15 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
     
     const fbAdspend = facebookDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
     const googleAdspend = googleDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
+    const pinterestAdspend = pinterestDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
+    const snapchatAdspend = snapchatDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
+    const bingAdspend = bingDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
+    const redditAdspend = redditDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
+    const otherPaidAdspend = pinterestAdspend + snapchatAdspend + bingAdspend + redditAdspend;
     // Gross Profit (Net Profit) = Net Revenue - COGS
     const grossProfitTotalSales = totalSales - totalCogs;
     const grossProfitNetSales = netRevenue - totalCogsForNet;
-    const totalAdspend = fbAdspend + googleAdspend;
+    const totalAdspend = fbAdspend + googleAdspend + otherPaidAdspend;
     const POASTotalSales = totalAdspend !== 0 ? grossProfitTotalSales / totalAdspend : 0;
 
     // Calculate number of days in range (inclusive)
@@ -317,8 +480,8 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
         = ${fmt(netRevenue)} - ${fmt(totalCogsForNet)} \n
         = ${fmt(grossProfitNetSales)}
     `;
-    const totalAdspendCalculation = `Facebook Adspend + Google Adspend \n
-        = ${fmt(fbAdspend)} + ${fmt(googleAdspend)} \n
+    const totalAdspendCalculation = `Facebook + Google + Pinterest + Snapchat + Microsoft + Reddit \n
+        = ${fmt(fbAdspend)} + ${fmt(googleAdspend)} + ${fmt(otherPaidAdspend)} \n
         = ${fmt(totalAdspend)}
     `;
     const POASNetProfit = totalAdspend !== 0 ? grossProfitNetSales / totalAdspend : 0;
@@ -327,22 +490,25 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
         = ${POASNetProfit.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
     ` : 'N/A';
     const cacCalculation = orders > 0 ? `(Marketing Spend / Orders) \n
-        = (${fmt(fbAdspend)} + ${fmt(googleAdspend)}) / ${orders} \n
         = ${fmt(totalAdspend)} / ${orders} \n
         = ${fmt(CACTotalSales)}
     ` : 'N/A';
 
     const calculationsValueLabels = {
         grossProfit: `Net Revenue: ${fmt(netRevenue)}\nCOGS: ${fmt(totalCogsForNet)}`,
-        spend: `Google Adspend: ${fmt(googleAdspend)}\nFB Adspend: ${fmt(fbAdspend)}`,
+        spend: `Google: ${fmt(googleAdspend)}\nFacebook: ${fmt(fbAdspend)}\nOther paid: ${fmt(otherPaidAdspend)}`,
         poas: `Net Profit: ${fmt(grossProfitNetSales)}\nCost: ${fmt(totalAdspend)}`,
-        cac: `Google Adspend: ${fmt(googleAdspend)}\nFB Adspend: ${fmt(fbAdspend)}\nOrders: ${orders}`,
+        cac: `Paid media total: ${fmt(totalAdspend)}\nOrders: ${orders}`,
     };
 
     return {
         shopifyDaily,
         facebookDaily,
         googleDaily,
+        pinterestDaily,
+        snapchatDaily,
+        bingDaily,
+        redditDaily,
         grossProfitTotalSales,
         grossProfitNetSales,
         POASTotalSales,

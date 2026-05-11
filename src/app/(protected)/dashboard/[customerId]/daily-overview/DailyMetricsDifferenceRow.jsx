@@ -33,8 +33,16 @@ export default function DailyMetricsDifferenceRow({
 		<tr className="bg-amber-50/50 font-medium border-t border-b border-gray-200">
 			<td className="px-3 py-2 whitespace-nowrap">Difference</td>
 			{visibleCols.map((m) => {
-				const { diff: val, formatted } = diff[m.key];
 				const borderCls = getBorderLClass(m.key);
+				const cell = diff[m.key];
+				if (!cell) {
+					return (
+						<td key={m.key} className={`px-3 py-2 whitespace-nowrap text-gray-500${borderCls}`}>
+							—
+						</td>
+					);
+				}
+				const { diff: val, formatted } = cell;
 
 				if (val === 0) {
 					return (

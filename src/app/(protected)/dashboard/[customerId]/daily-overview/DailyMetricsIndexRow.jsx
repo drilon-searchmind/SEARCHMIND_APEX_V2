@@ -33,8 +33,16 @@ export default function DailyMetricsIndexRow({
 		<tr className="bg-slate-50/80 font-medium border-t border-b border-gray-200">
 			<td className="px-3 py-2 whitespace-nowrap">Index</td>
 			{visibleCols.map((m) => {
-				const { index, formatted } = indexData[m.key];
 				const borderCls = getBorderLClass(m.key);
+				const idxCell = indexData[m.key];
+				if (!idxCell) {
+					return (
+						<td key={m.key} className={`px-3 py-2 whitespace-nowrap text-gray-500${borderCls}`}>
+							—
+						</td>
+					);
+				}
+				const { index, formatted } = idxCell;
 
 				if (index == null) {
 					return (
