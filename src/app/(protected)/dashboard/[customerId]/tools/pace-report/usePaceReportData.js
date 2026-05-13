@@ -7,7 +7,13 @@ import {
 	adSpendChannelsForSpendTotals,
 } from '@/lib/mergeAdSpendDaily';
 
-export function usePaceReportData(customer, objectives, appliedDateRange, mergedSourcesQuerySuffix = '') {
+export function usePaceReportData(
+	customer,
+	objectives,
+	appliedDateRange,
+	mergedSourcesQuerySuffix = '',
+	paceChannelSpecs = null
+) {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 	const [costData, setCostData] = useState([]);
@@ -51,10 +57,13 @@ export function usePaceReportData(customer, objectives, appliedDateRange, merged
 					return { period, spend: Number(cumulative.toFixed(2)) };
 				});
 				setCostData(costDaily);
-				const visibleSpendChannels = adSpendChannelsForSpendTotals(
-					customer?.CustomerSettings,
-					channelSpendTotalsFromMerged(merged)
-				);
+				const visibleSpendChannels =
+					paceChannelSpecs != null
+						? paceChannelSpecs
+						: adSpendChannelsForSpendTotals(
+								customer?.CustomerSettings,
+								channelSpendTotalsFromMerged(merged)
+						  );
 				setCostByChannelSeries(
 					buildChannelCumulativeSpendSeriesForPace(
 						merged,
@@ -218,7 +227,7 @@ export function usePaceReportData(customer, objectives, appliedDateRange, merged
 				setLoading(false);
 			}
 		})();
-	}, [customer, objectives, appliedDateRange, mergedSourcesQuerySuffix]);
+	}, [customer, objectives, appliedDateRange, mergedSourcesQuerySuffix, paceChannelSpecs]);
 
 	return {
 		loading,

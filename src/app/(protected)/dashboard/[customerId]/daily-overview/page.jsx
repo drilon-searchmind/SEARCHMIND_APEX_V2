@@ -69,7 +69,7 @@ const DailyOverviewPage = () => {
     } = useShopifyMarketsFilter(customer, params.customerId);
 
     const {
-        configuredAdSpendChannels,
+        adSpendFilterUiChannels,
         draftExcludedPlatforms,
         appliedExcludedPlatforms,
         toggleAdSpendPlatformDraft,
@@ -79,6 +79,17 @@ const DailyOverviewPage = () => {
     } = useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn);
 
     const mergedSourcesQuerySuffix = `${marketQuerySuffix}${spendQuerySuffix}`;
+
+    const marketsSpendColumns = useMemo(
+        () =>
+            shopifyMarketsFeatureOn
+                ? {
+                      shopifyMarkets: true,
+                      appliedExcludedPlatforms,
+                  }
+                : null,
+        [shopifyMarketsFeatureOn, appliedExcludedPlatforms]
+    );
 
     const {
         rows,
@@ -90,7 +101,7 @@ const DailyOverviewPage = () => {
         revenueTypeState,
         customerMetricPreference,
         visibleMarketingColumnKeys,
-    } = useDailyOverviewData(customer, appliedDateRange, mergedSourcesQuerySuffix);
+    } = useDailyOverviewData(customer, appliedDateRange, mergedSourcesQuerySuffix, marketsSpendColumns);
 
     const [hoveredRowIndex, setHoveredRowIndex] = useState(null);
     const [hoveredRowTable, setHoveredRowTable] = useState(null);
@@ -229,9 +240,9 @@ const DailyOverviewPage = () => {
                         : null
                 }
                 adSpendPlatformFilter={
-                    shopifyMarketsFeatureOn && configuredAdSpendChannels.length > 0
+                    shopifyMarketsFeatureOn && adSpendFilterUiChannels.length > 0
                         ? {
-                              options: configuredAdSpendChannels.map((c) => ({
+                              options: adSpendFilterUiChannels.map((c) => ({
                                   id: c.id,
                                   label: c.label,
                               })),

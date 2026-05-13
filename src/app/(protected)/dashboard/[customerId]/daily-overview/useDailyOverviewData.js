@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
-import { adSpendByPeriodMap, channelDailyRowsFromMerged, adSpendChannelsForDashboard } from '@/lib/mergeAdSpendDaily';
+import {
+	adSpendByPeriodMap,
+	channelDailyRowsFromMerged,
+	adSpendChannelsForDashboard,
+	adSpendChannelsForShopifyMarketsFilterUi,
+} from '@/lib/mergeAdSpendDaily';
 
 async function fetchPeriodData(customerId, startDate, endDate, mergedSourcesQuerySuffix = '') {
 	const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -123,7 +128,18 @@ function buildPrevPeriodRows(mergedPrev, customer, revenueType) {
 	}));
 }
 
-export function useDailyOverviewData(customer, appliedDateRange, mergedSourcesQuerySuffix = '') {
+/**
+ * @param {object|null} customer
+ * @param {{ startDate: string, endDate: string }} appliedDateRange
+ * @param {string} [mergedSourcesQuerySuffix]
+ * @param {{ shopifyMarkets: boolean, appliedExcludedPlatforms: Record<string, boolean|true> }} [marketsSpendColumns] — when set, marketing column visibility follows Spend filter (Shopify Markets) instead of spend thresholds.
+ */
+export function useDailyOverviewData(
+	customer,
+	appliedDateRange,
+	mergedSourcesQuerySuffix = '',
+	marketsSpendColumns = null
+) {
 	const [revenueTypeState, setRevenueTypeState] = useState('total_sales');
 	const [customerMetricPreference, setCustomerMetricPreference] =
 		useState('ROAS/POAS');
@@ -185,11 +201,23 @@ export function useDailyOverviewData(customer, appliedDateRange, mergedSourcesQu
 				);
 				setRowsPrev(dailyRowsPrev);
 
-				const spendCols = adSpendChannelsForDashboard(
-					customer?.CustomerSettings,
-					merged,
-					mergedPrev
-				).map((s) => s.dailyOverviewColumnKey);
+				const spendCols = (() => {
+					const ms = marketsSpendColumns;
+					if (
+						ms?.shopifyMarkets &&
+						customer?.CustomerSettings?.shopifyMarketsEnabled === true
+					) {
+						const ex = ms.appliedExcludedPlatforms || {};
+						return adSpendChannelsForShopifyMarketsFilterUi(customer.CustomerSettings)
+							.filter((c) => ex[c.id] !== true)
+							.map((s) => s.dailyOverviewColumnKey);
+					}
+					return adSpendChannelsForDashboard(
+						customer?.CustomerSettings,
+						merged,
+						mergedPrev
+					).map((s) => s.dailyOverviewColumnKey);
+				})();
 				setVisibleMarketingColumnKeys(spendCols);
 
 				setLoadingLastYear(true);
@@ -225,7 +253,7 @@ export function useDailyOverviewData(customer, appliedDateRange, mergedSourcesQu
 				setLoading(false);
 			}
 		})();
-	}, [customer, appliedDateRange, mergedSourcesQuerySuffix]);
+	}, [customer, appliedDateRange, mergedSourcesQuerySuffix, marketsSpendColumns]);
 
 	return {
 		rows,

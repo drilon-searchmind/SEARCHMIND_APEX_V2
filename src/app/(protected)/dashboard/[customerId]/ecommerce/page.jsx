@@ -13,7 +13,7 @@ import { useAdSpendPlatformsFilter } from '@/hooks/useAdSpendPlatformsFilter';
 import ProductPerfomance from './components/ProductPerfomance';
 import CustomerPerformance from './components/CustomerPerformance';
 import { pushDashboardDateRangeApplied, pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
-import { adSpendChannelsForSpendTotals } from '@/lib/mergeAdSpendDaily';
+import { adSpendChannelsForSpendTotals, adSpendChannelsForShopifyMarketsFilterUi } from '@/lib/mergeAdSpendDaily';
 
 const TABS = [
     { id: 'products', label: 'Product Performance', icon: FiPackage },
@@ -56,7 +56,7 @@ export default function EcommercePage() {
     } = useShopifyMarketsFilter(customer, customerId);
 
     const {
-        configuredAdSpendChannels,
+        adSpendFilterUiChannels,
         draftExcludedPlatforms,
         appliedExcludedPlatforms,
         toggleAdSpendPlatformDraft,
@@ -86,11 +86,16 @@ export default function EcommercePage() {
 
     const visibleAdSpendChannels = useMemo(() => {
         if (!customer?.CustomerSettings || !segmentation?.adSpendByChannel) return null;
+        if (shopifyMarketsFeatureOn && customer?.CustomerSettings?.shopifyMarketsEnabled === true) {
+            return adSpendChannelsForShopifyMarketsFilterUi(customer.CustomerSettings).filter(
+                (c) => appliedExcludedPlatforms[c.id] !== true
+            );
+        }
         return adSpendChannelsForSpendTotals(
             customer.CustomerSettings,
             segmentation.adSpendByChannel
         );
-    }, [customer?.CustomerSettings, segmentation?.adSpendByChannel]);
+    }, [customer?.CustomerSettings, segmentation?.adSpendByChannel, shopifyMarketsFeatureOn, appliedExcludedPlatforms]);
 
     const setActiveTab = (tab) => {
         setActiveTabState(tab);
@@ -311,9 +316,9 @@ export default function EcommercePage() {
                         : null
                 }
                 adSpendPlatformFilter={
-                    shopifyMarketsFeatureOn && configuredAdSpendChannels.length > 0
+                    shopifyMarketsFeatureOn && adSpendFilterUiChannels.length > 0
                         ? {
-                              options: configuredAdSpendChannels.map((c) => ({
+                              options: adSpendFilterUiChannels.map((c) => ({
                                   id: c.id,
                                   label: c.label,
                               })),

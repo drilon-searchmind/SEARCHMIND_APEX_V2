@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
-import { totalAdSpendFromMerged, channelSpendTotalsFromMerged, adSpendChannelsForSpendTotals } from "@/lib/mergeAdSpendDaily";
+import { totalAdSpendFromMerged, channelSpendTotalsFromMerged, adSpendChannelsForSpendTotals, adSpendChannelsForShopifyMarketsFilterUi } from "@/lib/mergeAdSpendDaily";
 
 /**
  * Fetches merged data (current + previous period) and computes all P&L metrics.
@@ -11,7 +11,13 @@ import { totalAdSpendFromMerged, channelSpendTotalsFromMerged, adSpendChannelsFo
  * LEVEL 3 (DB3): DB2 - Marketing Costs (Ad Spend + Bureau + Tooling)
  * RESULT: DB3 - Fixed Expenses (Net Profit/Loss)
  */
-export function usePnlData(customer, appliedDateRange, comparisonMethod, mergedSourcesQuerySuffix = "") {
+export function usePnlData(
+    customer,
+    appliedDateRange,
+    comparisonMethod,
+    mergedSourcesQuerySuffix = "",
+    pnlMarketsSpend = null
+) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [merged, setMerged] = useState(null);
@@ -152,11 +158,16 @@ export function usePnlData(customer, appliedDateRange, comparisonMethod, mergedS
 
     const visibleAdSpendChannels =
         merged && days > 0
-            ? adSpendChannelsForSpendTotals(
-                  customer?.CustomerSettings,
-                  channelSpendTotals,
-                  mergedPrev ? channelSpendTotalsPrev : undefined
-              )
+            ? pnlMarketsSpend?.shopifyMarkets === true &&
+              customer?.CustomerSettings?.shopifyMarketsEnabled === true
+                ? adSpendChannelsForShopifyMarketsFilterUi(customer.CustomerSettings).filter(
+                      (c) => pnlMarketsSpend.appliedExcludedPlatforms?.[c.id] !== true
+                  )
+                : adSpendChannelsForSpendTotals(
+                      customer?.CustomerSettings,
+                      channelSpendTotals,
+                      mergedPrev ? channelSpendTotalsPrev : undefined
+                  )
             : [];
 
     return {

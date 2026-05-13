@@ -59,9 +59,10 @@ export function buildParentAdSpendPlatformOverridesJson(childCustomers, excluded
         if (c.customerType !== "Shopify" || c.CustomerSettings?.shopifyMarketsEnabled !== true) continue;
         const id = String(c._id);
         const exMap = excludedPlatformsByChildId[id] || {};
-        const excludedIds = Object.keys(exMap).filter((k) => exMap[k] === true);
-        if (excludedIds.length > 0) {
-            out[id] = { exclude: excludedIds };
+        const userExcluded = Object.keys(exMap).filter((k) => exMap[k] === true);
+        const mergedExclude = [...new Set([...userExcluded, "reddit"])];
+        if (mergedExclude.length > 0) {
+            out[id] = { exclude: mergedExclude };
         }
     }
 

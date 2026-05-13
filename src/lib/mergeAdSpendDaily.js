@@ -71,6 +71,12 @@ export function adSpendByPeriodMap(merged) {
  * Canonical paid-media channels: merge-sources keys → UI / metricsData keys.
  * `bucketKey` is used in `aggregateShopifyAndAdSpendByPeriodFromRows` per-period buckets.
  */
+/** In Shopify Markets mode, these channels are included in spend aggregates by default (others are opt-in). */
+export const SHOPIFY_MARKETS_DEFAULT_ACTIVE_AD_SPEND_IDS = new Set(["facebook", "google"]);
+
+/** Hidden from the Spend filter UI in Shopify Markets dashboards (Reddit disabled for now). */
+export const AD_SPEND_HIDDEN_FROM_MARKETS_FILTER_UI_IDS = new Set(["reddit"]);
+
 export const AD_SPEND_CHANNELS = [
     {
         id: "facebook",
@@ -141,6 +147,35 @@ export const AD_SPEND_DAILY_COLUMN_KEYS = AD_SPEND_CHANNELS.map(
 export function adSpendChannelsConfigured(settings) {
     if (!settings) return [];
     return AD_SPEND_CHANNELS.filter((c) => isAdSpendPlatformConfigured(settings, c.id));
+}
+
+/**
+ * Spend filter checkboxes in Shopify Markets views (configured integrations minus disabled e.g. Reddit).
+ * @param {Record<string, unknown>|null|undefined} settings - CustomerSettings
+ * @returns {typeof AD_SPEND_CHANNELS[number][]}
+ */
+export function adSpendChannelsForShopifyMarketsFilterUi(settings) {
+    return adSpendChannelsConfigured(settings).filter(
+        (c) => !AD_SPEND_HIDDEN_FROM_MARKETS_FILTER_UI_IDS.has(c.id)
+    );
+}
+
+/**
+ * Default “excluded from aggregate” map for Shopify Markets: only Meta + Google stay on;
+ * other configured channels (except UI-disabled ones like Reddit) start excluded.
+ * @param {Record<string, unknown>|null|undefined} settings - CustomerSettings
+ * @returns {Record<string, true>}
+ */
+export function buildDefaultExcludedAdSpendPlatformsForShopifyMarkets(settings) {
+    /** @type {Record<string, true>} */
+    const excluded = {};
+    for (const c of adSpendChannelsConfigured(settings)) {
+        if (AD_SPEND_HIDDEN_FROM_MARKETS_FILTER_UI_IDS.has(c.id)) continue;
+        if (!SHOPIFY_MARKETS_DEFAULT_ACTIVE_AD_SPEND_IDS.has(c.id)) {
+            excluded[c.id] = true;
+        }
+    }
+    return excluded;
 }
 
 /**

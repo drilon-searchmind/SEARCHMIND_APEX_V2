@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { useCustomers } from '@/hooks/useCustomers';
 import DashboardHeading from '@/components/dashboard/DashboardHeading';
@@ -13,6 +13,7 @@ import RevenuePaceSection from './RevenuePaceSection';
 import { pushDashboardDateRangeApplied, pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
 import { useShopifyMarketsFilter } from '@/hooks/useShopifyMarketsFilter';
 import { useAdSpendPlatformsFilter } from '@/hooks/useAdSpendPlatformsFilter';
+import { adSpendChannelsForShopifyMarketsFilterUi } from '@/lib/mergeAdSpendDaily';
 
 export default function PaceReportPage() {
 	const params = useParams();
@@ -69,7 +70,7 @@ export default function PaceReportPage() {
 	} = useShopifyMarketsFilter(customer, params.customerId);
 
 	const {
-		configuredAdSpendChannels,
+		adSpendFilterUiChannels,
 		draftExcludedPlatforms,
 		appliedExcludedPlatforms,
 		toggleAdSpendPlatformDraft,
@@ -79,6 +80,18 @@ export default function PaceReportPage() {
 	} = useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn);
 
 	const mergedSourcesQuerySuffix = `${marketQuerySuffix}${spendQuerySuffix}`;
+
+	const paceChannelSpecs = useMemo(() => {
+		if (
+			!shopifyMarketsFeatureOn ||
+			customer?.CustomerSettings?.shopifyMarketsEnabled !== true
+		) {
+			return null;
+		}
+		return adSpendChannelsForShopifyMarketsFilterUi(customer.CustomerSettings).filter(
+			(c) => appliedExcludedPlatforms[c.id] !== true
+		);
+	}, [shopifyMarketsFeatureOn, customer?.CustomerSettings, appliedExcludedPlatforms]);
 
 	const {
 		loading,
@@ -90,7 +103,7 @@ export default function PaceReportPage() {
 		conversionValueData,
 		conversionBudget,
 		conversionPaceAnalysis,
-	} = usePaceReportData(customer, objectives, appliedDateRange, mergedSourcesQuerySuffix);
+	} = usePaceReportData(customer, objectives, appliedDateRange, mergedSourcesQuerySuffix, paceChannelSpecs);
 
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const [localObjectives, setLocalObjectives] = useState({});
@@ -182,9 +195,9 @@ export default function PaceReportPage() {
 						: null
 				}
 				adSpendPlatformFilter={
-					shopifyMarketsFeatureOn && configuredAdSpendChannels.length > 0
+					shopifyMarketsFeatureOn && adSpendFilterUiChannels.length > 0
 						? {
-								options: configuredAdSpendChannels.map((c) => ({
+								options: adSpendFilterUiChannels.map((c) => ({
 									id: c.id,
 									label: c.label,
 								})),

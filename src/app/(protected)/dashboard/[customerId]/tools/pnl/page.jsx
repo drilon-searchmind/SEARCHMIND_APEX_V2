@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useCustomers } from "@/hooks/useCustomers";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
@@ -60,7 +60,7 @@ export default function PNLPage() {
     } = useShopifyMarketsFilter(customer, params.customerId);
 
     const {
-        configuredAdSpendChannels,
+        adSpendFilterUiChannels,
         draftExcludedPlatforms,
         appliedExcludedPlatforms,
         toggleAdSpendPlatformDraft,
@@ -71,7 +71,21 @@ export default function PNLPage() {
 
     const mergedSourcesQuerySuffix = `${marketQuerySuffix}${spendQuerySuffix}`;
 
-    const pnl = usePnlData(customer, appliedDateRange, comparisonMethod, mergedSourcesQuerySuffix);
+    const pnlMarketsSpend = useMemo(
+        () =>
+            shopifyMarketsFeatureOn
+                ? { shopifyMarkets: true, appliedExcludedPlatforms }
+                : null,
+        [shopifyMarketsFeatureOn, appliedExcludedPlatforms]
+    );
+
+    const pnl = usePnlData(
+        customer,
+        appliedDateRange,
+        comparisonMethod,
+        mergedSourcesQuerySuffix,
+        pnlMarketsSpend
+    );
     const comparisonLabel = comparisonMethod === "Last Year" ? "Last Year" : "Last Period";
 
     return (
@@ -128,9 +142,9 @@ export default function PNLPage() {
                         : null
                 }
                 adSpendPlatformFilter={
-                    shopifyMarketsFeatureOn && configuredAdSpendChannels.length > 0
+                    shopifyMarketsFeatureOn && adSpendFilterUiChannels.length > 0
                         ? {
-                              options: configuredAdSpendChannels.map((c) => ({
+                              options: adSpendFilterUiChannels.map((c) => ({
                                   id: c.id,
                                   label: c.label,
                               })),

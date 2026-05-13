@@ -28,7 +28,10 @@ import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
 import { buildParentShopifyMarketOverridesJson, buildParentAdSpendPlatformOverridesJson } from "@/lib/parentPropertyShopifyMarketOverrides";
 import ParentChildShopifyMarketsActions from "./components/ParentChildShopifyMarketsActions";
 import ParentChildAdSpendPlatformsActions from "./components/ParentChildAdSpendPlatformsActions";
-import { adSpendChannelsConfigured } from "@/lib/mergeAdSpendDaily";
+import {
+    adSpendChannelsForShopifyMarketsFilterUi,
+    buildDefaultExcludedAdSpendPlatformsForShopifyMarkets,
+} from "@/lib/mergeAdSpendDaily";
 
 function deriveDisplayedChildRow(row, shopifyRevenueField, groupMetricPreference) {
     const fm = row.fullMetrics;
@@ -99,6 +102,35 @@ export default function ParentPropertyHome() {
         setGroupSpendExcludedDraft({});
         setGroupSpendExcludedApplied({});
     }, [parentCustomerId]);
+
+    useEffect(() => {
+        if (!Array.isArray(childCustomers) || childCustomers.length === 0) return;
+        setGroupSpendExcludedApplied((prev) => {
+            const next = { ...prev };
+            let changed = false;
+            for (const c of childCustomers) {
+                if (!isShopifyMarketsCustomer(c)) continue;
+                const id = String(c._id);
+                if (Object.prototype.hasOwnProperty.call(prev, id)) continue;
+                next[id] = buildDefaultExcludedAdSpendPlatformsForShopifyMarkets(c.CustomerSettings || {});
+                changed = true;
+            }
+            return changed ? next : prev;
+        });
+        setGroupSpendExcludedDraft((prev) => {
+            const next = { ...prev };
+            let changed = false;
+            for (const c of childCustomers) {
+                if (!isShopifyMarketsCustomer(c)) continue;
+                const id = String(c._id);
+                if (Object.prototype.hasOwnProperty.call(prev, id)) continue;
+                next[id] = buildDefaultExcludedAdSpendPlatformsForShopifyMarkets(c.CustomerSettings || {});
+                changed = true;
+            }
+            return changed ? next : prev;
+        });
+    }, [childCustomers]);
+
     const today = new Date();
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, "0");
@@ -197,6 +229,7 @@ export default function ParentPropertyHome() {
     );
 
     const handleGroupSpendToggleDraft = useCallback((childId, platformId, included) => {
+        if (platformId === "reddit") return;
         setGroupSpendExcludedDraft((prev) => {
             const cid = String(childId);
             const next = { ...prev };
@@ -746,7 +779,7 @@ export default function ParentPropertyHome() {
                                                                 <ParentChildAdSpendPlatformsActions
                                                                     customerId={String(row._id)}
                                                                     propertyLabel={row.customerName}
-                                                                    platforms={adSpendChannelsConfigured(
+                                                                    platforms={adSpendChannelsForShopifyMarketsFilterUi(
                                                                         childDoc?.CustomerSettings || {}
                                                                     ).map((c) => ({ id: c.id, label: c.label }))}
                                                                     excludedPlatforms={

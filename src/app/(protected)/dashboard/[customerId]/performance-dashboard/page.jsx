@@ -21,6 +21,7 @@ import { useAdSpendPlatformsFilter } from "@/hooks/useAdSpendPlatformsFilter";
 import {
     adSpendByPeriodMap,
     adSpendChannelsForDashboard,
+    adSpendChannelsForShopifyMarketsFilterUi,
     aggregateShopifyAndAdSpendByPeriodFromRows,
     channelSpendTotalsFromMerged,
     totalAdSpendFromMerged,
@@ -82,7 +83,7 @@ export default function PerformanceDashboard() {
     } = useShopifyMarketsFilter(customer, params?.customerId);
 
     const {
-        configuredAdSpendChannels,
+        adSpendFilterUiChannels,
         draftExcludedPlatforms,
         appliedExcludedPlatforms,
         toggleAdSpendPlatformDraft,
@@ -149,15 +150,27 @@ export default function PerformanceDashboard() {
         ]
     );
 
-    const visibleAdSpendChannels = useMemo(
-        () =>
-            adSpendChannelsForDashboard(
-                customer?.CustomerSettings,
-                merged,
-                mergedPrev
-            ),
-        [customer?.CustomerSettings, merged, mergedPrev]
-    );
+    const visibleAdSpendChannels = useMemo(() => {
+        if (
+            shopifyMarketsFeatureOn &&
+            customer?.CustomerSettings?.shopifyMarketsEnabled === true
+        ) {
+            return adSpendChannelsForShopifyMarketsFilterUi(customer.CustomerSettings).filter(
+                (c) => appliedExcludedPlatforms[c.id] !== true
+            );
+        }
+        return adSpendChannelsForDashboard(
+            customer?.CustomerSettings,
+            merged,
+            mergedPrev
+        );
+    }, [
+        shopifyMarketsFeatureOn,
+        customer?.CustomerSettings,
+        appliedExcludedPlatforms,
+        merged,
+        mergedPrev,
+    ]);
 
     const visibleSpendMetricKeys = useMemo(
         () => visibleAdSpendChannels.map((c) => c.metricsDataKey),
@@ -1339,9 +1352,9 @@ export default function PerformanceDashboard() {
                         : null
                 }
                 adSpendPlatformFilter={
-                    shopifyMarketsFeatureOn && configuredAdSpendChannels.length > 0
+                    shopifyMarketsFeatureOn && adSpendFilterUiChannels.length > 0
                         ? {
-                              options: configuredAdSpendChannels.map((c) => ({
+                              options: adSpendFilterUiChannels.map((c) => ({
                                   id: c.id,
                                   label: c.label,
                               })),
