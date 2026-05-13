@@ -1,4 +1,4 @@
-import currencyApiValues from './static-data/currencyApiValues.json';
+import { getCurrencyConversionTable, conversionRateToDkk } from './currencyConversionTable';
 
 /**
  * Fetch inventory stock and value for a list of Shopify product IDs.
@@ -322,12 +322,8 @@ export async function fetchShopifyProductMetrics(settings, startDate, endDate, o
     const { fast = false } = options;
 
     const fromCode = settings?.customerStoreValutaCode || 'DKK';
-    const toCode = 'DKK';
-    const currencyData = currencyApiValues.data;
-    let conversionRate = 1;
-    if (fromCode !== toCode && currencyData[fromCode] && currencyData[toCode]) {
-        conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
-    }
+    const currencyData = (await getCurrencyConversionTable()).data;
+    const conversionRate = conversionRateToDkk(fromCode, currencyData);
 
     const endpoint = `https://${shopUrl}/admin/api/2025-10/graphql.json`;
 
@@ -405,12 +401,8 @@ export async function fetchShopifyProductMetrics(settings, startDate, endDate, o
 export async function fetchProductInventoryOnly(settings, productIds) {
     if (!settings?.shopifyUrl || !settings?.shopifyApiPassword || !productIds?.length) return {};
     const fromCode = settings?.customerStoreValutaCode || 'DKK';
-    const toCode = 'DKK';
-    const currencyData = currencyApiValues.data;
-    let conversionRate = 1;
-    if (fromCode !== toCode && currencyData[fromCode] && currencyData[toCode]) {
-        conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
-    }
+    const currencyData = (await getCurrencyConversionTable()).data;
+    const conversionRate = conversionRateToDkk(fromCode, currencyData);
     const endpoint = `https://${settings.shopifyUrl}/admin/api/2025-10/graphql.json`;
     return fetchProductInventory(endpoint, settings.shopifyApiPassword, productIds, conversionRate);
 }

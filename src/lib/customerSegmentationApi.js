@@ -1,5 +1,5 @@
 import { shopifyqlQuery } from './shopifyApi';
-import currencyApiValues from './static-data/currencyApiValues.json';
+import { getCurrencyConversionTable, conversionRateToDkk } from './currencyConversionTable';
 import { totalAdSpendFromMerged, channelSpendTotalsFromMerged } from './mergeAdSpendDaily';
 
 /**
@@ -16,12 +16,8 @@ async function fetchShopifyOrdersForSegmentation(settings, startDate, endDate, o
     const accessToken = settings.shopifyApiPassword;
 
     const fromCode = settings?.customerStoreValutaCode || 'DKK';
-    const toCode = 'DKK';
-    const currencyData = currencyApiValues.data;
-    let conversionRate = 1;
-    if (fromCode !== toCode && currencyData?.[fromCode] && currencyData?.[toCode]) {
-        conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
-    }
+    const currencyData = (await getCurrencyConversionTable()).data;
+    const conversionRate = conversionRateToDkk(fromCode, currencyData);
 
     const endpoint = `https://${shopUrl}/admin/api/2025-10/graphql.json`;
     const orders = [];
@@ -363,7 +359,6 @@ export function computeSegmentationFromMerged(merged = {}, startDate, endDate) {
             }
             // overwrite dailySeries variable by shadowing
             const mergedDailySeries = [...byDay.values()].sort((a, b) => String(a.period).localeCompare(String(b.period)));
-            // eslint-disable-next-line no-unused-vars
             dailySeries = mergedDailySeries;
         }
 

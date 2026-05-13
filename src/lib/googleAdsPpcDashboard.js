@@ -1,7 +1,7 @@
 // src/lib/googleAdsPpcDashboard.js
 import { GoogleAdsApi } from 'google-ads-api';
 import { resolveCountryToCriterionId } from './googleAdsApi';
-import currencyApiValues from './static-data/currencyApiValues.json';
+import { getCurrencyConversionTable, conversionRateToDkk } from './currencyConversionTable';
 
 /**
  * Fetch comprehensive Google Ads PPC dashboard metrics
@@ -50,14 +50,8 @@ export async function fetchGoogleAdsPPCDashboardMetrics({
             console.warn('Google Ads: could not fetch currency, using DKK:', err?.message);
         }
         
-        // Currency conversion logic
-        const fromCode = accountCurrency;
-        const toCode = 'DKK';
-        const currencyData = currencyApiValues.data;
-        let conversionRate = 1;
-        if (fromCode !== toCode && currencyData[fromCode] && currencyData[toCode]) {
-            conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
-        }
+        const currencyData = (await getCurrencyConversionTable()).data;
+        const conversionRate = conversionRateToDkk(accountCurrency, currencyData);
         
         const hasInclude = typeof countryFilter === 'string' && countryFilter.trim().length > 0;
         const hasExclude = typeof countryExclude === 'string' && countryExclude.trim().length > 0;

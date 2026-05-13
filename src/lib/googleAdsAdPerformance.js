@@ -1,6 +1,6 @@
 // src/lib/googleAdsAdPerformance.js — Ad-level metrics for PPC dashboard only (not merged-sources).
 import { GoogleAdsApi } from "google-ads-api";
-import currencyApiValues from "./static-data/currencyApiValues.json";
+import { getCurrencyConversionTable, conversionRateToDkk } from "./currencyConversionTable";
 
 /**
  * Human-readable label for an ad row. Prefer `ad.name`; if empty, use campaign / ad group (lightweight GAQL fields).
@@ -69,13 +69,8 @@ export async function fetchGoogleAdsAdPerformance({
         console.warn("Google Ads ad performance: could not fetch currency:", err?.message);
     }
 
-    const fromCode = accountCurrency;
-    const toCode = "DKK";
-    const currencyData = currencyApiValues.data;
-    let conversionRate = 1;
-    if (fromCode !== toCode && currencyData[fromCode] && currencyData[toCode]) {
-        conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
-    }
+    const currencyData = (await getCurrencyConversionTable()).data;
+    const conversionRate = conversionRateToDkk(accountCurrency, currencyData);
 
     const baseSelect = `
         SELECT

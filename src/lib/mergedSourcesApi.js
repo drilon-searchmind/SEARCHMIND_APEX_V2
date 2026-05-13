@@ -12,7 +12,7 @@ import { fetchWooCommerceOrders } from './wooCommerceApi';
 import { fetchMagentoPerformanceDaily } from './magentoPerformanceDashboardApi';
 import { fetchFacebookAdsInsights } from './facebookApi';
 import { fetchGoogleAdsMetrics } from './googleAdsApi';
-import currencyApiValues from './static-data/currencyApiValues.json';
+import { getCurrencyConversionTable, conversionRateToDkk } from './currencyConversionTable';
 import { isAdSpendPlatformConfigured } from './customerServiceIntegrations';
 import { AD_SPEND_CHANNELS } from './mergeAdSpendDaily';
 
@@ -42,6 +42,8 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
     );
     const includeSpend = (platformId) =>
         excludedSpend.size === 0 || !excludedSpend.has(platformId);
+
+    const { data: currencyData } = await getCurrencyConversionTable();
 
     // Determine customer type and fetch appropriate e-commerce data
     let shopifyDaily = [];
@@ -141,19 +143,9 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 }
             }
             
-            // Currency conversion logic
+            // Currency conversion logic — live DKK-based rates (see currencyConversionTable.js)
             const fromCode = settings?.customerStoreValutaCode || 'DKK';
-            const toCode = 'DKK';
-            const currencyData = currencyApiValues.data;
-            let conversionRate = 1;
-            if (fromCode !== toCode && currencyData[fromCode] && currencyData[toCode]) {
-                // Convert from source currency to USD, then USD to DKK
-                // All values are relative to USD, so: value_in_DKK = value_in_fromCode / fromCode.value * toCode.value
-                // But since value is "1 USD = value_in_currency", so to convert from X currency to DKK:
-                // value_in_DKK = value_in_fromCode / fromCode.value * toCode.value
-                // Or, more simply: value_in_DKK = value_in_fromCode * (toCode.value / fromCode.value)
-                conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
-            }
+            const conversionRate = conversionRateToDkk(fromCode, currencyData);
             shopifyDaily = rows.map(row => {
                 const baseData = {
                     period: row.day,
@@ -197,12 +189,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
 
             // Currency conversion logic (same as Shopify)
             const fromCode = settings?.customerStoreValutaCode || 'DKK';
-            const toCode = 'DKK';
-            const currencyData = currencyApiValues.data;
-            let conversionRate = 1;
-            if (fromCode !== toCode && currencyData[fromCode] && currencyData[toCode]) {
-                conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
-            }
+            const conversionRate = conversionRateToDkk(fromCode, currencyData);
 
             // Apply currency conversion to WooCommerce data
             shopifyDaily = wooCommerceData.map(row => ({
@@ -235,12 +222,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
 
             // Currency conversion logic (same as Shopify/WooCommerce)
             const fromCode = settings?.customerStoreValutaCode || 'DKK';
-            const toCode = 'DKK';
-            const currencyData = currencyApiValues.data;
-            let conversionRate = 1;
-            if (fromCode !== toCode && currencyData[fromCode] && currencyData[toCode]) {
-                conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
-            }
+            const conversionRate = conversionRateToDkk(fromCode, currencyData);
 
             shopifyDaily = magentoData.map(row => ({
                 period: row.period,
@@ -307,12 +289,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
             
             // Currency conversion logic for Google Ads using Google Ads native currency
             const fromCode = googleCurrencyCode;
-            const toCode = 'DKK';
-            const currencyData = currencyApiValues.data;
-            let conversionRate = 1;
-            if (fromCode !== toCode && currencyData[fromCode] && currencyData[toCode]) {
-                conversionRate = currencyData[toCode].value / currencyData[fromCode].value;
-            }
+            const conversionRate = conversionRateToDkk(fromCode, currencyData);
             const daily = {};
             for (const row of googleRows) {
                 const date = row.segments?.date;
