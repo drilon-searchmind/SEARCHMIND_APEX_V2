@@ -9,9 +9,10 @@ export function ParentPropertyFilterProvider({ children }) {
     const [enabledProperties, setEnabledProperties] = useState({});
 
     const toggleProperty = useCallback((customerId, newState) => {
+        const id = String(customerId);
         setEnabledProperties((prev) => ({
             ...prev,
-            [customerId]: newState,
+            [id]: newState,
         }));
     }, []);
 

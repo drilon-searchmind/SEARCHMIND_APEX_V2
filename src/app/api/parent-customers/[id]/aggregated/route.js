@@ -335,28 +335,51 @@ export async function GET(request, { params }) {
                     send({
                         type: "start",
                         parentName: parent.name,
-                        children: children.map((c) => ({ id: c._id, name: c.customerName })),
+                        children: children.map((c) => ({
+                            id: String(c._id),
+                            name: c.customerName,
+                        })),
                     });
 
                     const resultsMap = {};
-                    const promises = children.map((customer) =>
-                        fetchForChild(customer).then((result) => {
-                            send({
-                                type: "loaded",
-                                id: customer._id,
-                                name: customer.customerName,
-                                source: customer.customerType || "Shopify",
-                                shop: customer.CustomerSettings?.shopifyUrl || "",
+                    const promises = children.map((customer) => {
+                        const childId = String(customer._id);
+                        return fetchForChild(customer)
+                            .then((result) => {
+                                send({
+                                    type: "loaded",
+                                    id: childId,
+                                    name: customer.customerName,
+                                    source: customer.customerType || "Shopify",
+                                    shop: customer.CustomerSettings?.shopifyUrl || "",
+                                });
+                                resultsMap[childId] = result;
+                                return result;
+                            })
+                            .catch((err) => {
+                                console.error(
+                                    `[parent aggregated] Failed for child ${childId} (${customer.customerName}):`,
+                                    err
+                                );
+                                send({
+                                    type: "loaded",
+                                    id: childId,
+                                    name: customer.customerName,
+                                    source: customer.customerType || "Shopify",
+                                    shop: customer.CustomerSettings?.shopifyUrl || "",
+                                    error: true,
+                                });
+                                resultsMap[childId] = null;
+                                return null;
                             });
-                            resultsMap[customer._id] = result;
-                            return result;
-                        })
-                    );
+                    });
 
                     await Promise.all(promises);
                     send({ type: "aggregating" });
 
-                    const childResults = children.map((c) => resultsMap[c._id]);
+                    const childResults = children
+                        .map((c) => resultsMap[String(c._id)])
+                        .filter(Boolean);
                     const rows = childResults.map((r, idx) => ({ ...r.row, prevData: r.prevData }));
                     const dailyData = childResults.map((r) => r.dailyData);
                     const preferenceCounts = childResults.reduce((acc, r) => {

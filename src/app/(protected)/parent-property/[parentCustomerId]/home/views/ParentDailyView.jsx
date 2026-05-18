@@ -87,7 +87,9 @@ export default function ParentDailyView({ sharedData }) {
                 );
                 if (!res.ok) throw new Error("Failed to fetch last year data");
                 const data = await res.json();
-                const dailyDataList = (data.dailyData || []).filter((r) => enabledProperties[r._id]);
+                const dailyDataList = (data.dailyData || []).filter(
+                    (r) => enabledProperties[String(r._id)] !== false
+                );
                 const lastYearRows = buildParentDailyRows(dailyDataList, data.parent?.customers || childCustomers, {
                     usePrev: false,
                     shopifyRevenueField,

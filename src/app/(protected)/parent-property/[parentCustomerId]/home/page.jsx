@@ -321,7 +321,9 @@ export default function ParentPropertyHome() {
                                 setAllDailyChartData(event.dailyData || []);
                                 setFilterChildCustomers(children);
                                 const initialEnabled = {};
-                                children.forEach((c) => { initialEnabled[c._id] = true; });
+                                children.forEach((c) => {
+                                    initialEnabled[String(c._id)] = true;
+                                });
                                 setFilterEnabledProperties(initialEnabled);
 
                                 setLoadingPhase("complete");
@@ -354,16 +356,18 @@ export default function ParentPropertyHome() {
 
     // Filter data based on enabled properties
     const { filteredTableRows, filteredDailyData, metrics, metricsPrev, aggregatedMetrics, aggregatedMetricsPrev, filteredDailyRows, filteredDailyRowsPrev } = useMemo(() => {
-        const filteredRaw = allTableRows.filter(row => enabledProperties[row._id]);
+        const filteredRaw = allTableRows.filter((row) => enabledProperties[String(row._id)] !== false);
         const filtered = filteredRaw.map((row) =>
             deriveDisplayedChildRow(row, shopifyRevenueField, predominantMetricPreference)
         );
-        const filteredDailyDataList = allDailyChartData.filter((r) => enabledProperties[r._id]);
+        const filteredDailyDataList = allDailyChartData.filter(
+            (r) => enabledProperties[String(r._id)] !== false
+        );
 
         // Aggregate filtered daily data (Shopify slice uses parent group revenue basis)
         const dailyMap = {};
         allDailyChartData
-            .filter(result => enabledProperties[result._id])
+            .filter((result) => enabledProperties[String(result._id)] !== false)
             .forEach(result => {
                 const { shopifyDaily, facebookDaily, googleDaily } = result;
 
@@ -721,7 +725,7 @@ export default function ParentPropertyHome() {
                                 {allTableRows.length === 0 ? (
                                     <tr><td colSpan={9} className="text-center py-8 text-gray-400">No child properties found.</td></tr>
                                 ) : childPropertyRowsForUi.map((row, idx) => {
-                                    const isEnabled = enabledProperties[row._id];
+                                    const isEnabled = enabledProperties[String(row._id)] !== false;
                                     return (
                                         <tr 
                                             key={row._id} 
