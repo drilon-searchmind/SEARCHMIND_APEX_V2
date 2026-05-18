@@ -113,6 +113,7 @@ export async function GET(req) {
             startDate,
             endDate,
             redditUsername: reddit.redditUsername,
+            redditCredentials: reddit,
         });
         if (log) {
             const m = metrics.metrics_by_date || [];

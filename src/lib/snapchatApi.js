@@ -79,25 +79,37 @@ export async function refreshSnapchatAccessToken({ clientId, clientSecret, refre
  * Resolve from server env only (dev / single-tenant fallback).
  */
 export async function resolveSnapchatAccessTokenFromEnv() {
-    const direct = process.env.SNAPCHAT_ACCESS_TOKEN?.trim();
-    if (direct) return direct;
-
     const clientId = process.env.SNAPCHAT_CLIENT_ID?.trim();
     const clientSecret = process.env.SNAPCHAT_CLIENT_SECRET?.trim();
     const refreshToken = process.env.SNAPCHAT_REFRESH_TOKEN?.trim();
-    if (!clientId || !clientSecret || !refreshToken) {
-        return null;
+    if (clientId && clientSecret && refreshToken) {
+        return refreshSnapchatAccessToken({ clientId, clientSecret, refreshToken });
     }
-    return refreshSnapchatAccessToken({ clientId, clientSecret, refreshToken });
+
+    const direct = process.env.SNAPCHAT_ACCESS_TOKEN?.trim();
+    if (direct) return direct;
+
+    return null;
 }
 
 /**
- * Bearer for Marketing API: customer access token → customer refresh credentials → env fallbacks.
+ * Bearer for Marketing API. When client id + secret + refresh token exist, refresh on each resolve
+ * (stored access tokens expire in ~1h). Falls back to stored access token, then env.
  * @param {Record<string, string | undefined>} snapNormalized — output of `normalizeSnapchatSettings()`
+ * @param {{ preferStoredAccessToken?: boolean }} [opts]
  */
-export async function resolveSnapchatAccessTokenForCustomer(snapNormalized) {
+export async function resolveSnapchatAccessTokenForCustomer(snapNormalized, opts = {}) {
     const snap = snapNormalized || {};
+    const clientId = typeof snap.clientId === "string" ? snap.clientId.trim() : "";
+    const clientSecret = typeof snap.clientSecret === "string" ? snap.clientSecret.trim() : "";
+    const refreshToken = typeof snap.refreshToken === "string" ? snap.refreshToken.trim() : "";
     const direct = typeof snap.accessToken === "string" ? snap.accessToken.trim() : "";
+
+    if (clientId && clientSecret && refreshToken && !opts.preferStoredAccessToken) {
+        if (snapDebugEnabled()) dbg("Bearer source: refresh_token grant (per-customer client id)");
+        return refreshSnapchatAccessToken({ clientId, clientSecret, refreshToken });
+    }
+
     if (direct) {
         if (snapDebugEnabled()) {
             dbg("Bearer source: CustomerSettings.snapchat.accessToken", { tokenLengthChars: direct.length });
@@ -105,11 +117,7 @@ export async function resolveSnapchatAccessTokenForCustomer(snapNormalized) {
         return direct;
     }
 
-    const clientId = typeof snap.clientId === "string" ? snap.clientId.trim() : "";
-    const clientSecret = typeof snap.clientSecret === "string" ? snap.clientSecret.trim() : "";
-    const refreshToken = typeof snap.refreshToken === "string" ? snap.refreshToken.trim() : "";
     if (clientId && clientSecret && refreshToken) {
-        if (snapDebugEnabled()) dbg("Bearer source: refresh_token grant (per-customer client id)");
         return refreshSnapchatAccessToken({ clientId, clientSecret, refreshToken });
     }
 
@@ -382,14 +390,63 @@ function extractCampaignTotals(statsJson) {
     return rows.slice(0, 20);
 }
 
+/**
+ * @param {{
+ *   accessToken: string,
+ *   adAccountId: string,
+ *   startDate: string,
+ *   endDate: string,
+ *   snapCredentials?: ReturnType<import("./snapchatCustomerSettings").normalizeSnapchatSettings>,
+ * }} args — when snapCredentials is set, 401 responses retry once via refresh_token
+ */
 export async function fetchSnapchatDashboardMetrics({
+    accessToken,
+    adAccountId,
+    startDate,
+    endDate,
+    snapCredentials,
+}) {
+    const trimmed = String(adAccountId || "").trim();
+    if (!trimmed) throw new Error("Missing adAccountId");
+
+    try {
+        return await fetchSnapchatDashboardMetricsInner({
+            accessToken,
+            adAccountId: trimmed,
+            startDate,
+            endDate,
+        });
+    } catch (e) {
+        const msg = String(e?.message || "");
+        const creds = snapCredentials || {};
+        const canRefresh =
+            msg.includes("Snapchat API 401") &&
+            creds.clientId &&
+            creds.clientSecret &&
+            creds.refreshToken;
+        if (!canRefresh) throw e;
+        dbg("401 — retrying after refresh_token");
+        const fresh = await refreshSnapchatAccessToken({
+            clientId: creds.clientId,
+            clientSecret: creds.clientSecret,
+            refreshToken: creds.refreshToken,
+        });
+        return fetchSnapchatDashboardMetricsInner({
+            accessToken: fresh,
+            adAccountId: trimmed,
+            startDate,
+            endDate,
+        });
+    }
+}
+
+async function fetchSnapchatDashboardMetricsInner({
     accessToken,
     adAccountId,
     startDate,
     endDate,
 }) {
     const trimmed = String(adAccountId || "").trim();
-    if (!trimmed) throw new Error("Missing adAccountId");
 
     const accountTz = await fetchAdAccountTimezone(accessToken, trimmed);
     const { start_time, end_time } = statsWindowUtcIso(startDate, endDate, accountTz);

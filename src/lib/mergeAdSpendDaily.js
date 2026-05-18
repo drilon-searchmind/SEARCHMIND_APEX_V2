@@ -4,6 +4,7 @@
  */
 
 import { isAdSpendPlatformConfigured } from "./customerServiceIntegrations";
+import { normalizeRedditSettings } from "./redditCustomerSettings";
 
 export const MERGED_AD_DAILY_KEYS = [
     "facebookDaily",
@@ -71,12 +72,6 @@ export function adSpendByPeriodMap(merged) {
  * Canonical paid-media channels: merge-sources keys → UI / metricsData keys.
  * `bucketKey` is used in `aggregateShopifyAndAdSpendByPeriodFromRows` per-period buckets.
  */
-/** In Shopify Markets mode, these channels are included in spend aggregates by default (others are opt-in). */
-export const SHOPIFY_MARKETS_DEFAULT_ACTIVE_AD_SPEND_IDS = new Set(["facebook", "google"]);
-
-/** Hidden from the Spend filter UI in Shopify Markets dashboards (Reddit disabled for now). */
-export const AD_SPEND_HIDDEN_FROM_MARKETS_FILTER_UI_IDS = new Set(["reddit"]);
-
 export const AD_SPEND_CHANNELS = [
     {
         id: "facebook",
@@ -149,33 +144,33 @@ export function adSpendChannelsConfigured(settings) {
     return AD_SPEND_CHANNELS.filter((c) => isAdSpendPlatformConfigured(settings, c.id));
 }
 
+/** Reddit appears in the Spend filter when the customer has a Reddit app (client) id. */
+export function isRedditInShopifyMarketsSpendFilter(settings) {
+    const appId = normalizeRedditSettings(settings).appId;
+    return String(appId || "").trim().length > 0;
+}
+
 /**
- * Spend filter checkboxes in Shopify Markets views (configured integrations minus disabled e.g. Reddit).
+ * Spend filter checkboxes in Shopify Markets views: configured integrations + Reddit when app id is set.
  * @param {Record<string, unknown>|null|undefined} settings - CustomerSettings
  * @returns {typeof AD_SPEND_CHANNELS[number][]}
  */
 export function adSpendChannelsForShopifyMarketsFilterUi(settings) {
-    return adSpendChannelsConfigured(settings).filter(
-        (c) => !AD_SPEND_HIDDEN_FROM_MARKETS_FILTER_UI_IDS.has(c.id)
-    );
+    const channels = adSpendChannelsConfigured(settings);
+    const ids = new Set(channels.map((c) => c.id));
+    if (isRedditInShopifyMarketsSpendFilter(settings) && !ids.has("reddit")) {
+        const reddit = AD_SPEND_CHANNELS.find((c) => c.id === "reddit");
+        if (reddit) channels.push(reddit);
+    }
+    return channels;
 }
 
 /**
- * Default “excluded from aggregate” map for Shopify Markets: only Meta + Google stay on;
- * other configured channels (except UI-disabled ones like Reddit) start excluded.
- * @param {Record<string, unknown>|null|undefined} settings - CustomerSettings
+ * Default for Shopify Markets Spend filter: all visible channels included (nothing excluded).
  * @returns {Record<string, true>}
  */
-export function buildDefaultExcludedAdSpendPlatformsForShopifyMarkets(settings) {
-    /** @type {Record<string, true>} */
-    const excluded = {};
-    for (const c of adSpendChannelsConfigured(settings)) {
-        if (AD_SPEND_HIDDEN_FROM_MARKETS_FILTER_UI_IDS.has(c.id)) continue;
-        if (!SHOPIFY_MARKETS_DEFAULT_ACTIVE_AD_SPEND_IDS.has(c.id)) {
-            excluded[c.id] = true;
-        }
-    }
-    return excluded;
+export function buildDefaultExcludedAdSpendPlatformsForShopifyMarkets() {
+    return {};
 }
 
 /**

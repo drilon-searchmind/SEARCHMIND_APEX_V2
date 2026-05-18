@@ -78,7 +78,7 @@ export async function GET(req) {
         return new Response(
             JSON.stringify({
                 error:
-                    "Missing Snapchat Marketing API authorization for this customer: store Access token (recommended) or Client ID + Client secret + Refresh token under Snapchat Ads settings, or set server env SNAPCHAT_ACCESS_TOKEN / refresh credentials for development.",
+                    "Missing Snapchat Marketing API authorization: set Client ID + Client secret + Refresh token under Snapchat Ads (recommended), or a short-lived access token, or server env SNAPCHAT_* for development.",
             }),
             {
                 status: 500,
@@ -97,6 +97,7 @@ export async function GET(req) {
             adAccountId,
             startDate,
             endDate,
+            snapCredentials: snap,
         });
         if (log) {
             const m = metrics.metrics_by_date || [];

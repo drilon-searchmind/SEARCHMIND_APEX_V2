@@ -342,6 +342,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                     adAccountId: snapAdId,
                     startDate,
                     endDate,
+                    snapCredentials: snap,
                 });
                 snapchatDaily = metricsByDateToSpendDaily(snapDash.metrics_by_date);
             }
@@ -388,6 +389,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                     startDate,
                     endDate,
                     redditUsername: red.redditUsername,
+                    redditCredentials: red,
                 });
                 redditDaily = metricsByDateToSpendDaily(redditDash.metrics_by_date);
             }

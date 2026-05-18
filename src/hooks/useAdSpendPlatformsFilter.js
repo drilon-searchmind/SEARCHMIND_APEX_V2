@@ -13,8 +13,7 @@ import {
  * Paid media multi-select by configured integrations (Shopify Markets feature gate).
  * Checkbox "on" = include channel in aggregates. Draft until Apply → `appliedExcludedPlatforms`.
  *
- * Shopify Markets: defaults to Meta + Google only; other configured channels (not Reddit) are opt-in.
- * Reddit is never included (forced excluded server-side).
+ * Shopify Markets: all channels in the Spend menu are included by default; user can exclude via Apply.
  */
 export function useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn) {
     const configuredChannels = useMemo(() => {
@@ -22,7 +21,7 @@ export function useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn) {
         return adSpendChannelsConfigured(customer.CustomerSettings);
     }, [customer, shopifyMarketsFeatureOn]);
 
-    /** Checkboxes in the Spend menu (Reddit omitted — disabled for Markets dashboards). */
+    /** Checkboxes in the Spend menu (configured platforms + Reddit when app id is set). */
     const adSpendFilterUiChannels = useMemo(() => {
         if (!customer?.CustomerSettings || !shopifyMarketsFeatureOn) return [];
         return adSpendChannelsForShopifyMarketsFilterUi(customer.CustomerSettings);
@@ -48,17 +47,16 @@ export function useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn) {
             return;
         }
         if (!marketsSpendInitKey) return;
-        const init = buildDefaultExcludedAdSpendPlatformsForShopifyMarkets(customer?.CustomerSettings);
+        const init = buildDefaultExcludedAdSpendPlatformsForShopifyMarkets();
         setAppliedExcludedPlatforms({ ...init });
         setDraftExcludedPlatforms({ ...init });
-    }, [shopifyMarketsFeatureOn, marketsSpendInitKey, customer]);
+    }, [shopifyMarketsFeatureOn, marketsSpendInitKey]);
 
     const syncDraftFromAppliedSpend = useCallback(() => {
         setDraftExcludedPlatforms({ ...appliedExcludedPlatforms });
     }, [appliedExcludedPlatforms]);
 
     const toggleAdSpendPlatformDraft = useCallback((platformId, included) => {
-        if (platformId === "reddit") return;
         setDraftExcludedPlatforms((prev) => {
             const next = { ...prev };
             if (included) delete next[platformId];
@@ -72,17 +70,14 @@ export function useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn) {
     }, [draftExcludedPlatforms]);
 
     const spendQuerySuffix = useMemo(() => {
-        if (!shopifyMarketsFeatureOn || configuredChannels.length === 0) return "";
-        const excludedIds = configuredChannels
+        if (!shopifyMarketsFeatureOn || adSpendFilterUiChannels.length === 0) return "";
+        const excludedIds = adSpendFilterUiChannels
             .map((c) => c.id)
-            .filter((id) => {
-                if (id === "reddit") return true;
-                return appliedExcludedPlatforms[id] === true;
-            });
+            .filter((id) => appliedExcludedPlatforms[id] === true);
         if (excludedIds.length === 0) return "";
         const encoded = encodeURIComponent(JSON.stringify(excludedIds));
         return `&adSpendExclude=${encoded}`;
-    }, [shopifyMarketsFeatureOn, configuredChannels, appliedExcludedPlatforms]);
+    }, [shopifyMarketsFeatureOn, adSpendFilterUiChannels, appliedExcludedPlatforms]);
 
     return {
         configuredAdSpendChannels: configuredChannels,

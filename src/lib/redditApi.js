@@ -210,19 +210,24 @@ export async function refreshRedditAccessToken({ appId, appSecret, refreshToken 
 
 /**
  * @param {ReturnType<import("./redditCustomerSettings").normalizeRedditSettings>} redditNormalized
+ * @param {{ preferStoredAccessToken?: boolean }} [opts] — default: refresh when app id + secret + refresh token exist (access tokens expire ~1h)
  */
-export async function resolveRedditAccessTokenForCustomer(redditNormalized) {
+export async function resolveRedditAccessTokenForCustomer(redditNormalized, opts = {}) {
     const r = redditNormalized || {};
-
+    const appId = typeof r.appId === "string" ? r.appId.trim() : "";
+    const appSecret = typeof r.appSecret === "string" ? r.appSecret.trim() : "";
+    const refreshToken = typeof r.refreshToken === "string" ? r.refreshToken.trim() : "";
     const direct = typeof r.accessToken === "string" ? r.accessToken.trim() : "";
+
+    // User OAuth: prefer refresh_token grant so reporting does not use an expired pasted access token.
+    if (appId && appSecret && refreshToken && !opts.preferStoredAccessToken) {
+        return refreshRedditAccessToken({ appId, appSecret, refreshToken });
+    }
+
     if (direct) {
         if (redditDebugEnabled()) dbg("Bearer source: CustomerSettings.reddit.accessToken");
         return direct;
     }
-
-    const appId = typeof r.appId === "string" ? r.appId.trim() : "";
-    const appSecret = typeof r.appSecret === "string" ? r.appSecret.trim() : "";
-    const refreshToken = typeof r.refreshToken === "string" ? r.refreshToken.trim() : "";
 
     if (appId && appSecret && refreshToken) {
         return refreshRedditAccessToken({ appId, appSecret, refreshToken });
@@ -404,13 +409,61 @@ function campaignKey(row) {
  *   startDate: string,
  *   endDate: string,
  *   redditUsername?: string,
- * }} args
+ *   redditCredentials?: ReturnType<import("./redditCustomerSettings").normalizeRedditSettings>,
+ * }} args — when redditCredentials is set, 401 responses retry once via refresh_token
  */
-export async function fetchRedditDashboardMetrics({ accessToken, accountId, startDate, endDate, redditUsername }) {
+export async function fetchRedditDashboardMetrics({
+    accessToken,
+    accountId,
+    startDate,
+    endDate,
+    redditUsername,
+    redditCredentials,
+}) {
     const acc = String(accountId || "").trim();
     if (!acc) throw new Error("Missing Reddit ad account id");
 
     const uaOpt = { redditUsername };
+
+    async function runWithToken(token) {
+        return fetchRedditDashboardMetricsInner({
+            accessToken: token,
+            accountId: acc,
+            startDate,
+            endDate,
+            uaOpt,
+        });
+    }
+
+    try {
+        return await runWithToken(accessToken);
+    } catch (e) {
+        const msg = String(e?.message || "");
+        const creds = redditCredentials || {};
+        const canRefresh =
+            msg.includes("Reddit Ads API 401") &&
+            creds.appId &&
+            creds.appSecret &&
+            creds.refreshToken;
+        if (!canRefresh) throw e;
+        dbg("401 — retrying after refresh_token");
+        const fresh = await refreshRedditAccessToken({
+            appId: creds.appId,
+            appSecret: creds.appSecret,
+            refreshToken: creds.refreshToken,
+        });
+        return runWithToken(fresh);
+    }
+}
+
+async function fetchRedditDashboardMetricsInner({
+    accessToken,
+    accountId,
+    startDate,
+    endDate,
+    uaOpt,
+}) {
+    const acc = String(accountId || "").trim();
 
     /**
      * `fields` must be enums from Reddit’s reporting schema — not `CONVERSIONS`.

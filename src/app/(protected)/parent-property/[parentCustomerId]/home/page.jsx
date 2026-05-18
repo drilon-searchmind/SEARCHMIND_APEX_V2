@@ -112,7 +112,7 @@ export default function ParentPropertyHome() {
                 if (!isShopifyMarketsCustomer(c)) continue;
                 const id = String(c._id);
                 if (Object.prototype.hasOwnProperty.call(prev, id)) continue;
-                next[id] = buildDefaultExcludedAdSpendPlatformsForShopifyMarkets(c.CustomerSettings || {});
+                next[id] = buildDefaultExcludedAdSpendPlatformsForShopifyMarkets();
                 changed = true;
             }
             return changed ? next : prev;
@@ -124,7 +124,7 @@ export default function ParentPropertyHome() {
                 if (!isShopifyMarketsCustomer(c)) continue;
                 const id = String(c._id);
                 if (Object.prototype.hasOwnProperty.call(prev, id)) continue;
-                next[id] = buildDefaultExcludedAdSpendPlatformsForShopifyMarkets(c.CustomerSettings || {});
+                next[id] = buildDefaultExcludedAdSpendPlatformsForShopifyMarkets();
                 changed = true;
             }
             return changed ? next : prev;
@@ -229,7 +229,6 @@ export default function ParentPropertyHome() {
     );
 
     const handleGroupSpendToggleDraft = useCallback((childId, platformId, included) => {
-        if (platformId === "reddit") return;
         setGroupSpendExcludedDraft((prev) => {
             const cid = String(childId);
             const next = { ...prev };

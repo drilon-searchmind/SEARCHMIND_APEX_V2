@@ -425,31 +425,31 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
                     placeholder="Ads account id from Ads Manager — used for stats"
                 />
                 <FormField
-                    id="snapchat-accessToken"
-                    name="snapchat.accessToken"
-                    label="Marketing API access token"
-                    type="password"
-                    value={(form.snapchat && form.snapchat.accessToken) || ""}
-                    onChange={onChange}
-                    placeholder="Bearer token (~1h); or use refresh fields below instead"
-                />
-                <FormField
                     id="snapchat-clientSecret"
                     name="snapchat.clientSecret"
-                    label="OAuth client secret (optional)"
+                    label="OAuth client secret"
                     type="password"
                     value={(form.snapchat && form.snapchat.clientSecret) || ""}
                     onChange={onChange}
-                    placeholder="Shown once at app creation — with refresh token to renew access"
+                    placeholder="From Snap OAuth app — required with refresh token"
                 />
                 <FormField
                     id="snapchat-refreshToken"
                     name="snapchat.refreshToken"
-                    label="OAuth refresh token (optional)"
+                    label="OAuth refresh token (recommended)"
                     type="password"
                     value={(form.snapchat && form.snapchat.refreshToken) || ""}
                     onChange={onChange}
-                    placeholder="Long-lived; used with client id + secret when access token is empty/expired"
+                    placeholder="From authorization flow — Apex refreshes access tokens automatically"
+                />
+                <FormField
+                    id="snapchat-accessToken"
+                    name="snapchat.accessToken"
+                    label="Marketing API access token (optional)"
+                    type="password"
+                    value={(form.snapchat && form.snapchat.accessToken) || ""}
+                    onChange={onChange}
+                    placeholder="Leave empty when refresh token is set (expires in ~1 hour)"
                 />
                 <FormField
                     id="snapchat-conversionsApiToken"
@@ -488,21 +488,22 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
                     placeholder="Often t2_… from Reddit Ads Manager"
                 />
                 <FormField
-                    id="reddit-accessToken"
-                    name="reddit.accessToken"
-                    label="OAuth access token (recommended)"
-                    type="password"
-                    value={(form.reddit && form.reddit.accessToken) || ""}
-                    onChange={onChange}
-                    placeholder="User OAuth token — or leave empty if using app secret + refresh or client_credentials"
-                />
-                <FormField
                     id="reddit-refreshToken"
                     name="reddit.refreshToken"
-                    label="OAuth refresh token (optional)"
+                    label="OAuth refresh token (recommended)"
                     type="password"
                     value={(form.reddit && form.reddit.refreshToken) || ""}
                     onChange={onChange}
+                    placeholder="From authorization-code flow (scope adsread) — Apex refreshes access tokens automatically"
+                />
+                <FormField
+                    id="reddit-accessToken"
+                    name="reddit.accessToken"
+                    label="OAuth access token (optional)"
+                    type="password"
+                    value={(form.reddit && form.reddit.accessToken) || ""}
+                    onChange={onChange}
+                    placeholder="Leave empty when refresh token is set (access tokens expire in ~1 hour)"
                 />
                 <FormField
                     id="reddit-username"
