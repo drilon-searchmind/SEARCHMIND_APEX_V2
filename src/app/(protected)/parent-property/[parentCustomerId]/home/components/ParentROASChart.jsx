@@ -1,10 +1,8 @@
 "use client";
 
 import React from 'react';
-import dynamic from 'next/dynamic';
 import GraphCard from '@/components/dashboard/GraphCard';
-
-const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false });
+import { parentTotalSpendFromDailyRow } from '@/lib/parentPropertyAdSpend';
 
 export default function ParentROASChart({ dailyData, loading, metricPreference = 'ROAS/POAS' }) {
     if (loading) {
@@ -36,7 +34,7 @@ export default function ParentROASChart({ dailyData, loading, metricPreference =
 
     if (metricPreference === 'Spendshare') {
         metricData = dailyData.map(d => {
-            const totalSpend = (d.facebookSpend || 0) + (d.googleSpend || 0);
+            const totalSpend = parentTotalSpendFromDailyRow(d);
             const revenue = d.revenue || 0;
             return revenue > 0 ? ((totalSpend / revenue) * 100).toFixed(2) : 0;
         });
@@ -44,7 +42,7 @@ export default function ParentROASChart({ dailyData, loading, metricPreference =
         yAxisTitle = 'Spendshare (%)';
     } else {
         metricData = dailyData.map(d => {
-            const totalSpend = (d.facebookSpend || 0) + (d.googleSpend || 0);
+            const totalSpend = parentTotalSpendFromDailyRow(d);
             const revenue = d.revenue || 0;
             return totalSpend > 0 ? (revenue / totalSpend).toFixed(2) : 0;
         });

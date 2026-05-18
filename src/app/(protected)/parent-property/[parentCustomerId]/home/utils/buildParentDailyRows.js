@@ -1,9 +1,10 @@
 import dayjs from "dayjs";
+import { AD_SPEND_CHANNELS } from "@/lib/mergeAdSpendDaily";
 
 /**
  * Build daily rows for parent property by aggregating child data.
  * Matches the structure expected by DailyMetricsTable (daily-overview).
- * @param {Array} dailyDataList - Filtered allDailyChartData (per child: shopifyDaily, facebookDaily, googleDaily, shopifyDailyPrev, etc.)
+ * @param {Array} dailyDataList - Filtered allDailyChartData (per child: shopifyDaily, channel *Daily, *DailyPrev)
  * @param {Array} childCustomers - Full customer objects with CustomerStaticExpenses
  * @param {Object} options - { usePrev: boolean, shopifyRevenueField?: 'net_sales'|'gross_sales' }
  *   Display revenue / ROAS / Spendshare / AOV use shopifyRevenueField; COGS%, transaction fees, net profit use net_sales.
@@ -11,23 +12,24 @@ import dayjs from "dayjs";
 export function buildParentDailyRows(dailyDataList, childCustomers, options = {}) {
     const { usePrev = false, shopifyRevenueField = "net_sales" } = options;
     const shopifyKey = usePrev ? "shopifyDailyPrev" : "shopifyDaily";
-    const facebookKey = usePrev ? "facebookDailyPrev" : "facebookDaily";
-    const googleKey = usePrev ? "googleDailyPrev" : "googleDaily";
-
     const revenueField = shopifyRevenueField === "gross_sales" ? "gross_sales" : "net_sales";
 
     const periodMap = {};
 
     dailyDataList.forEach((result) => {
-        const customer = childCustomers.find((c) => c._id === result._id);
+        const customer = childCustomers.find((c) => String(c._id) === String(result._id));
         if (!customer) return;
 
         const shopify = result[shopifyKey] || [];
-        const facebook = result[facebookKey] || [];
-        const google = result[googleKey] || [];
-
-        const fbMap = Object.fromEntries(facebook.map((d) => [d.period, d.spend || 0]));
-        const googleMap = Object.fromEntries(google.map((d) => [d.period, d.spend || 0]));
+        /** @type {Record<string, Record<string, number>>} */
+        const channelMaps = {};
+        for (const c of AD_SPEND_CHANNELS) {
+            const mergeKey = usePrev ? `${c.mergeKey}Prev` : c.mergeKey;
+            const arr = result[mergeKey] || [];
+            channelMaps[c.dailyOverviewColumnKey] = Object.fromEntries(
+                arr.map((d) => [d.period, Number(d.spend || 0)])
+            );
+        }
 
         const cogsPercentage = customer?.CustomerStaticExpenses?.cogsPercentage ?? 0;
         const shippingCostPerOrder = customer?.CustomerStaticExpenses?.shippingCostPerOrder ?? 0;
@@ -42,9 +44,14 @@ export function buildParentDailyRows(dailyDataList, childCustomers, options = {}
             const totalSales = d.total_sales || 0;
             const economicsNetSales = d.net_sales || 0;
             const displaySales = (d[revenueField] != null ? d[revenueField] : economicsNetSales) || 0;
-            const ppcCost = googleMap[date] || 0;
-            const psCost = fbMap[date] || 0;
-            const cogsStore = d.cost_of_goods_sold || 0;
+
+            let paidMediaCost = 0;
+            const channelCosts = {};
+            for (const c of AD_SPEND_CHANNELS) {
+                const v = channelMaps[c.dailyOverviewColumnKey][date] || 0;
+                channelCosts[c.dailyOverviewColumnKey] = v;
+                paidMediaCost += v;
+            }
 
             if (!periodMap[date]) {
                 periodMap[date] = {
@@ -55,11 +62,15 @@ export function buildParentDailyRows(dailyDataList, childCustomers, options = {}
                     economicsNetSales: 0,
                     ppcCost: 0,
                     psCost: 0,
+                    snapchatCost: 0,
+                    redditCost: 0,
+                    pinterestCost: 0,
+                    bingCost: 0,
                     childContribs: [],
                 };
             }
 
-            const cogs = fetchCogs ? cogsStore : economicsNetSales * cogsPercentage;
+            const cogs = fetchCogs ? d.cost_of_goods_sold || 0 : economicsNetSales * cogsPercentage;
             const variableExpense = shippingCostPerOrder * orders + pickNPackCostPerOrder * orders;
             const daysInMonth = dayjs(date).daysInMonth();
             const fixedExpense = fixedExpensesMonthly / daysInMonth;
@@ -69,8 +80,12 @@ export function buildParentDailyRows(dailyDataList, childCustomers, options = {}
             periodMap[date].totalSales += totalSales;
             periodMap[date].displayRevenue += displaySales;
             periodMap[date].economicsNetSales += economicsNetSales;
-            periodMap[date].ppcCost += ppcCost;
-            periodMap[date].psCost += psCost;
+            periodMap[date].ppcCost += channelCosts.ppcCost || 0;
+            periodMap[date].psCost += channelCosts.psCost || 0;
+            periodMap[date].snapchatCost += channelCosts.snapchatCost || 0;
+            periodMap[date].redditCost += channelCosts.redditCost || 0;
+            periodMap[date].pinterestCost += channelCosts.pinterestCost || 0;
+            periodMap[date].bingCost += channelCosts.bingCost || 0;
             periodMap[date].childContribs.push({
                 cogs,
                 variableExpense,
@@ -83,8 +98,22 @@ export function buildParentDailyRows(dailyDataList, childCustomers, options = {}
     return Object.values(periodMap)
         .sort((a, b) => a.date.localeCompare(b.date))
         .map((day) => {
-            const { date, orders, totalSales, displayRevenue, economicsNetSales, ppcCost, psCost, childContribs } = day;
-            const cost = ppcCost + psCost;
+            const {
+                date,
+                orders,
+                totalSales,
+                displayRevenue,
+                economicsNetSales,
+                ppcCost,
+                psCost,
+                snapchatCost,
+                redditCost,
+                pinterestCost,
+                bingCost,
+                childContribs,
+            } = day;
+            const cost =
+                ppcCost + psCost + snapchatCost + redditCost + pinterestCost + bingCost;
             const cogs = childContribs.reduce((s, c) => s + c.cogs, 0);
             const variableExpense = childContribs.reduce((s, c) => s + c.variableExpense, 0);
             const fixedExpense = childContribs.reduce((s, c) => s + c.fixedExpense, 0);
@@ -105,6 +134,10 @@ export function buildParentDailyRows(dailyDataList, childCustomers, options = {}
                 netRevenue: displayRevenue,
                 ppcCost,
                 psCost,
+                snapchatCost,
+                redditCost,
+                pinterestCost,
+                bingCost,
                 roas,
                 spendshare,
                 poas,

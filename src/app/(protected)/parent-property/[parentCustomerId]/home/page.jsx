@@ -7,8 +7,6 @@ import { useParams } from "next/navigation";
 import MetricCard from "@/components/dashboard/MetricCard";
 import Spinner from "@/components/ui/Spinner";
 import { FiTrendingUp, FiDollarSign, FiShoppingCart, FiPercent } from "react-icons/fi";
-import FormButton from "@/components/form/FormButton";
-import Link from "next/link";
 import ParentRevenueOrdersChart from "./components/ParentRevenueOrdersChart";
 import ParenteAdspendChart from "./components/ParentAdspendChart";
 import ParentROASChart from "./components/ParentROASChart";
@@ -26,12 +24,14 @@ import {
 import { buildParentDailyRows } from "./utils/buildParentDailyRows";
 import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
 import { buildParentShopifyMarketOverridesJson, buildParentAdSpendPlatformOverridesJson } from "@/lib/parentPropertyShopifyMarketOverrides";
-import ParentChildShopifyMarketsActions from "./components/ParentChildShopifyMarketsActions";
-import ParentChildAdSpendPlatformsActions from "./components/ParentChildAdSpendPlatformsActions";
+import ParentChildPropertiesTable from "./components/ParentChildPropertiesTable";
 import {
-    adSpendChannelsForShopifyMarketsFilterUi,
     buildDefaultExcludedAdSpendPlatformsForShopifyMarkets,
 } from "@/lib/mergeAdSpendDaily";
+import {
+    aggregateParentGroupDailyChart,
+    parentGroupVisibleAdSpendChannels,
+} from "@/lib/parentPropertyAdSpend";
 
 function deriveDisplayedChildRow(row, shopifyRevenueField, groupMetricPreference) {
     const fm = row.fullMetrics;
@@ -364,38 +364,10 @@ export default function ParentPropertyHome() {
             (r) => enabledProperties[String(r._id)] !== false
         );
 
-        // Aggregate filtered daily data (Shopify slice uses parent group revenue basis)
-        const dailyMap = {};
-        allDailyChartData
-            .filter((result) => enabledProperties[String(result._id)] !== false)
-            .forEach(result => {
-                const { shopifyDaily, facebookDaily, googleDaily } = result;
-
-                shopifyDaily.forEach(d => {
-                    if (!dailyMap[d.period]) {
-                        dailyMap[d.period] = { period: d.period, revenue: 0, orders: 0, facebookSpend: 0, googleSpend: 0 };
-                    }
-                    const rv = (d[shopifyRevenueField] ?? d.net_sales ?? 0) || 0;
-                    dailyMap[d.period].revenue += rv;
-                    dailyMap[d.period].orders += d.orders || 0;
-                });
-
-                facebookDaily.forEach(d => {
-                    if (!dailyMap[d.period]) {
-                        dailyMap[d.period] = { period: d.period, revenue: 0, orders: 0, facebookSpend: 0, googleSpend: 0 };
-                    }
-                    dailyMap[d.period].facebookSpend += d.spend || 0;
-                });
-
-                googleDaily.forEach(d => {
-                    if (!dailyMap[d.period]) {
-                        dailyMap[d.period] = { period: d.period, revenue: 0, orders: 0, facebookSpend: 0, googleSpend: 0 };
-                    }
-                    dailyMap[d.period].googleSpend += d.spend || 0;
-                });
-            });
-
-        const aggregatedDaily = Object.values(dailyMap).sort((a, b) => a.period.localeCompare(b.period));
+        const aggregatedDaily = aggregateParentGroupDailyChart(
+            allDailyChartData.filter((result) => enabledProperties[String(result._id)] !== false),
+            shopifyRevenueField
+        );
 
         // Calculate metrics from filtered data (revenue aligns with chosen Shopify basis + group metric prefs)
         const totalRevenue = filtered.reduce((sum, r) => sum + r.revenue, 0);
@@ -422,6 +394,10 @@ export default function ParentPropertyHome() {
         const taxes = agg("taxes");
         const metaSpend = agg("metaSpend");
         const googleSpend = agg("googleSpend");
+        const snapchatSpend = agg("snapchatSpend");
+        const redditSpend = agg("redditSpend");
+        const pinterestSpend = agg("pinterestSpend");
+        const bingSpend = agg("bingSpend");
         const cost = agg("cost");
         const totalCogs = agg("totalCogs");
         const fixedCosts = agg("fixedCosts");
@@ -443,6 +419,10 @@ export default function ParentPropertyHome() {
         const taxesPrev = agg("taxesPrev");
         const metaSpendPrev = agg("metaSpendPrev");
         const googleSpendPrev = agg("googleSpendPrev");
+        const snapchatSpendPrev = agg("snapchatSpendPrev");
+        const redditSpendPrev = agg("redditSpendPrev");
+        const pinterestSpendPrev = agg("pinterestSpendPrev");
+        const bingSpendPrev = agg("bingSpendPrev");
         const costPrev = agg("costPrev");
         const prevTotalCogs = agg("prevTotalCogs");
         const fixedCostsPrev = agg("fixedCostsPrev");
@@ -485,6 +465,10 @@ export default function ParentPropertyHome() {
             taxes,
             metaSpend,
             googleSpend,
+            snapchatSpend,
+            redditSpend,
+            pinterestSpend,
+            bingSpend,
             cost,
             totalCogs,
             fixedCosts,
@@ -507,7 +491,14 @@ export default function ParentPropertyHome() {
             netRevenue: netRevenuePrev,
             reportingRevenue: reportingRevenuePrev,
             orders: ordersPrev, shippingCharges: shippingChargesPrev, taxes: taxesPrev,
-            metaSpend: metaSpendPrev, googleSpend: googleSpendPrev, cost: costPrev, totalCogs: prevTotalCogs,
+            metaSpend: metaSpendPrev,
+            googleSpend: googleSpendPrev,
+            snapchatSpend: snapchatSpendPrev,
+            redditSpend: redditSpendPrev,
+            pinterestSpend: pinterestSpendPrev,
+            bingSpend: bingSpendPrev,
+            cost: costPrev,
+            totalCogs: prevTotalCogs,
             fixedCosts: fixedCostsPrev, variableCosts: variableCostsPrev, shippingCost: shippingCostPrev, pickPackCost: pickPackCostPrev,
             transactionFee: transactionFeePrev, allCosts: allCostsPrev, ebit: ebitPrev, grossProfit: grossProfitPrev,
             aov: aovPrev, roas: roasPrev, poas: poasPrev, cac: cacPrev, ebitPct: ebitPctPrev, spendshare: spendsharePrev,
@@ -557,6 +548,11 @@ export default function ParentPropertyHome() {
                 deriveDisplayedChildRow(row, shopifyRevenueField, predominantMetricPreference)
             ),
         [allTableRows, shopifyRevenueField, predominantMetricPreference]
+    );
+
+    const parentVisibleAdSpendChannels = useMemo(
+        () => parentGroupVisibleAdSpendChannels(childCustomers),
+        [childCustomers]
     );
 
     // Metric cards config - conditionally show either ROAS or Spendshare
@@ -632,6 +628,18 @@ export default function ParentPropertyHome() {
         handleStartDateChange,
         handleEndDateChange,
         parentAggregatedQueryExtras,
+        childPropertyRowsForUi,
+        parentVisibleAdSpendChannels,
+        error,
+        groupMarketExcludedDraft,
+        groupSpendExcludedDraft,
+        handleGroupMarketToggleDraft,
+        handleGroupMarketCatalogLoaded,
+        handleApplyMarketsForChild,
+        handleMarketsMenuOpen,
+        handleGroupSpendToggleDraft,
+        handleApplySpendForChild,
+        handleSpendMenuOpen,
     };
 
     // Render views with loading overlay
@@ -694,130 +702,25 @@ export default function ParentPropertyHome() {
                 ))}
             </div>
 
-            {/* Table Section with Property Toggles */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Child Properties</h3>
-                </div>
-                {loading ? (
-                    <div className="flex justify-center items-center min-h-[120px]"><Spinner size={40} /></div>
-                ) : error ? (
-                    <div className="text-red-500 text-center">{error}</div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-xs text-left border-collapse" style={{ fontSize: '13px' }}>
-                            <thead>
-                                <tr className="bg-gray-50">
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Property Name</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Revenue</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Orders</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Total Adspend</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Facebook Adspend</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Google Adspend</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">
-                                        {predominantMetricPreference === 'Spendshare' ? 'Spendshare' : 'ROAS'}
-                                    </th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">AOV</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {allTableRows.length === 0 ? (
-                                    <tr><td colSpan={9} className="text-center py-8 text-gray-400">No child properties found.</td></tr>
-                                ) : childPropertyRowsForUi.map((row, idx) => {
-                                    const isEnabled = enabledProperties[String(row._id)] !== false;
-                                    return (
-                                        <tr 
-                                            key={row._id} 
-                                            className={`${idx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${!isEnabled ? 'opacity-40' : ''} transition-opacity`}
-                                        >
-                                            <td className="px-3 py-2 whitespace-nowrap">{row.customerName}</td>
-                                            <td className="px-3 py-2 whitespace-nowrap">
-                                                {row.revenue.toLocaleString("da-DK", { style: "currency", currency: "DKK" })}
-                                                {shopifyRevenueField === "net_sales" && (
-                                                    <span className="ml-1 text-xs text-gray-400">(net sales)</span>
-                                                )}
-                                                {shopifyRevenueField === "gross_sales" && (
-                                                    <span className="ml-1 text-xs text-gray-400">(gross sales)</span>
-                                                )}
-                                            </td>
-                                            <td className="px-3 py-2 whitespace-nowrap">{row.orders.toLocaleString()}</td>
-                                            <td className="px-3 py-2 whitespace-nowrap">{row.adspend.toLocaleString("da-DK", { style: "currency", currency: "DKK" })}</td>
-                                            <td className="px-3 py-2 whitespace-nowrap">{(row.facebookAdspend ?? 0).toLocaleString("da-DK", { style: "currency", currency: "DKK" })}</td>
-                                            <td className="px-3 py-2 whitespace-nowrap">{(row.googleAdspend ?? 0).toLocaleString("da-DK", { style: "currency", currency: "DKK" })}</td>
-                                            <td className="px-3 py-2 whitespace-nowrap">
-                                                {predominantMetricPreference === 'Spendshare' ? (
-                                                    row.spendshare !== null ? `${(row.spendshare * 100).toFixed(2)}%` : "-"
-                                                ) : (
-                                                    row.roas !== null ? row.roas.toFixed(2) : "-"
-                                                )}
-                                            </td>
-                                            <td className="px-3 py-2 whitespace-nowrap">{row.aov ? row.aov.toLocaleString("da-DK", { style: "currency", currency: "DKK" }) : "-"}</td>
-                                            <td className="px-3 py-2 align-middle text-right">
-                                                <div className="flex flex-wrap gap-2 justify-end items-center">
-                                                    {(() => {
-                                                        const childDoc = childCustomers.find(
-                                                            (c) => String(c._id) === String(row._id)
-                                                        );
-                                                        return isShopifyMarketsCustomer(childDoc) ? (
-                                                            <>
-                                                                <ParentChildShopifyMarketsActions
-                                                                    customerId={String(row._id)}
-                                                                    propertyLabel={row.customerName}
-                                                                    excludedMarkets={
-                                                                        groupMarketExcludedDraft[
-                                                                            String(row._id)
-                                                                        ] || {}
-                                                                    }
-                                                                    onToggleMarket={handleGroupMarketToggleDraft}
-                                                                    onCatalogLoaded={handleGroupMarketCatalogLoaded}
-                                                                    onApplyMarkets={() =>
-                                                                        handleApplyMarketsForChild(row._id)
-                                                                    }
-                                                                    onMenuWillOpen={() =>
-                                                                        handleMarketsMenuOpen(row._id)
-                                                                    }
-                                                                    fetchDisabled={loading}
-                                                                />
-                                                                <ParentChildAdSpendPlatformsActions
-                                                                    customerId={String(row._id)}
-                                                                    propertyLabel={row.customerName}
-                                                                    platforms={adSpendChannelsForShopifyMarketsFilterUi(
-                                                                        childDoc?.CustomerSettings || {}
-                                                                    ).map((c) => ({ id: c.id, label: c.label }))}
-                                                                    excludedPlatforms={
-                                                                        groupSpendExcludedDraft[
-                                                                            String(row._id)
-                                                                        ] || {}
-                                                                    }
-                                                                    onTogglePlatform={handleGroupSpendToggleDraft}
-                                                                    onApplySpend={() =>
-                                                                        handleApplySpendForChild(row._id)
-                                                                    }
-                                                                    onMenuWillOpen={() =>
-                                                                        handleSpendMenuOpen(row._id)
-                                                                    }
-                                                                    fetchDisabled={loading}
-                                                                />
-                                                            </>
-                                                        ) : null;
-                                                    })()}
-                                                    <Link href={`/dashboard/${row._id}/performance-dashboard`}>
-                                                        <FormButton buttonSize="small" borderType="outline">View Dashboard</FormButton>
-                                                    </Link>
-                                                    <Link href={`/dashboard/${row._id}/config`}>
-                                                        <FormButton buttonSize="small" borderType="outline">Config</FormButton>
-                                                    </Link>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
+            <ParentChildPropertiesTable
+                loading={loading}
+                error={error}
+                rows={childPropertyRowsForUi}
+                childCustomers={childCustomers}
+                visibleAdSpendChannels={parentVisibleAdSpendChannels}
+                shopifyRevenueField={shopifyRevenueField}
+                predominantMetricPreference={predominantMetricPreference}
+                groupMarketExcludedDraft={groupMarketExcludedDraft}
+                groupSpendExcludedDraft={groupSpendExcludedDraft}
+                onToggleMarket={handleGroupMarketToggleDraft}
+                onCatalogLoaded={handleGroupMarketCatalogLoaded}
+                onApplyMarketsForChild={handleApplyMarketsForChild}
+                onMarketsMenuOpen={handleMarketsMenuOpen}
+                onToggleSpendPlatform={handleGroupSpendToggleDraft}
+                onApplySpendForChild={handleApplySpendForChild}
+                onSpendMenuOpen={handleSpendMenuOpen}
+                fetchDisabled={loading}
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
                 <ParentRevenueOrdersChart
@@ -825,11 +728,16 @@ export default function ParentPropertyHome() {
                     loading={chartLoading}
                     shopifyRevenueField={shopifyRevenueField}
                 />
-                <ParenteAdspendChart dailyData={filteredDailyData} loading={chartLoading} />
+                <ParenteAdspendChart
+                    dailyData={filteredDailyData}
+                    loading={chartLoading}
+                    visibleAdSpendChannels={parentVisibleAdSpendChannels}
+                />
                 <ParentROASChart
                     dailyData={filteredDailyData}
                     loading={chartLoading}
                     metricPreference={predominantMetricPreference}
+                    visibleAdSpendChannels={parentVisibleAdSpendChannels}
                 />
             </div>
         </div>

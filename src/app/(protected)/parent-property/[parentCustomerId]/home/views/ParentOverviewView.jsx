@@ -19,6 +19,8 @@ import {
 } from "react-icons/fi";
 import dayjs from "dayjs";
 import { getChartColors } from "@/components/dashboard/chartColors";
+import ParentChildPropertiesTable from "../components/ParentChildPropertiesTable";
+import { parentTotalSpendFromDailyRow } from "@/lib/parentPropertyAdSpend";
 
 function percentChange(current, prev) {
     if (prev === 0 || prev === null || prev === undefined) return null;
@@ -44,6 +46,36 @@ function formatDiff(current, prev, type) {
 
 const fmt = (n, d = 0) => (n ?? 0).toLocaleString("da-DK", { maximumFractionDigits: d });
 
+const CHANNEL_SPEND_METRIC_KEYS = {
+    facebook: { cur: "metaSpend", prev: "metaSpendPrev", sectionKey: "meta_spend", label: "- Meta Spend" },
+    google: { cur: "googleSpend", prev: "googleSpendPrev", sectionKey: "google_spend", label: "- Google Ads Spend" },
+    snapchat: { cur: "snapchatSpend", prev: "snapchatSpendPrev", sectionKey: "snapchat_spend", label: "- Snapchat Ads Spend" },
+    reddit: { cur: "redditSpend", prev: "redditSpendPrev", sectionKey: "reddit_spend", label: "- Reddit Ads Spend" },
+    pinterest: { cur: "pinterestSpend", prev: "pinterestSpendPrev", sectionKey: "pinterest_spend", label: "- Pinterest Ads Spend" },
+    bing: { cur: "bingSpend", prev: "bingSpendPrev", sectionKey: "bing_spend", label: "- Microsoft (Bing) Ads Spend" },
+};
+
+function buildChannelSpendMetricRows(channels, metrics, metricsPrev, pct, chgType) {
+    const rows = [];
+    for (const ch of channels || []) {
+        const spec = CHANNEL_SPEND_METRIC_KEYS[ch.id];
+        if (!spec) continue;
+        const cur = metrics?.[spec.cur] ?? 0;
+        const prev = metricsPrev?.[spec.prev] ?? 0;
+        rows.push({
+            key: spec.sectionKey,
+            label: spec.label,
+            value: cur
+                ? cur.toLocaleString("da-DK", { style: "currency", currency: "DKK", maximumFractionDigits: 0 })
+                : "-",
+            change: pct(cur, prev) !== null ? Math.abs(pct(cur, prev)).toFixed(0) : undefined,
+            changeType: chgType(pct(cur, prev)),
+            popOverContent: null,
+        });
+    }
+    return rows;
+}
+
 export default function ParentOverviewView({ sharedData }) {
     const {
         parentCustomer,
@@ -65,6 +97,19 @@ export default function ParentOverviewView({ sharedData }) {
         handleDateRangeApply,
         handleStartDateChange,
         handleEndDateChange,
+        childCustomers,
+        childPropertyRowsForUi,
+        parentVisibleAdSpendChannels,
+        error,
+        groupMarketExcludedDraft,
+        groupSpendExcludedDraft,
+        handleGroupMarketToggleDraft,
+        handleGroupMarketCatalogLoaded,
+        handleApplyMarketsForChild,
+        handleMarketsMenuOpen,
+        handleGroupSpendToggleDraft,
+        handleApplySpendForChild,
+        handleSpendMenuOpen,
     } = sharedData || {};
 
     const [viewMode, setViewMode] = useState("standard");
@@ -85,6 +130,13 @@ export default function ParentOverviewView({ sharedData }) {
     const aov = m?.aov ?? (orders > 0 ? revenue / orders : 0);
     const metaSpend = m?.metaSpend ?? filteredTableRows?.reduce((s, r) => s + (r.facebookAdspend ?? 0), 0) ?? 0;
     const googleSpend = m?.googleSpend ?? filteredTableRows?.reduce((s, r) => s + (r.googleAdspend ?? 0), 0) ?? 0;
+    const extraChannelMetrics = buildChannelSpendMetricRows(
+        (parentVisibleAdSpendChannels || []).filter((c) => c.id !== "facebook" && c.id !== "google"),
+        m,
+        prev,
+        percentChange,
+        changeType
+    );
 
     const revenuePrev = prev?.reportingRevenue ?? prev?.netRevenue ?? prev?.revenue ?? 0;
     const ordersPrev = prev?.orders ?? 0;
@@ -109,7 +161,20 @@ export default function ParentOverviewView({ sharedData }) {
         {
             key: "total_expenses",
             title: "Total Expenses",
-            metricKeys: hasFullMetrics ? ["total_expenses", "marketing_spend", "meta_spend", "google_spend", "variable_costs", "cogs", "shipping_cost", "pick_pack", "fixed_costs"] : ["adspend", "meta_spend", "google_spend"],
+            metricKeys: hasFullMetrics
+                ? [
+                      "total_expenses",
+                      "marketing_spend",
+                      "meta_spend",
+                      "google_spend",
+                      ...extraChannelMetrics.map((x) => x.key),
+                      "variable_costs",
+                      "cogs",
+                      "shipping_cost",
+                      "pick_pack",
+                      "fixed_costs",
+                  ]
+                : ["adspend", "meta_spend", "google_spend", ...extraChannelMetrics.map((x) => x.key)],
         },
         {
             key: "net_profit",
@@ -167,6 +232,7 @@ export default function ParentOverviewView({ sharedData }) {
                 { key: "adspend", label: "Spend", value: adspend ? adspend.toLocaleString("da-DK", { style: "currency", currency: "DKK", maximumFractionDigits: 0 }) : "-", change: percentChange(adspend, adspendPrev) !== null ? Math.abs(percentChange(adspend, adspendPrev)).toFixed(0) : undefined, changeType: changeType(percentChange(adspend, adspendPrev)), popOverContent: `Total Adspend: ${fmt(adspend)}` },
                 { key: "meta_spend", label: "- Meta Spend", value: metaSpend ? metaSpend.toLocaleString("da-DK", { style: "currency", currency: "DKK", maximumFractionDigits: 0 }) : "-", change: percentChange(metaSpend, metaSpendPrev) !== null ? Math.abs(percentChange(metaSpend, metaSpendPrev)).toFixed(0) : undefined, changeType: changeType(percentChange(metaSpend, metaSpendPrev)), popOverContent: null },
                 { key: "google_spend", label: "- Google Ads Spend", value: googleSpend ? googleSpend.toLocaleString("da-DK", { style: "currency", currency: "DKK", maximumFractionDigits: 0 }) : "-", change: percentChange(googleSpend, googleSpendPrev) !== null ? Math.abs(percentChange(googleSpend, googleSpendPrev)).toFixed(0) : undefined, changeType: changeType(percentChange(googleSpend, googleSpendPrev)), popOverContent: null },
+                ...extraChannelMetrics,
                 { key: "roas", label: "Blended ROAS", value: roas !== null ? roas.toFixed(2) : "-", change: percentChange(roas, roasPrev) !== null ? Math.abs(percentChange(roas, roasPrev)).toFixed(1) : undefined, changeType: changeType(percentChange(roas, roasPrev)), popOverContent: adspend > 0 ? `ROAS = Net Revenue / Spend\n= ${fmt(revenue)} / ${fmt(adspend)}\n= ${roas?.toFixed(2) ?? "N/A"}` : null, calcValueLabels: `Net Revenue: ${fmt(revenue)}\nSpend: ${fmt(adspend)}` },
                 { key: "spendshare", label: "Spendshare", value: spendshare !== null ? (spendshare * 100).toFixed(2) + "%" : "-", change: percentChange(spendshare, spendsharePrev) !== null ? Math.abs(percentChange(spendshare, spendsharePrev)).toFixed(1) : undefined, changeType: changeType(percentChange(spendshare, spendsharePrev)), popOverContent: revenue > 0 ? `Spendshare = Spend / Net Revenue\n= ${fmt(adspend)} / ${fmt(revenue)}\n= ${(spendshare * 100).toFixed(2)}%` : null },
             ];
@@ -222,6 +288,7 @@ export default function ParentOverviewView({ sharedData }) {
             { key: "marketing_spend", label: "Marketing Spend", value: cost ? cost.toLocaleString("da-DK", { style: "currency", currency: "DKK", maximumFractionDigits: 0 }) : "-", change: percentChange(cost, costPrev) !== null ? Math.abs(percentChange(cost, costPrev)).toFixed(0) : undefined, changeType: changeType(percentChange(cost, costPrev)), popOverContent: `Total Adspend: ${fmt(cost)}` },
             { key: "meta_spend", label: "- Meta Spend", value: metaSpend ? metaSpend.toLocaleString("da-DK", { style: "currency", currency: "DKK", maximumFractionDigits: 0 }) : "-", change: percentChange(metaSpend, metaSpendPrev) !== null ? Math.abs(percentChange(metaSpend, metaSpendPrev)).toFixed(0) : undefined, changeType: changeType(percentChange(metaSpend, metaSpendPrev)), popOverContent: null },
             { key: "google_spend", label: "- Google Ads Spend", value: googleSpend ? googleSpend.toLocaleString("da-DK", { style: "currency", currency: "DKK", maximumFractionDigits: 0 }) : "-", change: percentChange(googleSpend, googleSpendPrev) !== null ? Math.abs(percentChange(googleSpend, googleSpendPrev)).toFixed(0) : undefined, changeType: changeType(percentChange(googleSpend, googleSpendPrev)), popOverContent: null },
+            ...extraChannelMetrics,
             { key: "variable_costs", label: "Variable Expenses", value: variableCosts ? variableCosts.toLocaleString("da-DK", { style: "currency", currency: "DKK", maximumFractionDigits: 0 }) : "-", change: percentChange(variableCosts, variableCostsPrev) !== null ? Math.abs(percentChange(variableCosts, variableCostsPrev)).toFixed(0) : undefined, changeType: changeType(percentChange(variableCosts, variableCostsPrev)), popOverContent: null },
             { key: "cogs", label: "- COGS", value: totalCogs ? totalCogs.toLocaleString("da-DK", { style: "currency", currency: "DKK", maximumFractionDigits: 0 }) : "-", change: percentChange(totalCogs, prevTotalCogs) !== null ? Math.abs(percentChange(totalCogs, prevTotalCogs)).toFixed(0) : undefined, changeType: changeType(percentChange(totalCogs, prevTotalCogs)), popOverContent: null },
             { key: "shipping_cost", label: "- Shipping Cost", value: shippingCost ? shippingCost.toLocaleString("da-DK", { style: "currency", currency: "DKK", maximumFractionDigits: 0 }) : "-", change: percentChange(shippingCost, shippingCostPrev) !== null ? Math.abs(percentChange(shippingCost, shippingCostPrev)).toFixed(0) : undefined, changeType: changeType(percentChange(shippingCost, shippingCostPrev)), popOverContent: null },
@@ -235,7 +302,7 @@ export default function ParentOverviewView({ sharedData }) {
         ];
 
         return [...head, ...fullTail];
-    }, [aggregatedMetrics, aggregatedMetricsPrev, hasFullMetrics, revenue, revenuePrev, orders, ordersPrev, aov, aovPrev, adspend, adspendPrev, metaSpend, metaSpendPrev, googleSpend, googleSpendPrev, roas, roasPrev, spendshare, spendsharePrev, primaryRevenueLabel, reportingAovLabel]);
+    }, [aggregatedMetrics, aggregatedMetricsPrev, hasFullMetrics, revenue, revenuePrev, orders, ordersPrev, aov, aovPrev, adspend, adspendPrev, metaSpend, metaSpendPrev, googleSpend, googleSpendPrev, roas, roasPrev, spendshare, spendsharePrev, primaryRevenueLabel, reportingAovLabel, extraChannelMetrics]);
 
     const METRIC_OPTIONS = [
         {
@@ -265,7 +332,7 @@ export default function ParentOverviewView({ sharedData }) {
                 {
                     revenue: d.revenue || 0,
                     orders: d.orders || 0,
-                    cost: (d.facebookSpend || 0) + (d.googleSpend || 0),
+                    cost: parentTotalSpendFromDailyRow(d),
                 },
             ])
         );
@@ -537,6 +604,26 @@ export default function ParentOverviewView({ sharedData }) {
                             />
                         )}
                     </div>
+
+                    <ParentChildPropertiesTable
+                        loading={loading}
+                        error={error}
+                        rows={childPropertyRowsForUi || filteredTableRows}
+                        childCustomers={childCustomers}
+                        visibleAdSpendChannels={parentVisibleAdSpendChannels}
+                        shopifyRevenueField={shopifyRevenueField}
+                        predominantMetricPreference={predominantMetricPreference}
+                        groupMarketExcludedDraft={groupMarketExcludedDraft}
+                        groupSpendExcludedDraft={groupSpendExcludedDraft}
+                        onToggleMarket={handleGroupMarketToggleDraft}
+                        onCatalogLoaded={handleGroupMarketCatalogLoaded}
+                        onApplyMarketsForChild={handleApplyMarketsForChild}
+                        onMarketsMenuOpen={handleMarketsMenuOpen}
+                        onToggleSpendPlatform={handleGroupSpendToggleDraft}
+                        onApplySpendForChild={handleApplySpendForChild}
+                        onSpendMenuOpen={handleSpendMenuOpen}
+                        fetchDisabled={loading}
+                    />
                 </>
             ) : (
                 <div className="flex items-center justify-center min-h-[300px] text-gray-500 rounded-xl border border-gray-200 bg-gray-50/50">
