@@ -3,6 +3,8 @@
  * Custom apps need the `read_markets` scope in addition to existing Admin API scopes.
  */
 
+import { buildAdSpendCountryFiltersFromRegionCountries } from "./shopifyMarketAdSpendCountries";
+
 /** @param {Record<string, unknown>} json */
 function extractMarketsConnectionPayload(json) {
     const conn = json?.data?.markets;
@@ -149,19 +151,18 @@ export async function fetchShopifyMarketsCatalog(shopDomain, accessToken) {
 }
 
 /**
- * In-memory cache: `${shopDomain}:${marketNumericId}` → country display names from `MarketRegionCountry.name`
- * (matches ShopifyQL `billing_country` for those markets).
+ * In-memory cache: `${shopDomain}:${marketNumericId}` → `{ name, code }[]` from MarketRegionCountry.
  */
-const marketRegionCountryNamesCache = new Map();
+const marketRegionCountriesCache = new Map();
 
 /**
- * Paginates `market.conditions.regionsCondition.regions` and collects `MarketRegionCountry.name` values.
+ * Paginates `market.conditions.regionsCondition.regions` and collects countries (name + ISO code).
  * @param {string} shopDomain
  * @param {string} accessToken
  * @param {string} marketNumericId
- * @returns {Promise<string[]>}
+ * @returns {Promise<Array<{ name: string, code: string|null }>>}
  */
-async function fetchMarketRegionCountryNames(shopDomain, accessToken, marketNumericId) {
+async function fetchMarketRegionCountries(shopDomain, accessToken, marketNumericId) {
     const domain = String(shopDomain || "")
         .replace(/^https?:\/\//, "")
         .replace(/\/$/, "");
@@ -169,8 +170,8 @@ async function fetchMarketRegionCountryNames(shopDomain, accessToken, marketNume
     if (!domain || !accessToken || !mid) return [];
 
     const cacheKey = `${domain}:${mid}`;
-    if (marketRegionCountryNamesCache.has(cacheKey)) {
-        return marketRegionCountryNamesCache.get(cacheKey);
+    if (marketRegionCountriesCache.has(cacheKey)) {
+        return marketRegionCountriesCache.get(cacheKey);
     }
 
     const endpoint = `https://${domain}/admin/api/2025-10/graphql.json`;
@@ -189,8 +190,9 @@ query MarketRegionCountries($id: ID!, $after: String) {
           }
           nodes {
             __typename
-            ... on MarketRegion {
+            ... on MarketRegionCountry {
               name
+              code
             }
           }
         }
@@ -199,8 +201,8 @@ query MarketRegionCountries($id: ID!, $after: String) {
   }
 }`;
 
-    /** @type {Set<string>} */
-    const names = new Set();
+    /** @type {Map<string, { name: string, code: string|null }>} */
+    const byKey = new Map();
     let after = null;
     const maxPages = 40;
 
@@ -231,8 +233,16 @@ query MarketRegionCountries($id: ID!, $after: String) {
 
         const conn = market.conditions?.regionsCondition?.regions;
         for (const node of conn?.nodes || []) {
-            if (node?.name && String(node.name).trim() !== "") {
-                names.add(String(node.name).trim());
+            if (node?.__typename && node.__typename !== "MarketRegionCountry") continue;
+            const name = node?.name != null ? String(node.name).trim() : "";
+            const code =
+                node?.code != null && String(node.code).trim() !== ""
+                    ? String(node.code).trim().toUpperCase()
+                    : null;
+            if (!name && !code) continue;
+            const key = code || name.toLowerCase();
+            if (!byKey.has(key)) {
+                byKey.set(key, { name: name || code, code });
             }
         }
 
@@ -241,8 +251,10 @@ query MarketRegionCountries($id: ID!, $after: String) {
         after = pi.endCursor;
     }
 
-    const arr = [...names].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
-    marketRegionCountryNamesCache.set(cacheKey, arr);
+    const arr = [...byKey.values()].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+    );
+    marketRegionCountriesCache.set(cacheKey, arr);
     return arr;
 }
 
@@ -256,15 +268,38 @@ query MarketRegionCountries($id: ID!, $after: String) {
  * @returns {Promise<string[]>}
  */
 export async function fetchBillingCountryUnionForSelectedMarkets(shopDomain, accessToken, marketNumericIds) {
-    const ids = [...new Set((marketNumericIds || []).map((id) => String(id).trim()).filter(Boolean))];
-    if (ids.length === 0) return [];
+    const filters = await fetchAdSpendCountryFiltersForSelectedMarkets(
+        shopDomain,
+        accessToken,
+        marketNumericIds
+    );
+    return filters.billingCountryNames;
+}
 
-    const union = new Set();
+/**
+ * Union of countries for selected markets, mapped for ShopifyQL + paid media APIs.
+ * @param {string} shopDomain
+ * @param {string} accessToken
+ * @param {string[]} marketNumericIds
+ * @returns {Promise<{ billingCountryNames: string[], metaCountryCodes: string[], googleCountryNames: string[] }>}
+ */
+export async function fetchAdSpendCountryFiltersForSelectedMarkets(
+    shopDomain,
+    accessToken,
+    marketNumericIds
+) {
+    const ids = [...new Set((marketNumericIds || []).map((id) => String(id).trim()).filter(Boolean))];
+    if (ids.length === 0) {
+        return { billingCountryNames: [], metaCountryCodes: [], googleCountryNames: [] };
+    }
+
+    /** @type {Array<{ name: string, code: string|null }>} */
+    const all = [];
     await Promise.all(
         ids.map(async (id) => {
-            const list = await fetchMarketRegionCountryNames(shopDomain, accessToken, id);
-            for (const n of list) union.add(n);
+            const list = await fetchMarketRegionCountries(shopDomain, accessToken, id);
+            all.push(...list);
         })
     );
-    return [...union].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+    return buildAdSpendCountryFiltersFromRegionCountries(all);
 }

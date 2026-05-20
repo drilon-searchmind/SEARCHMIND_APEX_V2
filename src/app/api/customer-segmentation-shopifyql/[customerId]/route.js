@@ -27,6 +27,9 @@ export async function GET(request, { params }) {
     if (shopifyMarketsRaw != null && String(shopifyMarketsRaw).trim() !== '') {
         mergedSourcesQuerySuffix += `&shopifyMarkets=${encodeURIComponent(shopifyMarketsRaw)}`;
     }
+    if (searchParams.get('shopifyMarketFilterAdSpend') === '1') {
+        mergedSourcesQuerySuffix += '&shopifyMarketFilterAdSpend=1';
+    }
     const adSpendExcludeRaw = searchParams.get('adSpendExclude');
     if (adSpendExcludeRaw != null && String(adSpendExcludeRaw).trim() !== '') {
         mergedSourcesQuerySuffix += `&adSpendExclude=${encodeURIComponent(adSpendExcludeRaw)}`;

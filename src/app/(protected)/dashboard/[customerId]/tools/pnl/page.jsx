@@ -57,6 +57,9 @@ export default function PNLPage() {
         applyShopifyMarketFilters,
         syncDraftFromAppliedMarkets,
         marketQuerySuffix,
+        draftFilterAdSpendByMarket,
+        appliedFilterAdSpendByMarket,
+        setDraftFilterAdSpendByMarket,
     } = useShopifyMarketsFilter(customer, params.customerId);
 
     const {
@@ -138,6 +141,9 @@ export default function PNLPage() {
                               onToggleMarket: toggleShopifyMarket,
                               onMenuWillOpen: syncDraftFromAppliedMarkets,
                               onApplyMarkets: applyShopifyMarketFilters,
+                              filterAdSpendByMarket: draftFilterAdSpendByMarket,
+                              appliedFilterAdSpendByMarket,
+                              onFilterAdSpendByMarketChange: setDraftFilterAdSpendByMarket,
                           }
                         : null
                 }

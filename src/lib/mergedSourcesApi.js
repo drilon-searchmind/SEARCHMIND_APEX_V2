@@ -1,6 +1,9 @@
 // src/lib/mergedSourcesApi.js
 import { shopifyqlQuery } from './shopifyApi';
-import { fetchBillingCountryUnionForSelectedMarkets } from './shopifyMarketsApi';
+import {
+    fetchBillingCountryUnionForSelectedMarkets,
+    fetchAdSpendCountryFiltersForSelectedMarkets,
+} from './shopifyMarketsApi';
 import { metricsByDateToSpendDaily } from './mergeAdSpendDaily';
 import { fetchPinterestDashboardMetrics } from './pinterestApi';
 import { fetchSnapchatDashboardMetrics, resolveSnapchatAccessTokenForCustomer } from './snapchatApi';
@@ -26,6 +29,7 @@ import { AD_SPEND_CHANNELS } from './mergeAdSpendDaily';
  * @param {string} [options.source] - Caller id (e.g. merged-sources query); does not change Magento fetch path
  * @param {boolean} [options.shopifyMarketNoSelection] - When true (no markets selected in UI), skip ShopifyQL and return empty revenue rows.
  * @param {Array<{ shopifyqlMarketId: string, handle?: string }>} [options.shopifyMarketsSelection] - When set and shopifyMarketsEnabled: restrict sales to the union of each market's region countries via ShopifyQL `billing_country`. Omit for all markets.
+ * @param {boolean} [options.shopifyMarketFilterAdSpend] - When true and `shopifyMarketsSelection` is set: filter Meta/Google spend to the same market countries. When false/omitted (default), ad spend ignores market filter.
  * @param {string[]} [options.excludeAdSpendPlatforms] - e.g. `['facebook','google']` — skip fetching those platforms (empty daily rows).
  * @returns {Promise<object>} - { shopifyDaily, facebookDaily, googleDaily, ... }
  */
@@ -244,6 +248,59 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
         shopifyDaily = [];
     }
 
+    const shopifyMarketsOn = settings.shopifyMarketsEnabled === true;
+    const marketsSelectionForSpend = Array.isArray(options.shopifyMarketsSelection)
+        ? options.shopifyMarketsSelection.filter(
+              (m) => m && String(m.shopifyqlMarketId || "").trim() !== ""
+          )
+        : [];
+    const filterAdSpendByMarketEnabled = options.shopifyMarketFilterAdSpend === true && shopifyMarketsOn;
+    const zeroAdSpendForNoMarketSelection =
+        filterAdSpendByMarketEnabled && options.shopifyMarketNoSelection === true;
+    const filterAdSpendByMarket =
+        filterAdSpendByMarketEnabled &&
+        marketsSelectionForSpend.length > 0 &&
+        options.shopifyMarketNoSelection !== true;
+
+    /** @type {{ metaCountryCodes: string[], googleCountryNames: string[] }|null} */
+    let marketAdSpendFilters = null;
+    if (
+        filterAdSpendByMarket &&
+        settings.shopifyUrl &&
+        settings.shopifyApiPassword
+    ) {
+        try {
+            const resolved = await fetchAdSpendCountryFiltersForSelectedMarkets(
+                settings.shopifyUrl,
+                settings.shopifyApiPassword,
+                marketsSelectionForSpend.map((m) => m.shopifyqlMarketId)
+            );
+            if (
+                resolved.metaCountryCodes.length > 0 ||
+                resolved.googleCountryNames.length > 0
+            ) {
+                marketAdSpendFilters = resolved;
+            } else {
+                console.warn(
+                    `[Shopify Markets] Ad spend country filter: no countries resolved for selected market(s) (${settings.customerName || "customer"}).`
+                );
+            }
+        } catch (e) {
+            console.error("[Shopify Markets] Ad spend country filter failed:", e);
+        }
+    }
+
+    const metaIncludeForFetch = marketAdSpendFilters?.metaCountryCodes?.length
+        ? marketAdSpendFilters.metaCountryCodes.join(",")
+        : settings.customerMetaID;
+    const metaExcludeForFetch = marketAdSpendFilters ? "" : settings.customerMetaIDExclude;
+    const googleIncludeForFetch = marketAdSpendFilters?.googleCountryNames?.length
+        ? marketAdSpendFilters.googleCountryNames.join(",")
+        : settings.googleAdsCountryFilter || undefined;
+    const googleExcludeForFetch = marketAdSpendFilters
+        ? undefined
+        : settings.googleAdsCountryExclude || undefined;
+
     // Facebook daily
     let facebookDaily = [];
     try {
@@ -252,10 +309,18 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
             isAdSpendPlatformConfigured(settings, "facebook") &&
             FACEBOOK_APP_TOKEN
         ) {
+            if (
+                zeroAdSpendForNoMarketSelection ||
+                (filterAdSpendByMarket &&
+                    marketAdSpendFilters &&
+                    marketAdSpendFilters.metaCountryCodes.length === 0)
+            ) {
+                facebookDaily = [];
+            } else {
             const fbRes = await fetchFacebookAdsInsights(
                 settings.facebookAdAccountId,
-                settings.customerMetaID,
-                settings.customerMetaIDExclude,
+                metaIncludeForFetch,
+                metaExcludeForFetch,
                 FACEBOOK_APP_TOKEN,
                 startDate,
                 endDate,
@@ -266,6 +331,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 period: row.date_start,
                 spend: parseFloat(row.spend) || 0,
             })).sort((a, b) => a.period.localeCompare(b.period));
+            }
         }
     } catch (err) {
         console.error('Facebook error:', err);
@@ -276,12 +342,20 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
     let googleDaily = [];
     try {
         if (includeSpend("google") && isAdSpendPlatformConfigured(settings, "google")) {
+            if (
+                zeroAdSpendForNoMarketSelection ||
+                (filterAdSpendByMarket &&
+                    marketAdSpendFilters &&
+                    marketAdSpendFilters.googleCountryNames.length === 0)
+            ) {
+                googleDaily = [];
+            } else {
             const googleResponse = await fetchGoogleAdsMetrics(
                 settings.googleAdsCustomerId,
                 startDate,
                 endDate,
-                settings.googleAdsCountryFilter || undefined,
-                settings.googleAdsCountryExclude || undefined
+                googleIncludeForFetch,
+                googleExcludeForFetch
             );
             // Destructure metrics and currency code from response
             const googleRows = googleResponse.metrics;
@@ -301,6 +375,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
             googleDaily = Object.entries(daily)
                 .map(([period, spend]) => ({ period, spend }))
                 .sort((a, b) => a.period.localeCompare(b.period));
+            }
         }
     } catch (err) {
         console.error('Google Ads error:', err);

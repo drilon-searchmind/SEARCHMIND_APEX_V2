@@ -53,6 +53,9 @@ export default function EcommercePage() {
         applyShopifyMarketFilters,
         syncDraftFromAppliedMarkets,
         marketQuerySuffix,
+        draftFilterAdSpendByMarket,
+        appliedFilterAdSpendByMarket,
+        setDraftFilterAdSpendByMarket,
     } = useShopifyMarketsFilter(customer, customerId);
 
     const {
@@ -312,6 +315,9 @@ export default function EcommercePage() {
                               onToggleMarket: toggleShopifyMarket,
                               onMenuWillOpen: syncDraftFromAppliedMarkets,
                               onApplyMarkets: applyShopifyMarketFilters,
+                              filterAdSpendByMarket: draftFilterAdSpendByMarket,
+                              appliedFilterAdSpendByMarket,
+                              onFilterAdSpendByMarketChange: setDraftFilterAdSpendByMarket,
                           }
                         : null
                 }

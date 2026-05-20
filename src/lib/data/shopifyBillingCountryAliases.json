@@ -1,0 +1,11 @@
+{
+  "_comment": "Optional overrides when Shopify billing_country / region names do not match ad platform geo labels. Keys are normalized lowercase billing names.",
+  "united states": { "meta": "US", "google": "United States" },
+  "united kingdom": { "meta": "GB", "google": "United Kingdom" },
+  "czech republic": { "meta": "CZ", "google": "Czechia" },
+  "czechia": { "meta": "CZ", "google": "Czechia" },
+  "south korea": { "meta": "KR", "google": "South Korea" },
+  "russia": { "meta": "RU", "google": "Russia" },
+  "viet nam": { "meta": "VN", "google": "Vietnam" },
+  "vietnam": { "meta": "VN", "google": "Vietnam" }
+}

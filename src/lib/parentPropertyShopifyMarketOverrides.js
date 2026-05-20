@@ -5,16 +5,18 @@
  * @param {Array<Record<string, unknown>>} childCustomers — parent’s child customer docs
  * @param {Record<string, Array<{ shopifyqlMarketId: string, handle?: string, name?: string }>>} catalogsByChildId
  * @param {Record<string, Record<string, true>>} excludedMarketsByChildId — shopifyqlMarketId keys
+ * @param {Record<string, boolean>} [filterAdSpendByMarketByChildId] — per child; default false when omitted
  * @returns {string} JSON string or "" if no overrides
  */
 export function buildParentShopifyMarketOverridesJson(
     childCustomers,
     catalogsByChildId,
-    excludedMarketsByChildId
+    excludedMarketsByChildId,
+    filterAdSpendByMarketByChildId = {}
 ) {
     if (!Array.isArray(childCustomers) || childCustomers.length === 0) return "";
 
-    /** @type {Record<string, { noSelection?: true, markets?: Array<{ shopifyqlMarketId: string, handle: string }> }>} */
+    /** @type {Record<string, { noSelection?: true, markets?: Array<{ shopifyqlMarketId: string, handle: string }>, filterAdSpendByMarket?: boolean }>} */
     const out = {};
 
     for (const c of childCustomers) {
@@ -25,16 +27,24 @@ export function buildParentShopifyMarketOverridesJson(
 
         const excluded = excludedMarketsByChildId[id] || {};
         const enabled = catalog.filter((m) => excluded[m.shopifyqlMarketId] !== true);
+        const filterAdSpendByMarket = filterAdSpendByMarketByChildId[id] === true;
 
         if (enabled.length === 0) {
-            out[id] = { noSelection: true };
+            if (filterAdSpendByMarket) {
+                out[id] = { noSelection: true, filterAdSpendByMarket: true };
+            } else {
+                out[id] = { noSelection: true };
+            }
         } else if (enabled.length < catalog.length) {
             out[id] = {
                 markets: enabled.map((m) => ({
                     shopifyqlMarketId: String(m.shopifyqlMarketId || "").trim(),
                     handle: m.handle || "",
                 })),
+                ...(filterAdSpendByMarket ? { filterAdSpendByMarket: true } : { filterAdSpendByMarket: false }),
             };
+        } else if (filterAdSpendByMarket) {
+            out[id] = { filterAdSpendByMarket: true };
         }
     }
 

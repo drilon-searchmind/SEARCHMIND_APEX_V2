@@ -22,6 +22,9 @@ import { showToast } from "@/components/ui/ToastProvider";
  * @property {Record<string, boolean>} [appliedExcludedMarkets] — for button summary (defaults to draft `excludedMarkets`)
  * @property {() => void} [onMenuWillOpen] — copy applied → draft before opening dropdown
  * @property {() => void} [onApplyMarkets] — commit draft; closes menu
+ * @property {boolean} [filterAdSpendByMarket] — draft: match Meta/Google spend to selected market countries
+ * @property {boolean} [appliedFilterAdSpendByMarket] — applied toggle state for summary
+ * @property {(enabled: boolean) => void} [onFilterAdSpendByMarketChange]
  * @typedef {object} AdSpendPlatformFilterProps
  * @property {boolean} [loading=false]
  * @property {Array<{ id: string, label: string }>} [options]
@@ -274,6 +277,30 @@ export default function DashboardHeading({
                                                             );
                                                         })
                                                     )}
+                                                    </div>
+                                                    <div className="border-t border-gray-100 px-3 py-2 bg-gray-50/50 shrink-0">
+                                                        <label className="flex items-start gap-2 cursor-pointer">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={
+                                                                    shopifyMarketFilter.filterAdSpendByMarket ===
+                                                                    true
+                                                                }
+                                                                onChange={(e) =>
+                                                                    shopifyMarketFilter.onFilterAdSpendByMarketChange?.(
+                                                                        e.target.checked
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    loading ||
+                                                                    shopifyMarketFilter.loading
+                                                                }
+                                                                className="mt-0.5 rounded border-gray-300 text-[var(--color-primary-searchmind)] focus:ring-[var(--color-primary-searchmind)] shrink-0"
+                                                            />
+                                                            <span className="text-xs text-gray-700 leading-snug">
+                                                                Filter marketing spend by markets
+                                                            </span>
+                                                        </label>
                                                     </div>
                                                     <div className="border-t border-gray-100 p-2 bg-gray-50/80 shrink-0">
                                                         <button

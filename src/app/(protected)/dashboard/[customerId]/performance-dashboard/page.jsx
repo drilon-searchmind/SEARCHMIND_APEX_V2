@@ -80,6 +80,9 @@ export default function PerformanceDashboard() {
         applyShopifyMarketFilters,
         syncDraftFromAppliedMarkets,
         marketQuerySuffix,
+        draftFilterAdSpendByMarket,
+        appliedFilterAdSpendByMarket,
+        setDraftFilterAdSpendByMarket,
     } = useShopifyMarketsFilter(customer, params?.customerId);
 
     const {
@@ -1348,6 +1351,9 @@ export default function PerformanceDashboard() {
                               onToggleMarket: toggleShopifyMarket,
                               onMenuWillOpen: syncDraftFromAppliedMarkets,
                               onApplyMarkets: applyShopifyMarketFilters,
+                              filterAdSpendByMarket: draftFilterAdSpendByMarket,
+                              appliedFilterAdSpendByMarket,
+                              onFilterAdSpendByMarketChange: setDraftFilterAdSpendByMarket,
                           }
                         : null
                 }

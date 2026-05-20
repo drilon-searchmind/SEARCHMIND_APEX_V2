@@ -25,11 +25,13 @@ export default function ParentChildPropertiesTable({
     shopifyRevenueField = "net_sales",
     predominantMetricPreference = "ROAS/POAS",
     groupMarketExcludedDraft = {},
+    groupMarketFilterAdSpendDraft = {},
     groupSpendExcludedDraft = {},
     onToggleMarket,
     onCatalogLoaded,
     onApplyMarketsForChild,
     onMarketsMenuOpen,
+    onFilterAdSpendByMarketChange,
     onToggleSpendPlatform,
     onApplySpendForChild,
     onSpendMenuOpen,
@@ -181,6 +183,19 @@ export default function ParentChildPropertiesTable({
                                                                 }
                                                                 onToggleMarket={onToggleMarket}
                                                                 onCatalogLoaded={onCatalogLoaded}
+                                                                filterAdSpendByMarket={
+                                                                    groupMarketFilterAdSpendDraft[
+                                                                        String(row._id)
+                                                                    ] === true
+                                                                }
+                                                                onFilterAdSpendByMarketChange={(
+                                                                    enabled
+                                                                ) =>
+                                                                    onFilterAdSpendByMarketChange?.(
+                                                                        row._id,
+                                                                        enabled
+                                                                    )
+                                                                }
                                                                 onApplyMarkets={() =>
                                                                     onApplyMarketsForChild(row._id)
                                                                 }

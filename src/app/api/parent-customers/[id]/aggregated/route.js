@@ -237,6 +237,11 @@ export async function GET(request, { params }) {
                 ov &&
                 typeof ov === "object"
             ) {
+                if (ov.filterAdSpendByMarket === true) {
+                    mergeOptsBase.shopifyMarketFilterAdSpend = true;
+                } else {
+                    mergeOptsBase.shopifyMarketFilterAdSpend = false;
+                }
                 if (ov.noSelection === true) {
                     mergeOptsBase.shopifyMarketNoSelection = true;
                 } else if (Array.isArray(ov.markets) && ov.markets.length > 0) {

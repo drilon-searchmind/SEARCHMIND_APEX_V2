@@ -16,6 +16,7 @@ export async function GET(request, { params }) {
     const shopifyMarketsRaw = searchParams.get('shopifyMarkets');
     const legacyShopifyMarketId = searchParams.get('shopifyMarketId');
     const excludeAdSpendPlatforms = parseAdSpendExcludeQueryParam(searchParams.get('adSpendExclude'));
+    const shopifyMarketFilterAdSpend = searchParams.get('shopifyMarketFilterAdSpend') === '1';
 
     /** @type {Array<{ shopifyqlMarketId: string, handle?: string }> | undefined} */
     let shopifyMarketsSelection;
@@ -85,6 +86,7 @@ export async function GET(request, { params }) {
             source: source || undefined,
             shopifyMarketNoSelection,
             shopifyMarketsSelection,
+            shopifyMarketFilterAdSpend,
             excludeAdSpendPlatforms,
         });
         return Response.json(merged);

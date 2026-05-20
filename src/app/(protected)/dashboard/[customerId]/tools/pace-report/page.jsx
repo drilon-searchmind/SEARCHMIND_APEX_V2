@@ -67,6 +67,9 @@ export default function PaceReportPage() {
 		applyShopifyMarketFilters,
 		syncDraftFromAppliedMarkets,
 		marketQuerySuffix,
+		draftFilterAdSpendByMarket,
+		appliedFilterAdSpendByMarket,
+		setDraftFilterAdSpendByMarket,
 	} = useShopifyMarketsFilter(customer, params.customerId);
 
 	const {
@@ -191,6 +194,9 @@ export default function PaceReportPage() {
 								onToggleMarket: toggleShopifyMarket,
 								onMenuWillOpen: syncDraftFromAppliedMarkets,
 								onApplyMarkets: applyShopifyMarketFilters,
+								filterAdSpendByMarket: draftFilterAdSpendByMarket,
+								appliedFilterAdSpendByMarket,
+								onFilterAdSpendByMarketChange: setDraftFilterAdSpendByMarket,
 							}
 						: null
 				}

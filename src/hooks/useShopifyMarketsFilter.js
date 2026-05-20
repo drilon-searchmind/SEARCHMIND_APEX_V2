@@ -18,10 +18,15 @@ export function useShopifyMarketsFilter(customer, customerIdFromParams) {
     const [shopifyMarketsLoading, setShopifyMarketsLoading] = useState(false);
     const [appliedExcludedMarkets, setAppliedExcludedMarkets] = useState({});
     const [draftExcludedMarkets, setDraftExcludedMarkets] = useState({});
+    /** When true, subset market filter also restricts Meta/Google spend to market countries */
+    const [appliedFilterAdSpendByMarket, setAppliedFilterAdSpendByMarket] = useState(false);
+    const [draftFilterAdSpendByMarket, setDraftFilterAdSpendByMarket] = useState(false);
 
     useEffect(() => {
         setAppliedExcludedMarkets({});
         setDraftExcludedMarkets({});
+        setAppliedFilterAdSpendByMarket(false);
+        setDraftFilterAdSpendByMarket(false);
     }, [customer?._id]);
 
     useEffect(() => {
@@ -78,7 +83,8 @@ export function useShopifyMarketsFilter(customer, customerIdFromParams) {
 
     const syncDraftFromAppliedMarkets = useCallback(() => {
         setDraftExcludedMarkets({ ...appliedExcludedMarkets });
-    }, [appliedExcludedMarkets]);
+        setDraftFilterAdSpendByMarket(appliedFilterAdSpendByMarket);
+    }, [appliedExcludedMarkets, appliedFilterAdSpendByMarket]);
 
     const toggleShopifyMarketDraft = useCallback((marketId, included) => {
         setDraftExcludedMarkets((prev) => {
@@ -91,16 +97,21 @@ export function useShopifyMarketsFilter(customer, customerIdFromParams) {
 
     const applyShopifyMarketFilters = useCallback(() => {
         setAppliedExcludedMarkets({ ...draftExcludedMarkets });
-    }, [draftExcludedMarkets]);
+        setAppliedFilterAdSpendByMarket(draftFilterAdSpendByMarket);
+    }, [draftExcludedMarkets, draftFilterAdSpendByMarket]);
 
     const marketQuerySuffix = useMemo(() => {
         const enabledMarkets = shopifyMarkets.filter(
             (m) => appliedExcludedMarkets[m.shopifyqlMarketId] !== true
         );
         if (!shopifyMarketsFeatureOn || shopifyMarkets.length === 0) return "";
+        const adSpendPart = appliedFilterAdSpendByMarket
+            ? "&shopifyMarketFilterAdSpend=1"
+            : "&shopifyMarketFilterAdSpend=0";
         if (enabledMarkets.length === 0) {
-            return "&shopifyMarketNoSelection=1";
+            return `&shopifyMarketNoSelection=1${adSpendPart}`;
         }
+        let suffix = "";
         if (enabledMarkets.length < shopifyMarkets.length) {
             const payload = encodeURIComponent(
                 JSON.stringify(
@@ -110,10 +121,15 @@ export function useShopifyMarketsFilter(customer, customerIdFromParams) {
                     }))
                 )
             );
-            return `&shopifyMarkets=${payload}`;
+            suffix = `&shopifyMarkets=${payload}`;
         }
-        return "";
-    }, [shopifyMarketsFeatureOn, shopifyMarkets, appliedExcludedMarkets]);
+        return suffix + adSpendPart;
+    }, [
+        shopifyMarketsFeatureOn,
+        shopifyMarkets,
+        appliedExcludedMarkets,
+        appliedFilterAdSpendByMarket,
+    ]);
 
     /** @deprecated use draftExcludedMarkets */
     const excludedShopifyMarkets = draftExcludedMarkets;
@@ -133,5 +149,8 @@ export function useShopifyMarketsFilter(customer, customerIdFromParams) {
         applyShopifyMarketFilters,
         syncDraftFromAppliedMarkets,
         marketQuerySuffix,
+        appliedFilterAdSpendByMarket,
+        draftFilterAdSpendByMarket,
+        setDraftFilterAdSpendByMarket,
     };
 }

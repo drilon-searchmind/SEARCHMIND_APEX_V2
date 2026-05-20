@@ -91,6 +91,9 @@ export default function ParentPropertyHome() {
     const [groupMarketCatalogs, setGroupMarketCatalogs] = useState({});
     const [groupMarketExcludedDraft, setGroupMarketExcludedDraft] = useState({});
     const [groupMarketExcludedApplied, setGroupMarketExcludedApplied] = useState({});
+    /** Per child: match ad spend to market countries (default on) */
+    const [groupMarketFilterAdSpendDraft, setGroupMarketFilterAdSpendDraft] = useState({});
+    const [groupMarketFilterAdSpendApplied, setGroupMarketFilterAdSpendApplied] = useState({});
     /** Per Shopify Markets child: excluded platform ids (draft / applied) */
     const [groupSpendExcludedDraft, setGroupSpendExcludedDraft] = useState({});
     const [groupSpendExcludedApplied, setGroupSpendExcludedApplied] = useState({});
@@ -99,6 +102,8 @@ export default function ParentPropertyHome() {
         setGroupMarketCatalogs({});
         setGroupMarketExcludedDraft({});
         setGroupMarketExcludedApplied({});
+        setGroupMarketFilterAdSpendDraft({});
+        setGroupMarketFilterAdSpendApplied({});
         setGroupSpendExcludedDraft({});
         setGroupSpendExcludedApplied({});
     }, [parentCustomerId]);
@@ -167,9 +172,10 @@ export default function ParentPropertyHome() {
             buildParentShopifyMarketOverridesJson(
                 childCustomers,
                 groupMarketCatalogs,
-                groupMarketExcludedApplied
+                groupMarketExcludedApplied,
+                groupMarketFilterAdSpendApplied
             ),
-        [childCustomers, groupMarketCatalogs, groupMarketExcludedApplied]
+        [childCustomers, groupMarketCatalogs, groupMarketExcludedApplied, groupMarketFilterAdSpendApplied]
     );
 
     const adSpendPlatformOverridesParam = useMemo(
@@ -215,7 +221,11 @@ export default function ParentPropertyHome() {
             else next[cid] = { ...draft };
             return next;
         });
-    }, [groupMarketExcludedDraft]);
+        setGroupMarketFilterAdSpendApplied((prev) => ({
+            ...prev,
+            [cid]: groupMarketFilterAdSpendDraft[cid] === true,
+        }));
+    }, [groupMarketExcludedDraft, groupMarketFilterAdSpendDraft]);
 
     const handleMarketsMenuOpen = useCallback(
         (childId) => {
@@ -224,9 +234,18 @@ export default function ParentPropertyHome() {
                 ...prev,
                 [cid]: { ...(groupMarketExcludedApplied[cid] || {}) },
             }));
+            setGroupMarketFilterAdSpendDraft((prev) => ({
+                ...prev,
+                [cid]: groupMarketFilterAdSpendApplied[cid] === true,
+            }));
         },
-        [groupMarketExcludedApplied]
+        [groupMarketExcludedApplied, groupMarketFilterAdSpendApplied]
     );
+
+    const handleGroupMarketFilterAdSpendDraft = useCallback((childId, enabled) => {
+        const cid = String(childId);
+        setGroupMarketFilterAdSpendDraft((prev) => ({ ...prev, [cid]: enabled }));
+    }, []);
 
     const handleGroupSpendToggleDraft = useCallback((childId, platformId, included) => {
         setGroupSpendExcludedDraft((prev) => {
@@ -632,8 +651,10 @@ export default function ParentPropertyHome() {
         parentVisibleAdSpendChannels,
         error,
         groupMarketExcludedDraft,
+        groupMarketFilterAdSpendDraft,
         groupSpendExcludedDraft,
         handleGroupMarketToggleDraft,
+        handleGroupMarketFilterAdSpendDraft,
         handleGroupMarketCatalogLoaded,
         handleApplyMarketsForChild,
         handleMarketsMenuOpen,
@@ -711,9 +732,11 @@ export default function ParentPropertyHome() {
                 shopifyRevenueField={shopifyRevenueField}
                 predominantMetricPreference={predominantMetricPreference}
                 groupMarketExcludedDraft={groupMarketExcludedDraft}
+                groupMarketFilterAdSpendDraft={groupMarketFilterAdSpendDraft}
                 groupSpendExcludedDraft={groupSpendExcludedDraft}
                 onToggleMarket={handleGroupMarketToggleDraft}
                 onCatalogLoaded={handleGroupMarketCatalogLoaded}
+                onFilterAdSpendByMarketChange={handleGroupMarketFilterAdSpendDraft}
                 onApplyMarketsForChild={handleApplyMarketsForChild}
                 onMarketsMenuOpen={handleMarketsMenuOpen}
                 onToggleSpendPlatform={handleGroupSpendToggleDraft}

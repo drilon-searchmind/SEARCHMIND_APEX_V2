@@ -59,6 +59,8 @@ export default function ParentChildShopifyMarketsActions({
     onCatalogLoaded,
     onApplyMarkets,
     onMenuWillOpen,
+    filterAdSpendByMarket = false,
+    onFilterAdSpendByMarketChange,
     fetchDisabled = false,
 }) {
     const [open, setOpen] = useState(false);
@@ -174,6 +176,22 @@ export default function ParentChildShopifyMarketsActions({
                               })}
                           </>
                       )}
+                      </div>
+                      <div className="border-t border-gray-100 px-3 py-2 bg-gray-50/50 shrink-0">
+                          <label className="flex items-start gap-2 cursor-pointer">
+                              <input
+                                  type="checkbox"
+                                  checked={filterAdSpendByMarket === true}
+                                  onChange={(e) =>
+                                      onFilterAdSpendByMarketChange?.(e.target.checked)
+                                  }
+                                  disabled={fetchDisabled || loading}
+                                  className="mt-0.5 rounded border-gray-300 text-[var(--color-primary-searchmind)] focus:ring-[var(--color-primary-searchmind)] shrink-0"
+                              />
+                              <span className="text-xs text-gray-700 leading-snug">
+                                  Filter marketing spend by markets
+                              </span>
+                          </label>
                       </div>
                       <div className="border-t border-gray-100 p-2 bg-gray-50/80 shrink-0">
                           <button

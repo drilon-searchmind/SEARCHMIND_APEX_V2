@@ -66,6 +66,9 @@ const DailyOverviewPage = () => {
         applyShopifyMarketFilters,
         syncDraftFromAppliedMarkets,
         marketQuerySuffix,
+        draftFilterAdSpendByMarket,
+        appliedFilterAdSpendByMarket,
+        setDraftFilterAdSpendByMarket,
     } = useShopifyMarketsFilter(customer, params.customerId);
 
     const {
@@ -236,6 +239,9 @@ const DailyOverviewPage = () => {
                               onToggleMarket: toggleShopifyMarket,
                               onMenuWillOpen: syncDraftFromAppliedMarkets,
                               onApplyMarkets: applyShopifyMarketFilters,
+                              filterAdSpendByMarket: draftFilterAdSpendByMarket,
+                              appliedFilterAdSpendByMarket,
+                              onFilterAdSpendByMarketChange: setDraftFilterAdSpendByMarket,
                           }
                         : null
                 }

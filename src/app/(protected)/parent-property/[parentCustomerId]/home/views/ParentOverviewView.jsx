@@ -102,8 +102,10 @@ export default function ParentOverviewView({ sharedData }) {
         parentVisibleAdSpendChannels,
         error,
         groupMarketExcludedDraft,
+        groupMarketFilterAdSpendDraft,
         groupSpendExcludedDraft,
         handleGroupMarketToggleDraft,
+        handleGroupMarketFilterAdSpendDraft,
         handleGroupMarketCatalogLoaded,
         handleApplyMarketsForChild,
         handleMarketsMenuOpen,
@@ -614,9 +616,11 @@ export default function ParentOverviewView({ sharedData }) {
                         shopifyRevenueField={shopifyRevenueField}
                         predominantMetricPreference={predominantMetricPreference}
                         groupMarketExcludedDraft={groupMarketExcludedDraft}
+                        groupMarketFilterAdSpendDraft={groupMarketFilterAdSpendDraft}
                         groupSpendExcludedDraft={groupSpendExcludedDraft}
                         onToggleMarket={handleGroupMarketToggleDraft}
                         onCatalogLoaded={handleGroupMarketCatalogLoaded}
+                        onFilterAdSpendByMarketChange={handleGroupMarketFilterAdSpendDraft}
                         onApplyMarketsForChild={handleApplyMarketsForChild}
                         onMarketsMenuOpen={handleMarketsMenuOpen}
                         onToggleSpendPlatform={handleGroupSpendToggleDraft}
