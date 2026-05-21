@@ -34,6 +34,8 @@ const AuditFollowUpModal = ({
     comparisonDateRange = null,
     auditReportSnapshot = {},
     customerName = "",
+    pendingMessage = null,
+    onPendingMessageConsumed,
 }) => {
     const { data: session } = useSession();
     const [searchQuery, setSearchQuery] = useState("");
@@ -46,6 +48,8 @@ const AuditFollowUpModal = ({
     const [error, setError] = useState(null);
 
     const messagesEndRef = useRef(null);
+    const pendingHandledRef = useRef(null);
+    const skipChatMessagesFetchRef = useRef(false);
 
     useEffect(() => {
         if (messagesEndRef.current) {
@@ -53,11 +57,13 @@ const AuditFollowUpModal = ({
         }
     }, [messages, sending]);
 
-    const fetchChatHistory = useCallback(async () => {
+    const fetchChatHistory = useCallback(async ({ silent = false } = {}) => {
         if (!customerId || !auditId) return;
         try {
-            setLoading(true);
-            setError(null);
+            if (!silent) {
+                setLoading(true);
+                setError(null);
+            }
             const q = new URLSearchParams({
                 customerId: String(customerId),
                 auditId: String(auditId),
@@ -68,9 +74,9 @@ const AuditFollowUpModal = ({
             setChatHistory(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error(err);
-            setError(err.message);
+            if (!silent) setError(err.message);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     }, [customerId, auditId]);
 
@@ -81,19 +87,18 @@ const AuditFollowUpModal = ({
     }, [customerId, auditId, session, fetchChatHistory]);
 
     useEffect(() => {
-        if (selectedChat?._id) {
-            (async () => {
-                try {
-                    const res = await fetch(`/api/audit-followup/${selectedChat._id}`);
-                    const chat = await res.json().catch(() => ({}));
-                    if (!res.ok) throw new Error(chat.error || "Failed to fetch chat");
-                    setMessages(chat.messages || []);
-                } catch (err) {
-                    console.error(err);
-                    setError(err.message);
-                }
-            })();
-        }
+        if (!selectedChat?._id || skipChatMessagesFetchRef.current) return;
+        (async () => {
+            try {
+                const res = await fetch(`/api/audit-followup/${selectedChat._id}`);
+                const chat = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(chat.error || "Failed to fetch chat");
+                setMessages(chat.messages || []);
+            } catch (err) {
+                console.error(err);
+                setError(err.message);
+            }
+        })();
     }, [selectedChat?._id]);
 
     const filteredChats = chatHistory.filter(
@@ -102,28 +107,55 @@ const AuditFollowUpModal = ({
             chat.lastMessage?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    const createChat = useCallback(async () => {
+        if (!customerId || !auditId || !session?.user?.id) {
+            throw new Error("Missing session or audit context");
+        }
+        const title = `Audit follow-up — ${dateRange.startDate} to ${dateRange.endDate}`;
+        const res = await fetch("/api/audit-followup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                customerId,
+                auditId,
+                title,
+                dateRange,
+                comparisonDateRange,
+                auditReportSnapshot,
+                customerName,
+            }),
+        });
+        const newChat = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(newChat.error || "Failed to create chat");
+        setChatHistory((prev) => [newChat, ...prev]);
+        return newChat;
+    }, [
+        customerId,
+        auditId,
+        session?.user?.id,
+        dateRange,
+        comparisonDateRange,
+        auditReportSnapshot,
+        customerName,
+    ]);
+
+    const postChatMessage = useCallback(async (chatId, userMessage) => {
+        const res = await fetch(`/api/audit-followup/${chatId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: userMessage }),
+        });
+        const aiMessage = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(aiMessage.error || "Failed to send message");
+        return aiMessage;
+    }, []);
+
     const handleNewChat = async () => {
         if (!customerId || !auditId || !session?.user?.id) return;
         try {
             setLoading(true);
             setError(null);
-            const title = `Audit follow-up — ${dateRange.startDate} to ${dateRange.endDate}`;
-            const res = await fetch("/api/audit-followup", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    customerId,
-                    auditId,
-                    title,
-                    dateRange,
-                    comparisonDateRange,
-                    auditReportSnapshot,
-                    customerName,
-                }),
-            });
-            const newChat = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(newChat.error || "Failed to create chat");
-            setChatHistory((prev) => [newChat, ...prev]);
+            const newChat = await createChat();
             setSelectedChat(newChat);
             setMessages([]);
         } catch (err) {
@@ -134,6 +166,74 @@ const AuditFollowUpModal = ({
         }
     };
 
+    const sendUserMessage = useCallback(
+        async (chat, userMessage) => {
+            const tempUserMsg = {
+                _id: `temp-${Date.now()}`,
+                type: "user",
+                content: userMessage,
+                timestamp: new Date().toISOString(),
+            };
+            setMessages((prev) => [...prev, tempUserMsg]);
+            try {
+                const aiMessage = await postChatMessage(chat._id, userMessage);
+                setMessages((prev) => [
+                    ...prev.filter((m) => m._id !== tempUserMsg._id),
+                    tempUserMsg,
+                    {
+                        _id: `ai-${Date.now()}`,
+                        type: "ai",
+                        content: aiMessage.content,
+                        timestamp: aiMessage.timestamp || new Date().toISOString(),
+                    },
+                ]);
+                fetchChatHistory({ silent: true });
+            } catch (err) {
+                setMessages((prev) => prev.filter((m) => m._id !== tempUserMsg._id));
+                throw err;
+            }
+        },
+        [postChatMessage, fetchChatHistory]
+    );
+
+    useEffect(() => {
+        const text = pendingMessage?.trim();
+        if (!text || !session?.user?.id) return;
+        if (pendingHandledRef.current === text) return;
+
+        pendingHandledRef.current = text;
+        onPendingMessageConsumed?.();
+
+        let cancelled = false;
+
+        (async () => {
+            setSending(true);
+            setError(null);
+            skipChatMessagesFetchRef.current = true;
+            try {
+                const chat = await createChat();
+                if (cancelled) return;
+                setSelectedChat(chat);
+                setMessages([]);
+                await sendUserMessage(chat, text);
+            } catch (err) {
+                if (!cancelled) {
+                    console.error(err);
+                    setError(err?.message || "Failed to analyze finding");
+                    pendingHandledRef.current = null;
+                }
+            } finally {
+                skipChatMessagesFetchRef.current = false;
+                if (!cancelled) setSending(false);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per pendingMessage text
+    }, [pendingMessage, session?.user?.id]);
+
     const handleSendMessage = async () => {
         if (!message.trim() || !selectedChat || sending) return;
 
@@ -142,37 +242,11 @@ const AuditFollowUpModal = ({
         setSending(true);
         setError(null);
 
-        const tempUserMsg = {
-            _id: `temp-${Date.now()}`,
-            type: "user",
-            content: userMessage,
-            timestamp: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, tempUserMsg]);
-
         try {
-            const res = await fetch(`/api/audit-followup/${selectedChat._id}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: userMessage }),
-            });
-            const aiMessage = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(aiMessage.error || "Failed to send message");
-            setMessages((prev) => [
-                ...prev.filter((m) => m._id !== tempUserMsg._id),
-                tempUserMsg,
-                {
-                    _id: `ai-${Date.now()}`,
-                    type: "ai",
-                    content: aiMessage.content,
-                    timestamp: aiMessage.timestamp || new Date().toISOString(),
-                },
-            ]);
-            fetchChatHistory();
+            await sendUserMessage(selectedChat, userMessage);
         } catch (err) {
             console.error(err);
             setError(err.message);
-            setMessages((prev) => prev.filter((m) => m._id !== tempUserMsg._id));
         } finally {
             setSending(false);
         }
@@ -186,7 +260,7 @@ const AuditFollowUpModal = ({
             aria-modal="true"
             aria-labelledby="audit-followup-title"
         >
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-6xl h-[85vh] relative flex overflow-hidden">
+            <div className="relative flex h-[85vh] w-full max-w-6xl overflow-hidden rounded-xl border border-gray-200 bg-white">
                 <button
                     type="button"
                     onClick={onClose}

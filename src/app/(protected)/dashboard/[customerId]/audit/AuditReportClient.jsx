@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { FiArrowLeft, FiClipboard, FiList, FiShare2 } from "react-icons/fi";
 import { LuBrainCircuit } from "react-icons/lu";
+import { buildFindingElaborationPrompt } from "@/lib/audit/auditFindingPrompt";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import AuditFollowUpModal from "@/components/audit-followup/AuditFollowUpModal";
 import Spinner from "@/components/ui/Spinner";
@@ -68,63 +69,82 @@ function formatTagLabel(tag) {
     return map[x] || x;
 }
 
-function severityBorderClass(severity) {
+function severityStyles(severity) {
     const x = String(severity || "").toLowerCase();
-    if (x === "critical" || x === "kritisk") return "border-red-300";
-    if (x === "high" || x === "høj" || x === "hoj") return "border-orange-300";
-    if (x === "medium") return "border-amber-300";
-    if (x === "low" || x === "lav") return "border-emerald-300";
-    return "border-gray-200";
+    if (x === "critical" || x === "kritisk") {
+        return "bg-red-50 text-red-900 border-red-200";
+    }
+    if (x === "high" || x === "høj" || x === "hoj") {
+        return "bg-orange-50 text-orange-900 border-orange-200";
+    }
+    if (x === "medium") {
+        return "bg-amber-50 text-amber-900 border-amber-200";
+    }
+    if (x === "low" || x === "lav") {
+        return "bg-emerald-50 text-emerald-900 border-emerald-200";
+    }
+    return "bg-gray-50 text-gray-800 border-gray-200";
 }
 
-function severityDotClass(severity) {
-    const x = String(severity || "").toLowerCase();
-    if (x === "critical" || x === "kritisk") return "bg-red-500";
-    if (x === "high" || x === "høj" || x === "hoj") return "bg-orange-500";
-    if (x === "medium") return "bg-amber-500";
-    if (x === "low" || x === "lav") return "bg-emerald-500";
-    return "bg-gray-300";
-}
-
-function FindingCard({ finding, showActionLabel = "Action" }) {
+function FindingCard({ finding, showActionLabel = "Action", onAnalyzeFinding }) {
     const severity = finding.severity;
+    const recommendation = finding.recommendation || finding.recommendedAction;
+    const recommendationLabel =
+        showActionLabel === "Action" ? "Recommendation" : showActionLabel;
+
     return (
         <li
-            className={`relative rounded-lg border bg-white px-3 py-3 pr-6 text-gray-800 ${severityBorderClass(severity)}`}
+            className={`flex flex-col gap-3 rounded-lg border px-3 py-3 sm:flex-row sm:items-start sm:gap-4 ${severityStyles(severity)}`}
         >
-            <span
-                className={`absolute top-2.5 right-2.5 h-2 w-2 rounded-full ${severityDotClass(severity)}`}
-                title={formatSeverityLabel(severity)}
-                aria-hidden
-            />
-            <div className="flex flex-wrap items-start justify-between gap-2 pr-2">
-                <span className="font-semibold text-sm text-gray-900">{finding.title}</span>
-                <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-gray-500">
-                    {formatSeverityLabel(severity)}
-                </span>
+            <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                    <span className="font-semibold text-sm">{finding.title}</span>
+                    <span className="text-[0.65rem] font-semibold uppercase tracking-wide opacity-80">
+                        {formatSeverityLabel(severity)}
+                    </span>
+                </div>
+                {finding.rationale || finding.evidence ? (
+                    <p className="mt-1.5 text-xs leading-relaxed opacity-90">
+                        {finding.rationale || finding.evidence}
+                    </p>
+                ) : null}
+                {finding.impact ? (
+                    <p className="mt-1.5 text-xs opacity-90">
+                        <span className="font-semibold">Impact:</span> {finding.impact}
+                    </p>
+                ) : null}
+                {recommendation || finding.business_case ? (
+                    <div className="mt-3 space-y-2">
+                        {recommendation ? (
+                            <div className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-gray-800">
+                                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-[var(--color-primary-searchmind)] mb-1">
+                                    {recommendationLabel}
+                                </p>
+                                <p className="text-xs leading-relaxed text-gray-700">{recommendation}</p>
+                            </div>
+                        ) : null}
+                        {finding.business_case ? (
+                            <div className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-gray-800">
+                                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-[var(--color-primary-searchmind)] mb-1">
+                                    Business case
+                                </p>
+                                <p className="text-xs leading-relaxed text-gray-700">
+                                    {finding.business_case}
+                                </p>
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
             </div>
-            {finding.rationale || finding.evidence ? (
-                <p className="mt-1.5 text-xs text-gray-600 leading-relaxed">
-                    {finding.rationale || finding.evidence}
-                </p>
-            ) : null}
-            {finding.impact ? (
-                <p className="mt-1 text-xs text-gray-500">
-                    <span className="font-medium text-gray-600">Impact:</span> {finding.impact}
-                </p>
-            ) : null}
-            {finding.recommendation || finding.recommendedAction ? (
-                <p className="mt-2 text-xs text-gray-700 border-t border-gray-100 pt-2">
-                    <span className="font-medium">
-                        {showActionLabel === "Action" ? "Recommendation" : showActionLabel}:
-                    </span>{" "}
-                    {finding.recommendation || finding.recommendedAction}
-                </p>
-            ) : null}
-            {finding.business_case ? (
-                <p className="mt-1 text-xs text-gray-500">
-                    <span className="font-medium text-gray-600">Business case:</span> {finding.business_case}
-                </p>
+            {onAnalyzeFinding ? (
+                <button
+                    type="button"
+                    onClick={() => onAnalyzeFinding(finding)}
+                    className="inline-flex shrink-0 items-center justify-center gap-1.5 self-start whitespace-nowrap rounded-lg border border-purple-500 bg-purple-50 px-3 py-2 text-[0.65rem] font-semibold text-purple-700 transition-colors hover:bg-purple-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] sm:max-w-[9.5rem] sm:text-xs"
+                >
+                    <LuBrainCircuit className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    Analyze this with AI
+                </button>
             ) : null}
         </li>
     );
@@ -215,7 +235,7 @@ function ScoreMetricCard({ title, score, gradeLabel }) {
     );
 }
 
-function AnalysisArticle({ analysis }) {
+function AnalysisArticle({ analysis, onAnalyzeFinding }) {
     const groupLabel = normalizeGroupLabel(analysis.groupId, analysis.groupLabel);
     const tag = formatTagLabel(analysis.tag);
 
@@ -244,7 +264,7 @@ function AnalysisArticle({ analysis }) {
             {(Array.isArray(analysis.findings) ? analysis.findings : []).length > 0 ? (
                 <ul className="space-y-3">
                     {analysis.findings.map((f, i) => (
-                        <FindingCard key={i} finding={f} />
+                        <FindingCard key={i} finding={f} onAnalyzeFinding={onAnalyzeFinding} />
                     ))}
                 </ul>
             ) : null}
@@ -257,7 +277,7 @@ function AnalysisArticle({ analysis }) {
     );
 }
 
-function ChannelPrioritySection({ channel }) {
+function ChannelPrioritySection({ channel, onAnalyzeFinding }) {
     const priorities = Array.isArray(channel.topPriorities) ? channel.topPriorities : [];
     if (priorities.length === 0) return null;
 
@@ -291,6 +311,7 @@ function ChannelPrioritySection({ channel }) {
                             rationale: p.rationale,
                             recommendedAction: p.recommendedAction,
                         }}
+                        onAnalyzeFinding={onAnalyzeFinding}
                     />
                 ))}
             </ul>
@@ -335,6 +356,19 @@ export default function AuditReportClient() {
     const [serverLoading, setServerLoading] = useState(false);
     const [detailTab, setDetailTab] = useState("all");
     const [followUpOpen, setFollowUpOpen] = useState(false);
+    const [followUpPendingMessage, setFollowUpPendingMessage] = useState(null);
+
+    const handleAnalyzeFinding = (finding) => {
+        setFollowUpPendingMessage(
+            buildFindingElaborationPrompt(finding, formatSeverityLabel)
+        );
+        setFollowUpOpen(true);
+    };
+
+    const handleCloseFollowUp = () => {
+        setFollowUpOpen(false);
+        setFollowUpPendingMessage(null);
+    };
 
     const mongoAudit = Boolean(auditId && isMongoObjectIdString(auditId));
 
@@ -691,7 +725,13 @@ export default function AuditReportClient() {
                                     This section was not found in the report.
                                 </p>
                             ) : (
-                                filteredAnalyses.map((a) => <AnalysisArticle key={a.id} analysis={a} />)
+                                filteredAnalyses.map((a) => (
+                                    <AnalysisArticle
+                                        key={a.id}
+                                        analysis={a}
+                                        onAnalyzeFinding={handleAnalyzeFinding}
+                                    />
+                                ))
                             )}
                         </section>
                     ) : null}
@@ -704,7 +744,11 @@ export default function AuditReportClient() {
                                 </p>
                             ) : (
                                 filteredChannels.map((ch) => (
-                                    <ChannelPrioritySection key={ch.id || ch.label} channel={ch} />
+                                    <ChannelPrioritySection
+                                        key={ch.id || ch.label}
+                                        channel={ch}
+                                        onAnalyzeFinding={handleAnalyzeFinding}
+                                    />
                                 ))
                             )}
                         </section>
@@ -745,13 +789,15 @@ export default function AuditReportClient() {
 
             {followUpOpen && payload && report ? (
                 <AuditFollowUpModal
-                    onClose={() => setFollowUpOpen(false)}
+                    onClose={handleCloseFollowUp}
                     customerId={customerId}
                     auditId={payload.auditId}
                     dateRange={payload.dateRange}
                     comparisonDateRange={payload.comparisonDateRange}
                     auditReportSnapshot={report}
                     customerName={payload.customerName || headingLabel}
+                    pendingMessage={followUpPendingMessage}
+                    onPendingMessageConsumed={() => setFollowUpPendingMessage(null)}
                 />
             ) : null}
         </div>
