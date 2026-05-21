@@ -12,7 +12,8 @@ import {
     buildFallbackAuditReport,
     runAuditAnalyses,
 } from "@/lib/audit/auditReportBuilder";
-import { isAuditAiConfigured } from "@/lib/audit/auditAnthropic";
+import { getAuditAiAccessMode, isAuditAiConfigured } from "@/lib/audit/auditAnthropic";
+import { rejectClientAuditAiOverrides } from "@/lib/audit/auditAiReadOnlyPolicy";
 
 /**
  * @param {unknown[]} selections
@@ -58,6 +59,19 @@ export async function POST(request) {
         }
 
         const body = await request.json().catch(() => ({}));
+        try {
+            rejectClientAuditAiOverrides(body);
+        } catch (overrideErr) {
+            return NextResponse.json({ error: overrideErr.message }, { status: 400 });
+        }
+
+        if (getAuditAiAccessMode() !== "READ_ONLY") {
+            return NextResponse.json(
+                { error: "Audit AI misconfigured: READ_ONLY mode required" },
+                { status: 500 }
+            );
+        }
+
         const {
             customerId,
             startDate,

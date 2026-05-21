@@ -45,7 +45,7 @@ export async function runAuditAnalyses({
     selections,
     dataSnapshot = {},
 }) {
-    const system = getAuditSystemPrompt();
+    const system = await getAuditSystemPrompt();
     const results = [];
     const concurrency = 4;
     const queue = [...selections];
@@ -55,7 +55,7 @@ export async function runAuditAnalyses({
         const groupId = sel.groupId || (cardId ? auditGroupIdFromCardId(cardId) : "cross");
         const catalog = cardId ? getAuditCatalogCard(cardId) : null;
         const group = getAuditCatalogGroup(groupId);
-        const meta = cardId ? getTaskPromptForCardId(cardId) : null;
+        const meta = cardId ? await getTaskPromptForCardId(cardId) : null;
 
         let title = catalog?.card?.title || group?.label || "Custom analysis";
         let tag = catalog?.card?.tag || "Custom";

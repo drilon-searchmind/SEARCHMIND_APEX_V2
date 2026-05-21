@@ -8,6 +8,7 @@ import CustomersTab from "./tabs/CustomersTab";
 import UsersTab from "./tabs/UsersTab";
 import NotificationsTab from "./tabs/NotificationsTab";
 import NewsTab from "./tabs/NewsTab";
+import AuditPromptLibraryTab from "./tabs/AuditPromptLibraryTab";
 
 export default function AdminPage() {
     const [activeTab, setActiveTab] = useState("general");
@@ -18,6 +19,7 @@ export default function AdminPage() {
         { key: "users", label: "Users", content: <UsersTab /> },
         { key: "notifications", label: "Notifications", content: <NotificationsTab /> },
         { key: "news", label: "News", content: <NewsTab /> },
+        { key: "audit-prompts", label: "Audit Prompt Library", content: <AuditPromptLibraryTab /> },
     ];
 
     return (

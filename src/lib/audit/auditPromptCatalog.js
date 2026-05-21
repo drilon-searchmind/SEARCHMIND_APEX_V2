@@ -1,6 +1,6 @@
 /**
  * UI catalog for Run Audit modal.
- * Task text is loaded from audit-prompts.md by card id via auditPromptLibrary.
+ * Task text is loaded from the Audit Prompt Library (MongoDB) via auditPromptLibrary.
  */
 
 /** @typedef {'green'|'blue'|'amber'|'purple'|'red'|'pink'|'teal'} AuditTagColor */

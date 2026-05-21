@@ -1,6 +1,16 @@
 /**
- * Claude API client for Apex audits (CLAUDE_CODE_API_KEY or ANTHROPIC_API_KEY).
+ * Claude API client for Apex audits — READ ONLY (see auditAiReadOnlyPolicy.js).
+ *
+ * Uses Anthropic Messages API only (text completion). No tools, MCP, or write actions.
+ * CLAUDE_CODE_API_KEY / ANTHROPIC_API_KEY are credentials only; this module never
+ * invokes Claude Code agent or tool endpoints.
  */
+
+import {
+    AUDIT_AI_ACCESS_MODE,
+    AUDIT_ANTHROPIC_MESSAGES_URL,
+    buildReadOnlyAuditAnthropicBody,
+} from "./auditAiReadOnlyPolicy";
 
 function getApiKey() {
     const key =
@@ -13,6 +23,11 @@ function getApiKey() {
 
 export function isAuditAiConfigured() {
     return Boolean(getApiKey());
+}
+
+/** @returns {'READ_ONLY'} */
+export function getAuditAiAccessMode() {
+    return AUDIT_AI_ACCESS_MODE.MODE;
 }
 
 export function getAuditAnthropicModel() {
@@ -35,6 +50,45 @@ function anthropicErrorMessage(res, data) {
 }
 
 /**
+ * Single gateway for audit Anthropic HTTP calls.
+ * @param {ReturnType<typeof buildReadOnlyAuditAnthropicBody>} requestBody
+ */
+async function postReadOnlyAuditMessages(requestBody) {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        throw new Error("CLAUDE_CODE_API_KEY is not configured");
+    }
+
+    const res = await fetch(AUDIT_ANTHROPIC_MESSAGES_URL.href, {
+        method: "POST",
+        headers: {
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(anthropicErrorMessage(res, data));
+    }
+
+    const blocks = Array.isArray(data.content) ? data.content : [];
+    const text = blocks
+        .filter((b) => b && b.type === "text" && typeof b.text === "string")
+        .map((b) => b.text)
+        .join("\n")
+        .trim();
+
+    const usage = data.usage && typeof data.usage === "object" ? data.usage : {};
+    const tokensUsed =
+        (Number(usage.input_tokens) || 0) + (Number(usage.output_tokens) || 0);
+
+    return { text, model: requestBody.model, tokensUsed };
+}
+
+/**
  * @param {{ system: string, messages: Array<{ role: 'user' | 'assistant', content: string }>, maxTokens?: number, temperature?: number }} opts
  * @returns {Promise<{ text: string, model: string, tokensUsed: number }>}
  */
@@ -44,49 +98,14 @@ export async function callAuditAnthropicMessages({
     maxTokens = 8192,
     temperature = 0.4,
 }) {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-        throw new Error("CLAUDE_CODE_API_KEY is not configured");
-    }
-
-    const model = getAuditAnthropicModel();
-
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-            "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        },
-        body: JSON.stringify({
-            model,
-            max_tokens: maxTokens,
-            temperature,
-            system,
-            messages: messages.map((m) => ({
-                role: m.role === "assistant" ? "assistant" : "user",
-                content: m.content,
-            })),
-        }),
+    const requestBody = buildReadOnlyAuditAnthropicBody({
+        model: getAuditAnthropicModel(),
+        system,
+        messages,
+        maxTokens,
+        temperature,
     });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-        throw new Error(anthropicErrorMessage(res, data));
-    }
-
-    const blocks = Array.isArray(data.content) ? data.content : [];
-    const text = blocks
-        .filter((b) => b.type === "text")
-        .map((b) => b.text)
-        .join("\n")
-        .trim();
-
-    const usage = data.usage && typeof data.usage === "object" ? data.usage : {};
-    const tokensUsed =
-        (Number(usage.input_tokens) || 0) + (Number(usage.output_tokens) || 0);
-
-    return { text, model, tokensUsed };
+    return postReadOnlyAuditMessages(requestBody);
 }
 
 /**
@@ -94,38 +113,11 @@ export async function callAuditAnthropicMessages({
  * @returns {Promise<string>}
  */
 export async function callAuditAnthropic({ system, user, maxTokens = 8192, temperature = 0.35 }) {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-        throw new Error("CLAUDE_CODE_API_KEY is not configured");
-    }
-
-    const model = getAuditAnthropicModel();
-
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-            "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        },
-        body: JSON.stringify({
-            model,
-            max_tokens: maxTokens,
-            temperature,
-            system,
-            messages: [{ role: "user", content: user }],
-        }),
+    const { text } = await callAuditAnthropicMessages({
+        system,
+        messages: [{ role: "user", content: user }],
+        maxTokens,
+        temperature,
     });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-        throw new Error(anthropicErrorMessage(res, data));
-    }
-
-    const blocks = Array.isArray(data.content) ? data.content : [];
-    const text = blocks
-        .filter((b) => b.type === "text")
-        .map((b) => b.text)
-        .join("\n");
-    return text.trim();
+    return text;
 }

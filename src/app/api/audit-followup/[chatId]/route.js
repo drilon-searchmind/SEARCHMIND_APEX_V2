@@ -6,9 +6,11 @@ import connectToDatabase from "@root/lib/mongodb";
 import AuditFollowUpChat from "@/models/AuditFollowUpChat";
 import {
     callAuditAnthropicMessages,
+    getAuditAiAccessMode,
     getAuditAnthropicModel,
     isAuditAiConfigured,
 } from "@/lib/audit/auditAnthropic";
+import { rejectClientAuditAiOverrides } from "@/lib/audit/auditAiReadOnlyPolicy";
 import { buildAuditFollowUpSystemPrompt } from "@/lib/audit/auditFollowUpPrompt";
 
 function requireInternalStaff(session) {
@@ -70,6 +72,18 @@ export async function POST(request, { params }) {
 
     try {
         const body = await request.json();
+        try {
+            rejectClientAuditAiOverrides(body);
+        } catch (overrideErr) {
+            return NextResponse.json({ error: overrideErr.message }, { status: 400 });
+        }
+        if (getAuditAiAccessMode() !== "READ_ONLY") {
+            return NextResponse.json(
+                { error: "Audit AI misconfigured: READ_ONLY mode required" },
+                { status: 500 }
+            );
+        }
+
         const message = body?.message != null ? String(body.message).trim() : "";
         if (!message) {
             return NextResponse.json({ error: "Message is required" }, { status: 400 });
