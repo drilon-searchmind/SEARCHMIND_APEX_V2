@@ -533,7 +533,8 @@ export default function RunAuditModal({
                             <Spinner size={44} color="#406969" />
                             <p className="text-sm font-medium text-gray-700">Running audit…</p>
                             <p className="max-w-sm text-center text-xs text-gray-500">
-                                Running {totalSelected} analysis(es) with Claude and the Apex prompt library.
+                                Fetching channel data for the audit period, then running{" "}
+                                {totalSelected} analysis(es) with Claude (Apex prompt library).
                             </p>
                         </div>
                     ) : null}

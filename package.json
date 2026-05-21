@@ -11,6 +11,7 @@
     "google-ads-token": "node scripts/get-google-ads-refresh-token.js",
     "microsoft-ads-token": "node scripts/get-microsoft-ads-refresh-token.js",
     "postmark:test-welcome": "node scripts/send-postmark-welcome-test.js",
+    "ahrefs:test-key": "node scripts/test/test-ahrefs-api-key.mjs",
     "sync:customer-teams": "node scripts/sync-customer-teams-from-clickup.mjs"
   },
   "dependencies": {

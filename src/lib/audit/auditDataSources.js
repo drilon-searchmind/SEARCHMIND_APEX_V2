@@ -1,4 +1,5 @@
 import { getServiceDashboardConfigWarnings } from "@/lib/customerServiceIntegrations";
+import { isAhrefsConfigured } from "@/lib/ahrefsApi";
 
 /**
  * Data sources shown in Run Audit modal (aligned with audit-prompts.md).
@@ -16,7 +17,11 @@ export function getAuditDataSources(customer, settings) {
         { id: "meta", label: "Meta", connected: !w.ps },
         { id: "klaviyo", label: "Klaviyo", connected: !w.em },
         { id: "search_console", label: "Search Console", connected: !w.seo },
-        { id: "ahrefs", label: "Ahrefs", connected: false },
+        {
+            id: "ahrefs",
+            label: "Ahrefs",
+            connected: isAhrefsConfigured() && !w.seo,
+        },
     ];
 }
 

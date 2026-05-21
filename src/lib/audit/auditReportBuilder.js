@@ -36,15 +36,21 @@ export { minusOneYearDate };
  * @param {{ startDate: string, endDate: string }} opts.dateRange
  * @param {{ startDate: string, endDate: string }|null} [opts.comparisonDateRange]
  * @param {AuditSelectionInput[]} opts.selections
- * @param {object} [opts.dataSnapshot]
+ * @param {object} [opts.auditContext] — server-built context (page snapshot + enrichments)
+ * @param {object} [opts.dataSnapshot] — @deprecated use auditContext; kept for backward compatibility
  */
 export async function runAuditAnalyses({
     customerName,
     dateRange,
     comparisonDateRange = null,
     selections,
+    auditContext,
     dataSnapshot = {},
 }) {
+    const contextForPrompt =
+        auditContext && typeof auditContext === "object"
+            ? auditContext
+            : { pageSnapshot: dataSnapshot, serverEnrichment: null };
     const system = await getAuditSystemPrompt();
     const results = [];
     const concurrency = 4;
@@ -83,7 +89,7 @@ export async function runAuditAnalyses({
             taskPrompt,
             dateRange,
             comparisonDateRange,
-            dataSnapshot,
+            auditContext: contextForPrompt,
         });
 
         try {
@@ -135,11 +141,16 @@ function buildUserMessage({
     taskPrompt,
     dateRange,
     comparisonDateRange,
-    dataSnapshot,
+    auditContext,
 }) {
     const periodBlock = `Period: ${dateRange.startDate} to ${dateRange.endDate}
 Currency: DKK (kr) where relevant.
 ${comparisonDateRange ? `Comparison period: ${comparisonDateRange.startDate} to ${comparisonDateRange.endDate}` : "Comparison period: none"}`;
+
+    const ahrefsNote =
+        auditContext?.ahrefsAnalystNote && String(auditContext.ahrefsAnalystNote).trim()
+            ? `\n\n${auditContext.ahrefsAnalystNote}`
+            : "";
 
     return `Customer: ${customerName}
 Analysis id: ${cardId}
@@ -148,8 +159,12 @@ ${dataLine ? `Expected data sources for this card: ${dataLine}` : ""}
 
 ${periodBlock}
 
-Dashboard snapshot (may be incomplete — list data_gaps if needed):
-${JSON.stringify(dataSnapshot, null, 2)}
+Audit data context:
+- pageSnapshot: metrics from the Apex page where the audit was started (always include if present).
+- serverEnrichment: additional data fetched server-side for this audit only (Shopify, ad platforms, Search Console, Ahrefs, Klaviyo, etc.). Prefer serverEnrichment over pageSnapshot when both exist for the same metric.
+- List data_gaps for anything the task needs that is missing from both sections.
+
+${JSON.stringify(auditContext, null, 2)}${ahrefsNote}
 
 ---
 TASK:

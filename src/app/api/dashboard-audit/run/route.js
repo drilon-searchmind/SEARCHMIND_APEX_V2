@@ -12,6 +12,7 @@ import {
     buildFallbackAuditReport,
     runAuditAnalyses,
 } from "@/lib/audit/auditReportBuilder";
+import { buildAuditContext } from "@/lib/audit/auditContextBuilder";
 import { getAuditAiAccessMode, isAuditAiConfigured } from "@/lib/audit/auditAnthropic";
 import { rejectClientAuditAiOverrides } from "@/lib/audit/auditAiReadOnlyPolicy";
 
@@ -119,6 +120,16 @@ export async function POST(request) {
                   }
                 : null;
 
+        const auditContext = await buildAuditContext({
+            customer: plain,
+            customerId: String(customerId),
+            startDate,
+            endDate,
+            comparisonDateRange: comparison,
+            selections,
+            pageSnapshot: dataSnapshot,
+        });
+
         let report;
         if (!isAuditAiConfigured()) {
             report = buildFallbackAuditReport(customerName, selections, startDate, endDate);
@@ -130,7 +141,7 @@ export async function POST(request) {
                 dateRange: { startDate, endDate },
                 comparisonDateRange: comparison,
                 selections,
-                dataSnapshot,
+                auditContext,
             });
             report = assembleAuditReport(analysisResults, {
                 customerName,
