@@ -23,6 +23,61 @@ export function meanChannelHealthFromReport(report) {
     return { score, grade: gradeFromNumericScore(score) };
 }
 
+/** Mean of per-analysis scores (v2 audit reports). */
+export function meanAnalysisHealthFromReport(report) {
+    const analyses = Array.isArray(report?.analyses) ? report.analyses : [];
+    const nums = analyses
+        .map((a) => a.health_score)
+        .filter((n) => n != null && Number.isFinite(Number(n)))
+        .map(Number);
+    if (nums.length === 0) return { score: null, grade: "—" };
+    const score = Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+    return { score, grade: gradeFromNumericScore(score) };
+}
+
+/**
+ * Deterministic 0–100 score from finding severities (problems reduce score; opportunities nudge up slightly).
+ * @param {Array<{ severity?: string, type?: string }>} findings
+ * @returns {number|null}
+ */
+export function deriveHealthScoreFromFindings(findings) {
+    if (!Array.isArray(findings) || findings.length === 0) return null;
+
+    let penalty = 0;
+    let opportunityBoost = 0;
+
+    for (const f of findings) {
+        const sev = String(f.severity || "").toLowerCase();
+        const type = String(f.type || "").toLowerCase();
+        if (type === "opportunity" || type === "mulighed") {
+            opportunityBoost += 3;
+            continue;
+        }
+        if (sev === "critical" || sev === "kritisk") penalty += 22;
+        else if (sev === "high" || sev === "høj" || sev === "hoj") penalty += 14;
+        else if (sev === "medium") penalty += 8;
+        else if (sev === "low" || sev === "lav") penalty += 4;
+        else penalty += 6;
+    }
+
+    const raw = 100 - penalty + Math.min(opportunityBoost, 12);
+    return Math.max(0, Math.min(100, Math.round(raw)));
+}
+
+/**
+ * Prefer findings-based score when findings exist; otherwise use model score.
+ * @param {Array<{ severity?: string, type?: string }>} findings
+ * @param {number|null|undefined} aiScore
+ */
+export function resolveAnalysisHealthScore(findings, aiScore) {
+    const fromFindings = deriveHealthScoreFromFindings(findings);
+    if (fromFindings != null) return fromFindings;
+    if (aiScore != null && Number.isFinite(Number(aiScore))) {
+        return Math.round(Number(aiScore));
+    }
+    return null;
+}
+
 /**
  * Remove opening claims about overall/aggregate scores that often disagree with the mean of channel scores.
  */
@@ -46,12 +101,18 @@ function stripConflictingOverallClaims(text) {
  */
 export function normalizeAuditReport(report) {
     if (!report || typeof report !== "object") return report;
-    const { score, grade } = meanChannelHealthFromReport(report);
+    const useAnalyses =
+        report.version === 2 &&
+        Array.isArray(report.analyses) &&
+        report.analyses.length > 0;
+    const { score, grade } = useAnalyses
+        ? meanAnalysisHealthFromReport(report)
+        : meanChannelHealthFromReport(report);
     report.canonicalOverall = { score, grade };
 
     if (score == null) return report;
 
-    const prefix = `Mean channel health score: ${score} (Grade ${grade}). `;
+    const prefix = `Overall health score: ${score} / 100 (Grade ${grade}). `;
     let body = String(report.executiveSummary || "").trim();
     body = stripConflictingOverallClaims(body);
     report.executiveSummary = (prefix + (body ? ` ${body}` : "")).trim();

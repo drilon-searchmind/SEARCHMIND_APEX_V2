@@ -53,6 +53,8 @@ export async function GET(request) {
                 customerId: String(doc.customerId),
                 customerName: doc.customerNameSnapshot || "",
                 dateRange: doc.dateRange,
+                comparisonDateRange: doc.comparisonDateRange || null,
+                auditSelections: doc.auditSelections || null,
                 services: (doc.serviceIds || []).map((id) => ({ id })),
                 serviceIds: doc.serviceIds || [],
                 report: doc.report,

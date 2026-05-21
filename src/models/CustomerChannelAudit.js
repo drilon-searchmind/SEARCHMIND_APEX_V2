@@ -18,9 +18,22 @@ const CustomerChannelAuditSchema = new mongoose.Schema(
             startDate: { type: String, required: true },
             endDate: { type: String, required: true },
         },
+        comparisonDateRange: {
+            startDate: { type: String, default: null },
+            endDate: { type: String, default: null },
+        },
         serviceIds: {
             type: [String],
             default: [],
+        },
+        /** Selected audit cards + custom prompts from Run Audit modal */
+        auditSelections: {
+            type: mongoose.Schema.Types.Mixed,
+            default: null,
+        },
+        outputFormat: {
+            type: String,
+            default: "json",
         },
         /** Full structured report (includes channels, crossChannelNotes, etc.) */
         report: {

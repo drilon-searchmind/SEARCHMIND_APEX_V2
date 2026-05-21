@@ -129,7 +129,9 @@ export default function AuditListClient() {
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3 tabular-nums font-semibold text-gray-900">
-                                                {mean != null ? `${mean} (${grade})` : "—"}
+                                                {mean != null
+                                                    ? `${Math.round(mean)} / 100 (${grade})`
+                                                    : "—"}
                                             </td>
                                             <td className="px-4 py-3 text-right">
                                                 <Link

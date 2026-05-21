@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apex — Run audit (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1a1d1c;
+    --ink-soft:#5b6360;
+    --line:#e7eae8;
+    --bg:#f4f6f5;
+    --card:#ffffff;
+    --btn:#181b1a;
+    --green:#16a34a; --green-bg:#dcf6e2;
+    --blue:#2563eb;  --blue-bg:#e0ebfe;
+    --amber:#b45309; --amber-bg:#fdf0d5;
+    --purple:#7c3aed;--purple-bg:#efe6fe;
+    --red:#dc2626;   --red-bg:#fde2e2;
+    --pink:#db2777;  --pink-bg:#fce0ee;
+    --teal:#0d9488;  --teal-bg:#d6f3ef;
+    --accent:#c8f24a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    background:
+      linear-gradient(rgba(20,22,24,.55),rgba(20,22,24,.55)),
+      repeating-linear-gradient(0deg,#fafbfb,#fafbfb 78px,#f1f3f2 78px,#f1f3f2 79px);
+    color:var(--ink);
+    min-height:100vh;
+    display:flex;align-items:flex-start;justify-content:center;
+    padding:32px 16px;
+  }
+  h1,h2,h3,.brand{font-family:'Poppins',sans-serif}
+
+  /* ---------- Modal shell ---------- */
+  .modal{
+    width:100%;max-width:940px;background:var(--card);
+    border-radius:22px;box-shadow:0 30px 80px rgba(0,0,0,.35);
+    overflow:hidden;
+  }
+  .modal-head{
+    display:flex;align-items:flex-start;gap:16px;
+    padding:24px 28px 18px;border-bottom:1px solid var(--line);
+  }
+  .head-icon{
+    width:52px;height:52px;border-radius:14px;background:#f0f2f1;
+    display:grid;place-items:center;font-size:23px;flex:none;
+  }
+  .head-text h1{font-size:23px;font-weight:700;letter-spacing:-.4px}
+  .head-text p{color:var(--ink-soft);font-size:14px;margin-top:3px}
+  .close{margin-left:auto;border:none;background:none;font-size:22px;color:#9aa2a0;cursor:pointer;line-height:1}
+
+  .modal-body{padding:22px 28px 8px}
+
+  /* ---------- Dates ---------- */
+  .dates{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .field label{display:block;font-size:13px;font-weight:600;color:var(--ink-soft);margin-bottom:7px}
+  .field input{
+    width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:11px;
+    font-size:15px;font-family:inherit;color:var(--ink);background:#fff;
+  }
+
+  /* ---------- Historical compare ---------- */
+  .compare-toggle{
+    display:flex;align-items:center;gap:10px;margin-top:16px;cursor:pointer;user-select:none;
+  }
+  .switch{width:40px;height:23px;border-radius:999px;background:#d4dad7;position:relative;transition:.18s;flex:none}
+  .switch::after{content:"";position:absolute;top:2.5px;left:2.5px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.18s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+  .compare-toggle.on .switch{background:var(--btn)}
+  .compare-toggle.on .switch::after{left:19px}
+  .compare-toggle .lbl{font-size:14px;font-weight:600}
+  .compare-toggle .sub{font-size:12.5px;color:var(--ink-soft)}
+
+  .compare-box{
+    display:none;margin-top:14px;padding:16px;border:1px dashed #cdd6d2;border-radius:14px;background:#fafcfb;
+  }
+  .compare-box.show{display:block}
+  .compare-box .cb-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .compare-box .cb-head .t{font-size:13px;font-weight:700;color:var(--ink)}
+  .reset{font-size:12.5px;font-weight:600;color:var(--btn);background:none;border:none;cursor:pointer;font-family:inherit}
+  .reset[hidden]{display:none}
+  .yoy-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--purple);background:var(--purple-bg);padding:3px 9px;border-radius:999px;margin-left:8px}
+
+  .divider{height:1px;background:var(--line);margin:22px 0 18px}
+
+  /* ---------- Data bar ---------- */
+  .data-bar{
+    display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:#f7faf6;border:1px solid #e3efe3;
+    border-radius:12px;padding:11px 14px;margin-bottom:20px;font-size:12.5px;color:#3f4845}
+  .data-bar b{color:var(--ink)}
+  .src{background:#fff;border:1px solid var(--line);border-radius:7px;padding:3px 8px;font-weight:600;font-size:11.5px}
+  .src.off{color:#b3bab7;text-decoration:line-through;background:#f3f5f4}
+
+  /* ---------- Channel tabs ---------- */
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:18px}
+  .tab{
+    border:none;background:none;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;
+    color:var(--ink-soft);padding:9px 4px;position:relative;display:flex;align-items:center;gap:7px;margin-right:14px;
+  }
+  .tab .pill{
+    background:#eef0ef;color:#6a7270;font-size:11px;font-weight:700;border-radius:999px;
+    min-width:20px;height:20px;display:grid;place-items:center;padding:0 6px;
+  }
+  .tab.active{color:var(--ink)}
+  .tab.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2.5px;background:var(--btn);border-radius:2px}
+  .tab.active .pill{background:var(--accent);color:#26310a}
+  .tab.disabled{opacity:.42;cursor:not-allowed}
+  .tab.disabled .pill{display:none}
+  .tab.disabled:hover::after{
+    content:"🔒 Ikke forbundet";position:absolute;top:-34px;left:50%;transform:translateX(-50%);
+    background:var(--btn);color:#fff;font-size:11.5px;font-weight:600;padding:5px 9px;border-radius:7px;white-space:nowrap;z-index:5;
+  }
+  /* Overordnet — fremhævet, adskilt fra de enkelte kanaler */
+  .tab-overall{
+    border:1.5px solid var(--btn);border-radius:11px;padding:9px 16px;color:var(--ink);
+    font-weight:700;margin-right:6px;align-self:center;
+  }
+  .tab-overall.active{background:var(--btn);color:#fff}
+  .tab-overall.active::after{display:none}
+  .tab-overall .pill{background:#eef0ef;color:#6a7270}
+  .tab-overall.active .pill{background:var(--accent);color:#26310a}
+  .tab-sep{width:1px;height:24px;background:var(--line);margin:0 8px 0 4px;align-self:center}
+  .tab-grouplbl{align-self:center;font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#aab1ae;margin-right:6px}
+
+  /* ---------- Prompt grid ---------- */
+  .panel{display:none}
+  .panel.active{display:block}
+  .panel-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .panel-top .desc{font-size:13px;color:var(--ink-soft);max-width:600px}
+  .selall{font-size:13px;font-weight:600;color:var(--btn);background:none;border:none;cursor:pointer;font-family:inherit}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .scroll{max-height:330px;overflow-y:auto;padding-right:4px}
+  .card{
+    border:1.5px solid var(--line);border-radius:14px;padding:14px 15px;cursor:pointer;
+    transition:.13s;position:relative;background:#fff;
+  }
+  .card:hover{border-color:#cfd6d3;background:#fcfdfc}
+  .card.sel{border-color:var(--btn);background:#f7faf6;box-shadow:0 0 0 1px var(--btn) inset}
+  .card .check{position:absolute;top:13px;right:13px;width:20px;height:20px;border-radius:6px;border:1.6px solid #cdd4d1;display:grid;place-items:center;font-size:12px;color:#fff;background:#fff}
+  .card.sel .check{background:var(--btn);border-color:var(--btn)}
+  .card h3{font-size:14.5px;font-weight:600;padding-right:26px;margin-bottom:6px;line-height:1.3}
+  .card p{font-size:12.5px;color:var(--ink-soft);line-height:1.45}
+  .tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;padding:3px 8px;border-radius:999px;margin-bottom:9px}
+  .t-green{background:var(--green-bg);color:var(--green)}
+  .t-blue{background:var(--blue-bg);color:var(--blue)}
+  .t-amber{background:var(--amber-bg);color:var(--amber)}
+  .t-purple{background:var(--purple-bg);color:var(--purple)}
+  .t-red{background:var(--red-bg);color:var(--red)}
+  .t-pink{background:var(--pink-bg);color:var(--pink)}
+  .t-teal{background:var(--teal-bg);color:var(--teal)}
+
+  /* custom-kort (altid først i hver fane) */
+  .custom-card{grid-column:1 / -1;border:1.5px dashed #b9c4be;background:#fafcfb;padding:0;overflow:hidden}
+  .custom-card:hover{border-color:#9fb0a8;background:#f7faf6}
+  .custom-card.filled{border-style:solid;border-color:var(--btn);background:#f7faf6}
+  .cc-head{display:flex;align-items:center;gap:10px;padding:14px 15px;cursor:pointer}
+  .cc-badge{font-size:10.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--teal);background:var(--teal-bg);padding:3px 8px;border-radius:999px}
+  .cc-title{font-size:14.5px;font-weight:600}
+  .cc-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:none}
+  .custom-card.filled .cc-dot{display:block}
+  .cc-chevron{margin-left:auto;font-size:15px;color:#8a938f;transition:transform .2s}
+  .custom-card.open .cc-chevron{transform:rotate(180deg)}
+  .cc-body{max-height:0;overflow:hidden;transition:max-height .25s ease;padding:0 15px}
+  .custom-card.open .cc-body{max-height:240px;padding:0 15px 15px}
+  .cc-body textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-family:inherit;font-size:13.5px;resize:vertical;color:var(--ink);line-height:1.5}
+
+  /* ---------- Footer ---------- */
+  .modal-foot{display:flex;align-items:center;gap:14px;padding:18px 28px 24px;border-top:1px solid var(--line);margin-top:18px}
+  .foot-note{font-size:12.5px;color:#9aa2a0}
+  .count{font-size:14px;font-weight:600;color:var(--ink)}
+  .count b{color:var(--green)}
+  .spacer{flex:1}
+  .btn{font-family:inherit;font-weight:600;font-size:14.5px;border-radius:11px;padding:13px 22px;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink)}
+  .btn.primary{background:var(--btn);color:#fff;border-color:var(--btn)}
+  .btn.primary:disabled{opacity:.4;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="modal">
+  <div class="modal-head">
+    <div class="head-icon">📋</div>
+    <div class="head-text">
+      <h1>Run audit</h1>
+      <p>Dimsstudio DK — AI-audit på tværs af integrerede kanaler</p>
+    </div>
+    <button class="close">&times;</button>
+  </div>
+
+  <div class="modal-body">
+
+    <div class="dates">
+      <div class="field">
+        <label>Start dato</label>
+        <input type="date" id="d-start" value="2026-05-01">
+      </div>
+      <div class="field">
+        <label>Slut dato</label>
+        <input type="date" id="d-end" value="2026-05-19">
+      </div>
+    </div>
+
+    <!-- Historical compare -->
+    <div class="compare-toggle" id="cmp-toggle">
+      <div class="switch"></div>
+      <div>
+        <div class="lbl">Brug historisk data <span class="sub">— sammenlign perioden mod tidligere for at finde huller og vindere</span></div>
+      </div>
+    </div>
+
+    <div class="compare-box" id="cmp-box">
+      <div class="cb-head">
+        <div class="t">Sammenligningsperiode <span class="yoy-badge" id="yoy-badge">⟳ År-til-år</span></div>
+        <button class="reset" id="cmp-reset" hidden>Nulstil til år-til-år</button>
+      </div>
+      <div class="dates">
+        <div class="field">
+          <label>Start dato (sammenligning)</label>
+          <input type="date" id="c-start">
+        </div>
+        <div class="field">
+          <label>Slut dato (sammenligning)</label>
+          <input type="date" id="c-end">
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="data-bar" id="data-bar">
+      <span>🧠 <b>Datagrundlag:</b></span>
+      <span class="src">Shopify</span><span class="src">Google Ads</span><span class="src">Meta</span>
+      <span class="src">Klaviyo</span><span class="src off">Search Console</span><span class="src">Ahrefs</span>
+      <span>— al gyldig data i perioden bruges på kryds og tværs.</span>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <button class="tab tab-overall active" data-tab="cross">⊞ Overordnet <span class="pill" data-pill="cross">0</span></button>
+      <span class="tab-sep"></span>
+      <span class="tab-grouplbl">Kanaler</span>
+      <button class="tab" data-tab="ppc">PPC · Google Ads <span class="pill" data-pill="ppc">0</span></button>
+      <button class="tab" data-tab="ps">PS · Meta <span class="pill" data-pill="ps">0</span></button>
+      <button class="tab disabled" data-tab="seo">SEO <span class="pill" data-pill="seo">0</span></button>
+      <button class="tab" data-tab="em">EM · Klaviyo <span class="pill" data-pill="em">0</span></button>
+    </div>
+
+    <div id="panels"></div>
+
+  </div>
+
+  <div class="modal-foot">
+    <div class="count"><b id="total">0</b> analyser valgt</div>
+    <div class="spacer"></div>
+    <div class="foot-note">Kun forbundne kanaler med gyldigt ID kan vælges.</div>
+    <button class="btn">Annullér</button>
+    <button class="btn primary" id="start" disabled>Start audit</button>
+  </div>
+</div>
+
+<script>
+const CONNECTED = { ppc:true, ps:true, seo:false, em:true, cross:true }; // seo=false = demo af "ikke forbundet"
+
+const PROMPTS = {
+  ppc:{
+    label:"Google Ads",
+    desc:"Google Ads-data koblet med Shopify-sortiment, margin og Search Console.",
+    items:[
+      {tag:"Vækst",c:"green",t:"Søgeterm → manglende collection",d:"Find søgetermer med høj omsætning/ROAS hvor der ikke findes en matchende Shopify-collection. Anbefal nye collections + landingssider at oprette."},
+      {tag:"Struktur",c:"blue",t:"GSN- & Shopping-udvidelse",d:"Analysér Shopping-data og foreslå udvidelse til Search/GSN for topprodukter uden dækning — inkl. forslag til kampagnetype."},
+      {tag:"Optimering",c:"amber",t:"Spildt forbrug & negatives",d:"Identificér søgetermer/kampagner med højt forbrug og lav konvertering. Foreslå negative keywords og budjusteringer."},
+      {tag:"Afkast",c:"purple",t:"Budget-reallokering på ROAS",d:"Flyt budget fra lav- til høj-ROAS kampagner og produktgrupper — med Shopify COGS/margin indregnet."},
+      {tag:"Struktur",c:"blue",t:"PMax vs. Search-overlap",d:"Vurdér kannibalisering mellem Performance Max og Search og hvor budget bør flyttes hen."},
+      {tag:"Alarm",c:"red",t:"Outliers — på godt og ondt",d:"Find outliers i CPC, CTR, konvertering og forbrug der kræver handling — både vindere at skalere og tabere at stoppe."}
+    ]
+  },
+  ps:{
+    label:"Meta",
+    desc:"Meta-annoncering koblet med Shopify-katalog og margin.",
+    items:[
+      {tag:"Kreativ",c:"pink",t:"Creative fatigue",d:"Find annoncer med faldende CTR / stigende CPM. Anbefal hvilke der skal pauses og fornyes."},
+      {tag:"Struktur",c:"blue",t:"Målgruppe-overlap & skalering",d:"Identificér overlap mellem ad sets og skaleringsmuligheder på vindende målgrupper."},
+      {tag:"Struktur",c:"blue",t:"Funnel-balance",d:"Vurdér fordelingen prospecting vs. retargeting og foreslå optimal budgetbalance."},
+      {tag:"Afkast",c:"purple",t:"Budget på ROAS/CAC",d:"Reallokér budget mod bedste ROAS/CAC med Shopify-margin indregnet."},
+      {tag:"Vækst",c:"green",t:"Katalog-performance",d:"Kobl produkt-/katalogperformance med Shopify-margin — find produkter at skubbe hårdere eller droppe."},
+      {tag:"Alarm",c:"red",t:"Outlier-kampagner",d:"Find outliers på forbrug, ROAS og frekvens der kræver handling."}
+    ]
+  },
+  seo:{
+    label:"SEO",
+    desc:"Search Console + Ahrefs koblet med Shopify-sortiment.",
+    items:[
+      {tag:"Vækst",c:"green",t:"Striking distance keywords",d:"Find keywords på position 5-15 med volumen — quick wins at optimere mod side 1."},
+      {tag:"Vækst",c:"green",t:"Content-gap vs. sortiment",d:"Sammenhold søgeefterspørgsel (Ahrefs) med Shopify collections/produkter — find manglende sider at oprette."},
+      {tag:"Optimering",c:"amber",t:"Kannibalisering",d:"Find sider der konkurrerer om samme keywords i GSC og foreslå konsolidering."},
+      {tag:"Alarm",c:"red",t:"Tabt trafik & ranking",d:"Identificér sider der mister klik/positioner, find sandsynlig årsag og handling."},
+      {tag:"Vækst",c:"green",t:"Backlink-muligheder",d:"Brug Ahrefs til at finde backlink-gaps vs. konkurrenter og prioritér outreach."},
+      {tag:"Vækst",c:"green",t:"Nye landingssider",d:"Foreslå nye collection-/kategorisider baseret på uafdækket søgeefterspørgsel."}
+    ]
+  },
+  em:{
+    label:"Klaviyo",
+    desc:"Klaviyo flows & kampagner koblet med Shopify-købsdata.",
+    items:[
+      {tag:"Struktur",c:"blue",t:"Flow-huller",d:"Vurdér welcome, abandoned cart, browse, post-purchase og winback — hvilke flows mangler eller underperformer?"},
+      {tag:"Optimering",c:"amber",t:"Kampagne-performance",d:"Analysér åbnings-, klik- og konverteringsrate samt bedste sendetidspunkt."},
+      {tag:"Afkast",c:"purple",t:"Segment-sundhed",d:"Vurdér listevækst, engagement og churn — foreslå segmenter at aktivere eller rense."},
+      {tag:"Afkast",c:"purple",t:"Revenue per modtager",d:"Find kampagner/flows med lav RPR og deliverability-problemer."},
+      {tag:"Vækst",c:"green",t:"Cross-sell fra købsdata",d:"Brug Shopify-købsdata til at foreslå cross-sell- og replenishment-flows."},
+      {tag:"Alarm",c:"red",t:"Outliers",d:"Find outlier-kampagner (unsubscribe, spam, bounce) der kræver handling."}
+    ]
+  },
+  cross:{
+    label:"Overordnet",
+    desc:"Hele datagrundlaget bundet sammen til forretningskritiske anbefalinger.",
+    items:[
+      {tag:"Afkast",c:"purple",t:"Blended afkast & MER",d:"Vurdér blended ROAS/CAC/MER og foreslå budgetallokering på tværs af alle kanaler."},
+      {tag:"Afkast",c:"purple",t:"Margin-bevidst forbrug",d:"Indregn Shopify COGS/margin — find hvor forbrug giver reel bundlinje, ikke kun omsætning."},
+      {tag:"Struktur",c:"blue",t:"Fuld-funnel historie",d:"Bind SEO, Paid og Email sammen til én funnel — find hvor kunderejsen lækker."},
+      {tag:"Vækst",c:"green",t:"Top-produkt på tværs",d:"Find produkter der performer i én kanal men er uudnyttet i de andre."},
+      {tag:"Plan",c:"teal",t:"Prioriteret handlingsplan",d:"Saml alle fund i en prioriteret 30-dages plan med forventet effekt og ejer."}
+    ]
+  }
+};
+
+const sel = {};          // key -> Set of card indexes
+const ownText = {};      // key -> custom text
+const panels = document.getElementById('panels');
+
+Object.keys(PROMPTS).forEach((key,pi)=>{
+  sel[key]=new Set(); ownText[key]="";
+  const p=PROMPTS[key];
+  const div=document.createElement('div');
+  div.className='panel'+(key==='cross'?' active':'');
+  div.dataset.panel=key;
+  div.innerHTML=`
+    <div class="panel-top">
+      <div class="desc">${p.desc}</div>
+      <button class="selall" data-all="${key}">Vælg alle</button>
+    </div>
+    <div class="scroll">
+      <div class="grid">
+        <div class="card custom-card" data-custom="${key}">
+          <div class="cc-head">
+            <span class="cc-badge">Custom</span>
+            <span class="cc-title">Egen analyse for ${p.label}</span>
+            <span class="cc-dot"></span>
+            <span class="cc-chevron">⌄</span>
+          </div>
+          <div class="cc-body">
+            <textarea data-ownarea="${key}" placeholder="Skriv din egen prompt... F.eks.: Sammenlign denne periode mod sidste år og forklar hvad der driver faldet i ROAS — med konkrete tiltag."></textarea>
+          </div>
+        </div>
+        ${p.items.map((it,i)=>`
+          <div class="card" data-key="${key}" data-i="${i}">
+            <div class="check">✓</div>
+            <span class="tag t-${it.c}">${it.tag}</span>
+            <h3>${it.t}</h3>
+            <p>${it.d}</p>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  panels.appendChild(div);
+});
+
+function refresh(){
+  let total=0;
+  Object.keys(sel).forEach(k=>{
+    const n=sel[k].size + (ownText[k].trim()?1:0);
+    total+=n;
+    document.querySelector(`[data-pill="${k}"]`).textContent=n;
+  });
+  document.getElementById('total').textContent=total;
+  document.getElementById('start').disabled = total===0;
+}
+
+panels.addEventListener('click',e=>{
+  const cc=e.target.closest('.cc-head');
+  if(cc){ cc.closest('.custom-card').classList.toggle('open'); return; }
+  const card=e.target.closest('.card');
+  if(card && !card.classList.contains('custom-card')){
+    const k=card.dataset.key,i=+card.dataset.i;
+    if(sel[k].has(i)){sel[k].delete(i);card.classList.remove('sel');}
+    else{sel[k].add(i);card.classList.add('sel');}
+    refresh();return;
+  }
+  const all=e.target.closest('[data-all]');
+  if(all){
+    const k=all.dataset.all;
+    const cards=panels.querySelectorAll(`.card[data-key="${k}"]`);
+    const fill = sel[k].size < cards.length;
+    sel[k].clear();
+    cards.forEach((c,i)=>{c.classList.toggle('sel',fill);if(fill)sel[k].add(i);});
+    all.textContent = fill ? 'Fravælg alle' : 'Vælg alle';
+    refresh();
+  }
+});
+
+panels.addEventListener('input',e=>{
+  const ta=e.target.closest('[data-ownarea]');
+  if(ta){
+    const k=ta.dataset.ownarea;
+    ownText[k]=ta.value;
+    ta.closest('.custom-card').classList.toggle('filled',!!ta.value.trim());
+    refresh();
+  }
+});
+
+// tabs (respect connected)
+document.querySelectorAll('.tab').forEach(tab=>{
+  const k=tab.dataset.tab;
+  if(!CONNECTED[k]) tab.classList.add('disabled');
+  tab.addEventListener('click',()=>{
+    if(tab.classList.contains('disabled')) return;
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.dataset.panel===k));
+  });
+});
+
+/* ---------- Historical compare logic ---------- */
+const cmpToggle=document.getElementById('cmp-toggle');
+const cmpBox=document.getElementById('cmp-box');
+const dStart=document.getElementById('d-start'), dEnd=document.getElementById('d-end');
+const cStart=document.getElementById('c-start'), cEnd=document.getElementById('c-end');
+const cmpReset=document.getElementById('cmp-reset');
+const yoyBadge=document.getElementById('yoy-badge');
+let compareOn=false, compareCustom=false;
+
+function minusYear(val){
+  if(!val) return "";
+  const [y,m,d]=val.split('-');
+  return `${(+y-1)}-${m}-${d}`;
+}
+function applyYoY(){
+  cStart.value=minusYear(dStart.value);
+  cEnd.value=minusYear(dEnd.value);
+  compareCustom=false;
+  yoyBadge.style.display='';
+  cmpReset.hidden=true;
+}
+cmpToggle.addEventListener('click',()=>{
+  compareOn=!compareOn;
+  cmpToggle.classList.toggle('on',compareOn);
+  cmpBox.classList.toggle('show',compareOn);
+  if(compareOn && !compareCustom) applyYoY();
+});
+[dStart,dEnd].forEach(inp=>inp.addEventListener('change',()=>{ if(compareOn && !compareCustom) applyYoY(); }));
+[cStart,cEnd].forEach(inp=>inp.addEventListener('change',()=>{
+  compareCustom=true;
+  yoyBadge.style.display='none';
+  cmpReset.hidden=false;
+}));
+cmpReset.addEventListener('click',applyYoY);
+
+refresh();
+</script>
+</body>
+</html>
