@@ -284,6 +284,21 @@ function rowDateKey(row) {
     return "";
 }
 
+/** ISO 3166-1 alpha-2 from Reddit report rows with COUNTRY breakdown (same allowlist as Meta / Snapchat). */
+function rowCountryCode(row) {
+    const raw =
+        row.country ??
+        row.COUNTRY ??
+        row.country_code ??
+        row.COUNTRY_CODE ??
+        row.geo_country ??
+        row.GEO_COUNTRY ??
+        "";
+    const s = String(raw).trim();
+    if (s.length === 2) return s.toUpperCase();
+    return "";
+}
+
 function rowLooksLikeReportRecord(x) {
     return (
         x &&
@@ -410,6 +425,7 @@ function campaignKey(row) {
  *   endDate: string,
  *   redditUsername?: string,
  *   redditCredentials?: ReturnType<import("./redditCustomerSettings").normalizeRedditSettings>,
+ *   countryIsoCodes?: string[] — when set, daily spend is limited to these ISO-2 countries (Shopify Markets ad spend filter)
  * }} args — when redditCredentials is set, 401 responses retry once via refresh_token
  */
 export async function fetchRedditDashboardMetrics({
@@ -419,6 +435,7 @@ export async function fetchRedditDashboardMetrics({
     endDate,
     redditUsername,
     redditCredentials,
+    countryIsoCodes,
 }) {
     const acc = String(accountId || "").trim();
     if (!acc) throw new Error("Missing Reddit ad account id");
@@ -432,6 +449,7 @@ export async function fetchRedditDashboardMetrics({
             startDate,
             endDate,
             uaOpt,
+            countryIsoCodes,
         });
     }
 
@@ -462,6 +480,7 @@ async function fetchRedditDashboardMetricsInner({
     startDate,
     endDate,
     uaOpt,
+    countryIsoCodes,
 }) {
     const acc = String(accountId || "").trim();
 
@@ -471,24 +490,55 @@ async function fetchRedditDashboardMetricsInner({
      */
     const reportFields = ["IMPRESSIONS", "CLICKS", "SPEND"];
 
+    const marketCountryFilter =
+        Array.isArray(countryIsoCodes) && countryIsoCodes.filter((c) => String(c).trim()).length > 0;
+    const countryAllow = marketCountryFilter
+        ? new Set(
+              countryIsoCodes
+                  .map((c) => String(c).trim().toUpperCase())
+                  .filter((c) => c.length === 2)
+          )
+        : null;
+
     let dailyRows = [];
-    try {
-        const body = redditReportPostBody({
-            ...redditReportTimeRange(startDate, endDate),
-            fields: reportFields,
-            breakdowns: ["DATE"],
-        });
-        dbg("reports try", body);
-        const payload = await redditAdsFetch(
-            accessToken,
-            `/ad_accounts/${encodeURIComponent(acc)}/reports`,
-            { method: "POST", body, ...uaOpt }
-        );
-        dailyRows = extractReportRows(payload);
-        if (dailyRows.length === 0) dbg("reports empty rows");
-    } catch (e) {
-        if (String(e?.message || "").includes("Reddit Ads API 401")) throw e;
-        dbgErr("reports failed", e?.message || e);
+    if (marketCountryFilter) {
+        try {
+            const body = redditReportPostBody({
+                ...redditReportTimeRange(startDate, endDate),
+                fields: ["SPEND"],
+                breakdowns: ["DATE", "COUNTRY"],
+            });
+            dbg("reports try (DATE+COUNTRY)", body);
+            const payload = await redditAdsFetch(
+                accessToken,
+                `/ad_accounts/${encodeURIComponent(acc)}/reports`,
+                { method: "POST", body, ...uaOpt }
+            );
+            dailyRows = extractReportRows(payload);
+            if (dailyRows.length === 0) dbg("DATE+COUNTRY reports empty rows");
+        } catch (e) {
+            if (String(e?.message || "").includes("Reddit Ads API 401")) throw e;
+            dbgErr("DATE+COUNTRY reports failed", e?.message || e);
+        }
+    } else {
+        try {
+            const body = redditReportPostBody({
+                ...redditReportTimeRange(startDate, endDate),
+                fields: reportFields,
+                breakdowns: ["DATE"],
+            });
+            dbg("reports try", body);
+            const payload = await redditAdsFetch(
+                accessToken,
+                `/ad_accounts/${encodeURIComponent(acc)}/reports`,
+                { method: "POST", body, ...uaOpt }
+            );
+            dailyRows = extractReportRows(payload);
+            if (dailyRows.length === 0) dbg("reports empty rows");
+        } catch (e) {
+            if (String(e?.message || "").includes("Reddit Ads API 401")) throw e;
+            dbgErr("reports failed", e?.message || e);
+        }
     }
 
     const byDate = {};
@@ -498,6 +548,10 @@ async function fetchRedditDashboardMetricsInner({
         for (const row of dailyRows) {
             const dk = rowDateKey(row);
             if (!dk) continue;
+            if (countryAllow) {
+                const cc = rowCountryCode(row);
+                if (!cc || !countryAllow.has(cc)) continue;
+            }
             if (!byDate[dk]) byDate[dk] = { impressions: 0, clicks: 0, spend: 0, conversions: 0 };
             const m = byDate[dk];
             m.impressions += rowImpressions(row);
@@ -505,7 +559,7 @@ async function fetchRedditDashboardMetricsInner({
             m.spend += spendToMajor(row);
             m.conversions += rowConversions(row);
         }
-    } else if (dailyRows.length) {
+    } else if (dailyRows.length && !countryAllow) {
         const total = dailyRows.reduce(
             (a, row) => {
                 a.impressions += rowImpressions(row);

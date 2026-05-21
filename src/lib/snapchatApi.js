@@ -297,6 +297,129 @@ function spendMicroByDateFromAccountDayStats(statsJson, accountIanaTz) {
     return map;
 }
 
+function iso2AllowSet(countryIsoCodes) {
+    return new Set(
+        (countryIsoCodes || [])
+            .map((c) => String(c).trim().toLowerCase())
+            .filter((c) => c.length === 2)
+    );
+}
+
+/**
+ * DAY stats with `report_dimension=country` expose `dimension_stats[].country` (lowercase ISO-2) + spend micros.
+ * @param {unknown} statsJson
+ * @param {string} accountIanaTz
+ * @param {string[]} countryIsoCodes — ISO 3166-1 alpha-2 (same allowlist as Meta country filter)
+ * @returns {Record<string, number>} YYYY-MM-DD → spend microcurrency
+ */
+function spendMicroByDateFromCountryDimensionStats(statsJson, accountIanaTz, countryIsoCodes) {
+    const allow = iso2AllowSet(countryIsoCodes);
+    if (allow.size === 0) return {};
+
+    const byDate = {};
+
+    function addSpend(startTimeIso, countryCode, spendMicro) {
+        const cc = String(countryCode || "").trim().toLowerCase();
+        if (!cc || !allow.has(cc)) return;
+        const d = dateKeyInAccountTz(startTimeIso, accountIanaTz);
+        if (!d) return;
+        byDate[d] = (byDate[d] || 0) + num(spendMicro);
+    }
+
+    function ingestDimensionStats(list, startTimeIso) {
+        if (!Array.isArray(list)) return;
+        for (const ds of list) {
+            if (!ds || typeof ds !== "object") continue;
+            addSpend(startTimeIso, ds.country ?? ds.Country, ds.spend);
+        }
+    }
+
+    function walk(obj, depth, parentStartTime) {
+        if (!obj || typeof obj !== "object" || depth > 14) return;
+        const startIso =
+            obj.start_time ||
+            obj.startTime ||
+            parentStartTime ||
+            "";
+
+        ingestDimensionStats(obj.dimension_stats, startIso);
+        ingestDimensionStats(obj.dimensionStats, startIso);
+
+        if (Array.isArray(obj.timeseries)) {
+            for (const pt of obj.timeseries) {
+                if (!pt || typeof pt !== "object") continue;
+                const ptStart = pt.start_time || pt.startTime || startIso;
+                ingestDimensionStats(pt.dimension_stats, ptStart);
+                ingestDimensionStats(pt.dimensionStats, ptStart);
+                const st = pt.stats;
+                if (st && typeof st === "object") {
+                    ingestDimensionStats(st.dimension_stats, ptStart);
+                    ingestDimensionStats(st.dimensionStats, ptStart);
+                    if (st.country != null) addSpend(ptStart, st.country, st.spend);
+                }
+            }
+        }
+
+        if (Array.isArray(obj)) {
+            for (const x of obj) walk(x, depth + 1, parentStartTime);
+            return;
+        }
+
+        for (const k of Object.keys(obj)) {
+            if (k === "dimension_stats" || k === "dimensionStats" || k === "timeseries") continue;
+            walk(obj[k], depth + 1, startIso || parentStartTime);
+        }
+    }
+
+    walk(statsJson, 0, "");
+    return byDate;
+}
+
+/**
+ * @param {string} accessToken
+ * @param {string} adAccountId
+ * @param {string} start_time
+ * @param {string} end_time
+ * @param {object} dayStatsBase
+ * @param {string} accountTz
+ * @param {string[]} countryIsoCodes
+ */
+async function fetchSnapchatCountryFilteredSpendByDate(
+    accessToken,
+    adAccountId,
+    start_time,
+    end_time,
+    dayStatsBase,
+    accountTz,
+    countryIsoCodes
+) {
+    const trimmed = String(adAccountId || "").trim();
+    const base = {
+        ...dayStatsBase,
+        report_dimension: "country",
+        fields: "spend",
+    };
+
+    try {
+        const json = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
+            ...base,
+            breakdown: "campaign",
+        });
+        const map = spendMicroByDateFromCountryDimensionStats(json, accountTz, countryIsoCodes);
+        if (Object.keys(map).length > 0) return map;
+    } catch (e1) {
+        dbg("Country DAY stats (breakdown=campaign) failed", e1?.message || e1);
+    }
+
+    try {
+        const json2 = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, base);
+        return spendMicroByDateFromCountryDimensionStats(json2, accountTz, countryIsoCodes);
+    } catch (e2) {
+        dbg("Country DAY stats failed", e2?.message || e2);
+        return {};
+    }
+}
+
 /**
  * Normalize one daily row to Pinterest-shaped keys for dashboard UI reuse.
  */
@@ -397,6 +520,7 @@ function extractCampaignTotals(statsJson) {
  *   startDate: string,
  *   endDate: string,
  *   snapCredentials?: ReturnType<import("./snapchatCustomerSettings").normalizeSnapchatSettings>,
+ *   countryIsoCodes?: string[] — when set, daily spend is limited to these ISO-2 countries (Shopify Markets ad spend filter)
  * }} args — when snapCredentials is set, 401 responses retry once via refresh_token
  */
 export async function fetchSnapchatDashboardMetrics({
@@ -405,6 +529,7 @@ export async function fetchSnapchatDashboardMetrics({
     startDate,
     endDate,
     snapCredentials,
+    countryIsoCodes,
 }) {
     const trimmed = String(adAccountId || "").trim();
     if (!trimmed) throw new Error("Missing adAccountId");
@@ -415,6 +540,7 @@ export async function fetchSnapchatDashboardMetrics({
             adAccountId: trimmed,
             startDate,
             endDate,
+            countryIsoCodes,
         });
     } catch (e) {
         const msg = String(e?.message || "");
@@ -436,6 +562,7 @@ export async function fetchSnapchatDashboardMetrics({
             adAccountId: trimmed,
             startDate,
             endDate,
+            countryIsoCodes,
         });
     }
 }
@@ -445,6 +572,7 @@ async function fetchSnapchatDashboardMetricsInner({
     adAccountId,
     startDate,
     endDate,
+    countryIsoCodes,
 }) {
     const trimmed = String(adAccountId || "").trim();
 
@@ -470,7 +598,30 @@ async function fetchSnapchatDashboardMetricsInner({
 
     let rollupByDate = {};
 
-    try {
+    const marketCountryFilter =
+        Array.isArray(countryIsoCodes) && countryIsoCodes.filter((c) => String(c).trim()).length > 0;
+
+    if (marketCountryFilter) {
+        const spendByDateMicro = await fetchSnapchatCountryFilteredSpendByDate(
+            accessToken,
+            trimmed,
+            start_time,
+            end_time,
+            dayStatsBase,
+            accountTz,
+            countryIsoCodes
+        );
+        for (const d of Object.keys(spendByDateMicro)) {
+            rollupByDate[d] = {
+                impressions: 0,
+                swipes: 0,
+                spend_micro: spendByDateMicro[d],
+                conversion_purchases: 0,
+                conversion_purchases_value_micro: 0,
+                conversion_add_cart: 0,
+            };
+        }
+    } else try {
         const combinedDay = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
             ...dayStatsBase,
             breakdown: "campaign",

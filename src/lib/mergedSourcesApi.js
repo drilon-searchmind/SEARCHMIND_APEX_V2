@@ -29,7 +29,7 @@ import { AD_SPEND_CHANNELS } from './mergeAdSpendDaily';
  * @param {string} [options.source] - Caller id (e.g. merged-sources query); does not change Magento fetch path
  * @param {boolean} [options.shopifyMarketNoSelection] - When true (no markets selected in UI), skip ShopifyQL and return empty revenue rows.
  * @param {Array<{ shopifyqlMarketId: string, handle?: string }>} [options.shopifyMarketsSelection] - When set and shopifyMarketsEnabled: restrict sales to the union of each market's region countries via ShopifyQL `billing_country`. Omit for all markets.
- * @param {boolean} [options.shopifyMarketFilterAdSpend] - When true and `shopifyMarketsSelection` is set: filter Meta/Google spend to the same market countries. When false/omitted (default), ad spend ignores market filter.
+ * @param {boolean} [options.shopifyMarketFilterAdSpend] - When true and `shopifyMarketsSelection` is set: filter Meta, Google, Snapchat, and Reddit spend to the same market countries. When false/omitted (default), ad spend ignores market filter.
  * @param {string[]} [options.excludeAdSpendPlatforms] - e.g. `['facebook','google']` — skip fetching those platforms (empty daily rows).
  * @returns {Promise<object>} - { shopifyDaily, facebookDaily, googleDaily, ... }
  */
@@ -410,6 +410,14 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
         const snap = normalizeSnapchatSettings(settings);
         const snapAdId = (snap.adAccountId || '').trim();
         if (includeSpend("snapchat") && snapAdId && isAdSpendPlatformConfigured(settings, "snapchat")) {
+            if (
+                zeroAdSpendForNoMarketSelection ||
+                (filterAdSpendByMarket &&
+                    marketAdSpendFilters &&
+                    marketAdSpendFilters.metaCountryCodes.length === 0)
+            ) {
+                snapchatDaily = [];
+            } else {
             const snapToken = await resolveSnapchatAccessTokenForCustomer(snap);
             if (snapToken) {
                 const snapDash = await fetchSnapchatDashboardMetrics({
@@ -418,8 +426,10 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                     startDate,
                     endDate,
                     snapCredentials: snap,
+                    countryIsoCodes: marketAdSpendFilters?.metaCountryCodes,
                 });
                 snapchatDaily = metricsByDateToSpendDaily(snapDash.metrics_by_date);
+            }
             }
         }
     } catch (err) {
@@ -456,6 +466,14 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
         const red = normalizeRedditSettings(settings);
         const redditAcc = (red.accountId || '').trim();
         if (includeSpend("reddit") && redditAcc && isAdSpendPlatformConfigured(settings, "reddit")) {
+            if (
+                zeroAdSpendForNoMarketSelection ||
+                (filterAdSpendByMarket &&
+                    marketAdSpendFilters &&
+                    marketAdSpendFilters.metaCountryCodes.length === 0)
+            ) {
+                redditDaily = [];
+            } else {
             const redditToken = await resolveRedditAccessTokenForCustomer(red);
             if (redditToken) {
                 const redditDash = await fetchRedditDashboardMetrics({
@@ -465,8 +483,10 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                     endDate,
                     redditUsername: red.redditUsername,
                     redditCredentials: red,
+                    countryIsoCodes: marketAdSpendFilters?.metaCountryCodes,
                 });
                 redditDaily = metricsByDateToSpendDaily(redditDash.metrics_by_date);
+            }
             }
         }
     } catch (err) {

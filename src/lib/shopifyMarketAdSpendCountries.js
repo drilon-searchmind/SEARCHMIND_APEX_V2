@@ -81,6 +81,7 @@ export function googleCountryNameFromBilling(billingName, isoCode) {
 
 /**
  * @param {Array<{ name?: string, code?: string|null }>} regionCountries — from Shopify Markets Admin API
+ * `metaCountryCodes` is also the ISO-2 allowlist for Snapchat (`report_dimension=country`) and Reddit (`COUNTRY` breakdown).
  * @returns {{ billingCountryNames: string[], metaCountryCodes: string[], googleCountryNames: string[] }}
  */
 export function buildAdSpendCountryFiltersFromRegionCountries(regionCountries) {
