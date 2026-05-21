@@ -1,6 +1,6 @@
 /**
  * UI catalog for Run Audit modal.
- * Task text is loaded from the Audit Prompt Library (MongoDB) via auditPromptLibrary.
+ * Task text per channel tab comes from the active prompt in the Audit Prompt Library (MongoDB).
  */
 
 /** @typedef {'green'|'blue'|'amber'|'purple'|'red'|'pink'|'teal'} AuditTagColor */

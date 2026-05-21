@@ -1,7 +1,11 @@
 import { getEnglishTaskPrompt } from "./auditTaskPromptsEn.js";
-import { AUDIT_CARD_MODULAR_SLUG } from "./auditPromptSlugs";
-import { getAuditPromptBodyBySlug, loadAuditPromptsBySlug } from "./auditPromptDb";
-import { getAuditCatalogCard } from "./auditPromptCatalog";
+import {
+    getActiveChannelPromptBody,
+    getActiveSystemPromptBody,
+    ensureAuditPromptLibrary,
+} from "./auditPromptDb";
+import { auditGroupIdFromCardId, getAuditCatalogCard } from "./auditPromptCatalog";
+import { isAuditChannelScope } from "./auditPromptScopes";
 
 export const AUDIT_OUTPUT_SCHEMA_INSTRUCTION = `
 Return STRICT JSON only (no markdown fences) matching this shape:
@@ -43,27 +47,26 @@ Always respond in English. Be specific and action-oriented. Never invent numbers
  * @returns {Promise<string>}
  */
 export async function getAuditSystemPrompt() {
-    const body = await getAuditPromptBodyBySlug("system");
+    const body = await getActiveSystemPromptBody();
     return body || FALLBACK_SYSTEM_PROMPT;
 }
 
 /**
  * @param {string} cardId
- * @returns {Promise<{ title: string, tag: string, dataLine: string, taskPrompt: string, modularSlug?: string }|null>}
+ * @returns {Promise<{ title: string, tag: string, dataLine: string, taskPrompt: string }|null>}
  */
 export async function getTaskPromptForCardId(cardId) {
     const catalog = getAuditCatalogCard(cardId);
-    const modularSlug = AUDIT_CARD_MODULAR_SLUG[cardId];
+    const groupId = auditGroupIdFromCardId(cardId);
 
-    if (modularSlug) {
-        const taskPrompt = await getAuditPromptBodyBySlug(modularSlug);
+    if (groupId && isAuditChannelScope(groupId)) {
+        const taskPrompt = await getActiveChannelPromptBody(groupId);
         if (taskPrompt) {
             return {
-                title: catalog?.card?.title || modularSlug,
+                title: catalog?.card?.title || "Analysis",
                 tag: catalog?.card?.tag || "Analysis",
-                dataLine: "",
+                dataLine: catalog?.card?.description || "",
                 taskPrompt,
-                modularSlug,
             };
         }
     }
@@ -75,8 +78,9 @@ export async function getTaskPromptForCardId(cardId) {
 }
 
 /**
- * Warm cache (optional, e.g. before batch audit).
+ * Warm cache before batch audit runs.
  */
 export async function preloadAuditPrompts() {
-    await loadAuditPromptsBySlug();
+    await ensureAuditPromptLibrary();
+    await getActiveSystemPromptBody();
 }
