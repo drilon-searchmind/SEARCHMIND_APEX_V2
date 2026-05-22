@@ -93,13 +93,6 @@ export default function RunAuditModal({
             .then((d) => {
                 if (d.error) throw new Error(d.error);
                 setPromptCatalog(d);
-                const allIds = new Set();
-                for (const g of AUDIT_CATALOG_GROUPS) {
-                    for (const p of d.activeByChannel?.[g.id] || []) {
-                        allIds.add(p.id);
-                    }
-                }
-                setSelectedPromptIds(allIds);
             })
             .catch((err) => {
                 setPromptCatalog({ groups: [], activeByChannel: {} });
