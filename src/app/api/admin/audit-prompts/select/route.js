@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import {
     getAuditPromptLibraryForAdmin,
-    selectAuditPrompt,
+    setAuditPromptActive,
 } from "@/lib/audit/auditPromptDb";
 import { AUDIT_PROMPT_SCOPES } from "@/lib/audit/auditPromptScopes";
 
@@ -14,8 +14,8 @@ function requireAdmin(session) {
 }
 
 /**
- * POST /api/admin/audit-prompts/select — set the active prompt for a scope.
- * Body: { scope: "system"|"seo"|..., promptId: "<ObjectId>" }
+ * POST /api/admin/audit-prompts/select
+ * Body: { scope, promptId, active?: boolean } — channels toggle; system sets active when active!==false
  */
 export async function POST(request) {
     try {
@@ -28,6 +28,7 @@ export async function POST(request) {
         const body = await request.json().catch(() => ({}));
         const scope = String(body.scope || "").trim();
         const promptId = String(body.promptId || "").trim();
+        const active = body.active !== false;
 
         if (!AUDIT_PROMPT_SCOPES.includes(scope)) {
             return NextResponse.json({ error: "Invalid scope" }, { status: 400 });
@@ -36,7 +37,7 @@ export async function POST(request) {
             return NextResponse.json({ error: "promptId is required" }, { status: 400 });
         }
 
-        await selectAuditPrompt(scope, promptId);
+        await setAuditPromptActive(scope, promptId, active);
         const library = await getAuditPromptLibraryForAdmin();
         return NextResponse.json(library);
     } catch (e) {

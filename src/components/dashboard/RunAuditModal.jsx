@@ -7,10 +7,7 @@ import { FiClipboard, FiList, FiX } from "react-icons/fi";
 import Spinner from "@/components/ui/Spinner";
 import { showToast } from "@/components/ui/ToastProvider";
 import { useCustomers } from "@/hooks/useCustomers";
-import {
-    AUDIT_CATALOG_GROUPS,
-    AUDIT_TAG_COLOR_CLASSES,
-} from "@/lib/audit/auditPromptCatalog";
+import { AUDIT_CATALOG_GROUPS } from "@/lib/audit/auditPromptCatalog";
 import { getAuditTabConnectivity } from "@/lib/audit/auditDataSources";
 import { minusOneYearDate } from "@/lib/audit/auditDateUtils";
 
@@ -22,18 +19,17 @@ function canUserRunAudit(user) {
     return user.isExternal !== true;
 }
 
-function countSelections(selectedCards, customByGroup) {
-    let n = selectedCards.size;
+function countSelections(selectedPromptIds, customByGroup) {
+    let n = selectedPromptIds.size;
     for (const g of AUDIT_CATALOG_GROUPS) {
         if ((customByGroup[g.id] || "").trim()) n += 1;
     }
     return n;
 }
 
-function pillCountForGroup(groupId, selectedCards, customByGroup) {
-    const g = AUDIT_CATALOG_GROUPS.find((x) => x.id === groupId);
-    if (!g) return 0;
-    let n = g.items.filter((c) => selectedCards.has(c.id)).length;
+function pillCountForGroup(groupId, selectedPromptIds, activeByChannel, customByGroup) {
+    const prompts = activeByChannel?.[groupId] || [];
+    let n = prompts.filter((p) => selectedPromptIds.has(p.id)).length;
     if ((customByGroup[groupId] || "").trim()) n += 1;
     return n;
 }
@@ -54,7 +50,9 @@ export default function RunAuditModal({
     const [compareEnd, setCompareEnd] = useState("");
     const [compareCustom, setCompareCustom] = useState(false);
     const [activeTab, setActiveTab] = useState("cross");
-    const [selectedCards, setSelectedCards] = useState(() => new Set());
+    const [promptCatalog, setPromptCatalog] = useState(null);
+    const [catalogLoading, setCatalogLoading] = useState(false);
+    const [selectedPromptIds, setSelectedPromptIds] = useState(() => new Set());
     const [customByGroup, setCustomByGroup] = useState({});
     const [customOpen, setCustomOpen] = useState({});
     const [running, setRunning] = useState(false);
@@ -80,11 +78,35 @@ export default function RunAuditModal({
         setCompareEnd("");
         setError(null);
         setRunning(false);
-        setSelectedCards(new Set());
+        setSelectedPromptIds(new Set());
+        setPromptCatalog(null);
         setCustomByGroup({});
         setCustomOpen({});
         setActiveTab("cross");
     }, [open, dateRange?.startDate, dateRange?.endDate]);
+
+    useEffect(() => {
+        if (!open) return;
+        setCatalogLoading(true);
+        fetch("/api/audit-prompts/active")
+            .then((r) => r.json())
+            .then((d) => {
+                if (d.error) throw new Error(d.error);
+                setPromptCatalog(d);
+                const allIds = new Set();
+                for (const g of AUDIT_CATALOG_GROUPS) {
+                    for (const p of d.activeByChannel?.[g.id] || []) {
+                        allIds.add(p.id);
+                    }
+                }
+                setSelectedPromptIds(allIds);
+            })
+            .catch((err) => {
+                setPromptCatalog({ groups: [], activeByChannel: {} });
+                console.warn("audit prompt catalog", err);
+            })
+            .finally(() => setCatalogLoading(false));
+    }, [open]);
 
     const applyYoY = useCallback(() => {
         setCompareStart(minusOneYearDate(startDate));
@@ -96,29 +118,31 @@ export default function RunAuditModal({
         if (compareOn && !compareCustom) applyYoY();
     }, [compareOn, compareCustom, applyYoY]);
 
+    const activeByChannel = promptCatalog?.activeByChannel || {};
+
     const totalSelected = useMemo(
-        () => countSelections(selectedCards, customByGroup),
-        [selectedCards, customByGroup]
+        () => countSelections(selectedPromptIds, customByGroup),
+        [selectedPromptIds, customByGroup]
     );
 
-    const toggleCard = (cardId) => {
-        setSelectedCards((prev) => {
+    const togglePrompt = (promptId) => {
+        setSelectedPromptIds((prev) => {
             const next = new Set(prev);
-            if (next.has(cardId)) next.delete(cardId);
-            else next.add(cardId);
+            if (next.has(promptId)) next.delete(promptId);
+            else next.add(promptId);
             return next;
         });
     };
 
     const toggleAllInTab = (groupId) => {
-        const g = AUDIT_CATALOG_GROUPS.find((x) => x.id === groupId);
-        if (!g) return;
-        const allSelected = g.items.every((c) => selectedCards.has(c.id));
-        setSelectedCards((prev) => {
+        const prompts = activeByChannel[groupId] || [];
+        if (prompts.length === 0) return;
+        const allSelected = prompts.every((p) => selectedPromptIds.has(p.id));
+        setSelectedPromptIds((prev) => {
             const next = new Set(prev);
-            for (const c of g.items) {
-                if (allSelected) next.delete(c.id);
-                else next.add(c.id);
+            for (const p of prompts) {
+                if (allSelected) next.delete(p.id);
+                else next.add(p.id);
             }
             return next;
         });
@@ -126,8 +150,12 @@ export default function RunAuditModal({
 
     const buildSelectionsPayload = () => {
         const selections = [];
-        for (const id of selectedCards) {
-            selections.push({ cardId: id });
+        for (const g of AUDIT_CATALOG_GROUPS) {
+            for (const p of activeByChannel[g.id] || []) {
+                if (selectedPromptIds.has(p.id)) {
+                    selections.push({ promptId: p.id, groupId: g.id });
+                }
+            }
         }
         for (const g of AUDIT_CATALOG_GROUPS) {
             const text = (customByGroup[g.id] || "").trim();
@@ -201,7 +229,10 @@ export default function RunAuditModal({
 
     if (!open) return null;
 
-    const activeGroup = AUDIT_CATALOG_GROUPS.find((g) => g.id === activeTab);
+    const activeGroup =
+        promptCatalog?.groups?.find((g) => g.id === activeTab) ||
+        AUDIT_CATALOG_GROUPS.find((g) => g.id === activeTab);
+    const activePrompts = activeByChannel[activeTab] || [];
     const tabDisabled = (id) => !tabConnectivity[id];
 
     return (
@@ -377,13 +408,18 @@ export default function RunAuditModal({
                         {AUDIT_CATALOG_GROUPS.map((g) => {
                             const disabled = tabDisabled(g.id);
                             const active = activeTab === g.id;
-                            const count = pillCountForGroup(g.id, selectedCards, customByGroup);
+                            const count = pillCountForGroup(
+                                g.id,
+                                selectedPromptIds,
+                                activeByChannel,
+                                customByGroup
+                            );
                             return (
                                 <button
                                     key={g.id}
                                     type="button"
-                                    disabled={running || disabled}
-                                    onClick={() => !disabled && setActiveTab(g.id)}
+                                    disabled={running || disabled || catalogLoading}
+                                    onClick={() => !disabled && !catalogLoading && setActiveTab(g.id)}
                                     title={disabled ? "Not connected" : g.label}
                                     className={`inline-flex max-w-[14rem] items-center gap-1.5 truncate px-3 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
                                         active
@@ -409,19 +445,39 @@ export default function RunAuditModal({
                     {activeGroup ? (
                         <div>
                             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                                <p className="text-xs text-gray-500 max-w-xl">{activeGroup.description}</p>
-                                <button
-                                    type="button"
-                                    disabled={running}
-                                    onClick={() => toggleAllInTab(activeGroup.id)}
-                                    className="text-xs font-semibold text-[var(--color-primary-searchmind)] hover:underline shrink-0"
-                                >
-                                    {activeGroup.items.every((c) => selectedCards.has(c.id))
-                                        ? "Deselect all"
-                                        : "Select all"}
-                                </button>
+                                <p className="text-xs text-gray-500 max-w-xl">
+                                    {activeGroup.description}
+                                    {!catalogLoading && activePrompts.length === 0
+                                        ? " — No active prompts. Mark prompts as active in Admin → Audit Prompt Library."
+                                        : ""}
+                                </p>
+                                {activePrompts.length > 0 ? (
+                                    <button
+                                        type="button"
+                                        disabled={running || catalogLoading}
+                                        onClick={() => toggleAllInTab(activeGroup.id)}
+                                        className="text-xs font-semibold text-[var(--color-primary-searchmind)] hover:underline shrink-0"
+                                    >
+                                        {activePrompts.every((p) => selectedPromptIds.has(p.id))
+                                            ? "Deselect all"
+                                            : "Select all"}
+                                    </button>
+                                ) : null}
                             </div>
                             <div className="max-h-[22rem] overflow-y-auto pr-1">
+                                {catalogLoading ? (
+                                    <div
+                                        className="flex flex-col items-center justify-center gap-3 rounded-lg border border-gray-100 bg-gray-50/80 py-16"
+                                        role="status"
+                                        aria-live="polite"
+                                        aria-busy="true"
+                                    >
+                                        <Spinner size={40} color="#406969" />
+                                        <p className="text-sm font-medium text-gray-700">
+                                            Loading audit prompts…
+                                        </p>
+                                    </div>
+                                ) : (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div
                                         className={`col-span-1 sm:col-span-2 rounded-xl border ${
@@ -472,14 +528,14 @@ export default function RunAuditModal({
                                         ) : null}
                                     </div>
 
-                                    {activeGroup.items.map((card) => {
-                                        const sel = selectedCards.has(card.id);
+                                    {activePrompts.map((prompt) => {
+                                        const sel = selectedPromptIds.has(prompt.id);
                                         return (
                                             <button
-                                                key={card.id}
+                                                key={prompt.id}
                                                 type="button"
-                                                disabled={running}
-                                                onClick={() => toggleCard(card.id)}
+                                                disabled={running || catalogLoading}
+                                                onClick={() => togglePrompt(prompt.id)}
                                                 className={`relative rounded-xl border p-4 text-left transition ${
                                                     sel
                                                         ? "border-[var(--color-primary-searchmind)] bg-[var(--color-primary-searchmind)]/5 shadow-[inset_0_0_0_1px_var(--color-primary-searchmind)]"
@@ -495,24 +551,21 @@ export default function RunAuditModal({
                                                 >
                                                     ✓
                                                 </span>
-                                                <span
-                                                    className={`mb-2 inline-block rounded-full px-2 py-0.5 text-[0.65rem] font-bold uppercase ${
-                                                        AUDIT_TAG_COLOR_CLASSES[card.tagColor] ||
-                                                        "bg-gray-100 text-gray-600"
-                                                    }`}
-                                                >
-                                                    {card.tag}
+                                                <span className="mb-2 inline-block rounded-full px-2 py-0.5 text-[0.65rem] font-bold uppercase bg-slate-100 text-slate-700">
+                                                    Library
                                                 </span>
                                                 <h3 className="pr-6 text-sm font-semibold text-gray-900 leading-snug">
-                                                    {card.title}
+                                                    {prompt.title}
                                                 </h3>
                                                 <p className="mt-1.5 text-xs text-gray-500 leading-relaxed">
-                                                    {card.description}
+                                                    {prompt.description ||
+                                                        "No description — edit in Audit Prompt Library."}
                                                 </p>
                                             </button>
                                         );
                                     })}
                                 </div>
+                                )}
                             </div>
                         </div>
                     ) : null}
@@ -560,7 +613,7 @@ export default function RunAuditModal({
                         <button
                             type="button"
                             onClick={handleRun}
-                            disabled={totalSelected === 0}
+                            disabled={totalSelected === 0 || catalogLoading}
                             className="rounded-lg bg-[var(--color-primary-searchmind)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--color-primary-searchmind-hover)] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             Start audit

@@ -2,6 +2,7 @@ import {
     AUDIT_OUTPUT_SCHEMA_INSTRUCTION,
     getAuditSystemPrompt,
     getTaskPromptForCardId,
+    getTaskPromptForPromptId,
 } from "./auditPromptLibrary";
 import { minusOneYearDate } from "./auditDateUtils";
 import {
@@ -57,25 +58,55 @@ export async function runAuditAnalyses({
     const queue = [...selections];
 
     async function runOne(sel) {
-        const cardId = sel.cardId;
-        const groupId = sel.groupId || (cardId ? auditGroupIdFromCardId(cardId) : "cross");
-        const catalog = cardId ? getAuditCatalogCard(cardId) : null;
-        const group = getAuditCatalogGroup(groupId);
-        const meta = cardId ? await getTaskPromptForCardId(cardId) : null;
+        const promptId = sel.promptId ? String(sel.promptId) : "";
+        let cardId = sel.cardId ? String(sel.cardId) : "";
+        let groupId =
+            sel.groupId ||
+            (cardId ? auditGroupIdFromCardId(cardId) : promptId ? "" : "cross");
 
-        let title = catalog?.card?.title || group?.label || "Custom analysis";
-        let tag = catalog?.card?.tag || "Custom";
+        let title = "Custom analysis";
+        let tag = "Custom";
+        let dataLine = "";
         let taskPrompt = sel.customPrompt?.trim() || "";
 
-        if (cardId && meta) {
-            taskPrompt = meta.taskPrompt;
+        if (promptId) {
+            const meta = await getTaskPromptForPromptId(promptId);
+            if (!meta?.taskPrompt) {
+                return {
+                    ok: false,
+                    cardId: `prompt-${promptId}`,
+                    groupId: groupId || "cross",
+                    error: "Prompt not found",
+                };
+            }
+            cardId = `prompt-${promptId}`;
+            groupId = meta.groupId || groupId;
             title = meta.title;
             tag = meta.tag;
-        } else if (!taskPrompt) {
+            dataLine = meta.dataLine;
+            taskPrompt = meta.taskPrompt;
+        } else if (cardId) {
+            const catalog = getAuditCatalogCard(cardId);
+            const meta = await getTaskPromptForCardId(cardId);
+            groupId = groupId || auditGroupIdFromCardId(cardId);
+            title = catalog?.card?.title || title;
+            tag = catalog?.card?.tag || tag;
+            dataLine = meta?.dataLine || catalog?.card?.description || "";
+            if (meta?.taskPrompt) {
+                taskPrompt = meta.taskPrompt;
+                title = meta.title;
+                tag = meta.tag;
+            }
+        } else {
+            const group = getAuditCatalogGroup(groupId);
+            title = group?.label || title;
+        }
+
+        if (!taskPrompt) {
             return {
                 ok: false,
                 cardId: cardId || `custom-${groupId}`,
-                groupId,
+                groupId: groupId || "cross",
                 error: "Missing task prompt",
             };
         }
@@ -85,7 +116,7 @@ export async function runAuditAnalyses({
             cardId: cardId || `custom-${groupId}`,
             title,
             tag,
-            dataLine: meta?.dataLine || "",
+            dataLine,
             taskPrompt,
             dateRange,
             comparisonDateRange,

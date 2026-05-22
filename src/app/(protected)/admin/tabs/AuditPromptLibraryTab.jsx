@@ -7,10 +7,17 @@ import { showToast } from "@/components/ui/ToastProvider";
 import Spinner from "@/components/ui/Spinner";
 import { FiPlus, FiTrash2 } from "react-icons/fi";
 
-function selectedIdForScope(scope, selection) {
-    if (!selection) return null;
-    if (scope === "system") return selection.systemPromptId;
-    return selection.channels?.[scope] || null;
+function activeIdsForScope(scope, selection) {
+    if (!selection) return [];
+    if (scope === "system") {
+        return selection.systemPromptId ? [selection.systemPromptId] : [];
+    }
+    const ch = selection.channels?.[scope];
+    return Array.isArray(ch) ? ch : ch ? [ch] : [];
+}
+
+function isPromptActive(scope, promptId, selection) {
+    return activeIdsForScope(scope, selection).includes(promptId);
 }
 
 export default function AuditPromptLibraryTab() {
@@ -34,11 +41,11 @@ export default function AuditPromptLibraryTab() {
             setLibrary(data);
             const scope = opts.scope ?? activeScope;
             const list = data?.promptsByScope?.[scope] || [];
-            const selId = selectedIdForScope(scope, data?.selection);
             const preferId = opts.preferPromptId ?? activePromptId;
+            const activeSet = new Set(activeIdsForScope(scope, data?.selection));
             const nextActive =
                 list.find((p) => p.id === preferId)?.id ||
-                list.find((p) => p.id === selId)?.id ||
+                list.find((p) => activeSet.has(p.id))?.id ||
                 list[0]?.id ||
                 null;
             setActivePromptId(nextActive);
@@ -71,10 +78,10 @@ export default function AuditPromptLibraryTab() {
     React.useEffect(() => {
         if (!library) return;
         const list = library.promptsByScope?.[activeScope] || [];
-        const selId = selectedIdForScope(activeScope, library.selection);
+        const activeSet = new Set(activeIdsForScope(activeScope, library.selection));
         const next =
             list.find((p) => p.id === activePromptId)?.id ||
-            list.find((p) => p.id === selId)?.id ||
+            list.find((p) => activeSet.has(p.id))?.id ||
             list[0]?.id ||
             null;
         setActivePromptId(next);
@@ -98,9 +105,9 @@ export default function AuditPromptLibraryTab() {
         if (dirty && !confirm("You have unsaved changes. Discard them?")) return;
         setActiveScope(scope);
         const list = library?.promptsByScope?.[scope] || [];
-        const selId = selectedIdForScope(scope, library?.selection);
+        const activeSet = new Set(activeIdsForScope(scope, library?.selection));
         setActivePromptId(
-            list.find((p) => p.id === selId)?.id || list[0]?.id || null
+            list.find((p) => activeSet.has(p.id))?.id || list[0]?.id || null
         );
     };
 
@@ -133,18 +140,21 @@ export default function AuditPromptLibraryTab() {
         }
     };
 
-    const handleSelect = async (promptId) => {
+    const handleToggleActive = async (promptId, currentlyActive) => {
         setSelectingId(promptId);
         try {
             const res = await fetch("/api/admin/audit-prompts/select", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ scope: activeScope, promptId }),
+                body: JSON.stringify({
+                    scope: activeScope,
+                    promptId,
+                    active: !currentlyActive,
+                }),
             });
             const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data.error || "Failed to select prompt");
+            if (!res.ok) throw new Error(data.error || "Failed to update active prompts");
             applyLibrary(data);
-            showToast({ type: "success", message: "Active prompt updated for Run Audit" });
         } catch (err) {
             showToast({ type: "error", message: err.message });
         } finally {
@@ -198,8 +208,6 @@ export default function AuditPromptLibraryTab() {
     };
 
     const scopeMeta = library?.scopes?.find((s) => s.id === activeScope);
-    const selectedInScope = selectedIdForScope(activeScope, library?.selection);
-
     if (loading) {
         return (
             <div className="flex justify-center py-16">
@@ -221,10 +229,10 @@ export default function AuditPromptLibraryTab() {
                     Audit Prompt Library
                 </h5>
                 <p className="text-sm text-gray-600 max-w-3xl">
-                    Create multiple prompts per section (system + each audit channel). Select
-                    exactly one active prompt per section — that prompt is used when you run
-                    audits in Run Audit. Catalog card titles still label each analysis; the
-                    active channel prompt is the task instructions sent to Claude.
+                    Create multiple prompts per section. For each channel (Cross-channel, SEO,
+                    PPC, PS, EM), check all prompts that should appear in Run Audit — multiple
+                    can be active at once. System prompt: pick exactly one. Active prompts show
+                    as selectable cards in Run Audit (title + description from here).
                 </p>
             </div>
 
@@ -237,9 +245,7 @@ export default function AuditPromptLibraryTab() {
                         {(library.scopes || []).map((s) => {
                             const isActive = s.id === activeScope;
                             const count = (library.promptsByScope?.[s.id] || []).length;
-                            const hasSelection = Boolean(
-                                selectedIdForScope(s.id, library.selection)
-                            );
+                            const activeCount = activeIdsForScope(s.id, library.selection).length;
                             return (
                                 <li key={s.id}>
                                     <button
@@ -254,7 +260,13 @@ export default function AuditPromptLibraryTab() {
                                         <span className="block">{s.label}</span>
                                         <span className="mt-0.5 block text-[0.65rem] font-normal text-gray-500">
                                             {count} prompt{count === 1 ? "" : "s"}
-                                            {hasSelection ? " · 1 selected" : ""}
+                                            {s.id === "system"
+                                                ? activeCount
+                                                    ? " · 1 active"
+                                                    : ""
+                                                : activeCount
+                                                  ? ` · ${activeCount} active`
+                                                  : ""}
                                         </span>
                                     </button>
                                 </li>
@@ -290,7 +302,11 @@ export default function AuditPromptLibraryTab() {
                             </li>
                         ) : (
                             promptsInScope.map((p) => {
-                                const isSelected = p.id === selectedInScope;
+                                const isActive = isPromptActive(
+                                    activeScope,
+                                    p.id,
+                                    library.selection
+                                );
                                 const isEditing = p.id === activePromptId;
                                 return (
                                     <li
@@ -303,13 +319,19 @@ export default function AuditPromptLibraryTab() {
                                     >
                                         <div className="flex items-start gap-2 p-2">
                                             <input
-                                                type="radio"
+                                                type={activeScope === "system" ? "radio" : "checkbox"}
                                                 name={`scope-${activeScope}`}
-                                                checked={isSelected}
+                                                checked={isActive}
                                                 disabled={selectingId != null}
-                                                onChange={() => handleSelect(p.id)}
+                                                onChange={() =>
+                                                    handleToggleActive(p.id, isActive)
+                                                }
                                                 className="mt-1 shrink-0"
-                                                title="Use in Run Audit"
+                                                title={
+                                                    activeScope === "system"
+                                                        ? "Active system prompt"
+                                                        : "Show in Run Audit"
+                                                }
                                             />
                                             <button
                                                 type="button"
@@ -334,9 +356,11 @@ export default function AuditPromptLibraryTab() {
                                                 >
                                                     {p.title}
                                                 </span>
-                                                {isSelected ? (
+                                                {isActive ? (
                                                     <span className="text-[0.65rem] text-emerald-700 font-medium">
-                                                        Active in Run Audit
+                                                        {activeScope === "system"
+                                                            ? "Active system prompt"
+                                                            : "Shown in Run Audit"}
                                                     </span>
                                                 ) : null}
                                             </button>

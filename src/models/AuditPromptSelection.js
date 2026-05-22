@@ -1,8 +1,15 @@
 import mongoose from "mongoose";
+import { AUDIT_CHANNEL_SCOPES } from "@/lib/audit/auditPromptScopes";
+
+const channelActiveShape = {};
+for (const ch of AUDIT_CHANNEL_SCOPES) {
+    channelActiveShape[ch] = [{ type: mongoose.Schema.Types.ObjectId, ref: "AuditPrompt" }];
+}
 
 /**
- * Singleton document tracking which prompt is active per scope (system + each channel).
- * configKey is always "default" for the global library.
+ * Singleton: which prompts are active in Run Audit.
+ * - system: exactly one active system prompt
+ * - each channel: zero or more active prompts (all shown in Run Audit)
  */
 const AuditPromptSelectionSchema = new mongoose.Schema(
     {
@@ -17,6 +24,8 @@ const AuditPromptSelectionSchema = new mongoose.Schema(
             ref: "AuditPrompt",
             default: null,
         },
+        channelActivePromptIds: channelActiveShape,
+        /** @deprecated Legacy single selection — migrated to channelActivePromptIds on load */
         channelPromptIds: {
             cross: { type: mongoose.Schema.Types.ObjectId, ref: "AuditPrompt", default: null },
             seo: { type: mongoose.Schema.Types.ObjectId, ref: "AuditPrompt", default: null },

@@ -1,16 +1,15 @@
 import { getEnglishTaskPrompt } from "./auditTaskPromptsEn.js";
 import {
-    getActiveChannelPromptBody,
     getActiveSystemPromptBody,
+    getAuditPromptById,
     ensureAuditPromptLibrary,
 } from "./auditPromptDb";
 import { auditGroupIdFromCardId, getAuditCatalogCard } from "./auditPromptCatalog";
-import { isAuditChannelScope } from "./auditPromptScopes";
 
 export const AUDIT_OUTPUT_SCHEMA_INSTRUCTION = `
 Return STRICT JSON only (no markdown fences) matching this shape:
 {
-  "audit_id": "<card id>",
+  "audit_id": "<analysis id>",
   "period": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" },
   "comparison": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" } | null,
   "summary": "2-4 sentences in English",
@@ -43,43 +42,45 @@ All narrative text must be in English.
 const FALLBACK_SYSTEM_PROMPT = `You are a senior performance and growth marketing analyst running a data-driven audit for a Shopify e-commerce brand.
 Always respond in English. Be specific and action-oriented. Never invent numbers.`;
 
-/**
- * @returns {Promise<string>}
- */
 export async function getAuditSystemPrompt() {
     const body = await getActiveSystemPromptBody();
     return body || FALLBACK_SYSTEM_PROMPT;
 }
 
 /**
- * @param {string} cardId
- * @returns {Promise<{ title: string, tag: string, dataLine: string, taskPrompt: string }|null>}
+ * @param {string} promptId — Mongo AuditPrompt id
  */
-export async function getTaskPromptForCardId(cardId) {
-    const catalog = getAuditCatalogCard(cardId);
-    const groupId = auditGroupIdFromCardId(cardId);
-
-    if (groupId && isAuditChannelScope(groupId)) {
-        const taskPrompt = await getActiveChannelPromptBody(groupId);
-        if (taskPrompt) {
-            return {
-                title: catalog?.card?.title || "Analysis",
-                tag: catalog?.card?.tag || "Analysis",
-                dataLine: catalog?.card?.description || "",
-                taskPrompt,
-            };
-        }
-    }
-
-    const en = getEnglishTaskPrompt(cardId);
-    if (en) return en;
-
-    return null;
+export async function getTaskPromptForPromptId(promptId) {
+    const p = await getAuditPromptById(promptId);
+    if (!p?.body) return null;
+    return {
+        title: p.title,
+        tag: "Analysis",
+        dataLine: p.description || "",
+        taskPrompt: p.body,
+        groupId: p.scope,
+        promptId: p.id,
+    };
 }
 
 /**
- * Warm cache before batch audit runs.
+ * @param {string} cardId — legacy catalog id (older audits / fallback)
  */
+export async function getTaskPromptForCardId(cardId) {
+    const en = getEnglishTaskPrompt(cardId);
+    if (en) return en;
+    const catalog = getAuditCatalogCard(cardId);
+    if (catalog) {
+        return {
+            title: catalog.card.title,
+            tag: catalog.card.tag,
+            dataLine: catalog.card.description || "",
+            taskPrompt: "",
+        };
+    }
+    return null;
+}
+
 export async function preloadAuditPrompts() {
     await ensureAuditPromptLibrary();
     await getActiveSystemPromptBody();

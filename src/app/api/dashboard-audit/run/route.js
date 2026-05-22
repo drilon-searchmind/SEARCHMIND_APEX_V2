@@ -24,11 +24,14 @@ function normalizeSelections(selections) {
     const out = [];
     for (const row of selections) {
         if (!row || typeof row !== "object") continue;
+        const promptId = row.promptId != null ? String(row.promptId).trim() : "";
         const cardId = row.cardId != null ? String(row.cardId).trim() : "";
         const groupId = row.groupId != null ? String(row.groupId).trim() : "";
         const customPrompt =
             row.customPrompt != null ? String(row.customPrompt).trim() : "";
-        if (cardId) {
+        if (promptId) {
+            out.push({ promptId, groupId: groupId || undefined });
+        } else if (cardId) {
             out.push({ cardId });
         } else if (customPrompt && groupId) {
             out.push({ groupId, customPrompt });

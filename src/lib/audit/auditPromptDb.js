@@ -13,7 +13,7 @@ import { AUDIT_PROMPT_SEED_DEFAULTS } from "./auditPromptDefaults";
 const CONFIG_KEY = "default";
 const CACHE_MS = 30_000;
 
-/** @type {{ at: number, system: string, channels: Record<string, string> } | null} */
+/** @type {{ at: number, system: string } | null} */
 let runtimeCache = null;
 
 export function invalidateAuditPromptCache() {
@@ -35,15 +35,23 @@ function serializePrompt(doc) {
     };
 }
 
+function channelActiveArray(sel, channel) {
+    const arr = sel?.channelActivePromptIds?.[channel];
+    if (Array.isArray(arr) && arr.length > 0) {
+        return arr.map((id) => String(id));
+    }
+    const legacy = sel?.channelPromptIds?.[channel];
+    if (legacy) return [String(legacy)];
+    return [];
+}
+
 /**
- * @param {import('mongoose').Document|null} sel
+ * @param {import('mongoose').Document} sel
  */
 function serializeSelection(sel) {
     const channels = {};
     for (const ch of AUDIT_CHANNEL_SCOPES) {
-        channels[ch] = sel?.channelPromptIds?.[ch]
-            ? String(sel.channelPromptIds[ch])
-            : null;
+        channels[ch] = channelActiveArray(sel, ch);
     }
     return {
         systemPromptId: sel?.systemPromptId ? String(sel.systemPromptId) : null,
@@ -57,11 +65,61 @@ async function getOrCreateSelectionDoc() {
     if (!sel) {
         sel = await AuditPromptSelection.create({ configKey: CONFIG_KEY });
     }
-    return sel;
+    return migrateSelectionDoc(sel);
 }
 
 /**
- * Ensure each scope has at least one prompt and each scope has a selection when possible.
+ * Migrate legacy single channelPromptIds → channelActivePromptIds arrays.
+ * @param {import('mongoose').Document} sel
+ */
+async function migrateSelectionDoc(sel) {
+    let changed = false;
+    for (const ch of AUDIT_CHANNEL_SCOPES) {
+        const existing = sel.channelActivePromptIds?.[ch];
+        const legacy = sel.channelPromptIds?.[ch];
+        if ((!existing || existing.length === 0) && legacy) {
+            if (!sel.channelActivePromptIds) sel.channelActivePromptIds = {};
+            sel.channelActivePromptIds[ch] = [legacy];
+            changed = true;
+        }
+        if (!sel.channelActivePromptIds?.[ch]) {
+            if (!sel.channelActivePromptIds) sel.channelActivePromptIds = {};
+            sel.channelActivePromptIds[ch] = [];
+            changed = true;
+        }
+    }
+    if (changed) {
+        sel.markModified("channelActivePromptIds");
+        await sel.save();
+        invalidateAuditPromptCache();
+    }
+    return sel;
+}
+
+function addToChannelActive(sel, scope, promptId) {
+    if (!AUDIT_CHANNEL_SCOPES.includes(scope)) return;
+    if (!sel.channelActivePromptIds) sel.channelActivePromptIds = {};
+    const arr = [...(sel.channelActivePromptIds[scope] || [])];
+    const idStr = String(promptId);
+    if (!arr.some((x) => String(x) === idStr)) {
+        arr.push(promptId);
+        sel.channelActivePromptIds[scope] = arr;
+        sel.markModified("channelActivePromptIds");
+    }
+}
+
+function removeFromChannelActive(sel, scope, promptId) {
+    if (!AUDIT_CHANNEL_SCOPES.includes(scope)) return;
+    const idStr = String(promptId);
+    const arr = (sel.channelActivePromptIds?.[scope] || []).filter(
+        (x) => String(x) !== idStr
+    );
+    sel.channelActivePromptIds[scope] = arr;
+    sel.markModified("channelActivePromptIds");
+}
+
+/**
+ * Ensure each scope has at least one prompt; channel scopes auto-activate first prompt.
  */
 export async function ensureAuditPromptLibrary() {
     await connectToDatabase();
@@ -85,11 +143,9 @@ export async function ensureAuditPromptLibrary() {
             }
             const sel = await getOrCreateSelectionDoc();
             if (firstByScope.system) sel.systemPromptId = firstByScope.system;
-            if (firstByScope.cross) sel.channelPromptIds.cross = firstByScope.cross;
+            if (firstByScope.cross) addToChannelActive(sel, "cross", firstByScope.cross);
             await sel.save();
         } else {
-            /** @type {Record<string, import('mongoose').Types.ObjectId>} */
-            const firstByScope = {};
             for (const def of AUDIT_PROMPT_SEED_DEFAULTS) {
                 const created = await AuditPrompt.create({
                     scope: def.scope,
@@ -98,20 +154,18 @@ export async function ensureAuditPromptLibrary() {
                     body: def.body,
                     sortOrder: def.sortOrder,
                 });
-                if (!firstByScope[def.scope]) firstByScope[def.scope] = created._id;
+                const sel = await getOrCreateSelectionDoc();
+                if (def.scope === "system") sel.systemPromptId = created._id;
+                else addToChannelActive(sel, def.scope, created._id);
+                await sel.save();
             }
-            const sel = await getOrCreateSelectionDoc();
-            for (const scope of AUDIT_PROMPT_SCOPES) {
-                const id = firstByScope[scope];
-                if (!id) continue;
-                if (scope === "system") sel.systemPromptId = id;
-                else sel.channelPromptIds[scope] = id;
-            }
-            await sel.save();
         }
     }
 
-    const sel = await getOrCreateSelectionDoc();
+    let sel = await AuditPromptSelection.findOne({ configKey: CONFIG_KEY });
+    if (!sel) sel = await AuditPromptSelection.create({ configKey: CONFIG_KEY });
+    sel = await migrateSelectionDoc(sel);
+
     for (const scope of AUDIT_PROMPT_SCOPES) {
         const scopeCount = await AuditPrompt.countDocuments({ scope });
         if (scopeCount === 0) {
@@ -125,45 +179,33 @@ export async function ensureAuditPromptLibrary() {
                     sortOrder: def.sortOrder,
                 });
                 if (scope === "system" && !sel.systemPromptId) sel.systemPromptId = created._id;
-                if (AUDIT_CHANNEL_SCOPES.includes(scope) && !sel.channelPromptIds?.[scope]) {
-                    sel.channelPromptIds[scope] = created._id;
+                if (AUDIT_CHANNEL_SCOPES.includes(scope)) {
+                    addToChannelActive(sel, scope, created._id);
                 }
             }
         }
     }
 
-    for (const scope of AUDIT_PROMPT_SCOPES) {
-        if (scope === "system") {
-            if (!sel.systemPromptId) {
-                const first = await AuditPrompt.findOne({ scope: "system" }).sort({ sortOrder: 1 });
-                if (first) sel.systemPromptId = first._id;
-            }
-        } else if (!sel.channelPromptIds?.[scope]) {
-            const first = await AuditPrompt.findOne({ scope }).sort({ sortOrder: 1 });
-            if (first) sel.channelPromptIds[scope] = first._id;
+    if (!sel.systemPromptId) {
+        const first = await AuditPrompt.findOne({ scope: "system" }).sort({ sortOrder: 1 });
+        if (first) sel.systemPromptId = first._id;
+    }
+    for (const ch of AUDIT_CHANNEL_SCOPES) {
+        if (channelActiveArray(sel, ch).length === 0) {
+            const first = await AuditPrompt.findOne({ scope: ch }).sort({ sortOrder: 1 });
+            if (first) addToChannelActive(sel, ch, first._id);
         }
     }
     await sel.save();
     invalidateAuditPromptCache();
 }
 
-async function loadRuntimeCache() {
+async function loadSystemCache() {
     if (runtimeCache && Date.now() - runtimeCache.at < CACHE_MS) {
-        return runtimeCache;
+        return runtimeCache.system;
     }
     await ensureAuditPromptLibrary();
     const sel = await getOrCreateSelectionDoc();
-    /** @type {Record<string, string>} */
-    const channels = {};
-    for (const ch of AUDIT_CHANNEL_SCOPES) {
-        const id = sel.channelPromptIds?.[ch];
-        if (id) {
-            const doc = await AuditPrompt.findById(id).lean();
-            channels[ch] = doc?.body ? String(doc.body).trim() : "";
-        } else {
-            channels[ch] = "";
-        }
-    }
     let system = "";
     if (sel.systemPromptId) {
         const sysDoc = await AuditPrompt.findById(sel.systemPromptId).lean();
@@ -173,31 +215,68 @@ async function loadRuntimeCache() {
         const fallback = await AuditPrompt.findOne({ scope: "system" }).sort({ sortOrder: 1 }).lean();
         system = fallback?.body ? String(fallback.body).trim() : "";
     }
-    runtimeCache = { at: Date.now(), system, channels };
-    return runtimeCache;
+    runtimeCache = { at: Date.now(), system };
+    return system;
 }
 
-/**
- * @returns {Promise<string>}
- */
 export async function getActiveSystemPromptBody() {
-    const cache = await loadRuntimeCache();
-    return cache.system;
+    return loadSystemCache();
 }
 
 /**
- * @param {string} channelScope — cross | seo | ppc | ps | em
- * @returns {Promise<string>}
+ * @param {string} channelScope
+ * @returns {Promise<ReturnType<typeof serializePrompt>[]>}
  */
-export async function getActiveChannelPromptBody(channelScope) {
-    if (!AUDIT_CHANNEL_SCOPES.includes(channelScope)) return "";
-    const cache = await loadRuntimeCache();
-    return cache.channels[channelScope] || "";
+export async function getActiveChannelPrompts(channelScope) {
+    if (!AUDIT_CHANNEL_SCOPES.includes(channelScope)) return [];
+    await ensureAuditPromptLibrary();
+    const sel = await getOrCreateSelectionDoc();
+    const ids = channelActiveArray(sel, channelScope);
+    if (ids.length === 0) return [];
+
+    const docs = await AuditPrompt.find({ _id: { $in: ids } })
+        .sort({ sortOrder: 1, title: 1 })
+        .lean();
+    const order = new Map(ids.map((id, i) => [id, i]));
+    docs.sort(
+        (a, b) =>
+            (order.get(String(a._id)) ?? 999) - (order.get(String(b._id)) ?? 999)
+    );
+    return docs.map((d) => serializePrompt(d)).filter(Boolean);
 }
 
 /**
- * Admin library payload.
+ * @param {string} promptId
  */
+export async function getAuditPromptById(promptId) {
+    if (!mongoose.Types.ObjectId.isValid(promptId)) return null;
+    const doc = await AuditPrompt.findById(promptId).lean();
+    return serializePrompt(doc);
+}
+
+/**
+ * Run Audit modal: active channel prompts grouped by scope (no system body).
+ */
+export async function getActivePromptsForRunAudit() {
+    await ensureAuditPromptLibrary();
+    const sel = await getOrCreateSelectionDoc();
+
+    /** @type {Record<string, ReturnType<typeof serializePrompt>[]>} */
+    const activeByChannel = {};
+    for (const ch of AUDIT_CHANNEL_SCOPES) {
+        activeByChannel[ch] = await getActiveChannelPrompts(ch);
+    }
+
+    const groups = AUDIT_CHANNEL_SCOPES.map((id) => ({
+        id,
+        label: AUDIT_SCOPE_META[id]?.label || id,
+        shortLabel: AUDIT_SCOPE_META[id]?.label?.split("·")[0]?.trim() || id,
+        description: AUDIT_SCOPE_META[id]?.description || "",
+    }));
+
+    return { groups, activeByChannel };
+}
+
 export async function getAuditPromptLibraryForAdmin() {
     await ensureAuditPromptLibrary();
     const rows = await AuditPrompt.find({}).sort({ scope: 1, sortOrder: 1, title: 1 }).lean();
@@ -225,9 +304,6 @@ export async function getAuditPromptLibraryForAdmin() {
     };
 }
 
-/**
- * @param {{ scope: string, title?: string, description?: string, body: string, userId?: import('mongoose').Types.ObjectId|null }} input
- */
 export async function createAuditPrompt(input) {
     await ensureAuditPromptLibrary();
     const scope = String(input.scope || "").trim();
@@ -250,10 +326,11 @@ export async function createAuditPrompt(input) {
     });
 
     const sel = await getOrCreateSelectionDoc();
-    const scopeCount = await AuditPrompt.countDocuments({ scope });
-    if (scopeCount === 1) {
-        if (scope === "system") sel.systemPromptId = doc._id;
-        else sel.channelPromptIds[scope] = doc._id;
+    if (scope === "system" && !sel.systemPromptId) {
+        sel.systemPromptId = doc._id;
+        await sel.save();
+    } else if (AUDIT_CHANNEL_SCOPES.includes(scope)) {
+        addToChannelActive(sel, scope, doc._id);
         await sel.save();
     }
 
@@ -261,10 +338,6 @@ export async function createAuditPrompt(input) {
     return serializePrompt(doc);
 }
 
-/**
- * @param {string} id
- * @param {{ title?: string, description?: string, body?: string, userId?: import('mongoose').Types.ObjectId|null }} patch
- */
 export async function updateAuditPrompt(id, patch) {
     if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("Invalid prompt id");
     const body = patch.body != null ? String(patch.body).trim() : undefined;
@@ -282,44 +355,37 @@ export async function updateAuditPrompt(id, patch) {
     return serializePrompt(doc);
 }
 
-/**
- * @param {string} id
- */
 export async function deleteAuditPrompt(id) {
     if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("Invalid prompt id");
     const doc = await AuditPrompt.findById(id);
     if (!doc) throw new Error("Prompt not found");
 
-    const sel = await getOrCreateSelectionDoc();
     const scope = doc.scope;
-    const isSelected =
-        (scope === "system" && String(sel.systemPromptId) === id) ||
-        (AUDIT_CHANNEL_SCOPES.includes(scope) &&
-            String(sel.channelPromptIds?.[scope]) === id);
-
     const remaining = await AuditPrompt.countDocuments({ scope, _id: { $ne: doc._id } });
     if (remaining === 0) {
         throw new Error("Cannot delete the last prompt in this section");
     }
 
-    await AuditPrompt.deleteOne({ _id: doc._id });
-
-    if (isSelected) {
-        const next = await AuditPrompt.findOne({ scope }).sort({ sortOrder: 1 });
-        if (scope === "system") sel.systemPromptId = next?._id || null;
-        else sel.channelPromptIds[scope] = next?._id || null;
-        await sel.save();
+    const sel = await getOrCreateSelectionDoc();
+    if (scope === "system" && String(sel.systemPromptId) === id) {
+        const next = await AuditPrompt.findOne({ scope: "system" }).sort({ sortOrder: 1 });
+        sel.systemPromptId = next?._id || null;
+    } else if (AUDIT_CHANNEL_SCOPES.includes(scope)) {
+        removeFromChannelActive(sel, scope, id);
     }
 
+    await AuditPrompt.deleteOne({ _id: doc._id });
+    await sel.save();
     invalidateAuditPromptCache();
     return { deletedId: id, scope };
 }
 
 /**
- * @param {string} scope
- * @param {string} promptId
+ * Set whether a prompt is active in Run Audit.
+ * System: only one active (active=true selects; active=false ignored).
+ * Channels: toggle membership in active list (multiple allowed).
  */
-export async function selectAuditPrompt(scope, promptId) {
+export async function setAuditPromptActive(scope, promptId, active) {
     if (!AUDIT_PROMPT_SCOPES.includes(scope)) throw new Error("Invalid scope");
     if (!mongoose.Types.ObjectId.isValid(promptId)) throw new Error("Invalid prompt id");
 
@@ -329,12 +395,24 @@ export async function selectAuditPrompt(scope, promptId) {
     }
 
     const sel = await getOrCreateSelectionDoc();
+
     if (scope === "system") {
-        sel.systemPromptId = doc._id;
+        if (active) sel.systemPromptId = doc._id;
+        /* keep current system prompt if unchecking — at least one system prompt required */
     } else {
-        sel.channelPromptIds[scope] = doc._id;
+        if (active) {
+            addToChannelActive(sel, scope, doc._id);
+        } else {
+            removeFromChannelActive(sel, scope, doc._id);
+        }
     }
+
     await sel.save();
     invalidateAuditPromptCache();
     return serializeSelection(sel);
+}
+
+/** @deprecated Use setAuditPromptActive(scope, promptId, true) */
+export async function selectAuditPrompt(scope, promptId) {
+    return setAuditPromptActive(scope, promptId, true);
 }
