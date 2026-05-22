@@ -10,6 +10,7 @@ import {
     AUDIT_AI_ACCESS_MODE,
     AUDIT_ANTHROPIC_MESSAGES_URL,
     buildReadOnlyAuditAnthropicBody,
+    getAuditAnthropicMaxTokens,
 } from "./auditAiReadOnlyPolicy";
 
 function getApiKey() {
@@ -95,7 +96,7 @@ async function postReadOnlyAuditMessages(requestBody) {
 export async function callAuditAnthropicMessages({
     system,
     messages,
-    maxTokens = 8192,
+    maxTokens = getAuditAnthropicMaxTokens(),
     temperature = 0.4,
 }) {
     const requestBody = buildReadOnlyAuditAnthropicBody({
@@ -112,7 +113,7 @@ export async function callAuditAnthropicMessages({
  * @param {{ system: string, user: string, maxTokens?: number, temperature?: number }} opts
  * @returns {Promise<string>}
  */
-export async function callAuditAnthropic({ system, user, maxTokens = 8192, temperature = 0.35 }) {
+export async function callAuditAnthropic({ system, user, maxTokens = getAuditAnthropicMaxTokens(), temperature = 0.35 }) {
     const { text } = await callAuditAnthropicMessages({
         system,
         messages: [{ role: "user", content: user }],

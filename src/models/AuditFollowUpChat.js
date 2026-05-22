@@ -69,6 +69,11 @@ const AuditFollowUpChatSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.Mixed,
             default: {},
         },
+        /** Optional finding snapshot when opened from "Analyze with AI" */
+        findingContext: {
+            type: mongoose.Schema.Types.Mixed,
+            default: null,
+        },
         messages: {
             type: [AuditFollowUpMessageSchema],
             default: [],

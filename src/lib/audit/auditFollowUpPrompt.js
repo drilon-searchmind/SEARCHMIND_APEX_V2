@@ -2,8 +2,6 @@
  * System prompt for post-audit follow-up chat (Claude).
  */
 
-const REPORT_JSON_MAX = 120_000;
-
 /**
  * @param {{
  *   auditReportSnapshot?: object,
@@ -20,10 +18,7 @@ export function buildAuditFollowUpSystemPrompt(ctx) {
     const end = ctx.dateRange?.endDate || "—";
     const customer = (ctx.customerName || "").trim() || "the customer";
 
-    let reportJson = JSON.stringify(report, null, 2);
-    if (reportJson.length > REPORT_JSON_MAX) {
-        reportJson = `${reportJson.slice(0, REPORT_JSON_MAX)}\n...[report truncated for context length]`;
-    }
+    const reportJson = JSON.stringify(report, null, 2);
 
     const compare =
         ctx.comparisonDateRange?.startDate && ctx.comparisonDateRange?.endDate

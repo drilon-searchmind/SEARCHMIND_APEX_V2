@@ -1,25 +1,32 @@
-import { getEnglishTaskPrompt } from "./auditTaskPromptsEn.js";
 import {
     getActiveSystemPromptBody,
     getAuditPromptById,
     ensureAuditPromptLibrary,
 } from "./auditPromptDb";
-import { auditGroupIdFromCardId, getAuditCatalogCard } from "./auditPromptCatalog";
 
-export const AUDIT_OUTPUT_SCHEMA_INSTRUCTION = `
-Return STRICT JSON only (no markdown fences) matching this shape:
+export const AUDIT_OUTPUT_SCHEMA_INSTRUCTION = `Return STRICT JSON only — your entire reply must be exactly one JSON object. No markdown fences. No preamble or closing text (never start with "Looking at", "Here is", "Based on", etc.).
+
+CONTENT RULES (important):
+- Do NOT summarize, shorten, or omit findings to save space. Include every material issue and opportunity you identify.
+- Use full sentences and complete evidence. No arbitrary length limits on any field.
+- If the task implies a list (search terms, campaigns, products, etc.), include all relevant items with numbers — do not cap at "top 5" unless the task explicitly asks for a limit.
+- "summary" is a full analysis overview for this card (not a brief abstract).
+- "findings" may contain as many items as the data supports.
+- "prioritized_actions" should list all ranked actions you recommend (use rank 1, 2, 3, …).
+
+Required JSON shape (same keys always; string values may be long):
 {
   "audit_id": "<analysis id>",
   "period": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" },
   "comparison": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" } | null,
-  "summary": "2-4 sentences in English",
-  "thresholds_used": "string",
+  "summary": "string — complete overview in English",
+  "thresholds_used": "string — explain criteria and benchmarks used",
   "findings": [
     {
       "title": "string",
       "type": "problem | opportunity",
       "severity": "critical | high | medium | low",
-      "evidence": "string with concrete numbers",
+      "evidence": "string — concrete data, metrics, examples (no length limit)",
       "impact": "string",
       "recommendation": "string",
       "business_case": "string",
@@ -31,16 +38,19 @@ Return STRICT JSON only (no markdown fences) matching this shape:
   "prioritized_actions": [
     { "rank": 1, "action": "string", "channel": "string", "business_case": "string", "why": "string" }
   ],
-  "data_gaps": "string"
+  "data_gaps": "string — list missing data that limited the analysis"
 }
-Also include "health_score" (integer 0-100) and "grade" (A-F) at the root. Score must reflect THIS analysis only — vary scores across analyses; do not default every analysis to the same number.
+Also include "health_score" (integer 0-100) and "grade" (A-F) at the root. Score must reflect THIS analysis only.
 Rubric from findings: mostly critical/high → 25-45; several high → 45-58; mixed medium → 58-72; few/low issues → 72-88; strong with opportunities → 85-95.
-Include "health_score" and "grade" in the root of the JSON.
-All narrative text must be in English.
-`;
+All narrative text must be in English. Never invent metrics not present in the supplied data.`;
+
+/** @returns {string} */
+export function getAuditOutputSchemaInstruction() {
+    return AUDIT_OUTPUT_SCHEMA_INSTRUCTION;
+}
 
 const FALLBACK_SYSTEM_PROMPT = `You are a senior performance and growth marketing analyst running a data-driven audit for a Shopify e-commerce brand.
-Always respond in English. Be specific and action-oriented. Never invent numbers.`;
+Always respond in English. Be specific and action-oriented. Never invent numbers. Provide exhaustive, implementation-ready detail — do not summarize away findings.`;
 
 export async function getAuditSystemPrompt() {
     const body = await getActiveSystemPromptBody();
@@ -61,24 +71,6 @@ export async function getTaskPromptForPromptId(promptId) {
         groupId: p.scope,
         promptId: p.id,
     };
-}
-
-/**
- * @param {string} cardId — legacy catalog id (older audits / fallback)
- */
-export async function getTaskPromptForCardId(cardId) {
-    const en = getEnglishTaskPrompt(cardId);
-    if (en) return en;
-    const catalog = getAuditCatalogCard(cardId);
-    if (catalog) {
-        return {
-            title: catalog.card.title,
-            tag: catalog.card.tag,
-            dataLine: catalog.card.description || "",
-            taskPrompt: "",
-        };
-    }
-    return null;
 }
 
 export async function preloadAuditPrompts() {

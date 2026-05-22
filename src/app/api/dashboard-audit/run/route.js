@@ -6,7 +6,6 @@ import connectToDatabase from "@root/lib/mongodb";
 import { getCustomerById } from "@root/lib/customerOperations";
 import CustomerChannelAudit from "@/models/CustomerChannelAudit";
 import { normalizeAuditReport } from "@/lib/channelAuditReport";
-import { auditGroupIdFromCardId } from "@/lib/audit/auditPromptCatalog";
 import {
     assembleAuditReport,
     buildFallbackAuditReport,
@@ -25,14 +24,11 @@ function normalizeSelections(selections) {
     for (const row of selections) {
         if (!row || typeof row !== "object") continue;
         const promptId = row.promptId != null ? String(row.promptId).trim() : "";
-        const cardId = row.cardId != null ? String(row.cardId).trim() : "";
         const groupId = row.groupId != null ? String(row.groupId).trim() : "";
         const customPrompt =
             row.customPrompt != null ? String(row.customPrompt).trim() : "";
         if (promptId) {
             out.push({ promptId, groupId: groupId || undefined });
-        } else if (cardId) {
-            out.push({ cardId });
         } else if (customPrompt && groupId) {
             out.push({ groupId, customPrompt });
         }
@@ -46,7 +42,7 @@ function normalizeSelections(selections) {
 function serviceIdsFromSelections(selections) {
     const ids = new Set();
     for (const s of selections) {
-        const g = s.groupId || (s.cardId ? auditGroupIdFromCardId(s.cardId) : "");
+        const g = s.groupId || "";
         if (g) ids.add(g === "cross" ? "cross" : g);
     }
     return [...ids];
@@ -135,7 +131,12 @@ export async function POST(request) {
 
         let report;
         if (!isAuditAiConfigured()) {
-            report = buildFallbackAuditReport(customerName, selections, startDate, endDate);
+            report = await buildFallbackAuditReport(
+                customerName,
+                selections,
+                startDate,
+                endDate
+            );
             report.methodologyNote +=
                 " Configure CLAUDE_CODE_API_KEY in environment variables for full Claude audit.";
         } else {

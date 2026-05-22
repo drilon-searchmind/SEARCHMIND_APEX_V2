@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { FiArrowLeft, FiClipboard, FiList, FiShare2 } from "react-icons/fi";
 import { LuBrainCircuit } from "react-icons/lu";
-import { buildFindingElaborationPrompt } from "@/lib/audit/auditFindingPrompt";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import AuditFollowUpModal from "@/components/audit-followup/AuditFollowUpModal";
 import Spinner from "@/components/ui/Spinner";
@@ -17,7 +16,6 @@ import {
     meanChannelHealthFromReport,
     resolveAnalysisHealthScore,
 } from "@/lib/channelAuditReport";
-
 const STORAGE_PREFIX = "apex_audit:";
 
 const GROUP_TAB_LABELS = {
@@ -134,6 +132,26 @@ function FindingCard({ finding, showActionLabel = "Action", onAnalyzeFinding }) 
                             </div>
                         ) : null}
                     </div>
+                ) : null}
+                {finding.expected_effect ? (
+                    <p className="mt-1.5 text-xs opacity-90">
+                        <span className="font-semibold">Expected effect:</span> {finding.expected_effect}
+                    </p>
+                ) : null}
+                {finding.confidence || finding.effort ? (
+                    <p className="mt-1.5 text-xs text-gray-600">
+                        {finding.confidence ? (
+                            <span>
+                                <span className="font-semibold">Confidence:</span> {finding.confidence}
+                            </span>
+                        ) : null}
+                        {finding.confidence && finding.effort ? " · " : null}
+                        {finding.effort ? (
+                            <span>
+                                <span className="font-semibold">Effort:</span> {finding.effort}
+                            </span>
+                        ) : null}
+                    </p>
                 ) : null}
             </div>
             {onAnalyzeFinding ? (
@@ -252,9 +270,9 @@ function AnalysisArticle({ analysis, onAnalyzeFinding }) {
                 <ScoreHighlight score={analysis.health_score} gradeLabel={analysis.grade} size="sm" />
             </div>
             {analysis.summary ? (
-                <p className="text-sm text-gray-700 mb-4 whitespace-pre-wrap leading-relaxed">
+                <div className="text-sm text-gray-700 mb-4 whitespace-pre-wrap leading-relaxed">
                     {analysis.summary}
-                </p>
+                </div>
             ) : null}
             {analysis.thresholds_used ? (
                 <p className="text-xs text-gray-500 mb-4 border-l-2 border-gray-200 pl-3">
@@ -269,9 +287,30 @@ function AnalysisArticle({ analysis, onAnalyzeFinding }) {
                 </ul>
             ) : null}
             {analysis.data_gaps ? (
-                <p className="mt-4 text-xs text-gray-600 border border-gray-200 rounded-lg px-3 py-2 bg-gray-50">
+                <p className="mt-4 text-xs text-gray-600 border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 whitespace-pre-wrap">
                     <span className="font-semibold">Data gaps:</span> {analysis.data_gaps}
                 </p>
+            ) : null}
+            {Array.isArray(analysis.prioritized_actions) && analysis.prioritized_actions.length > 0 ? (
+                <div className="mt-4 border-t border-gray-100 pt-4">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                        Prioritized actions
+                    </p>
+                    <ol className="list-decimal pl-5 space-y-2 text-xs text-gray-700">
+                        {analysis.prioritized_actions.map((p, i) => (
+                            <li key={p.rank ?? i} className="leading-relaxed">
+                                <span className="font-medium text-gray-900">{p.action}</span>
+                                {p.channel ? (
+                                    <span className="text-gray-500"> ({p.channel})</span>
+                                ) : null}
+                                {p.why ? <span className="block mt-0.5">{p.why}</span> : null}
+                                {p.business_case ? (
+                                    <span className="block mt-0.5 text-gray-600">{p.business_case}</span>
+                                ) : null}
+                            </li>
+                        ))}
+                    </ol>
+                </div>
             ) : null}
         </article>
     );
@@ -356,18 +395,16 @@ export default function AuditReportClient() {
     const [serverLoading, setServerLoading] = useState(false);
     const [detailTab, setDetailTab] = useState("all");
     const [followUpOpen, setFollowUpOpen] = useState(false);
-    const [followUpPendingMessage, setFollowUpPendingMessage] = useState(null);
+    const [followUpFinding, setFollowUpFinding] = useState(null);
 
     const handleAnalyzeFinding = (finding) => {
-        setFollowUpPendingMessage(
-            buildFindingElaborationPrompt(finding, formatSeverityLabel)
-        );
+        setFollowUpFinding(finding);
         setFollowUpOpen(true);
     };
 
     const handleCloseFollowUp = () => {
         setFollowUpOpen(false);
-        setFollowUpPendingMessage(null);
+        setFollowUpFinding(null);
     };
 
     const mongoAudit = Boolean(auditId && isMongoObjectIdString(auditId));
@@ -796,8 +833,8 @@ export default function AuditReportClient() {
                     comparisonDateRange={payload.comparisonDateRange}
                     auditReportSnapshot={report}
                     customerName={payload.customerName || headingLabel}
-                    pendingMessage={followUpPendingMessage}
-                    onPendingMessageConsumed={() => setFollowUpPendingMessage(null)}
+                    initialFinding={followUpFinding}
+                    formatSeverity={formatSeverityLabel}
                 />
             ) : null}
         </div>

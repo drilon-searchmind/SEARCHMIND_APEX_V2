@@ -1,34 +1,22 @@
 import {
-    AUDIT_OUTPUT_SCHEMA_INSTRUCTION,
+    getAuditOutputSchemaInstruction,
     getAuditSystemPrompt,
-    getTaskPromptForCardId,
     getTaskPromptForPromptId,
 } from "./auditPromptLibrary";
+import { parseAuditJsonLoose } from "./auditJsonParse";
 import { minusOneYearDate } from "./auditDateUtils";
-import {
-    auditGroupIdFromCardId,
-    getAuditCatalogCard,
-    getAuditCatalogGroup,
-} from "./auditPromptCatalog";
+import { getAuditCatalogGroup } from "./auditPromptCatalog";
 import { callAuditAnthropic, isAuditAiConfigured } from "./auditAnthropic";
 import {
     gradeFromNumericScore,
     resolveAnalysisHealthScore,
 } from "@/lib/channelAuditReport";
 
-/**
- * @param {string} raw
- */
-export function parseAuditJsonLoose(raw) {
-    const s = String(raw || "").trim();
-    const unfenced = s.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "");
-    return JSON.parse(unfenced);
-}
-
+export { parseAuditJsonLoose } from "./auditJsonParse";
 export { minusOneYearDate };
 
 /**
- * @typedef {{ cardId?: string, groupId?: string, customPrompt?: string }} AuditSelectionInput
+ * @typedef {{ promptId?: string, groupId?: string, customPrompt?: string }} AuditSelectionInput
  */
 
 /**
@@ -53,16 +41,12 @@ export async function runAuditAnalyses({
             ? auditContext
             : { pageSnapshot: dataSnapshot, serverEnrichment: null };
     const system = await getAuditSystemPrompt();
-    const results = [];
-    const concurrency = 4;
-    const queue = [...selections];
+    const outputSchema = getAuditOutputSchemaInstruction();
 
     async function runOne(sel) {
         const promptId = sel.promptId ? String(sel.promptId) : "";
-        let cardId = sel.cardId ? String(sel.cardId) : "";
-        let groupId =
-            sel.groupId ||
-            (cardId ? auditGroupIdFromCardId(cardId) : promptId ? "" : "cross");
+        let cardId = "";
+        let groupId = sel.groupId || (promptId ? "" : "cross");
 
         let title = "Custom analysis";
         let tag = "Custom";
@@ -76,7 +60,7 @@ export async function runAuditAnalyses({
                     ok: false,
                     cardId: `prompt-${promptId}`,
                     groupId: groupId || "cross",
-                    error: "Prompt not found",
+                    error: "Prompt not found in audit prompt library",
                 };
             }
             cardId = `prompt-${promptId}`;
@@ -85,18 +69,6 @@ export async function runAuditAnalyses({
             tag = meta.tag;
             dataLine = meta.dataLine;
             taskPrompt = meta.taskPrompt;
-        } else if (cardId) {
-            const catalog = getAuditCatalogCard(cardId);
-            const meta = await getTaskPromptForCardId(cardId);
-            groupId = groupId || auditGroupIdFromCardId(cardId);
-            title = catalog?.card?.title || title;
-            tag = catalog?.card?.tag || tag;
-            dataLine = meta?.dataLine || catalog?.card?.description || "";
-            if (meta?.taskPrompt) {
-                taskPrompt = meta.taskPrompt;
-                title = meta.title;
-                tag = meta.tag;
-            }
         } else {
             const group = getAuditCatalogGroup(groupId);
             title = group?.label || title;
@@ -125,11 +97,15 @@ export async function runAuditAnalyses({
 
         try {
             const raw = await callAuditAnthropic({
-                system: `${system}\n\n${AUDIT_OUTPUT_SCHEMA_INSTRUCTION}`,
+                system: `${system}\n\n${outputSchema}`,
                 user: userMsg,
-                maxTokens: 8192,
             });
-            const parsed = parseAuditJsonLoose(raw);
+            const parsed = await parseAuditResponseWithRepair({
+                system,
+                outputSchema,
+                raw,
+                analysisTitle: title,
+            });
             return {
                 ok: true,
                 cardId: cardId || `custom-${groupId}`,
@@ -151,16 +127,35 @@ export async function runAuditAnalyses({
         }
     }
 
-    const workers = Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
-        while (queue.length > 0) {
-            const sel = queue.shift();
-            if (!sel) break;
-            results.push(await runOne(sel));
-        }
-    });
-    await Promise.all(workers);
+    return Promise.all(selections.map((sel) => runOne(sel)));
+}
 
-    return results;
+/**
+ * @param {{ system: string, outputSchema: string, raw: string, analysisTitle: string }} opts
+ */
+async function parseAuditResponseWithRepair({ system, outputSchema, raw, analysisTitle }) {
+    try {
+        return parseAuditJsonLoose(raw);
+    } catch (parseErr) {
+        const repairRaw = await callAuditAnthropic({
+            system: `${system}\n\n${outputSchema}\n\nCRITICAL: Your entire reply must be exactly one JSON object. No markdown fences, no preamble, no text before or after the JSON.`,
+            user: `The previous reply for "${analysisTitle}" was not valid JSON.
+
+Convert it into ONLY one valid JSON object matching the required audit schema. Preserve all facts and findings in full — do not summarize or drop items. Do not invent new data.
+
+Previous reply:
+---
+${String(raw).slice(0, 80_000)}
+---`,
+            temperature: 0.1,
+        });
+        try {
+            return parseAuditJsonLoose(repairRaw);
+        } catch (repairParseErr) {
+            const detail = repairParseErr?.message || parseErr?.message || "Invalid JSON";
+            throw new Error(detail);
+        }
+    }
 }
 
 function buildUserMessage({
@@ -199,7 +194,9 @@ ${JSON.stringify(auditContext, null, 2)}${ahrefsNote}
 
 ---
 TASK:
-${taskPrompt}`;
+${taskPrompt}
+
+Reply with ONLY one JSON object matching the required audit output schema. Include full detail — do not summarize or omit findings. No other text.`;
 }
 
 /**
@@ -243,9 +240,12 @@ export function assembleAuditReport(analysisResults, meta) {
     const crossChannelNotes = analyses
         .filter((a) => a.groupId === "cross")
         .flatMap((a) =>
-            (a.prioritized_actions || []).slice(0, 2).map((p) => p.action || p.why).filter(Boolean)
+            (a.prioritized_actions || []).map((p) => {
+                const parts = [p.action, p.why, p.business_case].filter(Boolean);
+                return parts.length > 0 ? parts.join(" — ") : null;
+            })
         )
-        .slice(0, 6);
+        .filter(Boolean);
 
     const report = {
         version: 2,
@@ -272,11 +272,8 @@ function buildExecutiveSummary(analyses, customerName, failed) {
     if (crossPlan?.summary) {
         return crossPlan.summary;
     }
-    const summaries = analyses
-        .map((a) => a.summary)
-        .filter(Boolean)
-        .slice(0, 4);
-    let text = summaries.join(" ");
+    const summaries = analyses.map((a) => a.summary).filter(Boolean);
+    let text = summaries.join("\n\n");
     if (!text) {
         text = `${customerName}: Audit completed with ${analyses.length} analysis(es).`;
     }
@@ -320,8 +317,7 @@ function buildLegacyChannelsFromAnalyses(analyses) {
                     rationale: f.evidence || f.impact || "",
                     recommendedAction: f.recommendation || "",
                 }))
-            )
-            .slice(0, 7);
+            );
 
         return {
             id,
@@ -343,21 +339,38 @@ function mapSeverityToEn(sev) {
     return "low";
 }
 
-export function buildFallbackAuditReport(customerName, selections, startDate, endDate) {
-    const pseudo = selections.map((sel) => ({
-        ok: true,
-        cardId: sel.cardId || `custom-${sel.groupId || "cross"}`,
-        groupId: sel.groupId || auditGroupIdFromCardId(sel.cardId) || "cross",
-        title: getAuditCatalogCard(sel.cardId)?.card?.title || "Analyse",
-        tag: "—",
-        result: {
-            summary: `Placeholder — configure CLAUDE_CODE_API_KEY for full AI audit (${startDate}–${endDate}).`,
-            findings: [],
-            prioritized_actions: [],
-            health_score: null,
-            grade: "—",
-        },
-    }));
+export async function buildFallbackAuditReport(customerName, selections, startDate, endDate) {
+    const pseudo = [];
+    for (const sel of selections) {
+        let title = "Analysis";
+        let groupId = sel.groupId || "cross";
+        let cardId = `custom-${groupId}`;
+
+        if (sel.promptId) {
+            const meta = await getTaskPromptForPromptId(String(sel.promptId));
+            title = meta?.title || title;
+            groupId = meta?.groupId || groupId;
+            cardId = `prompt-${sel.promptId}`;
+        } else {
+            const group = getAuditCatalogGroup(groupId);
+            title = group?.label || title;
+        }
+
+        pseudo.push({
+            ok: true,
+            cardId,
+            groupId,
+            title,
+            tag: "—",
+            result: {
+                summary: `Placeholder — configure CLAUDE_CODE_API_KEY for full AI audit (${startDate}–${endDate}).`,
+                findings: [],
+                prioritized_actions: [],
+                health_score: null,
+                grade: "—",
+            },
+        });
+    }
     return assembleAuditReport(pseudo, {
         customerName,
         dateRange: { startDate, endDate },

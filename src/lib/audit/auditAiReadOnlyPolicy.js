@@ -1,4 +1,16 @@
 /**
+ * Default max output tokens for audit Claude calls (override via CLAUDE_AUDIT_MAX_TOKENS).
+ * @returns {number}
+ */
+export function getAuditAnthropicMaxTokens() {
+    const fromEnv = Number(process.env.CLAUDE_AUDIT_MAX_TOKENS);
+    if (Number.isFinite(fromEnv) && fromEnv >= 256) {
+        return Math.floor(fromEnv);
+    }
+    return 64_000;
+}
+
+/**
  * IMMUTABLE audit AI access policy — READ ONLY.
  *
  * All Claude calls for channel audits and audit follow-up chat MUST go through
@@ -133,9 +145,14 @@ export function buildReadOnlyAuditAnthropicBody(params) {
         throw new Error("Audit AI requires at least one message");
     }
 
+    const resolvedMax =
+        Number(maxTokens) >= 256 && Number.isFinite(Number(maxTokens))
+            ? Math.floor(Number(maxTokens))
+            : getAuditAnthropicMaxTokens();
+
     const body = {
         model: String(model),
-        max_tokens: Math.min(Math.max(Number(maxTokens) || 8192, 256), 8192),
+        max_tokens: resolvedMax,
         temperature: Math.min(Math.max(Number(temperature) ?? 0.35, 0), 1),
         system: applyMandatoryReadOnlySystemPrompt(system),
         messages: safeMessages,

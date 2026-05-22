@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import connectToDatabase from "@root/lib/mongodb";
 import AuditFollowUpChat from "@/models/AuditFollowUpChat";
+import CustomerChannelAudit from "@/models/CustomerChannelAudit";
 import { getAuditAnthropicModel } from "@/lib/audit/auditAnthropic";
 
 function requireInternalStaff(session) {
@@ -83,6 +84,7 @@ export async function POST(request) {
             comparisonDateRange,
             auditReportSnapshot,
             customerName,
+            findingContext,
         } = body;
 
         if (!customerId || !mongoose.Types.ObjectId.isValid(customerId)) {
@@ -97,10 +99,29 @@ export async function POST(request) {
 
         await connectToDatabase();
 
+        const auditIdStr = String(auditId).trim();
+        let reportSnapshot =
+            auditReportSnapshot && typeof auditReportSnapshot === "object"
+                ? auditReportSnapshot
+                : {};
+        let nameSnapshot = customerName ? String(customerName) : "";
+
+        if (mongoose.Types.ObjectId.isValid(auditIdStr)) {
+            const auditDoc = await CustomerChannelAudit.findById(auditIdStr)
+                .select("report customerNameSnapshot")
+                .lean();
+            if (auditDoc?.report && typeof auditDoc.report === "object") {
+                reportSnapshot = auditDoc.report;
+            }
+            if (!nameSnapshot && auditDoc?.customerNameSnapshot) {
+                nameSnapshot = String(auditDoc.customerNameSnapshot);
+            }
+        }
+
         const chat = await AuditFollowUpChat.create({
             userId,
             customerId: new mongoose.Types.ObjectId(customerId),
-            auditId: String(auditId).trim(),
+            auditId: auditIdStr,
             title:
                 title ||
                 `Audit follow-up — ${dateRange.startDate} to ${dateRange.endDate}`,
@@ -114,8 +135,12 @@ export async function POST(request) {
                       endDate: String(comparisonDateRange.endDate || ""),
                   }
                 : undefined,
-            customerNameSnapshot: customerName ? String(customerName) : "",
-            auditReportSnapshot: auditReportSnapshot || {},
+            customerNameSnapshot: nameSnapshot,
+            auditReportSnapshot: reportSnapshot,
+            findingContext:
+                findingContext && typeof findingContext === "object"
+                    ? findingContext
+                    : null,
             messages: [],
             status: "active",
             aiModelVersion: getAuditAnthropicModel(),

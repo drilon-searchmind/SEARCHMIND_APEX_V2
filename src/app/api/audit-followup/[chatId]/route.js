@@ -108,7 +108,7 @@ export async function POST(request, { params }) {
             customerName: chat.customerNameSnapshot,
         });
 
-        const history = chat.messages.slice(-24).map((msg) => ({
+        const history = chat.messages.map((msg) => ({
             role: msg.type === "user" ? "user" : "assistant",
             content: msg.content,
         }));
@@ -116,7 +116,6 @@ export async function POST(request, { params }) {
         const { text, model, tokensUsed } = await callAuditAnthropicMessages({
             system,
             messages: history,
-            maxTokens: 8192,
             temperature: 0.4,
         });
 
@@ -148,7 +147,7 @@ export async function POST(request, { params }) {
 }
 
 /**
- * DELETE /api/audit-followup/[chatId] — archive chat
+ * DELETE /api/audit-followup/[chatId] — archive chat, or hard-delete with ?purge=true
  */
 export async function DELETE(request, { params }) {
     const session = await getServerSession(authOptions);
@@ -160,8 +159,19 @@ export async function DELETE(request, { params }) {
         return NextResponse.json({ error: "Invalid chat id" }, { status: 400 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const purge = searchParams.get("purge") === "true";
+
     try {
         await connectToDatabase();
+        if (purge) {
+            const deleted = await AuditFollowUpChat.findByIdAndDelete(chatId);
+            if (!deleted) {
+                return NextResponse.json({ error: "Chat not found" }, { status: 404 });
+            }
+            return NextResponse.json({ message: "Chat deleted" });
+        }
+
         const chat = await AuditFollowUpChat.findByIdAndUpdate(
             chatId,
             { status: "archived" },
@@ -172,7 +182,10 @@ export async function DELETE(request, { params }) {
         }
         return NextResponse.json({ message: "Chat archived" });
     } catch (error) {
-        console.error("Error archiving audit follow-up chat:", error);
-        return NextResponse.json({ error: "Failed to archive chat" }, { status: 500 });
+        console.error("Error deleting audit follow-up chat:", error);
+        return NextResponse.json(
+            { error: purge ? "Failed to delete chat" : "Failed to archive chat" },
+            { status: 500 }
+        );
     }
 }

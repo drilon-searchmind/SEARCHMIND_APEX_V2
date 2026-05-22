@@ -1,11 +1,20 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { FiX, FiSearch, FiSend, FiPlus, FiMessageSquare, FiDownload } from "react-icons/fi";
+import {
+    FiX,
+    FiSearch,
+    FiSend,
+    FiPlus,
+    FiMessageSquare,
+    FiDownload,
+    FiTrash2,
+} from "react-icons/fi";
 import { LuBrainCircuit } from "react-icons/lu";
 import { useSession } from "next-auth/react";
 import Spinner from "@/components/ui/Spinner";
 import ReactMarkdown from "react-markdown";
+import { isMongoObjectIdString } from "@/lib/channelAuditReport";
 
 /**
  * @param {string} content
@@ -26,6 +35,58 @@ function downloadHtmlFile(html, filename = "audit-deliverable.html") {
     URL.revokeObjectURL(url);
 }
 
+/**
+ * @param {object} finding
+ * @param {(severity: string) => string} formatSeverity
+ */
+function FindingContextPanel({ finding, formatSeverity }) {
+    if (!finding || typeof finding !== "object") return null;
+
+    const title = finding.title || "Untitled finding";
+    const severity = formatSeverity(finding.severity);
+    const context = finding.rationale || finding.evidence || "";
+    const recommendation = finding.recommendation || finding.recommendedAction || "";
+    const impact = finding.impact || "";
+    const businessCase = finding.business_case || "";
+
+    return (
+        <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-4 mb-4 text-sm text-gray-800">
+            <p className="text-[0.65rem] font-bold uppercase tracking-wide text-purple-700 mb-2">
+                Finding context
+            </p>
+            <h4 className="font-semibold text-gray-900 mb-1">{title}</h4>
+            <p className="text-xs text-purple-700 mb-3">Severity: {severity}</p>
+            {context ? (
+                <p className="text-xs leading-relaxed text-gray-700 mb-2">
+                    <span className="font-semibold">Context: </span>
+                    {context}
+                </p>
+            ) : null}
+            {impact ? (
+                <p className="text-xs leading-relaxed text-gray-700 mb-2">
+                    <span className="font-semibold">Impact: </span>
+                    {impact}
+                </p>
+            ) : null}
+            {recommendation ? (
+                <p className="text-xs leading-relaxed text-gray-700 mb-2">
+                    <span className="font-semibold">Recommendation: </span>
+                    {recommendation}
+                </p>
+            ) : null}
+            {businessCase ? (
+                <p className="text-xs leading-relaxed text-gray-700">
+                    <span className="font-semibold">Business case: </span>
+                    {businessCase}
+                </p>
+            ) : null}
+            <p className="mt-3 text-xs text-gray-500">
+                Ask a question below — nothing is sent to AI until you submit.
+            </p>
+        </div>
+    );
+}
+
 const AuditFollowUpModal = ({
     onClose,
     customerId,
@@ -34,22 +95,36 @@ const AuditFollowUpModal = ({
     comparisonDateRange = null,
     auditReportSnapshot = {},
     customerName = "",
-    pendingMessage = null,
-    onPendingMessageConsumed,
+    initialFinding = null,
+    formatSeverity = (s) => s || "—",
 }) => {
-    const { data: session } = useSession();
+    const { data: session, status: sessionStatus } = useSession();
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedChat, setSelectedChat] = useState(null);
     const [message, setMessage] = useState("");
     const [chatHistory, setChatHistory] = useState([]);
     const [messages, setMessages] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [deletingChatId, setDeletingChatId] = useState(null);
     const [sending, setSending] = useState(false);
+    const [creatingFindingChat, setCreatingFindingChat] = useState(() => Boolean(initialFinding));
     const [error, setError] = useState(null);
 
     const messagesEndRef = useRef(null);
-    const pendingHandledRef = useRef(null);
     const skipChatMessagesFetchRef = useRef(false);
+    const ephemeralChatIdRef = useRef(null);
+    const hasCompletedAiRef = useRef(false);
+    const abortControllerRef = useRef(null);
+    const findingInitRunIdRef = useRef(0);
+    const findingOpenedKeyRef = useRef(null);
+    const createChatRef = useRef(null);
+
+    /** Stable key so we only auto-create one chat per finding per modal open */
+    const findingOpenKey = initialFinding
+        ? `${String(initialFinding.title || "").trim()}|${String(
+              initialFinding.evidence || initialFinding.rationale || ""
+          ).slice(0, 240)}`
+        : null;
 
     useEffect(() => {
         if (messagesEndRef.current) {
@@ -57,11 +132,38 @@ const AuditFollowUpModal = ({
         }
     }, [messages, sending]);
 
+    const purgeEphemeralChat = useCallback(async () => {
+        const id = ephemeralChatIdRef.current;
+        if (!id || hasCompletedAiRef.current) return;
+
+        abortControllerRef.current?.abort();
+        abortControllerRef.current = null;
+
+        try {
+            await fetch(`/api/audit-followup/${id}?purge=true`, { method: "DELETE" });
+            setChatHistory((prev) => prev.filter((c) => String(c._id) !== String(id)));
+            if (String(selectedChat?._id) === String(id)) {
+                setSelectedChat(null);
+                setMessages([]);
+            }
+        } catch (err) {
+            console.error("Failed to purge incomplete follow-up chat:", err);
+        } finally {
+            ephemeralChatIdRef.current = null;
+        }
+    }, [selectedChat?._id]);
+
+    const handleCloseModal = useCallback(async () => {
+        findingOpenedKeyRef.current = null;
+        await purgeEphemeralChat();
+        onClose();
+    }, [onClose, purgeEphemeralChat]);
+
     const fetchChatHistory = useCallback(async ({ silent = false } = {}) => {
         if (!customerId || !auditId) return;
         try {
             if (!silent) {
-                setLoading(true);
+                setHistoryLoading(true);
                 setError(null);
             }
             const q = new URLSearchParams({
@@ -76,15 +178,15 @@ const AuditFollowUpModal = ({
             console.error(err);
             if (!silent) setError(err.message);
         } finally {
-            if (!silent) setLoading(false);
+            setHistoryLoading(false);
         }
     }, [customerId, auditId]);
 
     useEffect(() => {
         if (customerId && auditId && session?.user?.id) {
-            fetchChatHistory();
+            fetchChatHistory({ silent: Boolean(initialFinding) });
         }
-    }, [customerId, auditId, session, fetchChatHistory]);
+    }, [customerId, auditId, session?.user?.id, initialFinding, fetchChatHistory]);
 
     useEffect(() => {
         if (!selectedChat?._id || skipChatMessagesFetchRef.current) return;
@@ -94,6 +196,7 @@ const AuditFollowUpModal = ({
                 const chat = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(chat.error || "Failed to fetch chat");
                 setMessages(chat.messages || []);
+                hasCompletedAiRef.current = (chat.messages || []).some((m) => m.type === "ai");
             } catch (err) {
                 console.error(err);
                 setError(err.message);
@@ -101,59 +204,161 @@ const AuditFollowUpModal = ({
         })();
     }, [selectedChat?._id]);
 
+    const openingFindingChat =
+        Boolean(initialFinding) &&
+        (sessionStatus === "loading" || creatingFindingChat);
+
     const filteredChats = chatHistory.filter(
         (chat) =>
             chat.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             chat.lastMessage?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const createChat = useCallback(async () => {
-        if (!customerId || !auditId || !session?.user?.id) {
-            throw new Error("Missing session or audit context");
+    const purgeChatById = useCallback(async (chatId) => {
+        if (!chatId) return;
+        try {
+            await fetch(`/api/audit-followup/${chatId}?purge=true`, { method: "DELETE" });
+            setChatHistory((prev) => prev.filter((c) => String(c._id) !== String(chatId)));
+        } catch (err) {
+            console.error("Failed to purge follow-up chat:", err);
         }
-        const title = `Audit follow-up — ${dateRange.startDate} to ${dateRange.endDate}`;
-        const res = await fetch("/api/audit-followup", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
+    }, []);
+
+    const createChat = useCallback(
+        async ({ findingContext, title: customTitle, addToHistory = true } = {}) => {
+            if (!customerId || !auditId || !session?.user?.id) {
+                throw new Error("Missing session or audit context");
+            }
+            const defaultTitle = `Audit follow-up — ${dateRange.startDate} to ${dateRange.endDate}`;
+            const payload = {
                 customerId,
                 auditId,
-                title,
+                title: customTitle || defaultTitle,
                 dateRange,
                 comparisonDateRange,
-                auditReportSnapshot,
                 customerName,
-            }),
-        });
-        const newChat = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(newChat.error || "Failed to create chat");
-        setChatHistory((prev) => [newChat, ...prev]);
-        return newChat;
-    }, [
-        customerId,
-        auditId,
-        session?.user?.id,
-        dateRange,
-        comparisonDateRange,
-        auditReportSnapshot,
-        customerName,
-    ]);
+                findingContext: findingContext || undefined,
+            };
+            if (!isMongoObjectIdString(auditId)) {
+                payload.auditReportSnapshot = auditReportSnapshot;
+            }
 
-    const postChatMessage = useCallback(async (chatId, userMessage) => {
+            const res = await fetch("/api/audit-followup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            const newChat = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(newChat.error || "Failed to create chat");
+            if (addToHistory) {
+                setChatHistory((prev) => [newChat, ...prev]);
+            }
+            return newChat;
+        },
+        [
+            customerId,
+            auditId,
+            session?.user?.id,
+            dateRange,
+            comparisonDateRange,
+            auditReportSnapshot,
+            customerName,
+        ]
+    );
+
+    createChatRef.current = createChat;
+
+    const postChatMessage = useCallback(async (chatId, userMessage, { signal } = {}) => {
         const res = await fetch(`/api/audit-followup/${chatId}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ message: userMessage }),
+            signal,
         });
         const aiMessage = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(aiMessage.error || "Failed to send message");
         return aiMessage;
     }, []);
 
+    useEffect(() => {
+        if (!initialFinding || !findingOpenKey) {
+            findingOpenedKeyRef.current = null;
+            return;
+        }
+
+        if (sessionStatus === "loading") return;
+
+        if (!session?.user?.id) {
+            setCreatingFindingChat(false);
+            setError("Sign in to use audit follow-up.");
+            return;
+        }
+
+        if (findingOpenedKeyRef.current === findingOpenKey) return;
+
+        const runId = ++findingInitRunIdRef.current;
+        let cancelled = false;
+        const create = createChatRef.current;
+        if (!create) return;
+
+        (async () => {
+            setCreatingFindingChat(true);
+            setError(null);
+            skipChatMessagesFetchRef.current = true;
+            try {
+                const title = `Finding: ${initialFinding.title || "Untitled"}`;
+                const chat = await create({
+                    findingContext: initialFinding,
+                    title,
+                    addToHistory: false,
+                });
+
+                const stale = cancelled || runId !== findingInitRunIdRef.current;
+                if (stale) {
+                    await purgeChatById(chat._id);
+                    return;
+                }
+
+                findingOpenedKeyRef.current = findingOpenKey;
+                ephemeralChatIdRef.current = chat._id;
+                hasCompletedAiRef.current = false;
+                setChatHistory((prev) => {
+                    const id = String(chat._id);
+                    if (prev.some((c) => String(c._id) === id)) return prev;
+                    return [chat, ...prev];
+                });
+                setSelectedChat(chat);
+                setMessages([]);
+            } catch (err) {
+                if (cancelled || runId !== findingInitRunIdRef.current) return;
+                console.error(err);
+                setError(err?.message || "Failed to open finding chat");
+            } finally {
+                skipChatMessagesFetchRef.current = false;
+                if (runId === findingInitRunIdRef.current) {
+                    setCreatingFindingChat(false);
+                }
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+            setCreatingFindingChat(false);
+        };
+    }, [
+        initialFinding,
+        findingOpenKey,
+        sessionStatus,
+        session?.user?.id,
+        purgeChatById,
+    ]);
+
     const handleNewChat = async () => {
         if (!customerId || !auditId || !session?.user?.id) return;
+        ephemeralChatIdRef.current = null;
+        hasCompletedAiRef.current = false;
         try {
-            setLoading(true);
+            setHistoryLoading(true);
             setError(null);
             const newChat = await createChat();
             setSelectedChat(newChat);
@@ -162,7 +367,53 @@ const AuditFollowUpModal = ({
             console.error(err);
             setError(err.message);
         } finally {
-            setLoading(false);
+            setHistoryLoading(false);
+        }
+    };
+
+    const handleSelectChat = (chat) => {
+        if (String(chat._id) !== String(ephemeralChatIdRef.current)) {
+            ephemeralChatIdRef.current = null;
+        }
+        setSelectedChat(chat);
+    };
+
+    const handleDeleteChat = async (chat, event) => {
+        event?.stopPropagation?.();
+        const id = chat?._id;
+        if (!id || deletingChatId) return;
+
+        const label = (chat.title || "this chat").trim();
+        if (
+            typeof window !== "undefined" &&
+            !window.confirm(`Delete "${label}"? This cannot be undone.`)
+        ) {
+            return;
+        }
+
+        setDeletingChatId(String(id));
+        setError(null);
+        try {
+            const res = await fetch(`/api/audit-followup/${id}?purge=true`, {
+                method: "DELETE",
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || "Failed to delete chat");
+
+            setChatHistory((prev) => prev.filter((c) => String(c._id) !== String(id)));
+            if (String(selectedChat?._id) === String(id)) {
+                setSelectedChat(null);
+                setMessages([]);
+            }
+            if (String(ephemeralChatIdRef.current) === String(id)) {
+                ephemeralChatIdRef.current = null;
+                hasCompletedAiRef.current = true;
+            }
+        } catch (err) {
+            console.error(err);
+            setError(err?.message || "Failed to delete chat");
+        } finally {
+            setDeletingChatId(null);
         }
     };
 
@@ -175,8 +426,16 @@ const AuditFollowUpModal = ({
                 timestamp: new Date().toISOString(),
             };
             setMessages((prev) => [...prev, tempUserMsg]);
+
+            const controller = new AbortController();
+            abortControllerRef.current = controller;
+
             try {
-                const aiMessage = await postChatMessage(chat._id, userMessage);
+                const aiMessage = await postChatMessage(chat._id, userMessage, {
+                    signal: controller.signal,
+                });
+                hasCompletedAiRef.current = true;
+                ephemeralChatIdRef.current = null;
                 setMessages((prev) => [
                     ...prev.filter((m) => m._id !== tempUserMsg._id),
                     tempUserMsg,
@@ -189,50 +448,20 @@ const AuditFollowUpModal = ({
                 ]);
                 fetchChatHistory({ silent: true });
             } catch (err) {
+                if (err?.name === "AbortError") {
+                    setMessages((prev) => prev.filter((m) => m._id !== tempUserMsg._id));
+                    return;
+                }
                 setMessages((prev) => prev.filter((m) => m._id !== tempUserMsg._id));
                 throw err;
+            } finally {
+                if (abortControllerRef.current === controller) {
+                    abortControllerRef.current = null;
+                }
             }
         },
         [postChatMessage, fetchChatHistory]
     );
-
-    useEffect(() => {
-        const text = pendingMessage?.trim();
-        if (!text || !session?.user?.id) return;
-        if (pendingHandledRef.current === text) return;
-
-        pendingHandledRef.current = text;
-        onPendingMessageConsumed?.();
-
-        let cancelled = false;
-
-        (async () => {
-            setSending(true);
-            setError(null);
-            skipChatMessagesFetchRef.current = true;
-            try {
-                const chat = await createChat();
-                if (cancelled) return;
-                setSelectedChat(chat);
-                setMessages([]);
-                await sendUserMessage(chat, text);
-            } catch (err) {
-                if (!cancelled) {
-                    console.error(err);
-                    setError(err?.message || "Failed to analyze finding");
-                    pendingHandledRef.current = null;
-                }
-            } finally {
-                skipChatMessagesFetchRef.current = false;
-                if (!cancelled) setSending(false);
-            }
-        })();
-
-        return () => {
-            cancelled = true;
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per pendingMessage text
-    }, [pendingMessage, session?.user?.id]);
 
     const handleSendMessage = async () => {
         if (!message.trim() || !selectedChat || sending) return;
@@ -245,12 +474,17 @@ const AuditFollowUpModal = ({
         try {
             await sendUserMessage(selectedChat, userMessage);
         } catch (err) {
-            console.error(err);
-            setError(err.message);
+            if (err?.name !== "AbortError") {
+                console.error(err);
+                setError(err.message);
+            }
         } finally {
             setSending(false);
         }
     };
+
+    const activeFindingContext = selectedChat?.findingContext || initialFinding;
+    const showFindingPanel = Boolean(activeFindingContext) && messages.length === 0 && !sending;
 
     return (
         <div
@@ -263,7 +497,7 @@ const AuditFollowUpModal = ({
             <div className="relative flex h-[85vh] w-full max-w-6xl overflow-hidden rounded-xl border border-gray-200 bg-white">
                 <button
                     type="button"
-                    onClick={onClose}
+                    onClick={handleCloseModal}
                     className="absolute top-4 right-4 z-10 text-gray-400 hover:text-gray-600 transition-colors"
                     aria-label="Close modal"
                 >
@@ -301,7 +535,7 @@ const AuditFollowUpModal = ({
                     </div>
 
                     <div className="flex-1 overflow-y-auto">
-                        {loading ? (
+                        {historyLoading ? (
                             <div className="flex items-center justify-center p-8">
                                 <Spinner />
                             </div>
@@ -310,38 +544,60 @@ const AuditFollowUpModal = ({
                                 {searchQuery ? "No chats found" : "No chats yet. Click + to start."}
                             </div>
                         ) : (
-                            filteredChats.map((chat) => (
-                                <div
-                                    key={chat._id}
-                                    onClick={() => setSelectedChat(chat)}
-                                    className={`p-4 border-b border-gray-200 cursor-pointer transition-colors hover:bg-white ${
-                                        selectedChat?._id === chat._id
-                                            ? "bg-white border-l-4 border-l-[var(--color-primary-searchmind)]"
-                                            : ""
-                                    }`}
-                                >
-                                    <div className="flex items-start gap-3">
-                                        <FiMessageSquare className="mt-1 text-[var(--color-primary-searchmind)] shrink-0" />
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="text-sm font-medium text-gray-900 truncate mb-1">
-                                                {chat.title}
-                                            </h4>
-                                            <p className="text-xs text-gray-500 truncate mb-1">
-                                                {chat.lastMessage || "New chat"}
-                                            </p>
-                                            <p className="text-xs text-gray-400">
-                                                {new Date(chat.updatedAt).toLocaleDateString()}
-                                            </p>
+                            filteredChats.map((chat) => {
+                                const isSelected = selectedChat?._id === chat._id;
+                                const isDeleting = String(deletingChatId) === String(chat._id);
+                                return (
+                                    <div
+                                        key={chat._id}
+                                        onClick={() => !isDeleting && handleSelectChat(chat)}
+                                        className={`group relative p-4 border-b border-gray-200 cursor-pointer transition-colors hover:bg-white ${
+                                            isSelected
+                                                ? "bg-white border-l-4 border-l-[var(--color-primary-searchmind)]"
+                                                : ""
+                                        } ${isDeleting ? "opacity-60 pointer-events-none" : ""}`}
+                                    >
+                                        <div className="flex items-start gap-3 pr-8">
+                                            <FiMessageSquare className="mt-1 text-[var(--color-primary-searchmind)] shrink-0" />
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="text-sm font-medium text-gray-900 truncate mb-1">
+                                                    {chat.title}
+                                                </h4>
+                                                <p className="text-xs text-gray-500 truncate mb-1">
+                                                    {chat.lastMessage || "New chat"}
+                                                </p>
+                                                <p className="text-xs text-gray-400">
+                                                    {new Date(chat.updatedAt).toLocaleDateString()}
+                                                </p>
+                                            </div>
                                         </div>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => handleDeleteChat(chat, e)}
+                                            disabled={Boolean(deletingChatId)}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-2 text-gray-400 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-40"
+                                            title="Delete chat"
+                                            aria-label={`Delete ${chat.title || "chat"}`}
+                                        >
+                                            {isDeleting ? (
+                                                <Spinner size={14} color="#dc2626" />
+                                            ) : (
+                                                <FiTrash2 className="h-4 w-4" />
+                                            )}
+                                        </button>
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 </div>
 
                 <div className="flex-1 flex flex-col min-w-0">
-                    {!selectedChat ? (
+                    {openingFindingChat ? (
+                        <div className="flex-1 flex items-center justify-center">
+                            <Spinner />
+                        </div>
+                    ) : !selectedChat ? (
                         <div className="flex-1 flex items-center justify-center">
                             <div className="text-center max-w-sm px-6">
                                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-purple-50 mb-4">
@@ -366,9 +622,25 @@ const AuditFollowUpModal = ({
                     ) : (
                         <>
                             <div className="p-4 border-b border-gray-200 bg-white pr-14">
-                                <h2 className="text-base font-semibold text-gray-900 mb-1 truncate">
-                                    {selectedChat.title}
-                                </h2>
+                                <div className="flex items-start justify-between gap-2 mb-1">
+                                    <h2 className="text-base font-semibold text-gray-900 truncate min-w-0">
+                                        {selectedChat.title}
+                                    </h2>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => handleDeleteChat(selectedChat, e)}
+                                        disabled={Boolean(deletingChatId)}
+                                        className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                                        title="Delete this chat"
+                                    >
+                                        {String(deletingChatId) === String(selectedChat._id) ? (
+                                            <Spinner size={14} color="#dc2626" />
+                                        ) : (
+                                            <FiTrash2 className="h-3.5 w-3.5" />
+                                        )}
+                                        Delete
+                                    </button>
+                                </div>
                                 <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
                                     <span className="px-2 py-1 bg-purple-50 text-purple-600 rounded">
                                         Period: {selectedChat.dateRange?.startDate} →{" "}
@@ -389,8 +661,14 @@ const AuditFollowUpModal = ({
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                                {messages.length === 0 ? (
-                                    <div className="flex items-center justify-center h-full">
+                                {showFindingPanel ? (
+                                    <FindingContextPanel
+                                        finding={activeFindingContext}
+                                        formatSeverity={formatSeverity}
+                                    />
+                                ) : null}
+                                {messages.length === 0 && !showFindingPanel ? (
+                                    <div className="flex items-center justify-center h-full min-h-[8rem]">
                                         <p className="text-sm text-gray-400 text-center max-w-md">
                                             Ask about priorities, channel trade-offs, or say e.g.
                                             &quot;Create a client-ready HTML summary of the top 5
@@ -526,15 +804,21 @@ const AuditFollowUpModal = ({
                                                 handleSendMessage();
                                             }
                                         }}
-                                        placeholder="Ask about this audit or request HTML, checklists, emails…"
+                                        placeholder={
+                                            activeFindingContext
+                                                ? "Ask about this finding (root cause, validation, prioritization…)"
+                                                : "Ask about this audit or request HTML, checklists, emails…"
+                                        }
                                         rows={3}
-                                        disabled={sending}
+                                        disabled={sending || creatingFindingChat}
                                         className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)] focus:ring-opacity-20 resize-none bg-white disabled:opacity-60"
                                     />
                                     <button
                                         type="button"
                                         onClick={handleSendMessage}
-                                        disabled={!message.trim() || sending}
+                                        disabled={
+                                            !message.trim() || sending || creatingFindingChat
+                                        }
                                         className="p-3 bg-[var(--color-primary-searchmind)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <FiSend className="text-lg" />
