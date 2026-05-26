@@ -14,6 +14,7 @@ import {
     isMongoObjectIdString,
     meanAnalysisHealthFromReport,
     meanChannelHealthFromReport,
+    pickModelGrade,
     resolveAnalysisHealthScore,
 } from "@/lib/channelAuditReport";
 const STORAGE_PREFIX = "apex_audit:";
@@ -199,8 +200,16 @@ function scoreTierClasses(score) {
 }
 
 function ScoreHighlight({ score, gradeLabel, size = "lg" }) {
+    const hasScore = score != null && Number.isFinite(Number(score));
+    const grade =
+        gradeLabel != null && String(gradeLabel).trim() && String(gradeLabel) !== "—"
+            ? String(gradeLabel).trim()
+            : hasScore
+              ? gradeFromNumericScore(score)
+              : null;
+    if (!hasScore && !grade) return null;
+
     const isLg = size === "lg";
-    const grade = gradeLabel ?? gradeFromNumericScore(score);
     const tier = scoreTierClasses(score);
     const gradeTier =
         score != null && Number.isFinite(Number(score)) ? tier : scoreTierClasses(null);
@@ -231,11 +240,13 @@ function ScoreHighlight({ score, gradeLabel, size = "lg" }) {
                     <span className={isLg ? "text-3xl sm:text-4xl" : "text-2xl sm:text-3xl"}>—</span>
                 )}
             </span>
-            <span
-                className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold ${gradeTier.gradeWrap}`}
-            >
-                Grade <span className={`ml-1.5 tabular-nums ${gradeTier.gradeAccent}`}>{grade}</span>
-            </span>
+            {grade ? (
+                <span
+                    className={`inline-flex items-center rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold ${gradeTier.gradeWrap}`}
+                >
+                    Grade <span className={`ml-1.5 tabular-nums ${gradeTier.gradeAccent}`}>{grade}</span>
+                </span>
+            ) : null}
         </div>
     );
 }
@@ -267,7 +278,11 @@ function AnalysisArticle({ analysis, onAnalyzeFinding }) {
                     </p>
                     <h3 className="text-base font-bold text-gray-900">{analysis.title}</h3>
                 </div>
-                <ScoreHighlight score={analysis.health_score} gradeLabel={analysis.grade} size="sm" />
+                <ScoreHighlight
+                    score={analysis.health_score}
+                    gradeLabel={analysis.grade}
+                    size="sm"
+                />
             </div>
             {analysis.summary ? (
                 <div className="text-sm text-gray-700 mb-4 whitespace-pre-wrap leading-relaxed">
@@ -481,7 +496,7 @@ export default function AuditReportClient() {
             return {
                 ...a,
                 health_score,
-                grade: gradeFromNumericScore(health_score),
+                grade: pickModelGrade(a.grade, health_score),
             };
         });
     }, [payload]);
@@ -578,6 +593,9 @@ export default function AuditReportClient() {
     const backHref = `/dashboard/${customerId}/performance-dashboard`;
     const showV2Details = isV2Report && analyses.length > 0;
     const showLegacyChannels = !showV2Details && channels.length > 0;
+    const executiveSummaryText = String(report?.executiveSummary || "").trim();
+    const showExecutiveSummary = executiveSummaryText.length > 0;
+    const showOverallHealth = overall.score != null && Number.isFinite(Number(overall.score));
 
     return (
         <div className="w-full">
@@ -645,15 +663,23 @@ export default function AuditReportClient() {
                 <>
                     <section className="mb-6 rounded-xl border border-gray-200 bg-white p-5 md:p-6">
                         <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-                            <div className="min-w-0 w-full lg:basis-3/4 lg:max-w-[75%]">
+                            <div
+                                className={`min-w-0 w-full ${
+                                    showOverallHealth ? "lg:basis-3/4 lg:max-w-[75%]" : ""
+                                }`}
+                            >
                                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                                    <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                                        <FiClipboard
-                                            className="h-5 w-5 text-[var(--color-primary-searchmind)] shrink-0"
-                                            aria-hidden
-                                        />
-                                        Executive summary
-                                    </h2>
+                                    {showExecutiveSummary ? (
+                                        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                            <FiClipboard
+                                                className="h-5 w-5 text-[var(--color-primary-searchmind)] shrink-0"
+                                                aria-hidden
+                                            />
+                                            Executive summary
+                                        </h2>
+                                    ) : (
+                                        <h2 className="text-lg font-bold text-gray-900">Audit report</h2>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={() => setFollowUpOpen(true)}
@@ -664,17 +690,29 @@ export default function AuditReportClient() {
                                     </button>
                                 </div>
 
-                                <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                                    {report?.executiveSummary || "—"}
-                                </p>
+                                {showExecutiveSummary ? (
+                                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                                        {executiveSummaryText}
+                                    </p>
+                                ) : null}
                                 {report?.methodologyNote ? (
-                                    <p className="mt-3 text-xs text-gray-400 border-t border-gray-100 pt-3">
+                                    <p
+                                        className={`text-xs text-gray-400 ${
+                                            showExecutiveSummary
+                                                ? "mt-3 border-t border-gray-100 pt-3"
+                                                : ""
+                                        }`}
+                                    >
                                         {report.methodologyNote}
                                     </p>
                                 ) : null}
                             </div>
 
-                            <aside className="flex w-full shrink-0 flex-col gap-4 lg:basis-1/4 lg:max-w-[25%] lg:sticky lg:top-4">
+                            <aside
+                                className={`flex w-full shrink-0 flex-col gap-4 ${
+                                    showOverallHealth ? "lg:basis-1/4 lg:max-w-[25%] lg:sticky lg:top-4" : ""
+                                }`}
+                            >
                                 <div className="rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-4">
                                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
                                         Audit ID
@@ -702,32 +740,42 @@ export default function AuditReportClient() {
                                     </div>
                                 </div>
 
-                                <div className="rounded-xl border border-gray-200 bg-gray-50/40 px-4 py-4">
-                                    <div className="text-sm font-medium text-gray-500 mb-1">Overall health</div>
-                                    <div className="text-[0.65rem] text-gray-400 mb-3">
-                                        {showV2Details && analyses.length > 0
-                                            ? `Average across ${analyses.length} section${analyses.length === 1 ? "" : "s"}`
-                                            : "Average across channels"}
+                                {showOverallHealth ? (
+                                    <div className="rounded-xl border border-gray-200 bg-gray-50/40 px-4 py-4">
+                                        <div className="text-sm font-medium text-gray-500 mb-1">
+                                            Overall health
+                                        </div>
+                                        <div className="text-[0.65rem] text-gray-400 mb-3">
+                                            {showV2Details && analyses.length > 0
+                                                ? `Average across ${analyses.length} section${analyses.length === 1 ? "" : "s"}`
+                                                : "Average across channels"}
+                                        </div>
+                                        <ScoreHighlight
+                                            score={overall.score}
+                                            gradeLabel={overall.grade}
+                                            size="lg"
+                                        />
                                     </div>
-                                    <ScoreHighlight score={overall.score} gradeLabel={overall.grade} size="lg" />
-                                </div>
+                                ) : null}
                             </aside>
                         </div>
 
-                        {!showV2Details && channels.length > 0 ? (
+                        {!showV2Details && channels.some((ch) => ch.healthScore != null) ? (
                             <div className="mt-6 flex flex-wrap gap-3 items-stretch border-t border-gray-100 pt-6">
-                                {channels.map((ch) => (
-                                    <ScoreMetricCard
-                                        key={ch.id || ch.label}
-                                        title={normalizeGroupLabel(ch.id, ch.label)}
-                                        score={ch.healthScore}
-                                        gradeLabel={
-                                            ch.grade != null
-                                                ? String(ch.grade)
-                                                : gradeFromNumericScore(ch.healthScore)
-                                        }
-                                    />
-                                ))}
+                                {channels
+                                    .filter((ch) => ch.healthScore != null)
+                                    .map((ch) => (
+                                        <ScoreMetricCard
+                                            key={ch.id || ch.label}
+                                            title={normalizeGroupLabel(ch.id, ch.label)}
+                                            score={ch.healthScore}
+                                            gradeLabel={
+                                                ch.grade != null
+                                                    ? String(ch.grade)
+                                                    : gradeFromNumericScore(ch.healthScore)
+                                            }
+                                        />
+                                    ))}
                             </div>
                         ) : null}
                     </section>

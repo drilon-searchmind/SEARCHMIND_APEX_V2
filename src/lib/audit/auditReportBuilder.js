@@ -9,6 +9,7 @@ import { getAuditCatalogGroup } from "./auditPromptCatalog";
 import { callAuditAnthropic, isAuditAiConfigured } from "./auditAnthropic";
 import {
     gradeFromNumericScore,
+    pickModelGrade,
     resolveAnalysisHealthScore,
 } from "@/lib/channelAuditReport";
 
@@ -96,8 +97,11 @@ export async function runAuditAnalyses({
         });
 
         try {
+            const systemPrompt = outputSchema.trim()
+                ? `${system}\n\n${outputSchema}`
+                : system;
             const raw = await callAuditAnthropic({
-                system: `${system}\n\n${outputSchema}`,
+                system: systemPrompt,
                 user: userMsg,
             });
             const parsed = await parseAuditResponseWithRepair({
@@ -137,11 +141,14 @@ async function parseAuditResponseWithRepair({ system, outputSchema, raw, analysi
     try {
         return parseAuditJsonLoose(raw);
     } catch (parseErr) {
+        const repairSystem = outputSchema.trim()
+            ? `${system}\n\n${outputSchema}`
+            : system;
         const repairRaw = await callAuditAnthropic({
-            system: `${system}\n\n${outputSchema}\n\nCRITICAL: Your entire reply must be exactly one JSON object. No markdown fences, no preamble, no text before or after the JSON.`,
+            system: `${repairSystem}\n\nCRITICAL: Your entire reply must be exactly one JSON object. No markdown fences, no preamble, no text before or after the JSON.`,
             user: `The previous reply for "${analysisTitle}" was not valid JSON.
 
-Convert it into ONLY one valid JSON object matching the required audit schema. Preserve all facts and findings in full — do not summarize or drop items. Do not invent new data.
+Convert it into ONLY one valid JSON object. Preserve all facts and structure from the original reply. Do not invent new data.
 
 Previous reply:
 ---
@@ -194,9 +201,7 @@ ${JSON.stringify(auditContext, null, 2)}${ahrefsNote}
 
 ---
 TASK:
-${taskPrompt}
-
-Reply with ONLY one JSON object matching the required audit output schema. Include full detail — do not summarize or omit findings. No other text.`;
+${taskPrompt}`;
 }
 
 /**
@@ -229,14 +234,14 @@ export function assembleAuditReport(analysisResults, meta) {
             prioritized_actions: Array.isArray(r.prioritized_actions) ? r.prioritized_actions : [],
             data_gaps: r.data_gaps || "",
             health_score,
-            grade: gradeFromNumericScore(health_score),
+            grade: pickModelGrade(r.grade, health_score),
             period: r.period || meta.dateRange,
             comparison: r.comparison ?? meta.comparisonDateRange,
         });
     }
 
     const channels = buildLegacyChannelsFromAnalyses(analyses);
-    const executiveSummary = buildExecutiveSummary(analyses, meta.customerName, failed);
+    const executiveSummary = buildExecutiveSummary(analysisResults, failed);
     const crossChannelNotes = analyses
         .filter((a) => a.groupId === "cross")
         .flatMap((a) =>
@@ -267,20 +272,19 @@ export function assembleAuditReport(analysisResults, meta) {
     return report;
 }
 
-function buildExecutiveSummary(analyses, customerName, failed) {
-    const crossPlan = analyses.find((a) => a.id === "cross-5");
-    if (crossPlan?.summary) {
-        return crossPlan.summary;
-    }
-    const summaries = analyses.map((a) => a.summary).filter(Boolean);
-    let text = summaries.join("\n\n");
-    if (!text) {
-        text = `${customerName}: Audit completed with ${analyses.length} analysis(es).`;
+function buildExecutiveSummary(analysisResults, failed) {
+    for (const row of analysisResults) {
+        if (!row.ok) continue;
+        const r = row.result || {};
+        const text = r.executive_summary ?? r.executiveSummary;
+        if (text != null && String(text).trim()) {
+            return String(text).trim();
+        }
     }
     if (failed.length > 0) {
-        text += ` ${failed.length} analysis(es) failed and are not included in the report.`;
+        return `${failed.length} analysis(es) failed and are not included in the report.`;
     }
-    return text.trim();
+    return "";
 }
 
 function buildLegacyChannelsFromAnalyses(analyses) {
@@ -319,11 +323,18 @@ function buildLegacyChannelsFromAnalyses(analyses) {
                 }))
             );
 
+        const channelGrade =
+            scores.length === 1 && rows[0]?.grade
+                ? pickModelGrade(rows[0].grade, healthScore)
+                : healthScore != null
+                  ? gradeFromNumericScore(healthScore)
+                  : null;
+
         return {
             id,
             label: groupLabels[id] || id,
             healthScore,
-            grade: gradeFromNumericScore(healthScore),
+            grade: channelGrade,
             summary: rows.map((r) => r.summary).filter(Boolean).join(" ") || "",
             topPriorities,
         };

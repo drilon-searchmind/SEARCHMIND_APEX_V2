@@ -65,15 +65,26 @@ export function deriveHealthScoreFromFindings(findings) {
 }
 
 /**
- * Prefer findings-based score when findings exist; otherwise use model score.
- * @param {Array<{ severity?: string, type?: string }>} findings
+ * Use model-provided score only (prompts control whether scores exist).
+ * @param {Array<{ severity?: string, type?: string }>} [_findings]
  * @param {number|null|undefined} aiScore
  */
-export function resolveAnalysisHealthScore(findings, aiScore) {
-    const fromFindings = deriveHealthScoreFromFindings(findings);
-    if (fromFindings != null) return fromFindings;
+export function resolveAnalysisHealthScore(_findings, aiScore) {
     if (aiScore != null && Number.isFinite(Number(aiScore))) {
         return Math.round(Number(aiScore));
+    }
+    return null;
+}
+
+/**
+ * @param {string|number|null|undefined} grade
+ * @param {number|null|undefined} healthScore
+ */
+export function pickModelGrade(grade, healthScore) {
+    const g = grade != null ? String(grade).trim() : "";
+    if (g && g !== "—") return g;
+    if (healthScore != null && Number.isFinite(Number(healthScore))) {
+        return gradeFromNumericScore(healthScore);
     }
     return null;
 }
@@ -92,11 +103,15 @@ function stripConflictingOverallClaims(text) {
     t = t.replace(/\baggregate (?:health )?score (?:of|is)\s+\d{1,3}[^.]*\.\s*/gi, "");
     t = t.replace(/\bmean (?:channel )?health score (?:is|:)\s+\d{1,3}[^.]*\.\s*/gi, "");
     t = t.replace(/^(?:with a grade of\s+[A-F]\.\s*)+/i, "");
+    t = t.replace(
+        /^Overall health score:\s*\d{1,3}\s*\/\s*100\s*\(Grade\s+[A-F]\)\.\s*/i,
+        ""
+    );
     return t.trim();
 }
 
 /**
- * Sets canonicalOverall from channel scores and prepends a single aligned summary line.
+ * Sets canonicalOverall from stored scores when present (no synthetic summary text).
  * Mutates `report` in place.
  */
 export function normalizeAuditReport(report) {
@@ -110,12 +125,11 @@ export function normalizeAuditReport(report) {
         : meanChannelHealthFromReport(report);
     report.canonicalOverall = { score, grade };
 
-    if (score == null) return report;
-
-    const prefix = `Overall health score: ${score} / 100 (Grade ${grade}). `;
-    let body = String(report.executiveSummary || "").trim();
-    body = stripConflictingOverallClaims(body);
-    report.executiveSummary = (prefix + (body ? ` ${body}` : "")).trim();
+    if (report.executiveSummary) {
+        report.executiveSummary = stripConflictingOverallClaims(
+            String(report.executiveSummary)
+        );
+    }
     return report;
 }
 

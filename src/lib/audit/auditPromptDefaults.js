@@ -16,7 +16,7 @@ DISCIPLINE:
 - If data is missing, state it in data_gaps — do not fabricate.
 - Write in English, precise and business-oriented.
 
-OUTPUT: Follow the JSON schema in the user message.`;
+OUTPUT: One JSON object only; shape and fields are defined in this system prompt and each task prompt.`;
 
 const CHANNEL_HOLISTIC =
     "Be holistic with the data for this channel. Highlight business-critical issues even if outside the narrow card theme.";
