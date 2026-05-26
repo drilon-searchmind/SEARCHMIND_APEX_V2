@@ -7,7 +7,6 @@ import { FiArrowLeft, FiClipboard, FiExternalLink } from "react-icons/fi";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import Spinner from "@/components/ui/Spinner";
 import { useCustomers } from "@/hooks/useCustomers";
-import { gradeFromNumericScore } from "@/lib/channelAuditReport";
 
 export default function AuditListClient() {
     const params = useParams();
@@ -88,23 +87,11 @@ export default function AuditListClient() {
                                     <th className="px-4 py-3 text-xs font-semibold text-gray-500">Created</th>
                                     <th className="px-4 py-3 text-xs font-semibold text-gray-500">Period</th>
                                     <th className="px-4 py-3 text-xs font-semibold text-gray-500">Channels</th>
-                                    <th className="px-4 py-3 text-xs font-semibold text-gray-500">Mean score</th>
                                     <th className="px-4 py-3 text-xs font-semibold text-gray-500 w-24" />
                                 </tr>
                             </thead>
                             <tbody>
                                 {audits.map((a) => {
-                                    const co = a.canonicalOverall || {};
-                                    const mean =
-                                        co.score != null && Number.isFinite(Number(co.score))
-                                            ? Number(co.score)
-                                            : null;
-                                    const grade =
-                                        co.grade && co.grade !== "—"
-                                            ? co.grade
-                                            : mean != null
-                                              ? gradeFromNumericScore(mean)
-                                              : "—";
                                     const href = `/dashboard/${customerId}/audit?audit_id=${encodeURIComponent(a.auditId)}`;
                                     return (
                                         <tr key={a.auditId} className="border-b border-gray-100 hover:bg-gray-50/80">
@@ -127,11 +114,6 @@ export default function AuditListClient() {
                                                         </span>
                                                     ))}
                                                 </div>
-                                            </td>
-                                            <td className="px-4 py-3 tabular-nums font-semibold text-gray-900">
-                                                {mean != null
-                                                    ? `${Math.round(mean)} / 100 (${grade})`
-                                                    : "—"}
                                             </td>
                                             <td className="px-4 py-3 text-right">
                                                 <Link

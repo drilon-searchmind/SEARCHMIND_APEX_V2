@@ -243,7 +243,6 @@ export function assembleAuditReport(analysisResults, meta, auditContext = null) 
     }
 
     const channels = buildLegacyChannelsFromAnalyses(analyses);
-    const executiveSummary = buildExecutiveSummary(analysisResults, failed);
     const crossChannelNotes = analyses
         .filter((a) => a.groupId === "cross")
         .flatMap((a) =>
@@ -257,9 +256,6 @@ export function assembleAuditReport(analysisResults, meta, auditContext = null) 
     const report = {
         version: 2,
         outputFormat: meta.outputFormat || "json",
-        executiveSummary,
-        methodologyNote:
-            "Data-driven audit via Claude (Apex prompt library). Recommendations are ready to implement; no auto-execution.",
         comparisonDateRange: meta.comparisonDateRange,
         analyses,
         channels,
@@ -281,21 +277,6 @@ export function assembleAuditReport(analysisResults, meta, auditContext = null) 
     };
 
     return report;
-}
-
-function buildExecutiveSummary(analysisResults, failed) {
-    for (const row of analysisResults) {
-        if (!row.ok) continue;
-        const r = row.result || {};
-        const text = r.executive_summary ?? r.executiveSummary;
-        if (text != null && String(text).trim()) {
-            return String(text).trim();
-        }
-    }
-    if (failed.length > 0) {
-        return `${failed.length} analysis(es) failed and are not included in the report.`;
-    }
-    return "";
 }
 
 function buildLegacyChannelsFromAnalyses(analyses) {

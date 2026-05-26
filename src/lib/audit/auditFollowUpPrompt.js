@@ -8,6 +8,7 @@
  *   dateRange?: { startDate?: string, endDate?: string },
  *   comparisonDateRange?: { startDate?: string, endDate?: string } | null,
  *   customerName?: string,
+ *   ephemeralDataContext?: object | null,
  * }} ctx
  */
 export function buildAuditFollowUpSystemPrompt(ctx) {
@@ -36,6 +37,7 @@ When the user asks follow-up questions:
 - Be specific and actionable; reference section titles and finding severities where relevant.
 - If they ask for prioritization, rank by business impact and ease of implementation.
 - Match the user's language (English or Danish) in your replies.
+- If they ask for more data, deeper metrics, or raw channel numbers not in the report, use the fetch_audit_data tool to load read-only data into this chat (not saved to the audit report).
 
 When they request deliverables (HTML report, email summary, slide outline, checklist, client-ready memo, etc.):
 - Produce complete, ready-to-use content.
@@ -43,5 +45,23 @@ When they request deliverables (HTML report, email summary, slide outline, check
 - For documents meant to paste elsewhere, use clear Markdown structure.
 
 Full audit report (JSON):
-${reportJson}`;
+${reportJson}${formatEphemeralBlock(ctx.ephemeralDataContext)}`;
+}
+
+/**
+ * @param {unknown} ephemeral
+ */
+function formatEphemeralBlock(ephemeral) {
+    if (!ephemeral || typeof ephemeral !== "object") return "";
+    let json;
+    try {
+        json = JSON.stringify(ephemeral, null, 2);
+    } catch {
+        return "";
+    }
+    if (!json || json === "{}") return "";
+    return `
+
+Additional live-fetched data (this chat thread only — not saved to the audit report):
+${json}`;
 }

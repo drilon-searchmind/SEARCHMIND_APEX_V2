@@ -275,9 +275,20 @@ const AuditFollowUpModal = ({
             body: JSON.stringify({ message: userMessage }),
             signal,
         });
-        const aiMessage = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(aiMessage.error || "Failed to send message");
-        return aiMessage;
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Failed to send message");
+        if (Array.isArray(data.messages) && data.messages.length > 0) {
+            return { messages: data.messages };
+        }
+        return {
+            messages: [
+                {
+                    type: data.type || "ai",
+                    content: data.content,
+                    timestamp: data.timestamp,
+                },
+            ],
+        };
     }, []);
 
     useEffect(() => {
@@ -431,7 +442,7 @@ const AuditFollowUpModal = ({
             abortControllerRef.current = controller;
 
             try {
-                const aiMessage = await postChatMessage(chat._id, userMessage, {
+                const { messages: newMessages } = await postChatMessage(chat._id, userMessage, {
                     signal: controller.signal,
                 });
                 hasCompletedAiRef.current = true;
@@ -439,12 +450,12 @@ const AuditFollowUpModal = ({
                 setMessages((prev) => [
                     ...prev.filter((m) => m._id !== tempUserMsg._id),
                     tempUserMsg,
-                    {
-                        _id: `ai-${Date.now()}`,
-                        type: "ai",
-                        content: aiMessage.content,
-                        timestamp: aiMessage.timestamp || new Date().toISOString(),
-                    },
+                    ...newMessages.map((m, i) => ({
+                        _id: m._id || `msg-${Date.now()}-${i}`,
+                        type: m.type,
+                        content: m.content,
+                        timestamp: m.timestamp || new Date().toISOString(),
+                    })),
                 ]);
                 fetchChatHistory({ silent: true });
             } catch (err) {
@@ -670,13 +681,31 @@ const AuditFollowUpModal = ({
                                 {messages.length === 0 && !showFindingPanel ? (
                                     <div className="flex items-center justify-center h-full min-h-[8rem]">
                                         <p className="text-sm text-gray-400 text-center max-w-md">
-                                            Ask about priorities, channel trade-offs, or say e.g.
-                                            &quot;Create a client-ready HTML summary of the top 5
+                                            Ask about priorities, channel trade-offs, request more
+                                            data (e.g. &quot;hent mere Search Console data&quot;), or
+                                            say &quot;Create a client-ready HTML summary of the top 5
                                             actions.&quot;
                                         </p>
                                     </div>
                                 ) : (
                                     messages.map((msg, idx) => {
+                                        if (msg.type === "data_fetch") {
+                                            return (
+                                                <div
+                                                    key={msg._id || idx}
+                                                    className="flex justify-center"
+                                                >
+                                                    <div className="max-w-[90%] rounded-lg border border-teal-200 bg-teal-50 px-4 py-2.5 text-xs text-teal-900 text-center">
+                                                        <span className="font-semibold">
+                                                            Data loaded
+                                                        </span>
+                                                        <span className="mx-1">·</span>
+                                                        {msg.content}
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
+
                                         const htmlBlock =
                                             msg.type === "ai"
                                                 ? extractHtmlFromMessage(msg.content)

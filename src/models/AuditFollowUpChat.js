@@ -4,7 +4,7 @@ const AuditFollowUpMessageSchema = new mongoose.Schema(
     {
         type: {
             type: String,
-            enum: ["user", "ai"],
+            enum: ["user", "ai", "data_fetch"],
             required: true,
         },
         content: {
@@ -71,6 +71,11 @@ const AuditFollowUpChatSchema = new mongoose.Schema(
         },
         /** Optional finding snapshot when opened from "Analyze with AI" */
         findingContext: {
+            type: mongoose.Schema.Types.Mixed,
+            default: null,
+        },
+        /** Live-fetched metrics for this chat only (not written to CustomerChannelAudit). */
+        ephemeralDataContext: {
             type: mongoose.Schema.Types.Mixed,
             default: null,
         },
