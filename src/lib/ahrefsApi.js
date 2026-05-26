@@ -37,15 +37,15 @@ export function ahrefsTargetFromGscProperty(property) {
  */
 export function ahrefsCountryFromTarget(target) {
     const fromEnv = process.env.AHREFS_DEFAULT_COUNTRY?.trim();
-    if (fromEnv && /^[a-z]{2}$/i.test(fromEnv)) return fromEnv.toUpperCase();
+    if (fromEnv && /^[a-z]{2}$/i.test(fromEnv)) return fromEnv.toLowerCase();
     const host = String(target || "").toLowerCase().split("/")[0];
-    if (host.endsWith(".dk")) return "DK";
-    if (host.endsWith(".se")) return "SE";
-    if (host.endsWith(".no")) return "NO";
-    if (host.endsWith(".de")) return "DE";
-    if (host.endsWith(".co.uk") || host.endsWith(".uk")) return "GB";
-    if (host.endsWith(".com")) return "US";
-    return "DK";
+    if (host.endsWith(".dk")) return "dk";
+    if (host.endsWith(".se")) return "se";
+    if (host.endsWith(".no")) return "no";
+    if (host.endsWith(".de")) return "de";
+    if (host.endsWith(".co.uk") || host.endsWith(".uk")) return "gb";
+    if (host.endsWith(".com")) return "us";
+    return "dk";
 }
 
 /** Ahrefs reports use YYYY-MM-DD; prefer audit end date, never future. */

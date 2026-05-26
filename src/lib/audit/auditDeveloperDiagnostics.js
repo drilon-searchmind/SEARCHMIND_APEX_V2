@@ -15,6 +15,35 @@ const INTEGRATION_WARNING_MESSAGES = {
     em: "Klaviyo is not configured",
 };
 
+/** Warning keys relevant per Run Audit tab (not all dashboard integrations). */
+const AUDIT_GROUP_WARNING_KEYS = {
+    cross: ["seo", "ppc", "ps", "em"],
+    ppc: ["ppc"],
+    ps: ["ps"],
+    seo: ["seo"],
+    em: ["em"],
+};
+
+/**
+ * Only surface integration config gaps for channels this audit run actually uses.
+ * @param {string[]} groups
+ * @param {Record<string, boolean>} [warnings]
+ */
+export function filterIntegrationWarningsForAudit(groups, warnings = {}) {
+    const keys = new Set();
+    for (const g of groups || []) {
+        for (const k of AUDIT_GROUP_WARNING_KEYS[g] || []) {
+            keys.add(k);
+        }
+    }
+    /** @type {Record<string, boolean>} */
+    const out = {};
+    for (const k of keys) {
+        if (warnings[k]) out[k] = true;
+    }
+    return out;
+}
+
 /**
  * @param {AuditDiagnosticCategory} category
  * @param {string} source
@@ -106,7 +135,11 @@ export function buildAuditDeveloperDiagnostics(auditContext, opts = {}) {
         }
     }
 
-    const warnings = opts.integrationWarnings || {};
+    const groups = Array.isArray(se?.groups) ? se.groups : opts.auditGroups || [];
+    const warnings = filterIntegrationWarningsForAudit(
+        groups,
+        opts.integrationWarnings || {}
+    );
     for (const [key, missing] of Object.entries(warnings)) {
         if (!missing) continue;
         items.push(

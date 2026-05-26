@@ -146,6 +146,13 @@ export async function buildAuditContext(opts) {
         serverEnrichment.errors.push({ source, message: String(message) });
     };
 
+    /** Skip optional ad platforms that are not configured (audit does not use them). */
+    const excludeAdSpendPlatforms = [];
+    if (warnings.pinterest) excludeAdSpendPlatforms.push("pinterest");
+    if (warnings.snapchat) excludeAdSpendPlatforms.push("snapchat");
+    if (warnings.reddit) excludeAdSpendPlatforms.push("reddit");
+    if (warnings.bing) excludeAdSpendPlatforms.push("bing");
+
     if (sources.has("merged")) {
         try {
             if (demo) {
@@ -197,7 +204,11 @@ export async function buildAuditContext(opts) {
                     },
                     startDate,
                     endDate,
-                    { source: "dashboard-audit", dailyBreakdown: true }
+                    {
+                        source: "dashboard-audit",
+                        dailyBreakdown: true,
+                        excludeAdSpendPlatforms,
+                    }
                 );
                 const shopifyDaily = merged.shopifyDaily || [];
                 const spendSum = (rows) =>
@@ -314,6 +325,11 @@ export async function buildAuditContext(opts) {
         } catch (e) {
             pushError("googleAds", e?.message || e);
         }
+    } else if (sources.has("googlePpc") && warnings.ppc) {
+        serverEnrichment.googleAds = {
+            included: false,
+            reason: "Google Ads customer ID not configured — skipped fetch",
+        };
     }
 
     if (sources.has("meta") && !warnings.ps && process.env.FACEBOOK_APP_TOKEN) {
@@ -337,6 +353,11 @@ export async function buildAuditContext(opts) {
         } catch (e) {
             pushError("meta", e?.message || e);
         }
+    } else if (sources.has("meta") && warnings.ps) {
+        serverEnrichment.meta = {
+            included: false,
+            reason: "Meta ad account not configured — skipped fetch",
+        };
     }
 
     if (sources.has("klaviyo") && !warnings.em) {
@@ -366,6 +387,11 @@ export async function buildAuditContext(opts) {
                 pushError("klaviyo", e?.message || e);
             }
         }
+    } else if (sources.has("klaviyo") && warnings.em) {
+        serverEnrichment.klaviyo = {
+            included: false,
+            reason: "Klaviyo not configured — skipped fetch",
+        };
     }
 
     return ctx;
