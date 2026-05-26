@@ -80,7 +80,7 @@ function severityStyles(severity) {
     return "bg-gray-50 text-gray-800 border-gray-200";
 }
 
-function FindingCard({ finding, showActionLabel = "Action", onAnalyzeFinding }) {
+function FindingCard({ finding, showActionLabel = "Action" }) {
     const severity = finding.severity;
     const recommendation = finding.recommendation || finding.recommendedAction;
     const recommendationLabel =
@@ -88,9 +88,9 @@ function FindingCard({ finding, showActionLabel = "Action", onAnalyzeFinding }) 
 
     return (
         <li
-            className={`flex flex-col gap-3 rounded-lg border px-3 py-3 sm:flex-row sm:items-start sm:gap-4 ${severityStyles(severity)}`}
+            className={`rounded-lg border px-3 py-3 ${severityStyles(severity)}`}
         >
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                     <span className="font-semibold text-sm">{finding.title}</span>
                     <span className="text-[0.65rem] font-semibold uppercase tracking-wide opacity-80">
@@ -150,21 +150,11 @@ function FindingCard({ finding, showActionLabel = "Action", onAnalyzeFinding }) 
                     </p>
                 ) : null}
             </div>
-            {onAnalyzeFinding ? (
-                <button
-                    type="button"
-                    onClick={() => onAnalyzeFinding(finding)}
-                    className="inline-flex shrink-0 items-center justify-center gap-1.5 self-start whitespace-nowrap rounded-lg border border-purple-500 bg-purple-50 px-3 py-2 text-[0.65rem] font-semibold text-purple-700 transition-colors hover:bg-purple-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] sm:max-w-[9.5rem] sm:text-xs"
-                >
-                    <LuBrainCircuit className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                    Analyze this with AI
-                </button>
-            ) : null}
         </li>
     );
 }
 
-function AnalysisArticle({ analysis, onAnalyzeFinding }) {
+function AnalysisArticle({ analysis }) {
     const groupLabel = normalizeGroupLabel(analysis.groupId, analysis.groupLabel);
     const tag = formatTagLabel(analysis.tag);
 
@@ -190,7 +180,7 @@ function AnalysisArticle({ analysis, onAnalyzeFinding }) {
             {(Array.isArray(analysis.findings) ? analysis.findings : []).length > 0 ? (
                 <ul className="space-y-3">
                     {analysis.findings.map((f, i) => (
-                        <FindingCard key={i} finding={f} onAnalyzeFinding={onAnalyzeFinding} />
+                        <FindingCard key={i} finding={f} />
                     ))}
                 </ul>
             ) : null}
@@ -224,7 +214,7 @@ function AnalysisArticle({ analysis, onAnalyzeFinding }) {
     );
 }
 
-function ChannelPrioritySection({ channel, onAnalyzeFinding }) {
+function ChannelPrioritySection({ channel }) {
     const priorities = Array.isArray(channel.topPriorities) ? channel.topPriorities : [];
     if (priorities.length === 0) return null;
 
@@ -249,7 +239,6 @@ function ChannelPrioritySection({ channel, onAnalyzeFinding }) {
                             rationale: p.rationale,
                             recommendedAction: p.recommendedAction,
                         }}
-                        onAnalyzeFinding={onAnalyzeFinding}
                     />
                 ))}
             </ul>
@@ -394,16 +383,9 @@ export default function AuditReportClient() {
     const [serverLoading, setServerLoading] = useState(false);
     const [detailTab, setDetailTab] = useState("all");
     const [followUpOpen, setFollowUpOpen] = useState(false);
-    const [followUpFinding, setFollowUpFinding] = useState(null);
-
-    const handleAnalyzeFinding = (finding) => {
-        setFollowUpFinding(finding);
-        setFollowUpOpen(true);
-    };
 
     const handleCloseFollowUp = () => {
         setFollowUpOpen(false);
-        setFollowUpFinding(null);
     };
 
     const mongoAudit = Boolean(auditId && isMongoObjectIdString(auditId));
@@ -713,11 +695,7 @@ export default function AuditReportClient() {
                                 </p>
                             ) : (
                                 filteredAnalyses.map((a) => (
-                                    <AnalysisArticle
-                                        key={a.id}
-                                        analysis={a}
-                                        onAnalyzeFinding={handleAnalyzeFinding}
-                                    />
+                                    <AnalysisArticle key={a.id} analysis={a} />
                                 ))
                             )}
                         </section>
@@ -734,7 +712,6 @@ export default function AuditReportClient() {
                                     <ChannelPrioritySection
                                         key={ch.id || ch.label}
                                         channel={ch}
-                                        onAnalyzeFinding={handleAnalyzeFinding}
                                     />
                                 ))
                             )}
@@ -771,7 +748,6 @@ export default function AuditReportClient() {
                     comparisonDateRange={payload.comparisonDateRange}
                     auditReportSnapshot={report}
                     customerName={payload.customerName || headingLabel}
-                    initialFinding={followUpFinding}
                     formatSeverity={formatSeverityLabel}
                 />
             ) : null}
