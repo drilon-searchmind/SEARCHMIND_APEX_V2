@@ -26,7 +26,7 @@ export async function PUT(request, { params }) {
 
     try {
         const body = await request.json();
-        const { name, parts, metricA, metricB, operator } = body;
+        const { name, parts, metricA, metricB, operator, replacesStandardMetricKey } = body;
 
         const updateData = {};
         if (name !== undefined) updateData.name = name.trim();
@@ -35,6 +35,10 @@ export async function PUT(request, { params }) {
         if (metricA !== undefined) updateData.metricA = metricA || "";
         if (metricB !== undefined) updateData.metricB = metricB || "";
         if (operator !== undefined) updateData.operator = operator || "";
+        if (replacesStandardMetricKey !== undefined) {
+            updateData.replacesStandardMetricKey =
+                replacesStandardMetricKey || null;
+        }
 
         const kpi = await updateCustomKpi(kpiId, updateData, customerId);
         return NextResponse.json(serializeKpi(kpi));

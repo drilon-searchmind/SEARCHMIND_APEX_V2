@@ -56,7 +56,7 @@ export async function POST(request, { params }) {
 
     try {
         const body = await request.json();
-        const { name, parts, metricA, metricB, operator } = body;
+        const { name, parts, metricA, metricB, operator, replacesStandardMetricKey } = body;
 
         if (!name || !name.trim()) {
             return NextResponse.json(
@@ -71,6 +71,7 @@ export async function POST(request, { params }) {
             metricA: metricA || "",
             metricB: metricB || "",
             operator: operator || "",
+            replacesStandardMetricKey: replacesStandardMetricKey || null,
         };
 
         const kpi = await createCustomKpi(customerId, kpiData);

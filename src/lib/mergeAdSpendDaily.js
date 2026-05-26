@@ -251,6 +251,8 @@ export function aggregateShopifyAndAdSpendByPeriodFromRows(shopifyArr, channelRo
     const bucket = () => ({
         revenue: 0,
         totalRevenue: 0,
+        grossSales: 0,
+        discounts: 0,
         orders: 0,
         cost: 0,
         costFacebook: 0,
@@ -270,6 +272,8 @@ export function aggregateShopifyAndAdSpendByPeriodFromRows(shopifyArr, channelRo
         const k = keyFn(d.period);
         const o = ensure(k);
         o.totalRevenue += Number(d.total_sales || 0);
+        o.grossSales += Number(d.gross_sales || 0);
+        o.discounts += Number(d.discounts || 0);
         o.revenue += Number(d.net_sales || d.total_sales || 0);
         o.orders += Number(d.orders || 0);
         o.cogs += Number(d.cost_of_goods_sold || 0);

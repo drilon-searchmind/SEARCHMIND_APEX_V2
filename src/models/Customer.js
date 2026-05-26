@@ -190,7 +190,20 @@ const CustomerSchema = new mongoose.Schema({
         klaviyoPrivateApiKey: {
             type: String,
             default: ""
-        }
+        },
+        /** Performance dashboard: optional returns % override and related toggles. */
+        performanceDashboard: {
+            returnsOverrideEnabled: {
+                type: Boolean,
+                default: false,
+            },
+            returnsOverridePercent: {
+                type: Number,
+                default: 45,
+                min: 0,
+                max: 100,
+            },
+        },
     },
     CustomerStaticExpenses: {
         cogsPercentage: {

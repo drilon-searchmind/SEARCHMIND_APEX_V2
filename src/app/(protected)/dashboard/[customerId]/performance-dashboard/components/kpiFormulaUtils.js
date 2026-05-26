@@ -34,10 +34,14 @@ function aggRowToMetrics(v) {
     const cost = v.cost ?? 0;
     const orders = v.orders ?? 0;
     const totalRevenue = v.totalRevenue ?? revenue;
+    const grossSales = v.grossSales ?? totalRevenue;
+    const discounts = v.discounts ?? 0;
     /** @type {Record<string, number>} */
     const out = {
         total_sales: totalRevenue,
         revenue,
+        gross_sales: grossSales,
+        discounts,
         gross_profit: grossProfit,
         orders,
         returns: v.returns ?? 0,

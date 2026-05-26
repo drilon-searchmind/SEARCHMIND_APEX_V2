@@ -35,6 +35,11 @@ const CustomKpiSchema = new mongoose.Schema(
         metricA: { type: String, default: "" },
         metricB: { type: String, default: "" },
         operator: { type: String, default: "" },
+        /** When set, this KPI's value replaces the matching standard overview metric for this customer. */
+        replacesStandardMetricKey: {
+            type: String,
+            default: null,
+        },
         createdAt: {
             type: Date,
             default: Date.now,

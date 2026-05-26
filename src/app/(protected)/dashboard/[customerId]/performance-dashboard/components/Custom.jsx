@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import dayjs from "dayjs";
-import { FiPlus, FiEdit2, FiTrash2 } from "react-icons/fi";
+import { FiPlus, FiEdit2, FiTrash2, FiRepeat } from "react-icons/fi";
+import ReplaceStandardMetricModal from "./ReplaceStandardMetricModal";
 import MetricCard from "@/components/dashboard/MetricCard";
 import GraphCard from "@/components/dashboard/GraphCard";
 import AddKpiModal from "./AddKpiModal";
@@ -32,6 +33,12 @@ const METRIC_LABELS = Object.fromEntries(
 // Extra metrics from metricsData not in AddKpiModal
 Object.assign(METRIC_LABELS, {
     cogs: "COGS",
+    gross_sales: "Gross Sales",
+    discounts: "Discount",
+    shipping_revenue: "Shipping Charges",
+    shipping_cost: "Shipping Cost",
+    transaction_fee: "Transaction Fee",
+    tax: "Taxes",
     fixed_costs: "Fixed Costs",
     variable_costs: "Variable Costs",
     pick_pack: "Pick & Pack",
@@ -261,6 +268,7 @@ export default function Custom({
     aggregateBy = "period",
     chartColors = {},
     visibleSpendMetricKeys,
+    onKpisUpdated,
 }) {
     const [kpis, setKpis] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -269,6 +277,7 @@ export default function Custom({
     const [modalOpen, setModalOpen] = useState(false);
     const [editingKpi, setEditingKpi] = useState(null);
     const [selectedKpis, setSelectedKpis] = useState([]);
+    const [replaceModalKpi, setReplaceModalKpi] = useState(null);
 
     useEffect(() => {
         if (!customerId) {
@@ -355,6 +364,7 @@ export default function Custom({
                 pushGTMEvent(GTM_EVENTS.PERFORMANCE_DASHBOARD_CUSTOM_KPI_SAVED, {
                     eventData: { customerId: String(customerId), action: "update" },
                 });
+                onKpisUpdated?.();
             } else {
                 const res = await fetch(
                     `${baseUrl}/api/custom-kpis/${customerId}`,
@@ -377,6 +387,7 @@ export default function Custom({
                 pushGTMEvent(GTM_EVENTS.PERFORMANCE_DASHBOARD_CUSTOM_KPI_SAVED, {
                     eventData: { customerId: String(customerId), action: "create" },
                 });
+                onKpisUpdated?.();
             }
             setModalOpen(false);
             setEditingKpi(null);
@@ -405,10 +416,50 @@ export default function Custom({
             pushGTMEvent(GTM_EVENTS.PERFORMANCE_DASHBOARD_CUSTOM_KPI_DELETED, {
                 eventData: { customerId: String(customerId), kpiId: String(kpi.id) },
             });
+            onKpisUpdated?.();
         } catch (err) {
             setError(err.message);
         }
     };
+
+    const handleSaveReplacement = async (metricKey) => {
+        if (!replaceModalKpi) return;
+        setSaving(true);
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
+        try {
+            const res = await fetch(
+                `${baseUrl}/api/custom-kpis/${customerId}/${replaceModalKpi.id}`,
+                {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        replacesStandardMetricKey: metricKey,
+                    }),
+                }
+            );
+            if (!res.ok) throw new Error("Failed to update KPI");
+            const updated = await res.json();
+            setKpis((prev) =>
+                prev.map((k) => {
+                    if (k.id === updated.id) return updated;
+                    if (metricKey && k.replacesStandardMetricKey === metricKey) {
+                        return { ...k, replacesStandardMetricKey: null };
+                    }
+                    return k;
+                })
+            );
+            setReplaceModalKpi(null);
+            onKpisUpdated?.();
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const takenReplacementKeys = kpis
+        .filter((k) => k.replacesStandardMetricKey)
+        .map((k) => k.replacesStandardMetricKey);
 
     const handleAddClick = () => {
         setEditingKpi(null);
@@ -758,6 +809,18 @@ export default function Custom({
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         e.preventDefault();
+                                        setReplaceModalKpi(kpi);
+                                    }}
+                                    className="p-1.5 rounded-lg bg-white/90 hover:bg-purple-50 text-gray-400 hover:text-purple-700 shadow-sm"
+                                    aria-label="Replace standard metric"
+                                    title="Replace standard metric"
+                                >
+                                    <FiRepeat className="text-sm" />
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
                                         handleEdit(kpi);
                                     }}
                                     className="p-1.5 rounded-lg bg-white/90 hover:bg-gray-100 text-gray-400 hover:text-gray-600 shadow-sm"
@@ -845,6 +908,18 @@ export default function Custom({
                     editingKpi={editingKpi}
                     saving={saving}
                     visibleSpendMetricKeys={visibleSpendMetricKeys}
+                />
+            )}
+
+            {replaceModalKpi && (
+                <ReplaceStandardMetricModal
+                    open
+                    onClose={() => setReplaceModalKpi(null)}
+                    kpiName={replaceModalKpi.name}
+                    currentReplacementKey={replaceModalKpi.replacesStandardMetricKey}
+                    takenKeys={takenReplacementKeys}
+                    onSave={handleSaveReplacement}
+                    saving={saving}
                 />
             )}
         </div>
