@@ -31,6 +31,23 @@ export function ahrefsTargetFromGscProperty(property) {
     }
 }
 
+/**
+ * ISO country for Site Explorer (organic keywords, etc.). Override with AHREFS_DEFAULT_COUNTRY.
+ * @param {string} target — domain, e.g. example.dk
+ */
+export function ahrefsCountryFromTarget(target) {
+    const fromEnv = process.env.AHREFS_DEFAULT_COUNTRY?.trim();
+    if (fromEnv && /^[a-z]{2}$/i.test(fromEnv)) return fromEnv.toUpperCase();
+    const host = String(target || "").toLowerCase().split("/")[0];
+    if (host.endsWith(".dk")) return "DK";
+    if (host.endsWith(".se")) return "SE";
+    if (host.endsWith(".no")) return "NO";
+    if (host.endsWith(".de")) return "DE";
+    if (host.endsWith(".co.uk") || host.endsWith(".uk")) return "GB";
+    if (host.endsWith(".com")) return "US";
+    return "DK";
+}
+
 /** Ahrefs reports use YYYY-MM-DD; prefer audit end date, never future. */
 export function ahrefsReportDate(endDateYmd) {
     const end = String(endDateYmd || "").slice(0, 10);

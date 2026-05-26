@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import connectToDatabase from "@root/lib/mongodb";
 import { getCustomerById } from "@root/lib/customerOperations";
+import { getServiceDashboardConfigWarnings } from "@/lib/customerServiceIntegrations";
 import CustomerChannelAudit from "@/models/CustomerChannelAudit";
 import { normalizeAuditReport } from "@/lib/channelAuditReport";
 import {
@@ -108,6 +109,9 @@ export async function POST(request) {
         const customer = await getCustomerById(customerId);
         const plain = typeof customer.toObject === "function" ? customer.toObject() : customer;
         const customerName = plain.customerName || "Customer";
+        const integrationWarnings = getServiceDashboardConfigWarnings(
+            plain.CustomerSettings || {}
+        );
 
         const comparison =
             comparisonEnabled === true &&
@@ -135,7 +139,9 @@ export async function POST(request) {
                 customerName,
                 selections,
                 startDate,
-                endDate
+                endDate,
+                integrationWarnings,
+                auditContext
             );
             report.methodologyNote +=
                 " Configure CLAUDE_CODE_API_KEY in environment variables for full Claude audit.";
@@ -147,12 +153,18 @@ export async function POST(request) {
                 selections,
                 auditContext,
             });
-            report = assembleAuditReport(analysisResults, {
-                customerName,
-                dateRange: { startDate, endDate },
-                comparisonDateRange: comparison,
-                outputFormat,
-            });
+            report = assembleAuditReport(
+                analysisResults,
+                {
+                    customerName,
+                    dateRange: { startDate, endDate },
+                    comparisonDateRange: comparison,
+                    outputFormat,
+                    integrationWarnings,
+                    aiConfigured: true,
+                },
+                auditContext
+            );
         }
 
         normalizeAuditReport(report);

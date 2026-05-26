@@ -12,6 +12,7 @@ import {
     pickModelGrade,
     resolveAnalysisHealthScore,
 } from "@/lib/channelAuditReport";
+import { buildAuditDeveloperDiagnostics } from "./auditDeveloperDiagnostics";
 
 export { parseAuditJsonLoose } from "./auditJsonParse";
 export { minusOneYearDate };
@@ -207,9 +208,10 @@ ${taskPrompt}`;
 /**
  * Build v2 report + legacy channels for existing UI components.
  * @param {Awaited<ReturnType<typeof runAuditAnalyses>>} analysisResults
- * @param {{ customerName: string, dateRange: object, comparisonDateRange: object|null, outputFormat?: string }} meta
+ * @param {{ customerName: string, dateRange: object, comparisonDateRange: object|null, outputFormat?: string, integrationWarnings?: Record<string, boolean>, aiConfigured?: boolean }} meta
+ * @param {object|null} [auditContext]
  */
-export function assembleAuditReport(analysisResults, meta) {
+export function assembleAuditReport(analysisResults, meta, auditContext = null) {
     const analyses = [];
     const failed = [];
 
@@ -267,6 +269,15 @@ export function assembleAuditReport(analysisResults, meta) {
             title: f.title,
             error: f.error,
         })),
+        developerDiagnostics: buildAuditDeveloperDiagnostics(auditContext, {
+            failedAnalyses: failed.map((f) => ({
+                id: f.cardId,
+                title: f.title,
+                error: f.error,
+            })),
+            integrationWarnings: meta.integrationWarnings,
+            aiConfigured: meta.aiConfigured !== false,
+        }),
     };
 
     return report;
@@ -350,7 +361,14 @@ function mapSeverityToEn(sev) {
     return "low";
 }
 
-export async function buildFallbackAuditReport(customerName, selections, startDate, endDate) {
+export async function buildFallbackAuditReport(
+    customerName,
+    selections,
+    startDate,
+    endDate,
+    integrationWarnings = {},
+    auditContext = null
+) {
     const pseudo = [];
     for (const sel of selections) {
         let title = "Analysis";
@@ -382,11 +400,17 @@ export async function buildFallbackAuditReport(customerName, selections, startDa
             },
         });
     }
-    return assembleAuditReport(pseudo, {
-        customerName,
-        dateRange: { startDate, endDate },
-        comparisonDateRange: null,
-    });
+    return assembleAuditReport(
+        pseudo,
+        {
+            customerName,
+            dateRange: { startDate, endDate },
+            comparisonDateRange: null,
+            integrationWarnings,
+            aiConfigured: false,
+        },
+        auditContext
+    );
 }
 
 export { isAuditAiConfigured };

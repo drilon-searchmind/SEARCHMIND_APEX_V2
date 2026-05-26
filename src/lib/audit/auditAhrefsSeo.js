@@ -1,5 +1,6 @@
 import {
     ahrefsGet,
+    ahrefsCountryFromTarget,
     ahrefsReportDate,
     ahrefsTargetFromGscProperty,
     isAhrefsConfigured,
@@ -17,7 +18,7 @@ export const AUDIT_AHREFS_ANALYST_INSTRUCTION = `AHREFS DATA (included in server
 - Cross-reference Ahrefs keywords with searchConsole.queries and serverEnrichment.shopify where relevant.
 - Use topPages and backlink samples for backlink gap analysis and page-level priorities.
 - Use domainRating as site authority context; do not invent competitor DR unless competitor data is provided.
-- If ahrefs.errors is non-empty or a subsection is missing, list it in data_gaps — do not fabricate Ahrefs metrics.`;
+- If a subsection failed (see ahrefs.errors), mention only that subsection in data_gaps — do not claim Ahrefs is missing when other Ahrefs sections loaded successfully.`;
 
 /**
  * @param {unknown[]} selections — normalized audit selections
@@ -40,6 +41,42 @@ export function shouldFetchAhrefsForAudit(selections, settings) {
 }
 
 /**
+ * @param {Record<string, string|number|undefined>} base — target, date, mode, protocol, country
+ * @param {string|undefined} dateCompared
+ */
+async function fetchOrganicKeywordsForAudit(base, dateCompared) {
+    const selectCore =
+        "keyword,volume,best_position,sum_traffic,best_position_url,keyword_difficulty,is_transactional,is_commercial";
+    const selectWithDiff = dateCompared ? `${selectCore},best_position_diff` : selectCore;
+
+    /** @type {Array<{ select: string, order_by: string, date_compared?: string }>} */
+    const attempts = [
+        { select: selectWithDiff, order_by: "volume:desc", date_compared: dateCompared },
+        { select: selectCore, order_by: "volume:desc" },
+        { select: "keyword,volume,best_position,sum_traffic", order_by: "volume:desc" },
+    ];
+
+    let lastErr;
+    for (const extra of attempts) {
+        if (!extra.date_compared && extra.select.includes("best_position_diff")) continue;
+        try {
+            /** @type {Record<string, string|number>} */
+            const params = {
+                ...base,
+                select: extra.select,
+                limit: 100,
+                order_by: extra.order_by,
+            };
+            if (extra.date_compared) params.date_compared = extra.date_compared;
+            return await ahrefsGet("/site-explorer/organic-keywords", params);
+        } catch (e) {
+            lastErr = e;
+        }
+    }
+    throw lastErr;
+}
+
+/**
  * @param {{
  *   googleSearchConsoleProperty: string,
  *   startDate: string,
@@ -57,12 +94,14 @@ export async function fetchAhrefsAuditBundle(opts) {
     const dateCompared = opts.comparisonDateRange?.endDate
         ? ahrefsReportDate(opts.comparisonDateRange.endDate)
         : undefined;
+    const country = ahrefsCountryFromTarget(target);
 
     const base = {
         target,
         date,
         mode: "subdomains",
         protocol: "both",
+        country,
     };
 
     const errors = [];
@@ -70,6 +109,7 @@ export async function fetchAhrefsAuditBundle(opts) {
     const out = {
         included: true,
         target,
+        country,
         reportDate: date,
         reportDateCompared: dateCompared || null,
         domainRating: null,
@@ -90,14 +130,7 @@ export async function fetchAhrefsAuditBundle(opts) {
     }
 
     try {
-        const kw = await ahrefsGet("/site-explorer/organic-keywords", {
-            ...base,
-            select:
-                "keyword,volume,best_position,sum_traffic,best_position_url,keyword_difficulty,best_position_diff,is_transactional,is_commercial",
-            limit: 100,
-            order_by: "volume_merged:desc",
-            ...(dateCompared ? { date_compared: dateCompared } : {}),
-        });
+        const kw = await fetchOrganicKeywordsForAudit(base, dateCompared);
         out.organicKeywords = trimAhrefsRows(kw, 100);
     } catch (e) {
         errors.push({ section: "organic_keywords", message: e?.message || String(e) });
@@ -117,10 +150,13 @@ export async function fetchAhrefsAuditBundle(opts) {
 
     try {
         const links = await ahrefsGet("/site-explorer/all-backlinks", {
-            ...base,
+            target,
+            mode: "subdomains",
+            protocol: "both",
             select: "url_from,domain_rating_source,anchor,is_dofollow,first_seen,traffic",
             limit: 25,
             order_by: "domain_rating_source:desc",
+            history: "live",
         });
         out.backlinkSample = trimAhrefsRows(links, 25);
     } catch (e) {

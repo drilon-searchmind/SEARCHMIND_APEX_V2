@@ -17,6 +17,8 @@ import {
     pickModelGrade,
     resolveAnalysisHealthScore,
 } from "@/lib/channelAuditReport";
+import { buildAuditDeveloperDiagnostics } from "@/lib/audit/auditDeveloperDiagnostics";
+import { useUser } from "@/contexts/UserContext";
 const STORAGE_PREFIX = "apex_audit:";
 
 const GROUP_TAB_LABELS = {
@@ -373,6 +375,105 @@ function ChannelPrioritySection({ channel, onAnalyzeFinding }) {
     );
 }
 
+const DIAGNOSTIC_CATEGORY_LABELS = {
+    data_fetch: "Data fetch",
+    analysis: "AI analysis",
+    config: "Configuration",
+    integration: "Integration",
+};
+
+function formatDiagnosticDetail(detail) {
+    if (detail == null) return "";
+    try {
+        return JSON.stringify(detail, null, 2);
+    } catch {
+        return String(detail);
+    }
+}
+
+function AuditDeveloperDiagnosticsPanel({ diagnostics }) {
+    const items = Array.isArray(diagnostics?.items) ? diagnostics.items : [];
+    const hasItems = items.length > 0;
+
+    return (
+        <section className="mt-8 rounded-xl border border-slate-300 bg-slate-950 text-slate-100 overflow-hidden">
+            <details open={hasItems} className="group">
+                <summary className="cursor-pointer list-none px-4 py-3 md:px-5 md:py-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 bg-slate-900/80 hover:bg-slate-900">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-amber-400/90">
+                            Developer diagnostics
+                        </p>
+                        <p className="text-sm text-slate-300 mt-0.5">
+                            {hasItems
+                                ? `${items.length} issue${items.length === 1 ? "" : "s"} recorded during this audit run`
+                                : "No issues recorded for this audit run"}
+                        </p>
+                    </div>
+                    {hasItems ? (
+                        <span className="inline-flex items-center rounded-md bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30">
+                            {items.length} total
+                        </span>
+                    ) : (
+                        <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-300 ring-1 ring-emerald-500/20">
+                            All clear
+                        </span>
+                    )}
+                </summary>
+
+                <div className="px-4 py-4 md:px-5 md:py-5 space-y-4">
+                    {diagnostics?.collectedAt ? (
+                        <p className="text-xs text-slate-500">
+                            Collected {new Date(diagnostics.collectedAt).toLocaleString()}
+                            {diagnostics?.byCategory ? (
+                                <>
+                                    {" "}
+                                    · Data fetch {diagnostics.byCategory.data_fetch || 0} · AI{" "}
+                                    {diagnostics.byCategory.analysis || 0} · Config{" "}
+                                    {diagnostics.byCategory.config || 0}
+                                </>
+                            ) : null}
+                        </p>
+                    ) : null}
+
+                    {hasItems ? (
+                        <ul className="space-y-3">
+                            {items.map((row, idx) => (
+                                <li
+                                    key={`${row.source}-${idx}`}
+                                    className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 md:p-4"
+                                >
+                                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                                        <span className="text-[0.65rem] font-bold uppercase tracking-wide text-slate-400">
+                                            {DIAGNOSTIC_CATEGORY_LABELS[row.category] ||
+                                                row.category}
+                                        </span>
+                                        <span className="text-[0.65rem] font-mono text-cyan-300/90 bg-slate-800 px-1.5 py-0.5 rounded">
+                                            {row.source}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap break-words">
+                                        {row.message}
+                                    </p>
+                                    {row.detail != null ? (
+                                        <pre className="mt-3 max-h-48 overflow-auto rounded-md bg-black/40 border border-slate-800 p-3 text-[0.7rem] leading-relaxed text-slate-400 font-mono">
+                                            {formatDiagnosticDetail(row.detail)}
+                                        </pre>
+                                    ) : null}
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-sm text-slate-400">
+                            Data sources and analyses completed without logged errors. Re-run the audit
+                            after changing integrations or prompts if you expected issues here.
+                        </p>
+                    )}
+                </div>
+            </details>
+        </section>
+    );
+}
+
 function readLegacySessionPayload(auditId, customerId) {
     if (typeof window === "undefined" || !auditId || !customerId) {
         return { payload: null, loadError: null };
@@ -400,6 +501,7 @@ function readLegacySessionPayload(auditId, customerId) {
 }
 
 export default function AuditReportClient() {
+    const user = useUser();
     const params = useParams();
     const searchParams = useSearchParams();
     const customerId = params?.customerId;
@@ -596,6 +698,18 @@ export default function AuditReportClient() {
     const executiveSummaryText = String(report?.executiveSummary || "").trim();
     const showExecutiveSummary = executiveSummaryText.length > 0;
     const showOverallHealth = overall.score != null && Number.isFinite(Number(overall.score));
+    const showDeveloperDiagnostics = user?.isAdmin === true;
+
+    const developerDiagnostics = useMemo(() => {
+        if (report?.developerDiagnostics?.items) {
+            return report.developerDiagnostics;
+        }
+        if (!report) return null;
+        return buildAuditDeveloperDiagnostics(null, {
+            failedAnalyses: Array.isArray(report.failedAnalyses) ? report.failedAnalyses : [],
+            aiConfigured: true,
+        });
+    }, [report]);
 
     return (
         <div className="w-full">
@@ -662,11 +776,19 @@ export default function AuditReportClient() {
             ) : (
                 <>
                     <section className="mb-6 rounded-xl border border-gray-200 bg-white p-5 md:p-6">
-                        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+                        <div
+                            className={
+                                showOverallHealth
+                                    ? "flex flex-col gap-6 lg:flex-row lg:items-start"
+                                    : "flex flex-col gap-6"
+                            }
+                        >
                             <div
-                                className={`min-w-0 w-full ${
-                                    showOverallHealth ? "lg:basis-3/4 lg:max-w-[75%]" : ""
-                                }`}
+                                className={
+                                    showOverallHealth
+                                        ? "min-w-0 w-full lg:flex-[3] lg:min-w-0"
+                                        : "min-w-0 w-full"
+                                }
                             >
                                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                                     {showExecutiveSummary ? (
@@ -706,41 +828,82 @@ export default function AuditReportClient() {
                                         {report.methodologyNote}
                                     </p>
                                 ) : null}
+
+                                {!showOverallHealth ? (
+                                    <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 border-t border-gray-100 pt-5 text-sm text-gray-600">
+                                        <div>
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                                                Audit ID
+                                            </p>
+                                            <p className="mt-1 font-mono text-xs text-gray-800 break-all">
+                                                {payload.auditId}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                                                Period
+                                            </p>
+                                            <p className="mt-1">
+                                                {payload.dateRange?.startDate} → {payload.dateRange?.endDate}
+                                            </p>
+                                        </div>
+                                        {payload.comparisonDateRange?.startDate ? (
+                                            <div>
+                                                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                                                    Compare
+                                                </p>
+                                                <p className="mt-1 text-xs">
+                                                    {payload.comparisonDateRange.startDate} →{" "}
+                                                    {payload.comparisonDateRange.endDate}
+                                                </p>
+                                            </div>
+                                        ) : null}
+                                        <div>
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                                                Generated
+                                            </p>
+                                            <p className="mt-1 text-xs text-gray-500">
+                                                {new Date(payload.generatedAt).toLocaleString()}
+                                                {showV2Details
+                                                    ? ` · ${analyses.length} analyses`
+                                                    : ""}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ) : null}
                             </div>
 
-                            <aside
-                                className={`flex w-full shrink-0 flex-col gap-4 ${
-                                    showOverallHealth ? "lg:basis-1/4 lg:max-w-[25%] lg:sticky lg:top-4" : ""
-                                }`}
-                            >
-                                <div className="rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-4">
-                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                                        Audit ID
-                                    </p>
-                                    <p className="mt-1 font-mono text-sm text-gray-800 break-all">{payload.auditId}</p>
-                                    <div className="mt-4 space-y-2 text-sm text-gray-600 border-t border-gray-200/80 pt-4">
-                                        <p>
-                                            <span className="font-semibold text-gray-500">Period:</span>{" "}
-                                            {payload.dateRange?.startDate} → {payload.dateRange?.endDate}
+                            {showOverallHealth ? (
+                                <aside className="flex w-full shrink-0 flex-col gap-4 lg:flex-[1] lg:min-w-[220px] lg:max-w-[280px] lg:sticky lg:top-4">
+                                    <div className="rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-4">
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                                            Audit ID
                                         </p>
-                                        {payload.comparisonDateRange?.startDate ? (
-                                            <p className="text-xs text-gray-500">
-                                                Compare: {payload.comparisonDateRange.startDate} →{" "}
-                                                {payload.comparisonDateRange.endDate}
-                                            </p>
-                                        ) : null}
-                                        {showV2Details ? (
-                                            <p className="text-xs text-gray-500">
-                                                {analyses.length} analyses
-                                            </p>
-                                        ) : null}
-                                        <p className="text-xs text-gray-400">
-                                            Generated {new Date(payload.generatedAt).toLocaleString()}
+                                        <p className="mt-1 font-mono text-sm text-gray-800 break-all">
+                                            {payload.auditId}
                                         </p>
+                                        <div className="mt-4 space-y-2 text-sm text-gray-600 border-t border-gray-200/80 pt-4">
+                                            <p>
+                                                <span className="font-semibold text-gray-500">Period:</span>{" "}
+                                                {payload.dateRange?.startDate} → {payload.dateRange?.endDate}
+                                            </p>
+                                            {payload.comparisonDateRange?.startDate ? (
+                                                <p className="text-xs text-gray-500">
+                                                    Compare: {payload.comparisonDateRange.startDate} →{" "}
+                                                    {payload.comparisonDateRange.endDate}
+                                                </p>
+                                            ) : null}
+                                            {showV2Details ? (
+                                                <p className="text-xs text-gray-500">
+                                                    {analyses.length} analyses
+                                                </p>
+                                            ) : null}
+                                            <p className="text-xs text-gray-400">
+                                                Generated {new Date(payload.generatedAt).toLocaleString()}
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
 
-                                {showOverallHealth ? (
                                     <div className="rounded-xl border border-gray-200 bg-gray-50/40 px-4 py-4">
                                         <div className="text-sm font-medium text-gray-500 mb-1">
                                             Overall health
@@ -756,8 +919,8 @@ export default function AuditReportClient() {
                                             size="lg"
                                         />
                                     </div>
-                                ) : null}
-                            </aside>
+                                </aside>
+                            ) : null}
                         </div>
 
                         {!showV2Details && channels.some((ch) => ch.healthScore != null) ? (
@@ -839,22 +1002,6 @@ export default function AuditReportClient() {
                         </section>
                     ) : null}
 
-                    {detailTab === "all" && Array.isArray(report?.failedAnalyses) && report.failedAnalyses.length > 0 ? (
-                        <section className="mt-6 rounded-xl border border-red-200 bg-white p-4">
-                            <h3 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
-                                <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden />
-                                Failed analyses
-                            </h3>
-                            <ul className="text-sm text-gray-700 space-y-1">
-                                {report.failedAnalyses.map((f) => (
-                                    <li key={f.id}>
-                                        <span className="font-medium">{f.title || f.id}:</span> {f.error}
-                                    </li>
-                                ))}
-                            </ul>
-                        </section>
-                    ) : null}
-
                     {showCrossNotesPanel ? (
                         <section
                             className={`rounded-xl border border-gray-200 bg-white p-5 md:p-6 ${
@@ -868,6 +1015,10 @@ export default function AuditReportClient() {
                                 ))}
                             </ul>
                         </section>
+                    ) : null}
+
+                    {showDeveloperDiagnostics && developerDiagnostics ? (
+                        <AuditDeveloperDiagnosticsPanel diagnostics={developerDiagnostics} />
                     ) : null}
                 </>
             )}
