@@ -3,6 +3,8 @@
  * @see https://docs.ahrefs.com/docs/api/reference/introduction
  */
 
+import { buildAhrefsSelectAttemptsFromError } from "@/lib/audit/ahrefsSelectRepair";
+
 const API_BASE = "https://api.ahrefs.com/v3";
 
 export function isAhrefsConfigured() {
@@ -101,6 +103,52 @@ export async function ahrefsGet(path, params = {}) {
     }
 
     return data;
+}
+
+/**
+ * @param {string} path
+ * @param {Record<string, string|number|undefined>} baseParams
+ * @param {Array<{ select: string, order_by?: string, date_compared?: string, [key: string]: unknown }>} selectAttempts
+ */
+export async function ahrefsGetWithSelectAttempts(path, baseParams, selectAttempts) {
+    let lastErr;
+    const tried = new Set();
+
+    const runAttempt = async (attempt) => {
+        const key = JSON.stringify(attempt);
+        if (tried.has(key)) return null;
+        tried.add(key);
+        /** @type {Record<string, string|number>} */
+        const params = { ...baseParams, select: attempt.select };
+        if (attempt.order_by) params.order_by = attempt.order_by;
+        if (attempt.date_compared) params.date_compared = attempt.date_compared;
+        return ahrefsGet(path, params);
+    };
+
+    for (const attempt of selectAttempts) {
+        try {
+            const result = await runAttempt(attempt);
+            if (result) return result;
+        } catch (e) {
+            lastErr = e;
+            const fallbacks = buildAhrefsSelectAttemptsFromError(
+                attempt.select,
+                attempt.order_by,
+                e?.message || String(e)
+            );
+            for (const fb of fallbacks) {
+                try {
+                    const merged = { ...attempt, ...fb };
+                    const result = await runAttempt(merged);
+                    if (result) return result;
+                } catch (e2) {
+                    lastErr = e2;
+                }
+            }
+        }
+    }
+
+    throw lastErr;
 }
 
 /**

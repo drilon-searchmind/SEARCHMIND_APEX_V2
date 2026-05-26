@@ -262,9 +262,23 @@ function formatDiagnosticDetail(detail) {
     }
 }
 
-function AuditDeveloperDiagnosticsPanel({ diagnostics }) {
+function hasAhrefsFetchErrors(items) {
+    return items.some(
+        (row) =>
+            row.category === "data_fetch" &&
+            String(row.source || "").startsWith("ahrefs")
+    );
+}
+
+function AuditDeveloperDiagnosticsPanel({
+    diagnostics,
+    auditId,
+    onRerunWithRepairs,
+    repairLoading = false,
+}) {
     const items = Array.isArray(diagnostics?.items) ? diagnostics.items : [];
     const hasItems = items.length > 0;
+    const canRepairAhrefs = hasAhrefsFetchErrors(items) && auditId && onRerunWithRepairs;
 
     return (
         <section className="mt-8 rounded-xl border border-slate-300 bg-slate-950 text-slate-100 overflow-hidden">
@@ -304,6 +318,26 @@ function AuditDeveloperDiagnosticsPanel({ diagnostics }) {
                                 </>
                             ) : null}
                         </p>
+                    ) : null}
+
+                    {canRepairAhrefs ? (
+                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+                            <p className="text-sm text-amber-100/90 mb-3">
+                                Ahrefs returned column or parameter errors. Re-run fetches Ahrefs
+                                using repairs suggested from those errors (automatic mapping +
+                                Claude), then re-runs SEO and cross-channel analyses.
+                            </p>
+                            <button
+                                type="button"
+                                disabled={repairLoading}
+                                onClick={onRerunWithRepairs}
+                                className="px-4 py-2 text-sm font-medium rounded-lg bg-amber-500 text-slate-950 hover:bg-amber-400 disabled:opacity-50"
+                            >
+                                {repairLoading
+                                    ? "Re-running…"
+                                    : "Re-run with suggested changes"}
+                            </button>
+                        </div>
                     ) : null}
 
                     {hasItems ? (
@@ -383,9 +417,44 @@ export default function AuditReportClient() {
     const [serverLoading, setServerLoading] = useState(false);
     const [detailTab, setDetailTab] = useState("all");
     const [followUpOpen, setFollowUpOpen] = useState(false);
+    const [repairLoading, setRepairLoading] = useState(false);
 
     const handleCloseFollowUp = () => {
         setFollowUpOpen(false);
+    };
+
+    const handleRerunWithRepairs = async () => {
+        if (!mongoAudit || !auditId || !serverPayload) return;
+        setRepairLoading(true);
+        try {
+            const res = await fetch(
+                `/api/dashboard-audit/${encodeURIComponent(auditId)}/rerun-with-repairs`,
+                { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }
+            );
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || "Repair rerun failed");
+            setServerPayload((prev) =>
+                prev
+                    ? {
+                          ...prev,
+                          report: data.report,
+                      }
+                    : prev
+            );
+            showToast({
+                message: `Re-ran ${data.rerunCount ?? 0} analysis(es) with Ahrefs repairs`,
+                type: "success",
+                position: "top-center",
+            });
+        } catch (e) {
+            showToast({
+                message: e?.message || "Repair rerun failed",
+                type: "error",
+                position: "top-center",
+            });
+        } finally {
+            setRepairLoading(false);
+        }
     };
 
     const mongoAudit = Boolean(auditId && isMongoObjectIdString(auditId));
@@ -734,7 +803,14 @@ export default function AuditReportClient() {
                     ) : null}
 
                     {showDeveloperDiagnostics && developerDiagnostics ? (
-                        <AuditDeveloperDiagnosticsPanel diagnostics={developerDiagnostics} />
+                        <AuditDeveloperDiagnosticsPanel
+                            diagnostics={developerDiagnostics}
+                            auditId={mongoAudit ? payload?.auditId : null}
+                            onRerunWithRepairs={
+                                mongoAudit ? handleRerunWithRepairs : undefined
+                            }
+                            repairLoading={repairLoading}
+                        />
                     ) : null}
                 </>
             )}

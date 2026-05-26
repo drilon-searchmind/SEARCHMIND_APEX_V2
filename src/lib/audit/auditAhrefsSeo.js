@@ -1,5 +1,6 @@
 import {
     ahrefsGet,
+    ahrefsGetWithSelectAttempts,
     ahrefsCountryFromTarget,
     ahrefsReportDate,
     ahrefsTargetFromGscProperty,
@@ -44,36 +45,31 @@ export function shouldFetchAhrefsForAudit(selections, settings) {
  * @param {Record<string, string|number|undefined>} base — target, date, mode, protocol, country
  * @param {string|undefined} dateCompared
  */
-async function fetchOrganicKeywordsForAudit(base, dateCompared) {
+async function fetchOrganicKeywordsForAudit(base, dateCompared, repairHint) {
     const selectCore =
         "keyword,volume,best_position,sum_traffic,best_position_url,keyword_difficulty,is_transactional,is_commercial";
     const selectWithDiff = dateCompared ? `${selectCore},best_position_diff` : selectCore;
 
     /** @type {Array<{ select: string, order_by: string, date_compared?: string }>} */
-    const attempts = [
+    const attempts = [];
+    if (repairHint?.select) {
+        attempts.push({
+            select: repairHint.select,
+            order_by: repairHint.order_by || "volume:desc",
+            date_compared: dateCompared,
+        });
+    }
+    attempts.push(
         { select: selectWithDiff, order_by: "volume:desc", date_compared: dateCompared },
         { select: selectCore, order_by: "volume:desc" },
-        { select: "keyword,volume,best_position,sum_traffic", order_by: "volume:desc" },
-    ];
+        { select: "keyword,volume,best_position,sum_traffic", order_by: "volume:desc" }
+    );
 
-    let lastErr;
-    for (const extra of attempts) {
-        if (!extra.date_compared && extra.select.includes("best_position_diff")) continue;
-        try {
-            /** @type {Record<string, string|number>} */
-            const params = {
-                ...base,
-                select: extra.select,
-                limit: 100,
-                order_by: extra.order_by,
-            };
-            if (extra.date_compared) params.date_compared = extra.date_compared;
-            return await ahrefsGet("/site-explorer/organic-keywords", params);
-        } catch (e) {
-            lastErr = e;
-        }
-    }
-    throw lastErr;
+    return ahrefsGetWithSelectAttempts(
+        "/site-explorer/organic-keywords",
+        { ...base, limit: 100 },
+        attempts.filter((a) => a.date_compared || !a.select.includes("best_position_diff"))
+    );
 }
 
 /**
@@ -82,9 +78,11 @@ async function fetchOrganicKeywordsForAudit(base, dateCompared) {
  *   startDate: string,
  *   endDate: string,
  *   comparisonDateRange?: { startDate: string, endDate: string }|null,
+ *   repairHints?: Record<string, { select: string, order_by?: string }>,
  * }} opts
  */
 export async function fetchAhrefsAuditBundle(opts) {
+    const repairHints = opts.repairHints || {};
     const target = ahrefsTargetFromGscProperty(opts.googleSearchConsoleProperty);
     if (!target) {
         return { included: false, reason: "Could not derive Ahrefs target from Google Search Console property" };
@@ -130,19 +128,39 @@ export async function fetchAhrefsAuditBundle(opts) {
     }
 
     try {
-        const kw = await fetchOrganicKeywordsForAudit(base, dateCompared);
+        const kw = await fetchOrganicKeywordsForAudit(
+            base,
+            dateCompared,
+            repairHints.organic_keywords
+        );
         out.organicKeywords = trimAhrefsRows(kw, 100);
     } catch (e) {
         errors.push({ section: "organic_keywords", message: e?.message || String(e) });
     }
 
     try {
-        const pages = await ahrefsGet("/site-explorer/top-pages", {
-            ...base,
-            select: "url,sum_traffic,referring_domains,top_keyword,volume",
-            limit: 40,
-            order_by: "sum_traffic:desc",
-        });
+        const topPagesAttempts = [];
+        if (repairHints.top_pages?.select) {
+            topPagesAttempts.push({
+                select: repairHints.top_pages.select,
+                order_by: repairHints.top_pages.order_by || "sum_traffic:desc",
+            });
+        }
+        topPagesAttempts.push(
+            {
+                select: "url,sum_traffic,referring_domains,top_keyword,top_keyword_volume",
+                order_by: "sum_traffic:desc",
+            },
+            {
+                select: "url,sum_traffic,referring_domains,top_keyword",
+                order_by: "sum_traffic:desc",
+            }
+        );
+        const pages = await ahrefsGetWithSelectAttempts(
+            "/site-explorer/top-pages",
+            { ...base, limit: 40 },
+            topPagesAttempts
+        );
         out.topPages = trimAhrefsRows(pages, 40);
     } catch (e) {
         errors.push({ section: "top_pages", message: e?.message || String(e) });

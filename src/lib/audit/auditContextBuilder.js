@@ -98,6 +98,7 @@ function googleAdsEnvReady() {
  *   comparisonDateRange?: { startDate: string, endDate: string }|null,
  *   selections: unknown[],
  *   pageSnapshot?: Record<string, unknown>,
+ *   ahrefsRepairHints?: Record<string, { select: string, order_by?: string }>,
  * }} opts
  */
 export async function buildAuditContext(opts) {
@@ -109,6 +110,7 @@ export async function buildAuditContext(opts) {
         comparisonDateRange = null,
         selections = [],
         pageSnapshot = {},
+        ahrefsRepairHints = null,
     } = opts;
 
     const settings = /** @type {Record<string, unknown>} */ (
@@ -296,6 +298,7 @@ export async function buildAuditContext(opts) {
                 startDate,
                 endDate,
                 comparisonDateRange,
+                repairHints: ahrefsRepairHints || undefined,
             });
             ctx.ahrefsAnalystNote = AUDIT_AHREFS_ANALYST_INSTRUCTION;
         } catch (e) {
