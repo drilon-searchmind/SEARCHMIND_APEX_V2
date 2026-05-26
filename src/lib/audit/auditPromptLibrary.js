@@ -4,6 +4,7 @@ import {
     ensureAuditPromptLibrary,
 } from "./auditPromptDb";
 
+/*
 export const AUDIT_OUTPUT_SCHEMA_INSTRUCTION = `Return STRICT JSON only — your entire reply must be exactly one JSON object. No markdown fences. No preamble or closing text (never start with "Looking at", "Here is", "Based on", etc.).
 
 CONTENT RULES (important):
@@ -43,6 +44,9 @@ Required JSON shape (same keys always; string values may be long):
 Also include "health_score" (integer 0-100) and "grade" (A-F) at the root. Score must reflect THIS analysis only.
 Rubric from findings: mostly critical/high → 25-45; several high → 45-58; mixed medium → 58-72; few/low issues → 72-88; strong with opportunities → 85-95.
 All narrative text must be in English. Never invent metrics not present in the supplied data.`;
+*/
+
+export const AUDIT_OUTPUT_SCHEMA_INSTRUCTION = ``;
 
 /** @returns {string} */
 export function getAuditOutputSchemaInstruction() {
