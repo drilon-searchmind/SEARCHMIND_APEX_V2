@@ -1,6 +1,11 @@
 // src/lib/mergedSourcesApi.js
 import { shopifyqlQuery } from './shopifyApi';
 import {
+    appendShopifyOnlineStoreFilter,
+    escapeShopifyQlString,
+    shopifySalesWhereClause,
+} from './shopifyQlFilters';
+import {
     fetchBillingCountryUnionForSelectedMarkets,
     fetchAdSpendCountryFiltersForSelectedMarkets,
 } from './shopifyMarketsApi';
@@ -90,7 +95,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 settings.customerStoreValutaCode &&
                 (hasInclude || hasExclude);
 
-            const escape = (c) => String(c).replace(/'/g, "''");
+            const escape = escapeShopifyQlString;
             const whereParts = [];
             if (hasBillingFilter) {
                 const includeClause = hasInclude
@@ -130,10 +135,12 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 }
             }
 
+            appendShopifyOnlineStoreFilter(whereParts, settings);
+
             if (emptyShopifyNoMarketCountries) {
                 shopifyDaily = [];
             } else {
-            const whereClause = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '';
+            const whereClause = shopifySalesWhereClause(whereParts);
 
             const shopifyql = `
                     FROM sales 

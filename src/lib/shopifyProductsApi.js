@@ -1,4 +1,5 @@
 import { getCurrencyConversionTable, conversionRateToDkk } from './currencyConversionTable';
+import { combineShopifyOrderSearchQuery } from './shopifyQlFilters';
 
 /**
  * Fetch inventory stock and value for a list of Shopify product IDs.
@@ -110,7 +111,7 @@ function orderMatchesBillingFilter(billingCountry, filter) {
  * @param {{ include: string[], exclude: string[] }} [billingFilter] - Optional billing country filter
  * @returns {Promise<Map<string, object>>}
  */
-async function fetchOrdersChunk(endpoint, accessToken, chunkStart, chunkEnd, conversionRate, billingFilter = { include: [], exclude: [] }) {
+async function fetchOrdersChunk(endpoint, accessToken, chunkStart, chunkEnd, conversionRate, billingFilter = { include: [], exclude: [] }, settings = null) {
     const query = `query getOrders($query: String!, $cursor: String) {
         orders(first: 250, query: $query, after: $cursor) {
             edges {
@@ -144,7 +145,10 @@ async function fetchOrdersChunk(endpoint, accessToken, chunkStart, chunkEnd, con
         }
     }`;
 
-    const q = `created_at:>="${chunkStart}" AND created_at:<="${chunkEnd}"`;
+    const q = combineShopifyOrderSearchQuery(
+        `created_at:>="${chunkStart}" AND created_at:<="${chunkEnd}"`,
+        settings
+    );
     const products = new Map();
     let cursor = null;
     let hasNext = true;
@@ -338,7 +342,15 @@ export async function fetchShopifyProductMetrics(settings, startDate, endDate, o
         const chunks = getDateChunks(startDate, endDate, 6);
         const chunkResults = await Promise.all(
             chunks.map(({ start: chunkStart, end: chunkEnd }) =>
-                fetchOrdersChunk(endpoint, accessToken, chunkStart, chunkEnd, conversionRate, hasBillingFilter ? billingFilter : { include: [], exclude: [] })
+                fetchOrdersChunk(
+                    endpoint,
+                    accessToken,
+                    chunkStart,
+                    chunkEnd,
+                    conversionRate,
+                    hasBillingFilter ? billingFilter : { include: [], exclude: [] },
+                    settings
+                )
             )
         );
 

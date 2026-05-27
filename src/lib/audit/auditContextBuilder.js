@@ -138,6 +138,7 @@ export async function buildAuditContext(opts) {
             revenueType: settings.customerRevenueType || "total_sales",
             metricPreference: settings.metricPreference || "ROAS/POAS",
             fetchCogsFromStore: settings.fetchCogsFromStore === true,
+            shopifyOnlineStoreOnly: settings.shopifyOnlineStoreOnly === true,
             storeCurrency: settings.customerStoreValutaCode || "DKK",
         },
         serverEnrichment,

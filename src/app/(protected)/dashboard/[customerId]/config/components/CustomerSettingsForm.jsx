@@ -217,6 +217,13 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
                         checked={form.shopifyMarketsEnabled}
                         onChange={onChange}
                     />
+                    <FormCheckbox
+                        id="shopifyOnlineStoreOnly"
+                        name="shopifyOnlineStoreOnly"
+                        label="Online Store only — exclude POS and other sales channels from Shopify revenue"
+                        checked={form.shopifyOnlineStoreOnly}
+                        onChange={onChange}
+                    />
                     {shopifyMarketsOn ? (
                         <p className="col-span-full text-xs text-gray-600 leading-snug">
                             Shopify Analytics revenue uses the full store (billing-country include/exclude below is ignored).

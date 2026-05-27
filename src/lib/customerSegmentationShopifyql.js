@@ -1,4 +1,8 @@
 import { totalAdSpendFromMerged, channelSpendTotalsFromMerged } from '@/lib/mergeAdSpendDaily';
+import {
+    appendShopifyOnlineStoreFilter,
+    shopifySalesWhereClause,
+} from '@/lib/shopifyQlFilters';
 
 /**
  * Fetch new vs returning customer counts via ShopifyQL using the built-in
@@ -34,9 +38,13 @@ export async function fetchCustomerSegmentationShopifyql(customerId, startDate, 
 
     // ShopifyQL query using new_or_returning_customer from sales dataset
     // Based on: FROM sales SHOW customers WHERE new_or_returning_customer IS NOT NULL GROUP BY new_or_returning_customer
+    const whereParts = ['new_or_returning_customer IS NOT NULL'];
+    appendShopifyOnlineStoreFilter(whereParts, settings);
+    const whereClause = shopifySalesWhereClause(whereParts);
+
     const shopifyql = `FROM sales
   SHOW customers
-  WHERE new_or_returning_customer IS NOT NULL
+  ${whereClause}
   GROUP BY new_or_returning_customer
   SINCE ${startDate} UNTIL ${endDate}
   ORDER BY new_or_returning_customer ASC
