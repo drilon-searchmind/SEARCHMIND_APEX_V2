@@ -63,7 +63,7 @@ export async function GET(request, { params }) {
     }
 
     // Rule: parent-property, daily-overview, and performance-dashboard need daily breakdown for Facebook (PS cost per day, Ad Spend Allocation chart)
-    const dailyBreakdown = source === 'parent-property' || source === 'daily-overview' || source === 'performance-dashboard';
+    const dailyBreakdown = source === 'parent-property' || source === 'daily-overview' || source === 'performance-dashboard' || source === 'markets-overview';
 
     try {
         // Fetch customer settings

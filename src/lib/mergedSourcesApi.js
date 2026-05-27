@@ -31,6 +31,7 @@ import { AD_SPEND_CHANNELS } from './mergeAdSpendDaily';
  * @param {Array<{ shopifyqlMarketId: string, handle?: string }>} [options.shopifyMarketsSelection] - When set and shopifyMarketsEnabled: restrict sales to the union of each market's region countries via ShopifyQL `billing_country`. Omit for all markets.
  * @param {boolean} [options.shopifyMarketFilterAdSpend] - When true and `shopifyMarketsSelection` is set: filter Meta, Google, Snapchat, and Reddit spend to the same market countries. When false/omitted (default), ad spend ignores market filter.
  * @param {string[]} [options.excludeAdSpendPlatforms] - e.g. `['facebook','google']` — skip fetching those platforms (empty daily rows).
+ * @param {boolean} [options.skipShopifyFetch] - When true, skip Shopify/WooCommerce/Magento revenue (ad platforms only; used by markets overview).
  * @returns {Promise<object>} - { shopifyDaily, facebookDaily, googleDaily, ... }
  */
 
@@ -54,7 +55,12 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
     const customerType = settings.customerType || 'Shopify'; // Default to Shopify for backward compatibility
 
     try {
-        if (customerType === 'Shopify' && settings.shopifyUrl && settings.shopifyApiPassword) {
+        if (
+            !options.skipShopifyFetch &&
+            customerType === 'Shopify' &&
+            settings.shopifyUrl &&
+            settings.shopifyApiPassword
+        ) {
             const fetchCogs = settings.fetchCogsFromStore === true;
             const showFields = fetchCogs 
                 ? 'orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales, cost_of_goods_sold'
