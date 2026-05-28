@@ -1,7 +1,12 @@
 // GET /api/parent-customers/[id]/aggregated
 // Fetches parent + all children's merged data in one round-trip (server-side parallel fetches).
 // Eliminates client waterfall and reduces network round-trips from ~13 to 1.
+import connectToDatabase from "@root/lib/mongodb";
 import { getParentCustomerById } from "../../../../../../lib/parentCustomerOperations";
+import {
+    getCustomerFiltersByParentId,
+    googleAdsFiltersDocToAggregatedOverrides,
+} from "@/lib/customerFiltersDb";
 import { fetchMergedSources } from "@/lib/mergedSourcesApi";
 import { isDemoCustomerId, mergeDemoCustomerDocument } from "@/lib/demoCustomer";
 import { getDemoMergedSourcesForRange } from "@/lib/demoMergedSources";
@@ -10,6 +15,17 @@ import {
     parentChildDailyPayloadFromMerged,
     parentRowAdspendFromMerged,
 } from "@/lib/parentPropertyAdSpend";
+import { normalizeMongoId } from "@/lib/parentPropertyGoogleAdsCampaignOverrides";
+
+function resolveGoogleAdsCampaignOverride(overrides, customerId) {
+    const id = normalizeMongoId(customerId);
+    if (!id || !overrides || typeof overrides !== "object") return null;
+    if (overrides[id]) return overrides[id];
+    for (const [key, value] of Object.entries(overrides)) {
+        if (normalizeMongoId(key) === id) return value;
+    }
+    return null;
+}
 import {
     channelSpendTotalsFromMerged,
     totalAdSpendFromMerged,
@@ -205,6 +221,13 @@ export async function GET(request, { params }) {
             }
         }
 
+        await connectToDatabase();
+        const customerFiltersDoc = await getCustomerFiltersByParentId(parentId);
+        const googleAdsCampaignFilterEnabled =
+            customerFiltersDoc?.googleAds?.filterEnabled === true;
+        const googleAdsCampaignOverrides =
+            googleAdsFiltersDocToAggregatedOverrides(customerFiltersDoc);
+
         if (children.length === 0) {
             const emptyResponse = {
                 parent: { _id: parent._id, name: parent.name, customers: [] },
@@ -262,6 +285,22 @@ export async function GET(request, { params }) {
                 spendOv.exclude.length > 0
             ) {
                 mergeOptsBase.excludeAdSpendPlatforms = normalizeAdSpendExcludeList(spendOv.exclude);
+            }
+
+            if (googleAdsCampaignFilterEnabled) {
+                const campaignOv = resolveGoogleAdsCampaignOverride(
+                    googleAdsCampaignOverrides,
+                    cust._id
+                );
+                if (
+                    campaignOv &&
+                    Array.isArray(campaignOv.exclude) &&
+                    campaignOv.exclude.length > 0
+                ) {
+                    mergeOptsBase.googleAdsExcludedCampaignIds = campaignOv.exclude
+                        .map((id) => String(id).trim())
+                        .filter(Boolean);
+                }
             }
 
             const demo = isDemoCustomerId(String(cust._id));

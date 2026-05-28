@@ -6,8 +6,12 @@ import FormButton from "@/components/form/FormButton";
 import Spinner from "@/components/ui/Spinner";
 import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
 import { adSpendChannelsForShopifyMarketsFilterUi } from "@/lib/mergeAdSpendDaily";
+import { isValidIntegrationId } from "@/lib/customerServiceIntegrations";
+import { normalizeMongoId } from "@/lib/parentPropertyGoogleAdsCampaignOverrides";
 import ParentChildShopifyMarketsActions from "./ParentChildShopifyMarketsActions";
 import ParentChildAdSpendPlatformsActions from "./ParentChildAdSpendPlatformsActions";
+import ParentChildGoogleAdsCampaignsActions from "./ParentChildGoogleAdsCampaignsActions";
+import ParentGoogleAdsCampaignFilterBar from "./ParentGoogleAdsCampaignFilterBar";
 
 function formatDkk(n) {
     return (n ?? 0).toLocaleString("da-DK", { style: "currency", currency: "DKK" });
@@ -36,6 +40,12 @@ export default function ParentChildPropertiesTable({
     onApplySpendForChild,
     onSpendMenuOpen,
     fetchDisabled = false,
+    googleCampaignFilterEnabled = false,
+    onGoogleCampaignFilterEnabledChange,
+    groupGoogleCampaignExcludedDraft = {},
+    appliedDateRange,
+    onApplyGoogleCampaignsForChild,
+    onGoogleCampaignsMenuOpen,
 }) {
     const channelColLabel = (ch) => {
         if (ch.id === "facebook") return "Meta Adspend";
@@ -54,10 +64,49 @@ export default function ParentChildPropertiesTable({
         visibleAdSpendChannels.length > 0 ? visibleAdSpendChannels.length : 2;
     const colSpan = 7 + channelColCount;
 
+    const showGoogleCampaignCog = (row) => {
+        if (!googleCampaignFilterEnabled) return false;
+        const childDoc = childCustomers.find((c) => String(c._id) === String(row._id));
+        return isValidIntegrationId(childDoc?.CustomerSettings?.googleAdsCustomerId);
+    };
+
+    const renderChannelCell = (row, ch) => {
+        const spend = formatDkk(getRowChannelSpend(row, ch.id));
+        const isGoogle = ch.id === "google";
+        return (
+            <td key={ch.id} className="px-3 py-2 whitespace-nowrap">
+                <span className="inline-flex items-center gap-1">
+                    {spend}
+                    {isGoogle && showGoogleCampaignCog(row) && (
+                        <ParentChildGoogleAdsCampaignsActions
+                            customerId={normalizeMongoId(row._id)}
+                            propertyLabel={row.customerName}
+                            startDate={appliedDateRange?.startDate}
+                            endDate={appliedDateRange?.endDate}
+                            excludedCampaigns={
+                                groupGoogleCampaignExcludedDraft[normalizeMongoId(row._id)] || {}
+                            }
+                            onApplyCampaigns={(childId, excludedCampaignIds) =>
+                                onApplyGoogleCampaignsForChild?.(childId, excludedCampaignIds)
+                            }
+                            onMenuWillOpen={() => onGoogleCampaignsMenuOpen?.(row._id)}
+                            fetchDisabled={fetchDisabled}
+                        />
+                    )}
+                </span>
+            </td>
+        );
+    };
+
     return (
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col gap-2 mb-4">
                 <h3 className="text-lg font-semibold">Child Properties</h3>
+                <ParentGoogleAdsCampaignFilterBar
+                    enabled={googleCampaignFilterEnabled}
+                    onEnabledChange={onGoogleCampaignFilterEnabledChange}
+                    disabled={fetchDisabled}
+                />
             </div>
             {loading ? (
                 <div className="flex justify-center items-center min-h-[120px]">
@@ -135,21 +184,48 @@ export default function ParentChildPropertiesTable({
                                             {formatDkk(row.adspend)}
                                         </td>
                                         {visibleAdSpendChannels.length > 0
-                                            ? visibleAdSpendChannels.map((ch) => (
-                                                  <td
-                                                      key={ch.id}
-                                                      className="px-3 py-2 whitespace-nowrap"
-                                                  >
-                                                      {formatDkk(getRowChannelSpend(row, ch.id))}
-                                                  </td>
-                                              ))
+                                            ? visibleAdSpendChannels.map((ch) =>
+                                                  renderChannelCell(row, ch)
+                                              )
                                             : (
                                                 <>
                                                     <td className="px-3 py-2 whitespace-nowrap">
                                                         {formatDkk(row.facebookAdspend)}
                                                     </td>
                                                     <td className="px-3 py-2 whitespace-nowrap">
-                                                        {formatDkk(row.googleAdspend)}
+                                                        <span className="inline-flex items-center gap-1">
+                                                            {formatDkk(row.googleAdspend)}
+                                                            {showGoogleCampaignCog(row) && (
+                                                                <ParentChildGoogleAdsCampaignsActions
+                                                                    customerId={normalizeMongoId(row._id)}
+                                                                    propertyLabel={row.customerName}
+                                                                    startDate={
+                                                                        appliedDateRange?.startDate
+                                                                    }
+                                                                    endDate={appliedDateRange?.endDate}
+                                                                    excludedCampaigns={
+                                                                        groupGoogleCampaignExcludedDraft[
+                                                                            normalizeMongoId(row._id)
+                                                                        ] || {}
+                                                                    }
+                                                                    onApplyCampaigns={(
+                                                                        childId,
+                                                                        excludedCampaignIds
+                                                                    ) =>
+                                                                        onApplyGoogleCampaignsForChild?.(
+                                                                            childId,
+                                                                            excludedCampaignIds
+                                                                        )
+                                                                    }
+                                                                    onMenuWillOpen={() =>
+                                                                        onGoogleCampaignsMenuOpen?.(
+                                                                            row._id
+                                                                        )
+                                                                    }
+                                                                    fetchDisabled={fetchDisabled}
+                                                                />
+                                                            )}
+                                                        </span>
                                                     </td>
                                                 </>
                                             )}

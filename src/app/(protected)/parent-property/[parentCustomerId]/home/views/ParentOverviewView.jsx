@@ -112,6 +112,11 @@ export default function ParentOverviewView({ sharedData }) {
         handleGroupSpendToggleDraft,
         handleApplySpendForChild,
         handleSpendMenuOpen,
+        googleCampaignFilterEnabled,
+        handleGoogleCampaignFilterEnabledChange,
+        groupGoogleCampaignExcludedDraft,
+        handleApplyGoogleCampaignsForChild,
+        handleGoogleCampaignsMenuOpen,
     } = sharedData || {};
 
     const [viewMode, setViewMode] = useState("standard");
@@ -627,6 +632,12 @@ export default function ParentOverviewView({ sharedData }) {
                         onApplySpendForChild={handleApplySpendForChild}
                         onSpendMenuOpen={handleSpendMenuOpen}
                         fetchDisabled={loading}
+                        googleCampaignFilterEnabled={googleCampaignFilterEnabled}
+                        onGoogleCampaignFilterEnabledChange={handleGoogleCampaignFilterEnabledChange}
+                        groupGoogleCampaignExcludedDraft={groupGoogleCampaignExcludedDraft}
+                        appliedDateRange={appliedDateRange}
+                        onApplyGoogleCampaignsForChild={handleApplyGoogleCampaignsForChild}
+                        onGoogleCampaignsMenuOpen={handleGoogleCampaignsMenuOpen}
                     />
                 </>
             ) : (

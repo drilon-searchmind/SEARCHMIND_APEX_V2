@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { showToast } from "@/components/ui/ToastProvider";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import { useParams } from "next/navigation";
@@ -24,6 +25,8 @@ import {
 import { buildParentDailyRows } from "./utils/buildParentDailyRows";
 import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
 import { buildParentShopifyMarketOverridesJson, buildParentAdSpendPlatformOverridesJson } from "@/lib/parentPropertyShopifyMarketOverrides";
+import { normalizeMongoId } from "@/lib/parentPropertyGoogleAdsCampaignOverrides";
+import { normalizeGoogleAdsCampaignId } from "@/lib/googleAdsCampaignIdUtils";
 import ParentChildPropertiesTable from "./components/ParentChildPropertiesTable";
 import {
     buildDefaultExcludedAdSpendPlatformsForShopifyMarkets,
@@ -97,6 +100,16 @@ export default function ParentPropertyHome() {
     /** Per Shopify Markets child: excluded platform ids (draft / applied) */
     const [groupSpendExcludedDraft, setGroupSpendExcludedDraft] = useState({});
     const [groupSpendExcludedApplied, setGroupSpendExcludedApplied] = useState({});
+    /** Google Ads campaign filter (group view only); off by default */
+    const [googleCampaignFilterEnabled, setGoogleCampaignFilterEnabled] = useState(false);
+    const [groupGoogleCampaignExcludedDraft, setGroupGoogleCampaignExcludedDraft] = useState({});
+    const [groupGoogleCampaignExcludedApplied, setGroupGoogleCampaignExcludedApplied] = useState({});
+    const softAggregatedRefetchRef = useRef(false);
+    const [campaignFilterRevision, setCampaignFilterRevision] = useState(0);
+    /** Sync refs so aggregated fetch URL always sees latest campaign exclusions (avoids stale closure). */
+    const googleCampaignFilterEnabledRef = useRef(false);
+    const campaignExclusionsAppliedRef = useRef({});
+    const aggregatedFetchGenerationRef = useRef(0);
 
     useEffect(() => {
         setGroupMarketCatalogs({});
@@ -107,6 +120,133 @@ export default function ParentPropertyHome() {
         setGroupSpendExcludedDraft({});
         setGroupSpendExcludedApplied({});
     }, [parentCustomerId]);
+
+    const applyGoogleAdsFiltersFromServer = useCallback((ga) => {
+        const nextApplied = ga?.excludedByChildId || {};
+        const nextEnabled = ga?.filterEnabled === true;
+        campaignExclusionsAppliedRef.current = nextApplied;
+        googleCampaignFilterEnabledRef.current = nextEnabled;
+        setGroupGoogleCampaignExcludedApplied(nextApplied);
+        setGroupGoogleCampaignExcludedDraft(nextApplied);
+        setGoogleCampaignFilterEnabled(nextEnabled);
+    }, []);
+
+    /** Save exclusions for one child Customer (not the parent). */
+    const persistGoogleAdsChildFilters = useCallback(
+        async (childCustomerId, excludedCampaignIds, filterEnabled) => {
+            const cid = normalizeMongoId(childCustomerId);
+            if (!cid) throw new Error("Invalid child property id");
+
+            const res = await fetch(
+                `/api/parent-customers/${parentCustomerId}/customer-filters`,
+                {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "same-origin",
+                    body: JSON.stringify({
+                        googleAds: {
+                            filterEnabled: filterEnabled === true,
+                            childCustomerId: cid,
+                            excludedCampaignIds: Array.isArray(excludedCampaignIds)
+                                ? excludedCampaignIds
+                                : [],
+                        },
+                    }),
+                }
+            );
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(body.error || `Save filters (${res.status})`);
+            }
+            applyGoogleAdsFiltersFromServer(body.googleAds);
+            return body;
+        },
+        [parentCustomerId, applyGoogleAdsFiltersFromServer]
+    );
+
+    const persistGoogleAdsFilterEnabledOnly = useCallback(
+        async (filterEnabled) => {
+            const res = await fetch(
+                `/api/parent-customers/${parentCustomerId}/customer-filters`,
+                {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "same-origin",
+                    body: JSON.stringify({
+                        googleAds: { filterEnabled: filterEnabled === true },
+                    }),
+                }
+            );
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(body.error || `Save filter toggle (${res.status})`);
+            }
+            applyGoogleAdsFiltersFromServer(body.googleAds);
+            return body;
+        },
+        [parentCustomerId, applyGoogleAdsFiltersFromServer]
+    );
+
+    useEffect(() => {
+        if (!parentCustomerId) return undefined;
+        let cancelled = false;
+
+        (async () => {
+            try {
+                const res = await fetch(
+                    `/api/parent-customers/${parentCustomerId}/customer-filters`,
+                    { credentials: "same-origin" }
+                );
+                const body = await res.json().catch(() => ({}));
+                if (cancelled) return;
+                if (!res.ok) return;
+
+                const ga = body.googleAds || {};
+                const excludedByChildId = ga.excludedByChildId || {};
+                const filterEnabled = ga.filterEnabled === true;
+
+                campaignExclusionsAppliedRef.current = excludedByChildId;
+                googleCampaignFilterEnabledRef.current = filterEnabled;
+                setGroupGoogleCampaignExcludedApplied(excludedByChildId);
+                setGroupGoogleCampaignExcludedDraft(excludedByChildId);
+                setGoogleCampaignFilterEnabled(filterEnabled);
+            } catch {
+                /* keep defaults */
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [parentCustomerId]);
+
+    useEffect(() => {
+        googleCampaignFilterEnabledRef.current = googleCampaignFilterEnabled;
+    }, [googleCampaignFilterEnabled]);
+
+    useEffect(() => {
+        campaignExclusionsAppliedRef.current = groupGoogleCampaignExcludedApplied;
+    }, [groupGoogleCampaignExcludedApplied]);
+
+    const handleGoogleCampaignFilterEnabledChange = useCallback(
+        async (enabled) => {
+            const nextEnabled = enabled === true;
+            googleCampaignFilterEnabledRef.current = nextEnabled;
+            setGoogleCampaignFilterEnabled(nextEnabled);
+            try {
+                await persistGoogleAdsFilterEnabledOnly(nextEnabled);
+                softAggregatedRefetchRef.current = true;
+                setCampaignFilterRevision((n) => n + 1);
+            } catch (e) {
+                showToast({
+                    message: e?.message || "Could not save campaign filter setting",
+                    type: "error",
+                    position: "top-center",
+                });
+            }
+        },
+        [persistGoogleAdsFilterEnabledOnly]
+    );
 
     useEffect(() => {
         if (!Array.isArray(childCustomers) || childCustomers.length === 0) return;
@@ -282,20 +422,72 @@ export default function ParentPropertyHome() {
         [groupSpendExcludedApplied]
     );
 
+    const handleApplyGoogleCampaignsForChild = useCallback(
+        async (childId, excludedCampaignIds) => {
+            const cid = normalizeMongoId(childId);
+            if (!cid) return;
+
+            const ids = Array.isArray(excludedCampaignIds)
+                ? excludedCampaignIds
+                      .map((id) => normalizeGoogleAdsCampaignId(id))
+                      .filter(Boolean)
+                : [];
+
+            const filterEnabled =
+                googleCampaignFilterEnabledRef.current === true || ids.length > 0;
+
+            try {
+                await persistGoogleAdsChildFilters(cid, ids, filterEnabled);
+                softAggregatedRefetchRef.current = true;
+                setCampaignFilterRevision((n) => n + 1);
+                showToast({
+                    message: "Campaign filters saved for this property. Updating adspend…",
+                    position: "top-center",
+                });
+            } catch (e) {
+                showToast({
+                    message: e?.message || "Could not save campaign filters",
+                    type: "error",
+                    position: "top-center",
+                });
+            }
+        },
+        [persistGoogleAdsChildFilters]
+    );
+
+    const handleGoogleCampaignsMenuOpen = useCallback(
+        (childId) => {
+            const cid = normalizeMongoId(childId);
+            setGroupGoogleCampaignExcludedDraft((prev) => ({
+                ...prev,
+                [cid]: { ...(groupGoogleCampaignExcludedApplied[cid] || {}) },
+            }));
+        },
+        [groupGoogleCampaignExcludedApplied]
+    );
+
     // Streaming aggregated fetch: parent + all children's merged data with progressive progress updates.
     useEffect(() => {
-        setLoading(true);
+        const softRefetch = softAggregatedRefetchRef.current;
+        softAggregatedRefetchRef.current = false;
+
+        if (!softRefetch) {
+            setLoading(true);
+            setLoadingPhase("parent");
+            setProgressItems([]);
+            setOverlayFading(false);
+        }
         setChartLoading(true);
         setError(null);
-        setLoadingPhase("parent");
-        setProgressItems([]);
-        setOverlayFading(false);
+
+        const fetchGeneration = ++aggregatedFetchGenerationRef.current;
+        const abortController = new AbortController();
 
         (async () => {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
                 const url = `${baseUrl}/api/parent-customers/${parentCustomerId}/aggregated?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&comparisonMethod=${encodeURIComponent(comparisonMethod)}&stream=1${parentAggregatedQueryExtras}`;
-                const res = await fetch(url);
+                const res = await fetch(url, { signal: abortController.signal });
                 if (!res.ok) throw new Error("Failed to fetch parent property data");
                 if (!res.body) throw new Error("Streaming not supported");
 
@@ -306,12 +498,14 @@ export default function ParentPropertyHome() {
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
+                    if (fetchGeneration !== aggregatedFetchGenerationRef.current) return;
                     buffer += decoder.decode(value, { stream: true });
                     const lines = buffer.split("\n");
                     buffer = lines.pop() || "";
 
                     for (const line of lines) {
                         if (!line.trim()) continue;
+                        if (fetchGeneration !== aggregatedFetchGenerationRef.current) return;
                         try {
                             const event = JSON.parse(line);
                             if (event.type === "start") {
@@ -331,6 +525,8 @@ export default function ParentPropertyHome() {
                             } else if (event.type === "aggregating") {
                                 setLoadingPhase("aggregating");
                             } else if (event.type === "complete" || (event.parent && event.rows !== undefined)) {
+                                if (fetchGeneration !== aggregatedFetchGenerationRef.current) return;
+
                                 const parent = { _id: event.parent._id, name: event.parent.name, customers: event.parent.customers || [] };
                                 const children = event.parent.customers || [];
 
@@ -351,6 +547,7 @@ export default function ParentPropertyHome() {
 
                                 // Brief "Complete" display, then fade out
                                 await new Promise((r) => setTimeout(r, 600));
+                                if (fetchGeneration !== aggregatedFetchGenerationRef.current) return;
                                 setOverlayFading(true);
                                 await new Promise((r) => setTimeout(r, 400));
                                 setLoadingPhase("parent");
@@ -363,6 +560,8 @@ export default function ParentPropertyHome() {
                     }
                 }
             } catch (err) {
+                if (err?.name === "AbortError") return;
+                if (fetchGeneration !== aggregatedFetchGenerationRef.current) return;
                 setError(err.message);
                 setChildCustomers([]);
                 setAllTableRows([]);
@@ -371,7 +570,17 @@ export default function ParentPropertyHome() {
                 setChartLoading(false);
             }
         })();
-    }, [parentCustomerId, appliedDateRange, comparisonMethod, parentAggregatedQueryExtras]);
+
+        return () => {
+            abortController.abort();
+        };
+    }, [
+        parentCustomerId,
+        appliedDateRange,
+        comparisonMethod,
+        parentAggregatedQueryExtras,
+        campaignFilterRevision,
+    ]);
 
     // Filter data based on enabled properties
     const { filteredTableRows, filteredDailyData, metrics, metricsPrev, aggregatedMetrics, aggregatedMetricsPrev, filteredDailyRows, filteredDailyRowsPrev } = useMemo(() => {
@@ -661,6 +870,11 @@ export default function ParentPropertyHome() {
         handleGroupSpendToggleDraft,
         handleApplySpendForChild,
         handleSpendMenuOpen,
+        googleCampaignFilterEnabled,
+        handleGoogleCampaignFilterEnabledChange,
+        groupGoogleCampaignExcludedDraft,
+        handleApplyGoogleCampaignsForChild,
+        handleGoogleCampaignsMenuOpen,
     };
 
     // Render views with loading overlay
@@ -743,6 +957,12 @@ export default function ParentPropertyHome() {
                 onApplySpendForChild={handleApplySpendForChild}
                 onSpendMenuOpen={handleSpendMenuOpen}
                 fetchDisabled={loading}
+                googleCampaignFilterEnabled={googleCampaignFilterEnabled}
+                onGoogleCampaignFilterEnabledChange={handleGoogleCampaignFilterEnabledChange}
+                groupGoogleCampaignExcludedDraft={groupGoogleCampaignExcludedDraft}
+                appliedDateRange={appliedDateRange}
+                onApplyGoogleCampaignsForChild={handleApplyGoogleCampaignsForChild}
+                onGoogleCampaignsMenuOpen={handleGoogleCampaignsMenuOpen}
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">

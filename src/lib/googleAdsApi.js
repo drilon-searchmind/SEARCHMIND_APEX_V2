@@ -1,5 +1,8 @@
 // src/lib/googleAdsApi.js
 import { GoogleAdsApi } from 'google-ads-api';
+import { normalizeGoogleAdsCampaignId } from './googleAdsCampaignIdUtils';
+
+export { normalizeGoogleAdsCampaignId } from './googleAdsCampaignIdUtils';
 
 /**
  * Normalize google-ads-api / gRPC rejection objects to a short message for UI and logs.
@@ -50,6 +53,89 @@ export async function resolveCountryToCriterionId(customer, input) {
     return null;
 }
 
+function createGoogleAdsApiCustomer(customerIdStr) {
+    const client = new GoogleAdsApi({
+        client_id: process.env.GOOGLE_ADS_CLIENT_ID,
+        client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET,
+        developer_token: process.env.GOOGLE_ADS_DEVELOPER_TOKEN,
+    });
+    return client.Customer({
+        customer_id: customerIdStr,
+        refresh_token: process.env.GOOGLE_ADS_REFRESH_TOKEN,
+        login_customer_id: process.env.GOOGLE_ADS_MANAGER_CUSTOMER_ID || undefined,
+    });
+}
+
+/**
+ * @param {unknown[]} metrics
+ * @param {string[]} [excludedCampaignIds]
+ */
+function filterMetricsByExcludedCampaigns(metrics, excludedCampaignIds) {
+    if (!Array.isArray(metrics) || !excludedCampaignIds?.length) return metrics;
+    const excluded = new Set(
+        excludedCampaignIds.map((id) => normalizeGoogleAdsCampaignId(id)).filter(Boolean)
+    );
+    if (excluded.size === 0) return metrics;
+    return metrics.filter((row) => {
+        const raw = row?.campaign?.id ?? row?.campaign_id;
+        if (raw == null) return false;
+        return !excluded.has(normalizeGoogleAdsCampaignId(raw));
+    });
+}
+
+/**
+ * List distinct campaigns for a customer (for parent-property campaign picker).
+ * @param {string} customerId
+ * @param {string} startDate
+ * @param {string} endDate
+ * @param {{ quietLog?: boolean }} [requestOptions]
+ * @returns {Promise<Array<{ id: string, name: string, status?: string }>>}
+ */
+export async function fetchGoogleAdsCampaignList(
+    customerId,
+    startDate,
+    endDate,
+    requestOptions = {}
+) {
+    const quietLog = requestOptions.quietLog === true;
+    if (!customerId) {
+        throw new Error('Google Ads customerId is missing or undefined');
+    }
+    const customer = createGoogleAdsApiCustomer(String(customerId));
+    const q = `
+        SELECT
+        campaign.id,
+        campaign.name,
+        campaign.status,
+        metrics.cost_micros
+        FROM campaign
+        WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
+        AND campaign.status != 'REMOVED'
+        ORDER BY campaign.name ASC
+    `;
+    try {
+        const res = await customer.query(q);
+        const rows = Array.isArray(res) ? res : res.results || [];
+        /** @type {Map<string, { id: string, name: string, status?: string }>} */
+        const byId = new Map();
+        for (const row of rows) {
+            const id = row?.campaign?.id;
+            if (id == null) continue;
+            const key = normalizeGoogleAdsCampaignId(id);
+            if (!key || byId.has(key)) continue;
+            byId.set(key, {
+                id: key,
+                name: String(row.campaign?.name || key),
+                status: row.campaign?.status ? String(row.campaign.status) : undefined,
+            });
+        }
+        return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+    } catch (err) {
+        if (!quietLog) console.error('Google Ads campaign list error:', err);
+        throw err;
+    }
+}
+
 /**
  * Fetches Google Ads metrics for a given customer ID and date range.
  * @param {string} customerId - Google Ads customer ID (from CustomerSettings)
@@ -57,7 +143,7 @@ export async function resolveCountryToCriterionId(customer, input) {
  * @param {string} endDate - End date (YYYY-MM-DD)
  * @param {string} [countryFilter] - Optional comma-separated countries to INCLUDE (e.g. "Germany,Denmark,Norway")
  * @param {string} [countryExclude] - Optional comma-separated countries to EXCLUDE (e.g. "France,Spain")
- * @param {{ quietLog?: boolean }} [requestOptions] - When `quietLog`, avoid console noise for expected per-customer failures (overview batch).
+ * @param {{ quietLog?: boolean, excludedCampaignIds?: string[], forceCampaignQuery?: boolean }} [requestOptions]
  * @returns {Promise<{metrics: object[], currencyCode: string}>} - Raw rows from Google Ads API and customer currency code
  */
 export async function fetchGoogleAdsMetrics(
@@ -69,27 +155,18 @@ export async function fetchGoogleAdsMetrics(
     requestOptions = {}
 ) {
         const quietLog = requestOptions.quietLog === true;
+        const excludedCampaignIds = Array.isArray(requestOptions.excludedCampaignIds)
+            ? requestOptions.excludedCampaignIds
+            : [];
+        const forceCampaignQuery =
+            requestOptions.forceCampaignQuery === true || excludedCampaignIds.length > 0;
         if (!customerId) {
                 if (!quietLog) console.error('Google Ads customerId is missing or undefined:', customerId);
                 throw new Error('Google Ads customerId is missing or undefined');
         }
         const customerIdStr = String(customerId);
 
-        // Use all credentials from .env
-        const client = new GoogleAdsApi({
-                client_id: process.env.GOOGLE_ADS_CLIENT_ID,
-                client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET,
-                developer_token: process.env.GOOGLE_ADS_DEVELOPER_TOKEN,
-        });
-        const refresh_token = process.env.GOOGLE_ADS_REFRESH_TOKEN;
-        const managerCustomerId = process.env.GOOGLE_ADS_MANAGER_CUSTOMER_ID;
-
-        // Support MCC (login_customer_id)
-        const customer = client.Customer({
-                customer_id: customerIdStr,
-                refresh_token,
-                login_customer_id: managerCustomerId || undefined,
-        });
+        const customer = createGoogleAdsApiCustomer(customerIdStr);
 
         // First, fetch the customer's currency code
         let currencyCode = 'DKK'; // Default fallback
@@ -116,8 +193,14 @@ export async function fetchGoogleAdsMetrics(
 
         const hasInclude = typeof countryFilter === 'string' && countryFilter.trim().length > 0;
         const hasExclude = typeof countryExclude === 'string' && countryExclude.trim().length > 0;
-        const hasAnyFilter = hasInclude || hasExclude;
+        const hasAnyFilter = !forceCampaignQuery && (hasInclude || hasExclude);
         let metrics;
+
+        if (forceCampaignQuery && (hasInclude || hasExclude) && !quietLog) {
+                console.warn(
+                        'Google Ads: campaign exclusions use campaign-level query; country include/exclude is not applied for this fetch.'
+                );
+        }
 
         const resolveIds = async (inputStr) => {
                 const inputs = inputStr.split(',').map((c) => c.trim()).filter(Boolean);
@@ -205,6 +288,8 @@ export async function fetchGoogleAdsMetrics(
                         throw err;
                 }
         }
+
+        metrics = filterMetricsByExcludedCampaigns(metrics, excludedCampaignIds);
 
         return { metrics, currencyCode };
 }

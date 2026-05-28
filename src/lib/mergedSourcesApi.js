@@ -31,6 +31,7 @@ import { AD_SPEND_CHANNELS } from './mergeAdSpendDaily';
  * @param {Array<{ shopifyqlMarketId: string, handle?: string }>} [options.shopifyMarketsSelection] - When set and shopifyMarketsEnabled: restrict sales to the union of each market's region countries via ShopifyQL `billing_country`. Omit for all markets.
  * @param {boolean} [options.shopifyMarketFilterAdSpend] - When true and `shopifyMarketsSelection` is set: filter Meta, Google, Snapchat, and Reddit spend to the same market countries. When false/omitted (default), ad spend ignores market filter.
  * @param {string[]} [options.excludeAdSpendPlatforms] - e.g. `['facebook','google']` — skip fetching those platforms (empty daily rows).
+ * @param {string[]} [options.googleAdsExcludedCampaignIds] - Campaign ids to omit from Google Ads spend (parent group view).
  * @returns {Promise<object>} - { shopifyDaily, facebookDaily, googleDaily, ... }
  */
 
@@ -350,12 +351,20 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
             ) {
                 googleDaily = [];
             } else {
+            const googleExcludedCampaigns = Array.isArray(options.googleAdsExcludedCampaignIds)
+                ? options.googleAdsExcludedCampaignIds.filter((id) => String(id || "").trim())
+                : [];
             const googleResponse = await fetchGoogleAdsMetrics(
                 settings.googleAdsCustomerId,
                 startDate,
                 endDate,
                 googleIncludeForFetch,
-                googleExcludeForFetch
+                googleExcludeForFetch,
+                {
+                    excludedCampaignIds:
+                        googleExcludedCampaigns.length > 0 ? googleExcludedCampaigns : undefined,
+                    forceCampaignQuery: googleExcludedCampaigns.length > 0,
+                }
             );
             // Destructure metrics and currency code from response
             const googleRows = googleResponse.metrics;
