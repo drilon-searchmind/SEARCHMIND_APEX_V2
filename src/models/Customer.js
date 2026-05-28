@@ -72,6 +72,11 @@ const CustomerSchema = new mongoose.Schema({
             type: Boolean,
             default: false,
         },
+        /** When true: ShopifyQL sales and order-based fetches only include the Online Store channel (excludes POS, draft orders, etc.). */
+        shopifyOnlineStoreOnly: {
+            type: Boolean,
+            default: false,
+        },
         customerRevenueType: {
             type: String,
             enum: ["total_sales", "net_sales", "custom_1"],

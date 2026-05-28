@@ -165,6 +165,17 @@ export default function CustomerCreateForm({
                         />
                         <FormLabel htmlFor="shopifyMarketsEnabled">Enable Shopify Markets (revenue by market; needs read_markets scope)</FormLabel>
                     </div>
+                    <div className="flex items-center gap-2">
+                        <input
+                            id="shopifyOnlineStoreOnly"
+                            name="shopifyOnlineStoreOnly"
+                            type="checkbox"
+                            checked={form.CustomerSettings.shopifyOnlineStoreOnly === true}
+                            onChange={handleChange}
+                            className="rounded border-gray-300"
+                        />
+                        <FormLabel htmlFor="shopifyOnlineStoreOnly">Online Store only (exclude POS and other channels)</FormLabel>
+                    </div>
                 </>
             )}
 

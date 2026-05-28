@@ -29,6 +29,7 @@ import SmallLabel from "../ui/SmallLabel";
 import { useUser } from "@/contexts/UserContext";
 import { useCustomers } from "@/hooks/useCustomers";
 import { getServiceDashboardConfigWarnings } from "@/lib/customerServiceIntegrations";
+import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
 
 function serviceDashboardWarningKeyForHref(href) {
     if (href.includes("service-dashboard/seo")) return "seo";
@@ -47,6 +48,7 @@ function serviceDashboardWarningKeyForHref(href) {
 const getIconForRoute = (href) => {
     if (href.includes("performance-dashboard")) return <FiTrendingUp className="w-4 h-4" />;
     if (href.includes("daily-overview")) return <FiCalendar className="w-4 h-4" />;
+    if (href.includes("markets-overview")) return <FiGlobe className="w-4 h-4" />;
     if (href.includes("pace-report")) return <FiActivity className="w-4 h-4" />;
     if (href.includes("pnl")) return <FiDollarSign className="w-4 h-4" />;
     if (href.includes("ecommerce")) return <FiShoppingCart className="w-4 h-4" />;
@@ -130,11 +132,17 @@ const Sidebar = ({ showLinks = true }) => {
     const pathname = usePathname();
     const activeCustomerId = params?.customerId;
 
-    const serviceDashboardWarnings = useMemo(() => {
+    const activeCustomer = useMemo(() => {
         if (!activeCustomerId) return null;
-        const cur = customers.find((c) => String(c._id) === String(activeCustomerId));
-        return getServiceDashboardConfigWarnings(cur?.CustomerSettings);
+        return customers.find((c) => String(c._id) === String(activeCustomerId)) || null;
     }, [customers, activeCustomerId]);
+
+    const shopifyMarketsMenuEnabled = isShopifyMarketsCustomer(activeCustomer);
+
+    const serviceDashboardWarnings = useMemo(() => {
+        if (!activeCustomer) return null;
+        return getServiceDashboardConfigWarnings(activeCustomer?.CustomerSettings);
+    }, [activeCustomer]);
 
     const configWarningForHref = (href) => {
         const key = serviceDashboardWarningKeyForHref(href);
@@ -216,6 +224,16 @@ const Sidebar = ({ showLinks = true }) => {
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                             />
+                                            {shopifyMarketsMenuEnabled ? (
+                                                <NavItem
+                                                    href={`/dashboard/${activeCustomerId}/markets-overview`}
+                                                    label="Markets"
+                                                    subLabel="NEW"
+                                                    activeCustomerId={activeCustomerId}
+                                                    pathname={pathname}
+                                                    isSmallScreen={isSmallScreen}
+                                                />
+                                            ) : null}
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/tools/pace-report`}
                                                 label="Pace Report"

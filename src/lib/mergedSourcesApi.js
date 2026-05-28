@@ -1,6 +1,11 @@
 // src/lib/mergedSourcesApi.js
 import { shopifyqlQuery } from './shopifyApi';
 import {
+    appendShopifyOnlineStoreFilter,
+    escapeShopifyQlString,
+    shopifySalesWhereClause,
+} from './shopifyQlFilters';
+import {
     fetchBillingCountryUnionForSelectedMarkets,
     fetchAdSpendCountryFiltersForSelectedMarkets,
 } from './shopifyMarketsApi';
@@ -32,6 +37,7 @@ import { AD_SPEND_CHANNELS } from './mergeAdSpendDaily';
  * @param {boolean} [options.shopifyMarketFilterAdSpend] - When true and `shopifyMarketsSelection` is set: filter Meta, Google, Snapchat, and Reddit spend to the same market countries. When false/omitted (default), ad spend ignores market filter.
  * @param {string[]} [options.excludeAdSpendPlatforms] - e.g. `['facebook','google']` — skip fetching those platforms (empty daily rows).
  * @param {string[]} [options.googleAdsExcludedCampaignIds] - Campaign ids to omit from Google Ads spend (parent group view).
+ * @param {boolean} [options.skipShopifyFetch] - When true, skip Shopify/WooCommerce/Magento revenue (ad platforms only; used by markets overview).
  * @returns {Promise<object>} - { shopifyDaily, facebookDaily, googleDaily, ... }
  */
 
@@ -55,7 +61,12 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
     const customerType = settings.customerType || 'Shopify'; // Default to Shopify for backward compatibility
 
     try {
-        if (customerType === 'Shopify' && settings.shopifyUrl && settings.shopifyApiPassword) {
+        if (
+            !options.skipShopifyFetch &&
+            customerType === 'Shopify' &&
+            settings.shopifyUrl &&
+            settings.shopifyApiPassword
+        ) {
             const fetchCogs = settings.fetchCogsFromStore === true;
             const showFields = fetchCogs 
                 ? 'orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales, cost_of_goods_sold'
@@ -85,7 +96,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 settings.customerStoreValutaCode &&
                 (hasInclude || hasExclude);
 
-            const escape = (c) => String(c).replace(/'/g, "''");
+            const escape = escapeShopifyQlString;
             const whereParts = [];
             if (hasBillingFilter) {
                 const includeClause = hasInclude
@@ -125,10 +136,12 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 }
             }
 
+            appendShopifyOnlineStoreFilter(whereParts, settings);
+
             if (emptyShopifyNoMarketCountries) {
                 shopifyDaily = [];
             } else {
-            const whereClause = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '';
+            const whereClause = shopifySalesWhereClause(whereParts);
 
             const shopifyql = `
                     FROM sales 
