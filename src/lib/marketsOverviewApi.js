@@ -1,12 +1,22 @@
 import dayjs from "dayjs";
 import { fetchMergedSources } from "./mergedSourcesApi";
-import { fetchShopifyMarketsCatalog } from "./shopifyMarketsApi";
+import {
+    fetchShopifyMarketsCatalog,
+    fetchAdSpendCountryFiltersForSelectedMarkets,
+    fetchShopifySalesGroupedByBillingCountryAndDay,
+    shopifyDailyForBillingCountries,
+} from "./shopifyMarketsApi";
 import {
     AD_SPEND_CHANNELS,
     channelSpendTotalsFromMerged,
     totalAdSpendFromMerged,
 } from "./mergeAdSpendDaily";
 import { computePerformanceDashboardMetrics } from "./performanceDashboard/computePerformanceMetrics";
+import {
+    fetchAdSpendByIso2Country,
+    channelSpendTotalsForMarket,
+    buildSyntheticMergedFromChannelTotals,
+} from "./marketAdSpendByCountry";
 
 function calcFixedForRange(rangeStart, rangeEnd, fixedExpensesMonthly) {
     let total = 0;
@@ -99,12 +109,34 @@ export function aggregateMetricsLikePerformanceDashboard(
     };
 }
 
-/** @param {{ netRevenue?: number, totalMarketingSpend?: number }} metrics */
-export function marketHasActivity(metrics) {
-    return (
-        (Number(metrics?.netRevenue) || 0) > 0 ||
-        (Number(metrics?.totalMarketingSpend) || 0) > 0
+/**
+ * Prefetch region countries for all markets (parallel).
+ * @returns {Promise<Map<string, { billingCountryNames: string[], metaCountryCodes: string[], googleCountryNames: string[] }>>}
+ */
+async function prefetchMarketFiltersByMarketId(settings, markets) {
+    /** @type {Map<string, { billingCountryNames: string[], metaCountryCodes: string[], googleCountryNames: string[] }>} */
+    const map = new Map();
+    const shop = settings.shopifyUrl;
+    const token = settings.shopifyApiPassword;
+    if (!shop || !token) return map;
+
+    await Promise.all(
+        (markets || []).map(async (market) => {
+            const mid = String(market.shopifyqlMarketId || "").trim();
+            if (!mid) return;
+            try {
+                const filters = await fetchAdSpendCountryFiltersForSelectedMarkets(
+                    shop,
+                    token,
+                    [mid]
+                );
+                map.set(mid, filters);
+            } catch (e) {
+                console.error(`[Markets overview] Countries for market ${mid}:`, e);
+            }
+        })
     );
+    return map;
 }
 
 /**
@@ -112,7 +144,7 @@ export function marketHasActivity(metrics) {
  * @param {string} startDate
  * @param {string} endDate
  * @param {Array<{ shopifyqlMarketId: string, name?: string, handle?: string }>} markets
- * @param {{ excludeAdSpendPlatforms?: string[], shopifyMarketFilterAdSpend?: boolean, concurrency?: number }} [options]
+ * @param {{ excludeAdSpendPlatforms?: string[] }} [options]
  */
 export async function fetchMarketsOverviewRows(
     settings,
@@ -123,16 +155,27 @@ export async function fetchMarketsOverviewRows(
 ) {
     const list = Array.isArray(markets) ? markets : [];
     const excludeAdSpendPlatforms = options.excludeAdSpendPlatforms || [];
-    const filterAdSpendByMarket = options.shopifyMarketFilterAdSpend !== false;
-    const concurrency = Math.max(1, Math.min(options.concurrency ?? 6, 10));
     const dateRange = { startDate, endDate };
 
-    const storeMerged = await fetchMergedSources(settings, startDate, endDate, {
-        dailyBreakdown: true,
-        source: "markets-overview",
-        excludeAdSpendPlatforms,
-        shopifyMarketFilterAdSpend: false,
-    });
+    const [storeMerged, shopifyByCountry, adSpendByIso, filtersByMarketId] =
+        await Promise.all([
+            fetchMergedSources(settings, startDate, endDate, {
+                dailyBreakdown: true,
+                source: "markets-overview",
+                excludeAdSpendPlatforms,
+            }),
+            fetchShopifySalesGroupedByBillingCountryAndDay(
+                settings,
+                startDate,
+                endDate
+            ),
+            fetchAdSpendByIso2Country(settings, startDate, endDate, {
+                excludeAdSpendPlatforms,
+            }),
+            prefetchMarketFiltersByMarketId(settings, list),
+        ]);
+
+    const storeChannelTotals = channelSpendTotalsFromMerged(storeMerged);
 
     const storeTotalRow = {
         marketId: "__store_total__",
@@ -147,47 +190,69 @@ export async function fetchMarketsOverviewRows(
         ),
     };
 
-    async function fetchMarketRow(market) {
-        const shopifyqlMarketId = String(market.shopifyqlMarketId || "").trim();
-        if (!shopifyqlMarketId) return null;
+    /** @type {Array<Record<string, unknown>>} */
+    const marketRows = [];
 
-        const merged = await fetchMergedSources(settings, startDate, endDate, {
-            dailyBreakdown: true,
-            source: "markets-overview",
-            shopifyMarketsSelection: [
-                { shopifyqlMarketId, handle: market.handle || undefined },
-            ],
-            shopifyMarketFilterAdSpend: filterAdSpendByMarket,
-            excludeAdSpendPlatforms,
-        });
+    for (const market of list) {
+        const shopifyqlMarketId = String(market.shopifyqlMarketId || "").trim();
+        if (!shopifyqlMarketId) continue;
+
+        const filters = filtersByMarketId.get(shopifyqlMarketId) || {
+            billingCountryNames: [],
+            metaCountryCodes: [],
+            googleCountryNames: [],
+        };
+
+        const shopifyDaily = shopifyDailyForBillingCountries(
+            shopifyByCountry,
+            filters.billingCountryNames
+        );
+
+        const channelTotals = channelSpendTotalsForMarket(
+            adSpendByIso,
+            filters.metaCountryCodes
+        );
+
+        // Pinterest / Bing lack country breakdown — allocate by revenue share vs store total
+        const marketRevenue = shopifyDaily.reduce(
+            (s, d) => s + (Number(d.net_sales) || 0),
+            0
+        );
+        const storeRevenue = (storeMerged.shopifyDaily || []).reduce(
+            (s, d) => s + (Number(d.net_sales) || 0),
+            0
+        );
+        const share =
+            storeRevenue > 0 && marketRevenue > 0 ? marketRevenue / storeRevenue : 0;
+
+        if (share > 0) {
+            for (const key of ["pinterest_spend", "bing_spend"]) {
+                const storeVal = Number(storeChannelTotals[key] || 0);
+                if (storeVal > 0) {
+                    channelTotals[key] = storeVal * share;
+                }
+            }
+        }
+
+        const merged = buildSyntheticMergedFromChannelTotals(
+            channelTotals,
+            startDate
+        );
 
         const metrics = aggregateMetricsLikePerformanceDashboard(
-            merged.shopifyDaily || [],
+            shopifyDaily,
             merged,
             settings,
             dateRange
         );
 
-        if (!marketHasActivity(metrics)) return null;
-
-        return {
+        marketRows.push({
             marketId: shopifyqlMarketId,
             marketName: market.name || market.handle || shopifyqlMarketId,
             handle: market.handle || "",
             isStoreTotal: false,
             ...metrics,
-        };
-    }
-
-    /** @type {Array<Record<string, unknown>>} */
-    const marketRows = [];
-
-    for (let i = 0; i < list.length; i += concurrency) {
-        const batch = list.slice(i, i + concurrency);
-        const batchRows = await Promise.all(batch.map((m) => fetchMarketRow(m)));
-        for (const row of batchRows) {
-            if (row) marketRows.push(row);
-        }
+        });
     }
 
     marketRows.sort(

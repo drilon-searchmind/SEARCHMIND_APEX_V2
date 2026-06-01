@@ -3,6 +3,13 @@
  * Custom apps need the `read_markets` scope in addition to existing Admin API scopes.
  */
 
+import { shopifyqlQuery } from "./shopifyApi";
+import {
+    appendShopifyOnlineStoreFilter,
+    escapeShopifyQlString,
+    shopifySalesWhereClause,
+} from "./shopifyQlFilters";
+import { getCurrencyConversionTable, conversionRateToDkk } from "./currencyConversionTable";
 import { buildAdSpendCountryFiltersFromRegionCountries } from "./shopifyMarketAdSpendCountries";
 
 /** @param {Record<string, unknown>} json */
@@ -18,13 +25,36 @@ function extractMarketsConnectionPayload(json) {
 
 /**
  * @param {string} gid - e.g. gid://shopify/Market/123
- * @returns {string} numeric id for ShopifyQL dimensions like market_id
+ * @returns {string} numeric id for Admin API market GID
  */
 export function gidToNumericMarketId(gid) {
     if (!gid) return "";
     const s = String(gid);
     const m = s.match(/(\d+)\s*$/);
     return m ? m[1] : s;
+}
+
+/**
+ * Filter ShopifyQL sales to market region countries via `billing_country`.
+ * ShopifyQL does not expose `market_id` on all stores — region countries from Admin API are the reliable filter.
+ * @param {string[]} whereParts
+ * @param {string[]} billingCountryNames — display names from MarketRegionCountry
+ * @param {(s: string) => string} escape
+ * @returns {boolean} false when no country names
+ */
+export function appendShopifyMarketBillingCountryFilter(whereParts, billingCountryNames, escape) {
+    const names = [
+        ...new Set((billingCountryNames || []).map((n) => String(n).trim()).filter(Boolean)),
+    ];
+    if (names.length === 0) return false;
+    if (names.length === 1) {
+        whereParts.push(`billing_country = '${escape(names[0])}'`);
+        return true;
+    }
+    whereParts.push(
+        `billing_country IN (${names.map((c) => `'${escape(c)}'`).join(", ")})`
+    );
+    return true;
 }
 
 /**
@@ -283,6 +313,166 @@ export async function fetchBillingCountryUnionForSelectedMarkets(shopDomain, acc
  * @param {string[]} marketNumericIds
  * @returns {Promise<{ billingCountryNames: string[], metaCountryCodes: string[], googleCountryNames: string[] }>}
  */
+/** @param {string} name */
+function normalizeBillingCountryKey(name) {
+    return String(name || "")
+        .trim()
+        .toLowerCase();
+}
+
+/**
+ * One ShopifyQL query: sales grouped by day + billing_country (markets overview).
+ * @param {Record<string, unknown>} settings
+ * @param {string} startDate
+ * @param {string} endDate
+ * @returns {Promise<Array<Record<string, unknown>>>}
+ */
+export async function fetchShopifySalesGroupedByBillingCountryAndDay(
+    settings,
+    startDate,
+    endDate
+) {
+    if (!settings?.shopifyUrl || !settings?.shopifyApiPassword) return [];
+
+    const fetchCogs = settings.fetchCogsFromStore === true;
+    const showFields = fetchCogs
+        ? "orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales, cost_of_goods_sold"
+        : "orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales";
+
+    const escape = escapeShopifyQlString;
+    const whereParts = [];
+    const parseCountries = (s) =>
+        typeof s === "string" ? s.split(",").map((c) => c.trim()).filter(Boolean) : [];
+    const includeCountries = parseCountries(settings.changeCurrencyShopifyBillingCountryName);
+    const excludeCountries = parseCountries(
+        settings.changeCurrencyShopifyBillingCountryExclude
+    );
+    const hasInclude = includeCountries.length > 0;
+    const hasExclude = excludeCountries.length > 0;
+    const hasBillingFilter =
+        settings.changeCurrency === true &&
+        settings.customerStoreValutaCode &&
+        (hasInclude || hasExclude);
+
+    if (hasBillingFilter) {
+        if (hasInclude) {
+            whereParts.push(
+                `(${includeCountries.map((c) => `billing_country = '${escape(c)}'`).join(" OR ")})`
+            );
+        }
+        if (hasExclude) {
+            whereParts.push(
+                `NOT (${excludeCountries.map((c) => `billing_country = '${escape(c)}'`).join(" OR ")})`
+            );
+        }
+    }
+
+    appendShopifyOnlineStoreFilter(whereParts, settings);
+    const whereClause = shopifySalesWhereClause(whereParts);
+
+    const shopifyql = `
+                    FROM sales
+                    SHOW ${showFields}
+                    ${whereClause}
+                    GROUP BY day, billing_country
+                    SINCE ${startDate} UNTIL ${endDate}`;
+
+    const shopifyRes = await shopifyqlQuery(
+        settings.shopifyUrl,
+        settings.shopifyApiPassword,
+        shopifyql
+    );
+    const rows = shopifyRes?.data?.shopifyqlQuery?.tableData?.rows || [];
+    const { data: currencyData } = await getCurrencyConversionTable();
+    const fromCode = settings?.customerStoreValutaCode || "DKK";
+    const conversionRate = conversionRateToDkk(fromCode, currencyData);
+
+    return rows.map((row) => {
+        const base = {
+            period: row.day,
+            billing_country: row.billing_country != null ? String(row.billing_country) : "",
+            gross_sales: (parseFloat(row.gross_sales) || 0) * conversionRate,
+            discounts: (parseFloat(row.discounts) || 0) * conversionRate,
+            returns: (parseFloat(row.returns) || 0) * conversionRate,
+            net_sales: (parseFloat(row.net_sales) || 0) * conversionRate,
+            shipping_charges: (parseFloat(row.shipping_charges) || 0) * conversionRate,
+            duties: (parseFloat(row.duties) || 0) * conversionRate,
+            additional_fees: (parseFloat(row.additional_fees) || 0) * conversionRate,
+            taxes: (parseFloat(row.taxes) || 0) * conversionRate,
+            total_sales: (parseFloat(row.total_sales) || 0) * conversionRate,
+            custom_1:
+                ((parseFloat(row.net_sales) || 0) +
+                    (parseFloat(row.returns) || 0) +
+                    (parseFloat(row.shipping_charges) || 0)) *
+                conversionRate,
+            orders: parseInt(row.orders, 10) || 0,
+        };
+        if (fetchCogs && row.cost_of_goods_sold !== undefined) {
+            base.cost_of_goods_sold =
+                (parseFloat(row.cost_of_goods_sold) || 0) * conversionRate;
+        }
+        return base;
+    });
+}
+
+/**
+ * Roll up grouped billing-country rows into daily shopifyDaily for one market.
+ * @param {Array<Record<string, unknown>>} groupedRows
+ * @param {string[]} billingCountryNames
+ */
+export function shopifyDailyForBillingCountries(groupedRows, billingCountryNames) {
+    const allow = new Set(
+        (billingCountryNames || []).map((n) => normalizeBillingCountryKey(n)).filter(Boolean)
+    );
+    if (allow.size === 0) return [];
+
+    /** @type {Map<string, Record<string, number>>} */
+    const byDay = new Map();
+
+    for (const row of groupedRows || []) {
+        const bcKey = normalizeBillingCountryKey(row.billing_country);
+        if (!bcKey || !allow.has(bcKey)) continue;
+        const period = String(row.period || "").slice(0, 10);
+        if (!period) continue;
+        let agg = byDay.get(period);
+        if (!agg) {
+            agg = {
+                period,
+                gross_sales: 0,
+                discounts: 0,
+                returns: 0,
+                net_sales: 0,
+                shipping_charges: 0,
+                duties: 0,
+                additional_fees: 0,
+                taxes: 0,
+                total_sales: 0,
+                custom_1: 0,
+                orders: 0,
+                cost_of_goods_sold: 0,
+            };
+            byDay.set(period, agg);
+        }
+        const num = (v) => Number(v) || 0;
+        agg.gross_sales += num(row.gross_sales);
+        agg.discounts += num(row.discounts);
+        agg.returns += num(row.returns);
+        agg.net_sales += num(row.net_sales);
+        agg.shipping_charges += num(row.shipping_charges);
+        agg.duties += num(row.duties);
+        agg.additional_fees += num(row.additional_fees);
+        agg.taxes += num(row.taxes);
+        agg.total_sales += num(row.total_sales);
+        agg.custom_1 += num(row.custom_1);
+        agg.orders += num(row.orders);
+        if (row.cost_of_goods_sold != null) {
+            agg.cost_of_goods_sold += num(row.cost_of_goods_sold);
+        }
+    }
+
+    return [...byDay.values()].sort((a, b) => a.period.localeCompare(b.period));
+}
+
 export async function fetchAdSpendCountryFiltersForSelectedMarkets(
     shopDomain,
     accessToken,

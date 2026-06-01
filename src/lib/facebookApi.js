@@ -144,7 +144,9 @@ export async function fetchFacebookAdsInsights(adAccountId, metaIdInclude, metaI
             { field: 'country', operator: 'IN', value: effectiveInclude }
         ]));
     }
-    const useBreakdown = exclude.length > 0 && effectiveInclude.length === 0;
+    const forceCountryBreakdown = options.forceCountryBreakdown === true;
+    const useBreakdown =
+        forceCountryBreakdown || (exclude.length > 0 && effectiveInclude.length === 0);
     if (useBreakdown) {
         params.append('breakdowns', JSON.stringify(['country']));
         // With breakdowns, each row = (date, country). Need higher limit to avoid truncation.
@@ -169,7 +171,7 @@ export async function fetchFacebookAdsInsights(adAccountId, metaIdInclude, metaI
     }
 
     let rows = data.data || [];
-    if (useBreakdown && rows.length > 0) {
+    if (useBreakdown && !forceCountryBreakdown && rows.length > 0) {
         rows = rows.filter((row) => {
             const c = (row.country || '').toUpperCase();
             return c && !exclude.includes(c);

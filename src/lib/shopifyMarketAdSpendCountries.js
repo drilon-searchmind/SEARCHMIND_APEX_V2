@@ -107,7 +107,7 @@ export function buildAdSpendCountryFiltersFromRegionCountries(regionCountries) {
         if (iso?.length === 2) metaSet.add(iso);
 
         const googleName = googleCountryNameFromBilling(name || "", iso);
-        if (googleName) googleSet.add(googleName);
+        if (googleName && iso?.length === 2) googleSet.add(googleName);
     }
 
     const sortNames = (a, b) => a.localeCompare(b, undefined, { sensitivity: "base" });

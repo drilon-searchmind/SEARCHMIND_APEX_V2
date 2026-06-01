@@ -17,9 +17,6 @@ export async function GET(request, { params }) {
     const excludeAdSpendPlatforms = parseAdSpendExcludeQueryParam(
         searchParams.get("adSpendExclude")
     );
-    const shopifyMarketFilterAdSpend =
-        searchParams.get("shopifyMarketFilterAdSpend") !== "0";
-
     if (!startDate || !endDate) {
         return NextResponse.json(
             { error: "Missing startDate or endDate" },
@@ -67,7 +64,7 @@ export async function GET(request, { params }) {
             startDate,
             endDate,
             markets,
-            { excludeAdSpendPlatforms, shopifyMarketFilterAdSpend }
+            { excludeAdSpendPlatforms }
         );
 
         const spendCols = adSpendChannelsForShopifyMarketsFilterUi(cs)

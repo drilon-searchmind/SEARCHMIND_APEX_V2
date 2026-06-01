@@ -205,10 +205,19 @@ export async function fetchGoogleAdsMetrics(
         const resolveIds = async (inputStr) => {
                 const inputs = inputStr.split(',').map((c) => c.trim()).filter(Boolean);
                 const ids = [];
+                const skipped = [];
                 for (const inp of inputs) {
                         const id = await resolveCountryToCriterionId(customer, inp);
                         if (id != null) ids.push(id);
-                        else console.warn('Google Ads country filter: unknown country skipped:', inp);
+                        else skipped.push(inp);
+                }
+                if (skipped.length > 0 && !quietLog) {
+                        const preview = skipped.slice(0, 8).join(', ');
+                        const more =
+                                skipped.length > 8 ? ` (+${skipped.length - 8} more)` : '';
+                        console.warn(
+                                `Google Ads country filter: ${skipped.length} unknown territories skipped (e.g. ${preview}${more})`
+                        );
                 }
                 return [...new Set(ids)];
         };
@@ -292,4 +301,105 @@ export async function fetchGoogleAdsMetrics(
         metrics = filterMetricsByExcludedCampaigns(metrics, excludedCampaignIds);
 
         return { metrics, currencyCode };
+}
+
+/**
+ * Resolve Google Ads location criterion IDs to ISO-2 country codes.
+ * @param {ReturnType<typeof createGoogleAdsApiCustomer>} customer
+ * @param {number[]} criterionIds
+ * @returns {Promise<Map<number, string>>}
+ */
+async function resolveCriterionIdsToIso2(customer, criterionIds) {
+    /** @type {Map<number, string>} */
+    const out = new Map();
+    const ids = [...new Set(criterionIds.filter((id) => Number.isFinite(id) && id > 0))];
+    for (let i = 0; i < ids.length; i += 50) {
+        const chunk = ids.slice(i, i + 50);
+        const idList = chunk.join(", ");
+        const q = `
+            SELECT geo_target_constant.id, geo_target_constant.country_code
+            FROM geo_target_constant
+            WHERE geo_target_constant.id IN (${idList})
+        `;
+        try {
+            const res = await customer.query(q);
+            const rows = Array.isArray(res) ? res : res.results || [];
+            for (const row of rows) {
+                const id = Number(row?.geo_target_constant?.id);
+                const code = String(row?.geo_target_constant?.country_code || "")
+                    .trim()
+                    .toUpperCase();
+                if (id && code.length === 2) out.set(id, code);
+            }
+        } catch (_) {
+            /* skip chunk */
+        }
+    }
+    return out;
+}
+
+/**
+ * Total spend by ISO-2 from user_location_view (one query, all countries).
+ * @returns {Promise<Map<string, number>>}
+ */
+export async function fetchGoogleAdsSpendByIso2Map(
+    customerId,
+    startDate,
+    endDate,
+    requestOptions = {}
+) {
+    const quietLog = requestOptions.quietLog === true;
+    if (!customerId) return { byIso: new Map(), currencyCode: "DKK" };
+    const customer = createGoogleAdsApiCustomer(String(customerId));
+
+    let currencyCode = "DKK";
+    try {
+        const customerQuery = `
+            SELECT customer.currency_code
+            FROM customer
+            LIMIT 1
+        `;
+        const customerRes = await customer.query(customerQuery);
+        const customerData = Array.isArray(customerRes)
+            ? customerRes[0]
+            : customerRes.results?.[0];
+        if (customerData?.customer?.currency_code) {
+            currencyCode = customerData.customer.currency_code;
+        }
+    } catch (_) {
+        /* default DKK */
+    }
+    const countryQuery = `
+        SELECT
+            user_location_view.country_criterion_id,
+            metrics.cost_micros
+        FROM user_location_view
+        WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
+    `;
+    try {
+        const res = await customer.query(countryQuery);
+        const rows = Array.isArray(res) ? res : res.results || [];
+        /** @type {Map<number, number>} */
+        const byCriterion = new Map();
+        for (const row of rows) {
+            const id = Number(
+                row.user_location_view?.country_criterion_id ?? row.country_criterion_id
+            );
+            if (!id) continue;
+            const cost = row.metrics?.cost_micros ? row.metrics.cost_micros / 1e6 : 0;
+            byCriterion.set(id, (byCriterion.get(id) || 0) + cost);
+        }
+        const idToIso = await resolveCriterionIdsToIso2(customer, [...byCriterion.keys()]);
+        /** @type {Map<string, number>} */
+        const byIso = new Map();
+        for (const [id, cost] of byCriterion) {
+            const iso = idToIso.get(id);
+            if (!iso) continue;
+            byIso.set(iso, (byIso.get(iso) || 0) + cost);
+        }
+        return { byIso, currencyCode };
+    } catch (err) {
+        if (!quietLog) console.error("Google Ads spend by country:", err);
+        return { byIso: new Map(), currencyCode };
+    }
 }

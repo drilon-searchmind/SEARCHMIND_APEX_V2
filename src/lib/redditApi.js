@@ -1,3 +1,5 @@
+import { isoCodeFromBillingCountryName } from "./shopifyMarketAdSpendCountries";
+
 /**
  * Reddit Ads API v3 — base URL matches https://ads-api.reddit.com/docs/v3/
  *
@@ -296,7 +298,19 @@ function rowCountryCode(row) {
         "";
     const s = String(raw).trim();
     if (s.length === 2) return s.toUpperCase();
-    return "";
+    return isoCodeFromBillingCountryName(s) || "";
+}
+
+/**
+ * Total spend by ISO-2 from a single DATE+COUNTRY report (no market filter).
+ * @returns {Promise<Map<string, number>>}
+ */
+export async function fetchRedditSpendByIso2Map(args) {
+    const dash = await fetchRedditDashboardMetrics({
+        ...args,
+        aggregateSpendByCountry: true,
+    });
+    return dash.spend_by_iso2 instanceof Map ? dash.spend_by_iso2 : new Map();
 }
 
 function rowLooksLikeReportRecord(x) {
@@ -426,6 +440,7 @@ function campaignKey(row) {
  *   redditUsername?: string,
  *   redditCredentials?: ReturnType<import("./redditCustomerSettings").normalizeRedditSettings>,
  *   countryIsoCodes?: string[] — when set, daily spend is limited to these ISO-2 countries (Shopify Markets ad spend filter)
+ *   aggregateSpendByCountry?: boolean — when true, return `spend_by_iso2` Map (single DATE+COUNTRY fetch, all countries)
  * }} args — when redditCredentials is set, 401 responses retry once via refresh_token
  */
 export async function fetchRedditDashboardMetrics({
@@ -436,6 +451,7 @@ export async function fetchRedditDashboardMetrics({
     redditUsername,
     redditCredentials,
     countryIsoCodes,
+    aggregateSpendByCountry = false,
 }) {
     const acc = String(accountId || "").trim();
     if (!acc) throw new Error("Missing Reddit ad account id");
@@ -450,6 +466,7 @@ export async function fetchRedditDashboardMetrics({
             endDate,
             uaOpt,
             countryIsoCodes,
+            aggregateSpendByCountry,
         });
     }
 
@@ -481,6 +498,7 @@ async function fetchRedditDashboardMetricsInner({
     endDate,
     uaOpt,
     countryIsoCodes,
+    aggregateSpendByCountry = false,
 }) {
     const acc = String(accountId || "").trim();
 
@@ -491,7 +509,9 @@ async function fetchRedditDashboardMetricsInner({
     const reportFields = ["IMPRESSIONS", "CLICKS", "SPEND"];
 
     const marketCountryFilter =
-        Array.isArray(countryIsoCodes) && countryIsoCodes.filter((c) => String(c).trim()).length > 0;
+        !aggregateSpendByCountry &&
+        Array.isArray(countryIsoCodes) &&
+        countryIsoCodes.filter((c) => String(c).trim()).length > 0;
     const countryAllow = marketCountryFilter
         ? new Set(
               countryIsoCodes
@@ -499,6 +519,38 @@ async function fetchRedditDashboardMetricsInner({
                   .filter((c) => c.length === 2)
           )
         : null;
+
+    /** @type {Map<string, number>} */
+    const spendByIso2 = new Map();
+
+    if (aggregateSpendByCountry) {
+        try {
+            const body = redditReportPostBody({
+                ...redditReportTimeRange(startDate, endDate),
+                fields: ["SPEND"],
+                breakdowns: ["DATE", "COUNTRY"],
+            });
+            const payload = await redditAdsFetch(
+                accessToken,
+                `/ad_accounts/${encodeURIComponent(acc)}/reports`,
+                { method: "POST", body, ...uaOpt }
+            );
+            for (const row of extractReportRows(payload)) {
+                const cc = rowCountryCode(row);
+                if (!cc) continue;
+                spendByIso2.set(cc, (spendByIso2.get(cc) || 0) + spendToMajor(row));
+            }
+        } catch (e) {
+            if (String(e?.message || "").includes("Reddit Ads API 401")) throw e;
+            dbgErr("aggregateSpendByCountry failed", e?.message || e);
+        }
+        return {
+            metrics_by_date: [],
+            top_campaigns: [],
+            campaigns_by_date: [],
+            spend_by_iso2: spendByIso2,
+        };
+    }
 
     let dailyRows = [];
     if (marketCountryFilter) {
@@ -642,6 +694,6 @@ async function fetchRedditDashboardMetricsInner({
         }
     }
 
-    return { metrics_by_date, top_campaigns, campaigns_by_date: [] };
+    return { metrics_by_date, top_campaigns, campaigns_by_date: [], spend_by_iso2: spendByIso2 };
 }
 

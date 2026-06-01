@@ -376,6 +376,78 @@ function spendMicroByDateFromCountryDimensionStats(statsJson, accountIanaTz, cou
 }
 
 /**
+ * Sum spend (major currency) by ISO-2 from DAY stats with `report_dimension=country` (all countries).
+ * @returns {Map<string, number>}
+ */
+function spendMajorTotalsByIso2FromCountryDimensionStats(statsJson, accountIanaTz) {
+    /** @type {Map<string, number>} */
+    const byIso = new Map();
+
+    function addSpend(startTimeIso, countryCode, spendMicro) {
+        const cc = String(countryCode || "").trim().toUpperCase();
+        if (cc.length !== 2) return;
+        const major = spendMajor(num(spendMicro));
+        byIso.set(cc, (byIso.get(cc) || 0) + major);
+    }
+
+    function ingestDimensionStats(list, startTimeIso) {
+        if (!Array.isArray(list)) return;
+        for (const ds of list) {
+            if (!ds || typeof ds !== "object") continue;
+            addSpend(startTimeIso, ds.country ?? ds.Country, ds.spend);
+        }
+    }
+
+    function walk(obj, depth, parentStartTime) {
+        if (!obj || typeof obj !== "object" || depth > 14) return;
+        const startIso =
+            obj.start_time || obj.startTime || parentStartTime || "";
+        ingestDimensionStats(obj.dimension_stats, startIso);
+        ingestDimensionStats(obj.dimensionStats, startIso);
+        if (Array.isArray(obj.timeseries)) {
+            for (const pt of obj.timeseries) {
+                if (!pt || typeof pt !== "object") continue;
+                const ptStart = pt.start_time || pt.startTime || startIso;
+                ingestDimensionStats(pt.dimension_stats, ptStart);
+                ingestDimensionStats(pt.dimensionStats, ptStart);
+            }
+        }
+        if (Array.isArray(obj)) {
+            for (const x of obj) walk(x, depth + 1, parentStartTime);
+            return;
+        }
+        for (const k of Object.keys(obj)) {
+            if (k === "dimension_stats" || k === "dimensionStats" || k === "timeseries") continue;
+            walk(obj[k], depth + 1, startIso || parentStartTime);
+        }
+    }
+
+    walk(statsJson, 0, "");
+    return byIso;
+}
+
+/**
+ * One country-dimension stats fetch; totals spend by ISO-2 (markets overview).
+ */
+export async function fetchSnapchatSpendByIso2Map({
+    accessToken,
+    adAccountId,
+    startDate,
+    endDate,
+    snapCredentials,
+}) {
+    const dash = await fetchSnapchatDashboardMetrics({
+        accessToken,
+        adAccountId,
+        startDate,
+        endDate,
+        snapCredentials,
+        spendByCountryOnly: true,
+    });
+    return dash.spend_by_iso2 instanceof Map ? dash.spend_by_iso2 : new Map();
+}
+
+/**
  * @param {string} accessToken
  * @param {string} adAccountId
  * @param {string} start_time
@@ -521,6 +593,7 @@ function extractCampaignTotals(statsJson) {
  *   endDate: string,
  *   snapCredentials?: ReturnType<import("./snapchatCustomerSettings").normalizeSnapchatSettings>,
  *   countryIsoCodes?: string[] — when set, daily spend is limited to these ISO-2 countries (Shopify Markets ad spend filter)
+ *   spendByCountryOnly?: boolean — when true, return `spend_by_iso2` only (single country-dimension fetch)
  * }} args — when snapCredentials is set, 401 responses retry once via refresh_token
  */
 export async function fetchSnapchatDashboardMetrics({
@@ -530,6 +603,7 @@ export async function fetchSnapchatDashboardMetrics({
     endDate,
     snapCredentials,
     countryIsoCodes,
+    spendByCountryOnly = false,
 }) {
     const trimmed = String(adAccountId || "").trim();
     if (!trimmed) throw new Error("Missing adAccountId");
@@ -541,6 +615,7 @@ export async function fetchSnapchatDashboardMetrics({
             startDate,
             endDate,
             countryIsoCodes,
+            spendByCountryOnly,
         });
     } catch (e) {
         const msg = String(e?.message || "");
@@ -563,6 +638,7 @@ export async function fetchSnapchatDashboardMetrics({
             startDate,
             endDate,
             countryIsoCodes,
+            spendByCountryOnly,
         });
     }
 }
@@ -573,6 +649,7 @@ async function fetchSnapchatDashboardMetricsInner({
     startDate,
     endDate,
     countryIsoCodes,
+    spendByCountryOnly = false,
 }) {
     const trimmed = String(adAccountId || "").trim();
 
@@ -597,6 +674,31 @@ async function fetchSnapchatDashboardMetricsInner({
         "spend,impressions,swipes,conversion_purchases,conversion_purchases_value,conversion_add_cart";
 
     let rollupByDate = {};
+
+    if (spendByCountryOnly) {
+        const base = {
+            ...dayStatsBase,
+            report_dimension: "country",
+            fields: "spend",
+        };
+        let spendByIso2 = new Map();
+        try {
+            const json = await snapFetchJson(
+                `/adaccounts/${encodeURIComponent(trimmed)}/stats`,
+                accessToken,
+                base
+            );
+            spendByIso2 = spendMajorTotalsByIso2FromCountryDimensionStats(json, accountTz);
+        } catch (e1) {
+            dbg("spendByCountryOnly failed", e1?.message || e1);
+        }
+        return {
+            metrics_by_date: [],
+            top_campaigns: [],
+            campaigns_by_date: [],
+            spend_by_iso2: spendByIso2,
+        };
+    }
 
     const marketCountryFilter =
         Array.isArray(countryIsoCodes) && countryIsoCodes.filter((c) => String(c).trim()).length > 0;

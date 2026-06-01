@@ -67,7 +67,7 @@ const CustomerSchema = new mongoose.Schema({
             type: String,
             default: ""
         },
-        /** When true: Shopify revenue uses full-store sales (no billing-country filter); dashboards can filter by Shopify Market via ShopifyQL (resolved column e.g. shopify_market_id / market). */
+        /** When true: Shopify revenue uses full-store sales (no billing-country filter); dashboards can filter by Shopify Market via region countries → ShopifyQL `billing_country`. */
         shopifyMarketsEnabled: {
             type: Boolean,
             default: false,

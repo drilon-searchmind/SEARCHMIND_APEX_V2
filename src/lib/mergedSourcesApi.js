@@ -8,6 +8,7 @@ import {
 import {
     fetchBillingCountryUnionForSelectedMarkets,
     fetchAdSpendCountryFiltersForSelectedMarkets,
+    appendShopifyMarketBillingCountryFilter,
 } from './shopifyMarketsApi';
 import { metricsByDateToSpendDaily } from './mergeAdSpendDaily';
 import { fetchPinterestDashboardMetrics } from './pinterestApi';
@@ -35,6 +36,7 @@ import { AD_SPEND_CHANNELS } from './mergeAdSpendDaily';
  * @param {boolean} [options.shopifyMarketNoSelection] - When true (no markets selected in UI), skip ShopifyQL and return empty revenue rows.
  * @param {Array<{ shopifyqlMarketId: string, handle?: string }>} [options.shopifyMarketsSelection] - When set and shopifyMarketsEnabled: restrict sales to the union of each market's region countries via ShopifyQL `billing_country`. Omit for all markets.
  * @param {boolean} [options.shopifyMarketFilterAdSpend] - When true and `shopifyMarketsSelection` is set: filter Meta, Google, Snapchat, and Reddit spend to the same market countries. When false/omitted (default), ad spend ignores market filter.
+ * @param {{ billingCountryNames: string[], metaCountryCodes: string[], googleCountryNames: string[] }} [options.preresolvedMarketAdSpendFilters] - Skip Markets region lookup when already resolved (markets overview).
  * @param {string[]} [options.excludeAdSpendPlatforms] - e.g. `['facebook','google']` — skip fetching those platforms (empty daily rows).
  * @param {string[]} [options.googleAdsExcludedCampaignIds] - Campaign ids to omit from Google Ads spend (parent group view).
  * @param {boolean} [options.skipShopifyFetch] - When true, skip Shopify/WooCommerce/Magento revenue (ad platforms only; used by markets overview).
@@ -109,29 +111,35 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 if (excludeClause) whereParts.push(excludeClause);
             }
 
-            /** No region countries resolved for selected markets (e.g. non-region market types) — skip ShopifyQL */
+            /** No region countries for selected markets — skip ShopifyQL for market-scoped revenue */
             let emptyShopifyNoMarketCountries = false;
             if (shopifyMarketsOn && marketsSelection.length > 0) {
                 try {
-                    const marketCountryNames = await fetchBillingCountryUnionForSelectedMarkets(
-                        settings.shopifyUrl,
-                        settings.shopifyApiPassword,
-                        marketsSelection.map((m) => m.shopifyqlMarketId)
-                    );
+                    const pre = options.preresolvedMarketAdSpendFilters;
+                    let marketCountryNames =
+                        pre?.billingCountryNames?.length > 0
+                            ? pre.billingCountryNames
+                            : await fetchBillingCountryUnionForSelectedMarkets(
+                                  settings.shopifyUrl,
+                                  settings.shopifyApiPassword,
+                                  marketsSelection.map((m) => m.shopifyqlMarketId)
+                              );
                     if (marketCountryNames.length === 0) {
                         emptyShopifyNoMarketCountries = true;
                         console.warn(
-                            `[Shopify] Markets filter: no region countries from Admin API for selected market(s). If these are company/B2B-only markets, region-based billing filters do not apply.`
+                            `[Shopify] Markets filter: no region countries from Admin API for selected market(s).`
                         );
-                    } else {
-                        whereParts.push(
-                            `(${marketCountryNames
-                                .map((c) => `billing_country = '${escape(c)}'`)
-                                .join(' OR ')})`
-                        );
+                    } else if (
+                        !appendShopifyMarketBillingCountryFilter(
+                            whereParts,
+                            marketCountryNames,
+                            escape
+                        )
+                    ) {
+                        emptyShopifyNoMarketCountries = true;
                     }
                 } catch (e) {
-                    console.error('[Shopify] Markets filter: failed to load region countries:', e);
+                    console.error("[Shopify] Markets filter: failed to load region countries:", e);
                     emptyShopifyNoMarketCountries = true;
                 }
             }
@@ -278,29 +286,33 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
 
     /** @type {{ metaCountryCodes: string[], googleCountryNames: string[] }|null} */
     let marketAdSpendFilters = null;
-    if (
-        filterAdSpendByMarket &&
-        settings.shopifyUrl &&
-        settings.shopifyApiPassword
-    ) {
-        try {
-            const resolved = await fetchAdSpendCountryFiltersForSelectedMarkets(
-                settings.shopifyUrl,
-                settings.shopifyApiPassword,
-                marketsSelectionForSpend.map((m) => m.shopifyqlMarketId)
-            );
-            if (
-                resolved.metaCountryCodes.length > 0 ||
-                resolved.googleCountryNames.length > 0
-            ) {
-                marketAdSpendFilters = resolved;
-            } else {
-                console.warn(
-                    `[Shopify Markets] Ad spend country filter: no countries resolved for selected market(s) (${settings.customerName || "customer"}).`
+    if (filterAdSpendByMarket && marketsSelectionForSpend.length > 0) {
+        const pre = options.preresolvedMarketAdSpendFilters;
+        if (
+            pre &&
+            (pre.metaCountryCodes?.length > 0 || pre.googleCountryNames?.length > 0)
+        ) {
+            marketAdSpendFilters = pre;
+        } else if (settings.shopifyUrl && settings.shopifyApiPassword) {
+            try {
+                const resolved = await fetchAdSpendCountryFiltersForSelectedMarkets(
+                    settings.shopifyUrl,
+                    settings.shopifyApiPassword,
+                    marketsSelectionForSpend.map((m) => m.shopifyqlMarketId)
                 );
+                if (
+                    resolved.metaCountryCodes.length > 0 ||
+                    resolved.googleCountryNames.length > 0
+                ) {
+                    marketAdSpendFilters = resolved;
+                } else {
+                    console.warn(
+                        `[Shopify Markets] Ad spend country filter: no countries resolved for selected market(s) (${settings.customerName || "customer"}).`
+                    );
+                }
+            } catch (e) {
+                console.error("[Shopify Markets] Ad spend country filter failed:", e);
             }
-        } catch (e) {
-            console.error("[Shopify Markets] Ad spend country filter failed:", e);
         }
     }
 
@@ -308,9 +320,11 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
         ? marketAdSpendFilters.metaCountryCodes.join(",")
         : settings.customerMetaID;
     const metaExcludeForFetch = marketAdSpendFilters ? "" : settings.customerMetaIDExclude;
-    const googleIncludeForFetch = marketAdSpendFilters?.googleCountryNames?.length
-        ? marketAdSpendFilters.googleCountryNames.join(",")
-        : settings.googleAdsCountryFilter || undefined;
+    const googleIncludeForFetch = marketAdSpendFilters?.metaCountryCodes?.length
+        ? marketAdSpendFilters.metaCountryCodes.join(",")
+        : marketAdSpendFilters?.googleCountryNames?.length
+          ? marketAdSpendFilters.googleCountryNames.join(",")
+          : settings.googleAdsCountryFilter || undefined;
     const googleExcludeForFetch = marketAdSpendFilters
         ? undefined
         : settings.googleAdsCountryExclude || undefined;
@@ -377,6 +391,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                     excludedCampaignIds:
                         googleExcludedCampaigns.length > 0 ? googleExcludedCampaigns : undefined,
                     forceCampaignQuery: googleExcludedCampaigns.length > 0,
+                    quietLog: Boolean(marketAdSpendFilters),
                 }
             );
             // Destructure metrics and currency code from response

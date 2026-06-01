@@ -67,8 +67,6 @@ const MarketsOverviewPage = () => {
         setAppliedDateRange({ startDate, endDate });
     };
 
-    const [filterAdSpendByMarket, setFilterAdSpendByMarket] = useState(true);
-
     const {
         adSpendFilterUiChannels,
         draftExcludedPlatforms,
@@ -79,12 +77,7 @@ const MarketsOverviewPage = () => {
         spendQuerySuffix,
     } = useAdSpendPlatformsFilter(customer, marketsEnabled);
 
-    const marketsQuerySuffix = useMemo(() => {
-        const adPart = filterAdSpendByMarket
-            ? '&shopifyMarketFilterAdSpend=1'
-            : '&shopifyMarketFilterAdSpend=0';
-        return `${spendQuerySuffix}${adPart}`;
-    }, [spendQuerySuffix, filterAdSpendByMarket]);
+    const marketsQuerySuffix = spendQuerySuffix;
 
     const { rows, storeTotalRow, loading, error, featureDisabled, visibleMarketingColumnKeys } =
         useMarketsOverviewData(
@@ -316,15 +309,6 @@ const MarketsOverviewPage = () => {
                         metricColumns={metricColumns}
                     />
                     <h3 className="text-lg font-semibold">Blended ROAS / POAS by Market</h3>
-                    <label className="mt-3 flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            className="rounded border-gray-300"
-                            checked={filterAdSpendByMarket}
-                            onChange={(e) => setFilterAdSpendByMarket(e.target.checked)}
-                        />
-                        Filter ad spend by market
-                    </label>
                 </div>
                 <MarketsMetricsTable
                     rows={rows}
