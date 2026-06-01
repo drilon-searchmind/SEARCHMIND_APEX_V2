@@ -1,4 +1,5 @@
 import React from "react";
+import { shopifyDeductionMagnitudes } from "@/lib/performanceDashboard/computePerformanceMetrics";
 import {
     FiDollarSign,
     FiTrendingUp,
@@ -201,7 +202,14 @@ export function buildPerformanceMetricsCards({
             changeAbsolute: formatDiff(netRevenue, netRevenuePrev, "currency"),
             changePrevValue: fmtCur(netRevenuePrev),
             tooltip: "Net sales (after discounts, returns, etc.)",
-            popOverContent: `Net sales = Gross sales - (Discounts + Returns)\n= ${fmt(grossSales)} - (${fmt(discounts)} + ${fmt(returns)})\n= ${fmt(grossSales)} - ${fmt(discounts + returns)}\n= ${fmt(netRevenue)}`,
+            popOverContent: (() => {
+                const { discountDeduction, returnDeduction } = shopifyDeductionMagnitudes(
+                    discounts,
+                    returns
+                );
+                const deductions = discountDeduction + returnDeduction;
+                return `Net sales = Gross sales - Discounts - Returns\n= ${fmt(grossSales)} - ${fmt(discountDeduction)} - ${fmt(returnDeduction)}\n= ${fmt(grossSales)} - ${fmt(deductions)}\n= ${fmt(netRevenue)}`;
+            })(),
             calcValueLabels: `Gross sales: ${fmt(grossSales)}\nDiscounts: ${fmt(discounts)}\nReturns: ${fmt(returns)}`,
         },
         {

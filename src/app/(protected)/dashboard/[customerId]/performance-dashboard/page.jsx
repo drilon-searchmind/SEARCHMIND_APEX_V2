@@ -19,6 +19,7 @@ import ReturnsOverrideModal from "./components/ReturnsOverrideModal";
 import { buildPerformanceMetricsCards } from "./components/buildPerformanceMetricsCards";
 import { computePerformanceDashboardMetrics, netRevenueForShopifyDay } from "@/lib/performanceDashboard/computePerformanceMetrics";
 import { getReturnsOverrideSettings } from "@/lib/performanceDashboard/performanceDashboardConstants";
+import { netRevenueFromGrossDiscountsReturns } from "@/lib/performanceDashboard/computePerformanceMetrics";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 import { useShopifyMarketsFilter } from "@/hooks/useShopifyMarketsFilter";
 import { useAdSpendPlatformsFilter } from "@/hooks/useAdSpendPlatformsFilter";
@@ -514,7 +515,11 @@ export default function PerformanceDashboard() {
             if (returnsOverride.enabled) {
                 const pct = (returnsOverride.percent ?? 0) / 100;
                 const ret = (v.grossSales || 0) * pct;
-                return (v.grossSales || 0) - (v.discounts || 0) - ret;
+                return netRevenueFromGrossDiscountsReturns(
+                    v.grossSales || 0,
+                    v.discounts || 0,
+                    ret
+                );
             }
             return v.revenue || 0;
         };

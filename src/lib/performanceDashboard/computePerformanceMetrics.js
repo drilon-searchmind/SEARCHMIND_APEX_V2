@@ -8,6 +8,29 @@ function sumShopifyField(rows, field) {
     return (rows || []).reduce((sum, d) => sum + (Number(d[field]) || 0), 0);
 }
 
+/**
+ * Net revenue from gross sales, discounts, and returns.
+ * ShopifyQL typically reports discounts/returns as negative; returns override uses a positive returns estimate.
+ */
+export function netRevenueFromGrossDiscountsReturns(grossSales, discounts, returns) {
+    const gross = Number(grossSales) || 0;
+    const disc = Number(discounts) || 0;
+    const ret = Number(returns) || 0;
+    const discountDeduction = disc < 0 ? -disc : disc;
+    const returnDeduction = ret < 0 ? -ret : ret;
+    return gross - discountDeduction - returnDeduction;
+}
+
+/** Positive magnitudes for display (e.g. formula popovers). */
+export function shopifyDeductionMagnitudes(discounts, returns) {
+    const disc = Number(discounts) || 0;
+    const ret = Number(returns) || 0;
+    return {
+        discountDeduction: disc < 0 ? -disc : disc,
+        returnDeduction: ret < 0 ? -ret : ret,
+    };
+}
+
 function buildPeriodTotals(shopifyRows, returnsOverride) {
     const grossSales = sumShopifyField(shopifyRows, "gross_sales");
     const discounts = sumShopifyField(shopifyRows, "discounts");
@@ -23,7 +46,7 @@ function buildPeriodTotals(shopifyRows, returnsOverride) {
     if (returnsOverride?.enabled) {
         const pct = (returnsOverride.percent ?? 0) / 100;
         returns = grossSales * pct;
-        netRevenue = grossSales - discounts - returns;
+        netRevenue = netRevenueFromGrossDiscountsReturns(grossSales, discounts, returns);
     }
 
     return {
@@ -209,20 +232,20 @@ export function applyCustomKpiReplacements(base, customKpis = []) {
         }
     }
 
-    // Recompute net revenue when components change (unless revenue itself is replaced)
-    if (!replacementByKey.revenue) {
+    // Recompute net revenue only when a component KPI was replaced (unless revenue itself is replaced)
+    const componentsReplaced =
+        replacementByKey.gross_sales ||
+        replacementByKey.discounts ||
+        replacementByKey.returns;
+    if (!replacementByKey.revenue && componentsReplaced) {
         const gross = effective.gross_sales ?? metricsData.gross_sales;
         const disc = effective.discounts ?? metricsData.discounts;
         const ret = effective.returns ?? metricsData.returns;
-        effective.revenue = gross - disc - ret;
-        if (!replacementByKey.gross_sales && !replacementByKey.discounts && !replacementByKey.returns) {
-            // keep prev in sync only when derived from same components
-        } else {
-            const grossP = effectivePrev.gross_sales ?? metricsDataPrev.gross_sales;
-            const discP = effectivePrev.discounts ?? metricsDataPrev.discounts;
-            const retP = effectivePrev.returns ?? metricsDataPrev.returns;
-            effectivePrev.revenue = grossP - discP - retP;
-        }
+        effective.revenue = netRevenueFromGrossDiscountsReturns(gross, disc, ret);
+        const grossP = effectivePrev.gross_sales ?? metricsDataPrev.gross_sales;
+        const discP = effectivePrev.discounts ?? metricsDataPrev.discounts;
+        const retP = effectivePrev.returns ?? metricsDataPrev.returns;
+        effectivePrev.revenue = netRevenueFromGrossDiscountsReturns(grossP, discP, retP);
     }
 
     // Recompute AOV when orders or revenue change
@@ -384,7 +407,7 @@ export function netRevenueForShopifyDay(d, returnsOverride) {
     if (returnsOverride?.enabled) {
         const pct = (returnsOverride.percent ?? 0) / 100;
         const returns = gross * pct;
-        return gross - discounts - returns;
+        return netRevenueFromGrossDiscountsReturns(gross, discounts, returns);
     }
     return Number(d.net_sales || d.total_sales || 0);
 }
