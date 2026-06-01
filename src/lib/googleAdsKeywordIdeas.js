@@ -3,6 +3,10 @@ import { GoogleAdsApi } from 'google-ads-api';
 import dayjs from 'dayjs';
 import { resolveCountryToCriterionId } from '@/lib/googleAdsApi';
 import { isWorldwideGeoValue } from '@/lib/countrySelectOptions';
+import {
+    normalizeGoogleAdsCustomerId,
+    primaryGoogleAdsCustomerId,
+} from '@/lib/googleAdsCustomerIdUtils';
 
 const GOOGLE_ADS_API_VERSION = 'v21';
 
@@ -21,12 +25,8 @@ const MONTH_OF_YEAR = {
     DECEMBER: 12,
 };
 
-function normalizeCustomerId(id) {
-    return String(id ?? '').replace(/\D/g, '');
-}
-
 export function createGoogleAdsCustomer(googleAdsCustomerId) {
-    const cid = normalizeCustomerId(googleAdsCustomerId);
+    const cid = primaryGoogleAdsCustomerId(googleAdsCustomerId);
     if (!cid) {
         throw new Error('Missing Google Ads customer ID');
     }
@@ -39,7 +39,7 @@ export function createGoogleAdsCustomer(googleAdsCustomerId) {
     return client.Customer({
         customer_id: cid,
         refresh_token: process.env.GOOGLE_ADS_REFRESH_TOKEN,
-        login_customer_id: manager ? normalizeCustomerId(manager) : undefined,
+        login_customer_id: manager ? primaryGoogleAdsCustomerId(manager) : undefined,
     });
 }
 
@@ -156,7 +156,7 @@ function pickMetricsForBrand(brand, map) {
 
 async function postGenerateKeywordIdeas(customer, body) {
     const accessToken = await customer.getAccessToken();
-    const customerId = normalizeCustomerId(customer.credentials.customer_id);
+    const customerId = normalizeGoogleAdsCustomerId(customer.credentials.customer_id);
     const url = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}:generateKeywordIdeas`;
     const headers = {
         Authorization: `Bearer ${accessToken}`,
@@ -165,7 +165,7 @@ async function postGenerateKeywordIdeas(customer, body) {
     };
     const manager = process.env.GOOGLE_ADS_MANAGER_CUSTOMER_ID;
     if (manager) {
-        headers['login-customer-id'] = normalizeCustomerId(manager);
+        headers['login-customer-id'] = normalizeGoogleAdsCustomerId(manager);
     }
     const res = await fetch(url, {
         method: 'POST',

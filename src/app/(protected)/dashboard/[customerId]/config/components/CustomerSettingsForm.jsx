@@ -374,7 +374,7 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
                     label="Google Ads Customer ID"
                     value={form.googleAdsCustomerId}
                     onChange={onChange}
-                    placeholder="e.g. 123-456-7890"
+                    placeholder="e.g. 7969227273 or 7969227273, 7969227272"
                 />
                 <FormField
                     id="googleAdsCountryFilter"

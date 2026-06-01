@@ -234,7 +234,13 @@ export default function CustomerCreateForm({
             </div>
             <div>
                 <FormLabel htmlFor="googleAdsCustomerId">Google Ads Customer ID</FormLabel>
-                <FormInputText id="googleAdsCustomerId" name="googleAdsCustomerId" value={form.CustomerSettings.googleAdsCustomerId} onChange={handleChange} />
+                <FormInputText
+                    id="googleAdsCustomerId"
+                    name="googleAdsCustomerId"
+                    value={form.CustomerSettings.googleAdsCustomerId}
+                    onChange={handleChange}
+                    placeholder="e.g. 7969227273 or comma-separated IDs"
+                />
             </div>
             <div>
                 <FormLabel htmlFor="pinterestAdAccountId">Pinterest ad account ID</FormLabel>

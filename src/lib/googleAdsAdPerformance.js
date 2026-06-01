@@ -1,6 +1,7 @@
 // src/lib/googleAdsAdPerformance.js — Ad-level metrics for PPC dashboard only (not merged-sources).
 import { GoogleAdsApi } from "google-ads-api";
 import { getCurrencyConversionTable, conversionRateToDkk } from "./currencyConversionTable";
+import { parseGoogleAdsCustomerIds } from "./googleAdsCustomerIdUtils";
 
 /**
  * Human-readable label for an ad row. Prefer `ad.name`; if empty, use campaign / ad group (lightweight GAQL fields).
@@ -36,11 +37,73 @@ function pickBetterLabel(current, candidate) {
 }
 
 /**
- * Fetch aggregated ad-level performance for a date range.
- * Country filters (used elsewhere on the dashboard) do not apply at ad granularity in this query;
- * the API returns account-wide ad totals for the range.
+ * Fetch aggregated ad-level performance (supports comma-separated Google Ads customer IDs).
+ * Country filters do not apply at ad granularity; returns account-wide ad totals for the range.
  */
-export async function fetchGoogleAdsAdPerformance({
+export async function fetchGoogleAdsAdPerformance(config) {
+    const ids = parseGoogleAdsCustomerIds(config.customerId);
+    if (ids.length <= 1) {
+        const single = ids[0] ?? String(config.customerId ?? "").trim();
+        return fetchGoogleAdsAdPerformanceForOne({ ...config, customerId: single });
+    }
+    const parts = await Promise.all(
+        ids.map((id) => fetchGoogleAdsAdPerformanceForOne({ ...config, customerId: id }))
+    );
+    /** @type {Map<string, object>} */
+    const byAd = new Map();
+    for (let i = 0; i < parts.length; i++) {
+        const accountId = ids[i];
+        for (const ad of parts[i].ads || []) {
+            const key = `${accountId}:${ad.ad_id}`;
+            if (!byAd.has(key)) {
+                byAd.set(key, { ...ad, ad_id: key });
+                continue;
+            }
+            const agg = byAd.get(key);
+            agg.ad_name = pickBetterLabel(agg.ad_name, ad.ad_name);
+            agg.revenue += ad.revenue || 0;
+            agg.ad_spend += ad.ad_spend || 0;
+            agg.impressions += ad.impressions || 0;
+            agg.clicks += ad.clicks || 0;
+            agg.all_conversions_value =
+                (agg.all_conversions_value || 0) + (ad.all_conversions_value || ad.revenue || 0);
+        }
+    }
+    const ads = Array.from(byAd.values())
+        .map((r) => {
+            const spend = r.ad_spend;
+            const revenue = r.revenue;
+            const allVal = r.all_conversions_value ?? revenue;
+            const roas = spend > 0 ? revenue / spend : 0;
+            const poas = spend > 0 ? allVal / spend : 0;
+            const ctr = r.impressions > 0 ? r.clicks / r.impressions : 0;
+            const convRateClicks = r.clicks > 0 ? (r.conversions || 0) / r.clicks : 0;
+            const convRateImpr = r.impressions > 0 ? (r.conversions || 0) / r.impressions : 0;
+            return {
+                platform: "google",
+                ad_id: r.ad_id,
+                ad_name: r.ad_name,
+                revenue,
+                roas,
+                poas,
+                ad_spend: spend,
+                impressions: r.impressions,
+                clicks: r.clicks,
+                ctr,
+                conv_rate_clicks: convRateClicks,
+                conv_rate_impressions: convRateImpr,
+            };
+        })
+        .filter((r) => r.impressions > 0 || r.clicks > 0 || r.ad_spend > 0)
+        .sort((a, b) => b.revenue - a.revenue);
+    return {
+        ads,
+        currency: parts[0]?.currency || "DKK",
+        adPerformanceNote: null,
+    };
+}
+
+async function fetchGoogleAdsAdPerformanceForOne({
     developerToken,
     clientId,
     clientSecret,

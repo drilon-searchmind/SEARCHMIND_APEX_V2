@@ -2,6 +2,7 @@
 import { GoogleAdsApi } from 'google-ads-api';
 import { resolveCountryToCriterionId } from './googleAdsApi';
 import { getCurrencyConversionTable, conversionRateToDkk } from './currencyConversionTable';
+import { parseGoogleAdsCustomerIds } from './googleAdsCustomerIdUtils';
 
 /**
  * Fetch comprehensive Google Ads PPC dashboard metrics
@@ -18,7 +19,127 @@ import { getCurrencyConversionTable, conversionRateToDkk } from './currencyConve
  * @param {string} [config.countryExclude] - Optional comma-separated countries to EXCLUDE
  * @returns {Promise<Object>} Object containing metrics_by_date, top_campaigns, and campaigns_by_date
  */
-export async function fetchGoogleAdsPPCDashboardMetrics({
+function mergePpcMetricsByDate(arrays) {
+    /** @type {Record<string, object>} */
+    const map = {};
+    for (const arr of arrays) {
+        for (const m of arr || []) {
+            if (!m?.date) continue;
+            if (!map[m.date]) {
+                map[m.date] = {
+                    date: m.date,
+                    clicks: 0,
+                    impressions: 0,
+                    conversions: 0,
+                    conversions_value: 0,
+                    ad_spend: 0,
+                };
+            }
+            const row = map[m.date];
+            row.clicks += m.clicks || 0;
+            row.impressions += m.impressions || 0;
+            row.conversions += m.conversions || 0;
+            row.conversions_value += m.conversions_value || 0;
+            row.ad_spend += m.ad_spend || 0;
+        }
+    }
+    return Object.values(map)
+        .map((m) => ({
+            ...m,
+            roas: m.ad_spend > 0 ? m.conversions_value / m.ad_spend : 0,
+            aov: m.conversions > 0 ? m.conversions_value / m.conversions : 0,
+            ctr: m.impressions > 0 ? m.clicks / m.impressions : 0,
+            cpc: m.clicks > 0 ? m.ad_spend / m.clicks : 0,
+            conv_rate: m.clicks > 0 ? m.conversions / m.clicks : 0,
+        }))
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+
+function mergePpcTopCampaigns(arrays) {
+    /** @type {Record<string, object>} */
+    const map = {};
+    for (const arr of arrays) {
+        for (const c of arr || []) {
+            const key = c.campaign_name || "(no campaign)";
+            if (!map[key]) {
+                map[key] = { campaign_name: key, clicks: 0, impressions: 0 };
+            }
+            map[key].clicks += c.clicks || 0;
+            map[key].impressions += c.impressions || 0;
+        }
+    }
+    return Object.values(map)
+        .map((c) => ({
+            ...c,
+            ctr: c.impressions > 0 ? c.clicks / c.impressions : 0,
+        }))
+        .sort((a, b) => b.clicks - a.clicks)
+        .slice(0, 1000);
+}
+
+function mergePpcCampaignsByDate(arrays, topCampaignNames) {
+    /** @type {Record<string, object>} */
+    const map = {};
+    for (const arr of arrays) {
+        for (const row of arr || []) {
+            if (!topCampaignNames.has(row.campaign_name)) continue;
+            const key = `${row.date}_${row.campaign_name}`;
+            if (!map[key]) {
+                map[key] = {
+                    date: row.date,
+                    campaign_name: row.campaign_name,
+                    clicks: 0,
+                    impressions: 0,
+                    conversions: 0,
+                    ad_spend: 0,
+                };
+            }
+            const agg = map[key];
+            agg.clicks += row.clicks || 0;
+            agg.impressions += row.impressions || 0;
+            agg.conversions += row.conversions || 0;
+            agg.ad_spend += row.ad_spend || 0;
+        }
+    }
+    return Object.values(map)
+        .map((c) => ({
+            ...c,
+            ctr: c.impressions > 0 ? c.clicks / c.impressions : 0,
+            conv_rate: c.clicks > 0 ? c.conversions / c.clicks : 0,
+            cpc: c.clicks > 0 ? c.ad_spend / c.clicks : 0,
+        }))
+        .sort((a, b) => {
+            const dateCompare = new Date(a.date) - new Date(b.date);
+            if (dateCompare !== 0) return dateCompare;
+            return b.clicks - a.clicks;
+        });
+}
+
+/**
+ * Fetch comprehensive Google Ads PPC dashboard metrics (supports comma-separated customer IDs).
+ */
+export async function fetchGoogleAdsPPCDashboardMetrics(config) {
+    const ids = parseGoogleAdsCustomerIds(config.customerId);
+    if (ids.length <= 1) {
+        const single = ids[0] ?? String(config.customerId ?? "").trim();
+        return fetchGoogleAdsPPCDashboardMetricsForOne({ ...config, customerId: single });
+    }
+    const parts = await Promise.all(
+        ids.map((id) =>
+            fetchGoogleAdsPPCDashboardMetricsForOne({ ...config, customerId: id })
+        )
+    );
+    const metrics_by_date = mergePpcMetricsByDate(parts.map((p) => p.metrics_by_date));
+    const top_campaigns = mergePpcTopCampaigns(parts.map((p) => p.top_campaigns));
+    const topCampaignNames = new Set(top_campaigns.map((c) => c.campaign_name));
+    const campaigns_by_date = mergePpcCampaignsByDate(
+        parts.map((p) => p.campaigns_by_date),
+        topCampaignNames
+    );
+    return { metrics_by_date, top_campaigns, campaigns_by_date };
+}
+
+async function fetchGoogleAdsPPCDashboardMetricsForOne({
     developerToken,
     clientId,
     clientSecret,

@@ -1,6 +1,7 @@
 // src/lib/googleAdsApi.js
 import { GoogleAdsApi } from 'google-ads-api';
 import { normalizeGoogleAdsCampaignId } from './googleAdsCampaignIdUtils';
+import { parseGoogleAdsCustomerIds } from './googleAdsCustomerIdUtils';
 
 export { normalizeGoogleAdsCampaignId } from './googleAdsCampaignIdUtils';
 
@@ -91,7 +92,7 @@ function filterMetricsByExcludedCampaigns(metrics, excludedCampaignIds) {
  * @param {{ quietLog?: boolean }} [requestOptions]
  * @returns {Promise<Array<{ id: string, name: string, status?: string }>>}
  */
-export async function fetchGoogleAdsCampaignList(
+async function fetchGoogleAdsCampaignListForOne(
     customerId,
     startDate,
     endDate,
@@ -137,6 +138,39 @@ export async function fetchGoogleAdsCampaignList(
 }
 
 /**
+ * List distinct campaigns (supports comma-separated Google Ads customer IDs).
+ * @param {string} customerId
+ */
+export async function fetchGoogleAdsCampaignList(
+    customerId,
+    startDate,
+    endDate,
+    requestOptions = {}
+) {
+    const ids = parseGoogleAdsCustomerIds(customerId);
+    if (ids.length <= 1) {
+        const single = ids[0] ?? String(customerId ?? "").trim();
+        return fetchGoogleAdsCampaignListForOne(single, startDate, endDate, requestOptions);
+    }
+    const lists = await Promise.all(
+        ids.map((id) =>
+            fetchGoogleAdsCampaignListForOne(id, startDate, endDate, {
+                ...requestOptions,
+                quietLog: true,
+            })
+        )
+    );
+    /** @type {Map<string, { id: string, name: string, status?: string }>} */
+    const byId = new Map();
+    for (const list of lists) {
+        for (const c of list) {
+            if (!byId.has(c.id)) byId.set(c.id, c);
+        }
+    }
+    return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
  * Fetches Google Ads metrics for a given customer ID and date range.
  * @param {string} customerId - Google Ads customer ID (from CustomerSettings)
  * @param {string} startDate - Start date (YYYY-MM-DD)
@@ -146,7 +180,7 @@ export async function fetchGoogleAdsCampaignList(
  * @param {{ quietLog?: boolean, excludedCampaignIds?: string[], forceCampaignQuery?: boolean }} [requestOptions]
  * @returns {Promise<{metrics: object[], currencyCode: string}>} - Raw rows from Google Ads API and customer currency code
  */
-export async function fetchGoogleAdsMetrics(
+async function fetchGoogleAdsMetricsForOne(
     customerId,
     startDate,
     endDate,
@@ -304,6 +338,58 @@ export async function fetchGoogleAdsMetrics(
 }
 
 /**
+ * Fetches Google Ads metrics (supports comma-separated Google Ads customer IDs).
+ */
+export async function fetchGoogleAdsMetrics(
+    customerId,
+    startDate,
+    endDate,
+    countryFilter,
+    countryExclude,
+    requestOptions = {}
+) {
+    const ids = parseGoogleAdsCustomerIds(customerId);
+    if (ids.length <= 1) {
+        const single = ids[0] ?? String(customerId ?? "").trim();
+        return fetchGoogleAdsMetricsForOne(
+            single,
+            startDate,
+            endDate,
+            countryFilter,
+            countryExclude,
+            requestOptions
+        );
+    }
+    const quietLog = requestOptions.quietLog === true;
+    const results = await Promise.all(
+        ids.map((id) =>
+            fetchGoogleAdsMetricsForOne(
+                id,
+                startDate,
+                endDate,
+                countryFilter,
+                countryExclude,
+                { ...requestOptions, quietLog: true }
+            )
+        )
+    );
+    const currencyCode = results[0]?.currencyCode ?? "DKK";
+    if (!quietLog) {
+        const currencies = new Set(results.map((r) => r.currencyCode).filter(Boolean));
+        if (currencies.size > 1) {
+            console.warn(
+                "Google Ads: multiple customer IDs use different currencies; using",
+                currencyCode,
+                "for conversion. Accounts:",
+                [...currencies].join(", ")
+            );
+        }
+    }
+    const metrics = results.flatMap((r) => r.metrics || []);
+    return { metrics, currencyCode };
+}
+
+/**
  * Resolve Google Ads location criterion IDs to ISO-2 country codes.
  * @param {ReturnType<typeof createGoogleAdsApiCustomer>} customer
  * @param {number[]} criterionIds
@@ -342,7 +428,7 @@ async function resolveCriterionIdsToIso2(customer, criterionIds) {
  * Total spend by ISO-2 from user_location_view (one query, all countries).
  * @returns {Promise<Map<string, number>>}
  */
-export async function fetchGoogleAdsSpendByIso2Map(
+async function fetchGoogleAdsSpendByIso2MapForOne(
     customerId,
     startDate,
     endDate,
@@ -402,4 +488,37 @@ export async function fetchGoogleAdsSpendByIso2Map(
         if (!quietLog) console.error("Google Ads spend by country:", err);
         return { byIso: new Map(), currencyCode };
     }
+}
+
+/**
+ * Spend by country (supports comma-separated Google Ads customer IDs).
+ */
+export async function fetchGoogleAdsSpendByIso2Map(
+    customerId,
+    startDate,
+    endDate,
+    requestOptions = {}
+) {
+    const ids = parseGoogleAdsCustomerIds(customerId);
+    if (ids.length <= 1) {
+        const single = ids[0] ?? String(customerId ?? "").trim();
+        return fetchGoogleAdsSpendByIso2MapForOne(single, startDate, endDate, requestOptions);
+    }
+    const results = await Promise.all(
+        ids.map((id) =>
+            fetchGoogleAdsSpendByIso2MapForOne(id, startDate, endDate, {
+                ...requestOptions,
+                quietLog: true,
+            })
+        )
+    );
+    const currencyCode = results[0]?.currencyCode ?? "DKK";
+    /** @type {Map<string, number>} */
+    const byIso = new Map();
+    for (const { byIso: map } of results) {
+        for (const [iso, cost] of map || []) {
+            byIso.set(iso, (byIso.get(iso) || 0) + cost);
+        }
+    }
+    return { byIso, currencyCode };
 }
