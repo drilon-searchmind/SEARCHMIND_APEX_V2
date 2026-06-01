@@ -40,8 +40,11 @@ function buildPeriodTotals(shopifyRows, returnsOverride) {
     const totalSales = sumShopifyField(shopifyRows, "total_sales");
     const cogsFromStore = sumShopifyField(shopifyRows, "cost_of_goods_sold");
 
+    const duties = sumShopifyField(shopifyRows, "duties");
+    const additionalFees = sumShopifyField(shopifyRows, "additional_fees");
+    const netSalesFromStore = sumShopifyField(shopifyRows, "net_sales");
     let returns = sumShopifyField(shopifyRows, "returns");
-    let netRevenue = sumShopifyField(shopifyRows, "net_sales");
+    let netRevenue = netSalesFromStore;
 
     if (returnsOverride?.enabled) {
         const pct = (returnsOverride.percent ?? 0) / 100;
@@ -54,10 +57,13 @@ function buildPeriodTotals(shopifyRows, returnsOverride) {
         discounts,
         returns,
         netRevenue,
+        netSalesFromStore,
         orders,
         shippingCharges,
         taxes,
         totalSales,
+        duties,
+        additionalFees,
         cogsFromStore,
     };
 }
@@ -119,11 +125,14 @@ export function buildBaseMetricsData({
     const metricsData = {
         total_sales: curr.totalSales,
         revenue: curr.netRevenue,
+        net_sales: curr.netSalesFromStore,
         gross_sales: curr.grossSales,
         discounts: curr.discounts,
         returns: curr.returns,
         orders: curr.orders,
         shipping_revenue: curr.shippingCharges,
+        duties: curr.duties,
+        additional_fees: curr.additionalFees,
         tax: curr.taxes,
         transaction_fee: transactionFee,
         gross_profit: grossProfit,
@@ -149,11 +158,14 @@ export function buildBaseMetricsData({
         ...metricsData,
         total_sales: prev.totalSales,
         revenue: prev.netRevenue,
+        net_sales: prev.netSalesFromStore,
         gross_sales: prev.grossSales,
         discounts: prev.discounts,
         returns: prev.returns,
         orders: prev.orders,
         shipping_revenue: prev.shippingCharges,
+        duties: prev.duties,
+        additional_fees: prev.additionalFees,
         tax: prev.taxes,
         transaction_fee: transactionFeePrev,
         gross_profit: grossProfitPrev,
@@ -391,11 +403,33 @@ export function computePerformanceDashboardMetrics({
 
     const withReplacements = applyCustomKpiReplacements(base, customKpis);
 
+    /** Custom KPI tab: always store-reported Shopify values (no returns % override). */
+    const currStore = buildPeriodTotals(shopify, null);
+    const prevStore = buildPeriodTotals(shopifyPrev, null);
+    const baseForCustomKpis = buildBaseMetricsData({
+        curr: currStore,
+        prev: prevStore,
+        cost,
+        costPrev,
+        channelTotals,
+        channelTotalsPrev,
+        staticExpenses,
+        customerSettings,
+        fetchCogs,
+        cogsPercentage,
+        fixedCosts,
+        fixedCostsPrev,
+        daysInRange,
+        prevDaysInRange,
+    });
+
     return {
         curr,
         prev,
         returnsOverride,
         ...withReplacements,
+        metricsDataForCustomKpis: baseForCustomKpis.metricsData,
+        metricsDataPrevForCustomKpis: baseForCustomKpis.metricsDataPrev,
         raw: base,
     };
 }

@@ -32,13 +32,16 @@ const METRIC_LABELS = Object.fromEntries(
 );
 // Extra metrics from metricsData not in AddKpiModal
 Object.assign(METRIC_LABELS, {
+    net_sales: "Net Sales",
     cogs: "COGS",
     gross_sales: "Gross Sales",
-    discounts: "Discount",
+    discounts: "Discounts",
     shipping_revenue: "Shipping Charges",
     shipping_cost: "Shipping Cost",
     transaction_fee: "Transaction Fee",
     tax: "Taxes",
+    duties: "Duties",
+    additional_fees: "Additional Fees",
     fixed_costs: "Fixed Costs",
     variable_costs: "Variable Costs",
     pick_pack: "Pick & Pack",
@@ -142,6 +145,13 @@ const MIGRATION_KEY = "performance-dashboard-custom-kpis-migrated";
 const METRIC_ICONS = {
     total_sales: FiDollarSign,
     revenue: FiDollarSign,
+    net_sales: FiDollarSign,
+    gross_sales: FiDollarSign,
+    discounts: FiDollarSign,
+    duties: FiDollarSign,
+    additional_fees: FiDollarSign,
+    shipping_revenue: FiDollarSign,
+    tax: FiDollarSign,
     gross_profit: FiDollarSign,
     orders: FiShoppingCart,
     returns: FiTrendingUp,
@@ -177,6 +187,13 @@ const FICTIONAL_METRICS = {
 const CURRENCY_KEYS = [
     "total_sales",
     "revenue",
+    "net_sales",
+    "gross_sales",
+    "discounts",
+    "duties",
+    "additional_fees",
+    "shipping_revenue",
+    "tax",
     "gross_profit",
     "returns",
     "cost",
@@ -190,6 +207,20 @@ const CURRENCY_KEYS = [
     "cac",
 ];
 const RATIO_KEYS = ["roas", "poas", "spendshare"];
+
+/** Custom tab uses store-reported Shopify metrics (no returns % override in calcs). */
+const STORE_REPORTED_METRIC_KEYS = new Set([
+    "net_sales",
+    "revenue",
+    "returns",
+    "gross_sales",
+    "discounts",
+    "total_sales",
+    "shipping_revenue",
+    "duties",
+    "additional_fees",
+    "tax",
+]);
 
 function formatValue(value, kpi) {
     if (value === null || value === undefined || isNaN(value)) return "-";
@@ -670,7 +701,8 @@ export default function Custom({
                     let valueLabels, calcLines;
                     if (
                         isSingleMetric &&
-                        standardMetric?.popOverContent
+                        standardMetric?.popOverContent &&
+                        !STORE_REPORTED_METRIC_KEYS.has(metricKey)
                     ) {
                         calcLines = standardMetric.popOverContent
                             .split("\n")

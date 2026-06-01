@@ -97,6 +97,12 @@ export function buildPerformanceMetricsCards({
 
     const netRevenue = metricsData.revenue;
     const netRevenuePrev = metricsDataPrev.revenue;
+    const netSales = metricsData.net_sales;
+    const netSalesPrev = metricsDataPrev.net_sales;
+    const duties = metricsData.duties;
+    const dutiesPrev = metricsDataPrev.duties;
+    const additionalFees = metricsData.additional_fees;
+    const additionalFeesPrev = metricsDataPrev.additional_fees;
     const orders = metricsData.orders;
     const ordersPrev = metricsDataPrev.orders;
     const returns = metricsData.returns;
@@ -211,6 +217,40 @@ export function buildPerformanceMetricsCards({
                 return `Net sales = Gross sales - Discounts - Returns\n= ${fmt(grossSales)} - ${fmt(discountDeduction)} - ${fmt(returnDeduction)}\n= ${fmt(grossSales)} - ${fmt(deductions)}\n= ${fmt(netRevenue)}`;
             })(),
             calcValueLabels: `Gross sales: ${fmt(grossSales)}\nDiscounts: ${fmt(discounts)}\nReturns: ${fmt(returns)}`,
+        },
+        {
+            key: "net_sales",
+            label: "Net Sales",
+            value: fmtCur(netSales),
+            icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+            change: percentChange(netSales, netSalesPrev) !== null ? Math.abs(percentChange(netSales, netSalesPrev)).toFixed(0) : undefined,
+            changeType: changeType(percentChange(netSales, netSalesPrev)),
+            changeAbsolute: formatDiff(netSales, netSalesPrev, "currency"),
+            changePrevValue: fmtCur(netSalesPrev),
+            tooltip: "Shopify net sales from store (not adjusted by returns % override)",
+            popOverContent: null,
+        },
+        {
+            key: "duties",
+            label: "Duties",
+            value: fmtCur(duties),
+            icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+            change: percentChange(duties, dutiesPrev) !== null ? Math.abs(percentChange(duties, dutiesPrev)).toFixed(0) : undefined,
+            changeType: changeType(percentChange(duties, dutiesPrev)),
+            changeAbsolute: formatDiff(duties, dutiesPrev, "currency"),
+            changePrevValue: fmtCur(dutiesPrev),
+            popOverContent: null,
+        },
+        {
+            key: "additional_fees",
+            label: "Additional Fees",
+            value: fmtCur(additionalFees),
+            icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
+            change: percentChange(additionalFees, additionalFeesPrev) !== null ? Math.abs(percentChange(additionalFees, additionalFeesPrev)).toFixed(0) : undefined,
+            changeType: changeType(percentChange(additionalFees, additionalFeesPrev)),
+            changeAbsolute: formatDiff(additionalFees, additionalFeesPrev, "currency"),
+            changePrevValue: fmtCur(additionalFeesPrev),
+            popOverContent: null,
         },
         {
             key: "cogs",

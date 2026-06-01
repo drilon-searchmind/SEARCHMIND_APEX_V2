@@ -36,15 +36,21 @@ function aggRowToMetrics(v) {
     const totalRevenue = v.totalRevenue ?? revenue;
     const grossSales = v.grossSales ?? totalRevenue;
     const discounts = v.discounts ?? 0;
+    const netSales = v.netSales ?? v.net_sales ?? revenue;
     /** @type {Record<string, number>} */
     const out = {
         total_sales: totalRevenue,
         revenue,
+        net_sales: netSales,
         gross_sales: grossSales,
         discounts,
         gross_profit: grossProfit,
         orders,
         returns: v.returns ?? 0,
+        duties: v.duties ?? 0,
+        additional_fees: v.additional_fees ?? v.additionalFees ?? 0,
+        shipping_revenue: v.shipping_revenue ?? v.shippingCharges ?? 0,
+        tax: v.tax ?? v.taxes ?? 0,
         cost,
         roas: cost > 0 ? revenue / cost : 0,
         poas: cost > 0 ? grossProfit / cost : 0,

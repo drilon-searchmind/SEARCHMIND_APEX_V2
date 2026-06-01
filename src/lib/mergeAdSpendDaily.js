@@ -250,9 +250,12 @@ export function aggregateShopifyAndAdSpendByPeriodFromRows(shopifyArr, channelRo
     const map = {};
     const bucket = () => ({
         revenue: 0,
+        net_sales: 0,
         totalRevenue: 0,
         grossSales: 0,
         discounts: 0,
+        duties: 0,
+        additional_fees: 0,
         orders: 0,
         cost: 0,
         costFacebook: 0,
@@ -263,6 +266,8 @@ export function aggregateShopifyAndAdSpendByPeriodFromRows(shopifyArr, channelRo
         costReddit: 0,
         cogs: 0,
         returns: 0,
+        shipping_revenue: 0,
+        tax: 0,
     });
     const ensure = (k) => {
         if (!map[k]) map[k] = bucket();
@@ -274,10 +279,16 @@ export function aggregateShopifyAndAdSpendByPeriodFromRows(shopifyArr, channelRo
         o.totalRevenue += Number(d.total_sales || 0);
         o.grossSales += Number(d.gross_sales || 0);
         o.discounts += Number(d.discounts || 0);
-        o.revenue += Number(d.net_sales || d.total_sales || 0);
+        const dayNet = Number(d.net_sales || d.total_sales || 0);
+        o.revenue += dayNet;
+        o.net_sales += dayNet;
         o.orders += Number(d.orders || 0);
         o.cogs += Number(d.cost_of_goods_sold || 0);
         o.returns += Number(d.returns || 0);
+        o.duties += Number(d.duties || 0);
+        o.additional_fees += Number(d.additional_fees || 0);
+        o.shipping_revenue += Number(d.shipping_charges || 0);
+        o.tax += Number(d.taxes || 0);
     });
     for (const spec of AD_SPEND_CHANNELS) {
         const arr = channelRows[spec.id] || [];

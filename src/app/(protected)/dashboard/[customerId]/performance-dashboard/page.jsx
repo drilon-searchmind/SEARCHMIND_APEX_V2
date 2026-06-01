@@ -105,6 +105,7 @@ export default function PerformanceDashboard() {
     // Metrics state
     const [metrics, setMetrics] = useState([]);
     const [metricsData, setMetricsData] = useState(null);
+    const [metricsDataForCustomKpis, setMetricsDataForCustomKpis] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [customKpis, setCustomKpis] = useState([]);
@@ -365,8 +366,16 @@ export default function PerformanceDashboard() {
             prevDaysInRange: daysInRange,
         });
 
-        const { metricsData, metricsDataPrev, derived, replacementByKey: repMap, returnsOverride } = computed;
+        const {
+            metricsData,
+            metricsDataPrev,
+            derived,
+            replacementByKey: repMap,
+            returnsOverride,
+            metricsDataForCustomKpis: customKpiMetrics,
+        } = computed;
         setReplacementByKey(repMap || {});
+        setMetricsDataForCustomKpis(customKpiMetrics ?? null);
 
         const { metricsArray, metricsData: mdOut } = buildPerformanceMetricsCards({
             metricsData,
@@ -442,12 +451,16 @@ export default function PerformanceDashboard() {
                 title: "Net Revenue",
                 metricKeys: [
                     "revenue",
+                    "net_sales",
                     "orders",
                     "aov",
+                    "total_sales",
                     "gross_sales",
                     "discounts",
                     "returns",
                     "shipping_revenue",
+                    "duties",
+                    "additional_fees",
                     "transaction_fee",
                     "tax",
                 ],
@@ -1232,7 +1245,7 @@ export default function PerformanceDashboard() {
             <div className="mb-8">
                 <Custom
                     customerId={params.customerId}
-                    metricsData={metricsData}
+                    metricsData={metricsDataForCustomKpis ?? metricsData}
                     metrics={metrics}
                     showCalcs={showCalcs}
                     shopifyDaily={shopifyDaily}

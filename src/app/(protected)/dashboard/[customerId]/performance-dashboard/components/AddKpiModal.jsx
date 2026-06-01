@@ -12,32 +12,50 @@ import {
     FiShoppingBag,
     FiUserCheck,
 } from "react-icons/fi";
+import {
+    SHOPIFY_REVENUE_FORMULA_METRIC_DEFS,
+    CUSTOM_KPI_OTHER_METRIC_DEFS,
+} from "@/lib/performanceDashboard/performanceDashboardConstants";
+
+const METRIC_ICONS = {
+    net_sales: FiDollarSign,
+    revenue: FiDollarSign,
+    total_sales: FiDollarSign,
+    gross_sales: FiDollarSign,
+    discounts: FiDollarSign,
+    returns: FiTrendingUp,
+    shipping_revenue: FiDollarSign,
+    duties: FiDollarSign,
+    additional_fees: FiDollarSign,
+    tax: FiDollarSign,
+    gross_profit: FiDollarSign,
+    orders: FiShoppingCart,
+    shipping_cost: FiCreditCard,
+    transaction_fee: FiDollarSign,
+    cogs: FiDollarSign,
+    cost: FiCreditCard,
+    meta_spend: FiCreditCard,
+    google_spend: FiCreditCard,
+    pinterest_spend: FiCreditCard,
+    snapchat_spend: FiCreditCard,
+    bing_spend: FiCreditCard,
+    reddit_spend: FiCreditCard,
+    roas: FiBarChart2,
+    poas: FiPieChart,
+    aov: FiShoppingBag,
+    cac: FiUserCheck,
+    spendshare: FiBarChart2,
+};
 
 export const AVAILABLE_METRICS = [
-    { key: "total_sales", label: "Total Sales", icon: FiDollarSign },
-    { key: "revenue", label: "Net Revenue", icon: FiDollarSign },
-    { key: "gross_profit", label: "Net Profit", icon: FiDollarSign },
-    { key: "orders", label: "Orders", icon: FiShoppingCart },
-    { key: "returns", label: "Refunds", icon: FiTrendingUp },
-    { key: "gross_sales", label: "Gross Sales", icon: FiDollarSign },
-    { key: "discounts", label: "Discount", icon: FiDollarSign },
-    { key: "shipping_revenue", label: "Shipping Charges", icon: FiDollarSign },
-    { key: "shipping_cost", label: "Shipping Cost", icon: FiCreditCard },
-    { key: "transaction_fee", label: "Transaction Fee", icon: FiDollarSign },
-    { key: "tax", label: "Taxes", icon: FiDollarSign },
-    { key: "cogs", label: "COGS", icon: FiDollarSign },
-    { key: "cost", label: "Spend (paid media)", icon: FiCreditCard },
-    { key: "meta_spend", label: "Meta spend", icon: FiCreditCard },
-    { key: "google_spend", label: "Google Ads spend", icon: FiCreditCard },
-    { key: "pinterest_spend", label: "Pinterest spend", icon: FiCreditCard },
-    { key: "snapchat_spend", label: "Snapchat spend", icon: FiCreditCard },
-    { key: "bing_spend", label: "Bing Ads spend", icon: FiCreditCard },
-    { key: "reddit_spend", label: "Reddit spend", icon: FiCreditCard },
-    { key: "roas", label: "Blended ROAS", icon: FiBarChart2 },
-    { key: "poas", label: "Blended POAS", icon: FiPieChart },
-    { key: "aov", label: "Net AOV", icon: FiShoppingBag },
-    { key: "cac", label: "Blended CAC", icon: FiUserCheck },
-    { key: "spendshare", label: "Spendshare", icon: FiBarChart2 },
+    ...SHOPIFY_REVENUE_FORMULA_METRIC_DEFS.map((m) => ({
+        ...m,
+        icon: METRIC_ICONS[m.key] || FiDollarSign,
+    })),
+    ...CUSTOM_KPI_OTHER_METRIC_DEFS.map((m) => ({
+        ...m,
+        icon: METRIC_ICONS[m.key] || FiDollarSign,
+    })),
 ];
 
 const PER_CHANNEL_SPEND_METRIC_KEYS = new Set(
@@ -205,6 +223,7 @@ export default function AddKpiModal({
                         <p className="text-xs text-gray-500 mb-3">
                             Select a single metric (e.g. Orders) or build a formula with multiple metrics and operators.
                             Calculations run left to right (e.g. Revenue ÷ Orders × 100).
+                            Shopify revenue metrics use store data only (returns % override does not apply here).
                         </p>
 
                         <div className="flex flex-wrap items-center gap-2">
