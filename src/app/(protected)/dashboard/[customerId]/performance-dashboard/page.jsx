@@ -1245,7 +1245,7 @@ export default function PerformanceDashboard() {
             <div className="mb-8">
                 <Custom
                     customerId={params.customerId}
-                    metricsData={metricsDataForCustomKpis ?? metricsData}
+                    metricsData={metricsDataForCustomKpis}
                     metrics={metrics}
                     showCalcs={showCalcs}
                     shopifyDaily={shopifyDaily}

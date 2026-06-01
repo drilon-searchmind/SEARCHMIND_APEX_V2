@@ -219,6 +219,8 @@ export function buildBaseMetricsData({
 
 /**
  * Apply custom KPI replacements and recompute derived metrics that depend on replaced values.
+ * @param {object} base — from buildBaseMetricsData
+ * @param {object[]} customKpis
  */
 export function applyCustomKpiReplacements(base, customKpis = []) {
     const { metricsData, metricsDataPrev, derived, _meta } = base;
@@ -401,9 +403,7 @@ export function computePerformanceDashboardMetrics({
     base.derived._fetchCogs = fetchCogs;
     base.derived._cogsPercentage = cogsPercentage;
 
-    const withReplacements = applyCustomKpiReplacements(base, customKpis);
-
-    /** Custom KPI tab: always store-reported Shopify values (no returns % override). */
+    /** Custom KPI tab + formula evaluation: store-reported Shopify (no returns % override). */
     const currStore = buildPeriodTotals(shopify, null);
     const prevStore = buildPeriodTotals(shopifyPrev, null);
     const baseForCustomKpis = buildBaseMetricsData({
@@ -422,6 +422,7 @@ export function computePerformanceDashboardMetrics({
         daysInRange,
         prevDaysInRange,
     });
+    const withReplacements = applyCustomKpiReplacements(base, customKpis);
 
     return {
         curr,

@@ -65,9 +65,13 @@ function aggRowToMetrics(v) {
     return out;
 }
 
+/** Evaluate a custom KPI formula. */
 export function evaluateFormula(kpi, data) {
     // data may be metricsData (has total_sales, revenue...) or agg row (has totalRevenue, revenue...)
-    const metrics = data && "total_sales" in data ? data : aggRowToMetrics(data);
+    const metrics =
+        data && ("total_sales" in data || "revenue" in data)
+            ? data
+            : aggRowToMetrics(data);
     const parts = toParts(kpi);
     if (!parts || parts.length === 0) {
         return null;

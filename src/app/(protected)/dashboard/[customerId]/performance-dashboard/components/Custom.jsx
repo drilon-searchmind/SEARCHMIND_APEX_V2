@@ -512,6 +512,7 @@ export default function Custom({
         );
     };
 
+    /** Frozen store baseline only — never standard effective metrics (replacement / override). */
     const dataForCards = metricsData ?? FICTIONAL_METRICS;
 
     // Build chart series for custom KPIs
