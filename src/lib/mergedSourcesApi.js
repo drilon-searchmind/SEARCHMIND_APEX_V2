@@ -20,6 +20,7 @@ import { normalizeRedditSettings } from './redditCustomerSettings';
 import { fetchWooCommerceOrders } from './wooCommerceApi';
 import { fetchMagentoPerformanceDaily } from './magentoPerformanceDashboardApi';
 import { fetchFacebookAdsInsights } from './facebookApi';
+import { adCampaignFilterActive, normalizeCampaignNameKeywords } from './adCampaignFilterUtils';
 import { fetchGoogleAdsMetrics } from './googleAdsApi';
 import { getCurrencyConversionTable, conversionRateToDkk } from './currencyConversionTable';
 import { isAdSpendPlatformConfigured } from './customerServiceIntegrations';
@@ -39,6 +40,9 @@ import { AD_SPEND_CHANNELS } from './mergeAdSpendDaily';
  * @param {{ billingCountryNames: string[], metaCountryCodes: string[], googleCountryNames: string[] }} [options.preresolvedMarketAdSpendFilters] - Skip Markets region lookup when already resolved (markets overview).
  * @param {string[]} [options.excludeAdSpendPlatforms] - e.g. `['facebook','google']` — skip fetching those platforms (empty daily rows).
  * @param {string[]} [options.googleAdsExcludedCampaignIds] - Campaign ids to omit from Google Ads spend (parent group view).
+ * @param {string[]} [options.googleAdsExcludedCampaignNameKeywords] - Google campaign name substrings to omit (case-insensitive).
+ * @param {string[]} [options.metaAdsExcludedCampaignIds] - Meta campaign ids to omit from spend (parent group view).
+ * @param {string[]} [options.metaAdsExcludedCampaignNameKeywords] - Meta campaign name substrings to omit (case-insensitive).
  * @param {boolean} [options.skipShopifyFetch] - When true, skip Shopify/WooCommerce/Magento revenue (ad platforms only; used by markets overview).
  * @returns {Promise<object>} - { shopifyDaily, facebookDaily, googleDaily, ... }
  */
@@ -345,6 +349,16 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
             ) {
                 facebookDaily = [];
             } else {
+            const metaExcludedCampaigns = Array.isArray(options.metaAdsExcludedCampaignIds)
+                ? options.metaAdsExcludedCampaignIds.filter((id) => String(id || "").trim())
+                : [];
+            const metaExcludedKeywords = normalizeCampaignNameKeywords(
+                options.metaAdsExcludedCampaignNameKeywords
+            );
+            const metaCampaignFilterActive = adCampaignFilterActive(
+                metaExcludedCampaigns.length > 0,
+                metaExcludedKeywords
+            );
             const fbRes = await fetchFacebookAdsInsights(
                 settings.facebookAdAccountId,
                 metaIncludeForFetch,
@@ -352,7 +366,14 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 FACEBOOK_APP_TOKEN,
                 startDate,
                 endDate,
-                { dailyBreakdown: options.dailyBreakdown }
+                {
+                    dailyBreakdown: options.dailyBreakdown,
+                    excludedCampaignIds:
+                        metaExcludedCampaigns.length > 0 ? metaExcludedCampaigns : undefined,
+                    excludedCampaignNameKeywords:
+                        metaExcludedKeywords.length > 0 ? metaExcludedKeywords : undefined,
+                    forceCampaignQuery: metaCampaignFilterActive,
+                }
             );
             const fbRows = fbRes?.data || [];
             facebookDaily = fbRows.map(row => ({
@@ -381,6 +402,13 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
             const googleExcludedCampaigns = Array.isArray(options.googleAdsExcludedCampaignIds)
                 ? options.googleAdsExcludedCampaignIds.filter((id) => String(id || "").trim())
                 : [];
+            const googleExcludedKeywords = normalizeCampaignNameKeywords(
+                options.googleAdsExcludedCampaignNameKeywords
+            );
+            const googleCampaignFilterActive = adCampaignFilterActive(
+                googleExcludedCampaigns.length > 0,
+                googleExcludedKeywords
+            );
             const googleResponse = await fetchGoogleAdsMetrics(
                 settings.googleAdsCustomerId,
                 startDate,
@@ -390,7 +418,9 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 {
                     excludedCampaignIds:
                         googleExcludedCampaigns.length > 0 ? googleExcludedCampaigns : undefined,
-                    forceCampaignQuery: googleExcludedCampaigns.length > 0,
+                    excludedCampaignNameKeywords:
+                        googleExcludedKeywords.length > 0 ? googleExcludedKeywords : undefined,
+                    forceCampaignQuery: googleCampaignFilterActive,
                     quietLog: Boolean(marketAdSpendFilters),
                 }
             );

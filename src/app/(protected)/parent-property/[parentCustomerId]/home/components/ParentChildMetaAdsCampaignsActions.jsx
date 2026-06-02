@@ -2,13 +2,13 @@
 
 import React, { useState } from "react";
 import { FiSettings } from "react-icons/fi";
-import ParentChildGoogleAdsCampaignsModal from "./ParentChildGoogleAdsCampaignsModal";
+import ParentChildMetaAdsCampaignsModal from "./ParentChildMetaAdsCampaignsModal";
 import { normalizeCampaignNameKeywords } from "@/lib/adCampaignFilterUtils";
 
 /**
- * Cog control next to Google Adspend — opens campaign exclusion modal.
+ * Cog control next to Meta Adspend — opens campaign exclusion modal.
  */
-export default function ParentChildGoogleAdsCampaignsActions({
+export default function ParentChildMetaAdsCampaignsActions({
     customerId,
     propertyLabel = "Property",
     startDate,
@@ -34,7 +34,7 @@ export default function ParentChildGoogleAdsCampaignsActions({
                 title={
                     filterActive
                         ? `${excludedCount} campaign(s), ${keywordCount} keyword(s) excluded — configure`
-                        : "Filter Google Ads campaigns"
+                        : "Filter Meta Ads campaigns"
                 }
                 className={`inline-flex items-center justify-center p-0.5 rounded hover:bg-gray-100 text-gray-500 hover:text-[var(--color-primary-searchmind)] ${
                     filterActive ? "text-[var(--color-primary-searchmind)]" : ""
@@ -44,11 +44,11 @@ export default function ParentChildGoogleAdsCampaignsActions({
                     onMenuWillOpen?.();
                     setOpen(true);
                 }}
-                aria-label="Google Ads campaign filter"
+                aria-label="Meta Ads campaign filter"
             >
                 <FiSettings className="w-3.5 h-3.5" />
             </button>
-            <ParentChildGoogleAdsCampaignsModal
+            <ParentChildMetaAdsCampaignsModal
                 open={open}
                 onClose={() => setOpen(false)}
                 customerId={customerId}

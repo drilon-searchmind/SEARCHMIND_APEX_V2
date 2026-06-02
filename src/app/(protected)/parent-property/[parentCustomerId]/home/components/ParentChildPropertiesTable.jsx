@@ -11,7 +11,9 @@ import { normalizeMongoId } from "@/lib/parentPropertyGoogleAdsCampaignOverrides
 import ParentChildShopifyMarketsActions from "./ParentChildShopifyMarketsActions";
 import ParentChildAdSpendPlatformsActions from "./ParentChildAdSpendPlatformsActions";
 import ParentChildGoogleAdsCampaignsActions from "./ParentChildGoogleAdsCampaignsActions";
+import ParentChildMetaAdsCampaignsActions from "./ParentChildMetaAdsCampaignsActions";
 import ParentGoogleAdsCampaignFilterBar from "./ParentGoogleAdsCampaignFilterBar";
+import ParentMetaAdsCampaignFilterBar from "./ParentMetaAdsCampaignFilterBar";
 
 function formatDkk(n) {
     return (n ?? 0).toLocaleString("da-DK", { style: "currency", currency: "DKK" });
@@ -43,9 +45,16 @@ export default function ParentChildPropertiesTable({
     googleCampaignFilterEnabled = false,
     onGoogleCampaignFilterEnabledChange,
     groupGoogleCampaignExcludedDraft = {},
+    groupGoogleCampaignKeywordsDraft = {},
     appliedDateRange,
     onApplyGoogleCampaignsForChild,
     onGoogleCampaignsMenuOpen,
+    metaCampaignFilterEnabled = false,
+    onMetaCampaignFilterEnabledChange,
+    groupMetaCampaignExcludedDraft = {},
+    groupMetaCampaignKeywordsDraft = {},
+    onApplyMetaCampaignsForChild,
+    onMetaCampaignsMenuOpen,
 }) {
     const channelColLabel = (ch) => {
         if (ch.id === "facebook") return "Meta Adspend";
@@ -64,32 +73,52 @@ export default function ParentChildPropertiesTable({
         visibleAdSpendChannels.length > 0 ? visibleAdSpendChannels.length : 2;
     const colSpan = 7 + channelColCount;
 
+    const childIdKey = (row) => normalizeMongoId(row._id);
+
     const showGoogleCampaignCog = (row) => {
         if (!googleCampaignFilterEnabled) return false;
         const childDoc = childCustomers.find((c) => String(c._id) === String(row._id));
         return isValidIntegrationId(childDoc?.CustomerSettings?.googleAdsCustomerId);
     };
 
+    const showMetaCampaignCog = (row) => {
+        if (!metaCampaignFilterEnabled) return false;
+        const childDoc = childCustomers.find((c) => String(c._id) === String(row._id));
+        return isValidIntegrationId(childDoc?.CustomerSettings?.facebookAdAccountId);
+    };
+
     const renderChannelCell = (row, ch) => {
         const spend = formatDkk(getRowChannelSpend(row, ch.id));
+        const cid = childIdKey(row);
         const isGoogle = ch.id === "google";
+        const isFacebook = ch.id === "facebook";
         return (
             <td key={ch.id} className="px-3 py-2 whitespace-nowrap">
                 <span className="inline-flex items-center gap-1">
                     {spend}
                     {isGoogle && showGoogleCampaignCog(row) && (
                         <ParentChildGoogleAdsCampaignsActions
-                            customerId={normalizeMongoId(row._id)}
+                            customerId={cid}
                             propertyLabel={row.customerName}
                             startDate={appliedDateRange?.startDate}
                             endDate={appliedDateRange?.endDate}
-                            excludedCampaigns={
-                                groupGoogleCampaignExcludedDraft[normalizeMongoId(row._id)] || {}
-                            }
-                            onApplyCampaigns={(childId, excludedCampaignIds) =>
-                                onApplyGoogleCampaignsForChild?.(childId, excludedCampaignIds)
-                            }
+                            excludedCampaigns={groupGoogleCampaignExcludedDraft[cid] || {}}
+                            excludedKeywords={groupGoogleCampaignKeywordsDraft[cid] || []}
+                            onApplyCampaigns={onApplyGoogleCampaignsForChild}
                             onMenuWillOpen={() => onGoogleCampaignsMenuOpen?.(row._id)}
+                            fetchDisabled={fetchDisabled}
+                        />
+                    )}
+                    {isFacebook && showMetaCampaignCog(row) && (
+                        <ParentChildMetaAdsCampaignsActions
+                            customerId={cid}
+                            propertyLabel={row.customerName}
+                            startDate={appliedDateRange?.startDate}
+                            endDate={appliedDateRange?.endDate}
+                            excludedCampaigns={groupMetaCampaignExcludedDraft[cid] || {}}
+                            excludedKeywords={groupMetaCampaignKeywordsDraft[cid] || []}
+                            onApplyCampaigns={onApplyMetaCampaignsForChild}
+                            onMenuWillOpen={() => onMetaCampaignsMenuOpen?.(row._id)}
                             fetchDisabled={fetchDisabled}
                         />
                     )}
@@ -102,11 +131,18 @@ export default function ParentChildPropertiesTable({
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
             <div className="flex flex-col gap-2 mb-4">
                 <h3 className="text-lg font-semibold">Child Properties</h3>
-                <ParentGoogleAdsCampaignFilterBar
-                    enabled={googleCampaignFilterEnabled}
-                    onEnabledChange={onGoogleCampaignFilterEnabledChange}
-                    disabled={fetchDisabled}
-                />
+                <div className="flex flex-col gap-2">
+                    <ParentGoogleAdsCampaignFilterBar
+                        enabled={googleCampaignFilterEnabled}
+                        onEnabledChange={onGoogleCampaignFilterEnabledChange}
+                        disabled={fetchDisabled}
+                    />
+                    <ParentMetaAdsCampaignFilterBar
+                        enabled={metaCampaignFilterEnabled}
+                        onEnabledChange={onMetaCampaignFilterEnabledChange}
+                        disabled={fetchDisabled}
+                    />
+                </div>
             </div>
             {loading ? (
                 <div className="flex justify-center items-center min-h-[120px]">
@@ -190,14 +226,45 @@ export default function ParentChildPropertiesTable({
                                             : (
                                                 <>
                                                     <td className="px-3 py-2 whitespace-nowrap">
-                                                        {formatDkk(row.facebookAdspend)}
+                                                        <span className="inline-flex items-center gap-1">
+                                                            {formatDkk(row.facebookAdspend)}
+                                                            {showMetaCampaignCog(row) && (
+                                                                <ParentChildMetaAdsCampaignsActions
+                                                                    customerId={childIdKey(row)}
+                                                                    propertyLabel={row.customerName}
+                                                                    startDate={
+                                                                        appliedDateRange?.startDate
+                                                                    }
+                                                                    endDate={appliedDateRange?.endDate}
+                                                                    excludedCampaigns={
+                                                                        groupMetaCampaignExcludedDraft[
+                                                                            childIdKey(row)
+                                                                        ] || {}
+                                                                    }
+                                                                    excludedKeywords={
+                                                                        groupMetaCampaignKeywordsDraft[
+                                                                            childIdKey(row)
+                                                                        ] || []
+                                                                    }
+                                                                    onApplyCampaigns={
+                                                                        onApplyMetaCampaignsForChild
+                                                                    }
+                                                                    onMenuWillOpen={() =>
+                                                                        onMetaCampaignsMenuOpen?.(
+                                                                            row._id
+                                                                        )
+                                                                    }
+                                                                    fetchDisabled={fetchDisabled}
+                                                                />
+                                                            )}
+                                                        </span>
                                                     </td>
                                                     <td className="px-3 py-2 whitespace-nowrap">
                                                         <span className="inline-flex items-center gap-1">
                                                             {formatDkk(row.googleAdspend)}
                                                             {showGoogleCampaignCog(row) && (
                                                                 <ParentChildGoogleAdsCampaignsActions
-                                                                    customerId={normalizeMongoId(row._id)}
+                                                                    customerId={childIdKey(row)}
                                                                     propertyLabel={row.customerName}
                                                                     startDate={
                                                                         appliedDateRange?.startDate
@@ -205,17 +272,16 @@ export default function ParentChildPropertiesTable({
                                                                     endDate={appliedDateRange?.endDate}
                                                                     excludedCampaigns={
                                                                         groupGoogleCampaignExcludedDraft[
-                                                                            normalizeMongoId(row._id)
+                                                                            childIdKey(row)
                                                                         ] || {}
                                                                     }
-                                                                    onApplyCampaigns={(
-                                                                        childId,
-                                                                        excludedCampaignIds
-                                                                    ) =>
-                                                                        onApplyGoogleCampaignsForChild?.(
-                                                                            childId,
-                                                                            excludedCampaignIds
-                                                                        )
+                                                                    excludedKeywords={
+                                                                        groupGoogleCampaignKeywordsDraft[
+                                                                            childIdKey(row)
+                                                                        ] || []
+                                                                    }
+                                                                    onApplyCampaigns={
+                                                                        onApplyGoogleCampaignsForChild
                                                                     }
                                                                     onMenuWillOpen={() =>
                                                                         onGoogleCampaignsMenuOpen?.(

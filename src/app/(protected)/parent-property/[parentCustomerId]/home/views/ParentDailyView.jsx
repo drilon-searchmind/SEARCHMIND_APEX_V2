@@ -23,6 +23,7 @@ export default function ParentDailyView({ sharedData }) {
         appliedDateRange,
         tempDateRange,
         loading,
+        pageBusy,
         handleDateRangeApply,
         handleStartDateChange,
         handleEndDateChange,
@@ -153,7 +154,7 @@ export default function ParentDailyView({ sharedData }) {
                 label={parentCustomer?.name || "Parent Property"}
                 customerId={parentCustomerId}
                 dateRange={appliedDateRange}
-                loading={loading}
+                loading={pageBusy ?? loading}
                 dashboardType="parent-property"
                 dataSnapshot={{
                     dailyRows: rows,
@@ -168,7 +169,7 @@ export default function ParentDailyView({ sharedData }) {
                         endDate={tempDateRange?.endDate}
                         onStartDateChange={handleStartDateChange}
                         onEndDateChange={handleEndDateChange}
-                        loading={loading}
+                        loading={pageBusy ?? loading}
                     />
                 }
             />

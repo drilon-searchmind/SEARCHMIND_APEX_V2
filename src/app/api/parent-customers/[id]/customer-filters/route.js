@@ -6,11 +6,16 @@ import { getParentCustomerById } from "../../../../../../lib/parentCustomerOpera
 import {
     getCustomerFiltersByParentId,
     googleAdsFiltersDocToClientState,
+    metaAdsFiltersDocToClientState,
     saveGoogleAdsChildCampaignExclusions,
+    saveMetaAdsChildCampaignExclusions,
     setGoogleAdsFilterEnabled,
+    setMetaAdsFilterEnabled,
 } from "@/lib/customerFiltersDb";
 import { normalizeMongoId } from "@/lib/parentPropertyGoogleAdsCampaignOverrides";
 import { normalizeGoogleAdsCampaignId } from "@/lib/googleAdsCampaignIdUtils";
+import { normalizeMetaAdsCampaignId } from "@/lib/metaAdsCampaignIdUtils";
+import { normalizeCampaignNameKeywords } from "@/lib/adCampaignFilterUtils";
 
 function parentChildIdSet(parent) {
     const ids = new Set();
@@ -19,6 +24,23 @@ function parentChildIdSet(parent) {
         if (id) ids.add(id);
     }
     return ids;
+}
+
+function clientPayload(doc) {
+    const googleAds = googleAdsFiltersDocToClientState(doc);
+    const metaAds = metaAdsFiltersDocToClientState(doc);
+    return {
+        googleAds: {
+            filterEnabled: googleAds.filterEnabled,
+            excludedByChildId: googleAds.excludedByChildId,
+            excludedKeywordsByChildId: googleAds.excludedKeywordsByChildId,
+        },
+        metaAds: {
+            filterEnabled: metaAds.filterEnabled,
+            excludedByChildId: metaAds.excludedByChildId,
+            excludedKeywordsByChildId: metaAds.excludedKeywordsByChildId,
+        },
+    };
 }
 
 /** GET /api/parent-customers/[id]/customer-filters */
@@ -42,14 +64,10 @@ export async function GET(_request, { params }) {
         }
 
         const doc = await getCustomerFiltersByParentId(parentId);
-        const googleAds = googleAdsFiltersDocToClientState(doc);
 
         return NextResponse.json({
             parentCustomerId: parentId,
-            googleAds: {
-                filterEnabled: googleAds.filterEnabled,
-                excludedByChildId: googleAds.excludedByChildId,
-            },
+            ...clientPayload(doc),
         });
     } catch (e) {
         console.error("[customer-filters] GET:", e);
@@ -62,8 +80,8 @@ export async function GET(_request, { params }) {
 
 /**
  * PUT /api/parent-customers/[id]/customer-filters
- * Body: { googleAds: { filterEnabled?, childCustomerId?, excludedCampaignIds? } }
- * — childCustomerId is the child Customer._id; exclusions apply only to that property's Google spend.
+ * Body: { googleAds?: {...}, metaAds?: {...} }
+ * Each platform: { filterEnabled?, childCustomerId?, excludedCampaignIds?, excludedCampaignNameKeywords? }
  */
 export async function PUT(request, { params }) {
     try {
@@ -80,8 +98,15 @@ export async function PUT(request, { params }) {
 
         const body = await request.json().catch(() => ({}));
         const googleAdsBody = body?.googleAds;
-        if (!googleAdsBody || typeof googleAdsBody !== "object") {
-            return NextResponse.json({ error: "Missing googleAds payload" }, { status: 400 });
+        const metaAdsBody = body?.metaAds;
+        if (
+            (!googleAdsBody || typeof googleAdsBody !== "object") &&
+            (!metaAdsBody || typeof metaAdsBody !== "object")
+        ) {
+            return NextResponse.json(
+                { error: "Missing googleAds or metaAds payload" },
+                { status: 400 }
+            );
         }
 
         await connectToDatabase();
@@ -91,55 +116,85 @@ export async function PUT(request, { params }) {
         }
 
         const allowedChildIds = parentChildIdSet(parent);
-        const filterEnabled = googleAdsBody.filterEnabled === true;
+        let doc = await getCustomerFiltersByParentId(parentId);
 
-        const childCustomerId = normalizeMongoId(googleAdsBody.childCustomerId);
-        const hasChildUpdate =
-            childCustomerId &&
-            Array.isArray(googleAdsBody.excludedCampaignIds);
+        const processPlatform = async (platformKey, platformBody, normalizeId, saveChild, setEnabled) => {
+            if (!platformBody || typeof platformBody !== "object") return;
 
-        let doc;
+            const filterEnabled = platformBody.filterEnabled === true;
+            const childCustomerId = normalizeMongoId(platformBody.childCustomerId);
+            const hasChildUpdate =
+                childCustomerId &&
+                (Array.isArray(platformBody.excludedCampaignIds) ||
+                    Array.isArray(platformBody.excludedCampaignNameKeywords));
 
-        if (hasChildUpdate) {
-            if (!allowedChildIds.has(childCustomerId)) {
-                return NextResponse.json(
-                    { error: "Child customer is not part of this parent property" },
-                    { status: 400 }
+            if (hasChildUpdate) {
+                if (!allowedChildIds.has(childCustomerId)) {
+                    throw new Error("Child customer is not part of this parent property");
+                }
+                const excludedCampaignIds = (
+                    Array.isArray(platformBody.excludedCampaignIds)
+                        ? platformBody.excludedCampaignIds
+                        : []
+                )
+                    .map((id) => normalizeId(id))
+                    .filter(Boolean);
+                const excludedCampaignNameKeywords = normalizeCampaignNameKeywords(
+                    platformBody.excludedCampaignNameKeywords
+                );
+
+                const existing = doc || (await getCustomerFiltersByParentId(parentId));
+                const enabled =
+                    platformBody.filterEnabled !== undefined
+                        ? filterEnabled
+                        : existing?.[platformKey]?.filterEnabled === true ||
+                          excludedCampaignIds.length > 0 ||
+                          excludedCampaignNameKeywords.length > 0;
+
+                doc = await saveChild(
+                    parentId,
+                    childCustomerId,
+                    excludedCampaignIds,
+                    enabled,
+                    excludedCampaignNameKeywords
+                );
+            } else if (platformBody.filterEnabled !== undefined) {
+                doc = await setEnabled(parentId, filterEnabled);
+            } else {
+                throw new Error(
+                    `Provide ${platformKey} childCustomerId + excludedCampaignIds, or filterEnabled`
                 );
             }
-            const excludedCampaignIds = googleAdsBody.excludedCampaignIds
-                .map((id) => normalizeGoogleAdsCampaignId(id))
-                .filter(Boolean);
+        };
 
-            const existing = await getCustomerFiltersByParentId(parentId);
-            const enabled =
-                googleAdsBody.filterEnabled !== undefined
-                    ? filterEnabled
-                    : existing?.googleAds?.filterEnabled === true || excludedCampaignIds.length > 0;
-
-            doc = await saveGoogleAdsChildCampaignExclusions(
-                parentId,
-                childCustomerId,
-                excludedCampaignIds,
-                enabled
+        try {
+            await processPlatform(
+                "googleAds",
+                googleAdsBody,
+                normalizeGoogleAdsCampaignId,
+                saveGoogleAdsChildCampaignExclusions,
+                setGoogleAdsFilterEnabled
             );
-        } else if (googleAdsBody.filterEnabled !== undefined) {
-            doc = await setGoogleAdsFilterEnabled(parentId, filterEnabled);
-        } else {
-            return NextResponse.json(
-                { error: "Provide childCustomerId + excludedCampaignIds, or filterEnabled" },
-                { status: 400 }
+            await processPlatform(
+                "metaAds",
+                metaAdsBody,
+                normalizeMetaAdsCampaignId,
+                saveMetaAdsChildCampaignExclusions,
+                setMetaAdsFilterEnabled
             );
+        } catch (err) {
+            const msg = err?.message || "Invalid filter payload";
+            const status = msg.includes("not part of this parent") ? 400 : 400;
+            return NextResponse.json({ error: msg }, { status });
         }
 
-        const googleAds = googleAdsFiltersDocToClientState(doc);
+        if (!doc) {
+            doc = await getCustomerFiltersByParentId(parentId);
+        }
 
         return NextResponse.json({
             parentCustomerId: parentId,
-            googleAds: {
-                filterEnabled: googleAds.filterEnabled,
-                excludedByChildId: googleAds.excludedByChildId,
-            },
+            ...clientPayload(doc),
         });
     } catch (e) {
         console.error("[customer-filters] PUT:", e);

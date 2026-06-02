@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import FormButton from "@/components/form/FormButton";
 import Spinner from "@/components/ui/Spinner";
 import { showToast } from "@/components/ui/ToastProvider";
-import { normalizeGoogleAdsCampaignId } from "@/lib/googleAdsCampaignIdUtils";
+import { normalizeMetaAdsCampaignId } from "@/lib/metaAdsCampaignIdUtils";
 import { normalizeCampaignNameKeywords } from "@/lib/adCampaignFilterUtils";
 import CampaignExclusionKeywordEditor from "./CampaignExclusionKeywordEditor";
 import { FiSearch, FiX } from "react-icons/fi";
@@ -12,21 +12,20 @@ import { FiSearch, FiX } from "react-icons/fi";
 function buildExcludedIdList(excludedMap) {
     return Object.entries(excludedMap || {})
         .filter(([, v]) => v === true)
-        .map(([k]) => normalizeGoogleAdsCampaignId(k))
+        .map(([k]) => normalizeMetaAdsCampaignId(k))
         .filter(Boolean);
 }
 
 /**
- * Modal to pick Google Ads campaigns to exclude from spend for one child property.
+ * Modal to pick Meta campaigns to exclude from spend for one child property.
  */
-export default function ParentChildGoogleAdsCampaignsModal({
+export default function ParentChildMetaAdsCampaignsModal({
     open,
     onClose,
     customerId,
     propertyLabel = "Property",
     startDate,
     endDate,
-    /** Initial exclusions when modal opens: campaign id → true */
     excludedCampaigns = {},
     excludedKeywords = [],
     onApply,
@@ -35,7 +34,6 @@ export default function ParentChildGoogleAdsCampaignsModal({
     const [loading, setLoading] = useState(false);
     const [campaigns, setCampaigns] = useState([]);
     const [search, setSearch] = useState("");
-    /** Local checkbox state (source of truth until Apply). */
     const [localExcluded, setLocalExcluded] = useState({});
     const [localKeywords, setLocalKeywords] = useState([]);
     const [saving, setSaving] = useState(false);
@@ -52,14 +50,14 @@ export default function ParentChildGoogleAdsCampaignsModal({
         try {
             const qs = new URLSearchParams({ startDate, endDate });
             const res = await fetch(
-                `/api/google-ads-campaigns/${customerId}?${qs.toString()}`,
+                `/api/meta-ads-campaigns/${customerId}?${qs.toString()}`,
                 { credentials: "same-origin" }
             );
             const body = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(body.error || `Campaigns (${res.status})`);
             if (body.notConfigured) {
                 showToast({
-                    message: `${propertyLabel}: Google Ads is not configured.`,
+                    message: `${propertyLabel}: Meta Ads is not configured.`,
                     type: "warning",
                     position: "top-center",
                 });
@@ -69,7 +67,7 @@ export default function ParentChildGoogleAdsCampaignsModal({
             setCampaigns(Array.isArray(body.campaigns) ? body.campaigns : []);
         } catch (e) {
             showToast({
-                message: e?.message || "Could not load Google Ads campaigns",
+                message: e?.message || "Could not load Meta campaigns",
                 type: "error",
                 position: "top-center",
             });
@@ -98,7 +96,7 @@ export default function ParentChildGoogleAdsCampaignsModal({
     }, [campaigns, search]);
 
     const filteredIds = useMemo(
-        () => filtered.map((c) => normalizeGoogleAdsCampaignId(c.id)).filter(Boolean),
+        () => filtered.map((c) => normalizeMetaAdsCampaignId(c.id)).filter(Boolean),
         [filtered]
     );
 
@@ -124,7 +122,7 @@ export default function ParentChildGoogleAdsCampaignsModal({
     };
 
     const handleToggle = (campaignId, exclude) => {
-        const id = normalizeGoogleAdsCampaignId(campaignId);
+        const id = normalizeMetaAdsCampaignId(campaignId);
         if (!id) return;
         setLocalExcluded((prev) => {
             const next = { ...prev };
@@ -136,11 +134,12 @@ export default function ParentChildGoogleAdsCampaignsModal({
 
     const handleApplyClick = async () => {
         if (saving || fetchDisabled) return;
-        const excludedCampaignIds = buildExcludedIdList(localExcluded);
-        const excludedCampaignNameKeywords = normalizeCampaignNameKeywords(localKeywords);
         setSaving(true);
         try {
-            await onApply?.(excludedCampaignIds, excludedCampaignNameKeywords);
+            await onApply?.(
+                buildExcludedIdList(localExcluded),
+                normalizeCampaignNameKeywords(localKeywords)
+            );
             onClose?.();
         } finally {
             setSaving(false);
@@ -156,7 +155,7 @@ export default function ParentChildGoogleAdsCampaignsModal({
             className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/40"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="google-ads-campaigns-modal-title"
+            aria-labelledby="meta-ads-campaigns-modal-title"
             onClick={controlsDisabled ? undefined : onClose}
         >
             <div
@@ -166,14 +165,14 @@ export default function ParentChildGoogleAdsCampaignsModal({
                 <div className="flex items-start justify-between px-5 py-4 border-b border-gray-200">
                     <div>
                         <h2
-                            id="google-ads-campaigns-modal-title"
+                            id="meta-ads-campaigns-modal-title"
                             className="text-lg font-semibold text-gray-900"
                         >
-                            Google Ads campaigns
+                            Meta Ads campaigns
                         </h2>
                         <p className="text-sm text-gray-500 mt-0.5">{propertyLabel}</p>
                         <p className="text-xs text-gray-400 mt-1">
-                            Check campaigns to <strong>exclude</strong> from Google Adspend for this
+                            Check campaigns to <strong>exclude</strong> from Meta Adspend for this
                             property only.
                         </p>
                     </div>
@@ -250,7 +249,7 @@ export default function ParentChildGoogleAdsCampaignsModal({
                     ) : (
                         <ul className="space-y-1">
                             {filtered.map((c) => {
-                                const id = normalizeGoogleAdsCampaignId(c.id);
+                                const id = normalizeMetaAdsCampaignId(c.id);
                                 if (!id) return null;
                                 const excluded = localExcluded[id] === true;
                                 return (
@@ -269,7 +268,6 @@ export default function ParentChildGoogleAdsCampaignsModal({
                                                 </span>
                                                 <span className="block text-xs text-gray-400">
                                                     ID {id}
-                                                    {c.status ? ` · ${c.status}` : ""}
                                                 </span>
                                             </span>
                                         </label>

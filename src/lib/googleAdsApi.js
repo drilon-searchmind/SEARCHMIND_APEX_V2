@@ -1,6 +1,11 @@
 // src/lib/googleAdsApi.js
 import { GoogleAdsApi } from 'google-ads-api';
 import { normalizeGoogleAdsCampaignId } from './googleAdsCampaignIdUtils';
+import {
+    adCampaignFilterActive,
+    normalizeCampaignNameKeywords,
+    shouldExcludeAdCampaign,
+} from './adCampaignFilterUtils';
 import { parseGoogleAdsCustomerIds } from './googleAdsCustomerIdUtils';
 
 export { normalizeGoogleAdsCampaignId } from './googleAdsCampaignIdUtils';
@@ -70,17 +75,28 @@ function createGoogleAdsApiCustomer(customerIdStr) {
 /**
  * @param {unknown[]} metrics
  * @param {string[]} [excludedCampaignIds]
+ * @param {string[]} [excludedCampaignNameKeywords]
  */
-function filterMetricsByExcludedCampaigns(metrics, excludedCampaignIds) {
-    if (!Array.isArray(metrics) || !excludedCampaignIds?.length) return metrics;
-    const excluded = new Set(
-        excludedCampaignIds.map((id) => normalizeGoogleAdsCampaignId(id)).filter(Boolean)
-    );
-    if (excluded.size === 0) return metrics;
+function filterMetricsByExcludedCampaigns(
+    metrics,
+    excludedCampaignIds,
+    excludedCampaignNameKeywords
+) {
+    if (!Array.isArray(metrics)) return metrics;
+    const ids = (excludedCampaignIds || [])
+        .map((id) => normalizeGoogleAdsCampaignId(id))
+        .filter(Boolean);
+    const keywords = normalizeCampaignNameKeywords(excludedCampaignNameKeywords);
+    if (!adCampaignFilterActive(ids.length > 0, keywords)) return metrics;
+
     return metrics.filter((row) => {
-        const raw = row?.campaign?.id ?? row?.campaign_id;
-        if (raw == null) return false;
-        return !excluded.has(normalizeGoogleAdsCampaignId(raw));
+        const id = row?.campaign?.id ?? row?.campaign_id;
+        const name = row?.campaign?.name ?? row?.campaign_name;
+        return !shouldExcludeAdCampaign(
+            { id, name },
+            { excludedIds: ids, excludedNameKeywords: keywords },
+            normalizeGoogleAdsCampaignId
+        );
     });
 }
 
@@ -177,7 +193,7 @@ export async function fetchGoogleAdsCampaignList(
  * @param {string} endDate - End date (YYYY-MM-DD)
  * @param {string} [countryFilter] - Optional comma-separated countries to INCLUDE (e.g. "Germany,Denmark,Norway")
  * @param {string} [countryExclude] - Optional comma-separated countries to EXCLUDE (e.g. "France,Spain")
- * @param {{ quietLog?: boolean, excludedCampaignIds?: string[], forceCampaignQuery?: boolean }} [requestOptions]
+ * @param {{ quietLog?: boolean, excludedCampaignIds?: string[], excludedCampaignNameKeywords?: string[], forceCampaignQuery?: boolean }} [requestOptions]
  * @returns {Promise<{metrics: object[], currencyCode: string}>} - Raw rows from Google Ads API and customer currency code
  */
 async function fetchGoogleAdsMetricsForOne(
@@ -192,8 +208,12 @@ async function fetchGoogleAdsMetricsForOne(
         const excludedCampaignIds = Array.isArray(requestOptions.excludedCampaignIds)
             ? requestOptions.excludedCampaignIds
             : [];
+        const excludedCampaignNameKeywords = normalizeCampaignNameKeywords(
+            requestOptions.excludedCampaignNameKeywords
+        );
         const forceCampaignQuery =
-            requestOptions.forceCampaignQuery === true || excludedCampaignIds.length > 0;
+            requestOptions.forceCampaignQuery === true ||
+            adCampaignFilterActive(excludedCampaignIds.length > 0, excludedCampaignNameKeywords);
         if (!customerId) {
                 if (!quietLog) console.error('Google Ads customerId is missing or undefined:', customerId);
                 throw new Error('Google Ads customerId is missing or undefined');
@@ -332,7 +352,11 @@ async function fetchGoogleAdsMetricsForOne(
                 }
         }
 
-        metrics = filterMetricsByExcludedCampaigns(metrics, excludedCampaignIds);
+        metrics = filterMetricsByExcludedCampaigns(
+            metrics,
+            excludedCampaignIds,
+            excludedCampaignNameKeywords
+        );
 
         return { metrics, currencyCode };
 }

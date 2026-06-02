@@ -94,6 +94,9 @@ export default function ParentOverviewView({ sharedData }) {
         predominantMetricPreference,
         loading,
         chartLoading,
+        pageBusy,
+        chartBusy,
+        campaignFilterBusy,
         handleDateRangeApply,
         handleStartDateChange,
         handleEndDateChange,
@@ -115,8 +118,15 @@ export default function ParentOverviewView({ sharedData }) {
         googleCampaignFilterEnabled,
         handleGoogleCampaignFilterEnabledChange,
         groupGoogleCampaignExcludedDraft,
+        groupGoogleCampaignKeywordsDraft,
         handleApplyGoogleCampaignsForChild,
         handleGoogleCampaignsMenuOpen,
+        metaCampaignFilterEnabled,
+        handleMetaCampaignFilterEnabledChange,
+        groupMetaCampaignExcludedDraft,
+        groupMetaCampaignKeywordsDraft,
+        handleApplyMetaCampaignsForChild,
+        handleMetaCampaignsMenuOpen,
     } = sharedData || {};
 
     const [viewMode, setViewMode] = useState("standard");
@@ -413,7 +423,7 @@ export default function ParentOverviewView({ sharedData }) {
                 customerId={parentCustomerId}
                 dateRange={appliedDateRange}
                 comparisonMethod={comparisonMethod}
-                loading={loading}
+                loading={pageBusy ?? loading}
                 dashboardType="parent-property"
                 dataSnapshot={{
                     metrics: metricsArray,
@@ -433,7 +443,7 @@ export default function ParentOverviewView({ sharedData }) {
                         endDate={tempDateRange?.endDate}
                         onStartDateChange={handleStartDateChange}
                         onEndDateChange={handleEndDateChange}
-                        loading={loading}
+                        loading={pageBusy ?? loading}
                         showComparisonMethodToggler={true}
                         comparisonMethod={tempComparisonMethod}
                         onComparisonMethodChange={setTempComparisonMethod}
@@ -445,7 +455,8 @@ export default function ParentOverviewView({ sharedData }) {
                 <div className="flex border border-gray-200 bg-gray-100 rounded-lg overflow-hidden w-fit">
                     <button
                         type="button"
-                        className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium focus:outline-none transition-colors duration-150 ${viewMode === "standard" ? "bg-white text-[var(--color-primary-searchmind)] shadow-sm" : "text-gray-500 hover:text-[var(--color-primary-searchmind)]"}`}
+                        disabled={pageBusy ?? loading}
+                        className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium focus:outline-none transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${viewMode === "standard" ? "bg-white text-[var(--color-primary-searchmind)] shadow-sm" : "text-gray-500 hover:text-[var(--color-primary-searchmind)]"}`}
                         style={{ borderRadius: "8px 0 0 8px" }}
                         onClick={() => setViewMode("standard")}
                     >
@@ -453,7 +464,8 @@ export default function ParentOverviewView({ sharedData }) {
                     </button>
                     <button
                         type="button"
-                        className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium focus:outline-none transition-colors duration-150 ${viewMode === "custom" ? "bg-white text-[var(--color-primary-searchmind)] shadow-sm" : "text-gray-500 hover:text-[var(--color-primary-searchmind)]"}`}
+                        disabled={pageBusy ?? loading}
+                        className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium focus:outline-none transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${viewMode === "custom" ? "bg-white text-[var(--color-primary-searchmind)] shadow-sm" : "text-gray-500 hover:text-[var(--color-primary-searchmind)]"}`}
                         style={{ borderRadius: "0 8px 8px 0" }}
                         onClick={() => setViewMode("custom")}
                     >
@@ -582,7 +594,9 @@ export default function ParentOverviewView({ sharedData }) {
                                 {METRIC_OPTIONS.map((opt) => (
                                     <button
                                         key={opt.key}
-                                        className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 ${selectedMetrics.includes(opt.key) ? "bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]" : "bg-white text-gray-700 border-gray-200 hover:bg-gray-100"}`}
+                                        type="button"
+                                        disabled={pageBusy ?? loading}
+                                        className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${selectedMetrics.includes(opt.key) ? "bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]" : "bg-white text-gray-700 border-gray-200 hover:bg-gray-100"}`}
                                         onClick={() =>
                                             setSelectedMetrics((prev) =>
                                                 prev.includes(opt.key) ? (prev.length > 1 ? prev.filter((k) => k !== opt.key) : prev) : [...prev, opt.key]
@@ -595,7 +609,7 @@ export default function ParentOverviewView({ sharedData }) {
                             </div>
                         </div>
 
-                        {loading ? (
+                        {(chartBusy ?? chartLoading) ? (
                             <div className="flex items-center justify-center h-64">
                                 <Spinner size={40} color="#406969" />
                             </div>
@@ -613,7 +627,7 @@ export default function ParentOverviewView({ sharedData }) {
                     </div>
 
                     <ParentChildPropertiesTable
-                        loading={loading}
+                        loading={pageBusy ?? loading}
                         error={error}
                         rows={childPropertyRowsForUi || filteredTableRows}
                         childCustomers={childCustomers}
@@ -631,13 +645,20 @@ export default function ParentOverviewView({ sharedData }) {
                         onToggleSpendPlatform={handleGroupSpendToggleDraft}
                         onApplySpendForChild={handleApplySpendForChild}
                         onSpendMenuOpen={handleSpendMenuOpen}
-                        fetchDisabled={loading}
+                        fetchDisabled={pageBusy ?? loading}
                         googleCampaignFilterEnabled={googleCampaignFilterEnabled}
                         onGoogleCampaignFilterEnabledChange={handleGoogleCampaignFilterEnabledChange}
                         groupGoogleCampaignExcludedDraft={groupGoogleCampaignExcludedDraft}
+                        groupGoogleCampaignKeywordsDraft={groupGoogleCampaignKeywordsDraft}
                         appliedDateRange={appliedDateRange}
                         onApplyGoogleCampaignsForChild={handleApplyGoogleCampaignsForChild}
                         onGoogleCampaignsMenuOpen={handleGoogleCampaignsMenuOpen}
+                        metaCampaignFilterEnabled={metaCampaignFilterEnabled}
+                        onMetaCampaignFilterEnabledChange={handleMetaCampaignFilterEnabledChange}
+                        groupMetaCampaignExcludedDraft={groupMetaCampaignExcludedDraft}
+                        groupMetaCampaignKeywordsDraft={groupMetaCampaignKeywordsDraft}
+                        onApplyMetaCampaignsForChild={handleApplyMetaCampaignsForChild}
+                        onMetaCampaignsMenuOpen={handleMetaCampaignsMenuOpen}
                     />
                 </>
             ) : (

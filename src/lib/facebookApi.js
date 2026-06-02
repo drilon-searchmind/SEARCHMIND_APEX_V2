@@ -1,3 +1,10 @@
+import {
+    adCampaignFilterActive,
+    normalizeCampaignNameKeywords,
+    shouldExcludeAdCampaign,
+} from './adCampaignFilterUtils';
+import { normalizeMetaAdsCampaignId } from './metaAdsCampaignIdUtils';
+
 /**
  * Parse meta ID include/exclude from comma-separated strings.
  * @param {string} [includeStr] - Comma-separated country codes to include (e.g. 'DK,SE,NO')
@@ -24,6 +31,7 @@ function parseMetaIdFilter(includeStr, excludeStr) {
  */
 export async function fetchFacebookCampaignInsights(adAccountId, metaIdInclude, metaIdExclude, accessToken, since, until) {
     const fields = [
+        'campaign_id',
         'campaign_name',
         'spend',
         'impressions',
@@ -99,6 +107,85 @@ export async function fetchFacebookCampaignInsights(adAccountId, metaIdInclude, 
 }
 
 /**
+ * List distinct Meta campaigns for parent-property campaign picker.
+ * @returns {Promise<Array<{ id: string, name: string }>>}
+ */
+export async function fetchMetaAdsCampaignList(
+    adAccountId,
+    since,
+    until,
+    accessToken
+) {
+    const res = await fetchFacebookCampaignInsights(
+        adAccountId,
+        "",
+        "",
+        accessToken,
+        since,
+        until
+    );
+    const rows = res?.data || [];
+    /** @type {Map<string, { id: string, name: string }>} */
+    const byId = new Map();
+    for (const row of rows) {
+        const id =
+            normalizeMetaAdsCampaignId(row.campaign_id) ||
+            normalizeMetaAdsCampaignId(row.campaign_name);
+        const name = String(row.campaign_name || id || "Unknown").trim();
+        if (!id) continue;
+        if (!byId.has(id)) byId.set(id, { id, name });
+    }
+    return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * @param {unknown[]} rows
+ * @param {string[]} excludedCampaignIds
+ * @param {string[]} excludedCampaignNameKeywords
+ */
+function filterFacebookCampaignInsightRows(
+    rows,
+    excludedCampaignIds,
+    excludedCampaignNameKeywords
+) {
+    const ids = (excludedCampaignIds || [])
+        .map((id) => normalizeMetaAdsCampaignId(id))
+        .filter(Boolean);
+    const keywords = normalizeCampaignNameKeywords(excludedCampaignNameKeywords);
+    if (!adCampaignFilterActive(ids.length > 0, keywords)) return rows;
+
+    return (rows || []).filter((row) => {
+        const id =
+            normalizeMetaAdsCampaignId(row.campaign_id) ||
+            normalizeMetaAdsCampaignId(row.campaign_name);
+        const name = row.campaign_name;
+        return !shouldExcludeAdCampaign(
+            { id, name },
+            { excludedIds: ids, excludedNameKeywords: keywords },
+            normalizeMetaAdsCampaignId
+        );
+    });
+}
+
+/**
+ * Aggregate campaign-level insight rows to daily account-style rows.
+ * @param {unknown[]} rows
+ */
+function aggregateFacebookCampaignRowsToDaily(rows) {
+    const byDate = {};
+    for (const row of rows) {
+        const key = row.date_start || "";
+        if (!byDate[key]) {
+            byDate[key] = { date_start: key, spend: 0 };
+        }
+        byDate[key].spend += parseFloat(row.spend || 0);
+    }
+    return Object.values(byDate).sort((a, b) =>
+        (a.date_start || "").localeCompare(b.date_start || "")
+    );
+}
+
+/**
  * Fetches Facebook Ads Insights for a given ad account and country (Meta ID).
  * @param {string} adAccountId - Facebook Ad Account ID (with 'act_' prefix)
  * @param {string} [metaIdInclude] - Comma-separated country codes to include (e.g., 'DK,SE,NO'). Empty = all countries.
@@ -108,19 +195,21 @@ export async function fetchFacebookCampaignInsights(adAccountId, metaIdInclude, 
  * @param {string} until - End date (YYYY-MM-DD)
  * @param {object} [options] - Optional settings
  * @param {boolean} [options.dailyBreakdown] - If true, adds time_increment=1 for daily rows (used by parent-property)
+ * @param {string[]} [options.excludedCampaignIds] - Campaign ids to omit from spend (parent group view)
+ * @param {string[]} [options.excludedCampaignNameKeywords] - Name substrings to omit (case-insensitive)
+ * @param {boolean} [options.forceCampaignQuery] - Fetch campaign-level insights and filter
  * @returns {Promise<object>} - The raw response from Facebook Graph API
  */
 export async function fetchFacebookAdsInsights(adAccountId, metaIdInclude, metaIdExclude, accessToken, since, until, options = {}) {
-    const fields = [
-        'spend',
-        'purchase_roas',
-        'actions',
-        'impressions',
-        'clicks',
-        'ctr',
-        'cpc',
-        'cpm',
-    ];
+    const excludedCampaignIds = Array.isArray(options.excludedCampaignIds)
+        ? options.excludedCampaignIds
+        : [];
+    const excludedCampaignNameKeywords = normalizeCampaignNameKeywords(
+        options.excludedCampaignNameKeywords
+    );
+    const forceCampaignQuery =
+        options.forceCampaignQuery === true ||
+        adCampaignFilterActive(excludedCampaignIds.length > 0, excludedCampaignNameKeywords);
 
     const accountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
     const apiUrl = `https://graph.facebook.com/v21.0/${accountId}/insights`;
@@ -128,13 +217,32 @@ export async function fetchFacebookAdsInsights(adAccountId, metaIdInclude, metaI
     const params = new URLSearchParams({
         access_token: accessToken,
         time_range: JSON.stringify({ since, until }),
-        fields: fields.join(','),
-        level: 'account',
+        limit: '500',
     });
 
-    if (options.dailyBreakdown) {
+    if (forceCampaignQuery) {
+        params.set(
+            'fields',
+            ['campaign_id', 'campaign_name', 'spend', 'date_start'].join(',')
+        );
+        params.set('level', 'campaign');
         params.append('time_increment', '1');
-        params.append('limit', '500');
+    } else {
+        const fields = [
+            'spend',
+            'purchase_roas',
+            'actions',
+            'impressions',
+            'clicks',
+            'ctr',
+            'cpc',
+            'cpm',
+        ];
+        params.set('fields', fields.join(','));
+        params.set('level', 'account');
+        if (options.dailyBreakdown) {
+            params.append('time_increment', '1');
+        }
     }
 
     const { effectiveInclude, exclude } = parseMetaIdFilter(metaIdInclude, metaIdExclude);
@@ -171,6 +279,17 @@ export async function fetchFacebookAdsInsights(adAccountId, metaIdInclude, metaI
     }
 
     let rows = data.data || [];
+
+    if (forceCampaignQuery) {
+        rows = filterFacebookCampaignInsightRows(
+            rows,
+            excludedCampaignIds,
+            excludedCampaignNameKeywords
+        );
+        rows = aggregateFacebookCampaignRowsToDaily(rows);
+        return { ...data, data: rows };
+    }
+
     if (useBreakdown && !forceCountryBreakdown && rows.length > 0) {
         rows = rows.filter((row) => {
             const c = (row.country || '').toUpperCase();

@@ -6,6 +6,7 @@ import { getParentCustomerById } from "../../../../../../lib/parentCustomerOpera
 import {
     getCustomerFiltersByParentId,
     googleAdsFiltersDocToAggregatedOverrides,
+    metaAdsFiltersDocToAggregatedOverrides,
 } from "@/lib/customerFiltersDb";
 import { fetchMergedSources } from "@/lib/mergedSourcesApi";
 import { isDemoCustomerId, mergeDemoCustomerDocument } from "@/lib/demoCustomer";
@@ -17,7 +18,7 @@ import {
 } from "@/lib/parentPropertyAdSpend";
 import { normalizeMongoId } from "@/lib/parentPropertyGoogleAdsCampaignOverrides";
 
-function resolveGoogleAdsCampaignOverride(overrides, customerId) {
+function resolveAdCampaignOverride(overrides, customerId) {
     const id = normalizeMongoId(customerId);
     if (!id || !overrides || typeof overrides !== "object") return null;
     if (overrides[id]) return overrides[id];
@@ -227,6 +228,10 @@ export async function GET(request, { params }) {
             customerFiltersDoc?.googleAds?.filterEnabled === true;
         const googleAdsCampaignOverrides =
             googleAdsFiltersDocToAggregatedOverrides(customerFiltersDoc);
+        const metaAdsCampaignFilterEnabled =
+            customerFiltersDoc?.metaAds?.filterEnabled === true;
+        const metaAdsCampaignOverrides =
+            metaAdsFiltersDocToAggregatedOverrides(customerFiltersDoc);
 
         if (children.length === 0) {
             const emptyResponse = {
@@ -288,18 +293,44 @@ export async function GET(request, { params }) {
             }
 
             if (googleAdsCampaignFilterEnabled) {
-                const campaignOv = resolveGoogleAdsCampaignOverride(
+                const campaignOv = resolveAdCampaignOverride(
                     googleAdsCampaignOverrides,
                     cust._id
                 );
-                if (
-                    campaignOv &&
-                    Array.isArray(campaignOv.exclude) &&
-                    campaignOv.exclude.length > 0
-                ) {
-                    mergeOptsBase.googleAdsExcludedCampaignIds = campaignOv.exclude
-                        .map((id) => String(id).trim())
-                        .filter(Boolean);
+                if (campaignOv) {
+                    if (Array.isArray(campaignOv.exclude) && campaignOv.exclude.length > 0) {
+                        mergeOptsBase.googleAdsExcludedCampaignIds = campaignOv.exclude
+                            .map((id) => String(id).trim())
+                            .filter(Boolean);
+                    }
+                    if (
+                        Array.isArray(campaignOv.excludeNameKeywords) &&
+                        campaignOv.excludeNameKeywords.length > 0
+                    ) {
+                        mergeOptsBase.googleAdsExcludedCampaignNameKeywords =
+                            campaignOv.excludeNameKeywords;
+                    }
+                }
+            }
+
+            if (metaAdsCampaignFilterEnabled) {
+                const campaignOv = resolveAdCampaignOverride(
+                    metaAdsCampaignOverrides,
+                    cust._id
+                );
+                if (campaignOv) {
+                    if (Array.isArray(campaignOv.exclude) && campaignOv.exclude.length > 0) {
+                        mergeOptsBase.metaAdsExcludedCampaignIds = campaignOv.exclude
+                            .map((id) => String(id).trim())
+                            .filter(Boolean);
+                    }
+                    if (
+                        Array.isArray(campaignOv.excludeNameKeywords) &&
+                        campaignOv.excludeNameKeywords.length > 0
+                    ) {
+                        mergeOptsBase.metaAdsExcludedCampaignNameKeywords =
+                            campaignOv.excludeNameKeywords;
+                    }
                 }
             }
 

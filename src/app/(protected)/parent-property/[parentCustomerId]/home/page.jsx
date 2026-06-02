@@ -27,6 +27,8 @@ import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
 import { buildParentShopifyMarketOverridesJson, buildParentAdSpendPlatformOverridesJson } from "@/lib/parentPropertyShopifyMarketOverrides";
 import { normalizeMongoId } from "@/lib/parentPropertyGoogleAdsCampaignOverrides";
 import { normalizeGoogleAdsCampaignId } from "@/lib/googleAdsCampaignIdUtils";
+import { normalizeMetaAdsCampaignId } from "@/lib/metaAdsCampaignIdUtils";
+import { normalizeCampaignNameKeywords } from "@/lib/adCampaignFilterUtils";
 import ParentChildPropertiesTable from "./components/ParentChildPropertiesTable";
 import {
     buildDefaultExcludedAdSpendPlatformsForShopifyMarkets,
@@ -104,12 +106,37 @@ export default function ParentPropertyHome() {
     const [googleCampaignFilterEnabled, setGoogleCampaignFilterEnabled] = useState(false);
     const [groupGoogleCampaignExcludedDraft, setGroupGoogleCampaignExcludedDraft] = useState({});
     const [groupGoogleCampaignExcludedApplied, setGroupGoogleCampaignExcludedApplied] = useState({});
+    const [groupGoogleCampaignKeywordsDraft, setGroupGoogleCampaignKeywordsDraft] = useState({});
+    const [groupGoogleCampaignKeywordsApplied, setGroupGoogleCampaignKeywordsApplied] = useState({});
+    /** Meta Ads campaign filter (group view only); off by default */
+    const [metaCampaignFilterEnabled, setMetaCampaignFilterEnabled] = useState(false);
+    const [groupMetaCampaignExcludedDraft, setGroupMetaCampaignExcludedDraft] = useState({});
+    const [groupMetaCampaignExcludedApplied, setGroupMetaCampaignExcludedApplied] = useState({});
+    const [groupMetaCampaignKeywordsDraft, setGroupMetaCampaignKeywordsDraft] = useState({});
+    const [groupMetaCampaignKeywordsApplied, setGroupMetaCampaignKeywordsApplied] = useState({});
     const softAggregatedRefetchRef = useRef(false);
     const [campaignFilterRevision, setCampaignFilterRevision] = useState(0);
+    const [campaignFilterBusy, setCampaignFilterBusy] = useState(false);
+    const campaignFilterBusyRef = useRef(false);
     /** Sync refs so aggregated fetch URL always sees latest campaign exclusions (avoids stale closure). */
     const googleCampaignFilterEnabledRef = useRef(false);
-    const campaignExclusionsAppliedRef = useRef({});
+    const metaCampaignFilterEnabledRef = useRef(false);
     const aggregatedFetchGenerationRef = useRef(0);
+
+    const beginCampaignFilterBusy = useCallback(() => {
+        if (campaignFilterBusyRef.current) return false;
+        campaignFilterBusyRef.current = true;
+        setCampaignFilterBusy(true);
+        return true;
+    }, []);
+
+    const endCampaignFilterBusy = useCallback(() => {
+        campaignFilterBusyRef.current = false;
+        setCampaignFilterBusy(false);
+    }, []);
+
+    const pageBusy = loading || campaignFilterBusy;
+    const chartBusy = chartLoading || campaignFilterBusy;
 
     useEffect(() => {
         setGroupMarketCatalogs({});
@@ -123,17 +150,36 @@ export default function ParentPropertyHome() {
 
     const applyGoogleAdsFiltersFromServer = useCallback((ga) => {
         const nextApplied = ga?.excludedByChildId || {};
+        const nextKeywords = ga?.excludedKeywordsByChildId || {};
         const nextEnabled = ga?.filterEnabled === true;
-        campaignExclusionsAppliedRef.current = nextApplied;
         googleCampaignFilterEnabledRef.current = nextEnabled;
         setGroupGoogleCampaignExcludedApplied(nextApplied);
         setGroupGoogleCampaignExcludedDraft(nextApplied);
+        setGroupGoogleCampaignKeywordsApplied(nextKeywords);
+        setGroupGoogleCampaignKeywordsDraft(nextKeywords);
         setGoogleCampaignFilterEnabled(nextEnabled);
+    }, []);
+
+    const applyMetaAdsFiltersFromServer = useCallback((ma) => {
+        const nextApplied = ma?.excludedByChildId || {};
+        const nextKeywords = ma?.excludedKeywordsByChildId || {};
+        const nextEnabled = ma?.filterEnabled === true;
+        metaCampaignFilterEnabledRef.current = nextEnabled;
+        setGroupMetaCampaignExcludedApplied(nextApplied);
+        setGroupMetaCampaignExcludedDraft(nextApplied);
+        setGroupMetaCampaignKeywordsApplied(nextKeywords);
+        setGroupMetaCampaignKeywordsDraft(nextKeywords);
+        setMetaCampaignFilterEnabled(nextEnabled);
     }, []);
 
     /** Save exclusions for one child Customer (not the parent). */
     const persistGoogleAdsChildFilters = useCallback(
-        async (childCustomerId, excludedCampaignIds, filterEnabled) => {
+        async (
+            childCustomerId,
+            excludedCampaignIds,
+            filterEnabled,
+            excludedCampaignNameKeywords = []
+        ) => {
             const cid = normalizeMongoId(childCustomerId);
             if (!cid) throw new Error("Invalid child property id");
 
@@ -150,6 +196,9 @@ export default function ParentPropertyHome() {
                             excludedCampaignIds: Array.isArray(excludedCampaignIds)
                                 ? excludedCampaignIds
                                 : [],
+                            excludedCampaignNameKeywords: normalizeCampaignNameKeywords(
+                                excludedCampaignNameKeywords
+                            ),
                         },
                     }),
                 }
@@ -162,6 +211,46 @@ export default function ParentPropertyHome() {
             return body;
         },
         [parentCustomerId, applyGoogleAdsFiltersFromServer]
+    );
+
+    const persistMetaAdsChildFilters = useCallback(
+        async (
+            childCustomerId,
+            excludedCampaignIds,
+            filterEnabled,
+            excludedCampaignNameKeywords = []
+        ) => {
+            const cid = normalizeMongoId(childCustomerId);
+            if (!cid) throw new Error("Invalid child property id");
+
+            const res = await fetch(
+                `/api/parent-customers/${parentCustomerId}/customer-filters`,
+                {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "same-origin",
+                    body: JSON.stringify({
+                        metaAds: {
+                            filterEnabled: filterEnabled === true,
+                            childCustomerId: cid,
+                            excludedCampaignIds: Array.isArray(excludedCampaignIds)
+                                ? excludedCampaignIds
+                                : [],
+                            excludedCampaignNameKeywords: normalizeCampaignNameKeywords(
+                                excludedCampaignNameKeywords
+                            ),
+                        },
+                    }),
+                }
+            );
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(body.error || `Save filters (${res.status})`);
+            }
+            applyMetaAdsFiltersFromServer(body.metaAds);
+            return body;
+        },
+        [parentCustomerId, applyMetaAdsFiltersFromServer]
     );
 
     const persistGoogleAdsFilterEnabledOnly = useCallback(
@@ -187,6 +276,29 @@ export default function ParentPropertyHome() {
         [parentCustomerId, applyGoogleAdsFiltersFromServer]
     );
 
+    const persistMetaAdsFilterEnabledOnly = useCallback(
+        async (filterEnabled) => {
+            const res = await fetch(
+                `/api/parent-customers/${parentCustomerId}/customer-filters`,
+                {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "same-origin",
+                    body: JSON.stringify({
+                        metaAds: { filterEnabled: filterEnabled === true },
+                    }),
+                }
+            );
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(body.error || `Save filter toggle (${res.status})`);
+            }
+            applyMetaAdsFiltersFromServer(body.metaAds);
+            return body;
+        },
+        [parentCustomerId, applyMetaAdsFiltersFromServer]
+    );
+
     useEffect(() => {
         if (!parentCustomerId) return undefined;
         let cancelled = false;
@@ -201,15 +313,8 @@ export default function ParentPropertyHome() {
                 if (cancelled) return;
                 if (!res.ok) return;
 
-                const ga = body.googleAds || {};
-                const excludedByChildId = ga.excludedByChildId || {};
-                const filterEnabled = ga.filterEnabled === true;
-
-                campaignExclusionsAppliedRef.current = excludedByChildId;
-                googleCampaignFilterEnabledRef.current = filterEnabled;
-                setGroupGoogleCampaignExcludedApplied(excludedByChildId);
-                setGroupGoogleCampaignExcludedDraft(excludedByChildId);
-                setGoogleCampaignFilterEnabled(filterEnabled);
+                applyGoogleAdsFiltersFromServer(body.googleAds || {});
+                applyMetaAdsFiltersFromServer(body.metaAds || {});
             } catch {
                 /* keep defaults */
             }
@@ -218,18 +323,15 @@ export default function ParentPropertyHome() {
         return () => {
             cancelled = true;
         };
-    }, [parentCustomerId]);
+    }, [parentCustomerId, applyGoogleAdsFiltersFromServer, applyMetaAdsFiltersFromServer]);
 
     useEffect(() => {
         googleCampaignFilterEnabledRef.current = googleCampaignFilterEnabled;
     }, [googleCampaignFilterEnabled]);
 
-    useEffect(() => {
-        campaignExclusionsAppliedRef.current = groupGoogleCampaignExcludedApplied;
-    }, [groupGoogleCampaignExcludedApplied]);
-
     const handleGoogleCampaignFilterEnabledChange = useCallback(
         async (enabled) => {
+            if (!beginCampaignFilterBusy()) return;
             const nextEnabled = enabled === true;
             googleCampaignFilterEnabledRef.current = nextEnabled;
             setGoogleCampaignFilterEnabled(nextEnabled);
@@ -238,6 +340,7 @@ export default function ParentPropertyHome() {
                 softAggregatedRefetchRef.current = true;
                 setCampaignFilterRevision((n) => n + 1);
             } catch (e) {
+                endCampaignFilterBusy();
                 showToast({
                     message: e?.message || "Could not save campaign filter setting",
                     type: "error",
@@ -245,8 +348,34 @@ export default function ParentPropertyHome() {
                 });
             }
         },
-        [persistGoogleAdsFilterEnabledOnly]
+        [beginCampaignFilterBusy, endCampaignFilterBusy, persistGoogleAdsFilterEnabledOnly]
     );
+
+    const handleMetaCampaignFilterEnabledChange = useCallback(
+        async (enabled) => {
+            if (!beginCampaignFilterBusy()) return;
+            const nextEnabled = enabled === true;
+            metaCampaignFilterEnabledRef.current = nextEnabled;
+            setMetaCampaignFilterEnabled(nextEnabled);
+            try {
+                await persistMetaAdsFilterEnabledOnly(nextEnabled);
+                softAggregatedRefetchRef.current = true;
+                setCampaignFilterRevision((n) => n + 1);
+            } catch (e) {
+                endCampaignFilterBusy();
+                showToast({
+                    message: e?.message || "Could not save Meta campaign filter setting",
+                    type: "error",
+                    position: "top-center",
+                });
+            }
+        },
+        [beginCampaignFilterBusy, endCampaignFilterBusy, persistMetaAdsFilterEnabledOnly]
+    );
+
+    useEffect(() => {
+        metaCampaignFilterEnabledRef.current = metaCampaignFilterEnabled;
+    }, [metaCampaignFilterEnabled]);
 
     useEffect(() => {
         if (!Array.isArray(childCustomers) || childCustomers.length === 0) return;
@@ -423,28 +552,33 @@ export default function ParentPropertyHome() {
     );
 
     const handleApplyGoogleCampaignsForChild = useCallback(
-        async (childId, excludedCampaignIds) => {
+        async (childId, excludedCampaignIds, excludedCampaignNameKeywords = []) => {
             const cid = normalizeMongoId(childId);
             if (!cid) return;
+            if (!beginCampaignFilterBusy()) return;
 
             const ids = Array.isArray(excludedCampaignIds)
                 ? excludedCampaignIds
                       .map((id) => normalizeGoogleAdsCampaignId(id))
                       .filter(Boolean)
                 : [];
+            const keywords = normalizeCampaignNameKeywords(excludedCampaignNameKeywords);
 
             const filterEnabled =
-                googleCampaignFilterEnabledRef.current === true || ids.length > 0;
+                googleCampaignFilterEnabledRef.current === true ||
+                ids.length > 0 ||
+                keywords.length > 0;
 
             try {
-                await persistGoogleAdsChildFilters(cid, ids, filterEnabled);
+                await persistGoogleAdsChildFilters(cid, ids, filterEnabled, keywords);
                 softAggregatedRefetchRef.current = true;
                 setCampaignFilterRevision((n) => n + 1);
                 showToast({
-                    message: "Campaign filters saved for this property. Updating adspend…",
+                    message: "Google campaign filters saved. Updating adspend…",
                     position: "top-center",
                 });
             } catch (e) {
+                endCampaignFilterBusy();
                 showToast({
                     message: e?.message || "Could not save campaign filters",
                     type: "error",
@@ -452,7 +586,45 @@ export default function ParentPropertyHome() {
                 });
             }
         },
-        [persistGoogleAdsChildFilters]
+        [beginCampaignFilterBusy, endCampaignFilterBusy, persistGoogleAdsChildFilters]
+    );
+
+    const handleApplyMetaCampaignsForChild = useCallback(
+        async (childId, excludedCampaignIds, excludedCampaignNameKeywords = []) => {
+            const cid = normalizeMongoId(childId);
+            if (!cid) return;
+            if (!beginCampaignFilterBusy()) return;
+
+            const ids = Array.isArray(excludedCampaignIds)
+                ? excludedCampaignIds
+                      .map((id) => normalizeMetaAdsCampaignId(id))
+                      .filter(Boolean)
+                : [];
+            const keywords = normalizeCampaignNameKeywords(excludedCampaignNameKeywords);
+
+            const filterEnabled =
+                metaCampaignFilterEnabledRef.current === true ||
+                ids.length > 0 ||
+                keywords.length > 0;
+
+            try {
+                await persistMetaAdsChildFilters(cid, ids, filterEnabled, keywords);
+                softAggregatedRefetchRef.current = true;
+                setCampaignFilterRevision((n) => n + 1);
+                showToast({
+                    message: "Meta campaign filters saved. Updating adspend…",
+                    position: "top-center",
+                });
+            } catch (e) {
+                endCampaignFilterBusy();
+                showToast({
+                    message: e?.message || "Could not save Meta campaign filters",
+                    type: "error",
+                    position: "top-center",
+                });
+            }
+        },
+        [beginCampaignFilterBusy, endCampaignFilterBusy, persistMetaAdsChildFilters]
     );
 
     const handleGoogleCampaignsMenuOpen = useCallback(
@@ -462,8 +634,27 @@ export default function ParentPropertyHome() {
                 ...prev,
                 [cid]: { ...(groupGoogleCampaignExcludedApplied[cid] || {}) },
             }));
+            setGroupGoogleCampaignKeywordsDraft((prev) => ({
+                ...prev,
+                [cid]: [...(groupGoogleCampaignKeywordsApplied[cid] || [])],
+            }));
         },
-        [groupGoogleCampaignExcludedApplied]
+        [groupGoogleCampaignExcludedApplied, groupGoogleCampaignKeywordsApplied]
+    );
+
+    const handleMetaCampaignsMenuOpen = useCallback(
+        (childId) => {
+            const cid = normalizeMongoId(childId);
+            setGroupMetaCampaignExcludedDraft((prev) => ({
+                ...prev,
+                [cid]: { ...(groupMetaCampaignExcludedApplied[cid] || {}) },
+            }));
+            setGroupMetaCampaignKeywordsDraft((prev) => ({
+                ...prev,
+                [cid]: [...(groupMetaCampaignKeywordsApplied[cid] || [])],
+            }));
+        },
+        [groupMetaCampaignExcludedApplied, groupMetaCampaignKeywordsApplied]
     );
 
     // Streaming aggregated fetch: parent + all children's merged data with progressive progress updates.
@@ -544,6 +735,9 @@ export default function ParentPropertyHome() {
                                 setLoadingPhase("complete");
                                 setLoading(false);
                                 setChartLoading(false);
+                                if (campaignFilterBusyRef.current) {
+                                    endCampaignFilterBusy();
+                                }
 
                                 // Brief "Complete" display, then fade out
                                 await new Promise((r) => setTimeout(r, 600));
@@ -568,6 +762,9 @@ export default function ParentPropertyHome() {
                 setAllDailyChartData([]);
                 setLoading(false);
                 setChartLoading(false);
+                if (campaignFilterBusyRef.current) {
+                    endCampaignFilterBusy();
+                }
             }
         })();
 
@@ -580,6 +777,7 @@ export default function ParentPropertyHome() {
         comparisonMethod,
         parentAggregatedQueryExtras,
         campaignFilterRevision,
+        endCampaignFilterBusy,
     ]);
 
     // Filter data based on enabled properties
@@ -851,6 +1049,9 @@ export default function ParentPropertyHome() {
         shopifyRevenueField,
         loading,
         chartLoading,
+        pageBusy,
+        chartBusy,
+        campaignFilterBusy,
         toggleProperty,
         handleDateRangeApply,
         handleStartDateChange,
@@ -873,8 +1074,15 @@ export default function ParentPropertyHome() {
         googleCampaignFilterEnabled,
         handleGoogleCampaignFilterEnabledChange,
         groupGoogleCampaignExcludedDraft,
+        groupGoogleCampaignKeywordsDraft,
         handleApplyGoogleCampaignsForChild,
         handleGoogleCampaignsMenuOpen,
+        metaCampaignFilterEnabled,
+        handleMetaCampaignFilterEnabledChange,
+        groupMetaCampaignExcludedDraft,
+        groupMetaCampaignKeywordsDraft,
+        handleApplyMetaCampaignsForChild,
+        handleMetaCampaignsMenuOpen,
     };
 
     // Render views with loading overlay
@@ -903,7 +1111,7 @@ export default function ParentPropertyHome() {
                 label={parentCustomer?.name || parentCustomerId}
                 customerId={parentCustomerId}
                 dateRange={appliedDateRange}
-                loading={loading}
+                loading={pageBusy}
                 dashboardType="parent-property"
                 dataSnapshot={{ metrics, metricsPrev, tableRows: filteredTableRows, dailyChartData: filteredDailyData, predominantMetricPreference }}
                 right={
@@ -913,7 +1121,7 @@ export default function ParentPropertyHome() {
                         onStartDateChange={handleStartDateChange}
                         onEndDateChange={handleEndDateChange}
                         onApply={handleDateRangeApply}
-                        loading={loading}
+                        loading={pageBusy}
                         showComparisonMethodToggler={true}
                         comparisonMethod={tempComparisonMethod}
                         onComparisonMethodChange={setTempComparisonMethod}
@@ -938,7 +1146,7 @@ export default function ParentPropertyHome() {
             </div>
 
             <ParentChildPropertiesTable
-                loading={loading}
+                loading={pageBusy}
                 error={error}
                 rows={childPropertyRowsForUi}
                 childCustomers={childCustomers}
@@ -956,29 +1164,36 @@ export default function ParentPropertyHome() {
                 onToggleSpendPlatform={handleGroupSpendToggleDraft}
                 onApplySpendForChild={handleApplySpendForChild}
                 onSpendMenuOpen={handleSpendMenuOpen}
-                fetchDisabled={loading}
+                fetchDisabled={pageBusy}
                 googleCampaignFilterEnabled={googleCampaignFilterEnabled}
                 onGoogleCampaignFilterEnabledChange={handleGoogleCampaignFilterEnabledChange}
                 groupGoogleCampaignExcludedDraft={groupGoogleCampaignExcludedDraft}
+                groupGoogleCampaignKeywordsDraft={groupGoogleCampaignKeywordsDraft}
                 appliedDateRange={appliedDateRange}
                 onApplyGoogleCampaignsForChild={handleApplyGoogleCampaignsForChild}
                 onGoogleCampaignsMenuOpen={handleGoogleCampaignsMenuOpen}
+                metaCampaignFilterEnabled={metaCampaignFilterEnabled}
+                onMetaCampaignFilterEnabledChange={handleMetaCampaignFilterEnabledChange}
+                groupMetaCampaignExcludedDraft={groupMetaCampaignExcludedDraft}
+                groupMetaCampaignKeywordsDraft={groupMetaCampaignKeywordsDraft}
+                onApplyMetaCampaignsForChild={handleApplyMetaCampaignsForChild}
+                onMetaCampaignsMenuOpen={handleMetaCampaignsMenuOpen}
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
                 <ParentRevenueOrdersChart
                     dailyData={filteredDailyData}
-                    loading={chartLoading}
+                    loading={chartBusy}
                     shopifyRevenueField={shopifyRevenueField}
                 />
                 <ParenteAdspendChart
                     dailyData={filteredDailyData}
-                    loading={chartLoading}
+                    loading={chartBusy}
                     visibleAdSpendChannels={parentVisibleAdSpendChannels}
                 />
                 <ParentROASChart
                     dailyData={filteredDailyData}
-                    loading={chartLoading}
+                    loading={chartBusy}
                     metricPreference={predominantMetricPreference}
                     visibleAdSpendChannels={parentVisibleAdSpendChannels}
                 />
