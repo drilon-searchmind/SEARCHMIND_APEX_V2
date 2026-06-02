@@ -1,6 +1,10 @@
 import React from "react";
 import { shopifyDeductionMagnitudes } from "@/lib/performanceDashboard/computePerformanceMetrics";
 import {
+    enrichOverviewDerivedMetrics,
+    buildOverviewDerivedMetricCards,
+} from "@/lib/performanceDashboard/enrichOverviewDerivedMetrics";
+import {
     FiDollarSign,
     FiTrendingUp,
     FiTrendingDown,
@@ -69,6 +73,11 @@ export function buildPerformanceMetricsCards({
     mergedPrev,
     staticExp,
     daysInRange,
+    rangeStart,
+    rangeEnd,
+    prevRangeStart,
+    prevRangeEnd,
+    customerType = "Shopify",
 }) {
     const {
         totalCogs,
@@ -528,7 +537,25 @@ export function buildPerformanceMetricsCards({
         },
     ];
 
-    const withReplacements = metricsArray.map((m) => {
+    const { fixedLineItems } = enrichOverviewDerivedMetrics({
+        metricsData,
+        metricsDataPrev,
+        derived,
+        staticExp,
+        rangeStart,
+        rangeEnd,
+        prevRangeStart,
+        prevRangeEnd,
+        customerType,
+    });
+    const derivedCards = buildOverviewDerivedMetricCards(
+        metricsData,
+        metricsDataPrev,
+        fixedLineItems
+    );
+    const metricsWithDerived = [...metricsArray, ...derivedCards];
+
+    const withReplacements = metricsWithDerived.map((m) => {
         const rep = replacementByKey?.[m.key];
         if (!rep) return m;
         const pct =
@@ -536,16 +563,25 @@ export function buildPerformanceMetricsCards({
                 ? percentChange(rep.value, rep.valuePrev)
                 : null;
         const isRatio = ["roas", "poas", "spendshare", "ebit_pct"].includes(m.key);
+        const isPctDerived = [
+            "discount_pct_gross",
+            "refunds_rate",
+            "cogs_pct_total_sales",
+            "shipping_cost_pct_total_sales",
+            "ad_spend_pct_total_sales",
+        ].includes(m.key);
         const isCount = m.key === "orders";
         return {
             ...m,
             label: rep.kpiName,
             value: isRatio
                 ? rep.value.toFixed(2)
-                : isCount
-                  ? rep.value.toLocaleString("da-DK", { maximumFractionDigits: 0 })
-                  : fmtCur(rep.value),
-            change: pct !== null ? Math.abs(pct).toFixed(isRatio ? 1 : 0) : undefined,
+                : isPctDerived
+                  ? `${rep.value.toLocaleString("da-DK", { maximumFractionDigits: 2 })} %`
+                  : isCount
+                    ? rep.value.toLocaleString("da-DK", { maximumFractionDigits: 0 })
+                    : fmtCur(rep.value),
+            change: pct !== null ? Math.abs(pct).toFixed(isRatio || isPctDerived ? 1 : 0) : undefined,
             changeType: changeType(pct),
             changeAbsolute: formatDiff(
                 rep.value,

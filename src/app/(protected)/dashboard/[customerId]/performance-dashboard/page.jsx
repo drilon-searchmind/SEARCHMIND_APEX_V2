@@ -6,8 +6,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import MetricCard from "@/components/dashboard/MetricCard";
-import ComparisonPeriodPopover from "@/components/dashboard/ComparisonPeriodPopover";
-import { FiDollarSign, FiTrendingUp, FiTrendingDown, FiShoppingCart, FiCreditCard, FiBarChart2, FiPieChart, FiShoppingBag, FiUserCheck, FiSettings } from "react-icons/fi";
+import { FiDollarSign, FiTrendingUp, FiShoppingCart, FiCreditCard, FiBarChart2, FiPieChart, FiShoppingBag, FiUserCheck } from "react-icons/fi";
 import GraphCard from "@/components/dashboard/GraphCard";
 // import { revenueData, spendAllocationData, roasData, aovData } from "@/data/dashboardCharts";
 import { useEffect, useState, useMemo, useCallback } from "react";
@@ -17,6 +16,12 @@ import Spinner from "@/components/ui/Spinner";
 import Custom from "./components/Custom";
 import ReturnsOverrideModal from "./components/ReturnsOverrideModal";
 import { buildPerformanceMetricsCards } from "./components/buildPerformanceMetricsCards";
+import PerformanceDashboardStandardSections from "./components/PerformanceDashboardStandardSections";
+import {
+    buildStandardOverviewSections,
+    collectSectionMetricKeys,
+    getOverviewKpiCardKeys,
+} from "@/lib/performanceDashboard/performanceDashboardLayout";
 import { computePerformanceDashboardMetrics, netRevenueForShopifyDay } from "@/lib/performanceDashboard/computePerformanceMetrics";
 import { getReturnsOverrideSettings } from "@/lib/performanceDashboard/performanceDashboardConstants";
 import { netRevenueFromGrossDiscountsReturns } from "@/lib/performanceDashboard/computePerformanceMetrics";
@@ -394,6 +399,11 @@ export default function PerformanceDashboard() {
             mergedPrev,
             staticExp,
             daysInRange,
+            rangeStart: appliedDateRange.startDate,
+            rangeEnd: appliedDateRange.endDate,
+            prevRangeStart: prevPeriodStart.format("YYYY-MM-DD"),
+            prevRangeEnd: prevPeriodEnd.format("YYYY-MM-DD"),
+            customerType: customer?.customerType || "Shopify",
         });
 
         setMetrics(metricsArray);
@@ -433,51 +443,44 @@ export default function PerformanceDashboard() {
     const [viewMode, setViewMode] = useState('standard'); // 'standard' | 'custom'
     const [showCalcs, setShowCalcs] = useState(false); // Default ON for Standard view
 
-    // Standard view: 3 sections — per-channel spend metrics only for connected + meaningful spend
-    const STANDARD_SECTIONS = useMemo(() => {
-        const expenseSpendKeys = [
-            "total_expenses",
-            "marketing_spend",
-            ...visibleAdSpendChannels.map((c) => c.metricsDataKey),
-            "variable_costs",
-            "cogs",
-            "shipping_cost",
-            "pick_pack",
-            "fixed_costs",
-        ];
-        return [
-            {
-                key: "net_revenue",
-                title: "Net Revenue",
-                metricKeys: [
-                    "revenue",
-                    "net_sales",
-                    "orders",
-                    "aov",
-                    "total_sales",
-                    "gross_sales",
-                    "discounts",
-                    "returns",
-                    "shipping_revenue",
-                    "duties",
-                    "additional_fees",
-                    "transaction_fee",
-                    "tax",
-                ],
-            },
-            {
-                key: "total_expenses",
-                title: "Total Expenses",
-                metricKeys: expenseSpendKeys,
-                variableSubItems: ["cogs", "shipping_cost", "pick_pack"],
-            },
-            {
-                key: "net_profit",
-                title: "Net Profit",
-                metricKeys: ["ebit", "roas", "cac", "poas", "ebit_pct"],
-            },
-        ];
-    }, [visibleAdSpendChannels]);
+    const STANDARD_SECTIONS = useMemo(
+        () =>
+            buildStandardOverviewSections({
+                visibleAdSpendChannels,
+                fixedExpensesLineItems:
+                    customer?.CustomerStaticExpenses?.fixedExpensesLineItems || [],
+            }),
+        [visibleAdSpendChannels, customer?.CustomerStaticExpenses?.fixedExpensesLineItems]
+    );
+
+    const overviewColumnMetricKeys = useMemo(
+        () => collectSectionMetricKeys(STANDARD_SECTIONS),
+        [STANDARD_SECTIONS]
+    );
+
+    const overviewKpiCardKeys = useMemo(
+        () => getOverviewKpiCardKeys(overviewColumnMetricKeys),
+        [overviewColumnMetricKeys]
+    );
+
+    const overviewKpiMetrics = useMemo(
+        () =>
+            overviewKpiCardKeys
+                .map((key) => metrics.find((m) => m.key === key))
+                .filter(Boolean),
+        [overviewKpiCardKeys, metrics]
+    );
+
+    const toggleMetricSelection = useCallback((key) => {
+        if (!key) return;
+        setSelectedMetrics((prev) =>
+            prev.includes(key)
+                ? prev.length > 1
+                    ? prev.filter((k) => k !== key)
+                    : prev
+                : [...prev, key]
+        );
+    }, []);
 
     // Helper to aggregate daily arrays by keyFn (period or month)
     const aggregateDaily = (shopifyArr, channelRows, keyFn) =>
@@ -1052,193 +1055,19 @@ export default function PerformanceDashboard() {
 
             {viewMode === 'standard' ? (
             <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mb-8">
-                {loading ? (
-                    <div className="col-span-full text-center py-12"><Spinner size={40} color="#406969" /></div>
-                ) : error ? (
-                    <div className="col-span-full text-center text-red-500 py-12">{error}</div>
-                ) : (
-                    STANDARD_SECTIONS.map((section) => {
-                        const primaryKey = section.metricKeys[0];
-                        const breakdownKeys = section.metricKeys.slice(1); // Exclude primary from breakdown
-                        const sectionMetrics = metrics
-                            .filter((m) => breakdownKeys.includes(m.key))
-                            .sort((a, b) => breakdownKeys.indexOf(a.key) - breakdownKeys.indexOf(b.key));
-                        const primaryMetric = metrics.find((m) => m.key === primaryKey);
-                        const totalSales = metricsData?.total_sales || 0;
-                        const primaryValue = primaryKey === 'total_sales' ? totalSales
-                            : primaryKey === 'revenue' ? (metricsData?.revenue ?? 0)
-                            : primaryKey === 'gross_profit' ? (metricsData?.gross_profit ?? 0)
-                            : primaryKey === 'total_expenses' ? (metricsData?.total_expenses ?? 0)
-                            : primaryKey === 'ebit' ? (metricsData?.ebit ?? 0)
-                            : 0;
-                        const pctOfTotal = totalSales > 0 ? ((primaryValue / totalSales) * 100).toFixed(1) : '0';
-
-                        return (
-                            <div
-                                key={section.key}
-                                className="flex flex-col rounded-xl border border-gray-200 bg-white overflow-visible"
-                            >
-                                {/* Section header */}
-                                <ComparisonPeriodPopover
-                                    comparisonMethod={comparisonMethod}
-                                    changePrevValue={primaryMetric?.changePrevValue}
-                                    changeAbsolute={primaryMetric?.changeAbsolute}
-                                >
-                                    <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
-                                        <div className="text-sm font-medium text-gray-500 mb-1">{section.title}</div>
-                                        <div className="flex items-end justify-between gap-2">
-                                            <span className="text-2xl font-bold text-[var(--color-primary-searchmind)]">
-                                                {primaryMetric?.value ?? '-'}
-                                            </span>
-                                            {totalSales > 0 && (
-                                                <span className="text-xs text-gray-500 tabular-nums">
-                                                    {pctOfTotal}% of total sales
-                                                </span>
-                                            )}
-                                        </div>
-                                        {primaryMetric?.change !== undefined && (
-                                            <div className="mt-2 flex items-center gap-1">
-                                                <span className={`text-[0.65rem] rounded-sm font-medium flex items-center justify-end gap-1 px-2 py-1 tabular-nums ${primaryMetric.changeType === 'up' ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>
-                                                    {primaryMetric.changeType === 'up' ? <FiTrendingUp className="text-sm" /> : <FiTrendingDown className="text-sm" />}
-                                                    {primaryMetric.change}%
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </ComparisonPeriodPopover>
-
-                                {/* Section calculation (when Show calcs enabled) */}
-                                {showCalcs && primaryMetric?.popOverContent && (
-                                    <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/30">
-                                        <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-[10px] font-mono text-gray-600 leading-tight">
-                                            {primaryMetric.calcValueLabels && (
-                                                <div className="mb-1.5 pb-1.5 border-b border-gray-200 space-y-0.5">
-                                                    {primaryMetric.calcValueLabels.split('\n').filter(Boolean).map((line, i) => {
-                                                        const colonIdx = line.indexOf(':');
-                                                        const label = colonIdx >= 0 ? line.slice(0, colonIdx).trim() : line;
-                                                        const val = colonIdx >= 0 ? line.slice(colonIdx + 1).trim() : '';
-                                                        return (
-                                                            <div key={i} className="flex justify-between gap-4">
-                                                                <span className="text-gray-500">{label}</span>
-                                                                <span className="tabular-nums">{val}</span>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                            <div className="flex flex-col items-end gap-0.5">
-                                                {(() => {
-                                                    const calcLines = primaryMetric.popOverContent.split('\n').map((l) => l.trim()).filter((l) => l && l.startsWith('=') && /\d/.test(l));
-                                                    return calcLines.map((line, i) => (
-                                                        <span key={i} className={i === calcLines.length - 1 ? 'font-bold text-[var(--color-primary-searchmind)]' : ''}>
-                                                            {line}
-                                                        </span>
-                                                    ));
-                                                })()}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Section breakdown */}
-                                <div className="flex flex-col divide-y divide-gray-100">
-                                    {sectionMetrics.map((metric) => {
-                                        const metricKey = metric.key;
-                                        const isVariableSubItem = section.variableSubItems?.includes(metricKey);
-                                        const toggleMetricSelection = (key) => {
-                                            if (!key) return;
-                                            setSelectedMetrics(prev =>
-                                                prev.includes(key) ? (prev.length > 1 ? prev.filter(k => k !== key) : prev) : [...prev, key]
-                                            );
-                                        };
-                                        const isSelected = selectedMetrics.includes(metricKey);
-                                        const hasCalc = showCalcs && metric.popOverContent;
-                                        const calcLines = metric.popOverContent ? metric.popOverContent.split('\n').map((l) => l.trim()).filter((l) => l && l.startsWith('=') && /\d/.test(l)) : [];
-
-                                        return (
-                                            <div
-                                                key={metric.key}
-                                                role="button"
-                                                tabIndex={0}
-                                                onClick={() => toggleMetricSelection(metricKey)}
-                                                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleMetricSelection(metricKey)}
-                                                className={`cursor-pointer transition-colors hover:bg-gray-50/50 ${isSelected ? 'bg-[#1E2B2B]/5' : ''}`}
-                                                aria-pressed={isSelected}
-                                            >
-                                                <ComparisonPeriodPopover
-                                                    comparisonMethod={comparisonMethod}
-                                                    changePrevValue={metric.changePrevValue}
-                                                    changeAbsolute={metric.changeAbsolute}
-                                                >
-                                                    <div className={`px-5 py-3 flex items-center justify-between gap-4 ${isVariableSubItem ? '' : ''}`}>
-                                                        <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                                                            {metric.label}
-                                                            {metric.key === "returns" ? (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setReturnsOverrideModalOpen(true);
-                                                                    }}
-                                                                    className={`p-1 rounded-md transition-colors ${metric.returnsOverrideActive ? "text-purple-600 bg-purple-50" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}
-                                                                    aria-label="Returns override settings"
-                                                                    title="Returns % override"
-                                                                >
-                                                                    <FiSettings className="text-sm" />
-                                                                </button>
-                                                            ) : null}
-                                                            {metric.isCustomReplacement ? (
-                                                                <span className="text-[10px] font-normal text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">
-                                                                    Custom
-                                                                </span>
-                                                            ) : null}
-                                                        </span>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-sm font-semibold tabular-nums text-gray-900">{metric.value}</span>
-                                                            <span className={`text-[0.65rem] rounded-sm font-medium flex items-center justify-end gap-0.5 px-1.5 py-0.5 min-w-[4rem] tabular-nums ${metric.changeType === 'up' ? 'text-green-600 bg-green-50' : metric.changeType === 'down' ? 'text-red-600 bg-red-50' : 'text-gray-600 bg-gray-100'}`}>
-                                                                {metric.changeType === 'up' ? <FiTrendingUp className="text-xs" /> : metric.changeType === 'down' ? <FiTrendingDown className="text-xs" /> : null}
-                                                                {(metric.change ?? 0)}%
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </ComparisonPeriodPopover>
-                                                {hasCalc && calcLines.length > 0 && (
-                                                    <div className={`pb-3 pt-0 ${isVariableSubItem ? 'pl-8 pr-5' : 'px-5'}`}>
-                                                        <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-[10px] font-mono text-gray-600 leading-tight">
-                                                            {metric.calcValueLabels && (
-                                                                <div className="mb-1.5 pb-1.5 border-b border-gray-200 space-y-0.5">
-                                                                    {metric.calcValueLabels.split('\n').filter(Boolean).map((line, i) => {
-                                                                        const colonIdx = line.indexOf(':');
-                                                                        const label = colonIdx >= 0 ? line.slice(0, colonIdx).trim() : line;
-                                                                        const val = colonIdx >= 0 ? line.slice(colonIdx + 1).trim() : '';
-                                                                        return (
-                                                                            <div key={i} className="flex justify-between gap-4">
-                                                                                <span className="text-gray-500">{label}</span>
-                                                                                <span className="tabular-nums">{val}</span>
-                                                                            </div>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            )}
-                                                            <div className="flex flex-col items-end gap-0.5">
-                                                                {calcLines.map((line, i) => (
-                                                                    <span key={i} className={i === calcLines.length - 1 ? 'font-bold text-[var(--color-primary-searchmind)]' : ''}>
-                                                                        {line}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        );
-                    })
-                )}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 w-full mb-8">
+                <PerformanceDashboardStandardSections
+                    sections={STANDARD_SECTIONS}
+                    metrics={metrics}
+                    metricsData={metricsData}
+                    loading={loading}
+                    error={error}
+                    showCalcs={showCalcs}
+                    comparisonMethod={comparisonMethod}
+                    selectedMetrics={selectedMetrics}
+                    onToggleMetric={toggleMetricSelection}
+                    onReturnsOverrideClick={() => setReturnsOverrideModalOpen(true)}
+                />
             </div>
             </>
             ) : (
@@ -1283,6 +1112,41 @@ export default function PerformanceDashboard() {
                     <div className="flex items-center justify-center h-64"><Spinner size={40} color="#406969" /></div>
                 ) : (
                     <GraphCard title={selectedMetrics.length === 1 ? `${METRIC_OPTIONS.find(o=>o.key===selectedMetrics[0])?.label} Over Time` : 'Performance Metrics Over Time'} chartOptions={combinedOptions} chartSeries={combinedSeries} />
+                )}
+
+                {!loading && !error && overviewKpiMetrics.length > 0 && (
+                    <div className="mt-6">
+                        <h3 className="text-sm font-medium text-gray-500 mb-3">Key metrics</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                            {overviewKpiMetrics.map((metric) => (
+                                <div
+                                    key={metric.key}
+                                    role="button"
+                                    tabIndex={0}
+                                    className="min-w-0 cursor-pointer"
+                                    onClick={() => toggleMetricSelection(metric.key)}
+                                    onKeyDown={(e) =>
+                                        (e.key === "Enter" || e.key === " ") &&
+                                        toggleMetricSelection(metric.key)
+                                    }
+                                >
+                                    <MetricCard
+                                        label={metric.label}
+                                        value={metric.value}
+                                        change={metric.change}
+                                        changeType={metric.changeType}
+                                        changeAbsolute={metric.changeAbsolute}
+                                        changePrevValue={metric.changePrevValue}
+                                        comparisonMethod={comparisonMethod}
+                                        popOverContent={metric.popOverContent}
+                                        icon={metric.icon}
+                                        isActive={selectedMetrics.includes(metric.key)}
+                                        className="min-w-0"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 )}
             </div>
             )}
