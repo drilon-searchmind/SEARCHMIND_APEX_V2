@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FiChevronDown, FiInfo, FiRefreshCw, FiSearch } from "react-icons/fi";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
-import DateRangePicker from "@/components/dashboard/DateRangePicker";
+import { getApexRadarLast30DaysRange } from "@/lib/apexRadarDateRange";
 import ApexRadarOverviewTable from "../components/ApexRadarOverviewTable";
 import ApexRadarAssignUsersModal from "../components/ApexRadarAssignUsersModal";
 import ApexRadarFacebookSettingsModal from "../components/ApexRadarFacebookSettingsModal";
@@ -44,23 +44,7 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
         [customers, customerId]
     );
 
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const isFirstOfMonth = today.getDate() === 1;
-    const defaultStart = `${yyyy}-${mm}-01`;
-    const defaultEnd = isFirstOfMonth
-        ? `${yyyy}-${mm}-01`
-        : `${yyyy}-${mm}-${String(today.getDate() - 1).padStart(2, "0")}`;
-
-    const [tempDateRange, setTempDateRange] = useState({
-        startDate: defaultStart,
-        endDate: defaultEnd,
-    });
-    const [appliedDateRange, setAppliedDateRange] = useState({
-        startDate: defaultStart,
-        endDate: defaultEnd,
-    });
+    const appliedDateRange = useMemo(() => getApexRadarLast30DaysRange(), []);
 
     const [userFilter, setUserFilter] = useState("all");
     const [assignModalRow, setAssignModalRow] = useState(null);
@@ -144,10 +128,6 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
         customerId,
         overviewRefreshKey,
     ]);
-
-    const handleDateRangeApply = ({ startDate, endDate }) => {
-        setAppliedDateRange({ startDate, endDate });
-    };
 
     const headingLabel = useMemo(() => {
         if (!meta) return "Portfolio";
@@ -243,15 +223,6 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                 showPdfExport={false}
                 dateRange={appliedDateRange}
                 loading={customersLoading}
-                right={
-                    <DateRangePicker
-                        onApply={handleDateRangeApply}
-                        startDate={tempDateRange.startDate}
-                        endDate={tempDateRange.endDate}
-                        onStartDateChange={(v) => setTempDateRange((d) => ({ ...d, startDate: v }))}
-                        onEndDateChange={(v) => setTempDateRange((d) => ({ ...d, endDate: v }))}
-                    />
-                }
             />
 
             {supportsOverviewTable ? (

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
-import DateRangePicker from "@/components/dashboard/DateRangePicker";
+import { getApexRadarLast30DaysRange } from "@/lib/apexRadarDateRange";
 import { APEX_RADAR_CHANNEL_FACEBOOK, APEX_RADAR_CHANNEL_GOOGLE_ADS, APEX_RADAR_CHANNEL_META } from "@/lib/apexRadarChannels";
 import { buildPiFunnelFromAggregates } from "@/lib/apexRadarPerformanceInvestigatorFacebook";
 import { useCustomers } from "@/hooks/useCustomers";
@@ -35,22 +35,7 @@ export default function PerformanceInvestigatorClient({ channel, customerId }) {
     );
 
     const yyyy = new Date().getUTCFullYear();
-    const today = new Date();
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const isFirstOfMonth = today.getDate() === 1;
-    const defaultStart = `${yyyy}-${mm}-01`;
-    const defaultEnd = isFirstOfMonth
-        ? `${yyyy}-${mm}-01`
-        : `${yyyy}-${mm}-${String(today.getDate() - 1).padStart(2, "0")}`;
-
-    const [tempDateRange, setTempDateRange] = useState({
-        startDate: defaultStart,
-        endDate: defaultEnd,
-    });
-    const [appliedDateRange, setAppliedDateRange] = useState({
-        startDate: defaultStart,
-        endDate: defaultEnd,
-    });
+    const appliedDateRange = useMemo(() => getApexRadarLast30DaysRange(), []);
 
     const [piPayload, setPiPayload] = useState(null);
     const [piLoading, setPiLoading] = useState(false);
@@ -129,31 +114,20 @@ export default function PerformanceInvestigatorClient({ channel, customerId }) {
                 dateRange={appliedDateRange}
                 loading={supportsPerformanceInvestigator && piLoading}
                 right={
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:flex-wrap sm:justify-end">
-                        {supportsPerformanceInvestigator && (
-                            <PerformanceInvestigatorCopyToSlides
-                                disabled={piLoading || !!piError}
-                                headingLabel={headingLabel}
-                                currentYear={piPayload?.currentYear ?? yyyy}
-                                previousYear={piPayload?.previousYear ?? yyyy - 1}
-                                currentYearRows={piPayload?.currentYearRows ?? []}
-                                previousYearRows={piPayload?.previousYearRows ?? []}
-                                diffRows={piPayload?.diffRows}
-                                funnel={funnelForUi}
-                                funnelRange={piPayload?.funnelRange}
-                                compareHint={compareHint}
-                            />
-                        )}
-                        <DateRangePicker
-                            onApply={({ startDate, endDate }) =>
-                                setAppliedDateRange({ startDate, endDate })
-                            }
-                            startDate={tempDateRange.startDate}
-                            endDate={tempDateRange.endDate}
-                            onStartDateChange={(v) => setTempDateRange((d) => ({ ...d, startDate: v }))}
-                            onEndDateChange={(v) => setTempDateRange((d) => ({ ...d, endDate: v }))}
+                    supportsPerformanceInvestigator ? (
+                        <PerformanceInvestigatorCopyToSlides
+                            disabled={piLoading || !!piError}
+                            headingLabel={headingLabel}
+                            currentYear={piPayload?.currentYear ?? yyyy}
+                            previousYear={piPayload?.previousYear ?? yyyy - 1}
+                            currentYearRows={piPayload?.currentYearRows ?? []}
+                            previousYearRows={piPayload?.previousYearRows ?? []}
+                            diffRows={piPayload?.diffRows}
+                            funnel={funnelForUi}
+                            funnelRange={piPayload?.funnelRange}
+                            compareHint={compareHint}
                         />
-                    </div>
+                    ) : null
                 }
             />
 
