@@ -3,6 +3,11 @@ import { GoogleAdsApi } from 'google-ads-api';
 import { resolveCountryToCriterionId } from './googleAdsApi';
 import { getCurrencyConversionTable, conversionRateToDkk } from './currencyConversionTable';
 import { parseGoogleAdsCustomerIds } from './googleAdsCustomerIdUtils';
+import {
+    applyImpressionShareToMetricsByDate,
+    fetchPpcDashboardExtendedSections,
+} from './googlePpcDashboardExtended';
+import { mapPpcCampaignRow } from './googlePpcDashboardUtils';
 
 /**
  * Fetch comprehensive Google Ads PPC dashboard metrics
@@ -115,6 +120,89 @@ function mergePpcCampaignsByDate(arrays, topCampaignNames) {
         });
 }
 
+function mergePpcCampaignsPerformance(arrays) {
+    const map = {};
+    for (const arr of arrays) {
+        for (const c of arr || []) {
+            const key = c.campaign_name || "(no campaign)";
+            if (!map[key]) {
+                map[key] = {
+                    campaign_name: key,
+                    clicks: 0,
+                    impressions: 0,
+                    conversions: 0,
+                    conversions_value: 0,
+                    ad_spend: 0,
+                };
+            }
+            map[key].clicks += c.clicks || 0;
+            map[key].impressions += c.impressions || 0;
+            map[key].conversions += c.conversions || 0;
+            map[key].conversions_value += c.conversions_value || 0;
+            map[key].ad_spend += c.ad_spend || 0;
+        }
+    }
+    return Object.values(map)
+        .map(mapPpcCampaignRow)
+        .sort((a, b) => b.ad_spend - a.ad_spend);
+}
+
+function mergePpcSearchTerms(arrays) {
+    const map = {};
+    for (const arr of arrays) {
+        for (const t of arr || []) {
+            const key = `${t.search_term}::${t.campaign_name}`;
+            if (!map[key]) {
+                map[key] = { ...t, spend: 0, clicks: 0, impressions: 0, conversions: 0, revenue: 0 };
+            }
+            const m = map[key];
+            m.spend += t.spend || 0;
+            m.clicks += t.clicks || 0;
+            m.impressions += t.impressions || 0;
+            m.conversions += t.conversions || 0;
+            m.revenue += t.revenue || 0;
+            m.roas = m.spend > 0 ? m.revenue / m.spend : 0;
+        }
+    }
+    return Object.values(map).sort((a, b) => b.revenue - a.revenue);
+}
+
+function mergeBrandGenericByDate(arrays) {
+    const map = {};
+    for (const arr of arrays) {
+        for (const row of arr || []) {
+            if (!map[row.date]) {
+                map[row.date] = { date: row.date, brand_spend: 0, generic_spend: 0, other_spend: 0 };
+            }
+            map[row.date].brand_spend += row.brand_spend || 0;
+            map[row.date].generic_spend += row.generic_spend || 0;
+            map[row.date].other_spend += row.other_spend || 0;
+        }
+    }
+    return Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function mergeImpressionShareDaily(arrays) {
+    const map = {};
+    for (const arr of arrays) {
+        for (const row of arr || []) {
+            if (!map[row.date]) {
+                map[row.date] = { date: row.date, n: 0, is: 0, lb: 0, lr: 0 };
+            }
+            map[row.date].is += row.impression_share || 0;
+            map[row.date].lb += row.is_lost_budget || 0;
+            map[row.date].lr += row.is_lost_rank || 0;
+            map[row.date].n += 1;
+        }
+    }
+    return Object.values(map).map((r) => ({
+        date: r.date,
+        impression_share: r.n > 0 ? r.is / r.n : null,
+        is_lost_budget: r.n > 0 ? r.lb / r.n : null,
+        is_lost_rank: r.n > 0 ? r.lr / r.n : null,
+    }));
+}
+
 /**
  * Fetch comprehensive Google Ads PPC dashboard metrics (supports comma-separated customer IDs).
  */
@@ -136,7 +224,24 @@ export async function fetchGoogleAdsPPCDashboardMetrics(config) {
         parts.map((p) => p.campaigns_by_date),
         topCampaignNames
     );
-    return { metrics_by_date, top_campaigns, campaigns_by_date };
+    const impression_share_daily = mergeImpressionShareDaily(
+        parts.map((p) => p.impression_share_daily)
+    );
+    return {
+        metrics_by_date: applyImpressionShareToMetricsByDate(metrics_by_date, impression_share_daily),
+        top_campaigns,
+        campaigns_by_date,
+        campaigns_performance: mergePpcCampaignsPerformance(parts.map((p) => p.campaigns_performance)),
+        search_terms: mergePpcSearchTerms(parts.map((p) => p.search_terms)),
+        brand_generic_spend_by_date: mergeBrandGenericByDate(
+            parts.map((p) => p.brand_generic_spend_by_date)
+        ),
+        impression_share_daily,
+        account_summary: parts[0]?.account_summary || {
+            new_customer_ratio: null,
+            recurring_customer_ratio: null,
+        },
+    };
 }
 
 async function fetchGoogleAdsPPCDashboardMetricsForOne({
@@ -335,10 +440,26 @@ async function fetchGoogleAdsPPCDashboardMetricsForOne({
                 if (dateCompare !== 0) return dateCompare;
                 return b.clicks - a.clicks;
             });
+
+        const extended = await fetchPpcDashboardExtendedSections(customer, {
+            startDate,
+            endDate,
+            conversionRate,
+            rawData,
+        });
+
         return {
-            metrics_by_date,
+            metrics_by_date: applyImpressionShareToMetricsByDate(
+                metrics_by_date,
+                extended.impression_share_daily
+            ),
             top_campaigns,
             campaigns_by_date,
+            campaigns_performance: extended.campaigns_performance,
+            search_terms: extended.search_terms,
+            brand_generic_spend_by_date: extended.brand_generic_spend_by_date,
+            impression_share_daily: extended.impression_share_daily,
+            account_summary: extended.account_summary,
         };
     } catch (error) {
         console.error('Error fetching Google Ads PPC dashboard data:', error);

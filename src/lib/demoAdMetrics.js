@@ -69,6 +69,33 @@ function googlePpcRow(date) {
         ctr: impressions > 0 ? clicks / impressions : 0,
         cpc: clicks > 0 ? ad_spend / clicks : 0,
         conv_rate: clicks > 0 ? conversions / clicks : 0,
+        cpa: conversions > 0 ? ad_spend / conversions : 0,
+        impression_share: 0.62 + (h % 10) / 100,
+        is_lost_budget: 0.1 + (h % 5) / 100,
+        is_lost_rank: 0.08 + (h % 4) / 100,
+    };
+}
+
+function demoPpcCampaignRow(name, scale = 1) {
+    const h = numHash(`gpc-${name}`);
+    const impressions = Math.round((72000 + (h % 9000)) * scale);
+    const clicks = Math.round((2800 + (h % 350)) * scale);
+    const conversions = Math.round((85 + (h % 25)) * scale);
+    const ad_spend = Math.round((9200 + (h % 1100)) * scale);
+    const conversions_value = Math.round(ad_spend * (4.1 + (h % 6) / 10));
+    return {
+        campaign_name: name,
+        clicks,
+        impressions,
+        conversions,
+        conversions_value,
+        ad_spend,
+        roas: ad_spend > 0 ? conversions_value / ad_spend : 0,
+        ctr: impressions > 0 ? clicks / impressions : 0,
+        cpc: clicks > 0 ? ad_spend / clicks : 0,
+        conv_rate: clicks > 0 ? conversions / clicks : 0,
+        cpa: conversions > 0 ? ad_spend / conversions : 0,
+        impression_share: 0.55 + (h % 15) / 100,
     };
 }
 
@@ -142,13 +169,93 @@ function pinterestRow(date) {
 
 export function getDemoGooglePpcDashboardForRange(startDate, endDate) {
     const days = eachDayInclusive(startDate, endDate);
+    const metrics_by_date = days.map(googlePpcRow);
+    const campaigns_performance = [
+        demoPpcCampaignRow("Brand — Search", 1.05),
+        demoPpcCampaignRow("Generic — Search", 0.92),
+        demoPpcCampaignRow("PMax — Demo", 0.88),
+    ];
+    const top_campaigns = campaigns_performance
+        .map((c) => ({
+            campaign_name: c.campaign_name,
+            clicks: c.clicks,
+            impressions: c.impressions,
+            ctr: c.ctr,
+        }))
+        .sort((a, b) => b.clicks - a.clicks)
+        .slice(0, 5);
+    const search_terms = [
+        {
+            search_term: "dims studio",
+            campaign_name: "Brand — Search",
+            spend: 4200,
+            clicks: 2100,
+            impressions: 42000,
+            conversions: 95,
+            revenue: 38000,
+            roas: 9.05,
+        },
+        {
+            search_term: "møbler online",
+            campaign_name: "Generic — Search",
+            spend: 6800,
+            clicks: 1800,
+            impressions: 95000,
+            conversions: 42,
+            revenue: 18500,
+            roas: 2.72,
+        },
+        {
+            search_term: "design lampe",
+            campaign_name: "Generic — Search",
+            spend: 3100,
+            clicks: 890,
+            impressions: 41000,
+            conversions: 18,
+            revenue: 7200,
+            roas: 2.32,
+        },
+        {
+            search_term: "gratis fragt møbler",
+            campaign_name: "Generic — Search",
+            spend: 2400,
+            clicks: 1200,
+            impressions: 52000,
+            conversions: 2,
+            revenue: 800,
+            roas: 0.33,
+        },
+        {
+            search_term: "billige sofaer",
+            campaign_name: "Generic — Search",
+            spend: 5100,
+            clicks: 2400,
+            impressions: 110000,
+            conversions: 5,
+            revenue: 2100,
+            roas: 0.41,
+        },
+    ];
+    const brand_generic_spend_by_date = metrics_by_date.map((d) => ({
+        date: d.date,
+        brand_spend: Math.round(d.ad_spend * 0.42),
+        generic_spend: Math.round(d.ad_spend * 0.48),
+        other_spend: Math.round(d.ad_spend * 0.1),
+    }));
     return {
-        metrics_by_date: days.map(googlePpcRow),
-        top_campaigns: [
-            { campaign_name: "Search — Brand", clicks: 5000, impressions: 120000, ctr: 0.04 },
-            { campaign_name: "PMax — Demo", clicks: 3200, impressions: 90000, ctr: 0.035 },
-        ],
+        metrics_by_date,
+        top_campaigns,
         campaigns_by_date: [],
+        campaigns_performance,
+        search_terms,
+        brand_generic_spend_by_date,
+        impression_share_daily: metrics_by_date.map((d) => ({
+            date: d.date,
+            impression_share: d.impression_share,
+            is_lost_budget: d.is_lost_budget,
+            is_lost_rank: d.is_lost_rank,
+        })),
+        account_summary: { new_customer_ratio: 55, recurring_customer_ratio: 45 },
     };
 }
 
