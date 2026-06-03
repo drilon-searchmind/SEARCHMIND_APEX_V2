@@ -12,6 +12,7 @@ export default function UsersTab() {
     const [items, setItems] = React.useState([]);
     const [loading, setLoading] = React.useState(false);
     const [updatingUserId, setUpdatingUserId] = React.useState(null);
+    const [passwordByUserId, setPasswordByUserId] = React.useState({});
 
     React.useEffect(() => {
         setLoading(true);
@@ -39,8 +40,10 @@ export default function UsersTab() {
                 clickupId: user.clickupId,
                 isAdmin: user.isAdmin,
                 isExternal: user.isExternal,
-                isArchived: user.isArchived
+                isArchived: user.isArchived,
             };
+            const newPassword = (passwordByUserId[userId] || "").trim();
+            if (newPassword) updateData.password = newPassword;
 
             const response = await fetch('/api/admin/users', {
                 method: 'PUT',
@@ -55,9 +58,16 @@ export default function UsersTab() {
             if (response.ok && result.success) {
                 // Update the local state with the updated user data
                 setItems(items.map(u => u._id === userId ? result.user : u));
+                setPasswordByUserId((prev) => {
+                    const next = { ...prev };
+                    delete next[userId];
+                    return next;
+                });
                 showToast({
                     type: "success",
-                    message: `User ${user.name} updated successfully`
+                    message: newPassword
+                        ? `User ${user.name} updated (password changed)`
+                        : `User ${user.name} updated successfully`,
                 });
             } else {
                 throw new Error(result.error || 'Failed to update user');
@@ -103,14 +113,15 @@ export default function UsersTab() {
                             </th>
                             <th className="px-4 py-2 text-left">Role</th>
                             <th className="px-4 py-2 text-left">External</th>
+                            <th className="px-4 py-2 text-left">New password</th>
                             <th className="px-4 py-2 text-left">Edit</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr><td className="px-4 py-4 text-gray-400" colSpan={4}>Loading...</td></tr>
+                            <tr><td className="px-4 py-4 text-gray-400" colSpan={8}>Loading...</td></tr>
                         ) : filtered.length === 0 ? (
-                            <tr><td className="px-4 py-4 text-gray-400" colSpan={4}>No users</td></tr>
+                            <tr><td className="px-4 py-4 text-gray-400" colSpan={8}>No users</td></tr>
                         ) : filtered.map(u => (
                             <tr key={u._id} className="border-b last:border-b-0">
                                 <td className="px-4 py-2">
@@ -158,6 +169,21 @@ export default function UsersTab() {
                                         `}>
                                         {u.isExternal ? 'Yes' : 'No'}
                                     </span>
+                                </td>
+                                <td className="px-4 py-2 min-w-[180px]">
+                                    <FormInputText
+                                        type="password"
+                                        autoComplete="new-password"
+                                        placeholder="Leave blank to keep"
+                                        value={passwordByUserId[u._id] || ""}
+                                        onChange={(e) =>
+                                            setPasswordByUserId((prev) => ({
+                                                ...prev,
+                                                [u._id]: e.target.value,
+                                            }))
+                                        }
+                                        className="w-full"
+                                    />
                                 </td>
                                 <td className="px-4 py-2">
                                     <span onClick={() => handleUpdateUser(u._id)}>

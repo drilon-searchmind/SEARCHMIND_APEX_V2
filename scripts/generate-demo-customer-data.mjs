@@ -357,6 +357,15 @@ const seoDashboardMetrics = {
     },
 };
 
+const seoDashboardSupplemental = {
+    organic_revenue: 176440,
+    organic_conversions: 299,
+    avg_cpc: 14.2,
+    spend_saved: 22337,
+    backlinks: 1706,
+    domain_rating: 38,
+};
+
 const shopifyProducts = {
     products: [
         {
@@ -531,6 +540,7 @@ const bundle = {
     ga4Acquisition,
     ga4Devices,
     seoDashboardMetrics,
+    seoDashboardSupplemental,
     shopifyProducts,
     shopifyInventory,
     customerSegmentation,

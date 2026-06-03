@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
@@ -8,7 +8,6 @@ import MetricCard from "@/components/dashboard/MetricCard";
 import GraphCard from "@/components/dashboard/GraphCard";
 import Spinner from "@/components/ui/Spinner";
 import SEOKeywordSettings from "@/components/seo/SEOKeywordSettings";
-import { FiMousePointer, FiEye, FiPercent, FiTrendingUp } from "react-icons/fi";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import {
@@ -16,58 +15,43 @@ import {
     resolveDailyComparisonDate,
     COMPARISON_METHOD,
 } from "@/lib/dateRangeComparison";
-const METRIC_OPTIONS = [
-    { key: "clicks", label: "Clicks", icon: FiMousePointer },
-    { key: "impressions", label: "Impressions", icon: FiEye },
-    { key: "ctr", label: "CTR", icon: FiPercent },
-    { key: "position", label: "Avg. Position", icon: FiTrendingUp },
-];
+import {
+    buildSeoSummary,
+    getDailyMetricValue,
+    getSeoKpiValue,
+    normalizeSeriesValues,
+    SEO_CHART_METRIC_LABELS,
+} from "@/lib/seoDashboardUtils";
+import {
+    CHART_TOGGLE_ROW1,
+    CHART_TOGGLE_ROW2,
+    DISPLAY_ONLY_METRICS,
+    CHART_SERIES_KEYS,
+} from "./components/seoDashboardConfig";
 
-function formatNumber(n) {
-    return n?.toLocaleString("da-DK") ?? "-";
-}
+const CURRENCY_KEYS = new Set(["organic_revenue", "spend_saved", "revenue_per_click"]);
 
-function calcCtr(clicks, impressions) {
-    if (!impressions) return 0;
-    return ((clicks / impressions) * 100).toFixed(2);
-}
-
-function calcAvgPosition(rows) {
-    if (!rows?.length) return 0;
-    const sum = rows.reduce((acc, r) => acc + (r.position || 0), 0);
-    return (sum / rows.length).toFixed(2);
-}
-
-function aggregateSeoMetric(key, rows) {
-    if (!rows?.length) return null;
-    if (key === "clicks") {
-        return rows.reduce((acc, r) => acc + (r.clicks || 0), 0);
+function formatKpiValue(key, value, opt = {}) {
+    if (value === null || value === undefined || Number.isNaN(value)) return "—";
+    if (opt.isPercent || key === "ctr" || key === "organic_conv_rate" || key.endsWith("_traffic_share")) {
+        return `${Number(value).toLocaleString("da-DK", { maximumFractionDigits: 2 })} %`;
     }
-    if (key === "impressions") {
-        return rows.reduce((acc, r) => acc + (r.impressions || 0), 0);
+    if (key === "position" || opt.decimals != null) {
+        return Number(value).toLocaleString("da-DK", {
+            maximumFractionDigits: opt.decimals ?? 2,
+            minimumFractionDigits: opt.decimals ?? 2,
+        });
     }
-    if (key === "ctr") {
-        const clicks = rows.reduce((acc, r) => acc + (r.clicks || 0), 0);
-        const impressions = rows.reduce((acc, r) => acc + (r.impressions || 0), 0);
-        return impressions > 0 ? Number(calcCtr(clicks, impressions)) : null;
+    if (CURRENCY_KEYS.has(key)) {
+        return `${Number(value).toLocaleString("da-DK", { maximumFractionDigits: 0 })} kr.`;
     }
-    if (key === "position") {
-        return Number(calcAvgPosition(rows));
-    }
-    return null;
+    return Number(value).toLocaleString("da-DK", { maximumFractionDigits: 0 });
 }
 
-function metricValueForRow(key, row) {
-    if (!row) return null;
-    if (key === "ctr") return Number(calcCtr(row.clicks, row.impressions));
-    if (key === "position") return row.position != null ? Number(row.position.toFixed(2)) : null;
-    return row[key] ?? null;
-}
-
-/** For avg. position, a decrease is positive (better ranking). */
 function changeTypeForMetric(key, changeVal) {
     if (changeVal === null) return undefined;
-    if (key === "position") {
+    const lowerIsBetter = key === "position";
+    if (lowerIsBetter) {
         return changeVal < 0 ? "up" : changeVal > 0 ? "down" : undefined;
     }
     return changeVal > 0 ? "up" : changeVal < 0 ? "down" : undefined;
@@ -81,7 +65,6 @@ export default function SEODashboardPage() {
     const customerId = params.customerId;
 
     const {
-        tempDateRange: tempRange,
         setTempDateRange: setTempRange,
         appliedDateRange: appliedRange,
         setAppliedDateRange: setAppliedRange,
@@ -103,16 +86,17 @@ export default function SEODashboardPage() {
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [metrics, setMetrics] = useState(null);
-    const [metricsPrev, setMetricsPrev] = useState(null);
+    const [metrics, setMetrics] = useState([]);
+    const [metricsPrev, setMetricsPrev] = useState([]);
     const [keywords, setKeywords] = useState([]);
-    const [urls, setUrls] = useState([]);
+    const [supplemental, setSupplemental] = useState(null);
+    const [supplementalPrev, setSupplementalPrev] = useState(null);
     const [selectedMetrics, setSelectedMetrics] = useState(["clicks"]);
+    const [siteUrl, setSiteUrl] = useState("");
+    const [brandKeywords, setBrandKeywords] = useState([]);
 
     useEffect(() => {
-        if (selectedMetrics.length === 0) {
-            setSelectedMetrics(["clicks"]);
-        }
+        if (selectedMetrics.length === 0) setSelectedMetrics(["clicks"]);
     }, [selectedMetrics]);
 
     useEffect(() => {
@@ -121,13 +105,6 @@ export default function SEODashboardPage() {
             setAppliedRange({ startDate: rangeStartQ, endDate: rangeEndQ });
         }
     }, [rangeStartQ, rangeEndQ, setTempRange, setAppliedRange]);
-
-    const [siteUrl, setSiteUrl] = useState("");
-
-    const [keywordFilter, setKeywordFilter] = useState("all");
-    const [brandKeywords, setBrandKeywords] = useState([]);
-    const [exactGroups, setExactGroups] = useState([]);
-    const [partialGroups, setPartialGroups] = useState([]);
 
     useEffect(() => {
         async function fetchCustomer() {
@@ -144,290 +121,250 @@ export default function SEODashboardPage() {
         fetchCustomer();
     }, [customerId]);
 
-    useEffect(() => {
+    const fetchBrandKeywords = useCallback(async () => {
         if (!customerId) return;
-        fetchKeywordGroups();
-    }, [customerId]);
-
-    async function fetchKeywordGroups() {
         try {
             const brandRes = await fetch(`/api/seo-keywords/brand/${customerId}`);
             const brandData = await brandRes.json();
-            if (brandData.success && brandData.data?.keywords) {
-                setBrandKeywords(brandData.data.keywords);
-            } else {
-                setBrandKeywords([]);
-            }
-
-            const exactRes = await fetch(`/api/seo-keywords/exact/${customerId}`);
-            const exactData = await exactRes.json();
-            if (exactData.success) {
-                setExactGroups(exactData.data);
-            } else {
-                setExactGroups([]);
-            }
-
-            const partialRes = await fetch(`/api/seo-keywords/partial/${customerId}`);
-            const partialData = await partialRes.json();
-            if (partialData.success) {
-                setPartialGroups(partialData.data);
-            } else {
-                setPartialGroups([]);
-            }
-        } catch (err) {
-            console.error("Error fetching keyword groups:", err);
+            setBrandKeywords(brandData.success && brandData.data?.keywords ? brandData.data.keywords : []);
+        } catch {
+            setBrandKeywords([]);
         }
-    }
-
-    const handleKeywordGroupsUpdate = () => {
-        fetchKeywordGroups();
-    };
+    }, [customerId]);
 
     useEffect(() => {
-        if (!siteUrl) return;
-        fetchData();
+        fetchBrandKeywords();
+    }, [fetchBrandKeywords]);
+
+    const fetchSeoMetrics = useCallback(
+        async (startDate, endDate) => {
+            const res = await fetch("/api/seo-dashboard/metrics", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ siteUrl, startDate, endDate, customerId }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error?.message || "API error");
+            return data;
+        },
+        [siteUrl, customerId]
+    );
+
+    useEffect(() => {
+        if (!siteUrl) {
+            setLoading(false);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const compDates = formatComparisonPeriodDates({
+                    comparisonMethod,
+                    startDate: appliedRange.startDate,
+                    endDate: appliedRange.endDate,
+                    compareStartDate: appliedCompareRange.startDate,
+                    compareEndDate: appliedCompareRange.endDate,
+                });
+
+                const current = await fetchSeoMetrics(appliedRange.startDate, appliedRange.endDate);
+                if (cancelled) return;
+                setMetrics(current.metrics?.rows || []);
+                setKeywords(current.keywords?.rows || []);
+                setSupplemental(current.supplemental || null);
+
+                if (!compDates.skip && compDates.startDate && compDates.endDate) {
+                    const prev = await fetchSeoMetrics(compDates.startDate, compDates.endDate);
+                    if (!cancelled) {
+                        setMetricsPrev(prev.metrics?.rows || []);
+                        setSupplementalPrev(prev.supplemental || null);
+                    }
+                } else {
+                    setMetricsPrev([]);
+                    setSupplementalPrev(null);
+                }
+            } catch (e) {
+                if (!cancelled) {
+                    setError(e.message);
+                    setMetrics([]);
+                    setMetricsPrev([]);
+                    setKeywords([]);
+                    setSupplemental(null);
+                    setSupplementalPrev(null);
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
     }, [
+        siteUrl,
         appliedRange.startDate,
         appliedRange.endDate,
         appliedCompareRange,
         comparisonMethod,
-        siteUrl,
-        customerId,
+        fetchSeoMetrics,
     ]);
 
-    async function fetchSeoMetrics(startDate, endDate) {
-        const res = await fetch("/api/seo-dashboard/metrics", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                siteUrl,
-                startDate,
-                endDate,
-                customerId,
-            }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error?.message || "API error");
-        return data;
-    }
+    const summary = useMemo(
+        () => buildSeoSummary(metrics, supplemental, keywords, brandKeywords),
+        [metrics, supplemental, keywords, brandKeywords]
+    );
 
-    async function fetchData() {
-        setLoading(true);
-        setError(null);
-        try {
-            const compDates = formatComparisonPeriodDates({
-                comparisonMethod,
-                startDate: appliedRange.startDate,
-                endDate: appliedRange.endDate,
-                compareStartDate: appliedCompareRange.startDate,
-                compareEndDate: appliedCompareRange.endDate,
-            });
-
-            const current = await fetchSeoMetrics(
-                appliedRange.startDate,
-                appliedRange.endDate
-            );
-            setMetrics(current.metrics?.rows || []);
-            setKeywords(current.keywords?.rows || []);
-            setUrls(current.urls?.rows || []);
-
-            if (!compDates.skip && compDates.startDate && compDates.endDate) {
-                const prev = await fetchSeoMetrics(
-                    compDates.startDate,
-                    compDates.endDate
-                );
-                setMetricsPrev(prev.metrics?.rows || []);
-            } else {
-                setMetricsPrev(null);
-            }
-        } catch (e) {
-            setError(e.message);
-            setMetrics(null);
-            setMetricsPrev(null);
-            setKeywords([]);
-            setUrls([]);
-        } finally {
-            setLoading(false);
-        }
-    }
+    const summaryPrev = useMemo(
+        () =>
+            metricsPrev.length > 0
+                ? buildSeoSummary(metricsPrev, supplementalPrev, keywords, brandKeywords)
+                : {},
+        [metricsPrev, supplementalPrev, keywords, brandKeywords]
+    );
 
     const percentChange = (current, prev) => {
         if (prev === 0 || prev === null || prev === undefined) return null;
+        if (current === null || current === undefined) return null;
         return ((current - prev) / Math.abs(prev)) * 100;
     };
 
-    const metricCards = useMemo(() => {
-        const rows = metrics || [];
-        const rowsPrev = metricsPrev || [];
-        return METRIC_OPTIONS.map((opt) => {
-            const currentValue = aggregateSeoMetric(opt.key, rows);
-            const prevValue =
-                rowsPrev.length > 0 ? aggregateSeoMetric(opt.key, rowsPrev) : null;
-            const change = percentChange(currentValue, prevValue);
+    const buildMetricCard = (opt, chartToggle) => {
+        const currentValue = getSeoKpiValue(opt.key, summary);
+        const prevValue = metricsPrev.length > 0 ? getSeoKpiValue(opt.key, summaryPrev) : null;
+        const change =
+            chartToggle && comparisonMethod !== COMPARISON_METHOD.NONE
+                ? percentChange(currentValue, prevValue)
+                : null;
+        const isActive = chartToggle && selectedMetrics.includes(opt.key);
+        const Icon = opt.icon;
 
-            let value;
-            let unit;
-            if (opt.key === "clicks") value = formatNumber(currentValue);
-            if (opt.key === "impressions") value = formatNumber(currentValue);
-            if (opt.key === "ctr") {
-                value = currentValue;
-                unit = "%";
-            }
-            if (opt.key === "position") value = currentValue;
-
-            return {
-                key: opt.key,
-                label: opt.label,
-                value,
-                unit,
-                icon: opt.icon,
-                change:
-                    change !== null && comparisonMethod !== COMPARISON_METHOD.NONE
-                        ? Math.abs(change).toFixed(1)
-                        : undefined,
-                changeType:
-                    comparisonMethod !== COMPARISON_METHOD.NONE
-                        ? changeTypeForMetric(opt.key, change)
-                        : undefined,
-            };
-        });
-    }, [metrics, metricsPrev, comparisonMethod]);
-
-    const filteredKeywords = useMemo(() => {
-        if (keywordFilter === "all") return keywords;
-
-        if (keywordFilter === "brand") {
-            if (brandKeywords.length === 0) return [];
-            return keywords.filter((row) => {
-                const keyword = (row.keys?.[0] || "").toLowerCase();
-                return brandKeywords.some((brand) =>
-                    keyword.includes(brand.toLowerCase())
-                );
-            });
-        }
-
-        if (keywordFilter.startsWith("exact:")) {
-            const groupId = keywordFilter.split(":")[1];
-            const group = exactGroups.find((g) => g._id === groupId);
-            if (!group || !group.keywords.length) return [];
-            const groupKeywordsLower = group.keywords.map((k) => k.toLowerCase());
-            return keywords.filter((row) => {
-                const keyword = (row.keys?.[0] || "").toLowerCase();
-                return groupKeywordsLower.includes(keyword);
-            });
-        }
-
-        if (keywordFilter.startsWith("partial:")) {
-            const groupId = keywordFilter.split(":")[1];
-            const group = partialGroups.find((g) => g._id === groupId);
-            if (!group || !group.keywords.length) return [];
-            return keywords.filter((row) => {
-                const keyword = (row.keys?.[0] || "").toLowerCase();
-                return group.keywords.some((partial) =>
-                    keyword.includes(partial.toLowerCase())
-                );
-            });
-        }
-
-        return keywords;
-    }, [keywords, keywordFilter, brandKeywords, exactGroups, partialGroups]);
-
-    const { chartOptions, chartSeries } = useMemo(() => {
-        const rows = metrics || [];
-        const chartCategories = rows.map((r) => r.keys?.[0]).filter(Boolean);
-        const prevRows = metricsPrev || [];
-        const prevByDate = Object.fromEntries(
-            prevRows.map((r) => [r.keys?.[0], r])
+        return (
+            <div
+                key={opt.key}
+                onClick={
+                    chartToggle
+                        ? () =>
+                              setSelectedMetrics((prev) => {
+                                  if (prev.includes(opt.key)) {
+                                      return prev.length > 1 ? prev.filter((m) => m !== opt.key) : prev;
+                                  }
+                                  return [...prev, opt.key];
+                              })
+                        : undefined
+                }
+                style={chartToggle ? { cursor: "pointer" } : undefined}
+            >
+                <MetricCard
+                    label={opt.label}
+                    value={formatKpiValue(opt.key, currentValue, opt)}
+                    icon={Icon ? <Icon size={22} color={isActive ? "#fff" : undefined} /> : null}
+                    isActive={isActive}
+                    change={change !== null ? Math.abs(change).toFixed(1) : undefined}
+                    changeType={change !== null ? changeTypeForMetric(opt.key, change) : undefined}
+                    comparisonMethod={chartToggle ? comparisonMethod : undefined}
+                />
+            </div>
         );
-        const sortedPrevDates = prevRows.map((r) => r.keys?.[0]).filter(Boolean).sort();
+    };
 
+    const chartCategories = (metrics || []).map((r) => r.keys?.[0]).filter(Boolean);
+    const prevByDate = Object.fromEntries((metricsPrev || []).map((r) => [r.keys?.[0], r]));
+    const sortedPrevDates = (metricsPrev || []).map((r) => r.keys?.[0]).filter(Boolean).sort();
+    const chartMetricKeys = selectedMetrics.filter((k) => CHART_SERIES_KEYS.has(k));
+
+    const chartSeries = useMemo(() => {
         const series = [];
-        const colors = ["#1E2B2B", "#D6CDB6", "#406969", "#C6ED62"];
-
-        selectedMetrics.forEach((metricKey, idx) => {
-            const opt = METRIC_OPTIONS.find((o) => o.key === metricKey);
+        for (const key of chartMetricKeys) {
+            const label = SEO_CHART_METRIC_LABELS[key] || key;
+            const opt = [...CHART_TOGGLE_ROW1, ...CHART_TOGGLE_ROW2].find((m) => m.key === key);
+            const currentRaw = chartCategories.map((date) => {
+                const row = metrics.find((r) => r.keys?.[0] === date);
+                return getDailyMetricValue(row, key, supplemental, date);
+            });
             series.push({
-                name: `${opt?.label || metricKey} (Current)`,
-                data: chartCategories.map((date) => {
-                    const row = rows.find((r) => r.keys?.[0] === date);
-                    const val = metricValueForRow(metricKey, row);
-                    return val != null && !Number.isNaN(val) ? val : null;
-                }),
-                color: colors[idx % colors.length],
+                name: `${label} (Current)`,
+                data: normalizeSeriesValues(currentRaw),
+                meta: { raw: currentRaw, key, opt },
             });
-        });
-
-        if (comparisonMethod !== COMPARISON_METHOD.NONE && prevRows.length > 0) {
-            selectedMetrics.forEach((metricKey, idx) => {
-                const opt = METRIC_OPTIONS.find((o) => o.key === metricKey);
-                series.push({
-                    name: `${opt?.label || metricKey} (${comparisonLabel})`,
-                    data: chartCategories.map((date) => {
-                        const prevDate = resolveDailyComparisonDate({
-                            comparisonMethod,
-                            currentDate: date,
-                            appliedStartDate: appliedRange.startDate,
-                            appliedEndDate: appliedRange.endDate,
-                            sortedPrevKeys: sortedPrevDates,
-                        });
-                        const row = prevDate ? prevByDate[prevDate] : null;
-                        const val = metricValueForRow(metricKey, row);
-                        return val != null && !Number.isNaN(val) ? val : null;
-                    }),
-                    color: "#94a3b8",
+            if (comparisonMethod !== COMPARISON_METHOD.NONE && metricsPrev.length > 0) {
+                const prevRaw = chartCategories.map((date) => {
+                    const prevDate = resolveDailyComparisonDate({
+                        comparisonMethod,
+                        currentDate: date,
+                        appliedStartDate: appliedRange.startDate,
+                        appliedEndDate: appliedRange.endDate,
+                        sortedPrevKeys: sortedPrevDates,
+                    });
+                    const row = prevDate ? prevByDate[prevDate] : null;
+                    return getDailyMetricValue(row, key, supplementalPrev, prevDate);
                 });
-            });
+                series.push({
+                    name: `${label} (${comparisonLabel})`,
+                    data: normalizeSeriesValues(prevRaw),
+                    meta: { raw: prevRaw, key, opt },
+                });
+            }
         }
-
-        const isCurrentSeries = (s) => s.name?.includes("(Current)");
-        const strokeWidths = series.map((s) => (isCurrentSeries(s) ? 2 : 1));
-        const strokeDashArrays = series.map((s) => (isCurrentSeries(s) ? 0 : 5));
-        const fillOpacities = series.map((s) => (isCurrentSeries(s) ? 1 : 0.5));
-
-        return {
-            chartSeries: series,
-            chartOptions: {
-                chart: {
-                    id: "seo-metrics",
-                    toolbar: { show: false },
-                    fontFamily: "Outfit, sans-serif",
-                },
-                xaxis: {
-                    categories: chartCategories,
-                    labels: { rotate: -45 },
-                    axisTicks: { show: true },
-                    axisBorder: { show: true },
-                },
-                colors: series.map((s) => s.color),
-                stroke: {
-                    curve: "smooth",
-                    width: strokeWidths,
-                    dashArray: strokeDashArrays,
-                },
-                fill: { type: "solid", opacity: fillOpacities },
-                legend: { show: true, position: "top" },
-                tooltip: { shared: true },
-                grid: {
-                    borderColor: "#e5e7eb",
-                    strokeDashArray: 0,
-                    xaxis: { lines: { show: false } },
-                    yaxis: { lines: { show: true } },
-                },
-                dataLabels: { enabled: false },
-            },
-        };
+        return series;
     }, [
+        chartMetricKeys,
+        chartCategories,
         metrics,
         metricsPrev,
-        selectedMetrics,
+        supplemental,
+        supplementalPrev,
         comparisonMethod,
         comparisonLabel,
-        appliedRange.startDate,
-        appliedRange.endDate,
+        appliedRange,
+        sortedPrevDates,
+        prevByDate,
     ]);
 
+    const selectedCount = chartMetricKeys.length;
+    const compCount = comparisonMethod !== COMPARISON_METHOD.NONE ? selectedCount : 0;
+    const strokeWidths = [...Array(selectedCount).fill(2), ...Array(compCount).fill(1)];
+    const strokeDashArrays = [...Array(selectedCount).fill(0), ...Array(compCount).fill(5)];
+    const fillOpacities = [...Array(selectedCount).fill(1), ...Array(compCount).fill(0.5)];
+
+    const chartOptions = useMemo(
+        () => ({
+            chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "Outfit, sans-serif" },
+            xaxis: { categories: chartCategories, labels: { rotate: -45 } },
+            yaxis: {
+                min: 0,
+                max: 100,
+                labels: { formatter: (v) => `${Math.round(v)}%` },
+            },
+            colors: ["#406969", "#1E2B2B", "#4F46E5", "#06B6D4", "#C6ED62", "#D6CDB6", "#F59E0B", "#EF4444"],
+            stroke: { width: strokeWidths, curve: "smooth", dashArray: strokeDashArrays },
+            fill: { type: "solid", opacity: fillOpacities },
+            grid: {
+                borderColor: "#e5e7eb",
+                strokeDashArray: 0,
+                xaxis: { lines: { show: false } },
+                yaxis: { lines: { show: true } },
+            },
+            dataLabels: { enabled: false },
+            tooltip: {
+                theme: "light",
+                y: {
+                    formatter: (_val, opts) => {
+                        const s = chartSeries[opts?.seriesIndex];
+                        const raw = s?.meta?.raw?.[opts?.dataPointIndex];
+                        const key = s?.meta?.key;
+                        const metricOpt = s?.meta?.opt;
+                        if (raw == null) return "—";
+                        return formatKpiValue(key, raw, metricOpt || {});
+                    },
+                },
+            },
+            legend: { show: true, position: "top" },
+        }),
+        [chartCategories, strokeWidths, strokeDashArrays, fillOpacities, chartSeries]
+    );
+
     return (
-        <div className="mx-auto">
+        <div className="mx-auto w-full">
             <DashboardHeading
                 title="SEO Dashboard"
                 label={siteUrl || "No property set"}
@@ -436,18 +373,15 @@ export default function SEODashboardPage() {
                 comparisonMethod={comparisonMethod}
                 loading={loading}
                 dashboardType="seo-dashboard"
-                dataSnapshot={{
-                    metrics,
-                    metricsPrev,
-                    keywords,
-                    urls,
-                    selectedMetrics,
-                    siteUrl,
-                }}
-                right={
-                    <DateRangePicker {...dateRangePickerProps} loading={loading} />
-                }
+                dataSnapshot={{ metrics, selectedMetrics, siteUrl }}
+                right={<DateRangePicker {...dateRangePickerProps} loading={loading} />}
             />
+
+            {!siteUrl && !loading && (
+                <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+                    Add a Google Search Console property in Property Settings to load SEO metrics.
+                </div>
+            )}
 
             {loading ? (
                 <div className="flex justify-center items-center h-64">
@@ -457,242 +391,30 @@ export default function SEODashboardPage() {
                 <div className="text-red-500 text-center py-8">{error}</div>
             ) : (
                 <>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 gap-6 mb-8">
-                        {metricCards.map((card) => {
-                            const Icon = card.icon;
-                            return (
-                                <div
-                                    key={card.key}
-                                    className="cursor-pointer"
-                                    tabIndex={0}
-                                    role="button"
-                                    aria-pressed={selectedMetrics.includes(card.key)}
-                                    onClick={() =>
-                                        setSelectedMetrics((prev) => {
-                                            if (prev.includes(card.key)) {
-                                                return prev.length > 1
-                                                    ? prev.filter((m) => m !== card.key)
-                                                    : prev;
-                                            }
-                                            return [...prev, card.key];
-                                        })
-                                    }
-                                    onKeyDown={(e) =>
-                                        (e.key === "Enter" || e.key === " ") &&
-                                        setSelectedMetrics((prev) => {
-                                            if (prev.includes(card.key)) {
-                                                return prev.length > 1
-                                                    ? prev.filter((m) => m !== card.key)
-                                                    : prev;
-                                            }
-                                            return [...prev, card.key];
-                                        })
-                                    }
-                                    style={{ outline: "none" }}
-                                >
-                                    <MetricCard
-                                        label={card.label}
-                                        value={card.value}
-                                        unit={card.unit}
-                                        change={card.change}
-                                        changeType={card.changeType}
-                                        comparisonMethod={comparisonMethod}
-                                        icon={
-                                            <Icon className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />
-                                        }
-                                        isActive={selectedMetrics.includes(card.key)}
-                                    />
-                                </div>
-                            );
-                        })}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full mb-4">
+                        {CHART_TOGGLE_ROW1.map((opt) => buildMetricCard(opt, true))}
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 w-full mb-4">
+                        {CHART_TOGGLE_ROW2.map((opt) => buildMetricCard(opt, true))}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full mb-8">
+                        {DISPLAY_ONLY_METRICS.map((opt) => buildMetricCard(opt, false))}
                     </div>
 
                     <div className="mb-8">
-                        <div className="flex items-center gap-4 mb-2">
-                            {METRIC_OPTIONS.map((opt) => (
-                                <button
-                                    key={opt.key}
-                                    type="button"
-                                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 ${selectedMetrics.includes(opt.key) ? "bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]" : "bg-white text-gray-700 border-gray-200 hover:bg-gray-100"}`}
-                                    onClick={() =>
-                                        setSelectedMetrics((prev) => {
-                                            if (prev.includes(opt.key)) {
-                                                return prev.length > 1
-                                                    ? prev.filter((m) => m !== opt.key)
-                                                    : prev;
-                                            }
-                                            return [...prev, opt.key];
-                                        })
-                                    }
-                                >
-                                    {opt.label}
-                                </button>
-                            ))}
-                        </div>
                         <GraphCard
-                            title={
-                                selectedMetrics.length === 1
-                                    ? `${METRIC_OPTIONS.find((o) => o.key === selectedMetrics[0])?.label} Over Time`
-                                    : "Multiple SEO Metrics Over Time"
-                            }
+                            title="Performance over time"
                             chartOptions={chartOptions}
                             chartSeries={chartSeries}
+                            hideChartToggle
                         />
+                        <p className="text-[11px] text-gray-500 mt-2">
+                            Values are normalized to 0–100% of each metric&apos;s maximum for comparable curves.
+                            Hover for actual numbers. Click KPI cards above to show or hide metrics (daily series only).
+                        </p>
                     </div>
 
-                    <div className="mb-8">
-                        <div className="border border-gray-200 rounded-xl bg-white p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-lg font-semibold">Top Keywords</h2>
-
-                                <div className="flex items-center gap-2">
-                                    <label htmlFor="keyword-filter" className="text-sm text-gray-600">
-                                        Filter by:
-                                    </label>
-                                    <select
-                                        id="keyword-filter"
-                                        value={keywordFilter}
-                                        onChange={(e) => setKeywordFilter(e.target.value)}
-                                        className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                                    >
-                                        <option value="all">All Keywords</option>
-                                        {brandKeywords.length > 0 && (
-                                            <option value="brand">
-                                                Brand Keywords ({brandKeywords.length})
-                                            </option>
-                                        )}
-                                        {exactGroups.length > 0 && (
-                                            <optgroup label="Exact Match Groups">
-                                                {exactGroups.map((group) => (
-                                                    <option
-                                                        key={group._id}
-                                                        value={`exact:${group._id}`}
-                                                    >
-                                                        {group.name} ({group.keywords.length})
-                                                    </option>
-                                                ))}
-                                            </optgroup>
-                                        )}
-                                        {partialGroups.length > 0 && (
-                                            <optgroup label="Partial Match Groups">
-                                                {partialGroups.map((group) => (
-                                                    <option
-                                                        key={group._id}
-                                                        value={`partial:${group._id}`}
-                                                    >
-                                                        {group.name} ({group.keywords.length})
-                                                    </option>
-                                                ))}
-                                            </optgroup>
-                                        )}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full text-sm">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-4 py-2 text-left">Keyword</th>
-                                            <th className="px-4 py-2 text-right">Clicks</th>
-                                            <th className="px-4 py-2 text-right">Impressions</th>
-                                            <th className="px-4 py-2 text-right">CTR</th>
-                                            <th className="px-4 py-2 text-right">Avg. Position</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredKeywords.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={5} className="text-center py-4">
-                                                    {keywordFilter === "all"
-                                                        ? "No data"
-                                                        : "No keywords match this filter"}
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            filteredKeywords.map((row, i) => (
-                                                <tr key={i} className="border-b last:border-b-0">
-                                                    <td className="px-4 py-2">{row.keys?.[0]}</td>
-                                                    <td className="px-4 py-2 text-right">
-                                                        {formatNumber(row.clicks)}
-                                                    </td>
-                                                    <td className="px-4 py-2 text-right">
-                                                        {formatNumber(row.impressions)}
-                                                    </td>
-                                                    <td className="px-4 py-2 text-right">
-                                                        {calcCtr(row.clicks, row.impressions)}%
-                                                    </td>
-                                                    <td className="px-4 py-2 text-right">
-                                                        {row.position?.toFixed(2) ?? "-"}
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <div className="border border-gray-200 rounded-xl bg-white p-6">
-                            <h2 className="text-lg font-semibold mb-2">Top URLs</h2>
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full text-sm">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-4 py-2 text-left">URL</th>
-                                            <th className="px-4 py-2 text-right">Clicks</th>
-                                            <th className="px-4 py-2 text-right">Impressions</th>
-                                            <th className="px-4 py-2 text-right">CTR</th>
-                                            <th className="px-4 py-2 text-right">Avg. Position</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {urls.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={5} className="text-center py-4">
-                                                    No data
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            urls.map((row, i) => (
-                                                <tr key={i} className="border-b last:border-b-0">
-                                                    <td className="px-4 py-2">
-                                                        <a
-                                                            href={row.keys?.[0]}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-blue-600 underline"
-                                                        >
-                                                            {row.keys?.[0]}
-                                                        </a>
-                                                    </td>
-                                                    <td className="px-4 py-2 text-right">
-                                                        {formatNumber(row.clicks)}
-                                                    </td>
-                                                    <td className="px-4 py-2 text-right">
-                                                        {formatNumber(row.impressions)}
-                                                    </td>
-                                                    <td className="px-4 py-2 text-right">
-                                                        {calcCtr(row.clicks, row.impressions)}%
-                                                    </td>
-                                                    <td className="px-4 py-2 text-right">
-                                                        {row.position?.toFixed(2) ?? "-"}
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <SEOKeywordSettings
-                        customerId={customerId}
-                        onKeywordsUpdate={handleKeywordGroupsUpdate}
-                    />
+                    <SEOKeywordSettings customerId={customerId} onKeywordsUpdate={fetchBrandKeywords} />
                 </>
             )}
         </div>

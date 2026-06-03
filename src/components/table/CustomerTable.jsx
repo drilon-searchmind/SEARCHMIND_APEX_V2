@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import SearchInput from "@/components/search/SearchInput";
 import { FiArrowRight, FiLogOut, FiUsers, FiUser, FiStar, FiServer, FiBookOpen, FiFileText, FiBell, FiCopy, FiX } from "react-icons/fi";
 import { LuRadar } from "react-icons/lu";
@@ -101,13 +101,19 @@ export default function CustomerTable({ showLatestNews = true }) {
 
     const isFavorited = (customerId) => favoritedCustomers.includes(String(customerId));
 
-    let accessibleCustomers = customers;
-    if (user?.isExternal) {
-        const sharedCustomerIds = (user.sharedCustomers || []).map(
-            (id) => (typeof id === "object" && id.$oid ? id.$oid : String(id))
-        );
-        accessibleCustomers = customers.filter((c) => sharedCustomerIds.includes(String(c._id)));
-    }
+    const sharedCustomerIdsKey = useMemo(() => {
+        if (!user?.isExternal) return "";
+        return (user.sharedCustomers || [])
+            .map((id) => (typeof id === "object" && id.$oid ? id.$oid : String(id)))
+            .sort()
+            .join(",");
+    }, [user?.isExternal, user?.sharedCustomers]);
+
+    const accessibleCustomers = useMemo(() => {
+        if (!user?.isExternal) return customers;
+        const sharedCustomerIds = sharedCustomerIdsKey ? sharedCustomerIdsKey.split(",") : [];
+        return customers.filter((c) => sharedCustomerIds.includes(String(c._id)));
+    }, [customers, user?.isExternal, sharedCustomerIdsKey]);
 
     const filteredCustomers = accessibleCustomers.filter((customer) =>
         customer.customerName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -120,7 +126,7 @@ export default function CustomerTable({ showLatestNews = true }) {
         groups[parent].push(customer);
     });
 
-    useEffect(() => {
+    const parentIdsKey = useMemo(() => {
         const parentIds = Array.from(
             new Set(
                 (accessibleCustomers || [])
@@ -129,10 +135,15 @@ export default function CustomerTable({ showLatestNews = true }) {
                     .map((id) => String(id))
             )
         );
-        if (parentIds.length === 0) {
-            setParentNames({});
+        return parentIds.sort().join(",");
+    }, [accessibleCustomers]);
+
+    useEffect(() => {
+        if (!parentIdsKey) {
+            setParentNames((prev) => (Object.keys(prev).length === 0 ? prev : {}));
             return undefined;
         }
+        const parentIds = parentIdsKey.split(",");
         let cancelled = false;
         (async () => {
             try {
@@ -147,15 +158,33 @@ export default function CustomerTable({ showLatestNews = true }) {
                 for (const id of parentIds) {
                     next[id] = byId[id] || id;
                 }
-                if (!cancelled) setParentNames(next);
+                if (!cancelled) {
+                    setParentNames((prev) => {
+                        const prevKey = Object.keys(prev).sort().join(",");
+                        const nextKey = Object.keys(next).sort().join(",");
+                        if (prevKey !== nextKey) return next;
+                        for (const id of parentIds) {
+                            if (prev[id] !== next[id]) return next;
+                        }
+                        return prev;
+                    });
+                }
             } catch {
-                if (!cancelled) setParentNames(Object.fromEntries(parentIds.map((id) => [id, id])));
+                if (!cancelled) {
+                    const fallback = Object.fromEntries(parentIds.map((id) => [id, id]));
+                    setParentNames((prev) => {
+                        for (const id of parentIds) {
+                            if (prev[id] !== fallback[id]) return fallback;
+                        }
+                        return Object.keys(prev).length === parentIds.length ? prev : fallback;
+                    });
+                }
             }
         })();
         return () => {
             cancelled = true;
         };
-    }, [accessibleCustomers]);
+    }, [parentIdsKey]);
 
     const handleLogout = () => signOut({ callbackUrl: "/login" });
     const handleCreated = () => {
