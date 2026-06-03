@@ -1,4 +1,5 @@
 import { shopifyqlQuery } from './shopifyApi';
+import { shopifyAdminGraphqlPost } from './shopifyAdminClient';
 import { getCurrencyConversionTable, conversionRateToDkk } from './currencyConversionTable';
 import { totalAdSpendFromMerged, channelSpendTotalsFromMerged } from './mergeAdSpendDaily';
 
@@ -19,7 +20,6 @@ async function fetchShopifyOrdersForSegmentation(settings, startDate, endDate, o
     const currencyData = (await getCurrencyConversionTable()).data;
     const conversionRate = conversionRateToDkk(fromCode, currencyData);
 
-    const endpoint = `https://${shopUrl}/admin/api/2025-10/graphql.json`;
     const orders = [];
     // UI uses LTV 30/90/180, so we need 180 days of lookback for full LTV.
     const extendDays = opts.extendForLtv !== false ? 180 : 0;
@@ -53,16 +53,11 @@ async function fetchShopifyOrdersForSegmentation(settings, startDate, endDate, o
 
     try {
         while (hasNext) {
-            const res = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Shopify-Access-Token': accessToken,
-                },
-                body: JSON.stringify({ query, variables: { query: q, cursor } }),
+            const { res, json } = await shopifyAdminGraphqlPost(shopUrl, accessToken, {
+                query,
+                variables: { query: q, cursor },
             });
             if (!res.ok) throw new Error(`Shopify GraphQL error: ${res.status}`);
-            const json = await res.json();
             const apiErrors = json?.errors;
             if (apiErrors?.length) {
                 console.warn('[Customer Segmentation] Shopify GraphQL API errors:', apiErrors);

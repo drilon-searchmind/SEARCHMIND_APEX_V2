@@ -66,14 +66,14 @@ export async function GET(request, { params }) {
     const dailyBreakdown = source === 'parent-property' || source === 'daily-overview' || source === 'performance-dashboard' || source === 'markets-overview';
 
     try {
-        // Fetch customer settings
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-        const res = await fetch(`${baseUrl}/api/customers/${customerId}`);
-        if (!res.ok) throw new Error('Failed to fetch customer');
-        const data = await res.json();
+        const doc = await getCustomerById(customerId);
+        if (!doc) {
+            return Response.json({ error: 'Customer not found' }, { status: 404 });
+        }
+        const data = doc.toObject ? doc.toObject() : doc;
         const settings = {
             customerName: data.customerName,
-            customerType: data.customerType || 'Shopify', // Include customer type
+            customerType: data.customerType || 'Shopify',
             ...(data.CustomerSettings || {}),
             CustomerStaticExpenses: data.CustomerStaticExpenses || {},
         };

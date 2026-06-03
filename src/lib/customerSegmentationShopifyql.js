@@ -3,6 +3,7 @@ import {
     appendShopifyOnlineStoreFilter,
     shopifySalesWhereClause,
 } from '@/lib/shopifyQlFilters';
+import { shopifyAdminGraphqlPost } from '@/lib/shopifyAdminClient';
 
 /**
  * Fetch new vs returning customer counts via ShopifyQL using the built-in
@@ -50,31 +51,21 @@ export async function fetchCustomerSegmentationShopifyql(customerId, startDate, 
   ORDER BY new_or_returning_customer ASC
   LIMIT 10`;
 
-    const endpoint = `https://${shopifyUrl}/admin/api/2025-10/graphql.json`;
-
-    // Use GraphQL variables to safely pass the query (avoids escaping issues)
-    const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Shopify-Access-Token': accessToken,
-        },
-        body: JSON.stringify({
-            query: `query ShopifyqlNewReturning($q: String!) {
-                shopifyqlQuery(query: $q) {
-                    tableData {
-                        columns { name dataType displayName }
-                        rows
-                    }
-                    parseErrors
+    const body = JSON.stringify({
+        query: `query ShopifyqlNewReturning($q: String!) {
+            shopifyqlQuery(query: $q) {
+                tableData {
+                    columns { name dataType displayName }
+                    rows
                 }
-            }`,
-            variables: { q: shopifyql },
-        }),
+                parseErrors
+            }
+        }`,
+        variables: { q: shopifyql },
     });
+    const { res, json } = await shopifyAdminGraphqlPost(shopifyUrl, accessToken, body);
 
     if (!res.ok) throw new Error(`Shopify API error: ${res.status}`);
-    const json = await res.json();
 
     if (json?.errors?.length > 0) {
         throw new Error(json.errors[0]?.message || 'Shopify GraphQL error');

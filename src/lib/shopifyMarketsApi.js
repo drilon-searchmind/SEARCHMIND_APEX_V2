@@ -4,6 +4,8 @@
  */
 
 import { shopifyqlQuery } from "./shopifyApi";
+import { normalizeShopifyShopDomain } from "./shopifyShopDomain";
+import { shopifyAdminGraphqlPost } from "./shopifyAdminClient";
 import {
     appendShopifyOnlineStoreFilter,
     escapeShopifyQlString,
@@ -63,14 +65,10 @@ export function appendShopifyMarketBillingCountryFilter(whereParts, billingCount
  * @returns {Promise<{ markets: Array<{ gid: string, shopifyqlMarketId: string, name: string, handle: string }>, graphqlErrors?: string[] }>}
  */
 export async function fetchShopifyMarketsCatalog(shopDomain, accessToken) {
-    const domain = String(shopDomain || "")
-        .replace(/^https?:\/\//, "")
-        .replace(/\/$/, "");
+    const domain = normalizeShopifyShopDomain(shopDomain);
     if (!domain || !accessToken) {
         return { markets: [] };
     }
-
-    const endpoint = `https://${domain}/admin/api/2025-10/graphql.json`;
 
     const queryEdges = `query MarketsEdges($first: Int!, $after: String) {
   markets(first: $first, after: $after) {
@@ -112,18 +110,10 @@ export async function fetchShopifyMarketsCatalog(shopDomain, accessToken) {
         const acc = [];
         let after = null;
         for (let page = 0; page < maxPages; page++) {
-            const res = await fetch(endpoint, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Shopify-Access-Token": accessToken,
-                },
-                body: JSON.stringify({
-                    query,
-                    variables: { first: 100, after },
-                }),
+            const { res, json } = await shopifyAdminGraphqlPost(domain, accessToken, {
+                query,
+                variables: { first: 100, after },
             });
-            const json = await res.json().catch(() => ({}));
             if (!res.ok) {
                 graphqlErrors.push(
                     `${label}: ${json?.errors?.[0]?.message || `HTTP ${res.status}`}`
@@ -204,7 +194,6 @@ async function fetchMarketRegionCountries(shopDomain, accessToken, marketNumeric
         return marketRegionCountriesCache.get(cacheKey);
     }
 
-    const endpoint = `https://${domain}/admin/api/2025-10/graphql.json`;
     const marketGid = `gid://shopify/Market/${mid}`;
 
     const query = `
@@ -237,18 +226,10 @@ query MarketRegionCountries($id: ID!, $after: String) {
     const maxPages = 40;
 
     for (let page = 0; page < maxPages; page++) {
-        const res = await fetch(endpoint, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-Shopify-Access-Token": accessToken,
-            },
-            body: JSON.stringify({
-                query,
-                variables: { id: marketGid, after },
-            }),
+        const { res, json } = await shopifyAdminGraphqlPost(domain, accessToken, {
+            query,
+            variables: { id: marketGid, after },
         });
-        const json = await res.json().catch(() => ({}));
         if (!res.ok || json.errors?.length) {
             if (json.errors?.length) {
                 console.warn(

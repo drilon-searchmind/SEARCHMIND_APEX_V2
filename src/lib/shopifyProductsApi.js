@@ -1,15 +1,16 @@
 import { getCurrencyConversionTable, conversionRateToDkk } from './currencyConversionTable';
 import { combineShopifyOrderSearchQuery } from './shopifyQlFilters';
+import { shopifyAdminGraphqlPost } from './shopifyAdminClient';
 
 /**
  * Fetch inventory stock and value for a list of Shopify product IDs.
- * @param {string} endpoint - Shopify GraphQL endpoint
+ * @param {string} shopUrl - Shopify shop hostname
  * @param {string} accessToken - Shopify access token
  * @param {string[]} productIds - Array of product GIDs (e.g. gid://shopify/Product/123)
  * @param {number} conversionRate - Currency conversion rate to DKK
  * @returns {Promise<Record<string, { inventoryStock: number, inventoryValue: number }>>}
  */
-async function fetchProductInventory(endpoint, accessToken, productIds, conversionRate) {
+async function fetchProductInventory(shopUrl, accessToken, productIds, conversionRate) {
     const out = {};
     if (!productIds.length) return out;
 
@@ -36,16 +37,11 @@ async function fetchProductInventory(endpoint, accessToken, productIds, conversi
         }`;
 
         try {
-            const res = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Shopify-Access-Token': accessToken,
-                },
-                body: JSON.stringify({ query, variables: { ids: batch } }),
+            const { res, json } = await shopifyAdminGraphqlPost(shopUrl, accessToken, {
+                query,
+                variables: { ids: batch },
             });
             if (!res.ok) continue;
-            const json = await res.json();
             const nodes = json?.data?.nodes || [];
             for (const node of nodes) {
                 if (!node?.id) continue;
@@ -103,7 +99,7 @@ function orderMatchesBillingFilter(billingCountry, filter) {
 
 /**
  * Fetch orders for a single date-range chunk and aggregate into a product map.
- * @param {string} endpoint - Shopify GraphQL endpoint
+ * @param {string} shopUrl - Shopify shop hostname
  * @param {string} accessToken - Shopify access token
  * @param {string} chunkStart - YYYY-MM-DD
  * @param {string} chunkEnd - YYYY-MM-DD
@@ -111,7 +107,7 @@ function orderMatchesBillingFilter(billingCountry, filter) {
  * @param {{ include: string[], exclude: string[] }} [billingFilter] - Optional billing country filter
  * @returns {Promise<Map<string, object>>}
  */
-async function fetchOrdersChunk(endpoint, accessToken, chunkStart, chunkEnd, conversionRate, billingFilter = { include: [], exclude: [] }, settings = null) {
+async function fetchOrdersChunk(shopUrl, accessToken, chunkStart, chunkEnd, conversionRate, billingFilter = { include: [], exclude: [] }, settings = null) {
     const query = `query getOrders($query: String!, $cursor: String) {
         orders(first: 250, query: $query, after: $cursor) {
             edges {
@@ -154,16 +150,11 @@ async function fetchOrdersChunk(endpoint, accessToken, chunkStart, chunkEnd, con
     let hasNext = true;
 
     while (hasNext) {
-        const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Shopify-Access-Token': accessToken,
-            },
-            body: JSON.stringify({ query, variables: { query: q, cursor } }),
+        const { res, json } = await shopifyAdminGraphqlPost(shopUrl, accessToken, {
+            query,
+            variables: { query: q, cursor },
         });
         if (!res.ok) throw new Error(`Shopify GraphQL error: ${res.status}`);
-        const json = await res.json();
         const edges = json?.data?.orders?.edges || [];
 
         for (const edge of edges) {
@@ -220,11 +211,11 @@ async function fetchOrdersChunk(endpoint, accessToken, chunkStart, chunkEnd, con
 
 /**
  * Fetch all products from Shopify (paginated).
- * @param {string} endpoint - Shopify GraphQL endpoint
+ * @param {string} shopUrl - Shopify shop hostname
  * @param {string} accessToken - Shopify access token
  * @returns {Promise<Map<string, object>>} - Map of productId -> { productId, title, handle, vendor, productType, image }
  */
-async function fetchAllProducts(endpoint, accessToken) {
+async function fetchAllProducts(shopUrl, accessToken) {
     const products = new Map();
     let cursor = null;
     let hasNext = true;
@@ -249,16 +240,11 @@ async function fetchAllProducts(endpoint, accessToken) {
     }`;
 
     while (hasNext) {
-        const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Shopify-Access-Token': accessToken,
-            },
-            body: JSON.stringify({ query, variables: { first: 250, after: cursor } }),
+        const { res, json } = await shopifyAdminGraphqlPost(shopUrl, accessToken, {
+            query,
+            variables: { first: 250, after: cursor },
         });
         if (!res.ok) throw new Error(`Shopify GraphQL products error: ${res.status}`);
-        const json = await res.json();
         const edges = json?.data?.products?.edges || [];
 
         for (const edge of edges) {
@@ -329,21 +315,19 @@ export async function fetchShopifyProductMetrics(settings, startDate, endDate, o
     const currencyData = (await getCurrencyConversionTable()).data;
     const conversionRate = conversionRateToDkk(fromCode, currencyData);
 
-    const endpoint = `https://${shopUrl}/admin/api/2025-10/graphql.json`;
-
     const billingFilter = parseBillingCountryFilter(settings);
     const hasBillingFilter = billingFilter.include.length > 0 || billingFilter.exclude.length > 0;
 
     try {
         // Fetch ALL products from the store first
-        const allProductsMap = await fetchAllProducts(endpoint, accessToken);
+        const allProductsMap = await fetchAllProducts(shopUrl, accessToken);
 
         // Fetch order data for the date range (products that sold)
         const chunks = getDateChunks(startDate, endDate, 6);
         const chunkResults = await Promise.all(
             chunks.map(({ start: chunkStart, end: chunkEnd }) =>
                 fetchOrdersChunk(
-                    endpoint,
+                    shopUrl,
                     accessToken,
                     chunkStart,
                     chunkEnd,
@@ -383,7 +367,7 @@ export async function fetchShopifyProductMetrics(settings, startDate, endDate, o
             const productIds = result
                 .map(p => p.productId)
                 .filter(id => id && typeof id === 'string' && id.includes('Product'));
-            const inventoryByProduct = await fetchProductInventory(endpoint, accessToken, productIds, conversionRate);
+            const inventoryByProduct = await fetchProductInventory(shopUrl, accessToken, productIds, conversionRate);
             result = result.map(p => ({
                 ...p,
                 inventoryStock: inventoryByProduct[p.productId]?.inventoryStock ?? null,
@@ -415,6 +399,5 @@ export async function fetchProductInventoryOnly(settings, productIds) {
     const fromCode = settings?.customerStoreValutaCode || 'DKK';
     const currencyData = (await getCurrencyConversionTable()).data;
     const conversionRate = conversionRateToDkk(fromCode, currencyData);
-    const endpoint = `https://${settings.shopifyUrl}/admin/api/2025-10/graphql.json`;
-    return fetchProductInventory(endpoint, settings.shopifyApiPassword, productIds, conversionRate);
+    return fetchProductInventory(settings.shopifyUrl, settings.shopifyApiPassword, productIds, conversionRate);
 }
