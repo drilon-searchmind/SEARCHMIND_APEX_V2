@@ -80,23 +80,33 @@ function facebookRow(date) {
     const wSpend = dateWiggle(date, "fcs-v");
     const h = numHash(`fb-${date}`);
     const clicks = Math.round((300 + (h % 40)) * (1 + di * 0.00008) * dateWiggle(date, "fclk"));
+    const link_clicks = Math.round(clicks * 0.94);
     const impressions = Math.round((12000 + (h % 800)) * (1 + di * 0.00006) * dateWiggle(date, "fimp"));
     const conversions = Math.round((18 + (h % 10)) * (1 + di * 0.0001) * dateWiggle(date, "fconv"));
     const conversion_value = Math.round((5200 + (h % 400)) * revScale * wRev);
     const ad_spend = Math.round((950 + (h % 120)) * spendScale * wSpend);
+    const reach = Math.round(impressions * 0.42);
+    const frequency = reach > 0 ? impressions / reach : 1.2;
+    const engagement = Math.round(impressions * 0.032);
     return {
         date,
         clicks,
+        link_clicks,
         impressions,
         conversions,
         conversion_value,
         ad_spend,
+        reach,
+        frequency,
+        engagement,
         roas: ad_spend > 0 ? conversion_value / ad_spend : 0,
         aov: conversions > 0 ? conversion_value / conversions : 0,
         ctr: impressions > 0 ? clicks / impressions : 0,
-        cpc: clicks > 0 ? ad_spend / clicks : 0,
+        cpc: link_clicks > 0 ? ad_spend / link_clicks : 0,
         cpm: impressions > 0 ? (ad_spend / impressions) * 1000 : 0,
-        conv_rate: clicks > 0 ? conversions / clicks : 0,
+        conv_rate: link_clicks > 0 ? conversions / link_clicks : 0,
+        cpa: conversions > 0 ? ad_spend / conversions : 0,
+        engagement_rate: impressions > 0 ? engagement / impressions : 0,
         purchase_roas: [{ value: ad_spend > 0 ? conversion_value / ad_spend : 0 }],
         actions: [{ action_type: "offsite_conversion.purchase", value: String(conversions) }],
     };
@@ -142,20 +152,116 @@ export function getDemoGooglePpcDashboardForRange(startDate, endDate) {
     };
 }
 
+function demoCampaignRow(name, scale = 1) {
+    const h = numHash(`fbc-${name}`);
+    const impressions = Math.round((85000 + (h % 12000)) * scale);
+    const clicks = Math.round((3200 + (h % 400)) * scale);
+    const conversions = Math.round((95 + (h % 30)) * scale);
+    const ad_spend = Math.round((8200 + (h % 900)) * scale);
+    const conversion_value = Math.round(ad_spend * (3.2 + (h % 8) / 10));
+    return {
+        campaign_name: name,
+        clicks,
+        link_clicks: Math.round(clicks * 0.93),
+        impressions,
+        conversions,
+        conversion_value,
+        ad_spend,
+        reach: Math.round(impressions * 0.4),
+        frequency: 2.1 + (h % 5) / 10,
+        engagement: Math.round(impressions * 0.03),
+        roas: ad_spend > 0 ? conversion_value / ad_spend : 0,
+        ctr: impressions > 0 ? clicks / impressions : 0,
+        cpc: clicks > 0 ? ad_spend / clicks : 0,
+        cpm: impressions > 0 ? (ad_spend / impressions) * 1000 : 0,
+        conv_rate: clicks > 0 ? conversions / clicks : 0,
+        cpa: conversions > 0 ? ad_spend / conversions : 0,
+        engagement_rate: impressions > 0 ? (impressions * 0.03) / impressions : 0,
+    };
+}
+
 export function getDemoFacebookCampaignInsightsForRange(startDate, endDate) {
     const days = eachDayInclusive(startDate, endDate);
+    const metrics_by_date = days.map(facebookRow);
+    const campaigns_performance = [
+        demoCampaignRow("Prospecting — Lookalike", 1.1),
+        demoCampaignRow("Prospecting — Broad", 0.95),
+        demoCampaignRow("Retargeting — Cart", 0.85),
+        demoCampaignRow("Retargeting — View Content", 0.7),
+    ];
+    const top_campaigns = campaigns_performance
+        .map((c) => ({
+            campaign_name: c.campaign_name,
+            clicks: c.clicks,
+            impressions: c.impressions,
+            conversions: c.conversions,
+            ctr: c.ctr,
+        }))
+        .sort((a, b) => b.clicks - a.clicks)
+        .slice(0, 5);
+    const funnel_spend_by_date = metrics_by_date.map((d) => ({
+        date: d.date,
+        prospecting_spend: Math.round(d.ad_spend * 0.58),
+        retargeting_spend: Math.round(d.ad_spend * 0.32),
+        other_spend: Math.round(d.ad_spend * 0.1),
+    }));
+    const placements = [
+        {
+            placement: "facebook",
+            ad_spend: 18400,
+            impressions: 620000,
+            clicks: 14200,
+            conversions: 280,
+            conversion_value: 72000,
+            roas: 3.9,
+            ctr: 0.023,
+            cpm: 29.7,
+            cpa: 65.7,
+            frequency: 2.3,
+            engagement_rate: 0.031,
+        },
+        {
+            placement: "instagram",
+            ad_spend: 22100,
+            impressions: 890000,
+            clicks: 19800,
+            conversions: 310,
+            conversion_value: 98000,
+            roas: 4.4,
+            ctr: 0.022,
+            cpm: 24.8,
+            cpa: 71.3,
+            frequency: 2.1,
+            engagement_rate: 0.034,
+        },
+        {
+            placement: "audience network",
+            ad_spend: 4200,
+            impressions: 210000,
+            clicks: 2100,
+            conversions: 28,
+            conversion_value: 8200,
+            roas: 1.95,
+            ctr: 0.01,
+            cpm: 20,
+            cpa: 150,
+            frequency: 1.8,
+            engagement_rate: 0.012,
+        },
+    ];
     return {
-        metrics_by_date: days.map(facebookRow),
-        top_campaigns: [
-            {
-                campaign_name: "Prospecting — Demo",
-                clicks: 4000,
-                impressions: 95000,
-                conversions: 120,
-                ctr: 0.042,
-            },
-        ],
+        metrics_by_date,
+        top_campaigns,
         campaigns_by_date: [],
+        campaigns_performance,
+        placements,
+        funnel_spend_by_date,
+        account_summary: {
+            new_customer_ratio: 62,
+            recurring_customer_ratio: 38,
+            period_reach: metrics_by_date.reduce((s, r) => s + (r.reach || 0), 0),
+            period_frequency: 2.4,
+        },
     };
 }
 
@@ -620,6 +726,8 @@ export function getDemoFacebookAdsAdPerformanceForRange(since, until) {
             ad_spend: spend,
             impressions,
             clicks,
+            conversions,
+            frequency: 1.8 + (h % 10) / 10,
             ctr: impressions > 0 ? clicks / impressions : 0,
             conv_rate_clicks: clicks > 0 ? conversions / clicks : 0,
             conv_rate_impressions: impressions > 0 ? conversions / impressions : 0,

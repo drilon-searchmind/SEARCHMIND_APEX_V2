@@ -1,18 +1,13 @@
-
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import MetricCard from "@/components/dashboard/MetricCard";
 import GraphCard from "@/components/dashboard/GraphCard";
-import AdsPerformanceTable from "@/components/dashboard/AdsPerformanceTable";
 import Spinner from "@/components/ui/Spinner";
-import { FiDollarSign, FiTrendingUp, FiBarChart2, FiPieChart, FiShoppingCart, FiEye, FiMousePointer, FiPercent, FiArrowDownRight, FiArrowUpRight } from "react-icons/fi";
-// Remove direct import, will use API route
 import { useCustomers } from "@/hooks/useCustomers";
-// import { fetchFacebookAdsPSDashboardMetrics } from "@/lib/facebookApi";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import {
@@ -20,49 +15,61 @@ import {
     resolveDailyComparisonDate,
     COMPARISON_METHOD,
 } from "@/lib/dateRangeComparison";
+import {
+    aggregatePeriodFromDaily,
+    CHART_METRIC_LABELS,
+    getDailyMetricValue,
+    normalizeSeriesValues,
+    pickCreativeWinnersLosers,
+} from "@/lib/facebookPsDashboardUtils";
+import PsSortableMetricsTable from "./components/PsSortableMetricsTable";
+import {
+    CHART_TOGGLE_METRICS,
+    DISPLAY_ONLY_METRICS,
+    CREATIVE_TABLE_COLUMNS,
+    PLACEMENT_TABLE_COLUMNS,
+    CAMPAIGN_TABLE_COLUMNS,
+} from "./components/psDashboardConfig";
 
-const METRIC_OPTIONS = [
-    { key: "conversion_value", label: "Conv. Value", icon: FiDollarSign },
-    { key: "ad_spend", label: "Ad spend", icon: FiTrendingUp },
-    { key: "roas", label: "ROAS", icon: FiBarChart2 },
-    { key: "aov", label: "AOV", icon: FiPieChart },
-    { key: "conversions", label: "Conversions", icon: FiShoppingCart },
-    { key: "impressions", label: "Impressions", icon: FiEye },
-    { key: "clicks", label: "Clicks", icon: FiMousePointer },
-    { key: "ctr", label: "CTR", icon: FiPercent },
-    { key: "cpc", label: "CPC", icon: FiArrowDownRight },
-    { key: "cpm", label: "CPM", icon: FiArrowUpRight },
-];
-
-function getMetricValue(row, key) {
-    switch (key) {
-        case "conversion_value":
-            // Facebook "purchase_roas" is an array of objects [{ value: [number] }]
-            return row.purchase_roas && row.purchase_roas.length > 0 ? Number(row.purchase_roas[0].value) * Number(row.ad_spend) : null;
-        case "roas":
-            return row.purchase_roas && row.purchase_roas.length > 0 ? Number(row.purchase_roas[0].value) : null;
-        case "aov":
-            // Facebook "actions" may contain purchases
-            const purchases = row.actions?.find(a => a.action_type === "offsite_conversion.purchase")?.value || 0;
-            return purchases > 0 ? Number(getMetricValue(row, "conversion_value")) / purchases : null;
-        case "conversions":
-            return row.actions?.find(a => a.action_type === "offsite_conversion.purchase")?.value || 0;
-        default:
-            return row[key] !== undefined ? Number(row[key]) : null;
+function formatKpiValue(key, value, opt = {}) {
+    if (value === null || value === undefined || Number.isNaN(value)) return "—";
+    if (opt.isPercent || key === "conv_rate" || key === "engagement_rate") {
+        const pctVal = key === "conv_rate" && value <= 1 ? value * 100 : value;
+        return `${Number(pctVal).toLocaleString("da-DK", { maximumFractionDigits: 2 })}%`;
     }
+    if (key === "roas") return Number(value).toFixed(2);
+    if (
+        key === "ad_spend" ||
+        key === "conversion_value" ||
+        key === "cpm" ||
+        key === "cpc" ||
+        key === "cpa"
+    ) {
+        return Number(value).toLocaleString("da-DK", {
+            style: "currency",
+            currency: "DKK",
+            maximumFractionDigits: 0,
+            minimumFractionDigits: 0,
+        });
+    }
+    if (opt.decimals != null) {
+        return Number(value).toLocaleString("da-DK", {
+            maximumFractionDigits: opt.decimals,
+            minimumFractionDigits: opt.decimals,
+        });
+    }
+    return Number(value).toLocaleString("da-DK", { maximumFractionDigits: 0 });
 }
 
 export default function FacebookPSPage() {
     const params = useParams();
     const searchParams = useSearchParams();
-    const adSearchFromPlanner = searchParams.get("adSearch") || "";
     const rangeStartQ = searchParams.get("startDate");
     const rangeEndQ = searchParams.get("endDate");
     const { customers } = useCustomers();
     const customer = customers.find((c) => c._id === params.customerId);
 
     const {
-        tempDateRange: tempRange,
         setTempDateRange: setTempRange,
         appliedDateRange: appliedRange,
         setAppliedDateRange: setAppliedRange,
@@ -82,33 +89,49 @@ export default function FacebookPSPage() {
         },
     });
 
-    // Facebook data state
     const [fbMetricsByDate, setFbMetricsByDate] = useState([]);
-    const [fbTopCampaigns, setFbTopCampaigns] = useState([]);
-    const [fbCampaignsByDate, setFbCampaignsByDate] = useState([]);
-    // Previous period data for comparison
     const [fbMetricsByDatePrev, setFbMetricsByDatePrev] = useState([]);
+    const [campaignsPerformance, setCampaignsPerformance] = useState([]);
+    const [placements, setPlacements] = useState([]);
+    const [funnelSpendByDate, setFunnelSpendByDate] = useState([]);
+    const [accountSummary, setAccountSummary] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [selectedMetrics, setSelectedMetrics] = useState(["conversion_value"]);
+    const [selectedMetrics, setSelectedMetrics] = useState(["ad_spend"]);
 
     const [adPerfRows, setAdPerfRows] = useState([]);
     const [adPerfLoading, setAdPerfLoading] = useState(true);
     const [adPerfError, setAdPerfError] = useState(null);
 
-        // Ensure at least one metric is always selected
-        useEffect(() => {
-            if (selectedMetrics.length === 0) {
-                setSelectedMetrics(["conversion_value"]);
-            }
-        }, [selectedMetrics]);
+    useEffect(() => {
+        if (selectedMetrics.length === 0) setSelectedMetrics(["ad_spend"]);
+    }, [selectedMetrics]);
 
     useEffect(() => {
         if (rangeStartQ && rangeEndQ) {
             setTempRange({ startDate: rangeStartQ, endDate: rangeEndQ });
             setAppliedRange({ startDate: rangeStartQ, endDate: rangeEndQ });
         }
-    }, [rangeStartQ, rangeEndQ]);
+    }, [rangeStartQ, rangeEndQ, setTempRange, setAppliedRange]);
+
+    const fetchMetaParams = useCallback(
+        (settings, range) => {
+            const { facebookAdAccountId, customerMetaID, customerMetaIDExclude } = settings;
+            const adAccountId = facebookAdAccountId.startsWith("act_")
+                ? facebookAdAccountId
+                : `act_${facebookAdAccountId}`;
+            const p = new URLSearchParams({
+                adAccountId,
+                since: range.startDate,
+                until: range.endDate,
+                dashboardCustomerId: String(customer._id),
+            });
+            if (customerMetaID) p.set("customerMetaID", customerMetaID);
+            if (customerMetaIDExclude) p.set("customerMetaIDExclude", customerMetaIDExclude);
+            return p;
+        },
+        [customer]
+    );
 
     useEffect(() => {
         if (!customer) {
@@ -128,27 +151,18 @@ export default function FacebookPSPage() {
                 if (!facebookAdAccountId) {
                     if (!cancelled) {
                         setAdPerfRows([]);
-                        setAdPerfError("Add a Facebook Ad Account ID in customer settings to load ad-level performance.");
+                        setAdPerfError(
+                            "Add a Facebook Ad Account ID in customer settings to load ad-level performance."
+                        );
                         setAdPerfLoading(false);
                     }
                     return;
                 }
-                const adAccountId = facebookAdAccountId.startsWith("act_") ? facebookAdAccountId : `act_${facebookAdAccountId}`;
-                const { customerMetaID, customerMetaIDExclude } = settings;
-                const params = new URLSearchParams({
-                    adAccountId,
-                    since: appliedRange.startDate,
-                    until: appliedRange.endDate,
-                    dashboardCustomerId: String(customer._id),
-                });
-                if (customerMetaID) params.set("customerMetaID", customerMetaID);
-                if (customerMetaIDExclude) params.set("customerMetaIDExclude", customerMetaIDExclude);
-                const r = await fetch(`/api/facebook-ads-ad-performance?${params.toString()}`);
+                const p = fetchMetaParams(settings, appliedRange);
+                const r = await fetch(`/api/facebook-ads-ad-performance?${p.toString()}`);
                 const d = await r.json();
                 if (!r.ok) throw new Error(d.error || "Failed to load ads performance");
-                if (!cancelled) {
-                    setAdPerfRows(Array.isArray(d.ads) ? d.ads : []);
-                }
+                if (!cancelled) setAdPerfRows(Array.isArray(d.ads) ? d.ads : []);
             } catch (e) {
                 if (!cancelled) setAdPerfError(e.message || "Failed to load ads performance");
             } finally {
@@ -158,7 +172,7 @@ export default function FacebookPSPage() {
         return () => {
             cancelled = true;
         };
-    }, [customer, appliedRange]);
+    }, [customer, appliedRange, fetchMetaParams]);
 
     useEffect(() => {
         if (!customer) return;
@@ -167,13 +181,11 @@ export default function FacebookPSPage() {
         (async () => {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-                // Fetch customer settings for ad account and meta ID
                 const res = await fetch(`${baseUrl}/api/customers/${customer._id}`);
                 if (!res.ok) throw new Error("Failed to fetch customer settings");
                 const settings = (await res.json()).CustomerSettings || {};
-                const { facebookAdAccountId, customerMetaID, customerMetaIDExclude } = settings;
+                const { facebookAdAccountId } = settings;
                 if (!facebookAdAccountId) throw new Error("Missing Facebook Ad Account ID");
-                const adAccountId = facebookAdAccountId.startsWith("act_") ? facebookAdAccountId : `act_${facebookAdAccountId}`;
 
                 const compDates = formatComparisonPeriodDates({
                     comparisonMethod,
@@ -183,37 +195,26 @@ export default function FacebookPSPage() {
                     compareEndDate: appliedCompareRange.endDate,
                 });
 
-                const metaParams = new URLSearchParams({
-                    adAccountId,
-                    since: appliedRange.startDate,
-                    until: appliedRange.endDate,
-                    dashboardCustomerId: String(customer._id),
-                });
-                if (customerMetaID) metaParams.set('customerMetaID', customerMetaID);
-                if (customerMetaIDExclude) metaParams.set('customerMetaIDExclude', customerMetaIDExclude);
+                const metaParams = fetchMetaParams(settings, appliedRange);
                 const fetches = [fetch(`/api/facebook-campaign-insights?${metaParams.toString()}`)];
                 if (!compDates.skip && compDates.startDate && compDates.endDate) {
-                    const prevParams = new URLSearchParams({
-                        adAccountId,
-                        since: compDates.startDate,
-                        until: compDates.endDate,
-                        dashboardCustomerId: String(customer._id),
+                    const prevParams = fetchMetaParams(settings, {
+                        startDate: compDates.startDate,
+                        endDate: compDates.endDate,
                     });
-                    if (customerMetaID) prevParams.set('customerMetaID', customerMetaID);
-                    if (customerMetaIDExclude) prevParams.set('customerMetaIDExclude', customerMetaIDExclude);
                     fetches.push(fetch(`/api/facebook-campaign-insights?${prevParams.toString()}`));
                 }
 
                 const [fbRes, fbResPrev] = await Promise.all(fetches);
-                
                 if (!fbRes.ok) throw new Error("Failed to fetch Facebook PS dashboard metrics");
                 const metrics = await fbRes.json();
                 setFbMetricsByDate(metrics.metrics_by_date || []);
-                setFbTopCampaigns(metrics.top_campaigns || []);
-                setFbCampaignsByDate(metrics.campaigns_by_date || []);
+                setCampaignsPerformance(metrics.campaigns_performance || metrics.top_campaigns || []);
+                setPlacements(metrics.placements || []);
+                setFunnelSpendByDate(metrics.funnel_spend_by_date || []);
+                setAccountSummary(metrics.account_summary || {});
 
-                // Set previous period data (even if fetch fails, we'll just have empty array)
-                if (fbResPrev.ok) {
+                if (fbResPrev?.ok) {
                     const metricsPrev = await fbResPrev.json();
                     setFbMetricsByDatePrev(metricsPrev.metrics_by_date || []);
                 } else {
@@ -225,9 +226,8 @@ export default function FacebookPSPage() {
                 setLoading(false);
             }
         })();
-    }, [customer, appliedRange, appliedCompareRange, comparisonMethod]);
+    }, [customer, appliedRange, appliedCompareRange, comparisonMethod, fetchMetaParams]);
 
-    // % change helpers
     const percentChange = (current, prev) => {
         if (prev === 0 || prev === null || prev === undefined) return null;
         return ((current - prev) / Math.abs(prev)) * 100;
@@ -237,294 +237,344 @@ export default function FacebookPSPage() {
         return val > 0 ? "up" : val < 0 ? "down" : undefined;
     };
 
-    // Metrics cards (aggregate for period)
-    const metrics = useMemo(() => {
-        if (!fbMetricsByDate.length) return [];
-        
-        const agg = (key, data) => {
-            if (key === "conversion_value") {
-                return data.reduce((sum, row) => sum + (row.conversion_value || 0), 0);
-            }
-            if (key === "conversions") {
-                return data.reduce((sum, row) => sum + (row.conversions || 0), 0);
-            }
-            if (key === "aov") {
-                const totalValue = data.reduce((sum, row) => sum + (row.conversion_value || 0), 0);
-                const totalConv = data.reduce((sum, row) => sum + (row.conversions || 0), 0);
-                return totalConv > 0 ? totalValue / totalConv : null;
-            }
-            if (key === "roas") {
-                const totalSpend = data.reduce((sum, row) => sum + (row.ad_spend || 0), 0);
-                const totalValue = data.reduce((sum, row) => sum + (row.conversion_value || 0), 0);
-                return totalSpend > 0 ? totalValue / totalSpend : null;
-            }
-            if (key === "ctr") {
-                const totalClicks = data.reduce((sum, row) => sum + (row.clicks || 0), 0);
-                const totalImpressions = data.reduce((sum, row) => sum + (row.impressions || 0), 0);
-                return totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : null;
-            }
-            // Default: sum
-            return data.reduce((sum, row) => sum + (row[key] || 0), 0);
+    const displayOnlyValues = useMemo(() => {
+        const reachSum = aggregatePeriodFromDaily(fbMetricsByDate, "reach");
+        const freq = aggregatePeriodFromDaily(fbMetricsByDate, "frequency");
+        const eng = aggregatePeriodFromDaily(fbMetricsByDate, "engagement_rate");
+        return {
+            new_customer_ratio: accountSummary.new_customer_ratio ?? null,
+            recurring_customer_ratio: accountSummary.recurring_customer_ratio ?? null,
+            reach: accountSummary.period_reach ?? reachSum,
+            frequency: accountSummary.period_frequency ?? freq,
+            engagement_rate: eng,
         };
-        
-        return METRIC_OPTIONS.map(opt => {
-            const currentValue = agg(opt.key, fbMetricsByDate);
-            const prevValue = fbMetricsByDatePrev.length > 0 ? agg(opt.key, fbMetricsByDatePrev) : null;
-            const change = percentChange(currentValue, prevValue);
-            
-            return {
-                label: opt.label,
-                value: currentValue,
-                change: change !== null ? Math.abs(change).toFixed(1) : undefined,
-                changeType: changeType(change),
-            };
-        });
-    }, [fbMetricsByDate, fbMetricsByDatePrev]);
+    }, [fbMetricsByDate, accountSummary]);
 
-    // Graph data for selected metrics
-    const chartCategories = fbMetricsByDate.map(row => row.date);
-    
-    // Create a map for previous period data by date
-    const fbMetricsByDatePrevMap = Object.fromEntries(
-        fbMetricsByDatePrev.map(row => [row.date, row])
-    );
+    const buildMetricCard = (opt, chartToggle) => {
+        let currentValue;
+        let prevValue = null;
+        if (DISPLAY_ONLY_METRICS.some((d) => d.key === opt.key)) {
+            currentValue = displayOnlyValues[opt.key];
+        } else {
+            currentValue = aggregatePeriodFromDaily(fbMetricsByDate, opt.key);
+            prevValue =
+                fbMetricsByDatePrev.length > 0
+                    ? aggregatePeriodFromDaily(fbMetricsByDatePrev, opt.key)
+                    : null;
+        }
+        const change = percentChange(currentValue, prevValue);
+        const isActive = chartToggle && selectedMetrics.includes(opt.key);
+        const Icon = opt.icon;
 
-    // Build chart series with current and previous period data
-    const chartSeries = [];
-    
-    // Add current period series
-    selectedMetrics.forEach(metricKey => {
-        const metricOption = METRIC_OPTIONS.find(opt => opt.key === metricKey);
-        chartSeries.push({
-            name: `${metricOption?.label || "Metric"} (Current)`,
-            data: chartCategories.map(date => {
-                const row = fbMetricsByDate.find(r => r.date === date);
-                if (!row) return null;
-                let val = row[metricKey];
-                if (metricKey === "ctr" && row.impressions > 0) {
-                    val = (row.clicks || 0) / row.impressions * 100;
+        return (
+            <div
+                key={opt.key}
+                onClick={
+                    chartToggle
+                        ? () =>
+                              setSelectedMetrics((prev) => {
+                                  if (prev.includes(opt.key)) {
+                                      return prev.length > 1 ? prev.filter((m) => m !== opt.key) : prev;
+                                  }
+                                  return [...prev, opt.key];
+                              })
+                        : undefined
                 }
-                if (typeof val === 'number' && !isNaN(val)) {
-                    return (metricKey === "ctr" || metricKey === "roas") ? Number(val.toFixed(2)) : Math.round(val);
-                }
-                return val ?? null;
-            }),
-        });
-    });
-
-    const sortedPrevDates = fbMetricsByDatePrev.map((row) => row.date).sort();
-
-    if (comparisonMethod !== COMPARISON_METHOD.NONE) {
-    selectedMetrics.forEach(metricKey => {
-        const metricOption = METRIC_OPTIONS.find(opt => opt.key === metricKey);
-        chartSeries.push({
-            name: `${metricOption?.label || "Metric"} (${comparisonLabel})`,
-            data: chartCategories.map(date => {
-                const prevDate = resolveDailyComparisonDate({
-                    comparisonMethod,
-                    currentDate: date,
-                    appliedStartDate: appliedRange.startDate,
-                    appliedEndDate: appliedRange.endDate,
-                    sortedPrevKeys: sortedPrevDates,
-                });
-
-                const row = prevDate ? fbMetricsByDatePrevMap[prevDate] : null;
-                if (!row) return null;
-                let val = row[metricKey];
-                if (metricKey === "ctr" && row.impressions > 0) {
-                    val = (row.clicks || 0) / row.impressions * 100;
-                }
-                if (typeof val === 'number' && !isNaN(val)) {
-                    return (metricKey === "ctr" || metricKey === "roas") ? Number(val.toFixed(2)) : Math.round(val);
-                }
-                return val ?? null;
-            }),
-        });
-    });
-    }
-
-    // Prepare stroke and fill arrays for current and previous series
-    const selectedMetricsCount = selectedMetrics.length;
-    const strokeWidths = [...Array(selectedMetricsCount).fill(2), ...Array(selectedMetricsCount).fill(1)];
-    const strokeDashArrays = [...Array(selectedMetricsCount).fill(0), ...Array(selectedMetricsCount).fill(5)];
-    const fillOpacities = [...Array(selectedMetricsCount).fill(1), ...Array(selectedMetricsCount).fill(0.5)];
-
-    const chartOptions = {
-        chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
-        xaxis: { categories: chartCategories },
-        yaxis: {},
-        colors: ["#406969", "#1E2B2B", "#4F46E5", "#06B6D4", "#C6ED62", "#D6CDB6", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#10B981"],
-        stroke: { 
-            width: strokeWidths, 
-            curve: 'smooth',
-            dashArray: strokeDashArrays
-        },
-        fill: { 
-            type: 'solid', 
-            opacity: fillOpacities
-        },
-        grid: { borderColor: '#e5e7eb', strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
-        dataLabels: { enabled: false },
-        tooltip: { theme: 'light' },
-        legend: { show: true, position: 'top' },
+                style={chartToggle ? { cursor: "pointer" } : undefined}
+            >
+                <MetricCard
+                    label={opt.label}
+                    value={formatKpiValue(opt.key, currentValue, opt)}
+                    icon={Icon ? <Icon size={22} color={isActive ? "#fff" : undefined} /> : null}
+                    isActive={isActive}
+                    change={change !== null ? Math.abs(change).toFixed(1) : undefined}
+                    changeType={changeType(change)}
+                    comparisonMethod={chartToggle ? comparisonMethod : undefined}
+                />
+            </div>
+        );
     };
 
-    // Top campaigns table: sort by clicks desc
-    const topCampaigns = useMemo(() => {
-        if (!fbTopCampaigns.length) return [];
-        return fbTopCampaigns;
-    }, [fbTopCampaigns]);
+    const chartCategories = fbMetricsByDate.map((row) => row.date);
+    const fbMetricsByDatePrevMap = Object.fromEntries(fbMetricsByDatePrev.map((row) => [row.date, row]));
+    const sortedPrevDates = fbMetricsByDatePrev.map((row) => row.date).sort();
+
+    const rawSeriesByMetric = useMemo(() => {
+        const out = {};
+        for (const key of selectedMetrics) {
+            out[key] = {
+                current: chartCategories.map((date) => getDailyMetricValue(fbMetricsByDate.find((r) => r.date === date), key)),
+                prev: chartCategories.map((date) => {
+                    const prevDate = resolveDailyComparisonDate({
+                        comparisonMethod,
+                        currentDate: date,
+                        appliedStartDate: appliedRange.startDate,
+                        appliedEndDate: appliedRange.endDate,
+                        sortedPrevKeys: sortedPrevDates,
+                    });
+                    return getDailyMetricValue(prevDate ? fbMetricsByDatePrevMap[prevDate] : null, key);
+                }),
+            };
+        }
+        return out;
+    }, [
+        selectedMetrics,
+        chartCategories,
+        fbMetricsByDate,
+        fbMetricsByDatePrevMap,
+        sortedPrevDates,
+        comparisonMethod,
+        appliedRange,
+    ]);
+
+    const chartSeries = useMemo(() => {
+        const series = [];
+        for (const key of selectedMetrics) {
+            const label = CHART_METRIC_LABELS[key] || key;
+            const raw = rawSeriesByMetric[key];
+            if (!raw) continue;
+            series.push({
+                name: `${label} (Current)`,
+                data: normalizeSeriesValues(raw.current),
+                meta: { raw: raw.current, key },
+            });
+            if (comparisonMethod !== COMPARISON_METHOD.NONE) {
+                series.push({
+                    name: `${label} (${comparisonLabel})`,
+                    data: normalizeSeriesValues(raw.prev),
+                    meta: { raw: raw.prev, key },
+                });
+            }
+        }
+        return series;
+    }, [selectedMetrics, rawSeriesByMetric, comparisonMethod, comparisonLabel]);
+
+    const selectedMetricsCount = selectedMetrics.length;
+    const compCount = comparisonMethod !== COMPARISON_METHOD.NONE ? selectedMetricsCount : 0;
+    const strokeWidths = [
+        ...Array(selectedMetricsCount).fill(2),
+        ...Array(compCount).fill(1),
+    ];
+    const strokeDashArrays = [
+        ...Array(selectedMetricsCount).fill(0),
+        ...Array(compCount).fill(5),
+    ];
+    const fillOpacities = [
+        ...Array(selectedMetricsCount).fill(1),
+        ...Array(compCount).fill(0.5),
+    ];
+
+    const chartOptions = useMemo(
+        () => ({
+            chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "Outfit, sans-serif" },
+            xaxis: { categories: chartCategories },
+            yaxis: {
+                min: 0,
+                max: 100,
+                labels: { formatter: (v) => `${Math.round(v)}%` },
+            },
+            colors: [
+                "#406969",
+                "#1E2B2B",
+                "#4F46E5",
+                "#06B6D4",
+                "#C6ED62",
+                "#D6CDB6",
+                "#F59E0B",
+                "#EF4444",
+                "#8B5CF6",
+                "#EC4899",
+                "#10B981",
+            ],
+            stroke: { width: strokeWidths, curve: "smooth", dashArray: strokeDashArrays },
+            fill: { type: "solid", opacity: fillOpacities },
+            grid: {
+                borderColor: "#e5e7eb",
+                strokeDashArray: 0,
+                xaxis: { lines: { show: false } },
+                yaxis: { lines: { show: true } },
+            },
+            dataLabels: { enabled: false },
+            tooltip: {
+                theme: "light",
+                y: {
+                    formatter: (_val, opts) => {
+                        const s = chartSeries[opts?.seriesIndex];
+                        const raw = s?.meta?.raw?.[opts?.dataPointIndex];
+                        const key = s?.meta?.key;
+                        if (raw == null) return "—";
+                        if (key === "conv_rate" || key === "engagement_rate") {
+                            return `${Number(raw).toFixed(2)}%`;
+                        }
+                        return formatKpiValue(key, raw);
+                    },
+                },
+            },
+            legend: { show: true, position: "top" },
+        }),
+        [chartCategories, strokeWidths, strokeDashArrays, fillOpacities, chartSeries]
+    );
+
+    const funnelChart = useMemo(() => {
+        const dates = funnelSpendByDate.map((d) => d.date);
+        return {
+            options: {
+                chart: {
+                    stacked: true,
+                    stackType: "normal",
+                    toolbar: { show: false },
+                    fontFamily: "Outfit, sans-serif",
+                },
+                plotOptions: { area: { stacking: "normal" } },
+                xaxis: { categories: dates },
+                yaxis: {
+                    labels: {
+                        formatter: (v) =>
+                            `${Number(v).toLocaleString("da-DK", { maximumFractionDigits: 0 })} kr.`,
+                    },
+                },
+                colors: ["#406969", "#C6ED62", "#94a3b8"],
+                legend: { position: "top" },
+                dataLabels: { enabled: false },
+                stroke: { curve: "smooth", width: 1 },
+                fill: { opacity: 0.85 },
+            },
+            series: [
+                {
+                    name: "Prospecting",
+                    data: funnelSpendByDate.map((d) => Math.round(d.prospecting_spend || 0)),
+                },
+                {
+                    name: "Retargeting",
+                    data: funnelSpendByDate.map((d) => Math.round(d.retargeting_spend || 0)),
+                },
+                {
+                    name: "Other",
+                    data: funnelSpendByDate.map((d) => Math.round(d.other_spend || 0)),
+                },
+            ],
+        };
+    }, [funnelSpendByDate]);
+
+    const { winners, losers } = useMemo(
+        () => pickCreativeWinnersLosers(adPerfRows, { minSpend: 100, limit: 5 }),
+        [adPerfRows]
+    );
+
+    const row1 = CHART_TOGGLE_METRICS.filter((m) => m.row === 1);
+    const row2 = CHART_TOGGLE_METRICS.filter((m) => m.row === 2);
 
     return (
         <div className="w-full">
             <DashboardHeading
-                title="Facebook PS Dashboard"
+                title="Paid Social Dashboard"
                 label={customer ? customer.customerName : ""}
                 customerId={params.customerId}
                 dateRange={appliedRange}
                 comparisonMethod={comparisonMethod}
                 loading={loading}
                 dashboardType="ps-dashboard"
-                dataSnapshot={{ fbMetricsByDate, fbTopCampaigns, fbCampaignsByDate, selectedMetrics, METRIC_OPTIONS }}
-                right={
-                    <DateRangePicker {...dateRangePickerProps} loading={loading} />
-                }
+                dataSnapshot={{
+                    fbMetricsByDate,
+                    campaignsPerformance,
+                    placements,
+                    selectedMetrics,
+                }}
+                right={<DateRangePicker {...dateRangePickerProps} loading={loading} />}
             />
 
-            {/* Metrics Cards Section */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6 w-full mb-8">
-                {loading ? (
-                    <div className="col-span-5 text-center"><Spinner size={40} color="#406969" /></div>
-                ) : error ? (
-                    <div className="col-span-5 text-center text-red-500">{error}</div>
-                ) : (
-                    metrics.map((metric, idx) => {
-                        const Icon = METRIC_OPTIONS.find(opt => opt.label === metric.label)?.icon;
-                        const isActive = selectedMetrics.includes(METRIC_OPTIONS[idx].key);
-                        return (
-                            <div
-                                key={idx}
-                                onClick={() => setSelectedMetrics(prev => {
-                                    const metricKey = METRIC_OPTIONS[idx].key;
-                                    if (prev.includes(metricKey)) {
-                                        // Don't allow deselecting if it's the only selected metric
-                                        return prev.length > 1 ? prev.filter(m => m !== metricKey) : prev;
-                                    } else {
-                                        return [...prev, metricKey];
-                                    }
-                                })}
-                                style={{ cursor: 'pointer' }}
-                            >
-								<MetricCard
-                                    label={metric.label}
-                                    value={
-                                        metric.value !== null && metric.value !== undefined
-                                            ? (typeof metric.value === "number" && !isNaN(metric.value)
-                                                ? (metric.label === "Conv. Value" || metric.label === "Ad spend" || metric.label === "AOV" ? metric.value.toLocaleString('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0, minimumFractionDigits: 0 })
-                                                    : metric.label === "CTR" ? `${metric.value.toFixed(2)}%`
-                                                    : metric.label === "ROAS" ? metric.value.toFixed(2)
-                                                    : metric.value.toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 }))
-                                                : metric.value)
-                                            : "-"
-                                    }
-                                    icon={Icon ? <Icon size={22} color={isActive ? '#fff' : undefined} /> : null}
-                                    isActive={isActive}
-                                    change={metric.change}
-                                    changeType={metric.changeType}
-                                    comparisonMethod={comparisonMethod}
-                                />
-                            </div>
-                        );
-                    })
-                )}
-            </div>
-
-            {/* Graph Section */}
-            <div className="mb-8">
-                <div className="flex items-center gap-4 mb-2">
-                    <span className="font-semibold">Metric:</span>
-                    <div className="flex gap-2">
-                        {METRIC_OPTIONS.map(opt => (
-                            <button
-                                key={opt.key}
-                                className={`px-3 py-1 rounded text-xs font-medium border transition-colors duration-150 ${selectedMetrics.includes(opt.key) ? 'bg-white text-[var(--color-primary-searchmind)] border-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500 border-gray-200 hover:text-[var(--color-primary-searchmind)]'}`}
-                                onClick={() => setSelectedMetrics(prev => {
-                                    if (prev.includes(opt.key)) {
-                                        // Don't allow deselecting if it's the only selected metric
-                                        return prev.length > 1 ? prev.filter(m => m !== opt.key) : prev;
-                                    } else {
-                                        return [...prev, opt.key];
-                                    }
-                                })}
-                            >
-                                {opt.label}
-                            </button>
-                        ))}
-                    </div>
+            {loading ? (
+                <div className="text-center py-12">
+                    <Spinner size={40} color="#406969" />
                 </div>
-                {loading ? (
-                    <div className="flex items-center justify-center h-64"><Spinner size={40} color="#406969" /></div>
-                ) : (
-                    <GraphCard title={
-                        (selectedMetrics || []).length === 1 && (selectedMetrics || [])[0]
-                            ? `${METRIC_OPTIONS.find(opt => opt.key === (selectedMetrics || [])[0])?.label ?? "Metric"} vs ${comparisonLabel}`
-                            : `Multiple Facebook PS Metrics vs ${comparisonLabel}`
-                    } chartOptions={chartOptions} chartSeries={chartSeries} />
-                )}
-            </div>
-
-            <div className="mb-8 min-w-0 max-w-full">
-                <AdsPerformanceTable
-                    rows={adPerfRows}
-                    loading={adPerfLoading}
-                    errors={adPerfError ? [adPerfError] : []}
-                    platform="facebook"
-                    initialSearch={adSearchFromPlanner}
-                />
-            </div>
-
-            {/* Top Campaigns Table */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold mb-4">Top Performance Campaigns</h3>
-                {loading ? (
-                    <div className="flex justify-center items-center min-h-[120px]"><Spinner size={40} color="#406969" /></div>
-                ) : error ? (
-                    <div className="text-red-500 text-center">{error}</div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-xs text-left border-collapse" style={{ fontSize: '12px' }}>
-                            <thead>
-                                <tr className="bg-gray-50">
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Campaign</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Clicks</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Impressions</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">CTR</th>
-                                </tr>
-                            </thead>
-                            <tbody className="text-[12px]">
-                                {topCampaigns.length === 0 ? (
-                                    <tr><td colSpan={4} className="text-center py-8 text-gray-400">No campaign data for selected range.</td></tr>
-                                ) : topCampaigns.map((row, idx) => {
-                                    // Heatmap logic: find max for each column
-                                    const max = {
-                                        clicks: Math.max(...topCampaigns.map(r => Number(r.clicks) || 0)),
-                                        impressions: Math.max(...topCampaigns.map(r => Number(r.impressions) || 0)),
-                                        ctr: Math.max(...topCampaigns.map(r => (Number(r.ctr) || 0) * 100)),
-                                    };
-                                    return (
-                                        <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                                            <td className="px-3 py-2 whitespace-nowrap">{row.campaign_name}</td>
-                                            <td className="px-3 py-2 whitespace-nowrap" style={{ ...(row.clicks > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.clicks / max.clicks)})` } : {}) }}>{Number(row.clicks || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
-                                            <td className="px-3 py-2 whitespace-nowrap" style={{ ...(row.impressions > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.impressions / max.impressions)})` } : {}) }}>{Number(row.impressions || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
-                                            <td className="px-3 py-2 whitespace-nowrap" style={{ ...(row.ctr > 0 ? { backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * ((Number(row.ctr) || 0) * 100 / max.ctr)})` } : {}) }}>{row.ctr ? `${(Number(row.ctr) * 100).toFixed(2)}%` : '-'}</td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+            ) : error ? (
+                <div className="text-center text-red-500 py-8">{error}</div>
+            ) : (
+                <>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full mb-4">
+                        {row1.map((opt) => buildMetricCard(opt, true))}
                     </div>
-                )}
-            </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 w-full mb-4">
+                        {row2.map((opt) => buildMetricCard(opt, true))}
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 w-full mb-8">
+                        {DISPLAY_ONLY_METRICS.map((opt) => buildMetricCard(opt, false))}
+                    </div>
+
+                    <div className="mb-8">
+                        <GraphCard
+                            title="Spend over time"
+                            chartOptions={chartOptions}
+                            chartSeries={chartSeries}
+                            hideChartToggle
+                        />
+                        <p className="text-[11px] text-gray-500 mt-2">
+                            Values are normalized to 0–100% of each metric&apos;s maximum for comparable curves.
+                            Hover for actual numbers. Click KPI cards above to show or hide metrics.
+                        </p>
+                    </div>
+
+                    {adPerfLoading ? (
+                        <div className="flex justify-center py-8 mb-8">
+                            <Spinner size={32} color="#406969" />
+                        </div>
+                    ) : (
+                        <>
+                            <PsSortableMetricsTable
+                                title="Creative winners"
+                                subtitle="Creatives with strong ROAS — candidates to scale budget or produce variants."
+                                columns={CREATIVE_TABLE_COLUMNS}
+                                rows={winners.map((r, i) => ({ ...r, id: r.ad_id || i }))}
+                                rowKeyField="id"
+                                highlightPositiveNegative
+                            />
+                            <PsSortableMetricsTable
+                                title="Creative losers"
+                                subtitle="Low ROAS creatives — consider pausing or refreshing creative."
+                                columns={CREATIVE_TABLE_COLUMNS}
+                                rows={losers.map((r, i) => ({ ...r, id: r.ad_id || `l-${i}` }))}
+                                rowKeyField="id"
+                                highlightPositiveNegative
+                            />
+                        </>
+                    )}
+                    {adPerfError ? (
+                        <p className="text-xs text-amber-700 mb-6">{adPerfError}</p>
+                    ) : null}
+
+                    <PsSortableMetricsTable
+                        title="Placement performance"
+                        columns={PLACEMENT_TABLE_COLUMNS}
+                        rows={placements.map((r, i) => ({
+                            ...r,
+                            id: r.placement || i,
+                        }))}
+                        rowKeyField="id"
+                        highlightPositiveNegative
+                    />
+
+                    <PsSortableMetricsTable
+                        title="Kampagne performance"
+                        columns={CAMPAIGN_TABLE_COLUMNS}
+                        rows={campaignsPerformance.map((r, i) => ({
+                            ...r,
+                            id: r.campaign_name || i,
+                        }))}
+                        rowKeyField="id"
+                        highlightPositiveNegative
+                    />
+
+                    <div className="mb-8">
+                        <GraphCard
+                            title="Prospecting vs Retargeting spend"
+                            chartOptions={funnelChart.options}
+                            chartSeries={funnelChart.series}
+                            chartType="area"
+                            hideChartToggle
+                        />
+                    </div>
+                </>
+            )}
         </div>
     );
 }

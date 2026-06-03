@@ -187,6 +187,7 @@ export async function fetchFacebookAdsAdPerformance({
                 ad_spend: spend,
                 impressions,
                 clicks,
+                conversions,
                 ctr,
                 conv_rate_clicks: convRateClicks,
                 conv_rate_impressions: convRateImpr,

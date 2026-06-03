@@ -4,6 +4,7 @@ import {
     shouldExcludeAdCampaign,
 } from './adCampaignFilterUtils';
 import { normalizeMetaAdsCampaignId } from './metaAdsCampaignIdUtils';
+import { fetchFacebookPsDashboardExtended } from './facebookPsDashboardFetch';
 
 /**
  * Parse meta ID include/exclude from comma-separated strings.
@@ -11,7 +12,7 @@ import { normalizeMetaAdsCampaignId } from './metaAdsCampaignIdUtils';
  * @param {string} [excludeStr] - Comma-separated country codes to exclude (e.g. 'FR,ES')
  * @returns {{ include: string[], exclude: string[], effectiveInclude: string[] }}
  */
-function parseMetaIdFilter(includeStr, excludeStr) {
+export function parseMetaIdFilter(includeStr, excludeStr) {
     const parse = (s) => (typeof s === 'string' ? s.split(',').map((c) => c.trim().toUpperCase()).filter(Boolean) : []);
     const include = parse(includeStr);
     const exclude = parse(excludeStr);
@@ -371,12 +372,27 @@ export async function fetchFacebookAdsInsights(adAccountId, metaIdInclude, metaI
  */
 export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccountId, startDate, endDate, metaIdInclude, metaIdExclude }) {
     const formattedAccountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
+
+    console.log(`[Facebook API PS] Fetching data for account: ${formattedAccountId}, date range: ${startDate} to ${endDate}`);
+
+    try {
+        return await fetchFacebookPsDashboardExtended({
+            accessToken,
+            adAccountId,
+            startDate,
+            endDate,
+            metaIdInclude,
+            metaIdExclude,
+        });
+    } catch (error) {
+        console.error('[Facebook API PS] Extended fetch failed, falling back to legacy:', error.message);
+    }
+
     const apiUrl = `https://graph.facebook.com/v21.0/${formattedAccountId}/insights`;
 
     const { effectiveInclude, exclude } = parseMetaIdFilter(metaIdInclude, metaIdExclude);
     const useBreakdown = exclude.length > 0 && effectiveInclude.length === 0;
 
-    console.log(`[Facebook API PS] Fetching data for account: ${formattedAccountId}, date range: ${startDate} to ${endDate}`);
     if (effectiveInclude.length > 0) console.log(`[Facebook API PS] Include countries: ${effectiveInclude.join(',')}`);
     if (exclude.length > 0) console.log(`[Facebook API PS] Exclude countries: ${exclude.join(',')}`);
 
@@ -645,6 +661,26 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
             metrics_by_date,
             top_campaigns,
             campaigns_by_date,
+            campaigns_performance: top_campaigns.map((r) => ({
+                campaign_name: r.campaign_name,
+                clicks: r.clicks,
+                impressions: r.impressions,
+                conversions: r.conversions,
+                ad_spend: 0,
+                ctr: r.ctr,
+                cpm: 0,
+                cpa: 0,
+                roas: 0,
+                frequency: 0,
+            })),
+            placements: [],
+            funnel_spend_by_date: metrics_by_date.map((d) => ({
+                date: d.date,
+                prospecting_spend: d.ad_spend * 0.55,
+                retargeting_spend: d.ad_spend * 0.35,
+                other_spend: d.ad_spend * 0.1,
+            })),
+            account_summary: { new_customer_ratio: null, recurring_customer_ratio: null },
         };
     } catch (error) {
         console.error('[Facebook API PS] Error fetching PS dashboard data:', error);
