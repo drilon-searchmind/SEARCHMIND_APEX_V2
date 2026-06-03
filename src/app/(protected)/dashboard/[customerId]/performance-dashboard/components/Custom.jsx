@@ -29,7 +29,7 @@ import { aggregateShopifyAndAdSpendByPeriodFromRows } from "@/lib/mergeAdSpendDa
 import {
     COMPARISON_METHOD,
     getComparisonMethodLabel,
-    getPrevKeyForChartCategory,
+    resolveChartCategoryPrevKey,
 } from "@/lib/dateRangeComparison";
 
 const METRIC_LABELS = Object.fromEntries(
@@ -541,17 +541,6 @@ export default function Custom({
         const sortedPrevKeys = Object.keys(prevAgg).sort();
         const comparisonLabel = getComparisonMethodLabel(comparisonMethod);
 
-        const getPrevKey = (currKey, idx) =>
-            getPrevKeyForChartCategory({
-                comparisonMethod,
-                currKey,
-                categoryIndex: idx,
-                aggregateBy,
-                appliedStartDate: appliedDateRange.startDate,
-                appliedEndDate: appliedDateRange.endDate,
-                sortedPrevKeys,
-            });
-
         const series = [];
         selectedKpis.forEach((kpiId) => {
             const kpi = kpis.find((k) => k.id === kpiId);
@@ -569,7 +558,15 @@ export default function Custom({
 
             if (comparisonMethod !== COMPARISON_METHOD.NONE) {
                 const prevData = categories.map((k, idx) => {
-                    const prevKey = getPrevKey(k, idx);
+                    const prevKey = resolveChartCategoryPrevKey({
+                        comparisonMethod,
+                        categoryKey: k,
+                        categoryIndex: idx,
+                        aggregateBy,
+                        appliedStartDate: appliedDateRange.startDate,
+                        appliedEndDate: appliedDateRange.endDate,
+                        sortedPrevKeys,
+                    });
                     const v = prevAgg[prevKey];
                     const val = evaluateFormula(kpi, v);
                     return val !== null ? Math.round(Number(val)) : null;

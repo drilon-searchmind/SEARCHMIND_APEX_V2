@@ -38,6 +38,7 @@ import {
     getComparisonPeriodRange,
     getComparisonMethodLabel,
     getPrevKeyForChartCategory,
+    resolveChartCategoryPrevKey,
     COMPARISON_METHOD,
 } from "@/lib/dateRangeComparison";
 import { useShopifyMarketsFilter } from "@/hooks/useShopifyMarketsFilter";
@@ -638,10 +639,10 @@ export default function PerformanceDashboard() {
         const daysInRange = dayjs(appliedDateRange.endDate).diff(dayjs(appliedDateRange.startDate), 'day') + 1;
 
         const sortedPrevKeys = Object.keys(prevAgg).sort();
-        const getPrevKeyForCategory = (currKey, idx) =>
-            getPrevKeyForChartCategory({
+        const getPrevKeyForCategory = (categoryKey, idx) =>
+            resolveChartCategoryPrevKey({
                 comparisonMethod,
-                currKey,
+                categoryKey,
                 categoryIndex: idx,
                 aggregateBy,
                 appliedStartDate: appliedDateRange.startDate,

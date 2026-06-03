@@ -185,9 +185,9 @@ export function resolveDailyComparisonDate({
     sortedPrevKeys = [],
 }) {
     const categoryIndex = dayjs(currentDate).diff(dayjs(appliedStartDate), "day");
-    return getPrevKeyForChartCategory({
+    return resolveChartCategoryPrevKey({
         comparisonMethod,
-        currKey: currentDate,
+        categoryKey: currentDate,
         categoryIndex,
         aggregateBy: "period",
         appliedStartDate,
@@ -255,6 +255,30 @@ export function isValidDateRange(startDate, endDate) {
 export function getComparisonMethodLabel(method) {
     const preset = COMPARE_PRESETS.find((p) => p.method === method);
     return preset?.label ?? method ?? "";
+}
+
+/**
+ * Resolve previous-period chart key from a current category key (explicit API for chart .map callbacks).
+ * Use `categoryKey` (not shorthand `currKey`) to avoid ReferenceError when the loop variable is `k`.
+ */
+export function resolveChartCategoryPrevKey({
+    comparisonMethod,
+    categoryKey,
+    categoryIndex,
+    aggregateBy,
+    appliedStartDate,
+    appliedEndDate,
+    sortedPrevKeys = [],
+}) {
+    return getPrevKeyForChartCategory({
+        comparisonMethod,
+        currKey: categoryKey,
+        categoryIndex,
+        aggregateBy,
+        appliedStartDate,
+        appliedEndDate,
+        sortedPrevKeys,
+    });
 }
 
 /**
