@@ -26,6 +26,8 @@ import { buildParentDailyRows } from "./utils/buildParentDailyRows";
 import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
 import { buildParentShopifyMarketOverridesJson, buildParentAdSpendPlatformOverridesJson } from "@/lib/parentPropertyShopifyMarketOverrides";
 import { normalizeMongoId } from "@/lib/parentPropertyGoogleAdsCampaignOverrides";
+import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
+import { COMPARISON_METHOD } from "@/lib/dateRangeComparison";
 import { normalizeGoogleAdsCampaignId } from "@/lib/googleAdsCampaignIdUtils";
 import { normalizeMetaAdsCampaignId } from "@/lib/metaAdsCampaignIdUtils";
 import { normalizeCampaignNameKeywords } from "@/lib/adCampaignFilterUtils";
@@ -405,30 +407,17 @@ export default function ParentPropertyHome() {
         });
     }, [childCustomers]);
 
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    // First day of month as start; end = yesterday (unless 1st of month, then 1st as end too)
-    const isFirstOfMonth = today.getDate() === 1;
-    const defaultStart = `${yyyy}-${mm}-01`;
-    const defaultEnd = isFirstOfMonth ? `${yyyy}-${mm}-01` : `${yyyy}-${mm}-${String(today.getDate() - 1).padStart(2, "0")}`;
-    const [tempDateRange, setTempDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
-    const [appliedDateRange, setAppliedDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
-
-    // Comparison method: applied (triggers fetch) vs temp (picker until Apply)
-    const [comparisonMethod, setComparisonMethod] = useState("Last Year");
-    const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Year");
-    // Handlers for DateRangePicker (controlled) - comparison only applies on Apply
-    const handleDateRangeApply = ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
-        setAppliedDateRange({ startDate, endDate });
-        if (appliedComparison) setComparisonMethod(appliedComparison);
-    };
-    const handleStartDateChange = (newStart) => {
-        setTempDateRange(dr => ({ ...dr, startDate: newStart }));
-    };
-    const handleEndDateChange = (newEnd) => {
-        setTempDateRange(dr => ({ ...dr, endDate: newEnd }));
-    };
+    const {
+        tempDateRange,
+        appliedDateRange,
+        appliedCompareRange,
+        comparisonMethod,
+        tempComparisonMethod,
+        dateRangePickerProps,
+        handleDateRangeApply,
+        handleStartDateChange,
+        handleEndDateChange,
+    } = useDashboardDateRange();
 
     // Helper for percent change
     function percentChange(current, prev) {
@@ -677,7 +666,13 @@ export default function ParentPropertyHome() {
         (async () => {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-                const url = `${baseUrl}/api/parent-customers/${parentCustomerId}/aggregated?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&comparisonMethod=${encodeURIComponent(comparisonMethod)}&stream=1${parentAggregatedQueryExtras}`;
+                const customCompareQs =
+                    comparisonMethod === COMPARISON_METHOD.CUSTOM &&
+                    appliedCompareRange.startDate &&
+                    appliedCompareRange.endDate
+                        ? `&compareStartDate=${encodeURIComponent(appliedCompareRange.startDate)}&compareEndDate=${encodeURIComponent(appliedCompareRange.endDate)}`
+                        : "";
+                const url = `${baseUrl}/api/parent-customers/${parentCustomerId}/aggregated?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&comparisonMethod=${encodeURIComponent(comparisonMethod)}${customCompareQs}&stream=1${parentAggregatedQueryExtras}`;
                 const res = await fetch(url, { signal: abortController.signal });
                 if (!res.ok) throw new Error("Failed to fetch parent property data");
                 if (!res.body) throw new Error("Streaming not supported");
@@ -774,6 +769,7 @@ export default function ParentPropertyHome() {
     }, [
         parentCustomerId,
         appliedDateRange,
+        appliedCompareRange,
         comparisonMethod,
         parentAggregatedQueryExtras,
         campaignFilterRevision,
@@ -1044,7 +1040,7 @@ export default function ParentPropertyHome() {
         tempDateRange,
         comparisonMethod,
         tempComparisonMethod,
-        setTempComparisonMethod,
+        dateRangePickerProps,
         predominantMetricPreference,
         shopifyRevenueField,
         loading,
@@ -1115,17 +1111,7 @@ export default function ParentPropertyHome() {
                 dashboardType="parent-property"
                 dataSnapshot={{ metrics, metricsPrev, tableRows: filteredTableRows, dailyChartData: filteredDailyData, predominantMetricPreference }}
                 right={
-                    <DateRangePicker
-                        startDate={tempDateRange.startDate}
-                        endDate={tempDateRange.endDate}
-                        onStartDateChange={handleStartDateChange}
-                        onEndDateChange={handleEndDateChange}
-                        onApply={handleDateRangeApply}
-                        loading={pageBusy}
-                        showComparisonMethodToggler={true}
-                        comparisonMethod={tempComparisonMethod}
-                        onComparisonMethodChange={setTempComparisonMethod}
-                    />
+                    <DateRangePicker {...dateRangePickerProps} loading={pageBusy} />
                 }
                 comparisonMethod={comparisonMethod}
             />

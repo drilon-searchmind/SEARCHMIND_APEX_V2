@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import dayjs from "dayjs";
 import { totalAdSpendFromMerged, channelSpendTotalsFromMerged, adSpendChannelsForSpendTotals, adSpendChannelsForShopifyMarketsFilterUi } from "@/lib/mergeAdSpendDaily";
+import { formatComparisonPeriodDates } from "@/lib/dateRangeComparison";
 
 /**
  * Fetches merged data (current + previous period) and computes all P&L metrics.
@@ -16,7 +16,8 @@ export function usePnlData(
     appliedDateRange,
     comparisonMethod,
     mergedSourcesQuerySuffix = "",
-    pnlMarketsSpend = null
+    pnlMarketsSpend = null,
+    appliedCompareRange = { startDate: "", endDate: "" }
 ) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -37,39 +38,44 @@ export function usePnlData(
         (async () => {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-                const startDay = dayjs(appliedDateRange.startDate);
-                const endDay = dayjs(appliedDateRange.endDate);
-                const periodDays = endDay.diff(startDay, "day") + 1;
+                const compDates = formatComparisonPeriodDates({
+                    comparisonMethod,
+                    startDate: appliedDateRange.startDate,
+                    endDate: appliedDateRange.endDate,
+                    compareStartDate: appliedCompareRange.startDate,
+                    compareEndDate: appliedCompareRange.endDate,
+                });
 
-                let prevStart, prevEnd;
-                if (comparisonMethod === "Last Year") {
-                    prevStart = startDay.subtract(1, "year");
-                    prevEnd = endDay.subtract(1, "year");
-                } else {
-                    prevEnd = startDay.subtract(1, "day");
-                    prevStart = prevEnd.subtract(periodDays - 1, "day");
-                }
-
-                const [res, resPrev] = await Promise.all([
+                const fetches = [
                     fetch(
                         `${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&source=pnl${mergedSourcesQuerySuffix}`
                     ),
-                    fetch(
-                        `${baseUrl}/api/merged-sources/${customer._id}?startDate=${prevStart.format("YYYY-MM-DD")}&endDate=${prevEnd.format("YYYY-MM-DD")}&source=pnl${mergedSourcesQuerySuffix}`
-                    ),
-                ]);
-                if (!res.ok || !resPrev.ok) throw new Error("Failed to fetch merged data");
+                ];
+                if (!compDates.skip && compDates.startDate && compDates.endDate) {
+                    fetches.push(
+                        fetch(
+                            `${baseUrl}/api/merged-sources/${customer._id}?startDate=${compDates.startDate}&endDate=${compDates.endDate}&source=pnl${mergedSourcesQuerySuffix}`
+                        )
+                    );
+                }
+                const results = await Promise.all(fetches);
+                const res = results[0];
+                const resPrev = results[1];
+                if (!res.ok) throw new Error("Failed to fetch merged data");
                 const mergedData = await res.json();
-                const mergedPrevData = await resPrev.json();
                 setMerged(mergedData);
-                setMergedPrev(mergedPrevData);
+                if (resPrev?.ok) {
+                    setMergedPrev(await resPrev.json());
+                } else {
+                    setMergedPrev(null);
+                }
             } catch (err) {
                 setError(err?.message || "Failed to fetch");
             } finally {
                 setLoading(false);
             }
         })();
-    }, [customer, appliedDateRange, comparisonMethod, mergedSourcesQuerySuffix]);
+    }, [customer, appliedDateRange, appliedCompareRange, comparisonMethod, mergedSourcesQuerySuffix]);
 
     let channelSpendTotals = {};
     let channelSpendTotalsPrev = {};

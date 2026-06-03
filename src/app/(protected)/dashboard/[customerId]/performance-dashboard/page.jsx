@@ -33,6 +33,13 @@ import { computePerformanceDashboardMetrics, netRevenueForShopifyDay } from "@/l
 import { getReturnsOverrideSettings } from "@/lib/performanceDashboard/performanceDashboardConstants";
 import { netRevenueFromGrossDiscountsReturns } from "@/lib/performanceDashboard/computePerformanceMetrics";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
+import {
+    getDefaultDashboardDateRange,
+    getComparisonPeriodRange,
+    getComparisonMethodLabel,
+    getPrevKeyForChartCategory,
+    COMPARISON_METHOD,
+} from "@/lib/dateRangeComparison";
 import { useShopifyMarketsFilter } from "@/hooks/useShopifyMarketsFilter";
 import { useAdSpendPlatformsFilter } from "@/hooks/useAdSpendPlatformsFilter";
 import {
@@ -49,23 +56,44 @@ export default function PerformanceDashboard() {
     const { customers, updateCustomer } = useCustomers();
     const customer = customers.find(c => c._id === params.customerId);
 
-    // Date range state
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const defaultRange = getDefaultDashboardDateRange();
 
-    // If today is the 1st of the month, use 1st as both start and end
-    // Otherwise, use 1st as start and yesterday as end
-    const isFirstOfMonth = today.getDate() === 1;
-    const defaultStart = `${yyyy}-${mm}-01`;
-    const defaultEnd = isFirstOfMonth ? `${yyyy}-${mm}-01` : `${yyyy}-${mm}-${String(today.getDate() - 1).padStart(2, '0')}`;
-    
     // Separate temp (input) and applied (fetch-triggered) date ranges
-    const [tempDateRange, setTempDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
-    const [appliedDateRange, setAppliedDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
+    const [tempDateRange, setTempDateRange] = useState({
+        startDate: defaultRange.startDate,
+        endDate: defaultRange.endDate,
+    });
+    const [appliedDateRange, setAppliedDateRange] = useState({
+        startDate: defaultRange.startDate,
+        endDate: defaultRange.endDate,
+    });
+    const [tempCompareRange, setTempCompareRange] = useState({
+        startDate: "",
+        endDate: "",
+    });
+    const [appliedCompareRange, setAppliedCompareRange] = useState({
+        startDate: "",
+        endDate: "",
+    });
+
+    // Comparison method: applied (triggers fetch) vs temp (shown in picker until Apply)
+    const [comparisonMethod, setComparisonMethod] = useState(COMPARISON_METHOD.LAST_YEAR);
+    const [tempComparisonMethod, setTempComparisonMethod] = useState(
+        COMPARISON_METHOD.LAST_YEAR
+    );
+
+    const comparisonLabel = getComparisonMethodLabel(comparisonMethod);
+    const comparisonMethodForUi =
+        comparisonMethod === COMPARISON_METHOD.NONE ? null : comparisonMethod;
 
     // Handlers for DateRangePicker (controlled) - comparison only applies on Apply
-    const handleDateRangeApply = ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
+    const handleDateRangeApply = ({
+        startDate,
+        endDate,
+        comparisonMethod: appliedComparison,
+        compareStartDate,
+        compareEndDate,
+    }) => {
         pushDashboardDateRangeApplied({
             page: "performance_dashboard",
             customerId: params.customerId,
@@ -75,6 +103,14 @@ export default function PerformanceDashboard() {
         });
         setAppliedDateRange({ startDate, endDate });
         if (appliedComparison) setComparisonMethod(appliedComparison);
+        if (compareStartDate && compareEndDate) {
+            setAppliedCompareRange({
+                startDate: compareStartDate,
+                endDate: compareEndDate,
+            });
+        } else {
+            setAppliedCompareRange({ startDate: "", endDate: "" });
+        }
     };
     const handleStartDateChange = (newStart) => {
         setTempDateRange(dr => ({ ...dr, startDate: newStart }));
@@ -82,10 +118,12 @@ export default function PerformanceDashboard() {
     const handleEndDateChange = (newEnd) => {
         setTempDateRange(dr => ({ ...dr, endDate: newEnd }));
     };
-
-    // Comparison method: applied (triggers fetch) vs temp (shown in picker until Apply)
-    const [comparisonMethod, setComparisonMethod] = useState("Last Year");
-    const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Year");
+    const handleCompareStartChange = (newStart) => {
+        setTempCompareRange((r) => ({ ...r, startDate: newStart }));
+    };
+    const handleCompareEndChange = (newEnd) => {
+        setTempCompareRange((r) => ({ ...r, endDate: newEnd }));
+    };
 
     const {
         shopifyMarketsFeatureOn,
@@ -213,26 +251,36 @@ export default function PerformanceDashboard() {
         (async () => {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-                const start = dayjs(appliedDateRange.startDate);
-                const end = dayjs(appliedDateRange.endDate);
-                const days = end.diff(start, 'day') + 1;
+                const comp = getComparisonPeriodRange({
+                    comparisonMethod,
+                    startDate: appliedDateRange.startDate,
+                    endDate: appliedDateRange.endDate,
+                    compareStartDate: appliedCompareRange.startDate,
+                    compareEndDate: appliedCompareRange.endDate,
+                });
 
-                let prevStart, prevEnd;
-                if (comparisonMethod === "Last Year") {
-                    prevStart = start.subtract(1, 'year');
-                    prevEnd = end.subtract(1, 'year');
-                } else {
-                    prevEnd = start.subtract(1, 'day');
-                    prevStart = prevEnd.subtract(days - 1, 'day');
-                }
-
-                const [res, resPrev] = await Promise.all([
-                    fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&source=performance-dashboard${mergedSourcesQuerySuffix}`),
-                    fetch(`${baseUrl}/api/merged-sources/${customer._id}?startDate=${prevStart.format('YYYY-MM-DD')}&endDate=${prevEnd.format('YYYY-MM-DD')}&source=performance-dashboard${mergedSourcesQuerySuffix}`)
-                ]);
-                if (!res.ok || !resPrev.ok) throw new Error('Failed to fetch merged data');
+                const res = await fetch(
+                    `${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&source=performance-dashboard${mergedSourcesQuerySuffix}`
+                );
+                if (!res.ok) throw new Error("Failed to fetch merged data");
                 const merged = await res.json();
-                const mergedPrev = await resPrev.json();
+
+                let mergedPrev = {
+                    shopifyDaily: [],
+                    facebookDaily: [],
+                    googleDaily: [],
+                    pinterestDaily: [],
+                    snapchatDaily: [],
+                    bingDaily: [],
+                    redditDaily: [],
+                };
+                if (!comp.skip && comp.prevStart && comp.prevEnd) {
+                    const resPrev = await fetch(
+                        `${baseUrl}/api/merged-sources/${customer._id}?startDate=${comp.prevStart.format("YYYY-MM-DD")}&endDate=${comp.prevEnd.format("YYYY-MM-DD")}&source=performance-dashboard${mergedSourcesQuerySuffix}`
+                    );
+                    if (!resPrev.ok) throw new Error("Failed to fetch comparison period data");
+                    mergedPrev = await resPrev.json();
+                }
                 setMerged(merged);
                 setMergedPrev(mergedPrev);
                 // Save daily arrays for charts
@@ -262,7 +310,14 @@ export default function PerformanceDashboard() {
                 setLoading(false);
             }
         })();
-    }, [customer, appliedDateRange, comparisonMethod, mergedSourcesQuerySuffix, mergedDataRefreshKey]);
+    }, [
+        customer,
+        appliedDateRange,
+        appliedCompareRange,
+        comparisonMethod,
+        mergedSourcesQuerySuffix,
+        mergedDataRefreshKey,
+    ]);
 
     useEffect(() => {
         const customerId = params?.customerId;
@@ -397,8 +452,21 @@ export default function PerformanceDashboard() {
             return total;
         };
         const fixedCosts = calcFixedForRange(start, end);
-        const prevPeriodEnd = comparisonMethod === "Last Year" ? end.subtract(1, 'year') : start.subtract(1, 'day');
-        const prevPeriodStart = prevPeriodEnd.subtract(daysInRange - 1, 'day');
+        const compRange = getComparisonPeriodRange({
+            comparisonMethod,
+            startDate: appliedDateRange.startDate,
+            endDate: appliedDateRange.endDate,
+            compareStartDate: appliedCompareRange.startDate,
+            compareEndDate: appliedCompareRange.endDate,
+        });
+        const prevPeriodStart = compRange.prevStart
+            ? compRange.prevStart.format("YYYY-MM-DD")
+            : start.subtract(1, "day").format("YYYY-MM-DD");
+        const prevPeriodEnd = compRange.prevEnd
+            ? compRange.prevEnd.format("YYYY-MM-DD")
+            : prevPeriodStart;
+        const prevDaysInRange =
+            dayjs(prevPeriodEnd).diff(dayjs(prevPeriodStart), "day") + 1;
         const fixedCostsPrev = calcFixedForRange(prevPeriodStart, prevPeriodEnd);
 
         const cogsPercentage = customer?.CustomerStaticExpenses?.cogsPercentage || 0;
@@ -426,7 +494,7 @@ export default function PerformanceDashboard() {
             fixedCostsPrev,
             customKpis,
             daysInRange,
-            prevDaysInRange: daysInRange,
+            prevDaysInRange,
         });
 
         const {
@@ -459,14 +527,23 @@ export default function PerformanceDashboard() {
             daysInRange,
             rangeStart: appliedDateRange.startDate,
             rangeEnd: appliedDateRange.endDate,
-            prevRangeStart: prevPeriodStart.format("YYYY-MM-DD"),
-            prevRangeEnd: prevPeriodEnd.format("YYYY-MM-DD"),
+            prevRangeStart: prevPeriodStart,
+            prevRangeEnd: prevPeriodEnd,
             customerType: customer?.customerType || "Shopify",
         });
 
         setMetrics(metricsArray);
         setMetricsData(mdOut);
-    }, [customer, appliedDateRange, comparisonMethod, merged, mergedPrev, visibleAdSpendChannels, customKpis]);
+    }, [
+        customer,
+        appliedDateRange,
+        appliedCompareRange,
+        comparisonMethod,
+        merged,
+        mergedPrev,
+        visibleAdSpendChannels,
+        customKpis,
+    ]);
 
     // Chart color palette from CSS variables
     const [chartColors, setChartColors] = useState({});
@@ -560,24 +637,17 @@ export default function PerformanceDashboard() {
         // days/months count in applied range
         const daysInRange = dayjs(appliedDateRange.endDate).diff(dayjs(appliedDateRange.startDate), 'day') + 1;
 
-        const getPrevKeyForCategory = (currKey, idx) => {
-            if (aggregateBy === 'monthly') {
-                if (comparisonMethod === 'Last Year') {
-                    return dayjs(currKey + '-01').subtract(1, 'year').format('YYYY-MM');
-                }
-                // Last Period: map months by index relative to previous contiguous month block
-                const periodStartMonth = dayjs(appliedDateRange.startDate).startOf('month');
-                const prevPeriodEnd = periodStartMonth.subtract(1, 'day').endOf('month');
-                const prevPeriodStart = prevPeriodEnd.startOf('month');
-                return prevPeriodStart.add(idx, 'month').format('YYYY-MM');
-            }
-            // daily
-            if (comparisonMethod === 'Last Year') {
-                return dayjs(currKey).subtract(1, 'year').format('YYYY-MM-DD');
-            }
-            const prevStart = dayjs(appliedDateRange.startDate).subtract(daysInRange, 'day');
-            return prevStart.add(idx, 'day').format('YYYY-MM-DD');
-        };
+        const sortedPrevKeys = Object.keys(prevAgg).sort();
+        const getPrevKeyForCategory = (currKey, idx) =>
+            getPrevKeyForChartCategory({
+                comparisonMethod,
+                currKey,
+                categoryIndex: idx,
+                aggregateBy,
+                appliedStartDate: appliedDateRange.startDate,
+                appliedEndDate: appliedDateRange.endDate,
+                sortedPrevKeys,
+            });
 
         const staticExp = customer?.CustomerStaticExpenses || {};
         const fixedBase = getMonthlyFixedExpensesTotal(staticExp);
@@ -635,7 +705,12 @@ export default function PerformanceDashboard() {
                         return v ? Number((v[field] || 0).toFixed(0)) : null;
                     });
                     series.push({ name: `${spec.label} (Current)`, data: currData });
-                    series.push({ name: `${spec.label} (${comparisonMethod})`, data: prevData });
+                    if (comparisonMethod !== COMPARISON_METHOD.NONE) {
+                        series.push({
+                            name: `${spec.label} (${comparisonLabel})`,
+                            data: prevData,
+                        });
+                    }
                 }
                 return;
             }
@@ -752,7 +827,12 @@ export default function PerformanceDashboard() {
                 return null;
             });
 
-            series.push({ name: `${METRIC_OPTIONS.find(o=>o.key===metric)?.label || metric} (${comparisonMethod})`, data: prevData });
+            if (comparisonMethod !== COMPARISON_METHOD.NONE) {
+                series.push({
+                    name: `${METRIC_OPTIONS.find((o) => o.key === metric)?.label || metric} (${comparisonLabel})`,
+                    data: prevData,
+                });
+            }
         });
 
         const formatChartValue = (v) => (typeof v === 'number' && !isNaN(v) ? v.toLocaleString('da-DK', { maximumFractionDigits: 2, minimumFractionDigits: 0 }) : v);
@@ -784,8 +864,31 @@ export default function PerformanceDashboard() {
     // Revenue chart
     const revenueCategories = shopifyDaily.map(d => d.period);
     const revenueSeries = [
-        { name: 'Revenue (Current)', data: shopifyDaily.map(d => Number(d.total_sales).toFixed(0)) },
-        { name: `Revenue (${comparisonMethod})`, data: shopifyDailyPrev.map(d => Number(d.total_sales).toFixed(0)) }
+        { name: "Revenue (Current)", data: shopifyDaily.map((d) => Number(d.total_sales).toFixed(0)) },
+        ...(comparisonMethod !== COMPARISON_METHOD.NONE
+            ? [
+                  {
+                      name: `Revenue (${comparisonLabel})`,
+                      data: shopifyDaily.map((d, idx) => {
+                          const prevKey = getPrevKeyForChartCategory({
+                              comparisonMethod,
+                              currKey: d.period,
+                              categoryIndex: idx,
+                              aggregateBy: "period",
+                              appliedStartDate: appliedDateRange.startDate,
+                              appliedEndDate: appliedDateRange.endDate,
+                              sortedPrevKeys: shopifyDailyPrev.map((p) => p.period).sort(),
+                          });
+                          const prevRow = shopifyDailyPrev.find(
+                              (p) => p.period === prevKey
+                          );
+                          return prevRow
+                              ? Number(prevRow.total_sales).toFixed(0)
+                              : null;
+                      }),
+                  },
+              ]
+            : []),
     ];
     const revenueOptions = {
         chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
@@ -800,19 +903,20 @@ export default function PerformanceDashboard() {
         legend: { show: true, position: 'top', labels: { colors: chartColors.primary || '#1E2B2B' } },
     };
 
+    const shopifyPrevPeriodKeys = shopifyDailyPrev.map((p) => p.period).sort();
+    const resolveComparisonPeriodKey = (period, index) =>
+        getPrevKeyForChartCategory({
+            comparisonMethod,
+            currKey: period,
+            categoryIndex: index,
+            aggregateBy: "period",
+            appliedStartDate: appliedDateRange.startDate,
+            appliedEndDate: appliedDateRange.endDate,
+            sortedPrevKeys: shopifyPrevPeriodKeys,
+        });
+
     // Spend Allocation chart — daily spend by platform (current + comparison period)
     const spendCategories = shopifyDaily.map((d) => d.period);
-    const resolveSpendPrevDate = (date) => {
-        if (comparisonMethod === "Last Year") {
-            return dayjs(date).subtract(1, "year").format("YYYY-MM-DD");
-        }
-        const currentDate = dayjs(date);
-        const periodStart = dayjs(appliedDateRange.startDate);
-        const periodEnd = dayjs(appliedDateRange.endDate);
-        const daysDiff = currentDate.diff(periodStart, "day");
-        const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, "day") + 1, "day");
-        return prevPeriodStart.add(daysDiff, "day").format("YYYY-MM-DD");
-    };
     const spendAllocationSeries = [];
     for (const spec of visibleAdSpendChannels) {
         const rowsCurr = channelRowsCurr[spec.id] || [];
@@ -822,12 +926,19 @@ export default function PerformanceDashboard() {
         const curSeries = spendCategories.map((date) =>
             mapCurr[date] ? Number(mapCurr[date]).toFixed(0) : "0"
         );
-        const prevSeries = spendCategories.map((date) => {
-            const prevDate = resolveSpendPrevDate(date);
-            return mapPrev[prevDate] ? Number(mapPrev[prevDate]).toFixed(0) : "0";
+        const prevSeries = spendCategories.map((date, idx) => {
+            const prevDate = resolveComparisonPeriodKey(date, idx);
+            return prevDate && mapPrev[prevDate]
+                ? Number(mapPrev[prevDate]).toFixed(0)
+                : "0";
         });
         spendAllocationSeries.push({ name: `${spec.label} (Current)`, data: curSeries });
-        spendAllocationSeries.push({ name: `${spec.label} (${comparisonMethod})`, data: prevSeries });
+        if (comparisonMethod !== COMPARISON_METHOD.NONE) {
+            spendAllocationSeries.push({
+                name: `${spec.label} (${comparisonLabel})`,
+                data: prevSeries,
+            });
+        }
     }
     const spendDashPattern = spendAllocationSeries.map((s) => (String(s.name).includes("(Current)") ? 0 : 5));
     const spendStrokeWidth = spendAllocationSeries.map((s) => (String(s.name).includes("(Current)") ? 2 : 1));
@@ -891,29 +1002,30 @@ export default function PerformanceDashboard() {
                     return d.total_sales > 0 ? ((spend / d.total_sales) * 100).toFixed(0) : null;
                 })
             },
-            {
-                name: `Spendshare (${comparisonMethod})`,
-                data: shopifyDaily.map((d, i) => {
-                    let prevDate;
-                    if (comparisonMethod === "Last Year") {
-                        const currentDate = dayjs(d.period);
-                        prevDate = currentDate.subtract(1, 'year').format('YYYY-MM-DD');
-                    } else {
-                        const currentDate = dayjs(d.period);
-                        const periodStart = dayjs(appliedDateRange.startDate);
-                        const periodEnd = dayjs(appliedDateRange.endDate);
-                        const daysDiff = currentDate.diff(periodStart, 'day');
-                        const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, 'day') + 1, 'day');
-                        prevDate = prevPeriodStart.add(daysDiff, 'day').format('YYYY-MM-DD');
-                    }
-
-                    // Find corresponding previous period data
-                    const prevShopifyData = shopifyDailyPrev.find(pd => pd.period === prevDate);
-                    const prevSpend = spendOnDay(totalSpendByDayPrev, prevDate);
-
-                    return prevShopifyData && prevShopifyData.total_sales > 0 ? ((prevSpend / prevShopifyData.total_sales) * 100).toFixed(0) : null;
-                })
-            }
+            ...(comparisonMethod !== COMPARISON_METHOD.NONE
+                ? [
+                      {
+                          name: `Spendshare (${comparisonLabel})`,
+                          data: shopifyDaily.map((d, i) => {
+                              const prevDate = resolveComparisonPeriodKey(d.period, i);
+                              const prevShopifyData = shopifyDailyPrev.find(
+                                  (pd) => pd.period === prevDate
+                              );
+                              const prevSpend = spendOnDay(
+                                  totalSpendByDayPrev,
+                                  prevDate
+                              );
+                              return prevShopifyData &&
+                                  prevShopifyData.total_sales > 0
+                                  ? (
+                                        (prevSpend / prevShopifyData.total_sales) *
+                                        100
+                                    ).toFixed(0)
+                                  : null;
+                          }),
+                      },
+                  ]
+                : []),
         ];
         metricTitle = 'Spendshare (%)';
     } else {
@@ -927,29 +1039,31 @@ export default function PerformanceDashboard() {
                     return spend > 0 ? ( (Number(d.net_sales || d.total_sales) / spend) ).toFixed(2) : null;
                 })
             },
-            {
-                name: `${roasLabel} (${comparisonMethod})`,
-                data: shopifyDaily.map((d, i) => {
-                    let prevDate;
-                    if (comparisonMethod === "Last Year") {
-                        const currentDate = dayjs(d.period);
-                        prevDate = currentDate.subtract(1, 'year').format('YYYY-MM-DD');
-                    } else {
-                        const currentDate = dayjs(d.period);
-                        const periodStart = dayjs(appliedDateRange.startDate);
-                        const periodEnd = dayjs(appliedDateRange.endDate);
-                        const daysDiff = currentDate.diff(periodStart, 'day');
-                        const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, 'day') + 1, 'day');
-                        prevDate = prevPeriodStart.add(daysDiff, 'day').format('YYYY-MM-DD');
-                    }
-
-                    // Find corresponding previous period data
-                    const prevShopifyData = shopifyDailyPrev.find(pd => pd.period === prevDate);
-                    const prevSpend = spendOnDay(totalSpendByDayPrev, prevDate);
-
-                    return prevShopifyData && prevSpend > 0 ? ( (Number(prevShopifyData.net_sales || prevShopifyData.total_sales) / prevSpend) ).toFixed(2) : null;
-                })
-            }
+            ...(comparisonMethod !== COMPARISON_METHOD.NONE
+                ? [
+                      {
+                          name: `${roasLabel} (${comparisonLabel})`,
+                          data: shopifyDaily.map((d, i) => {
+                              const prevDate = resolveComparisonPeriodKey(d.period, i);
+                              const prevShopifyData = shopifyDailyPrev.find(
+                                  (pd) => pd.period === prevDate
+                              );
+                              const prevSpend = spendOnDay(
+                                  totalSpendByDayPrev,
+                                  prevDate
+                              );
+                              return prevShopifyData && prevSpend > 0
+                                  ? (
+                                        Number(
+                                            prevShopifyData.net_sales ||
+                                                prevShopifyData.total_sales
+                                        ) / prevSpend
+                                    ).toFixed(2)
+                                  : null;
+                          }),
+                      },
+                  ]
+                : []),
         ];
         metricTitle = roasLabel;
     }
@@ -971,30 +1085,34 @@ export default function PerformanceDashboard() {
     const aovCategories = shopifyDaily.map(d => d.period);
     const aovSeries = [
         {
-            name: 'Net AOV (Current)',
-            data: shopifyDaily.map(d => d.orders > 0 ? ((Number(d.net_sales || d.total_sales) / d.orders)).toFixed(0) : null)
+            name: "Net AOV (Current)",
+            data: shopifyDaily.map((d) =>
+                d.orders > 0
+                    ? (Number(d.net_sales || d.total_sales) / d.orders).toFixed(0)
+                    : null
+            ),
         },
-        {
-            name: `Net AOV (${comparisonMethod})`,
-            data: shopifyDaily.map((d, i) => {
-                let prevDate;
-                if (comparisonMethod === "Last Year") {
-                    const currentDate = dayjs(d.period);
-                    prevDate = currentDate.subtract(1, 'year').format('YYYY-MM-DD');
-                } else {
-                    const currentDate = dayjs(d.period);
-                    const periodStart = dayjs(appliedDateRange.startDate);
-                    const periodEnd = dayjs(appliedDateRange.endDate);
-                    const daysDiff = currentDate.diff(periodStart, 'day');
-                    const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, 'day') + 1, 'day');
-                    prevDate = prevPeriodStart.add(daysDiff, 'day').format('YYYY-MM-DD');
-                }
-
-                // Find corresponding previous period data
-                const prevShopifyData = shopifyDailyPrev.find(pd => pd.period === prevDate);
-                return prevShopifyData && prevShopifyData.orders > 0 ? ((Number(prevShopifyData.net_sales || prevShopifyData.total_sales) / prevShopifyData.orders)).toFixed(0) : null;
-            })
-        }
+        ...(comparisonMethod !== COMPARISON_METHOD.NONE
+            ? [
+                  {
+                      name: `Net AOV (${comparisonLabel})`,
+                      data: shopifyDaily.map((d, i) => {
+                          const prevDate = resolveComparisonPeriodKey(d.period, i);
+                          const prevShopifyData = shopifyDailyPrev.find(
+                              (pd) => pd.period === prevDate
+                          );
+                          return prevShopifyData && prevShopifyData.orders > 0
+                              ? (
+                                    Number(
+                                        prevShopifyData.net_sales ||
+                                            prevShopifyData.total_sales
+                                    ) / prevShopifyData.orders
+                                ).toFixed(0)
+                              : null;
+                      }),
+                  },
+              ]
+            : []),
     ];
     const aovOptions = {
         chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
@@ -1078,6 +1196,10 @@ export default function PerformanceDashboard() {
                         endDate={tempDateRange.endDate}
                         onStartDateChange={handleStartDateChange}
                         onEndDateChange={handleEndDateChange}
+                        compareStartDate={tempCompareRange.startDate}
+                        compareEndDate={tempCompareRange.endDate}
+                        onCompareStartDateChange={handleCompareStartChange}
+                        onCompareEndDateChange={handleCompareEndChange}
                         loading={loading}
                         showComparisonMethodToggler={true}
                         comparisonMethod={tempComparisonMethod}
@@ -1125,7 +1247,7 @@ export default function PerformanceDashboard() {
                     loading={loading}
                     error={error}
                     showCalcs={showCalcs}
-                    comparisonMethod={comparisonMethod}
+                    comparisonMethod={comparisonMethodForUi}
                     selectedMetrics={selectedMetrics}
                     onToggleMetric={toggleMetricSelection}
                     onReturnsOverrideClick={() => setReturnsOverrideModalOpen(true)}
@@ -1146,7 +1268,7 @@ export default function PerformanceDashboard() {
                     adChannelRowsCurr={channelRowsCurr}
                     adChannelRowsPrev={channelRowsPrev}
                     appliedDateRange={appliedDateRange}
-                    comparisonMethod={comparisonMethod}
+                    comparisonMethod={comparisonMethodForUi}
                     aggregateBy={aggregateBy}
                     chartColors={chartColors}
                     visibleSpendMetricKeys={visibleSpendMetricKeys}
@@ -1201,7 +1323,7 @@ export default function PerformanceDashboard() {
                                         changeType={metric.changeType}
                                         changeAbsolute={metric.changeAbsolute}
                                         changePrevValue={metric.changePrevValue}
-                                        comparisonMethod={comparisonMethod}
+                                        comparisonMethod={comparisonMethodForUi}
                                         popOverContent={metric.popOverContent}
                                         icon={metric.icon}
                                         isActive={selectedMetrics.includes(metric.key)}

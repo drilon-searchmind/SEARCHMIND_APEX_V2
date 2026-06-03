@@ -13,8 +13,13 @@ import { FiDollarSign, FiTrendingUp, FiBarChart2, FiPieChart, FiShoppingCart, Fi
 // Remove direct import, will use API route
 import { useCustomers } from "@/hooks/useCustomers";
 // import { fetchFacebookAdsPSDashboardMetrics } from "@/lib/facebookApi";
-import dayjs from "dayjs";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
+import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
+import {
+    formatComparisonPeriodDates,
+    resolveDailyComparisonDate,
+    COMPARISON_METHOD,
+} from "@/lib/dateRangeComparison";
 
 const METRIC_OPTIONS = [
     { key: "conversion_value", label: "Conv. Value", icon: FiDollarSign },
@@ -56,42 +61,26 @@ export default function FacebookPSPage() {
     const { customers } = useCustomers();
     const customer = customers.find((c) => c._id === params.customerId);
 
-    // Date range state
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-
-    // If today is the 1st of the month, use 1st as both start and end
-    // Otherwise, use 1st as start and yesterday as end
-    const isFirstOfMonth = today.getDate() === 1;
-    const defaultStart = `${yyyy}-${mm}-01`;
-    const defaultEnd = isFirstOfMonth ? `${yyyy}-${mm}-01` : `${yyyy}-${mm}-${String(today.getDate() - 1).padStart(2, '0')}`;
-    const defaultRangeValue = { startDate: defaultStart, endDate: defaultEnd };
-    const [tempRange, setTempRange] = useState(defaultRangeValue);
-    const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
-
-    // Handlers for DateRangePicker (controlled) - comparison only applies on Apply
-    const handleDateRangeApply = ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
-        pushDashboardDateRangeApplied({
-            page: "service_dashboard_paid_social",
-            customerId: params.customerId,
-            startDate,
-            endDate,
-            comparisonMethod: appliedComparison,
-        });
-        setAppliedRange({ startDate, endDate });
-        if (appliedComparison) setComparisonMethod(appliedComparison);
-    };
-    const handleStartDateChange = (newStart) => {
-        setTempRange((dr) => ({ ...dr, startDate: newStart }));
-    };
-    const handleEndDateChange = (newEnd) => {
-        setTempRange((dr) => ({ ...dr, endDate: newEnd }));
-    };
-
-    // Comparison method: applied (triggers fetch) vs temp (picker until Apply)
-    const [comparisonMethod, setComparisonMethod] = useState("Last Year");
-    const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Year");
+    const {
+        tempDateRange: tempRange,
+        setTempDateRange: setTempRange,
+        appliedDateRange: appliedRange,
+        setAppliedDateRange: setAppliedRange,
+        appliedCompareRange,
+        comparisonMethod,
+        comparisonLabel,
+        dateRangePickerProps,
+    } = useDashboardDateRange({
+        onApply: ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
+            pushDashboardDateRangeApplied({
+                page: "service_dashboard_paid_social",
+                customerId: params.customerId,
+                startDate,
+                endDate,
+                comparisonMethod: appliedComparison,
+            });
+        },
+    });
 
     // Facebook data state
     const [fbMetricsByDate, setFbMetricsByDate] = useState([]);
@@ -186,21 +175,13 @@ export default function FacebookPSPage() {
                 if (!facebookAdAccountId) throw new Error("Missing Facebook Ad Account ID");
                 const adAccountId = facebookAdAccountId.startsWith("act_") ? facebookAdAccountId : `act_${facebookAdAccountId}`;
 
-                // Calculate previous period based on comparisonMethod
-                const start = dayjs(appliedRange.startDate);
-                const end = dayjs(appliedRange.endDate);
-                const days = end.diff(start, 'day') + 1;
-
-                let prevStart, prevEnd;
-                if (comparisonMethod === "Last Year") {
-                    // Same period last year
-                    prevStart = start.subtract(1, 'year');
-                    prevEnd = end.subtract(1, 'year');
-                } else {
-                    // Last Period (previous contiguous period of same length)
-                    prevEnd = start.subtract(1, 'day');
-                    prevStart = prevEnd.subtract(days - 1, 'day');
-                }
+                const compDates = formatComparisonPeriodDates({
+                    comparisonMethod,
+                    startDate: appliedRange.startDate,
+                    endDate: appliedRange.endDate,
+                    compareStartDate: appliedCompareRange.startDate,
+                    compareEndDate: appliedCompareRange.endDate,
+                });
 
                 const metaParams = new URLSearchParams({
                     adAccountId,
@@ -210,19 +191,20 @@ export default function FacebookPSPage() {
                 });
                 if (customerMetaID) metaParams.set('customerMetaID', customerMetaID);
                 if (customerMetaIDExclude) metaParams.set('customerMetaIDExclude', customerMetaIDExclude);
-                const prevParams = new URLSearchParams({
-                    adAccountId,
-                    since: prevStart.format('YYYY-MM-DD'),
-                    until: prevEnd.format('YYYY-MM-DD'),
-                    dashboardCustomerId: String(customer._id),
-                });
-                if (customerMetaID) prevParams.set('customerMetaID', customerMetaID);
-                if (customerMetaIDExclude) prevParams.set('customerMetaIDExclude', customerMetaIDExclude);
+                const fetches = [fetch(`/api/facebook-campaign-insights?${metaParams.toString()}`)];
+                if (!compDates.skip && compDates.startDate && compDates.endDate) {
+                    const prevParams = new URLSearchParams({
+                        adAccountId,
+                        since: compDates.startDate,
+                        until: compDates.endDate,
+                        dashboardCustomerId: String(customer._id),
+                    });
+                    if (customerMetaID) prevParams.set('customerMetaID', customerMetaID);
+                    if (customerMetaIDExclude) prevParams.set('customerMetaIDExclude', customerMetaIDExclude);
+                    fetches.push(fetch(`/api/facebook-campaign-insights?${prevParams.toString()}`));
+                }
 
-                const [fbRes, fbResPrev] = await Promise.all([
-                    fetch(`/api/facebook-campaign-insights?${metaParams.toString()}`),
-                    fetch(`/api/facebook-campaign-insights?${prevParams.toString()}`)
-                ]);
+                const [fbRes, fbResPrev] = await Promise.all(fetches);
                 
                 if (!fbRes.ok) throw new Error("Failed to fetch Facebook PS dashboard metrics");
                 const metrics = await fbRes.json();
@@ -243,7 +225,7 @@ export default function FacebookPSPage() {
                 setLoading(false);
             }
         })();
-    }, [customer, appliedRange, comparisonMethod]);
+    }, [customer, appliedRange, appliedCompareRange, comparisonMethod]);
 
     // % change helpers
     const percentChange = (current, prev) => {
@@ -330,28 +312,23 @@ export default function FacebookPSPage() {
         });
     });
 
-    // Add previous period series
+    const sortedPrevDates = fbMetricsByDatePrev.map((row) => row.date).sort();
+
+    if (comparisonMethod !== COMPARISON_METHOD.NONE) {
     selectedMetrics.forEach(metricKey => {
         const metricOption = METRIC_OPTIONS.find(opt => opt.key === metricKey);
         chartSeries.push({
-            name: `${metricOption?.label || "Metric"} (${comparisonMethod})`,
+            name: `${metricOption?.label || "Metric"} (${comparisonLabel})`,
             data: chartCategories.map(date => {
-                // Map current period date to corresponding previous period date
-                let prevDate;
-                if (comparisonMethod === "Last Year") {
-                    const currentDate = dayjs(date);
-                    prevDate = currentDate.subtract(1, 'year').format('YYYY-MM-DD');
-                } else {
-                    // Last Period - same date in previous contiguous period
-                    const currentDate = dayjs(date);
-                    const periodStart = dayjs(appliedRange.startDate);
-                    const periodEnd = dayjs(appliedRange.endDate);
-                    const daysDiff = currentDate.diff(periodStart, 'day');
-                    const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, 'day') + 1, 'day');
-                    prevDate = prevPeriodStart.add(daysDiff, 'day').format('YYYY-MM-DD');
-                }
+                const prevDate = resolveDailyComparisonDate({
+                    comparisonMethod,
+                    currentDate: date,
+                    appliedStartDate: appliedRange.startDate,
+                    appliedEndDate: appliedRange.endDate,
+                    sortedPrevKeys: sortedPrevDates,
+                });
 
-                const row = fbMetricsByDatePrevMap[prevDate];
+                const row = prevDate ? fbMetricsByDatePrevMap[prevDate] : null;
                 if (!row) return null;
                 let val = row[metricKey];
                 if (metricKey === "ctr" && row.impressions > 0) {
@@ -364,6 +341,7 @@ export default function FacebookPSPage() {
             }),
         });
     });
+    }
 
     // Prepare stroke and fill arrays for current and previous series
     const selectedMetricsCount = selectedMetrics.length;
@@ -409,17 +387,7 @@ export default function FacebookPSPage() {
                 dashboardType="ps-dashboard"
                 dataSnapshot={{ fbMetricsByDate, fbTopCampaigns, fbCampaignsByDate, selectedMetrics, METRIC_OPTIONS }}
                 right={
-                    <DateRangePicker
-                        onApply={handleDateRangeApply}
-                        startDate={tempRange.startDate}
-                        endDate={tempRange.endDate}
-                        onStartDateChange={handleStartDateChange}
-                        onEndDateChange={handleEndDateChange}
-                        loading={loading}
-                        showComparisonMethodToggler={true}
-                        comparisonMethod={tempComparisonMethod}
-                        onComparisonMethodChange={setTempComparisonMethod}
-                    />
+                    <DateRangePicker {...dateRangePickerProps} loading={loading} />
                 }
             />
 
@@ -499,8 +467,8 @@ export default function FacebookPSPage() {
                 ) : (
                     <GraphCard title={
                         (selectedMetrics || []).length === 1 && (selectedMetrics || [])[0]
-                            ? `${METRIC_OPTIONS.find(opt => opt.key === (selectedMetrics || [])[0])?.label ?? "Metric"} vs ${comparisonMethod}`
-                            : `Multiple Facebook PS Metrics vs ${comparisonMethod}`
+                            ? `${METRIC_OPTIONS.find(opt => opt.key === (selectedMetrics || [])[0])?.label ?? "Metric"} vs ${comparisonLabel}`
+                            : `Multiple Facebook PS Metrics vs ${comparisonLabel}`
                     } chartOptions={chartOptions} chartSeries={chartSeries} />
                 )}
             </div>

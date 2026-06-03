@@ -87,19 +87,14 @@ export default function ParentOverviewView({ sharedData }) {
         aggregatedMetrics,
         aggregatedMetricsPrev,
         appliedDateRange,
-        tempDateRange,
         comparisonMethod,
-        tempComparisonMethod,
-        setTempComparisonMethod,
+        dateRangePickerProps,
         predominantMetricPreference,
         loading,
         chartLoading,
         pageBusy,
         chartBusy,
         campaignFilterBusy,
-        handleDateRangeApply,
-        handleStartDateChange,
-        handleEndDateChange,
         childCustomers,
         childPropertyRowsForUi,
         parentVisibleAdSpendChannels,
@@ -438,15 +433,8 @@ export default function ParentOverviewView({ sharedData }) {
                 }}
                 right={
                     <DateRangePicker
-                        onApply={handleDateRangeApply}
-                        startDate={tempDateRange?.startDate}
-                        endDate={tempDateRange?.endDate}
-                        onStartDateChange={handleStartDateChange}
-                        onEndDateChange={handleEndDateChange}
+                        {...dateRangePickerProps}
                         loading={pageBusy ?? loading}
-                        showComparisonMethodToggler={true}
-                        comparisonMethod={tempComparisonMethod}
-                        onComparisonMethodChange={setTempComparisonMethod}
                     />
                 }
             />

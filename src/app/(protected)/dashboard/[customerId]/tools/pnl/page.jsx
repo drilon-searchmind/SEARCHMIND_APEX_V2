@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useCustomers } from "@/hooks/useCustomers";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
@@ -9,6 +9,7 @@ import { usePnlData } from "./usePnlData";
 import PnlLeftSection from "./PnlLeftSection";
 import PnlChartsSidebar from "./PnlChartsSidebar";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
+import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import { useShopifyMarketsFilter } from "@/hooks/useShopifyMarketsFilter";
 import { useAdSpendPlatformsFilter } from "@/hooks/useAdSpendPlatformsFilter";
 
@@ -17,35 +18,23 @@ export default function PNLPage() {
     const { customers } = useCustomers();
     const customer = customers.find((c) => c._id === params.customerId);
 
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const isFirstOfMonth = today.getDate() === 1;
-    const defaultStart = `${yyyy}-${mm}-01`;
-    const defaultEnd = isFirstOfMonth ? defaultStart : `${yyyy}-${mm}-${String(today.getDate() - 1).padStart(2, "0")}`;
-
-    const [tempDateRange, setTempDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
-    const [appliedDateRange, setAppliedDateRange] = useState({ startDate: defaultStart, endDate: defaultEnd });
-    const [comparisonMethod, setComparisonMethod] = useState("Last Year");
-    const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Year");
-
-    const handleDateRangeApply = ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
-        pushDashboardDateRangeApplied({
-            page: "tools_pnl",
-            customerId: params.customerId,
-            startDate,
-            endDate,
-            comparisonMethod: appliedComparison,
-        });
-        setAppliedDateRange({ startDate, endDate });
-        if (appliedComparison) setComparisonMethod(appliedComparison);
-    };
-    const handleStartDateChange = (newStart) => {
-        setTempDateRange((dr) => ({ ...dr, startDate: newStart }));
-    };
-    const handleEndDateChange = (newEnd) => {
-        setTempDateRange((dr) => ({ ...dr, endDate: newEnd }));
-    };
+    const {
+        appliedDateRange,
+        appliedCompareRange,
+        comparisonMethod,
+        comparisonLabel,
+        dateRangePickerProps,
+    } = useDashboardDateRange({
+        onApply: ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
+            pushDashboardDateRangeApplied({
+                page: "tools_pnl",
+                customerId: params.customerId,
+                startDate,
+                endDate,
+                comparisonMethod: appliedComparison,
+            });
+        },
+    });
 
     const {
         shopifyMarketsFeatureOn,
@@ -87,9 +76,9 @@ export default function PNLPage() {
         appliedDateRange,
         comparisonMethod,
         mergedSourcesQuerySuffix,
-        pnlMarketsSpend
+        pnlMarketsSpend,
+        appliedCompareRange
     );
-    const comparisonLabel = comparisonMethod === "Last Year" ? "Last Year" : "Last Period";
 
     return (
         <div className="w-full">
@@ -163,17 +152,7 @@ export default function PNLPage() {
                         : null
                 }
                 right={
-                    <DateRangePicker
-                        onApply={handleDateRangeApply}
-                        startDate={tempDateRange.startDate}
-                        endDate={tempDateRange.endDate}
-                        onStartDateChange={handleStartDateChange}
-                        onEndDateChange={handleEndDateChange}
-                        loading={pnl.loading}
-                        showComparisonMethodToggler={true}
-                        comparisonMethod={tempComparisonMethod}
-                        onComparisonMethodChange={setTempComparisonMethod}
-                    />
+                    <DateRangePicker {...dateRangePickerProps} loading={pnl.loading} />
                 }
             />
             <div className="flex flex-col md:flex-row gap-8 mt-4">

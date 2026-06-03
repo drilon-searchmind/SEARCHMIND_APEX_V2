@@ -20,6 +20,12 @@ import {
 import { useCustomers } from "@/hooks/useCustomers";
 import dayjs from "dayjs";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
+import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
+import {
+    formatComparisonPeriodDates,
+    resolveDailyComparisonDate,
+    COMPARISON_METHOD,
+} from "@/lib/dateRangeComparison";
 
 const METRIC_OPTIONS = [
     { key: "ad_spend", label: "Ad spend", icon: FiTrendingUp },
@@ -37,35 +43,24 @@ export default function BingAdsServiceDashboardPage() {
     const { customers } = useCustomers();
     const customer = customers.find((c) => c._id === params.customerId);
 
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const isFirstOfMonth = today.getDate() === 1;
-    const defaultStart = `${yyyy}-${mm}-01`;
-    const defaultEnd = isFirstOfMonth
-        ? `${yyyy}-${mm}-01`
-        : `${yyyy}-${mm}-${String(today.getDate() - 1).padStart(2, "0")}`;
-    const defaultRangeValue = { startDate: defaultStart, endDate: defaultEnd };
-    const [tempRange, setTempRange] = useState(defaultRangeValue);
-    const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
-
-    const handleDateRangeApply = ({ startDate, endDate }) => {
-        pushDashboardDateRangeApplied({
-            page: "service_dashboard_bing",
-            customerId: params.customerId,
-            startDate,
-            endDate,
-        });
-        setAppliedRange({ startDate, endDate });
-    };
-    const handleStartDateChange = (newStart) => {
-        setTempRange((dr) => ({ ...dr, startDate: newStart }));
-    };
-    const handleEndDateChange = (newEnd) => {
-        setTempRange((dr) => ({ ...dr, endDate: newEnd }));
-    };
-
-    const [comparisonMethod, setComparisonMethod] = useState("Last Year");
+    const {
+        tempDateRange: tempRange,
+        appliedDateRange: appliedRange,
+        appliedCompareRange,
+        comparisonMethod,
+        comparisonLabel,
+        dateRangePickerProps,
+    } = useDashboardDateRange({
+        onApply: ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
+            pushDashboardDateRangeApplied({
+                page: "service_dashboard_bing",
+                customerId: params.customerId,
+                startDate,
+                endDate,
+                comparisonMethod: appliedComparison,
+            });
+        },
+    });
 
     const [metricsByDate, setMetricsByDate] = useState([]);
     const [metricsByDatePrev, setMetricsByDatePrev] = useState([]);
@@ -114,29 +109,28 @@ export default function BingAdsServiceDashboardPage() {
         setError(null);
         (async () => {
             try {
-                const start = dayjs(appliedRange.startDate);
-                const end = dayjs(appliedRange.endDate);
-                const days = end.diff(start, "day") + 1;
-                let prevStart;
-                let prevEnd;
-                if (comparisonMethod === "Last Year") {
-                    prevStart = start.subtract(1, "year");
-                    prevEnd = end.subtract(1, "year");
-                } else {
-                    prevEnd = start.subtract(1, "day");
-                    prevStart = prevEnd.subtract(days - 1, "day");
-                }
-
-                const prevStartStr = prevStart.format("YYYY-MM-DD");
-                const prevEndStr = prevEnd.format("YYYY-MM-DD");
+                const compDates = formatComparisonPeriodDates({
+                    comparisonMethod,
+                    startDate: appliedRange.startDate,
+                    endDate: appliedRange.endDate,
+                    compareStartDate: appliedCompareRange.startDate,
+                    compareEndDate: appliedCompareRange.endDate,
+                });
 
                 const q = (s, e) =>
                     `startDate=${encodeURIComponent(s)}&endDate=${encodeURIComponent(e)}&dashboardCustomerId=${encodeURIComponent(String(customer._id))}`;
 
-                const [curRes, prevRes] = await Promise.all([
+                const fetches = [
                     fetch(`/api/bing-dashboard?${q(appliedRange.startDate, appliedRange.endDate)}`),
-                    fetch(`/api/bing-dashboard?${q(prevStartStr, prevEndStr)}`),
-                ]);
+                ];
+                if (!compDates.skip && compDates.startDate && compDates.endDate) {
+                    fetches.push(
+                        fetch(`/api/bing-dashboard?${q(compDates.startDate, compDates.endDate)}`)
+                    );
+                }
+                const results = await Promise.all(fetches);
+                const curRes = results[0];
+                const prevRes = results[1];
 
                 if (!curRes.ok) {
                     const errJson = await curRes.json().catch(() => ({}));
@@ -180,7 +174,13 @@ export default function BingAdsServiceDashboardPage() {
                 setLoading(false);
             }
         })();
-    }, [customer, appliedRange.startDate, appliedRange.endDate, comparisonMethod]);
+    }, [
+        customer,
+        appliedRange.startDate,
+        appliedRange.endDate,
+        appliedCompareRange,
+        comparisonMethod,
+    ]);
 
     const percentChange = (current, prev) => {
         if (prev === 0 || prev === null || prev === undefined) return null;
@@ -247,25 +247,22 @@ export default function BingAdsServiceDashboardPage() {
             });
         });
 
+        const sortedPrevDates = metricsByDatePrev.map((r) => r.date).sort();
+        if (comparisonMethod !== COMPARISON_METHOD.NONE) {
         selectedMetrics.forEach((metricKey) => {
             const metricOption = METRIC_OPTIONS.find((opt) => opt.key === metricKey);
             series.push({
-                name: `${metricOption?.label || "Metric"} (${comparisonMethod})`,
+                name: `${metricOption?.label || "Metric"} (${comparisonLabel})`,
                 data: chartCategories.map((date) => {
-                    let prevDate;
-                    if (comparisonMethod === "Last Year") {
-                        const currentDate = dayjs(date);
-                        prevDate = currentDate.subtract(1, "year").format("YYYY-MM-DD");
-                    } else {
-                        const currentDate = dayjs(date);
-                        const periodStart = dayjs(appliedRange.startDate);
-                        const periodEnd = dayjs(appliedRange.endDate);
-                        const daysDiff = currentDate.diff(periodStart, "day");
-                        const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, "day") + 1, "day");
-                        prevDate = prevPeriodStart.add(daysDiff, "day").format("YYYY-MM-DD");
-                    }
+                    const prevDate = resolveDailyComparisonDate({
+                        comparisonMethod,
+                        currentDate: date,
+                        appliedStartDate: appliedRange.startDate,
+                        appliedEndDate: appliedRange.endDate,
+                        sortedPrevKeys: sortedPrevDates,
+                    });
 
-                    const row = metricsByDatePrevMap[prevDate];
+                    const row = prevDate ? metricsByDatePrevMap[prevDate] : null;
                     if (!row) return null;
                     let val = row[metricKey];
                     if (metricKey === "ctr" && row.impressions > 0) {
@@ -278,6 +275,7 @@ export default function BingAdsServiceDashboardPage() {
                 }),
             });
         });
+        }
 
         const selectedMetricsCount = selectedMetrics.length;
         const strokeWidths = [...Array(selectedMetricsCount).fill(2), ...Array(selectedMetricsCount).fill(1)];
@@ -350,17 +348,7 @@ export default function BingAdsServiceDashboardPage() {
                     METRIC_OPTIONS,
                 }}
                 right={
-                    <DateRangePicker
-                        onApply={handleDateRangeApply}
-                        startDate={tempRange.startDate}
-                        endDate={tempRange.endDate}
-                        onStartDateChange={handleStartDateChange}
-                        onEndDateChange={handleEndDateChange}
-                        loading={loading}
-                        showComparisonMethodToggler={true}
-                        comparisonMethod={comparisonMethod}
-                        onComparisonMethodChange={setComparisonMethod}
-                    />
+                    <DateRangePicker {...dateRangePickerProps} loading={loading} />
                 }
             />
 

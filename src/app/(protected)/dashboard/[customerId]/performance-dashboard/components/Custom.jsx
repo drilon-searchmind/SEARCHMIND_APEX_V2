@@ -26,6 +26,11 @@ import { AVAILABLE_METRICS } from "./AddKpiModal";
 import Spinner from "@/components/ui/Spinner";
 import { pushGTMEvent, GTM_EVENTS } from "@root/lib/gtmFunctions";
 import { aggregateShopifyAndAdSpendByPeriodFromRows } from "@/lib/mergeAdSpendDaily";
+import {
+    COMPARISON_METHOD,
+    getComparisonMethodLabel,
+    getPrevKeyForChartCategory,
+} from "@/lib/dateRangeComparison";
 
 const METRIC_LABELS = Object.fromEntries(
     AVAILABLE_METRICS.map((m) => [m.key, m.label])
@@ -533,37 +538,19 @@ export default function Custom({
         );
 
         const categories = Object.keys(currAgg).sort();
-        const daysInRange =
-            dayjs(appliedDateRange.endDate).diff(
-                dayjs(appliedDateRange.startDate),
-                "day"
-            ) + 1;
+        const sortedPrevKeys = Object.keys(prevAgg).sort();
+        const comparisonLabel = getComparisonMethodLabel(comparisonMethod);
 
-        const getPrevKey = (currKey, idx) => {
-            if (aggregateBy === "monthly") {
-                if (comparisonMethod === "Last Year") {
-                    return dayjs(currKey + "-01")
-                        .subtract(1, "year")
-                        .format("YYYY-MM");
-                }
-                const periodStartMonth = dayjs(
-                    appliedDateRange.startDate
-                ).startOf("month");
-                const prevPeriodEnd = periodStartMonth
-                    .subtract(1, "day")
-                    .endOf("month");
-                const prevPeriodStart = prevPeriodEnd.startOf("month");
-                return prevPeriodStart.add(idx, "month").format("YYYY-MM");
-            }
-            if (comparisonMethod === "Last Year") {
-                return dayjs(currKey).subtract(1, "year").format("YYYY-MM-DD");
-            }
-            const prevStart = dayjs(appliedDateRange.startDate).subtract(
-                daysInRange,
-                "day"
-            );
-            return prevStart.add(idx, "day").format("YYYY-MM-DD");
-        };
+        const getPrevKey = (currKey, idx) =>
+            getPrevKeyForChartCategory({
+                comparisonMethod,
+                currKey,
+                categoryIndex: idx,
+                aggregateBy,
+                appliedStartDate: appliedDateRange.startDate,
+                appliedEndDate: appliedDateRange.endDate,
+                sortedPrevKeys,
+            });
 
         const series = [];
         selectedKpis.forEach((kpiId) => {
@@ -580,16 +567,18 @@ export default function Custom({
                 data: currData,
             });
 
-            const prevData = categories.map((k, idx) => {
-                const prevKey = getPrevKey(k, idx);
-                const v = prevAgg[prevKey];
-                const val = evaluateFormula(kpi, v);
-                return val !== null ? Math.round(Number(val)) : null;
-            });
-            series.push({
-                name: `${kpi.name} (${comparisonMethod})`,
-                data: prevData,
-            });
+            if (comparisonMethod !== COMPARISON_METHOD.NONE) {
+                const prevData = categories.map((k, idx) => {
+                    const prevKey = getPrevKey(k, idx);
+                    const v = prevAgg[prevKey];
+                    const val = evaluateFormula(kpi, v);
+                    return val !== null ? Math.round(Number(val)) : null;
+                });
+                series.push({
+                    name: `${kpi.name} (${comparisonLabel})`,
+                    data: prevData,
+                });
+            }
         });
 
         const formatChartValue = (v) =>

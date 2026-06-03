@@ -8,9 +8,10 @@ import MetricCard from "@/components/dashboard/MetricCard";
 import Spinner from "@/components/ui/Spinner";
 import { FiMail, FiMousePointer, FiTrendingUp, FiDollarSign, FiSend, FiUserX } from "react-icons/fi";
 import { useCustomers } from "@/hooks/useCustomers";
-import dayjs from "dayjs";
 import { isDemoCustomerId } from "@/lib/demoCustomerId";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
+import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
+import { formatComparisonPeriodDates } from "@/lib/dateRangeComparison";
 
 const METRIC_OPTIONS = [
     { key: "revenue", label: "Revenue", icon: FiDollarSign },
@@ -59,18 +60,26 @@ export default function EmailDashboardPage() {
     const customer = customers.find((c) => c._id === params.customerId);
     const customerId = params?.customerId;
 
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const isFirstOfMonth = today.getDate() === 1;
-    const defaultStart = `${yyyy}-${mm}-01`;
-    const defaultEnd = isFirstOfMonth ? `${yyyy}-${mm}-01` : `${yyyy}-${mm}-${String(today.getDate() - 1).padStart(2, '0')}`;
-    const defaultRangeValue = { startDate: defaultStart, endDate: defaultEnd };
+    const {
+        tempDateRange: tempRange,
+        setTempDateRange: setTempRange,
+        appliedDateRange: appliedRange,
+        setAppliedDateRange: setAppliedRange,
+        appliedCompareRange,
+        comparisonMethod,
+        dateRangePickerProps,
+    } = useDashboardDateRange({
+        onApply: ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
+            pushDashboardDateRangeApplied({
+                page: "service_dashboard_em",
+                customerId,
+                startDate,
+                endDate,
+                comparisonMethod: appliedComparison,
+            });
+        },
+    });
 
-    const [tempRange, setTempRange] = useState(defaultRangeValue);
-    const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
-    const [comparisonMethod, setComparisonMethod] = useState("Last Year");
-    const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Year");
     const [selectedMetrics, setSelectedMetrics] = useState(["revenue"]);
     const [metricsByDate, setMetricsByDate] = useState([]);
     const [metricsByDatePrev, setMetricsByDatePrev] = useState([]);
@@ -89,24 +98,6 @@ export default function EmailDashboardPage() {
         }
     }, [rangeStartQ, rangeEndQ]);
 
-    const handleDateRangeApply = ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
-        pushDashboardDateRangeApplied({
-            page: "service_dashboard_em",
-            customerId,
-            startDate,
-            endDate,
-            comparisonMethod: appliedComparison,
-        });
-        setAppliedRange({ startDate, endDate });
-        if (appliedComparison) setComparisonMethod(appliedComparison);
-    };
-    const handleStartDateChange = (newStart) => {
-        setTempRange((dr) => ({ ...dr, startDate: newStart }));
-    };
-    const handleEndDateChange = (newEnd) => {
-        setTempRange((dr) => ({ ...dr, endDate: newEnd }));
-    };
-
     const hasKlaviyoCredentials =
         !!customer?.CustomerSettings?.klaviyoPrivateApiKey || isDemoCustomerId(customerId);
 
@@ -118,17 +109,13 @@ export default function EmailDashboardPage() {
         const abortController = new AbortController();
         const signal = abortController.signal;
 
-        const start = dayjs(appliedRange.startDate);
-        const end = dayjs(appliedRange.endDate);
-        const days = end.diff(start, 'day') + 1;
-        let prevStart, prevEnd;
-        if (comparisonMethod === "Last Year") {
-            prevStart = start.subtract(1, 'year');
-            prevEnd = end.subtract(1, 'year');
-        } else {
-            prevEnd = start.subtract(1, 'day');
-            prevStart = prevEnd.subtract(days - 1, 'day');
-        }
+        const compDates = formatComparisonPeriodDates({
+            comparisonMethod,
+            startDate: appliedRange.startDate,
+            endDate: appliedRange.endDate,
+            compareStartDate: appliedCompareRange.startDate,
+            compareEndDate: appliedCompareRange.endDate,
+        });
 
         (async () => {
             setLoading(true);
@@ -152,16 +139,20 @@ export default function EmailDashboardPage() {
                 setLoading(false);
 
                 // 2. Fetch previous period in background after 65s (Klaviyo campaign-values-reports: 2/min)
-                await new Promise((r) => setTimeout(r, 65000));
-                if (signal.aborted) { aborted = true; return; }
-                const prevParams = new URLSearchParams({
-                    startDate: prevStart.format('YYYY-MM-DD'),
-                    endDate: prevEnd.format('YYYY-MM-DD'),
-                });
-                const resPrev = await fetch(`/api/klaviyo-dashboard/${customerId}?${prevParams}`, { signal });
-                if (resPrev.ok && !signal.aborted) {
-                    const dataPrev = await resPrev.json();
-                    setMetricsByDatePrev(dataPrev.metrics_by_date || []);
+                if (!compDates.skip && compDates.startDate && compDates.endDate) {
+                    await new Promise((r) => setTimeout(r, 65000));
+                    if (signal.aborted) { aborted = true; return; }
+                    const prevParams = new URLSearchParams({
+                        startDate: compDates.startDate,
+                        endDate: compDates.endDate,
+                    });
+                    const resPrev = await fetch(`/api/klaviyo-dashboard/${customerId}?${prevParams}`, { signal });
+                    if (resPrev.ok && !signal.aborted) {
+                        const dataPrev = await resPrev.json();
+                        setMetricsByDatePrev(dataPrev.metrics_by_date || []);
+                    }
+                } else {
+                    setMetricsByDatePrev([]);
                 }
             } catch (err) {
                 if (err.name === 'AbortError') {
@@ -178,7 +169,7 @@ export default function EmailDashboardPage() {
         })();
 
         return () => abortController.abort();
-    }, [customer, customerId, hasKlaviyoCredentials, appliedRange, comparisonMethod]);
+    }, [customer, customerId, hasKlaviyoCredentials, appliedRange, appliedCompareRange, comparisonMethod]);
 
     const percentChange = (current, prev) => {
         if (prev === 0 || prev === null || prev === undefined) return null;
@@ -247,17 +238,7 @@ export default function EmailDashboardPage() {
                 dashboardType="em-dashboard"
                 dataSnapshot={{ selectedMetrics, METRIC_OPTIONS }}
                 right={
-                    <DateRangePicker
-                        onApply={handleDateRangeApply}
-                        startDate={tempRange.startDate}
-                        endDate={tempRange.endDate}
-                        onStartDateChange={handleStartDateChange}
-                        onEndDateChange={handleEndDateChange}
-                        loading={loading}
-                        showComparisonMethodToggler={true}
-                        comparisonMethod={tempComparisonMethod}
-                        onComparisonMethodChange={setTempComparisonMethod}
-                    />
+                    <DateRangePicker {...dateRangePickerProps} loading={loading} />
                 }
             />
 

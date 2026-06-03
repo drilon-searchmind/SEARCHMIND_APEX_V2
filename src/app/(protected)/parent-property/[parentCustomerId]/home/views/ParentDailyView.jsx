@@ -21,12 +21,9 @@ export default function ParentDailyView({ sharedData }) {
         childCustomers,
         enabledProperties,
         appliedDateRange,
-        tempDateRange,
+        dateRangePickerProps,
         loading,
         pageBusy,
-        handleDateRangeApply,
-        handleStartDateChange,
-        handleEndDateChange,
         predominantMetricPreference,
         shopifyRevenueField = "net_sales",
         parentAggregatedQueryExtras = "",
@@ -164,11 +161,7 @@ export default function ParentDailyView({ sharedData }) {
                 }}
                 right={
                     <DateRangePicker
-                        onApply={handleDateRangeApply}
-                        startDate={tempDateRange?.startDate}
-                        endDate={tempDateRange?.endDate}
-                        onStartDateChange={handleStartDateChange}
-                        onEndDateChange={handleEndDateChange}
+                        {...dateRangePickerProps}
                         loading={pageBusy ?? loading}
                     />
                 }

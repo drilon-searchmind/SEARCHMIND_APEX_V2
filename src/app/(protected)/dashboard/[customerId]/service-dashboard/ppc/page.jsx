@@ -14,6 +14,12 @@ import { FiDollarSign, FiTrendingUp, FiBarChart2, FiPieChart, FiShoppingCart, Fi
 import { useCustomers } from "@/hooks/useCustomers";
 import dayjs from "dayjs";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
+import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
+import {
+    formatComparisonPeriodDates,
+    resolveDailyComparisonDate,
+    COMPARISON_METHOD,
+} from "@/lib/dateRangeComparison";
 
 const METRIC_OPTIONS = [
 	{ key: "conversion_value", label: "Conv. Value", icon: FiDollarSign },
@@ -37,43 +43,26 @@ export default function GoogleAdsPPCPage() {
 	const { customers } = useCustomers();
 	const customer = customers.find((c) => c._id === params.customerId);
 
-	// Date range state
-	// Date range state
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-
-    // If today is the 1st of the month, use 1st as both start and end
-    // Otherwise, use 1st as start and yesterday as end
-    const isFirstOfMonth = today.getDate() === 1;
-    const defaultStart = `${yyyy}-${mm}-01`;
-    const defaultEnd = isFirstOfMonth ? `${yyyy}-${mm}-01` : `${yyyy}-${mm}-${String(today.getDate() - 1).padStart(2, '0')}`;
-	const defaultRangeValue = { startDate: defaultStart, endDate: defaultEnd };
-	const [tempRange, setTempRange] = useState(defaultRangeValue);
-	const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
-
-	// Handlers for DateRangePicker (controlled) - comparison only applies on Apply
-	const handleDateRangeApply = ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
-		pushDashboardDateRangeApplied({
-			page: "service_dashboard_ppc",
-			customerId: params.customerId,
-			startDate,
-			endDate,
-			comparisonMethod: appliedComparison,
-		});
-		setAppliedRange({ startDate, endDate });
-		if (appliedComparison) setComparisonMethod(appliedComparison);
-	};
-	const handleStartDateChange = (newStart) => {
-		setTempRange((dr) => ({ ...dr, startDate: newStart }));
-	};
-	const handleEndDateChange = (newEnd) => {
-		setTempRange((dr) => ({ ...dr, endDate: newEnd }));
-	};
-
-	// Comparison method: applied (triggers fetch) vs temp (picker until Apply)
-	const [comparisonMethod, setComparisonMethod] = useState("Last Year");
-	const [tempComparisonMethod, setTempComparisonMethod] = useState("Last Year");
+	const {
+		tempDateRange: tempRange,
+		setTempDateRange: setTempRange,
+		appliedDateRange: appliedRange,
+		setAppliedDateRange: setAppliedRange,
+		appliedCompareRange,
+		comparisonMethod,
+		comparisonLabel,
+		dateRangePickerProps,
+	} = useDashboardDateRange({
+		onApply: ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
+			pushDashboardDateRangeApplied({
+				page: "service_dashboard_ppc",
+				customerId: params.customerId,
+				startDate,
+				endDate,
+				comparisonMethod: appliedComparison,
+			});
+		},
+	});
 
 	// Google Ads data state
 	const [metricsByDate, setMetricsByDate] = useState([]);
@@ -159,21 +148,13 @@ export default function GoogleAdsPPCPage() {
 				const { googleAdsCustomerId, googleAdsCountryFilter, googleAdsCountryExclude } = settings;
 				if (!googleAdsCustomerId) throw new Error("Missing Google Ads customer ID");
 
-				// Calculate previous period based on comparisonMethod
-				const start = dayjs(appliedRange.startDate);
-				const end = dayjs(appliedRange.endDate);
-				const days = end.diff(start, 'day') + 1;
-
-				let prevStart, prevEnd;
-				if (comparisonMethod === "Last Year") {
-					// Same period last year
-					prevStart = start.subtract(1, 'year');
-					prevEnd = end.subtract(1, 'year');
-				} else {
-					// Last Period (previous contiguous period of same length)
-					prevEnd = start.subtract(1, 'day');
-					prevStart = prevEnd.subtract(days - 1, 'day');
-				}
+				const compDates = formatComparisonPeriodDates({
+					comparisonMethod,
+					startDate: appliedRange.startDate,
+					endDate: appliedRange.endDate,
+					compareStartDate: appliedCompareRange.startDate,
+					compareEndDate: appliedCompareRange.endDate,
+				});
 
 				// Fetch current and previous period data in parallel
 				const countryParams = [
@@ -182,10 +163,17 @@ export default function GoogleAdsPPCPage() {
 				].filter(Boolean).join('&');
 				const countryParam = countryParams ? `&${countryParams}` : '';
 				const dash = `&dashboardCustomerId=${encodeURIComponent(String(customer._id))}`;
-				const [ppcRes, ppcResPrev] = await Promise.all([
+				const fetches = [
 					fetch(`/api/google-ppc-dashboard?customerId=${encodeURIComponent(googleAdsCustomerId)}&startDate=${encodeURIComponent(appliedRange.startDate)}&endDate=${encodeURIComponent(appliedRange.endDate)}${countryParam}${dash}`),
-					fetch(`/api/google-ppc-dashboard?customerId=${encodeURIComponent(googleAdsCustomerId)}&startDate=${encodeURIComponent(prevStart.format('YYYY-MM-DD'))}&endDate=${encodeURIComponent(prevEnd.format('YYYY-MM-DD'))}${countryParam}${dash}`)
-				]);
+				];
+				if (!compDates.skip && compDates.startDate && compDates.endDate) {
+					fetches.push(
+						fetch(`/api/google-ppc-dashboard?customerId=${encodeURIComponent(googleAdsCustomerId)}&startDate=${encodeURIComponent(compDates.startDate)}&endDate=${encodeURIComponent(compDates.endDate)}${countryParam}${dash}`)
+					);
+				}
+				const results = await Promise.all(fetches);
+				const ppcRes = results[0];
+				const ppcResPrev = results[1];
 				
 				if (!ppcRes.ok) throw new Error("Failed to fetch Google Ads PPC dashboard metrics");
 				const metrics = await ppcRes.json();
@@ -194,7 +182,7 @@ export default function GoogleAdsPPCPage() {
 				setCampaignsByDate(metrics.campaigns_by_date || []);
 
 				// Set previous period data (even if fetch fails, we'll just have empty array)
-				if (ppcResPrev.ok) {
+				if (ppcResPrev?.ok) {
 					const metricsPrev = await ppcResPrev.json();
 					setMetricsByDatePrev(metricsPrev.metrics_by_date || []);
 				} else {
@@ -206,7 +194,7 @@ export default function GoogleAdsPPCPage() {
 				setLoading(false);
 			}
 		})();
-	}, [customer, appliedRange, comparisonMethod]);
+	}, [customer, appliedRange, appliedCompareRange, comparisonMethod]);
 
 	// % change helpers
 	const percentChange = (current, prev) => {
@@ -302,28 +290,24 @@ export default function GoogleAdsPPCPage() {
 		});
 	});
 
+	const sortedPrevDates = metricsByDatePrev.map((row) => row.date).sort();
+
 	// Add previous period series
+	if (comparisonMethod !== COMPARISON_METHOD.NONE) {
 	(selectedMetrics || []).forEach(metricKey => {
 		const metricOption = METRIC_OPTIONS.find(opt => opt.key === metricKey);
 		chartSeries.push({
-			name: `${metricOption?.label || "Metric"} (${comparisonMethod})`,
+			name: `${metricOption?.label || "Metric"} (${comparisonLabel})`,
 			data: chartCategories.map(date => {
-				// Map current period date to corresponding previous period date
-				let prevDate;
-				if (comparisonMethod === "Last Year") {
-					const currentDate = dayjs(date);
-					prevDate = currentDate.subtract(1, 'year').format('YYYY-MM-DD');
-				} else {
-					// Last Period - same date in previous contiguous period
-					const currentDate = dayjs(date);
-					const periodStart = dayjs(appliedRange.startDate);
-					const periodEnd = dayjs(appliedRange.endDate);
-					const daysDiff = currentDate.diff(periodStart, 'day');
-					const prevPeriodStart = periodStart.subtract(periodEnd.diff(periodStart, 'day') + 1, 'day');
-					prevDate = prevPeriodStart.add(daysDiff, 'day').format('YYYY-MM-DD');
-				}
+				const prevDate = resolveDailyComparisonDate({
+					comparisonMethod,
+					currentDate: date,
+					appliedStartDate: appliedRange.startDate,
+					appliedEndDate: appliedRange.endDate,
+					sortedPrevKeys: sortedPrevDates,
+				});
 
-				const row = metricsByDatePrevMap[prevDate];
+				const row = prevDate ? metricsByDatePrevMap[prevDate] : null;
 				if (!row) return null;
 				let val;
 				if (metricKey === "conversion_value") val = row.conversions_value;
@@ -335,6 +319,7 @@ export default function GoogleAdsPPCPage() {
 			}),
 		});
 	});
+	}
 
 	// Prepare stroke and fill arrays for current and previous series
 	const selectedMetricsCount = (selectedMetrics || []).length;
@@ -380,17 +365,7 @@ export default function GoogleAdsPPCPage() {
 				dashboardType="ppc-dashboard"
 				dataSnapshot={{ metricsByDate, topCampaigns, campaignsByDate, selectedMetrics, METRIC_OPTIONS }}
 				right={
-					<DateRangePicker
-						onApply={handleDateRangeApply}
-						startDate={tempRange.startDate}
-						endDate={tempRange.endDate}
-						onStartDateChange={handleStartDateChange}
-						onEndDateChange={handleEndDateChange}
-						loading={loading}
-						showComparisonMethodToggler={true}
-						comparisonMethod={tempComparisonMethod}
-						onComparisonMethodChange={setTempComparisonMethod}
-					/>
+					<DateRangePicker {...dateRangePickerProps} loading={loading} />
 				}
 			/>
 

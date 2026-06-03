@@ -31,6 +31,7 @@ import {
     channelSpendTotalsFromMerged,
     totalAdSpendFromMerged,
 } from "@/lib/mergeAdSpendDaily";
+import { formatComparisonPeriodDates } from "@/lib/dateRangeComparison";
 
 function plainCustomer(c) {
     if (!c) return c;
@@ -159,30 +160,23 @@ export async function GET(request, { params }) {
         const startDate = searchParams.get("startDate");
         const endDate = searchParams.get("endDate");
         const comparisonMethod = searchParams.get("comparisonMethod") || "Last Year";
+        const compareStartDate = searchParams.get("compareStartDate") || "";
+        const compareEndDate = searchParams.get("compareEndDate") || "";
 
         if (!startDate || !endDate) {
             return Response.json({ error: "Missing startDate or endDate" }, { status: 400 });
         }
 
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        const msDay = 24 * 60 * 60 * 1000;
-        const days = Math.floor((end - start) / msDay) + 1;
-
-        let prevStartStr, prevEndStr;
-        if (comparisonMethod === "Last Year") {
-            const prevStart = new Date(start);
-            prevStart.setFullYear(prevStart.getFullYear() - 1);
-            const prevEnd = new Date(end);
-            prevEnd.setFullYear(prevEnd.getFullYear() - 1);
-            prevStartStr = prevStart.toISOString().slice(0, 10);
-            prevEndStr = prevEnd.toISOString().slice(0, 10);
-        } else {
-            const prevEndMs = start.getTime() - msDay;
-            const prevStartMs = prevEndMs - (days - 1) * msDay;
-            prevStartStr = new Date(prevStartMs).toISOString().slice(0, 10);
-            prevEndStr = new Date(prevEndMs).toISOString().slice(0, 10);
-        }
+        const compDates = formatComparisonPeriodDates({
+            comparisonMethod,
+            startDate,
+            endDate,
+            compareStartDate,
+            compareEndDate,
+        });
+        const prevStartStr = compDates.startDate;
+        const prevEndStr = compDates.endDate;
+        const skipPrevFetch = compDates.skip || !prevStartStr || !prevEndStr;
 
         const parent = await getParentCustomerById(parentId);
         if (!parent) {
@@ -335,22 +329,23 @@ export async function GET(request, { params }) {
             }
 
             const demo = isDemoCustomerId(String(cust._id));
-            const [mergedCurrent, mergedPrev] = await Promise.all([
-                demo
-                    ? Promise.resolve(
-                          getDemoMergedSourcesForRange(startDate, endDate, cust, {
-                              excludeAdSpendPlatforms: mergeOptsBase.excludeAdSpendPlatforms,
-                          })
-                      )
-                    : fetchMergedSources(settings, startDate, endDate, mergeOptsBase),
-                demo
-                    ? Promise.resolve(
-                          getDemoMergedSourcesForRange(prevStartStr, prevEndStr, cust, {
-                              excludeAdSpendPlatforms: mergeOptsBase.excludeAdSpendPlatforms,
-                          })
-                      )
-                    : fetchMergedSources(settings, prevStartStr, prevEndStr, mergeOptsBase),
-            ]);
+            const emptyMergedPrev = { shopifyDaily: [] };
+            const mergedCurrent = demo
+                ? await Promise.resolve(
+                      getDemoMergedSourcesForRange(startDate, endDate, cust, {
+                          excludeAdSpendPlatforms: mergeOptsBase.excludeAdSpendPlatforms,
+                      })
+                  )
+                : await fetchMergedSources(settings, startDate, endDate, mergeOptsBase);
+            const mergedPrev = skipPrevFetch
+                ? emptyMergedPrev
+                : demo
+                  ? await Promise.resolve(
+                        getDemoMergedSourcesForRange(prevStartStr, prevEndStr, cust, {
+                            excludeAdSpendPlatforms: mergeOptsBase.excludeAdSpendPlatforms,
+                        })
+                    )
+                  : await fetchMergedSources(settings, prevStartStr, prevEndStr, mergeOptsBase);
 
             const shopify = mergedCurrent.shopifyDaily || [];
             const revenue = shopify.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
@@ -370,7 +365,13 @@ export async function GET(request, { params }) {
             const spendsharePrev = revenuePrev > 0 ? adspendPrev / revenuePrev : null;
 
             const fullMetrics = computeChildFullMetrics(
-                cust, mergedCurrent, mergedPrev, startDate, endDate, prevStartStr, prevEndStr
+                cust,
+                mergedCurrent,
+                mergedPrev,
+                startDate,
+                endDate,
+                skipPrevFetch ? startDate : prevStartStr,
+                skipPrevFetch ? endDate : prevEndStr
             );
 
             return {
