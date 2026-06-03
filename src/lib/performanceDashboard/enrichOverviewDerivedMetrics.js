@@ -33,6 +33,101 @@ function formatDiff(current, prev, type) {
     return undefined;
 }
 
+const fmtNum = (n, d = 0) =>
+    (n ?? 0).toLocaleString("da-DK", { maximumFractionDigits: d });
+
+function buildTotalSalesExVatCalc(metricsData, customerType) {
+    const totalSales = Number(metricsData.total_sales) || 0;
+    const tax = Math.abs(Number(metricsData.tax) || 0);
+    const grossSales = Number(metricsData.gross_sales) || 0;
+    const netSales = Number(metricsData.net_sales) || 0;
+    const shippingRevenue = Number(metricsData.shipping_revenue) || 0;
+    const exVat = Number(metricsData.total_sales_ex_vat) || 0;
+    const type = customerType || "Shopify";
+
+    let popOverContent;
+    if (type === "Magento") {
+        popOverContent = `Total sales excl. VAT\n= Magento order total (product net + shipping)\n= ${fmtNum(exVat)}`;
+    } else if (type === "WooCommerce") {
+        popOverContent = `Total sales excl. VAT\n= WooCommerce sales total (ex-VAT) for the period\n= ${fmtNum(exVat)}`;
+    } else {
+        popOverContent = `Total sales excl. VAT\n= total_sales − VAT\n= ${fmtNum(totalSales)} − ${fmtNum(tax)}\n= ${fmtNum(exVat)}`;
+    }
+
+    return {
+        popOverContent,
+        calcValueLabels: [
+            `Gross sales (catalog / line gross): ${fmtNum(grossSales)}`,
+            `Total sales (store field): ${fmtNum(totalSales)}`,
+            `VAT / tax: ${fmtNum(tax)}`,
+            `Net sales: ${fmtNum(netSales)}`,
+            `Shipping (income): ${fmtNum(shippingRevenue)}`,
+        ].join("\n"),
+    };
+}
+
+function buildGrossProfitMinusAdSpendCalc(metricsData) {
+    const grossProfit = Number(metricsData.gross_profit) || 0;
+    const cost = Number(metricsData.cost) || 0;
+    const result = Number(metricsData.gross_profit_minus_ad_spend) || 0;
+    return {
+        popOverContent: `Gross profit − Ad spend\n= ${fmtNum(grossProfit)} − ${fmtNum(cost)}\n= ${fmtNum(result)}`,
+        calcValueLabels: `Gross profit: ${fmtNum(grossProfit)}\nAd spend: ${fmtNum(cost)}`,
+    };
+}
+
+function buildGrossProfitExVatCalc(metricsData, fetchCogs, cogsPercentage) {
+    const netRevenue = Number(metricsData.revenue) || 0;
+    const cogs = Number(metricsData.cogs) || 0;
+    const grossProfit = Number(metricsData.gross_profit) || 0;
+    const popOverContent = fetchCogs
+        ? `Gross profit excl. VAT\n= Net revenue − COGS (from store)\n= ${fmtNum(netRevenue)} − ${fmtNum(cogs)}\n= ${fmtNum(grossProfit)}`
+        : `Gross profit excl. VAT\n= Net revenue − (COGS % × Net revenue)\n= ${fmtNum(netRevenue)} − (${(cogsPercentage * 100).toFixed(1)}% × ${fmtNum(netRevenue)})\n= ${fmtNum(netRevenue)} − ${fmtNum(cogs)}\n= ${fmtNum(grossProfit)}`;
+    return {
+        popOverContent,
+        calcValueLabels: `Net revenue: ${fmtNum(netRevenue)}\nCOGS: ${fmtNum(cogs)}`,
+    };
+}
+
+function buildNetProfitCalc(metricsData) {
+    const netRevenue = Number(metricsData.revenue) || 0;
+    const allCosts = Number(metricsData.total_expenses) || 0;
+    const ebit = Number(metricsData.ebit) || 0;
+    return {
+        popOverContent: `Net profit\n= Net revenue − All costs\n= ${fmtNum(netRevenue)} − ${fmtNum(allCosts)}\n= ${fmtNum(ebit)}`,
+        calcValueLabels: `Net revenue: ${fmtNum(netRevenue)}\nAll costs: ${fmtNum(allCosts)}`,
+    };
+}
+
+/** Attach Show calcs content to overview column primary metrics. */
+export function attachOverviewPrimaryMetricCalcs(
+    metricsCards,
+    metricsData,
+    customerType,
+    { fetchCogs = false, cogsPercentage = 0 } = {}
+) {
+    const patches = {
+        total_sales_ex_vat: buildTotalSalesExVatCalc(metricsData, customerType),
+        gross_profit_minus_ad_spend: buildGrossProfitMinusAdSpendCalc(metricsData),
+        gross_profit: buildGrossProfitExVatCalc(metricsData, fetchCogs, cogsPercentage),
+        ebit: buildNetProfitCalc(metricsData),
+    };
+    return metricsCards.map((card) => {
+        const patch = patches[card.key];
+        if (!patch) return card;
+        const hasCalc =
+            card.popOverContent?.trim() &&
+            card.popOverContent.split("\n").some((l) => l.trim().startsWith("="));
+        if (hasCalc) {
+            return {
+                ...card,
+                calcValueLabels: card.calcValueLabels || patch.calcValueLabels,
+            };
+        }
+        return { ...card, ...patch };
+    });
+}
+
 function cardFromValues(key, label, curr, prev, { valueType = "currency" } = {}) {
     const isPct = valueType === "pct";
     const display = isPct

@@ -47,11 +47,14 @@ function MetricChangeBadge({ metric }) {
 
 function CalcBlock({ metric }) {
     if (!metric?.popOverContent) return null;
-    const calcLines = metric.popOverContent
+    const lines = metric.popOverContent
         .split("\n")
         .map((l) => l.trim())
-        .filter((l) => l && l.startsWith("=") && /\d/.test(l));
-    if (!calcLines.length) return null;
+        .filter(Boolean);
+    const calcLines = lines.filter((l) => /^=/.test(l) && /\d/.test(l));
+    const formulaLines = lines.filter((l) => !/^=/.test(l) && !/^Note:/i.test(l));
+    const noteLines = lines.filter((l) => /^Note:/i.test(l));
+    if (!calcLines.length && !formulaLines.length) return null;
     return (
         <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-[10px] font-mono text-gray-600 leading-tight">
             {metric.calcValueLabels && (
@@ -74,20 +77,36 @@ function CalcBlock({ metric }) {
                         })}
                 </div>
             )}
-            <div className="flex flex-col items-end gap-0.5">
-                {calcLines.map((line, i) => (
-                    <span
-                        key={i}
-                        className={
-                            i === calcLines.length - 1
-                                ? "font-bold text-[var(--color-primary-searchmind)]"
-                                : ""
-                        }
-                    >
-                        {line}
-                    </span>
-                ))}
-            </div>
+            {formulaLines.length > 0 && (
+                <div className="mb-1.5 space-y-0.5 text-gray-500">
+                    {formulaLines.map((line, i) => (
+                        <div key={`f-${i}`}>{line}</div>
+                    ))}
+                </div>
+            )}
+            {calcLines.length > 0 && (
+                <div className="flex flex-col items-end gap-0.5">
+                    {calcLines.map((line, i) => (
+                        <span
+                            key={i}
+                            className={
+                                i === calcLines.length - 1
+                                    ? "font-bold text-[var(--color-primary-searchmind)]"
+                                    : ""
+                            }
+                        >
+                            {line}
+                        </span>
+                    ))}
+                </div>
+            )}
+            {noteLines.length > 0 && (
+                <div className="mt-1.5 pt-1.5 border-t border-gray-200 text-[9px] text-gray-500 leading-snug">
+                    {noteLines.map((line, i) => (
+                        <p key={`n-${i}`}>{line.replace(/^Note:\s*/i, "")}</p>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

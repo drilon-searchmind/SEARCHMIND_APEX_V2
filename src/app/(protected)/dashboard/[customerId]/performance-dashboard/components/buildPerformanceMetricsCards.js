@@ -3,6 +3,7 @@ import { shopifyDeductionMagnitudes } from "@/lib/performanceDashboard/computePe
 import {
     enrichOverviewDerivedMetrics,
     buildOverviewDerivedMetricCards,
+    attachOverviewPrimaryMetricCalcs,
 } from "@/lib/performanceDashboard/enrichOverviewDerivedMetrics";
 import { getMonthlyFixedExpensesTotal } from "@/lib/customerStaticExpensesUtils";
 import {
@@ -561,7 +562,13 @@ export function buildPerformanceMetricsCards({
         metricsDataPrev,
         fixedBreakdownRows
     );
-    const metricsWithDerived = [...metricsArray, ...derivedCards];
+    let metricsWithDerived = [...metricsArray, ...derivedCards];
+    metricsWithDerived = attachOverviewPrimaryMetricCalcs(
+        metricsWithDerived,
+        metricsData,
+        customerType,
+        { fetchCogs, cogsPercentage }
+    );
 
     const withReplacements = metricsWithDerived.map((m) => {
         const rep = replacementByKey?.[m.key];
