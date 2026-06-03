@@ -2,6 +2,11 @@ import React from "react";
 import dayjs from "dayjs";
 import { FiDollarSign, FiPieChart } from "react-icons/fi";
 import { shopifyDeductionMagnitudes } from "@/lib/performanceDashboard/computePerformanceMetrics";
+import { getFixedExpensesBreakdownLineItems } from "@/lib/customerStaticExpensesUtils";
+import {
+    percentChange,
+    changeTypeForMetric,
+} from "@/lib/performanceDashboard/metricComparisonChange";
 
 const fmtCur = (n) =>
     n != null && n !== 0
@@ -12,14 +17,6 @@ const fmtCur = (n) =>
           })
         : "-";
 
-function percentChange(current, prev) {
-    if (prev === 0 || prev === null || prev === undefined) return null;
-    return ((current - prev) / Math.abs(prev)) * 100;
-}
-function changeType(val) {
-    if (val === null) return undefined;
-    return val > 0 ? "up" : val < 0 ? "down" : undefined;
-}
 function formatDiff(current, prev, type) {
     if (prev === null || prev === undefined) return undefined;
     const diff = (current ?? 0) - (prev ?? 0);
@@ -53,7 +50,7 @@ function cardFromValues(key, label, curr, prev, { valueType = "currency" } = {})
             <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />
         ),
         change: pct !== null ? Math.abs(pct).toFixed(isPct ? 1 : 0) : undefined,
-        changeType: changeType(pct),
+        changeType: changeTypeForMetric(key, pct),
         changeAbsolute: formatDiff(curr, prev, isPct ? "pct" : "currency"),
         changePrevValue: displayPrev,
         popOverContent: null,
@@ -217,14 +214,17 @@ export function enrichOverviewDerivedMetrics({
     const currDerived = buildDerivedSnapshot(metricsData, derived, customerType);
     const prevDerived = buildDerivedSnapshot(metricsDataPrev, derived, customerType);
 
-    const lineItems = staticExp.fixedExpensesLineItems || [];
+    const breakdownRows = getFixedExpensesBreakdownLineItems(staticExp);
     const fixedLineCurr = {};
     const fixedLinePrev = {};
-    lineItems.forEach((item, i) => {
-        const key = `fixed_line_${i}`;
-        fixedLineCurr[key] = prorateMonthlyForRange(item.amount, rangeStart, rangeEnd);
-        fixedLinePrev[key] = prorateMonthlyForRange(
-            item.amount,
+    breakdownRows.forEach((row) => {
+        fixedLineCurr[row.metricKey] = prorateMonthlyForRange(
+            row.amount,
+            rangeStart,
+            rangeEnd
+        );
+        fixedLinePrev[row.metricKey] = prorateMonthlyForRange(
+            row.amount,
             prevRangeStart,
             prevRangeEnd
         );
@@ -233,7 +233,7 @@ export function enrichOverviewDerivedMetrics({
     Object.assign(metricsData, currDerived, fixedLineCurr);
     Object.assign(metricsDataPrev, prevDerived, fixedLinePrev);
 
-    return { fixedLineItems: lineItems };
+    return { fixedBreakdownRows: breakdownRows };
 }
 
 const DERIVED_CARD_DEFS = [
@@ -254,7 +254,11 @@ const DERIVED_CARD_DEFS = [
 ];
 
 /** MetricCard entries for keys added by enrichOverviewDerivedMetrics. */
-export function buildOverviewDerivedMetricCards(metricsData, metricsDataPrev, lineItems = []) {
+export function buildOverviewDerivedMetricCards(
+    metricsData,
+    metricsDataPrev,
+    fixedBreakdownRows = []
+) {
     const cards = DERIVED_CARD_DEFS.map((def) =>
         cardFromValues(
             def.key,
@@ -265,10 +269,14 @@ export function buildOverviewDerivedMetricCards(metricsData, metricsDataPrev, li
         )
     );
 
-    lineItems.forEach((item, i) => {
-        const key = `fixed_line_${i}`;
+    fixedBreakdownRows.forEach((row) => {
         cards.push(
-            cardFromValues(key, item.name, metricsData[key], metricsDataPrev[key])
+            cardFromValues(
+                row.metricKey,
+                row.label,
+                metricsData[row.metricKey],
+                metricsDataPrev[row.metricKey]
+            )
         );
     });
 
@@ -283,7 +291,7 @@ export function buildOverviewDerivedMetricCards(metricsData, metricsDataPrev, li
             <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />
         ),
         change: spendPct !== null ? Math.abs(spendPct).toFixed(1) : undefined,
-        changeType: changeType(spendPct),
+        changeType: changeTypeForMetric("spendshare", spendPct),
         changeAbsolute: formatDiff(spendshare * 100, spendsharePrev * 100, "pct"),
         changePrevValue:
             spendsharePrev != null ? `${(spendsharePrev * 100).toFixed(1)}%` : undefined,

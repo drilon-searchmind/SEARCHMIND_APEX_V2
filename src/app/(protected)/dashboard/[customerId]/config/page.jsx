@@ -13,6 +13,7 @@ import PropertyObjectives from './components/PropertyObjectives';
 import { defaultSnapchatSettings, normalizeSnapchatSettings } from '@/lib/snapchatCustomerSettings';
 import { defaultRedditSettings, normalizeRedditSettings } from '@/lib/redditCustomerSettings';
 import { pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
+import { prepareCustomerStaticExpensesForSave } from '@/lib/customerStaticExpensesUtils';
 
 export default function ConfigPage() {
     const { customerId } = useParams();
@@ -203,38 +204,10 @@ export default function ConfigPage() {
             // Calculate sums from line items and update main fields
             const updatedExpenses = { ...CustomerStaticExpenses };
             
-            // Filter out incomplete line items (those without names) before saving
-            const filterCompleteLineItems = (items) => {
-                if (!items || !Array.isArray(items)) return [];
-                return items.filter(item => item && item.name && item.name.trim() !== '');
-            };
-            
-            // Filter and update marketing bureau cost line items
-            updatedExpenses.marketingBureauCostLineItems = filterCompleteLineItems(updatedExpenses.marketingBureauCostLineItems || []);
-            if (updatedExpenses.marketingBureauCostLineItems.length > 0) {
-                updatedExpenses.marketingBureauCost = updatedExpenses.marketingBureauCostLineItems.reduce(
-                    (sum, item) => sum + (parseFloat(item.amount) || 0), 0
-                );
-            }
-            // If no line items but main field has value, keep it (backward compatibility)
-            
-            // Filter and update marketing tooling cost line items
-            updatedExpenses.marketingToolingCostLineItems = filterCompleteLineItems(updatedExpenses.marketingToolingCostLineItems || []);
-            if (updatedExpenses.marketingToolingCostLineItems.length > 0) {
-                updatedExpenses.marketingToolingCost = updatedExpenses.marketingToolingCostLineItems.reduce(
-                    (sum, item) => sum + (parseFloat(item.amount) || 0), 0
-                );
-            }
-            // If no line items but main field has value, keep it (backward compatibility)
-            
-            // Filter and update fixed expenses line items
-            updatedExpenses.fixedExpensesLineItems = filterCompleteLineItems(updatedExpenses.fixedExpensesLineItems || []);
-            if (updatedExpenses.fixedExpensesLineItems.length > 0) {
-                updatedExpenses.fixedExpenses = updatedExpenses.fixedExpensesLineItems.reduce(
-                    (sum, item) => sum + (parseFloat(item.amount) || 0), 0
-                );
-            }
-            // If no line items but main field has value, keep it (backward compatibility)
+            Object.assign(
+                updatedExpenses,
+                prepareCustomerStaticExpensesForSave(updatedExpenses)
+            );
             const res = await fetch(`/api/customers/${customerId}`,
                 {
                     method: 'PUT',

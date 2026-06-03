@@ -4,6 +4,11 @@ import {
     enrichOverviewDerivedMetrics,
     buildOverviewDerivedMetricCards,
 } from "@/lib/performanceDashboard/enrichOverviewDerivedMetrics";
+import { getMonthlyFixedExpensesTotal } from "@/lib/customerStaticExpensesUtils";
+import {
+    percentChange,
+    changeTypeForMetric,
+} from "@/lib/performanceDashboard/metricComparisonChange";
 import {
     FiDollarSign,
     FiTrendingUp,
@@ -16,13 +21,8 @@ import {
     FiUserCheck,
 } from "react-icons/fi";
 
-function percentChange(current, prev) {
-    if (prev === 0 || prev === null || prev === undefined) return null;
-    return ((current - prev) / Math.abs(prev)) * 100;
-}
-function changeType(val) {
-    if (val === null) return undefined;
-    return val > 0 ? "up" : val < 0 ? "down" : undefined;
+function chg(metricKey, current, prev) {
+    return changeTypeForMetric(metricKey, percentChange(current, prev));
 }
 function formatDiff(current, prev, type) {
     if (prev === null || prev === undefined) return undefined;
@@ -137,7 +137,7 @@ export function buildPerformanceMetricsCards({
     const transactionCostPct = staticExp.transactionCostPercentage ?? 0.015;
     const shippingCostPerOrder = staticExp.shippingCostPerOrder ?? 0;
     const pickNPackCostPerOrder = staticExp.pickNPackCostPerOrder ?? 0;
-    const fixedExpensesMonthly = Number(staticExp.fixedExpenses) || 0;
+    const fixedExpensesMonthly = getMonthlyFixedExpensesTotal(staticExp);
 
     const cac = merged.CACTotalSales ?? null;
     const cacPrev = mergedPrev.CACTotalSales ?? null;
@@ -169,7 +169,7 @@ export function buildPerformanceMetricsCards({
             value: orders != null ? orders.toLocaleString("da-DK", { maximumFractionDigits: 0 }) : "-",
             icon: <FiShoppingCart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(orders, ordersPrev) !== null ? Math.abs(percentChange(orders, ordersPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(orders, ordersPrev)),
+            changeType: chg("orders", orders, ordersPrev),
             changeAbsolute: formatDiff(orders, ordersPrev, "count"),
             changePrevValue: ordersPrev != null ? ordersPrev.toLocaleString("da-DK", { maximumFractionDigits: 0 }) : undefined,
             popOverContent: null,
@@ -180,7 +180,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(totalSales),
             icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(totalSales, totalSalesPrev) !== null ? Math.abs(percentChange(totalSales, totalSalesPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(totalSales, totalSalesPrev)),
+            changeType: chg("total_sales", totalSales, totalSalesPrev),
             changeAbsolute: formatDiff(totalSales, totalSalesPrev, "currency"),
             changePrevValue: fmtCur(totalSalesPrev),
             popOverContent: null,
@@ -191,7 +191,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(grossSales),
             icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(grossSales, grossSalesPrev) !== null ? Math.abs(percentChange(grossSales, grossSalesPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(grossSales, grossSalesPrev)),
+            changeType: chg("gross_sales", grossSales, grossSalesPrev),
             changeAbsolute: formatDiff(grossSales, grossSalesPrev, "currency"),
             changePrevValue: fmtCur(grossSalesPrev),
             popOverContent: null,
@@ -202,7 +202,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(discounts),
             icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(discounts, discountsPrev) !== null ? Math.abs(percentChange(discounts, discountsPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(discounts, discountsPrev)),
+            changeType: chg("discounts", discounts, discountsPrev),
             changeAbsolute: formatDiff(discounts, discountsPrev, "currency"),
             changePrevValue: fmtCur(discountsPrev),
             popOverContent: null,
@@ -213,7 +213,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(netRevenue),
             icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(netRevenue, netRevenuePrev) !== null ? Math.abs(percentChange(netRevenue, netRevenuePrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(netRevenue, netRevenuePrev)),
+            changeType: chg("revenue", netRevenue, netRevenuePrev),
             changeAbsolute: formatDiff(netRevenue, netRevenuePrev, "currency"),
             changePrevValue: fmtCur(netRevenuePrev),
             tooltip: "Net sales (after discounts, returns, etc.)",
@@ -233,7 +233,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(netSales),
             icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(netSales, netSalesPrev) !== null ? Math.abs(percentChange(netSales, netSalesPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(netSales, netSalesPrev)),
+            changeType: chg("net_sales", netSales, netSalesPrev),
             changeAbsolute: formatDiff(netSales, netSalesPrev, "currency"),
             changePrevValue: fmtCur(netSalesPrev),
             tooltip: "Shopify net sales from store (not adjusted by returns % override)",
@@ -245,7 +245,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(duties),
             icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(duties, dutiesPrev) !== null ? Math.abs(percentChange(duties, dutiesPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(duties, dutiesPrev)),
+            changeType: chg("duties", duties, dutiesPrev),
             changeAbsolute: formatDiff(duties, dutiesPrev, "currency"),
             changePrevValue: fmtCur(dutiesPrev),
             popOverContent: null,
@@ -256,7 +256,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(additionalFees),
             icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(additionalFees, additionalFeesPrev) !== null ? Math.abs(percentChange(additionalFees, additionalFeesPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(additionalFees, additionalFeesPrev)),
+            changeType: chg("additional_fees", additionalFees, additionalFeesPrev),
             changeAbsolute: formatDiff(additionalFees, additionalFeesPrev, "currency"),
             changePrevValue: fmtCur(additionalFeesPrev),
             popOverContent: null,
@@ -267,7 +267,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(totalCogs),
             icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(totalCogs, prevTotalCogs) !== null ? Math.abs(percentChange(totalCogs, prevTotalCogs)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(totalCogs, prevTotalCogs)),
+            changeType: chg("cogs", totalCogs, prevTotalCogs),
             changeAbsolute: formatDiff(totalCogs, prevTotalCogs, "currency"),
             changePrevValue: fmtCur(prevTotalCogs),
             popOverContent: fetchCogs
@@ -276,6 +276,9 @@ export function buildPerformanceMetricsCards({
             calcValueLabels: fetchCogs
                 ? `Cost of goods sold (from Shopify): ${fmt(totalCogs)}`
                 : `Net Revenue: ${fmt(netRevenue)}\nCOGS %: ${(cogsPercentage * 100).toFixed(1)}%`,
+            cogsSettingsHighlight:
+                fetchCogs === true ||
+                (!fetchCogs && Number(cogsPercentage) > 0),
         },
         {
             key: "aov",
@@ -283,7 +286,7 @@ export function buildPerformanceMetricsCards({
             value: aov != null ? fmtCur(aov) : "-",
             icon: <FiShoppingBag className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(aov, aovPrev) !== null ? Math.abs(percentChange(aov, aovPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(aov, aovPrev)),
+            changeType: chg("aov", aov, aovPrev),
             changeAbsolute: formatDiff(aov, aovPrev, "currency"),
             changePrevValue: aovPrev != null ? fmtCur(aovPrev) : undefined,
             popOverContent: orders > 0 ? `Net AOV = Net Revenue / Orders\n= ${fmt(netRevenue)} / ${orders}\n= ${fmt(aov)}` : null,
@@ -295,7 +298,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(cost),
             icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(cost, costPrev) !== null ? Math.abs(percentChange(cost, costPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(cost, costPrev)),
+            changeType: chg("cost", cost, costPrev),
             changeAbsolute: formatDiff(cost, costPrev, "currency"),
             changePrevValue: fmtCur(costPrev),
             popOverContent: totalAdspendCalculation,
@@ -307,7 +310,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(cost),
             icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(cost, costPrev) !== null ? Math.abs(percentChange(cost, costPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(cost, costPrev)),
+            changeType: chg("cost", cost, costPrev),
             changeAbsolute: formatDiff(cost, costPrev, "currency"),
             changePrevValue: fmtCur(costPrev),
             popOverContent: totalAdspendCalculation,
@@ -321,7 +324,7 @@ export function buildPerformanceMetricsCards({
                 value: fmtCur(metaSpend),
                 icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                 change: percentChange(metaSpend, metaSpendPrev) !== null ? Math.abs(percentChange(metaSpend, metaSpendPrev)).toFixed(0) : undefined,
-                changeType: changeType(percentChange(metaSpend, metaSpendPrev)),
+                changeType: chg("meta_spend", metaSpend, metaSpendPrev),
                 changeAbsolute: formatDiff(metaSpend, metaSpendPrev, "currency"),
                 changePrevValue: fmtCur(metaSpendPrev),
                 popOverContent: null,
@@ -334,7 +337,7 @@ export function buildPerformanceMetricsCards({
                 value: fmtCur(googleSpend),
                 icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                 change: percentChange(googleSpend, googleSpendPrev) !== null ? Math.abs(percentChange(googleSpend, googleSpendPrev)).toFixed(0) : undefined,
-                changeType: changeType(percentChange(googleSpend, googleSpendPrev)),
+                changeType: chg("google_spend", googleSpend, googleSpendPrev),
                 changeAbsolute: formatDiff(googleSpend, googleSpendPrev, "currency"),
                 changePrevValue: fmtCur(googleSpendPrev),
                 popOverContent: null,
@@ -350,7 +353,7 @@ export function buildPerformanceMetricsCards({
                     value: fmtCur(cur),
                     icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
                     change: percentChange(cur, prevSpend) !== null ? Math.abs(percentChange(cur, prevSpend)).toFixed(0) : undefined,
-                    changeType: changeType(percentChange(cur, prevSpend)),
+                    changeType: chg(spec.metricsDataKey, cur, prevSpend),
                     changeAbsolute: formatDiff(cur, prevSpend, "currency"),
                     changePrevValue: fmtCur(prevSpend),
                     popOverContent: null,
@@ -362,7 +365,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(shippingCost),
             icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(shippingCost, shippingCostPrev) !== null ? Math.abs(percentChange(shippingCost, shippingCostPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(shippingCost, shippingCostPrev)),
+            changeType: chg("shipping_cost", shippingCost, shippingCostPrev),
             changeAbsolute: formatDiff(shippingCost, shippingCostPrev, "currency"),
             changePrevValue: fmtCur(shippingCostPrev),
             popOverContent: `Shipping Cost = Shipping per order × Orders\n= ${fmt(shippingCostPerOrder)} × ${orders}\n= ${fmt(shippingCost)}`,
@@ -374,7 +377,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(pickPackCost),
             icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(pickPackCost, pickPackCostPrev) !== null ? Math.abs(percentChange(pickPackCost, pickPackCostPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(pickPackCost, pickPackCostPrev)),
+            changeType: chg("pick_pack", pickPackCost, pickPackCostPrev),
             changeAbsolute: formatDiff(pickPackCost, pickPackCostPrev, "currency"),
             changePrevValue: fmtCur(pickPackCostPrev),
             popOverContent: `Pick & Pack = Pick & pack per order × Orders\n= ${fmt(pickNPackCostPerOrder)} × ${orders}\n= ${fmt(pickPackCost)}`,
@@ -386,7 +389,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(allCosts),
             icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(allCosts, allCostsPrev) !== null ? Math.abs(percentChange(allCosts, allCostsPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(allCosts, allCostsPrev)),
+            changeType: chg("total_expenses", allCosts, allCostsPrev),
             changeAbsolute: formatDiff(allCosts, allCostsPrev, "currency"),
             changePrevValue: fmtCur(allCostsPrev),
             popOverContent: `Total Expenses = COGS + Marketing + Variable + Fixed + Transaction Fee\n= ${fmt(totalCogs)} + ${fmt(cost)} + ${fmt(variableCosts)} + ${fmt(metricsData.fixed_costs)} + ${fmt(transactionFee)}\n= ${fmt(allCosts)}`,
@@ -398,7 +401,7 @@ export function buildPerformanceMetricsCards({
             value: roas != null ? roas.toFixed(2) : "-",
             icon: <FiBarChart2 className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(roas, roasPrev) !== null ? Math.abs(percentChange(roas, roasPrev)).toFixed(1) : undefined,
-            changeType: changeType(percentChange(roas, roasPrev)),
+            changeType: chg("roas", roas, roasPrev),
             changeAbsolute: formatDiff(roas, roasPrev, "ratio"),
             changePrevValue: roasPrev != null ? roasPrev.toFixed(2) : undefined,
             popOverContent: roasCalculation,
@@ -410,7 +413,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(variableCosts),
             icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(variableCosts, variableCostsPrev) !== null ? Math.abs(percentChange(variableCosts, variableCostsPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(variableCosts, variableCostsPrev)),
+            changeType: chg("variable_costs", variableCosts, variableCostsPrev),
             changeAbsolute: formatDiff(variableCosts, variableCostsPrev, "currency"),
             changePrevValue: fmtCur(variableCostsPrev),
             popOverContent: `Variable Spend (scale with volume):\n(shipping + pick & pack) × orders\n= (${fmt(shippingCostPerOrder)} + ${fmt(pickNPackCostPerOrder)}) × ${orders}\n= ${fmt(variableCosts)}`,
@@ -422,11 +425,16 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(metricsData.fixed_costs),
             icon: <FiCreditCard className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(metricsData.fixed_costs, metricsDataPrev.fixed_costs) !== null ? Math.abs(percentChange(metricsData.fixed_costs, metricsDataPrev.fixed_costs)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(metricsData.fixed_costs, metricsDataPrev.fixed_costs)),
+            changeType: chg(
+                "fixed_costs",
+                metricsData.fixed_costs,
+                metricsDataPrev.fixed_costs
+            ),
             changeAbsolute: formatDiff(metricsData.fixed_costs, metricsDataPrev.fixed_costs, "currency"),
             changePrevValue: fmtCur(metricsDataPrev.fixed_costs),
             popOverContent: `Fixed Spend (prorated for period):\nfixedExpenses (monthly) × sum over each day of (1 / days in that month)\n= ${fmt(fixedExpensesMonthly)} prorated over ${daysInRange} days\n= ${fmt(metricsData.fixed_costs)}`,
             calcValueLabels: `Fixed expenses (monthly): ${fmt(fixedExpensesMonthly)}\nDays in range: ${daysInRange}`,
+            fixedExpensesSettingsActive: fixedExpensesMonthly > 0,
         },
         {
             key: "poas",
@@ -434,7 +442,7 @@ export function buildPerformanceMetricsCards({
             value: poas != null ? poas.toFixed(2) : "-",
             icon: <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(poas, poasPrev) !== null ? Math.abs(percentChange(poas, poasPrev)).toFixed(1) : undefined,
-            changeType: changeType(percentChange(poas, poasPrev)),
+            changeType: chg("poas", poas, poasPrev),
             changeAbsolute: formatDiff(poas, poasPrev, "ratio"),
             changePrevValue: poasPrev != null ? poasPrev.toFixed(2) : undefined,
             popOverContent: poasCalculation,
@@ -446,7 +454,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(grossProfit),
             icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(grossProfit, grossProfitPrev) !== null ? Math.abs(percentChange(grossProfit, grossProfitPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(grossProfit, grossProfitPrev)),
+            changeType: chg("gross_profit", grossProfit, grossProfitPrev),
             changeAbsolute: formatDiff(grossProfit, grossProfitPrev, "currency"),
             changePrevValue: fmtCur(grossProfitPrev),
             tooltip: "Net Revenue - COGS",
@@ -459,7 +467,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(returns),
             icon: <FiTrendingUp className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(returns, returnsPrev) !== null ? Math.abs(percentChange(returns, returnsPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(returns, returnsPrev)),
+            changeType: chg("returns", returns, returnsPrev),
             changeAbsolute: formatDiff(returns, returnsPrev, "currency"),
             changePrevValue: fmtCur(returnsPrev),
             popOverContent: returnsPopOver,
@@ -471,7 +479,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(shippingCharges),
             icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(shippingCharges, shippingChargesPrev) !== null ? Math.abs(percentChange(shippingCharges, shippingChargesPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(shippingCharges, shippingChargesPrev)),
+            changeType: chg("shipping_revenue", shippingCharges, shippingChargesPrev),
             changeAbsolute: formatDiff(shippingCharges, shippingChargesPrev, "currency"),
             changePrevValue: fmtCur(shippingChargesPrev),
             popOverContent: null,
@@ -482,7 +490,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(transactionFee),
             icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(transactionFee, transactionFeePrev) !== null ? Math.abs(percentChange(transactionFee, transactionFeePrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(transactionFee, transactionFeePrev)),
+            changeType: chg("transaction_fee", transactionFee, transactionFeePrev),
             changeAbsolute: formatDiff(transactionFee, transactionFeePrev, "currency"),
             changePrevValue: fmtCur(transactionFeePrev),
             popOverContent: `Transaction Fee = Net Revenue × ${(transactionCostPct * 100).toFixed(2)}%\n= ${fmt(netRevenue)} × ${(transactionCostPct * 100).toFixed(2)}%\n= ${fmt(transactionFee)}`,
@@ -494,7 +502,7 @@ export function buildPerformanceMetricsCards({
             value: fmtCur(taxes),
             icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(taxes, taxesPrev) !== null ? Math.abs(percentChange(taxes, taxesPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(taxes, taxesPrev)),
+            changeType: chg("tax", taxes, taxesPrev),
             changeAbsolute: formatDiff(taxes, taxesPrev, "currency"),
             changePrevValue: fmtCur(taxesPrev),
             popOverContent: null,
@@ -505,7 +513,7 @@ export function buildPerformanceMetricsCards({
             value: ebit != null ? fmtCur(ebit) : "-",
             icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(ebit, ebitPrev) !== null ? Math.abs(percentChange(ebit, ebitPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(ebit, ebitPrev)),
+            changeType: chg("ebit", ebit, ebitPrev),
             changeAbsolute: formatDiff(ebit, ebitPrev, "currency"),
             changePrevValue: fmtCur(ebitPrev),
             popOverContent: `Net Profit = Net Revenue - All Spend\n= ${fmt(netRevenue)} - ${fmt(allCosts)}\n= ${fmt(ebit)}`,
@@ -517,7 +525,7 @@ export function buildPerformanceMetricsCards({
             value: ebitPct != null ? `${ebitPct.toFixed(1)}%` : "-",
             icon: <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(ebitPct, ebitPctPrev) !== null ? Math.abs(percentChange(ebitPct, ebitPctPrev)).toFixed(1) : undefined,
-            changeType: changeType(percentChange(ebitPct, ebitPctPrev)),
+            changeType: chg("ebit_pct", ebitPct, ebitPctPrev),
             changeAbsolute: formatDiff(ebitPct, ebitPctPrev, "pct"),
             changePrevValue: ebitPctPrev != null ? `${ebitPctPrev.toFixed(1)}%` : undefined,
             popOverContent: `EBIT = Net Revenue - All Spend\n= ${fmt(netRevenue)} - ${fmt(allCosts)}\n= ${fmt(ebit)}\nEBIT% = (EBIT / Net Revenue) × 100\n= (${fmt(ebit)} / ${fmt(netRevenue)}) × 100\n= ${ebitPct != null ? ebitPct.toFixed(1) : "N/A"}%`,
@@ -529,7 +537,7 @@ export function buildPerformanceMetricsCards({
             value: cac != null ? fmtCur(cac) : "-",
             icon: <FiUserCheck className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
             change: percentChange(cac, cacPrev) !== null ? Math.abs(percentChange(cac, cacPrev)).toFixed(0) : undefined,
-            changeType: changeType(percentChange(cac, cacPrev)),
+            changeType: chg("cac", cac, cacPrev),
             changeAbsolute: formatDiff(cac, cacPrev, "currency"),
             changePrevValue: cacPrev != null ? fmtCur(cacPrev) : undefined,
             popOverContent: cacCalculation,
@@ -537,7 +545,7 @@ export function buildPerformanceMetricsCards({
         },
     ];
 
-    const { fixedLineItems } = enrichOverviewDerivedMetrics({
+    const { fixedBreakdownRows } = enrichOverviewDerivedMetrics({
         metricsData,
         metricsDataPrev,
         derived,
@@ -551,7 +559,7 @@ export function buildPerformanceMetricsCards({
     const derivedCards = buildOverviewDerivedMetricCards(
         metricsData,
         metricsDataPrev,
-        fixedLineItems
+        fixedBreakdownRows
     );
     const metricsWithDerived = [...metricsArray, ...derivedCards];
 
@@ -582,7 +590,7 @@ export function buildPerformanceMetricsCards({
                     ? rep.value.toLocaleString("da-DK", { maximumFractionDigits: 0 })
                     : fmtCur(rep.value),
             change: pct !== null ? Math.abs(pct).toFixed(isRatio || isPctDerived ? 1 : 0) : undefined,
-            changeType: changeType(pct),
+            changeType: changeTypeForMetric(m.key, pct),
             changeAbsolute: formatDiff(
                 rep.value,
                 rep.valuePrev,

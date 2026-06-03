@@ -103,6 +103,8 @@ export default function PerformanceDashboardStandardSections({
     selectedMetrics,
     onToggleMetric,
     onReturnsOverrideClick,
+    onCogsSettingsClick,
+    onFixedExpensesSettingsClick,
 }) {
     const metricsByKey = useMemo(
         () => new Map(metrics.map((m) => [m.key, m])),
@@ -294,6 +296,42 @@ export default function PerformanceDashboardStandardSections({
                                                     }`}
                                                     aria-label="Returns override settings"
                                                     title="Returns % override"
+                                                >
+                                                    <FiSettings className="text-sm" />
+                                                </button>
+                                            )}
+                                            {row.cogsSettings && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onCogsSettingsClick?.();
+                                                    }}
+                                                    className={`p-1 rounded-md transition-colors shrink-0 ${
+                                                        metric.cogsSettingsHighlight
+                                                            ? "text-purple-600 bg-purple-50"
+                                                            : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                                                    }`}
+                                                    aria-label="COGS settings"
+                                                    title="COGS source & %"
+                                                >
+                                                    <FiSettings className="text-sm" />
+                                                </button>
+                                            )}
+                                            {row.fixedExpensesSettings && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onFixedExpensesSettingsClick?.();
+                                                    }}
+                                                    className={`p-1 rounded-md transition-colors shrink-0 ${
+                                                        metric.fixedExpensesSettingsActive
+                                                            ? "text-purple-600 bg-purple-50"
+                                                            : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                                                    }`}
+                                                    aria-label="Fixed expenses settings"
+                                                    title="Fixed monthly expenses"
                                                 >
                                                     <FiSettings className="text-sm" />
                                                 </button>

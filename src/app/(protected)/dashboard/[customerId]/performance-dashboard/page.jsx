@@ -15,6 +15,13 @@ import { getChartColors } from "@/components/dashboard/chartColors";
 import Spinner from "@/components/ui/Spinner";
 import Custom from "./components/Custom";
 import ReturnsOverrideModal from "./components/ReturnsOverrideModal";
+import CogsSettingsModal from "./components/CogsSettingsModal";
+import FixedExpensesSettingsModal from "./components/FixedExpensesSettingsModal";
+import {
+    prepareCustomerStaticExpensesForSave,
+    getMonthlyFixedExpensesTotal,
+    getFixedExpensesBreakdownLineItems,
+} from "@/lib/customerStaticExpensesUtils";
 import { buildPerformanceMetricsCards } from "./components/buildPerformanceMetricsCards";
 import PerformanceDashboardStandardSections from "./components/PerformanceDashboardStandardSections";
 import {
@@ -116,7 +123,10 @@ export default function PerformanceDashboard() {
     const [customKpis, setCustomKpis] = useState([]);
     const [replacementByKey, setReplacementByKey] = useState({});
     const [returnsOverrideModalOpen, setReturnsOverrideModalOpen] = useState(false);
+    const [cogsSettingsModalOpen, setCogsSettingsModalOpen] = useState(false);
+    const [fixedExpensesModalOpen, setFixedExpensesModalOpen] = useState(false);
     const [settingsSaving, setSettingsSaving] = useState(false);
+    const [mergedDataRefreshKey, setMergedDataRefreshKey] = useState(0);
 
     // Fetch merged data and prepare chart data
     const [shopifyDaily, setShopifyDaily] = useState([]);
@@ -252,7 +262,7 @@ export default function PerformanceDashboard() {
                 setLoading(false);
             }
         })();
-    }, [customer, appliedDateRange, comparisonMethod, mergedSourcesQuerySuffix]);
+    }, [customer, appliedDateRange, comparisonMethod, mergedSourcesQuerySuffix, mergedDataRefreshKey]);
 
     useEffect(() => {
         const customerId = params?.customerId;
@@ -289,6 +299,10 @@ export default function PerformanceDashboard() {
         customer?.CustomerSettings
     );
 
+    const refreshDashboardData = useCallback(() => {
+        setMergedDataRefreshKey((k) => k + 1);
+    }, []);
+
     const handleReturnsOverrideSave = async ({ enabled, percent }) => {
         if (!params?.customerId || !customer) return;
         setSettingsSaving(true);
@@ -304,6 +318,50 @@ export default function PerformanceDashboard() {
                 },
             });
             setReturnsOverrideModalOpen(false);
+            refreshDashboardData();
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setSettingsSaving(false);
+        }
+    };
+
+    const handleCogsSettingsSave = async ({ fetchCogsFromStore, cogsPercentage }) => {
+        if (!params?.customerId || !customer) return;
+        setSettingsSaving(true);
+        try {
+            await updateCustomer(params.customerId, {
+                CustomerSettings: {
+                    ...customer.CustomerSettings,
+                    fetchCogsFromStore,
+                },
+                CustomerStaticExpenses: {
+                    ...(customer.CustomerStaticExpenses || {}),
+                    cogsPercentage,
+                },
+            });
+            setCogsSettingsModalOpen(false);
+            refreshDashboardData();
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setSettingsSaving(false);
+        }
+    };
+
+    const handleFixedExpensesSave = async (staticExpensesDraft) => {
+        if (!params?.customerId || !customer) return;
+        setSettingsSaving(true);
+        try {
+            const prepared = prepareCustomerStaticExpensesForSave({
+                ...(customer.CustomerStaticExpenses || {}),
+                ...staticExpensesDraft,
+            });
+            await updateCustomer(params.customerId, {
+                CustomerStaticExpenses: prepared,
+            });
+            setFixedExpensesModalOpen(false);
+            refreshDashboardData();
         } catch (err) {
             console.error(err);
         } finally {
@@ -327,7 +385,7 @@ export default function PerformanceDashboard() {
         const chTotalsPrev = channelSpendTotalsFromMerged(mergedPrev);
 
         const staticExp = customer?.CustomerStaticExpenses || {};
-        const fixedExpensesMonthly = Number(staticExp.fixedExpenses) || 0;
+        const fixedExpensesMonthly = getMonthlyFixedExpensesTotal(staticExp);
         const calcFixedForRange = (rangeStart, rangeEnd) => {
             let total = 0;
             let d = dayjs(rangeStart);
@@ -443,14 +501,18 @@ export default function PerformanceDashboard() {
     const [viewMode, setViewMode] = useState('standard'); // 'standard' | 'custom'
     const [showCalcs, setShowCalcs] = useState(false); // Default ON for Standard view
 
+    const fixedBreakdownRows = useMemo(
+        () => getFixedExpensesBreakdownLineItems(customer?.CustomerStaticExpenses || {}),
+        [customer?.CustomerStaticExpenses]
+    );
+
     const STANDARD_SECTIONS = useMemo(
         () =>
             buildStandardOverviewSections({
                 visibleAdSpendChannels,
-                fixedExpensesLineItems:
-                    customer?.CustomerStaticExpenses?.fixedExpensesLineItems || [],
+                fixedBreakdownRows,
             }),
-        [visibleAdSpendChannels, customer?.CustomerStaticExpenses?.fixedExpensesLineItems]
+        [visibleAdSpendChannels, fixedBreakdownRows]
     );
 
     const overviewColumnMetricKeys = useMemo(
@@ -518,7 +580,7 @@ export default function PerformanceDashboard() {
         };
 
         const staticExp = customer?.CustomerStaticExpenses || {};
-        const fixedBase = Number(staticExp.fixedExpenses) || 0;
+        const fixedBase = getMonthlyFixedExpensesTotal(staticExp);
         const shippingPerOrder = staticExp.shippingCostPerOrder ?? 0;
         const pickPerOrder = staticExp.pickNPackCostPerOrder ?? 0;
         const txCostPct = staticExp.transactionCostPercentage ?? 0.015;
@@ -1067,6 +1129,8 @@ export default function PerformanceDashboard() {
                     selectedMetrics={selectedMetrics}
                     onToggleMetric={toggleMetricSelection}
                     onReturnsOverrideClick={() => setReturnsOverrideModalOpen(true)}
+                    onCogsSettingsClick={() => setCogsSettingsModalOpen(true)}
+                    onFixedExpensesSettingsClick={() => setFixedExpensesModalOpen(true)}
                 />
             </div>
             </>
@@ -1157,6 +1221,25 @@ export default function PerformanceDashboard() {
                 initialEnabled={returnsOverrideSettings.enabled}
                 initialPercent={returnsOverrideSettings.percent}
                 onSave={handleReturnsOverrideSave}
+                saving={settingsSaving}
+            />
+            <CogsSettingsModal
+                open={cogsSettingsModalOpen}
+                onClose={() => setCogsSettingsModalOpen(false)}
+                initialFetchCogsFromStore={
+                    customer?.CustomerSettings?.fetchCogsFromStore === true
+                }
+                initialCogsPercentage={
+                    customer?.CustomerStaticExpenses?.cogsPercentage ?? 0
+                }
+                onSave={handleCogsSettingsSave}
+                saving={settingsSaving}
+            />
+            <FixedExpensesSettingsModal
+                open={fixedExpensesModalOpen}
+                onClose={() => setFixedExpensesModalOpen(false)}
+                initialStaticExpenses={customer?.CustomerStaticExpenses || {}}
+                onSave={handleFixedExpensesSave}
                 saving={settingsSaving}
             />
         </div>

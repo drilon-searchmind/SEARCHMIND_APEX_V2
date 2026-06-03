@@ -39,11 +39,11 @@ export function getOverviewKpiCardKeys(columnMetricKeys) {
 }
 
 /**
- * @param {{ visibleAdSpendChannels: { metricsDataKey: string, label: string }[], fixedExpensesLineItems?: { name: string, amount: number }[] }} opts
+ * @param {{ visibleAdSpendChannels: { metricsDataKey: string, label: string }[], fixedBreakdownRows?: { key: string, metricKey: string, label: string }[] }} opts
  */
 export function buildStandardOverviewSections({
     visibleAdSpendChannels = [],
-    fixedExpensesLineItems = [],
+    fixedBreakdownRows = [],
 }) {
     const channelRows = visibleAdSpendChannels.map((c) => ({
         key: c.metricsDataKey,
@@ -51,10 +51,10 @@ export function buildStandardOverviewSections({
         label: `${c.label} spend`,
     }));
 
-    const fixedChildren = (fixedExpensesLineItems || []).map((item, i) => ({
-        key: `fixed_line_${i}`,
-        metricKey: `fixed_line_${i}`,
-        label: item.name,
+    const fixedChildren = (fixedBreakdownRows || []).map((row) => ({
+        key: row.key,
+        metricKey: row.metricKey,
+        label: row.label,
         nested: true,
     }));
 
@@ -144,7 +144,7 @@ export function buildStandardOverviewSections({
             primaryKey: "gross_profit",
             headerSubtitlePct: true,
             breakdown: [
-                { key: "cogs", label: "COGS" },
+                { key: "cogs", label: "COGS", cogsSettings: true },
                 {
                     key: "cogs_pct_total_sales",
                     metricKey: "cogs_pct_total_sales",
@@ -195,6 +195,7 @@ export function buildStandardOverviewSections({
                     metricKey: "fixed_costs",
                     label: "Fixed Expenses",
                     collapsible: true,
+                    fixedExpensesSettings: true,
                     children: fixedChildren,
                 },
             ],
