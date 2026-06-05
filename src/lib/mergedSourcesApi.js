@@ -19,6 +19,8 @@ import { fetchRedditDashboardMetrics, resolveRedditAccessTokenForCustomer } from
 import { normalizeRedditSettings } from './redditCustomerSettings';
 import { fetchWooCommerceOrders } from './wooCommerceApi';
 import { fetchMagentoPerformanceDaily } from './magentoPerformanceDashboardApi';
+import { fetchDanDomainPerformanceDaily } from './danDomainApi';
+import { normalizeDanDomainSettings } from './danDomainCustomerSettings';
 import { fetchFacebookAdsInsights } from './facebookApi';
 import { adCampaignFilterActive, normalizeCampaignNameKeywords } from './adCampaignFilterUtils';
 import { fetchGoogleAdsMetrics } from './googleAdsApi';
@@ -27,7 +29,7 @@ import { isAdSpendPlatformConfigured } from './customerServiceIntegrations';
 import { AD_SPEND_CHANNELS } from './mergeAdSpendDaily';
 
 /**
- * Fetches and merges revenue (Shopify/WooCommerce), Facebook, Google, and optional Pinterest, Snapchat, Microsoft, Reddit adspend for a customer.
+ * Fetches and merges revenue (Shopify/WooCommerce/Magento/DanDomain), Facebook, Google, and optional Pinterest, Snapchat, Microsoft, Reddit adspend for a customer.
  * @param {object} settings - Customer settings object containing all required credentials and customerType.
  * @param {string} startDate - Start date (YYYY-MM-DD)
  * @param {string} endDate - End date (YYYY-MM-DD)
@@ -268,6 +270,55 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 custom_1: (parseFloat(row.custom_1) || 0) * conversionRate,
                 orders: parseInt(row.orders) || 0,
             })).sort((a, b) => a.period.localeCompare(b.period));
+        } else if (customerType === 'DanDomain') {
+            const dan = normalizeDanDomainSettings(settings);
+            const hasCreds =
+                (dan.shopHost && dan.clientId && dan.clientSecret) ||
+                (dan.shopHost && dan.accessToken);
+
+            if (hasCreds) {
+                console.log('::: FETCHING DANDOMAIN / HOSTEDSHOP DATA :::');
+                console.log(
+                    'Customer:',
+                    settings.customerName || 'Unknown',
+                    '- Date range:',
+                    { startDate, endDate }
+                );
+
+                const danDomainData = await fetchDanDomainPerformanceDaily(
+                    settings,
+                    startDate,
+                    endDate
+                );
+
+                console.log('::: DANDOMAIN RESULT :::', danDomainData.length, 'days with data');
+
+                const fromCode = settings?.customerStoreValutaCode || 'DKK';
+                const conversionRate = conversionRateToDkk(fromCode, currencyData);
+                const fetchCogs = settings.fetchCogsFromStore === true;
+
+                shopifyDaily = danDomainData.map((row) => {
+                    const baseData = {
+                        period: row.period,
+                        gross_sales: (parseFloat(row.gross_sales) || 0) * conversionRate,
+                        discounts: (parseFloat(row.discounts) || 0) * conversionRate,
+                        returns: (parseFloat(row.returns) || 0) * conversionRate,
+                        net_sales: (parseFloat(row.net_sales) || 0) * conversionRate,
+                        shipping_charges: (parseFloat(row.shipping_charges) || 0) * conversionRate,
+                        duties: (parseFloat(row.duties) || 0) * conversionRate,
+                        additional_fees: (parseFloat(row.additional_fees) || 0) * conversionRate,
+                        taxes: (parseFloat(row.taxes) || 0) * conversionRate,
+                        total_sales: (parseFloat(row.total_sales) || 0) * conversionRate,
+                        custom_1: (parseFloat(row.custom_1) || 0) * conversionRate,
+                        orders: parseInt(row.orders) || 0,
+                    };
+                    if (fetchCogs && row.cost_of_goods_sold !== undefined) {
+                        baseData.cost_of_goods_sold =
+                            (parseFloat(row.cost_of_goods_sold) || 0) * conversionRate;
+                    }
+                    return baseData;
+                }).sort((a, b) => a.period.localeCompare(b.period));
+            }
         }
     } catch (err) {
         console.error(`${customerType} error:`, err);

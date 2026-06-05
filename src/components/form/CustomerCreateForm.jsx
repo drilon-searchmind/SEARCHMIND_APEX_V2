@@ -5,6 +5,7 @@ import FormInputText from "@/components/form/FormInputText";
 import FormButton from "@/components/form/FormButton";
 import { defaultSnapchatSettings } from "@/lib/snapchatCustomerSettings";
 import { defaultRedditSettings } from "@/lib/redditCustomerSettings";
+import { defaultDanDomainSettings } from "@/lib/danDomainCustomerSettings";
 import {
     getDefaultCustomerCreateFormState,
     customerCreateFormCustomerSettingsKeys,
@@ -31,6 +32,21 @@ export default function CustomerCreateForm({
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
+        if (typeof name === "string" && name.startsWith("danDomain.")) {
+            const field = name.slice("danDomain.".length);
+            setForm((prev) => ({
+                ...prev,
+                CustomerSettings: {
+                    ...prev.CustomerSettings,
+                    danDomain: {
+                        ...defaultDanDomainSettings(),
+                        ...prev.CustomerSettings.danDomain,
+                        [field]: type === "checkbox" ? checked : value,
+                    },
+                },
+            }));
+            return;
+        }
         if (typeof name === "string" && name.startsWith("reddit.")) {
             const field = name.slice("reddit.".length);
             setForm((prev) => ({
@@ -139,6 +155,7 @@ export default function CustomerCreateForm({
                     <option value="Shopify">Shopify</option>
                     <option value="WooCommerce">WooCommerce</option>
                     <option value="Magento">Magento</option>
+                    <option value="DanDomain">DanDomain (HostedShop)</option>
                     <option value="Other">Other</option>
                 </select>
             </div>
@@ -217,6 +234,53 @@ export default function CustomerCreateForm({
                     <div>
                         <FormLabel htmlFor="magentoAccessTokenSecret">Access Token Secret</FormLabel>
                         <FormInputText id="magentoAccessTokenSecret" name="magentoAccessTokenSecret" value={form.CustomerSettings.magentoAccessTokenSecret} onChange={handleChange} type="password" placeholder="From System > Integrations" />
+                    </div>
+                </>
+            )}
+
+            {form.customerType === "DanDomain" && (
+                <>
+                    <div>
+                        <FormLabel htmlFor="danDomain.shopHost">Shop host</FormLabel>
+                        <FormInputText
+                            id="danDomain.shopHost"
+                            name="danDomain.shopHost"
+                            value={(form.CustomerSettings.danDomain && form.CustomerSettings.danDomain.shopHost) || ""}
+                            onChange={handleChange}
+                            placeholder="e.g. shop99999.mywebshop.io"
+                        />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="danDomain.clientId">Client ID</FormLabel>
+                        <FormInputText
+                            id="danDomain.clientId"
+                            name="danDomain.clientId"
+                            value={(form.CustomerSettings.danDomain && form.CustomerSettings.danDomain.clientId) || ""}
+                            onChange={handleChange}
+                            placeholder="HostedShop API client_id"
+                        />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="danDomain.clientSecret">Client Secret</FormLabel>
+                        <FormInputText
+                            id="danDomain.clientSecret"
+                            name="danDomain.clientSecret"
+                            type="password"
+                            value={(form.CustomerSettings.danDomain && form.CustomerSettings.danDomain.clientSecret) || ""}
+                            onChange={handleChange}
+                            placeholder="HostedShop API client_secret"
+                        />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="danDomain.accessToken">Access Token</FormLabel>
+                        <FormInputText
+                            id="danDomain.accessToken"
+                            name="danDomain.accessToken"
+                            type="password"
+                            value={(form.CustomerSettings.danDomain && form.CustomerSettings.danDomain.accessToken) || ""}
+                            onChange={handleChange}
+                            placeholder="HostedShop API access_token"
+                        />
                     </div>
                 </>
             )}

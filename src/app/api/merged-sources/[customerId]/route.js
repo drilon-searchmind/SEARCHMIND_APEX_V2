@@ -78,7 +78,17 @@ export async function GET(request, { params }) {
             CustomerStaticExpenses: data.CustomerStaticExpenses || {},
         };
 
-        console.log(`[Merged Sources] Customer: ${data.customerName || 'Unknown'} (${customerId}), type: ${settings.customerType}, shop: ${settings.shopifyUrl || 'N/A'}`);
+        const shopRef =
+            settings.customerType === 'DanDomain'
+                ? settings.danDomain?.shopHost || 'N/A'
+                : settings.customerType === 'Magento'
+                  ? settings.magentoBaseUrl || 'N/A'
+                  : settings.customerType === 'WooCommerce'
+                    ? settings.wooCommerceApiUrl || 'N/A'
+                    : settings.shopifyUrl || 'N/A';
+        console.log(
+            `[Merged Sources] Customer: ${data.customerName || 'Unknown'} (${customerId}), type: ${settings.customerType}, shop: ${shopRef}`
+        );
 
         // Fetch merged sources (now returns daily arrays)
         const merged = await fetchMergedSources(settings, startDate, endDate, {

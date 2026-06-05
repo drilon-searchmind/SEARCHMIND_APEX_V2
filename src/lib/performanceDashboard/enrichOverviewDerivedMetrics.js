@@ -60,6 +60,8 @@ function buildTotalSalesExVatCalc(metricsData, customerType, customerSettings = 
         popOverContent = `${salesLabel}\n= Magento order total (product net + shipping)\n= ${fmtNum(exVat)}`;
     } else if (type === "WooCommerce") {
         popOverContent = `${salesLabel}\n= WooCommerce sales total (excl. VAT) for the period\n= ${fmtNum(exVat)}`;
+    } else if (type === "DanDomain") {
+        popOverContent = `${salesLabel}\n= HostedShop order totals (excl. VAT) for the period\n= ${fmtNum(exVat)}`;
     } else {
         popOverContent = `${salesLabel}\n= total_sales − ${vatLabel}\n= ${fmtNum(totalSales)} − ${fmtNum(tax)}\n= ${fmtNum(exVat)}`;
     }
@@ -220,6 +222,12 @@ export function computeTotalSalesExVat({
         return Math.max(0, net + shipping);
     }
 
+    if (type === "DanDomain") {
+        if (net > 0) return net + shipping;
+        if (total > tax) return total - tax;
+        return Math.max(0, gross - tax);
+    }
+
     // Shopify: total_sales includes tax
     if (total > tax) return total - tax;
     if (gross > tax) return gross - tax;
@@ -233,7 +241,11 @@ function computeProductSales({
     customerType,
 }) {
     const fromComponents = Math.max(0, revenueAfterDiscounts - shippingRevenue);
-    if (customerType === "Magento" || customerType === "WooCommerce") {
+    if (
+        customerType === "Magento" ||
+        customerType === "WooCommerce" ||
+        customerType === "DanDomain"
+    ) {
         return Math.max(fromComponents, Math.max(0, netSales));
     }
     return fromComponents;

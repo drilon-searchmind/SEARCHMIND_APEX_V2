@@ -3,7 +3,7 @@
 import Link from "next/link";
 import React, { useState, useEffect, useMemo } from "react";
 import SearchInput from "@/components/search/SearchInput";
-import { FiArrowRight, FiLogOut, FiUsers, FiUser, FiStar, FiServer, FiBookOpen, FiFileText, FiBell, FiCopy, FiX } from "react-icons/fi";
+import { FiArrowRight, FiLogOut, FiUsers, FiUser, FiStar, FiServer, FiGlobe, FiBookOpen, FiFileText, FiBell, FiCopy, FiX } from "react-icons/fi";
 import { LuRadar } from "react-icons/lu";
 import { RiToolsFill } from "react-icons/ri";
 import { canAccessApexRadar } from "@/lib/apexRadarAccess";
@@ -197,6 +197,7 @@ export default function CustomerTable({ showLatestNews = true }) {
         if (type === "Shopify") return <SiShopify className={iconClass} />;
         if (type === "WooCommerce") return <SiWordpress className={iconClass} />;
         if (type === "Magento") return <SiMagento className={iconClass} />;
+        if (type === "DanDomain") return <FiGlobe className={iconClass} />;
         return <FiServer className={iconClass} />;
     };
 

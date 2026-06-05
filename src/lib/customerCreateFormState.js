@@ -1,5 +1,6 @@
 import { defaultSnapchatSettings } from "@/lib/snapchatCustomerSettings";
 import { defaultRedditSettings } from "@/lib/redditCustomerSettings";
+import { defaultDanDomainSettings } from "@/lib/danDomainCustomerSettings";
 
 /** Single source of truth for the create-customer form shape (admin + copy flow). */
 export function getDefaultCustomerCreateFormState() {
@@ -30,6 +31,7 @@ export function getDefaultCustomerCreateFormState() {
             magentoConsumerKey: "",
             magentoConsumerSecret: "",
             magentoAccessTokenSecret: "",
+            danDomain: defaultDanDomainSettings(),
             facebookAdAccountId: "",
             googleAdsCustomerId: "",
             pinterestAdAccountId: "",
@@ -58,7 +60,7 @@ function str(v) {
     return String(v);
 }
 
-const CUSTOMER_TYPES = new Set(["Shopify", "WooCommerce", "Magento", "Other"]);
+const CUSTOMER_TYPES = new Set(["Shopify", "WooCommerce", "Magento", "DanDomain", "Other"]);
 
 /**
  * Maps an API/database customer into the create-form state, copying only fields
@@ -73,6 +75,7 @@ export function buildCustomerCreateFormStateFromCustomer(customer) {
     const cs = typeof csRaw === "object" && csRaw !== null ? csRaw : {};
     const snap = typeof cs.snapchat === "object" && cs.snapchat !== null ? cs.snapchat : {};
     const red = typeof cs.reddit === "object" && cs.reddit !== null ? cs.reddit : {};
+    const dan = typeof cs.danDomain === "object" && cs.danDomain !== null ? cs.danDomain : {};
 
     const origName = str(customer.customerName).trim();
 
@@ -84,6 +87,11 @@ export function buildCustomerCreateFormStateFromCustomer(customer) {
     const redditMerged = { ...defaultRedditSettings() };
     for (const k of Object.keys(redditMerged)) {
         redditMerged[k] = str(red[k]);
+    }
+
+    const danDomainMerged = { ...defaultDanDomainSettings() };
+    for (const k of Object.keys(danDomainMerged)) {
+        danDomainMerged[k] = str(dan[k]);
     }
 
     return {
@@ -111,6 +119,7 @@ export function buildCustomerCreateFormStateFromCustomer(customer) {
             pinterestAdAccountId: str(cs.pinterestAdAccountId),
             snapchat: snapMerged,
             reddit: redditMerged,
+            danDomain: danDomainMerged,
             customerClickupID: str(cs.customerClickupID),
             customerMetaIDExclude: str(cs.customerMetaIDExclude),
             changeCurrency: cs.changeCurrency !== false,

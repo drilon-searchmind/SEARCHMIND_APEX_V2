@@ -156,10 +156,16 @@ export default function CustomersTab() {
                             ) : filteredExisting.length === 0 ? (
                                 <tr><td className="px-4 py-4 text-gray-400" colSpan={10}>No customers</td></tr>
                             ) : filteredExisting.map(c => {
-                                const isWooCommerce = c.customerType === 'WooCommerce';
-                                const hasShopifyWooCommerce = isWooCommerce
-                                    ? hasField(c, 'CustomerSettings.wooCommerceApiKey')
-                                    : hasField(c, 'CustomerSettings.shopifyUrl');
+                                const hasShopifyWooCommerce =
+                                    c.customerType === 'WooCommerce'
+                                        ? hasField(c, 'CustomerSettings.wooCommerceApiKey')
+                                        : c.customerType === 'Magento'
+                                          ? hasField(c, 'CustomerSettings.magentoBaseUrl')
+                                          : c.customerType === 'DanDomain'
+                                            ? hasField(c, 'CustomerSettings.danDomain.shopHost') &&
+                                              (hasField(c, 'CustomerSettings.danDomain.clientId') ||
+                                                  hasField(c, 'CustomerSettings.danDomain.accessToken'))
+                                            : hasField(c, 'CustomerSettings.shopifyUrl');
 
                                 return (
                                     <tr key={c._id} className="border-b last:border-b-0">

@@ -24,7 +24,7 @@ const CustomerSchema = new mongoose.Schema({
     },
     customerType: {
         type: String,
-        enum: ["Shopify", "WooCommerce", "Magento", "Other"],
+        enum: ["Shopify", "WooCommerce", "Magento", "Other", "DanDomain"],
         default: "Shopify"
     },
     CustomerSettings: {
@@ -197,6 +197,13 @@ const CustomerSchema = new mongoose.Schema({
         magentoStoreCode: {
             type: String,
             default: ""
+        },
+        /** DanDomain HostedShop API — OAuth client credentials + access token. */
+        danDomain: {
+            shopHost: { type: String, default: "" },
+            clientId: { type: String, default: "" },
+            clientSecret: { type: String, default: "" },
+            accessToken: { type: String, default: "" },
         },
         klaviyoPrivateApiKey: {
             type: String,

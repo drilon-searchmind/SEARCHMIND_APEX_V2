@@ -12,6 +12,7 @@ import StaticExpensesForm from './components/StaticExpensesForm';
 import PropertyObjectives from './components/PropertyObjectives';
 import { defaultSnapchatSettings, normalizeSnapchatSettings } from '@/lib/snapchatCustomerSettings';
 import { defaultRedditSettings, normalizeRedditSettings } from '@/lib/redditCustomerSettings';
+import { defaultDanDomainSettings, normalizeDanDomainSettings } from '@/lib/danDomainCustomerSettings';
 import { pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
 import { prepareCustomerStaticExpensesForSave } from '@/lib/customerStaticExpensesUtils';
 
@@ -54,6 +55,7 @@ export default function ConfigPage() {
         pinterestAdAccountId: "",
         snapchat: defaultSnapchatSettings(),
         reddit: defaultRedditSettings(),
+        danDomain: defaultDanDomainSettings(),
         bingAdsCustomerId: "",
         bingAdsAccountId: "",
         googleSearchConsoleProperty: "",
@@ -93,6 +95,7 @@ export default function ConfigPage() {
                     ...(data.CustomerSettings || {}),
                     snapchat: normalizeSnapchatSettings(data.CustomerSettings || {}),
                     reddit: normalizeRedditSettings(data.CustomerSettings || {}),
+                    danDomain: normalizeDanDomainSettings(data.CustomerSettings || {}),
                     CustomerStaticExpenses: {
                         ...defaultFormState.CustomerStaticExpenses,
                         ...(data.CustomerStaticExpenses || {}),
@@ -121,6 +124,16 @@ export default function ConfigPage() {
                     ...prev.CustomerStaticExpenses,
                     [name]: type === 'number' ? Number(value) : (Array.isArray(value) ? value : value)
                 }
+            }));
+        } else if (typeof name === 'string' && name.startsWith('danDomain.')) {
+            const field = name.slice('danDomain.'.length);
+            setForm((prev) => ({
+                ...prev,
+                danDomain: {
+                    ...defaultDanDomainSettings(),
+                    ...prev.danDomain,
+                    [field]: type === 'checkbox' ? checked : value,
+                },
             }));
         } else if (typeof name === 'string' && name.startsWith('reddit.')) {
             const field = name.slice('reddit.'.length);
@@ -194,6 +207,7 @@ export default function ConfigPage() {
                 pinterestAdAccountId,
                 snapchat,
                 reddit,
+                danDomain,
                 bingAdsCustomerId,
                 bingAdsAccountId,
                 googleSearchConsoleProperty,
@@ -255,6 +269,10 @@ export default function ConfigPage() {
                                 ...defaultRedditSettings(),
                                 ...reddit,
                             },
+                            danDomain: {
+                                ...defaultDanDomainSettings(),
+                                ...danDomain,
+                            },
                             bingAdsCustomerId,
                             bingAdsAccountId,
                             googleAdsCountryFilter,
@@ -276,6 +294,7 @@ export default function ConfigPage() {
                 ...(saved.CustomerSettings || {}),
                 snapchat: normalizeSnapchatSettings(saved.CustomerSettings || {}),
                 reddit: normalizeRedditSettings(saved.CustomerSettings || {}),
+                danDomain: normalizeDanDomainSettings(saved.CustomerSettings || {}),
                 CustomerStaticExpenses: {
                     ...defaultFormState.CustomerStaticExpenses,
                     ...(saved.CustomerStaticExpenses || {}),

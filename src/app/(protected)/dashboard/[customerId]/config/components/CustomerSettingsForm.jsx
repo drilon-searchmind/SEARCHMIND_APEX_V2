@@ -3,7 +3,7 @@
 import React from "react";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
-import { FiSettings, FiShoppingBag, FiPackage, FiDatabase, FiFacebook, FiTrendingUp, FiSearch, FiMail, FiImage, FiLayers, FiZap, FiMessageCircle } from "react-icons/fi";
+import { FiSettings, FiShoppingBag, FiPackage, FiDatabase, FiGlobe, FiFacebook, FiTrendingUp, FiSearch, FiMail, FiImage, FiLayers, FiZap, FiMessageCircle } from "react-icons/fi";
 
 function SettingsSection({ title, icon: Icon, children, sectionId }) {
     return (
@@ -116,7 +116,9 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
               ? { id: "store-platform", label: "WooCommerce" }
               : customerType === "Magento"
                 ? { id: "store-platform", label: "Magento" }
-                : null;
+                : customerType === "DanDomain"
+                  ? { id: "store-platform", label: "DanDomain (HostedShop)" }
+                  : null;
 
     const tocItems = [
         { id: "general", label: "General" },
@@ -334,6 +336,46 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
                         value={form.magentoStoreCode}
                         onChange={onChange}
                         placeholder="e.g. DKK to include only DK store orders"
+                    />
+                </SettingsSection>
+            )}
+
+            {/* DanDomain (HostedShop) */}
+            {customerType === "DanDomain" && (
+                <SettingsSection title="DanDomain (HostedShop)" icon={FiGlobe} sectionId="store-platform">
+                    <FormField
+                        id="danDomain.shopHost"
+                        name="danDomain.shopHost"
+                        label="Shop host"
+                        value={form.danDomain?.shopHost || ""}
+                        onChange={onChange}
+                        placeholder="e.g. shop99999.mywebshop.io"
+                    />
+                    <FormField
+                        id="danDomain.clientId"
+                        name="danDomain.clientId"
+                        label="Client ID"
+                        value={form.danDomain?.clientId || ""}
+                        onChange={onChange}
+                        placeholder="HostedShop API client_id"
+                    />
+                    <FormField
+                        id="danDomain.clientSecret"
+                        name="danDomain.clientSecret"
+                        label="Client Secret"
+                        value={form.danDomain?.clientSecret || ""}
+                        onChange={onChange}
+                        type="password"
+                        placeholder="HostedShop API client_secret"
+                    />
+                    <FormField
+                        id="danDomain.accessToken"
+                        name="danDomain.accessToken"
+                        label="Access Token"
+                        value={form.danDomain?.accessToken || ""}
+                        onChange={onChange}
+                        type="password"
+                        placeholder="Optional if client id + secret are set (OAuth)"
                     />
                 </SettingsSection>
             )}
