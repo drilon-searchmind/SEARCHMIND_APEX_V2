@@ -63,6 +63,8 @@ export async function POST(request) {
             success: true,
             key: result.key,
             plaintext: result.plaintext,
+            oauthClientId: result.oauthClientId,
+            oauthClientSecret: result.oauthClientSecret,
         });
     } catch (e) {
         console.error("[admin mcp-keys POST]", e);

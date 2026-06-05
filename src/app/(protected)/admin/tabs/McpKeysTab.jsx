@@ -23,7 +23,7 @@ export default function McpKeysTab() {
     const [revokingId, setRevokingId] = React.useState(null);
 
     const [name, setName] = React.useState("");
-    const [revealedKey, setRevealedKey] = React.useState(null);
+    const [revealedCredentials, setRevealedCredentials] = React.useState(null);
 
     const loadKeys = React.useCallback(async () => {
         setLoading(true);
@@ -57,15 +57,17 @@ export default function McpKeysTab() {
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.error || "Failed to create key");
 
-            setRevealedKey({
+            setRevealedCredentials({
                 plaintext: data.plaintext,
+                oauthClientId: data.oauthClientId,
+                oauthClientSecret: data.oauthClientSecret,
                 key: data.key,
             });
             setName("");
             await loadKeys();
             showToast({
                 type: "success",
-                message: "MCP key created — copy it now; it won't be shown again",
+                message: "MCP credentials created — copy them now; secrets are shown only once",
             });
         } catch (err) {
             showToast({ type: "error", message: err.message || "Failed to create key" });
@@ -92,15 +94,19 @@ export default function McpKeysTab() {
         }
     };
 
-    const copyPlaintext = async () => {
-        if (!revealedKey?.plaintext) return;
+    const copyText = async (text, label) => {
+        if (!text) return;
         try {
-            await navigator.clipboard.writeText(revealedKey.plaintext);
-            showToast({ type: "success", message: "Copied to clipboard" });
+            await navigator.clipboard.writeText(text);
+            showToast({ type: "success", message: `${label} copied` });
         } catch {
             showToast({ type: "error", message: "Could not copy — select and copy manually" });
         }
     };
+
+    const mcpServerUrl =
+        process.env.NEXT_PUBLIC_MCP_SERVER_URL ||
+        "https://mcp-server-apex-production.up.railway.app";
 
     return (
         <div className="flex flex-col gap-8">
@@ -110,31 +116,54 @@ export default function McpKeysTab() {
                     MCP API keys
                 </h5>
                 <p className="text-sm text-gray-500 max-w-2xl">
-                    Issue keys for Claude Code, Cursor, and other MCP clients. Each key grants
-                    read-only access to all customers. Keys are stored hashed; the full secret
-                    is shown only once at creation.
+                    Issue credentials for Claude Code, Cursor, and other MCP clients. Each set
+                    includes an API key (CLI / Bearer header) and OAuth client id + secret (Claude
+                    connector). Access is read-only for all customers. Secrets are shown only once
+                    at creation.
                 </p>
             </div>
 
-            {revealedKey && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 max-w-3xl">
-                    <p className="text-sm font-semibold text-amber-900 mb-2">
-                        Copy this key now — it will not be shown again
+            {revealedCredentials && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 max-w-3xl space-y-4">
+                    <p className="text-sm font-semibold text-amber-900">
+                        Copy these credentials now — they will not be shown again
                     </p>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <code className="flex-1 min-w-0 break-all rounded-lg bg-white border border-amber-200 px-3 py-2 text-xs font-mono">
-                            {revealedKey.plaintext}
-                        </code>
-                        <FormButton type="button" onClick={copyPlaintext}>
-                            <span className="flex items-center gap-1">
-                                <FiCopy size={14} />
-                                Copy
-                            </span>
-                        </FormButton>
-                        <FormButton type="button" onClick={() => setRevealedKey(null)}>
-                            Dismiss
-                        </FormButton>
+
+                    <CredentialRow
+                        label="API key (Bearer / CLI)"
+                        value={revealedCredentials.plaintext}
+                        onCopy={() => copyText(revealedCredentials.plaintext, "API key")}
+                    />
+                    <CredentialRow
+                        label="OAuth Client ID (Claude connector)"
+                        value={revealedCredentials.oauthClientId}
+                        onCopy={() =>
+                            copyText(revealedCredentials.oauthClientId, "OAuth Client ID")
+                        }
+                    />
+                    <CredentialRow
+                        label="OAuth Client Secret (Claude connector)"
+                        value={revealedCredentials.oauthClientSecret}
+                        onCopy={() =>
+                            copyText(revealedCredentials.oauthClientSecret, "OAuth Client Secret")
+                        }
+                    />
+
+                    <div className="text-xs text-amber-900/80 space-y-1 pt-1 border-t border-amber-200">
+                        <p>
+                            <span className="font-medium">MCP server URL:</span>{" "}
+                            <code className="font-mono">{mcpServerUrl}/mcp</code>
+                        </p>
+                        <p>
+                            In Claude connector settings, use the OAuth Client ID and Secret above.
+                            Sign-in uses Google — only <code>@searchmind.dk</code> accounts are
+                            allowed.
+                        </p>
                     </div>
+
+                    <FormButton type="button" onClick={() => setRevealedCredentials(null)}>
+                        Dismiss
+                    </FormButton>
                 </div>
             )}
 
@@ -142,7 +171,7 @@ export default function McpKeysTab() {
                 onSubmit={handleCreate}
                 className="flex flex-col gap-4 max-w-3xl border border-gray-200 rounded-xl p-6"
             >
-                <h6 className="text-sm font-semibold text-gray-800">Generate new key</h6>
+                <h6 className="text-sm font-semibold text-gray-800">Generate new credentials</h6>
 
                 <div>
                     <FormLabel htmlFor="mcp-key-name">Label (optional)</FormLabel>
@@ -155,11 +184,11 @@ export default function McpKeysTab() {
                 </div>
 
                 <p className="text-xs text-gray-500">
-                    Access: read-only · all customers · all users
+                    Access: read-only · all customers · includes API key + OAuth client
                 </p>
 
                 <FormButton type="submit" disabled={creating}>
-                    {creating ? "Generating…" : "Generate MCP key"}
+                    {creating ? "Generating…" : "Generate MCP credentials"}
                 </FormButton>
             </form>
 
@@ -170,6 +199,7 @@ export default function McpKeysTab() {
                         <thead className="bg-gray-50">
                             <tr>
                                 <th className="px-4 py-2 text-left">Prefix</th>
+                                <th className="px-4 py-2 text-left">OAuth Client ID</th>
                                 <th className="px-4 py-2 text-left">Label</th>
                                 <th className="px-4 py-2 text-left">Access</th>
                                 <th className="px-4 py-2 text-left">Created by</th>
@@ -181,13 +211,13 @@ export default function McpKeysTab() {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={7} className="px-4 py-4 text-gray-400">
+                                    <td colSpan={8} className="px-4 py-4 text-gray-400">
                                         Loading…
                                     </td>
                                 </tr>
                             ) : keys.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-4 py-4 text-gray-400">
+                                    <td colSpan={8} className="px-4 py-4 text-gray-400">
                                         No MCP keys yet
                                     </td>
                                 </tr>
@@ -197,7 +227,20 @@ export default function McpKeysTab() {
                                         key={k.id}
                                         className={`border-t ${k.isRevoked ? "opacity-50" : ""}`}
                                     >
-                                        <td className="px-4 py-2 font-mono text-xs">{k.keyPrefix}…</td>
+                                        <td className="px-4 py-2 font-mono text-xs">
+                                            {k.keyPrefix}…
+                                        </td>
+                                        <td className="px-4 py-2 font-mono text-xs max-w-[12rem] truncate">
+                                            {k.oauthClientId ? (
+                                                <span title={k.oauthClientId}>
+                                                    {k.oauthClientId}
+                                                </span>
+                                            ) : (
+                                                <span className="text-gray-400 italic">
+                                                    Regenerate for OAuth
+                                                </span>
+                                            )}
+                                        </td>
                                         <td className="px-4 py-2">{k.name || "—"}</td>
                                         <td className="px-4 py-2 text-xs text-gray-600">
                                             Read-only · all customers
@@ -238,6 +281,25 @@ export default function McpKeysTab() {
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    );
+}
+
+function CredentialRow({ label, value, onCopy }) {
+    return (
+        <div>
+            <p className="text-xs font-medium text-amber-900 mb-1">{label}</p>
+            <div className="flex flex-wrap items-center gap-2">
+                <code className="flex-1 min-w-0 break-all rounded-lg bg-white border border-amber-200 px-3 py-2 text-xs font-mono">
+                    {value}
+                </code>
+                <FormButton type="button" onClick={onCopy}>
+                    <span className="flex items-center gap-1">
+                        <FiCopy size={14} />
+                        Copy
+                    </span>
+                </FormButton>
             </div>
         </div>
     );

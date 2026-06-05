@@ -13,11 +13,22 @@ const McpApiKeySchema = new mongoose.Schema(
             type: String,
             required: true,
         },
-        /** First characters of the key for admin identification (never the secret) */
+        /** First characters of the API key for admin identification (never the secret) */
         keyPrefix: {
             type: String,
             required: true,
             index: true,
+        },
+        /** OAuth client id for Claude Code connector (public) */
+        oauthClientId: {
+            type: String,
+            unique: true,
+            sparse: true,
+            index: true,
+        },
+        /** bcrypt hash of OAuth client secret */
+        oauthClientSecretHash: {
+            type: String,
         },
         /** MCP keys are read-only; no write tools are exposed */
         readOnly: {
