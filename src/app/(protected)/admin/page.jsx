@@ -9,6 +9,7 @@ import UsersTab from "./tabs/UsersTab";
 import NotificationsTab from "./tabs/NotificationsTab";
 import NewsTab from "./tabs/NewsTab";
 import AuditPromptLibraryTab from "./tabs/AuditPromptLibraryTab";
+import McpKeysTab from "./tabs/McpKeysTab";
 
 export default function AdminPage() {
     const [activeTab, setActiveTab] = useState("general");
@@ -20,6 +21,7 @@ export default function AdminPage() {
         { key: "notifications", label: "Notifications", content: <NotificationsTab /> },
         { key: "news", label: "News", content: <NewsTab /> },
         { key: "audit-prompts", label: "Audit Prompt Library", content: <AuditPromptLibraryTab /> },
+        { key: "mcp-keys", label: "MCP API Keys", content: <McpKeysTab /> },
     ];
 
     return (
