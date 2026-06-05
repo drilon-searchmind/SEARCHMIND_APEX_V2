@@ -1,3 +1,5 @@
+import { totalSalesVatLabel, grossProfitVatLabel } from "@/lib/revenueVatDisplay";
+
 /** Flatten all metric keys referenced in standard overview columns. */
 export function collectSectionMetricKeys(sections) {
     const keys = new Set();
@@ -25,7 +27,6 @@ export const OVERVIEW_KPI_CARD_KEYS = [
     "poas",
     "ebit_pct",
     "revenue",
-    "net_sales",
     "additional_fees",
     "transaction_fee",
     "variable_costs",
@@ -39,11 +40,12 @@ export function getOverviewKpiCardKeys(columnMetricKeys) {
 }
 
 /**
- * @param {{ visibleAdSpendChannels: { metricsDataKey: string, label: string }[], fixedBreakdownRows?: { key: string, metricKey: string, label: string }[] }} opts
+ * @param {{ visibleAdSpendChannels: { metricsDataKey: string, label: string }[], fixedBreakdownRows?: { key: string, metricKey: string, label: string }[], customerSettings?: Record<string, unknown> }} opts
  */
 export function buildStandardOverviewSections({
     visibleAdSpendChannels = [],
     fixedBreakdownRows = [],
+    customerSettings = {},
 }) {
     const channelRows = visibleAdSpendChannels.map((c) => ({
         key: c.metricsDataKey,
@@ -61,7 +63,7 @@ export function buildStandardOverviewSections({
     return [
         {
             key: "total_sales_ex_vat",
-            title: "Total sales excl. VAT",
+            title: totalSalesVatLabel(customerSettings),
             primaryKey: "total_sales_ex_vat",
             headerSubtitle: "orders",
             breakdown: [
@@ -140,7 +142,7 @@ export function buildStandardOverviewSections({
         },
         {
             key: "gross_profit_ex_vat",
-            title: "Gross Profit excl. VAT",
+            title: grossProfitVatLabel(customerSettings),
             primaryKey: "gross_profit",
             headerSubtitlePct: true,
             breakdown: [

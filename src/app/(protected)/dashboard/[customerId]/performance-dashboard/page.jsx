@@ -31,6 +31,7 @@ import {
 } from "@/lib/performanceDashboard/performanceDashboardLayout";
 import { computePerformanceDashboardMetrics, netRevenueForShopifyDay } from "@/lib/performanceDashboard/computePerformanceMetrics";
 import { getReturnsOverrideSettings } from "@/lib/performanceDashboard/performanceDashboardConstants";
+import { applyVatDisplayToShopifyDailyRows } from "@/lib/revenueVatDisplay";
 import { netRevenueFromGrossDiscountsReturns } from "@/lib/performanceDashboard/computePerformanceMetrics";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 import {
@@ -284,8 +285,11 @@ export default function PerformanceDashboard() {
                 }
                 setMerged(merged);
                 setMergedPrev(mergedPrev);
-                // Save daily arrays for charts
-                setShopifyDaily(merged.shopifyDaily || []);
+                const vatSettings = customer?.CustomerSettings || {};
+                // Save daily arrays for charts (VAT display applied to revenue fields)
+                setShopifyDaily(
+                    applyVatDisplayToShopifyDailyRows(merged.shopifyDaily || [], vatSettings)
+                );
                 setFacebookDaily(merged.facebookDaily || []);
                 setGoogleDaily(merged.googleDaily || []);
                 setPinterestDaily(merged.pinterestDaily || []);
@@ -297,7 +301,9 @@ export default function PerformanceDashboard() {
                 console.log({ merged });
 
                 // Save previous period data for comparison
-                setShopifyDailyPrev(mergedPrev.shopifyDaily || []);
+                setShopifyDailyPrev(
+                    applyVatDisplayToShopifyDailyRows(mergedPrev.shopifyDaily || [], vatSettings)
+                );
                 setFacebookDailyPrev(mergedPrev.facebookDaily || []);
                 setGoogleDailyPrev(mergedPrev.googleDaily || []);
                 setPinterestDailyPrev(mergedPrev.pinterestDaily || []);
@@ -531,6 +537,7 @@ export default function PerformanceDashboard() {
             prevRangeStart: prevPeriodStart,
             prevRangeEnd: prevPeriodEnd,
             customerType: customer?.customerType || "Shopify",
+            customerSettings: customer?.CustomerSettings || {},
         });
 
         setMetrics(metricsArray);
@@ -589,8 +596,9 @@ export default function PerformanceDashboard() {
             buildStandardOverviewSections({
                 visibleAdSpendChannels,
                 fixedBreakdownRows,
+                customerSettings: customer?.CustomerSettings || {},
             }),
-        [visibleAdSpendChannels, fixedBreakdownRows]
+        [visibleAdSpendChannels, fixedBreakdownRows, customer?.CustomerSettings]
     );
 
     const overviewColumnMetricKeys = useMemo(

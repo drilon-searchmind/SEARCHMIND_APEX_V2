@@ -2,6 +2,8 @@
  * Shared helpers for CustomerStaticExpenses (config + performance dashboard).
  */
 
+import dayjs from "dayjs";
+
 export function filterCompleteLineItems(items) {
     if (!items || !Array.isArray(items)) return [];
     return items.filter((item) => item && item.name && String(item.name).trim() !== "");
@@ -47,20 +49,62 @@ export function prepareCustomerStaticExpensesForSave(expenses) {
     return updated;
 }
 
+function sumLineItems(items) {
+    return (items || []).reduce((s, item) => s + (parseFloat(item.amount) || 0), 0);
+}
+
+export function getMonthlyMarketingBureauTotal(staticExp = {}) {
+    const direct = Number(staticExp.marketingBureauCost) || 0;
+    if (direct > 0) return direct;
+    return sumLineItems(staticExp.marketingBureauCostLineItems);
+}
+
+export function getMonthlyMarketingToolingTotal(staticExp = {}) {
+    const direct = Number(staticExp.marketingToolingCost) || 0;
+    if (direct > 0) return direct;
+    return sumLineItems(staticExp.marketingToolingCostLineItems);
+}
+
+export function getMonthlyOtherFixedTotal(staticExp = {}) {
+    const direct = Number(staticExp.fixedExpenses) || 0;
+    if (direct > 0) return direct;
+    return sumLineItems(staticExp.fixedExpensesLineItems);
+}
+
 /** Total monthly fixed costs (bureau + tooling + other fixed). */
 export function getMonthlyFixedExpensesTotal(staticExp = {}) {
-    const bureau = Number(staticExp.marketingBureauCost) || 0;
-    const tooling = Number(staticExp.marketingToolingCost) || 0;
-    const other = Number(staticExp.fixedExpenses) || 0;
-    if (bureau + tooling + other > 0) return bureau + tooling + other;
+    const bureau = getMonthlyMarketingBureauTotal(staticExp);
+    const tooling = getMonthlyMarketingToolingTotal(staticExp);
+    const other = getMonthlyOtherFixedTotal(staticExp);
+    return bureau + tooling + other;
+}
 
-    const sumLineItems = (items) =>
-        (items || []).reduce((s, item) => s + (parseFloat(item.amount) || 0), 0);
-    return (
-        sumLineItems(staticExp.marketingBureauCostLineItems) +
-        sumLineItems(staticExp.marketingToolingCostLineItems) +
-        sumLineItems(staticExp.fixedExpensesLineItems)
+/**
+ * Prorate a monthly amount across each calendar day in [rangeStart, rangeEnd].
+ */
+export function calcProratedMonthlyCostForDateRange(monthlyAmount, rangeStart, rangeEnd) {
+    let total = 0;
+    let d = dayjs(rangeStart);
+    const endDay = dayjs(rangeEnd);
+    while (!d.isAfter(endDay)) {
+        total += (Number(monthlyAmount) || 0) / d.daysInMonth();
+        d = d.add(1, "day");
+    }
+    return total;
+}
+
+/** Fixed costs for a date range (bureau + tooling + other), prorated per calendar day. */
+export function calcFixedCostsForDateRange(rangeStart, rangeEnd, staticExp = {}) {
+    return calcProratedMonthlyCostForDateRange(
+        getMonthlyFixedExpensesTotal(staticExp),
+        rangeStart,
+        rangeEnd
     );
+}
+
+/** Fixed costs for a single calendar day. */
+export function calcFixedCostForSingleDay(dateYmd, staticExp = {}) {
+    return getMonthlyFixedExpensesTotal(staticExp) / dayjs(dateYmd).daysInMonth();
 }
 
 /**

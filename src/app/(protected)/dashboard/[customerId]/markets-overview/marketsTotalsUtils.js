@@ -13,7 +13,6 @@ export function aggregateIncludedMarketRows(rows, { fixedExpense = 0 } = {}) {
 	const transactionFee = sum('transactionFee');
 	const totalMarketingSpend = sum('totalMarketingSpend');
 	const fixed = Number(fixedExpense) || 0;
-	const grossProfit = netRevenue - cogs;
 	const netProfit =
 		netRevenue - cogs - variableExpense - transactionFee - totalMarketingSpend - fixed;
 
@@ -35,7 +34,7 @@ export function aggregateIncludedMarketRows(rows, { fixedExpense = 0 } = {}) {
 		redditCost: sum('redditCost'),
 		totalMarketingSpend,
 		roas: totalMarketingSpend > 0 ? netRevenue / totalMarketingSpend : null,
-		poas: totalMarketingSpend > 0 ? grossProfit / totalMarketingSpend : null,
+		poas: totalMarketingSpend > 0 ? netProfit / totalMarketingSpend : null,
 		variableExpense,
 		fixedExpense: fixed,
 		transactionFee,

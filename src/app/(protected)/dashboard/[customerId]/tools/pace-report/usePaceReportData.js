@@ -6,6 +6,8 @@ import {
 	channelSpendTotalsFromMerged,
 	adSpendChannelsForSpendTotals,
 } from '@/lib/mergeAdSpendDaily';
+import { getReturnsOverrideSettings } from '@/lib/performanceDashboard/performanceDashboardConstants';
+import { shopifyDayRevenueByType } from '@/lib/performanceDashboard/computePerformanceMetrics';
 
 export function usePaceReportData(
 	customer,
@@ -155,10 +157,16 @@ export function usePaceReportData(
 
 				const revenueType =
 					customer?.CustomerSettings?.customerRevenueType || 'total_sales';
+				const returnsOverride = getReturnsOverrideSettings(customer?.CustomerSettings);
 				const revenueMap = {};
 				(merged.shopifyDaily || []).forEach((row) => {
 					if (!revenueMap[row.period]) revenueMap[row.period] = 0;
-					revenueMap[row.period] += Number(row[revenueType] || 0);
+					revenueMap[row.period] += shopifyDayRevenueByType(
+						row,
+						revenueType,
+						returnsOverride,
+						customer?.CustomerSettings
+					);
 				});
 				let revenueCumulative = 0;
 				const revenueDaily = allPeriods.map((period) => {

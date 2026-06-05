@@ -19,6 +19,7 @@ export function getDefaultCustomerCreateFormState() {
             shopifyMarketsEnabled: false,
             shopifyOnlineStoreOnly: false,
             customerRevenueType: "total_sales",
+            revenueDisplayVat: "excl",
             shopifyUrl: "",
             shopifyApiPassword: "",
             wooCommerceApiKey: "",

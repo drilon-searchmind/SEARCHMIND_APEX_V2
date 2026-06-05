@@ -1,7 +1,11 @@
 import { isoCodeFromBillingCountryName } from "./shopifyMarketAdSpendCountries";
+import { getCurrencyConversionTable, conversionRateToDkk } from "./currencyConversionTable";
 
 /**
  * Reddit Ads API v3 — base URL matches https://ads-api.reddit.com/docs/v3/
+ *
+ * Reporting spend is in USD (microdollars). All spend returned from this module is converted to DKK
+ * using the same FX table as Google Ads (`conversionRateToDkk`).
  *
  * Credentials: `CustomerSettings.reddit` (see `redditCustomerSettings.js`).
  * Server env overrides: REDDIT_APP_ID, REDDIT_APP_SECRET, optional REDDIT_ADS_ACCESS_TOKEN / REDDIT_USERNAME.
@@ -9,6 +13,8 @@ import { isoCodeFromBillingCountryName } from "./shopifyMarketAdSpendCountries";
 
 const REDDIT_ADS_API = "https://ads-api.reddit.com/api/v3";
 const REDDIT_TOKEN_URL = "https://www.reddit.com/api/v1/access_token";
+/** Reddit reports SPEND in USD microdollars; convert to DKK for dashboard parity with Google Ads. */
+export const REDDIT_ADS_SPEND_CURRENCY = "USD";
 
 function num(v) {
     if (v === undefined || v === null || v === "") return 0;
@@ -255,6 +261,60 @@ function spendToMajor(row) {
     if (s <= 0) return 0;
     if (s >= 50_000) return s / 1_000_000;
     return s;
+}
+
+async function redditSpendConversionRateToDkk() {
+    const { data: currencyData } = await getCurrencyConversionTable();
+    return conversionRateToDkk(REDDIT_ADS_SPEND_CURRENCY, currencyData);
+}
+
+/**
+ * Convert Reddit USD spend fields to DKK (metrics_by_date, top_campaigns, spend_by_iso2).
+ * @param {Awaited<ReturnType<typeof fetchRedditDashboardMetricsInner>>} payload
+ * @param {number} rate
+ */
+function applyRedditSpendConversionToDkk(payload, rate) {
+    if (!rate || rate === 1) return payload;
+
+    const metrics_by_date = (payload.metrics_by_date || []).map((row) => {
+        const ad_spend = Math.round(num(row.ad_spend) * rate * 100) / 100;
+        const clicks = num(row.clicks);
+        const impressions = num(row.impressions);
+        return {
+            ...row,
+            ad_spend,
+            cpc: clicks > 0 ? ad_spend / clicks : 0,
+            cpm: impressions > 0 ? (ad_spend / impressions) * 1000 : 0,
+        };
+    });
+
+    const top_campaigns = (payload.top_campaigns || []).map((row) => ({
+        ...row,
+        ad_spend: num(row.ad_spend) * rate,
+    }));
+
+    const spend_by_iso2 =
+        payload.spend_by_iso2 instanceof Map ? payload.spend_by_iso2 : new Map();
+    if (spend_by_iso2.size > 0) {
+        for (const [iso, spend] of spend_by_iso2) {
+            spend_by_iso2.set(iso, num(spend) * rate);
+        }
+    }
+
+    return {
+        ...payload,
+        metrics_by_date,
+        top_campaigns,
+        spend_by_iso2,
+        spend_currency: "DKK",
+        source_spend_currency: REDDIT_ADS_SPEND_CURRENCY,
+        spend_conversion_rate_to_dkk: rate,
+    };
+}
+
+async function finalizeRedditDashboardPayload(payload) {
+    const rate = await redditSpendConversionRateToDkk();
+    return applyRedditSpendConversionToDkk(payload, rate);
 }
 
 function rowImpressions(r) {
@@ -544,12 +604,12 @@ async function fetchRedditDashboardMetricsInner({
             if (String(e?.message || "").includes("Reddit Ads API 401")) throw e;
             dbgErr("aggregateSpendByCountry failed", e?.message || e);
         }
-        return {
+        return finalizeRedditDashboardPayload({
             metrics_by_date: [],
             top_campaigns: [],
             campaigns_by_date: [],
             spend_by_iso2: spendByIso2,
-        };
+        });
     }
 
     let dailyRows = [];
@@ -694,6 +754,11 @@ async function fetchRedditDashboardMetricsInner({
         }
     }
 
-    return { metrics_by_date, top_campaigns, campaigns_by_date: [], spend_by_iso2: spendByIso2 };
+    return finalizeRedditDashboardPayload({
+        metrics_by_date,
+        top_campaigns,
+        campaigns_by_date: [],
+        spend_by_iso2: spendByIso2,
+    });
 }
 

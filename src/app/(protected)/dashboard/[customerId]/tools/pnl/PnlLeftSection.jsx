@@ -167,7 +167,7 @@ export default function PnlLeftSection({
                 rows={[
                     {
                         label: "Shipping",
-                        tooltip: `Shipping = Orders * Shipping cost per order (${fmt(staticExpenses.shippingCostPerOrder || 0)})`,
+                        tooltip: `Shipping + pick & pack = Orders × (shipping ${fmt(staticExpenses.shippingCostPerOrder || 0)} + pick & pack ${fmt(staticExpenses.pickNPackCostPerOrder || 0)})`,
                         prevVal: shippingPrev,
                         currVal: shipping,
                         zeroAsDash: false,
@@ -219,7 +219,7 @@ export default function PnlLeftSection({
                     })),
                     {
                         label: "Marketing Bureau",
-                        tooltip: `Marketing Bureau = Total bureau cost / days (${days})`,
+                        tooltip: "Marketing Bureau — monthly cost prorated per calendar day in the selected period.",
                         prevVal: marketingBureauPrev,
                         currVal: marketingBureau,
                         zeroAsDash: false,
@@ -227,7 +227,7 @@ export default function PnlLeftSection({
                     },
                     {
                         label: "Marketing Tooling",
-                        tooltip: `Marketing Tooling = Total tooling cost / days (${days})`,
+                        tooltip: "Marketing Tooling — monthly cost prorated per calendar day in the selected period.",
                         prevVal: marketingToolingPrev,
                         currVal: marketingTooling,
                         zeroAsDash: false,
@@ -253,7 +253,7 @@ export default function PnlLeftSection({
                 rows={[
                     {
                         label: "Fixed Expenses",
-                        tooltip: `Fixed Expenses = Total fixed expenses / days (${days})`,
+                        tooltip: "Other fixed expenses — monthly cost prorated per calendar day in the selected period.",
                         prevVal: fixedExpensesPrev,
                         currVal: fixedExpenses,
                         zeroAsDash: false,
@@ -261,7 +261,7 @@ export default function PnlLeftSection({
                     },
                     {
                         label: "Result",
-                        tooltip: "Result = DB3 - Fixed Expenses",
+                        tooltip: "Result (Net Profit) = Net Sales − COGS − shipping/pick & pack − transaction fees − marketing spend − bureau − tooling − fixed expenses. Matches performance-dashboard Net Profit.",
                         prevVal: resultPrev,
                         currVal: result,
                         bold: true,

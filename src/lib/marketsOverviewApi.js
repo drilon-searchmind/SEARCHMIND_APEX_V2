@@ -11,23 +11,17 @@ import {
     channelSpendTotalsFromMerged,
     totalAdSpendFromMerged,
 } from "./mergeAdSpendDaily";
-import { computePerformanceDashboardMetrics } from "./performanceDashboard/computePerformanceMetrics";
+import {
+    computePerformanceDashboardMetrics,
+    aggregateShopifyDailyRows,
+} from "./performanceDashboard/computePerformanceMetrics";
+import { getReturnsOverrideSettings } from "./performanceDashboard/performanceDashboardConstants";
+import { calcFixedCostsForDateRange } from "./customerStaticExpensesUtils";
 import {
     fetchAdSpendByIso2Country,
     channelSpendTotalsForMarket,
     buildSyntheticMergedFromChannelTotals,
 } from "./marketAdSpendByCountry";
-
-function calcFixedForRange(rangeStart, rangeEnd, fixedExpensesMonthly) {
-    let total = 0;
-    let d = dayjs(rangeStart);
-    const endDay = dayjs(rangeEnd);
-    while (!d.isAfter(endDay)) {
-        total += fixedExpensesMonthly / d.daysInMonth();
-        d = d.add(1, "day");
-    }
-    return total;
-}
 
 /**
  * Same metrics pipeline as performance-dashboard (buildPeriodTotals + computePerformanceDashboardMetrics).
@@ -53,11 +47,10 @@ export function aggregateMetricsLikePerformanceDashboard(
         typeof staticExpenses.cogsPercentage === "number"
             ? staticExpenses.cogsPercentage
             : 0;
-    const fixedExpensesMonthly = Number(staticExpenses.fixedExpenses) || 0;
-    const fixedCosts = calcFixedForRange(
+    const fixedCosts = calcFixedCostsForDateRange(
         dateRange.startDate,
         dateRange.endDate,
-        fixedExpensesMonthly
+        staticExpenses
     );
     const daysInRange =
         dayjs(dateRange.endDate).diff(dayjs(dateRange.startDate), "day") + 1;
@@ -176,6 +169,13 @@ export async function fetchMarketsOverviewRows(
         ]);
 
     const storeChannelTotals = channelSpendTotalsFromMerged(storeMerged);
+    const customerSettings = settings?.CustomerSettings || settings || {};
+    const returnsOverride = getReturnsOverrideSettings(customerSettings);
+    const storeRevenue = aggregateShopifyDailyRows(
+        storeMerged.shopifyDaily || [],
+        returnsOverride,
+        customerSettings
+    ).netRevenue;
 
     const storeTotalRow = {
         marketId: "__store_total__",
@@ -214,14 +214,11 @@ export async function fetchMarketsOverviewRows(
         );
 
         // Pinterest / Bing lack country breakdown — allocate by revenue share vs store total
-        const marketRevenue = shopifyDaily.reduce(
-            (s, d) => s + (Number(d.net_sales) || 0),
-            0
-        );
-        const storeRevenue = (storeMerged.shopifyDaily || []).reduce(
-            (s, d) => s + (Number(d.net_sales) || 0),
-            0
-        );
+        const marketRevenue = aggregateShopifyDailyRows(
+            shopifyDaily,
+            returnsOverride,
+            customerSettings
+        ).netRevenue;
         const share =
             storeRevenue > 0 && marketRevenue > 0 ? marketRevenue / storeRevenue : 0;
 

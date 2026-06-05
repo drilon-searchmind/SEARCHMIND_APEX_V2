@@ -552,6 +552,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                     redditCredentials: red,
                     countryIsoCodes: marketAdSpendFilters?.metaCountryCodes,
                 });
+                // redditApi converts USD spend → DKK (same FX table as Google Ads)
                 redditDaily = metricsByDateToSpendDaily(redditDash.metrics_by_date);
             }
             }

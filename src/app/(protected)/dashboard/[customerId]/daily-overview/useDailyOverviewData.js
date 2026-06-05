@@ -6,6 +6,8 @@ import {
 	adSpendChannelsForDashboard,
 	adSpendChannelsForShopifyMarketsFilterUi,
 } from '@/lib/mergeAdSpendDaily';
+import { getReturnsOverrideSettings } from '@/lib/performanceDashboard/performanceDashboardConstants';
+import { calcShopifyDayProfitMetrics } from '@/lib/performanceDashboard/profitMetrics';
 
 async function fetchPeriodData(customerId, startDate, endDate, mergedSourcesQuerySuffix = '') {
 	const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -32,29 +34,14 @@ function buildDailyRows(merged, customer, revenueType) {
 		])
 	);
 
-	let cogsPercentage = 0;
-	if (
-		customer?.CustomerStaticExpenses &&
-		typeof customer.CustomerStaticExpenses.cogsPercentage === 'number'
-	) {
-		cogsPercentage = customer.CustomerStaticExpenses.cogsPercentage;
-	}
-
-	const shippingCostPerOrder =
-		customer?.CustomerStaticExpenses?.shippingCostPerOrder ?? 0;
-	const pickNPackCostPerOrder =
-		customer?.CustomerStaticExpenses?.pickNPackCostPerOrder ?? 0;
-	const transactionCostPercentage =
-		customer?.CustomerStaticExpenses?.transactionCostPercentage ?? 0.015;
-	const fixedExpensesMonthly = Number(customer?.CustomerStaticExpenses?.fixedExpenses) || 0;
-	const fetchCogs = customer?.CustomerSettings?.fetchCogsFromStore === true;
+	const staticExpenses = customer?.CustomerStaticExpenses || {};
+	const customerSettings = customer?.CustomerSettings || {};
+	const returnsOverride = getReturnsOverrideSettings(customerSettings);
 
 	return shopify.map((d) => {
 		const date = d.period;
 		const ymd = String(date).slice(0, 10);
-		const orders = d.orders || 0;
 		const totalSales = d.total_sales || 0;
-		const netRevenue = d.net_sales || 0;
 		const ppcCost = channelMaps.google?.[ymd] ?? 0;
 		const psCost = channelMaps.facebook?.[ymd] ?? 0;
 		const pinterestCost = channelMaps.pinterest?.[ymd] ?? 0;
@@ -62,37 +49,29 @@ function buildDailyRows(merged, customer, revenueType) {
 		const bingCost = channelMaps.bing?.[ymd] ?? 0;
 		const redditCost = channelMaps.reddit?.[ymd] ?? 0;
 		const cost = spendByDate[ymd] ?? 0;
-		const roas = cost > 0 ? netRevenue / cost : null;
-		const spendshare = netRevenue > 0 ? cost / netRevenue : null;
 
-		let cogs = 0;
-		if (fetchCogs) {
-			cogs = d.cost_of_goods_sold || 0;
-		} else {
-			cogs = netRevenue * cogsPercentage;
-		}
+		const profit = calcShopifyDayProfitMetrics({
+			shopifyDay: d,
+			marketingSpend: cost,
+			customerSettings,
+			staticExpenses,
+			returnsOverride,
+		});
 
-		let poas = null;
-		if (cost > 0) {
-			const grossProfit = netRevenue - cogs;
-			poas = grossProfit / cost;
-		}
+		const {
+			netRevenue,
+			orders,
+			cogs,
+			variableExpense,
+			fixedExpense,
+			transactionFee,
+			netProfit,
+			poas,
+			roas,
+			spendshare,
+		} = profit;
 
-		const cac = merged.CACTotalSales ?? null;
 		const aov = orders > 0 ? netRevenue / orders : null;
-
-		// Variable costs: shipping + pick & pack only (no transaction fee - matches performance-dashboard)
-		const variableExpense =
-			shippingCostPerOrder * orders + pickNPackCostPerOrder * orders;
-		// Fixed costs: prorate by actual days in month (matches performance-dashboard)
-		const daysInMonth = dayjs(date).daysInMonth();
-		const fixedExpense = fixedExpensesMonthly / daysInMonth;
-		// Transaction fee: separate from variable (matches performance-dashboard)
-		const transactionFee = netRevenue * transactionCostPercentage;
-
-		// Net Profit = Net Revenue - COGS - Fixed - Variable - Transaction Fee - Spend (matches performance-dashboard)
-		const allCosts = cogs + fixedExpense + variableExpense + transactionFee + cost;
-		const netProfit = netRevenue - allCosts;
 
 		return {
 			date,
@@ -110,7 +89,7 @@ function buildDailyRows(merged, customer, revenueType) {
 			spendshare,
 			poas,
 			aov,
-			cac,
+			cac: merged.CACTotalSales ?? null,
 			cogs,
 			variableExpense,
 			fixedExpense,
@@ -121,11 +100,7 @@ function buildDailyRows(merged, customer, revenueType) {
 }
 
 function buildPrevPeriodRows(mergedPrev, customer, revenueType) {
-	const rows = buildDailyRows(mergedPrev, customer, revenueType);
-	return rows.map((r) => ({
-		...r,
-		poas: mergedPrev.POASTotalSales ?? r.poas,
-	}));
+	return buildDailyRows(mergedPrev, customer, revenueType);
 }
 
 /**

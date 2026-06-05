@@ -48,10 +48,8 @@ export default function RowComparisonPopover({
 		comparisonRow = rows?.find((r) => r.date === currentDate);
 	}
 
-	// Net Profit = Net Revenue - COGS (matches performance-dashboard)
-	const netProfit = comparisonRow
-		? comparisonRow.netRevenue - (comparisonRow.cogs || 0)
-		: 0;
+	// Net Profit from row (matches performance-dashboard)
+	const netProfit = comparisonRow?.netProfit ?? 0;
 
 	const visibleCols = metricColumns.filter((m) => visibleMetrics[m.key]);
 	const getCellValue = (key) => {

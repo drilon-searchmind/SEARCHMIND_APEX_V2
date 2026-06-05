@@ -319,7 +319,8 @@ const DailyOverviewPage = () => {
             />
 
             <div className="mt-8 bg-gray-50 rounded-xl border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold mb-5">Last Year Period</h3>
+                <h3 className="text-lg font-semibold mb-0">Last Year Period</h3>
+                <div class="mt-0 text-xs text-gray-500 mb-5">Full month</div>
                 <LastYearPeriodTable
                     rowsLastYear={rowsLastYear}
                     rows={rows}

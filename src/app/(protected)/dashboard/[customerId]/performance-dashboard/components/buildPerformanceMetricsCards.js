@@ -6,6 +6,7 @@ import {
     attachOverviewPrimaryMetricCalcs,
 } from "@/lib/performanceDashboard/enrichOverviewDerivedMetrics";
 import { getMonthlyFixedExpensesTotal } from "@/lib/customerStaticExpensesUtils";
+import { revenueVatShortLabel } from "@/lib/revenueVatDisplay";
 import {
     percentChange,
     changeTypeForMetric,
@@ -79,6 +80,7 @@ export function buildPerformanceMetricsCards({
     prevRangeStart,
     prevRangeEnd,
     customerType = "Shopify",
+    customerSettings = {},
 }) {
     const {
         totalCogs,
@@ -107,8 +109,6 @@ export function buildPerformanceMetricsCards({
 
     const netRevenue = metricsData.revenue;
     const netRevenuePrev = metricsDataPrev.revenue;
-    const netSales = metricsData.net_sales;
-    const netSalesPrev = metricsDataPrev.net_sales;
     const duties = metricsData.duties;
     const dutiesPrev = metricsDataPrev.duties;
     const additionalFees = metricsData.additional_fees;
@@ -142,9 +142,22 @@ export function buildPerformanceMetricsCards({
 
     const cac = merged.CACTotalSales ?? null;
     const cacPrev = mergedPrev.CACTotalSales ?? null;
-    const grossProfitCalculation = merged.calculationsData?.grossProfitCalculation || "";
+    const vatLabel = revenueVatShortLabel(customerSettings);
+    const grossProfitCalculation = fetchCogs
+        ? `Net Revenue (${vatLabel}) - COGS (from Store) \n
+        = ${fmt(netRevenue)} - ${fmt(totalCogs)} \n
+        = ${fmt(grossProfit)}
+    `
+        : `Net Revenue (${vatLabel}) - (COGS % × Net Revenue) \n
+        = ${fmt(netRevenue)} - (${(cogsPercentage * 100).toFixed(1)}% × ${fmt(netRevenue)}) \n
+        = ${fmt(netRevenue)} - ${fmt(totalCogs)} \n
+        = ${fmt(grossProfit)}
+    `;
     const totalAdspendCalculation = merged.calculationsData?.totalAdspendCalculation || "";
-    const apiValueLabels = merged.calculationsData?.valueLabels || {};
+    const apiValueLabels = {
+        ...(merged.calculationsData?.valueLabels || {}),
+        grossProfit: `Net Revenue: ${fmt(netRevenue)}\nCOGS: ${fmt(totalCogs)}`,
+    };
 
     const roasCalculation = `Net Revenue / Cost \n
                     = ${fmt(netRevenue)} / ${fmt(cost)} \n
@@ -227,18 +240,6 @@ export function buildPerformanceMetricsCards({
                 return `Net sales = Gross sales - Discounts - Returns\n= ${fmt(grossSales)} - ${fmt(discountDeduction)} - ${fmt(returnDeduction)}\n= ${fmt(grossSales)} - ${fmt(deductions)}\n= ${fmt(netRevenue)}`;
             })(),
             calcValueLabels: `Gross sales: ${fmt(grossSales)}\nDiscounts: ${fmt(discounts)}\nReturns: ${fmt(returns)}`,
-        },
-        {
-            key: "net_sales",
-            label: "Net Sales",
-            value: fmtCur(netSales),
-            icon: <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />,
-            change: percentChange(netSales, netSalesPrev) !== null ? Math.abs(percentChange(netSales, netSalesPrev)).toFixed(0) : undefined,
-            changeType: chg("net_sales", netSales, netSalesPrev),
-            changeAbsolute: formatDiff(netSales, netSalesPrev, "currency"),
-            changePrevValue: fmtCur(netSalesPrev),
-            tooltip: "Shopify net sales from store (not adjusted by returns % override)",
-            popOverContent: null,
         },
         {
             key: "duties",
@@ -556,18 +557,20 @@ export function buildPerformanceMetricsCards({
         prevRangeStart,
         prevRangeEnd,
         customerType,
+        customerSettings,
     });
     const derivedCards = buildOverviewDerivedMetricCards(
         metricsData,
         metricsDataPrev,
-        fixedBreakdownRows
+        fixedBreakdownRows,
+        customerSettings
     );
     let metricsWithDerived = [...metricsArray, ...derivedCards];
     metricsWithDerived = attachOverviewPrimaryMetricCalcs(
         metricsWithDerived,
         metricsData,
         customerType,
-        { fetchCogs, cogsPercentage }
+        { fetchCogs, cogsPercentage, customerSettings }
     );
 
     const withReplacements = metricsWithDerived.map((m) => {

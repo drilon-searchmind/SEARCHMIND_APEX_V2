@@ -95,6 +95,19 @@ export default function GeneralSettingsForm({ form, onChange, saving }) {
                     <input id="isArchived" name="isArchived" type="checkbox" checked={form.isArchived} onChange={onChange} className="rounded border-gray-300" />
                     <FormLabel htmlFor="isArchived">Archived</FormLabel>
                 </div>
+                <div>
+                    <FormLabel htmlFor="revenueDisplayVat">Revenue display (VAT)</FormLabel>
+                    <select
+                        id="revenueDisplayVat"
+                        name="revenueDisplayVat"
+                        value={form.revenueDisplayVat === "incl" ? "incl" : "excl"}
+                        onChange={onChange}
+                        className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20"
+                    >
+                        <option value="excl">Excl. VAT (store default)</option>
+                        <option value="incl">Incl. VAT (Danish 25%)</option>
+                    </select>
+                </div>
             </form>
             {showCreateModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center glassmorphism2">

@@ -9,7 +9,7 @@ import GraphCard from '@/components/dashboard/GraphCard';
 import MetricToggleBar from '../daily-overview/MetricToggleBar';
 import {
     MARKETS_DEFAULT_VISIBLE_METRICS,
-    MARKETS_METRIC_COLUMNS,
+    marketsMetricColumnsWithVatLabels,
 } from './marketsMetricConfig';
 import { AD_SPEND_DAILY_COLUMN_KEYS } from '@/lib/mergeAdSpendDaily';
 import { pushDashboardDateRangeApplied } from '@root/lib/gtmFunctions';
@@ -18,6 +18,7 @@ import { useMarketsOverviewData } from './useMarketsOverviewData';
 import MarketsMetricsTable from './MarketsMetricsTable';
 import { aggregateIncludedMarketRows } from './marketsTotalsUtils';
 import { isShopifyMarketsCustomer } from '@/lib/customerPlatformDisplay';
+import { revenueVatDisplayLabelSuffix } from '@/lib/revenueVatDisplay';
 
 const MarketsOverviewPage = () => {
     const params = useParams();
@@ -99,13 +100,16 @@ const MarketsOverviewPage = () => {
     const [userColumnVisibility, setUserColumnVisibility] = useState({});
 
     const metricColumns = useMemo(() => {
+        const baseColumns = marketsMetricColumnsWithVatLabels(
+            customer?.CustomerSettings || {}
+        );
         const adKeySet = new Set(AD_SPEND_DAILY_COLUMN_KEYS);
-        if (visibleMarketingColumnKeys == null) return MARKETS_METRIC_COLUMNS;
+        if (visibleMarketingColumnKeys == null) return baseColumns;
         const allow = new Set(visibleMarketingColumnKeys);
-        return MARKETS_METRIC_COLUMNS.filter(
+        return baseColumns.filter(
             (col) => !adKeySet.has(col.key) || allow.has(col.key)
         );
-    }, [visibleMarketingColumnKeys]);
+    }, [visibleMarketingColumnKeys, customer?.CustomerSettings]);
 
     const visibleMetrics = useMemo(() => {
         const out = {};
@@ -136,22 +140,26 @@ const MarketsOverviewPage = () => {
         });
     };
 
-    const chartMetricOptions = useMemo(
-        () => [
-            { key: 'netRevenue', label: 'Net Revenue' },
+    const chartMetricOptions = useMemo(() => {
+        const vatSuffix = revenueVatDisplayLabelSuffix(customer?.CustomerSettings || {});
+        const withVat = (key, label) =>
+            ['netRevenue', 'returns', 'discounts', 'taxes', 'shippingCharges'].includes(key)
+                ? `${label}${vatSuffix}`
+                : label;
+        return [
+            { key: 'netRevenue', label: withVat('netRevenue', 'Net Revenue') },
             { key: 'orders', label: 'Orders' },
             { key: 'netProfit', label: 'Net Profit' },
             { key: 'roas', label: 'Blended ROAS' },
             { key: 'poas', label: 'Blended POAS' },
             { key: 'totalMarketingSpend', label: 'Spend' },
-            { key: 'returns', label: 'Returns' },
-            { key: 'discounts', label: 'Discount' },
-            { key: 'taxes', label: 'Taxes' },
-            { key: 'shippingCharges', label: 'Shipping Charges' },
+            { key: 'returns', label: withVat('returns', 'Returns') },
+            { key: 'discounts', label: withVat('discounts', 'Discount') },
+            { key: 'taxes', label: withVat('taxes', 'Taxes') },
+            { key: 'shippingCharges', label: withVat('shippingCharges', 'Shipping Charges') },
             { key: 'transactionFee', label: 'Transaction Fees' },
-        ],
-        []
-    );
+        ];
+    }, [customer?.CustomerSettings]);
 
     const includedRows = useMemo(
         () => (rows || []).filter((r) => hiddenMarkets[r.marketId] !== true),

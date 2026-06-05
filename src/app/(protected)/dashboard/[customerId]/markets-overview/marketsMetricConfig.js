@@ -1,5 +1,7 @@
 'use client';
 
+import { revenueVatDisplayLabelSuffix } from '@/lib/revenueVatDisplay';
+
 export const MARKETS_METRIC_COLUMNS = [
 	{ key: 'orders', label: 'Orders', group: 'sales' },
 	{ key: 'netRevenue', label: 'Net Revenue', group: 'sales' },
@@ -29,5 +31,25 @@ export const MARKETS_DEFAULT_VISIBLE_METRICS = Object.fromEntries(
 
 for (const key of ['returns', 'discounts', 'taxes', 'shippingCharges', 'transactionFee']) {
 	MARKETS_DEFAULT_VISIBLE_METRICS[key] = false;
+}
+
+const MARKETS_VAT_LABELED_KEYS = new Set([
+	'netRevenue',
+	'discounts',
+	'returns',
+	'taxes',
+	'shippingCharges',
+	'cogs',
+	'aov',
+]);
+
+/** Sales columns with incl./excl. VAT suffix from General Settings. */
+export function marketsMetricColumnsWithVatLabels(customerSettings = {}) {
+	const suffix = revenueVatDisplayLabelSuffix(customerSettings);
+	return MARKETS_METRIC_COLUMNS.map((col) =>
+		MARKETS_VAT_LABELED_KEYS.has(col.key)
+			? { ...col, label: `${col.label}${suffix}` }
+			: col
+	);
 }
 

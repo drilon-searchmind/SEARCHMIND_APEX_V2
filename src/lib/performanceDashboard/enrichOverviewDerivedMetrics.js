@@ -1,6 +1,12 @@
 import React from "react";
 import dayjs from "dayjs";
 import { FiDollarSign, FiPieChart } from "react-icons/fi";
+import {
+    totalSalesVatLabel,
+    grossProfitVatLabel,
+    revenueVatShortLabel,
+    getRevenueDisplayVatMode,
+} from "@/lib/revenueVatDisplay";
 import { shopifyDeductionMagnitudes } from "@/lib/performanceDashboard/computePerformanceMetrics";
 import { getFixedExpensesBreakdownLineItems } from "@/lib/customerStaticExpensesUtils";
 import {
@@ -36,7 +42,7 @@ function formatDiff(current, prev, type) {
 const fmtNum = (n, d = 0) =>
     (n ?? 0).toLocaleString("da-DK", { maximumFractionDigits: d });
 
-function buildTotalSalesExVatCalc(metricsData, customerType) {
+function buildTotalSalesExVatCalc(metricsData, customerType, customerSettings = {}) {
     const totalSales = Number(metricsData.total_sales) || 0;
     const tax = Math.abs(Number(metricsData.tax) || 0);
     const grossSales = Number(metricsData.gross_sales) || 0;
@@ -44,14 +50,18 @@ function buildTotalSalesExVatCalc(metricsData, customerType) {
     const shippingRevenue = Number(metricsData.shipping_revenue) || 0;
     const exVat = Number(metricsData.total_sales_ex_vat) || 0;
     const type = customerType || "Shopify";
+    const vatLabel = revenueVatShortLabel(customerSettings);
+    const salesLabel = totalSalesVatLabel(customerSettings);
 
     let popOverContent;
-    if (type === "Magento") {
-        popOverContent = `Total sales excl. VAT\n= Magento order total (product net + shipping)\n= ${fmtNum(exVat)}`;
+    if (getRevenueDisplayVatMode(customerSettings) === "incl") {
+        popOverContent = `${salesLabel}\n= Store revenue excl. VAT × 1.25\n= ${fmtNum(exVat)}`;
+    } else if (type === "Magento") {
+        popOverContent = `${salesLabel}\n= Magento order total (product net + shipping)\n= ${fmtNum(exVat)}`;
     } else if (type === "WooCommerce") {
-        popOverContent = `Total sales excl. VAT\n= WooCommerce sales total (ex-VAT) for the period\n= ${fmtNum(exVat)}`;
+        popOverContent = `${salesLabel}\n= WooCommerce sales total (excl. VAT) for the period\n= ${fmtNum(exVat)}`;
     } else {
-        popOverContent = `Total sales excl. VAT\n= total_sales − VAT\n= ${fmtNum(totalSales)} − ${fmtNum(tax)}\n= ${fmtNum(exVat)}`;
+        popOverContent = `${salesLabel}\n= total_sales − ${vatLabel}\n= ${fmtNum(totalSales)} − ${fmtNum(tax)}\n= ${fmtNum(exVat)}`;
     }
 
     return {
@@ -76,13 +86,14 @@ function buildGrossProfitMinusAdSpendCalc(metricsData) {
     };
 }
 
-function buildGrossProfitExVatCalc(metricsData, fetchCogs, cogsPercentage) {
+function buildGrossProfitExVatCalc(metricsData, fetchCogs, cogsPercentage, customerSettings = {}) {
     const netRevenue = Number(metricsData.revenue) || 0;
     const cogs = Number(metricsData.cogs) || 0;
     const grossProfit = Number(metricsData.gross_profit) || 0;
+    const profitLabel = grossProfitVatLabel(customerSettings);
     const popOverContent = fetchCogs
-        ? `Gross profit excl. VAT\n= Net revenue − COGS (from store)\n= ${fmtNum(netRevenue)} − ${fmtNum(cogs)}\n= ${fmtNum(grossProfit)}`
-        : `Gross profit excl. VAT\n= Net revenue − (COGS % × Net revenue)\n= ${fmtNum(netRevenue)} − (${(cogsPercentage * 100).toFixed(1)}% × ${fmtNum(netRevenue)})\n= ${fmtNum(netRevenue)} − ${fmtNum(cogs)}\n= ${fmtNum(grossProfit)}`;
+        ? `${profitLabel}\n= Net revenue − COGS (from store)\n= ${fmtNum(netRevenue)} − ${fmtNum(cogs)}\n= ${fmtNum(grossProfit)}`
+        : `${profitLabel}\n= Net revenue − (COGS % × Net revenue)\n= ${fmtNum(netRevenue)} − (${(cogsPercentage * 100).toFixed(1)}% × ${fmtNum(netRevenue)})\n= ${fmtNum(netRevenue)} − ${fmtNum(cogs)}\n= ${fmtNum(grossProfit)}`;
     return {
         popOverContent,
         calcValueLabels: `Net revenue: ${fmtNum(netRevenue)}\nCOGS: ${fmtNum(cogs)}`,
@@ -104,12 +115,12 @@ export function attachOverviewPrimaryMetricCalcs(
     metricsCards,
     metricsData,
     customerType,
-    { fetchCogs = false, cogsPercentage = 0 } = {}
+    { fetchCogs = false, cogsPercentage = 0, customerSettings = {} } = {}
 ) {
     const patches = {
-        total_sales_ex_vat: buildTotalSalesExVatCalc(metricsData, customerType),
+        total_sales_ex_vat: buildTotalSalesExVatCalc(metricsData, customerType, customerSettings),
         gross_profit_minus_ad_spend: buildGrossProfitMinusAdSpendCalc(metricsData),
-        gross_profit: buildGrossProfitExVatCalc(metricsData, fetchCogs, cogsPercentage),
+        gross_profit: buildGrossProfitExVatCalc(metricsData, fetchCogs, cogsPercentage, customerSettings),
         ebit: buildNetProfitCalc(metricsData),
     };
     return metricsCards.map((card) => {
@@ -228,7 +239,7 @@ function computeProductSales({
     return fromComponents;
 }
 
-function buildDerivedSnapshot(md, derived, customerType = "Shopify") {
+function buildDerivedSnapshot(md, derived, customerType = "Shopify", customerSettings = {}) {
     const grossSales = Number(md.gross_sales) || 0;
     const discounts = Number(md.discounts) || 0;
     const returns = Number(md.returns) || 0;
@@ -241,14 +252,17 @@ function buildDerivedSnapshot(md, derived, customerType = "Shopify") {
         returns
     );
 
-    const totalSalesExVat = computeTotalSalesExVat({
-        totalSales,
-        taxes,
-        grossSales,
-        netSales,
-        shippingRevenue,
-        customerType,
-    });
+    const totalSalesExVat =
+        getRevenueDisplayVatMode(customerSettings) === "incl"
+            ? totalSales
+            : computeTotalSalesExVat({
+                  totalSales,
+                  taxes,
+                  grossSales,
+                  netSales,
+                  shippingRevenue,
+                  customerType,
+              });
     const revenueAfterDiscounts = grossSales - discountDeduction;
     const productSales = computeProductSales({
         revenueAfterDiscounts,
@@ -305,9 +319,10 @@ export function enrichOverviewDerivedMetrics({
     prevRangeStart,
     prevRangeEnd,
     customerType = "Shopify",
+    customerSettings = {},
 }) {
-    const currDerived = buildDerivedSnapshot(metricsData, derived, customerType);
-    const prevDerived = buildDerivedSnapshot(metricsDataPrev, derived, customerType);
+    const currDerived = buildDerivedSnapshot(metricsData, derived, customerType, customerSettings);
+    const prevDerived = buildDerivedSnapshot(metricsDataPrev, derived, customerType, customerSettings);
 
     const breakdownRows = getFixedExpensesBreakdownLineItems(staticExp);
     const fixedLineCurr = {};
@@ -331,8 +346,8 @@ export function enrichOverviewDerivedMetrics({
     return { fixedBreakdownRows: breakdownRows };
 }
 
-const DERIVED_CARD_DEFS = [
-    { key: "total_sales_ex_vat", label: "Total sales excl. VAT" },
+const DERIVED_CARD_DEFS = (customerSettings = {}) => [
+    { key: "total_sales_ex_vat", label: totalSalesVatLabel(customerSettings) },
     { key: "discount_codes", label: "Discount Codes" },
     { key: "discount_pct_gross", label: "% of gross sales", valueType: "pct" },
     { key: "revenue_after_discounts", label: "Revenue after Discounts" },
@@ -352,9 +367,10 @@ const DERIVED_CARD_DEFS = [
 export function buildOverviewDerivedMetricCards(
     metricsData,
     metricsDataPrev,
-    fixedBreakdownRows = []
+    fixedBreakdownRows = [],
+    customerSettings = {}
 ) {
-    const cards = DERIVED_CARD_DEFS.map((def) =>
+    const cards = DERIVED_CARD_DEFS(customerSettings).map((def) =>
         cardFromValues(
             def.key,
             def.label,

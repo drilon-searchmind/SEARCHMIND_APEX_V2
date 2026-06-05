@@ -83,6 +83,12 @@ const CustomerSchema = new mongoose.Schema({
             required: false,
             default: "total_sales"
         },
+        /** Dashboard revenue display: excl. VAT (store default) or incl. Danish VAT (25%). */
+        revenueDisplayVat: {
+            type: String,
+            enum: ["incl", "excl"],
+            default: "excl",
+        },
         shopifyUrl: {
             type: String,
             default: ""

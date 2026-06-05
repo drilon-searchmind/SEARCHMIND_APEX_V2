@@ -1,5 +1,6 @@
 import { evaluateFormula } from "@/app/(protected)/dashboard/[customerId]/performance-dashboard/components/kpiFormulaUtils";
 import { getReturnsOverrideSettings } from "./performanceDashboardConstants";
+import { applyVatDisplayToShopifyDayRow } from "@/lib/revenueVatDisplay";
 
 /**
  * Sum a numeric field across Shopify daily rows.
@@ -31,19 +32,22 @@ export function shopifyDeductionMagnitudes(discounts, returns) {
     };
 }
 
-function buildPeriodTotals(shopifyRows, returnsOverride) {
-    const grossSales = sumShopifyField(shopifyRows, "gross_sales");
-    const discounts = sumShopifyField(shopifyRows, "discounts");
-    const orders = sumShopifyField(shopifyRows, "orders");
-    const shippingCharges = sumShopifyField(shopifyRows, "shipping_charges");
-    const taxes = sumShopifyField(shopifyRows, "taxes");
-    const totalSales = sumShopifyField(shopifyRows, "total_sales");
-    const cogsFromStore = sumShopifyField(shopifyRows, "cost_of_goods_sold");
+function buildPeriodTotals(shopifyRows, returnsOverride, customerSettings) {
+    const rows = (shopifyRows || []).map((d) =>
+        applyVatDisplayToShopifyDayRow(d, customerSettings)
+    );
+    const grossSales = sumShopifyField(rows, "gross_sales");
+    const discounts = sumShopifyField(rows, "discounts");
+    const orders = sumShopifyField(rows, "orders");
+    const shippingCharges = sumShopifyField(rows, "shipping_charges");
+    const taxes = sumShopifyField(rows, "taxes");
+    const totalSales = sumShopifyField(rows, "total_sales");
+    const cogsFromStore = sumShopifyField(rows, "cost_of_goods_sold");
 
-    const duties = sumShopifyField(shopifyRows, "duties");
-    const additionalFees = sumShopifyField(shopifyRows, "additional_fees");
-    const netSalesFromStore = sumShopifyField(shopifyRows, "net_sales");
-    let returns = sumShopifyField(shopifyRows, "returns");
+    const duties = sumShopifyField(rows, "duties");
+    const additionalFees = sumShopifyField(rows, "additional_fees");
+    const netSalesFromStore = sumShopifyField(rows, "net_sales");
+    let returns = sumShopifyField(rows, "returns");
     let netRevenue = netSalesFromStore;
 
     if (returnsOverride?.enabled) {
@@ -66,6 +70,11 @@ function buildPeriodTotals(shopifyRows, returnsOverride) {
         additionalFees,
         cogsFromStore,
     };
+}
+
+/** Period totals from Shopify daily rows (same logic as performance dashboard). */
+export function aggregateShopifyDailyRows(shopifyRows, returnsOverride, customerSettings) {
+    return buildPeriodTotals(shopifyRows, returnsOverride ?? null, customerSettings);
 }
 
 /**
@@ -381,8 +390,8 @@ export function computePerformanceDashboardMetrics({
     prevDaysInRange,
 }) {
     const returnsOverride = getReturnsOverrideSettings(customerSettings);
-    const curr = buildPeriodTotals(shopify, returnsOverride);
-    const prev = buildPeriodTotals(shopifyPrev, returnsOverride);
+    const curr = buildPeriodTotals(shopify, returnsOverride, customerSettings);
+    const prev = buildPeriodTotals(shopifyPrev, returnsOverride, customerSettings);
 
     const base = buildBaseMetricsData({
         curr,
@@ -404,8 +413,8 @@ export function computePerformanceDashboardMetrics({
     base.derived._cogsPercentage = cogsPercentage;
 
     /** Custom KPI tab + formula evaluation: store-reported Shopify (no returns % override). */
-    const currStore = buildPeriodTotals(shopify, null);
-    const prevStore = buildPeriodTotals(shopifyPrev, null);
+    const currStore = buildPeriodTotals(shopify, null, customerSettings);
+    const prevStore = buildPeriodTotals(shopifyPrev, null, customerSettings);
     const baseForCustomKpis = buildBaseMetricsData({
         curr: currStore,
         prev: prevStore,
@@ -436,13 +445,29 @@ export function computePerformanceDashboardMetrics({
 }
 
 /** Per-day net revenue with optional returns override (for charts). */
-export function netRevenueForShopifyDay(d, returnsOverride) {
-    const gross = Number(d.gross_sales) || 0;
-    const discounts = Number(d.discounts) || 0;
+export function netRevenueForShopifyDay(d, returnsOverride, customerSettings) {
+    const day = applyVatDisplayToShopifyDayRow(d, customerSettings);
+    const gross = Number(day.gross_sales) || 0;
+    const discounts = Number(day.discounts) || 0;
     if (returnsOverride?.enabled) {
         const pct = (returnsOverride.percent ?? 0) / 100;
         const returns = gross * pct;
         return netRevenueFromGrossDiscountsReturns(gross, discounts, returns);
     }
-    return Number(d.net_sales || d.total_sales || 0);
+    return Number(day.net_sales || day.total_sales || 0);
+}
+
+/**
+ * Revenue for a Shopify daily row using customer revenue type preference.
+ * When returns override is enabled, always uses adjusted net revenue (matches performance dashboard).
+ */
+export function shopifyDayRevenueByType(d, revenueType, returnsOverride, customerSettings) {
+    if (returnsOverride?.enabled) {
+        return netRevenueForShopifyDay(d, returnsOverride, customerSettings);
+    }
+    const day = applyVatDisplayToShopifyDayRow(d, customerSettings);
+    const type = revenueType || "net_sales";
+    if (type === "gross_sales") return Number(day.gross_sales) || 0;
+    if (type === "total_sales") return Number(day.total_sales) || 0;
+    return Number(day.net_sales || day.total_sales || 0);
 }

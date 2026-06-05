@@ -92,7 +92,6 @@ export function computeTotals(rows, variant = 'current') {
 		(sum, r) => sum + (r.fixedExpense || 0),
 		0
 	);
-	const grossProfit = totalNetRevenue - totalCogs;
 	const totalNetProfit = rows.reduce(
 		(sum, r) => sum + (r.netProfit ?? 0),
 		0
@@ -112,8 +111,7 @@ export function computeTotals(rows, variant = 'current') {
 		fixedExpenses: formatCurrency(totalFixedExpenses),
 		aov: totalOrders > 0 ? formatCurrency(totalNetRevenue / totalOrders) : '-',
 		roas: totalCost > 0 ? (totalNetRevenue / totalCost).toFixed(2) : '-',
-		poas: totalCost > 0 ? (grossProfit / totalCost).toFixed(2) : '-',
-		// Net Profit = sum of row netProfits (matches performance-dashboard: Net Revenue - COGS - Fixed - Variable - Transaction Fee - Spend)
+		poas: totalCost > 0 ? (totalNetProfit / totalCost).toFixed(2) : '-',
 		netProfit: formatCurrency(totalNetProfit),
 	};
 }
@@ -159,7 +157,6 @@ export function computeRawTotals(rows) {
 		(sum, r) => sum + (r.fixedExpense || 0),
 		0
 	);
-	const grossProfit = totalNetRevenue - totalCogs;
 	const totalNetProfit = rows.reduce(
 		(sum, r) => sum + (r.netProfit ?? 0),
 		0
@@ -179,7 +176,7 @@ export function computeRawTotals(rows) {
 		fixedExpenses: totalFixedExpenses,
 		aov: totalOrders > 0 ? totalNetRevenue / totalOrders : 0,
 		roas: totalCost > 0 ? totalNetRevenue / totalCost : 0,
-		poas: totalCost > 0 ? grossProfit / totalCost : 0,
+		poas: totalCost > 0 ? totalNetProfit / totalCost : 0,
 		netProfit: totalNetProfit,
 	};
 }
