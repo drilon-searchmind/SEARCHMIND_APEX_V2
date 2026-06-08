@@ -6,6 +6,7 @@ import {
     isValidMcpCustomerResource,
     listMcpCustomerResources,
 } from "@root/lib/mcpResourceService";
+import { searchParamsToQuery } from "@root/lib/mcpQuery";
 
 /**
  * GET /api/mcp/customers/[customerId]/resources/[resource]?startDate=&endDate=
@@ -34,10 +35,11 @@ export async function GET(request, { params }) {
         }
 
         const { searchParams } = new URL(request.url);
-        const data = await fetchMcpCustomerResource(customerId, resource, {
-            startDate: searchParams.get("startDate") || undefined,
-            endDate: searchParams.get("endDate") || undefined,
-        });
+        const data = await fetchMcpCustomerResource(
+            customerId,
+            resource,
+            searchParamsToQuery(searchParams)
+        );
 
         return NextResponse.json(data);
     } catch (e) {

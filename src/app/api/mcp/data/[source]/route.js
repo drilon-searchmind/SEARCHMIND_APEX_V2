@@ -7,6 +7,7 @@ import {
     isValidMcpDataSource,
     listMcpDataSources,
 } from "@root/lib/mcpDataService";
+import { searchParamsToQuery } from "@root/lib/mcpQuery";
 
 /**
  * GET /api/mcp/data/[source]?customerId=&startDate=&endDate=
@@ -28,16 +29,15 @@ export async function GET(request, { params }) {
         }
 
         const { searchParams } = new URL(request.url);
-        const customerId = String(searchParams.get("customerId") || "").trim();
-        const startDate = searchParams.get("startDate");
-        const endDate = searchParams.get("endDate");
+        const query = searchParamsToQuery(searchParams);
+        const customerId = String(query.customerId || "").trim();
 
         if (!customerId) {
             return NextResponse.json({ error: "customerId is required" }, { status: 400 });
         }
 
         await dbConnect();
-        const data = await fetchMcpDataSource(source, customerId, startDate, endDate);
+        const data = await fetchMcpDataSource(source, customerId, query);
         return NextResponse.json(data);
     } catch (e) {
         console.error("[mcp data source GET]", e);

@@ -6,6 +6,7 @@ import {
     isValidMcpGlobalResource,
     listMcpGlobalResources,
 } from "@root/lib/mcpResourceService";
+import { searchParamsToQuery } from "@root/lib/mcpQuery";
 
 /**
  * GET /api/mcp/global/[resource]
@@ -29,7 +30,8 @@ export async function GET(request, { params }) {
             );
         }
 
-        const data = await fetchMcpGlobalResource(resource);
+        const { searchParams } = new URL(request.url);
+        const data = await fetchMcpGlobalResource(resource, searchParamsToQuery(searchParams));
         return NextResponse.json(data);
     } catch (e) {
         console.error("[mcp global resource GET]", e);
