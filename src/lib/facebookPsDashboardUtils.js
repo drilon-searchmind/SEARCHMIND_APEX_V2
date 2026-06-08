@@ -40,12 +40,21 @@ export function getActionValueSum(actionValues, actionTypes) {
     return sum;
 }
 
+/** First non-zero purchase metric — do not sum types (Meta duplicates across purchase / omni / pixel). */
+function getFirstPurchaseMetric(actionsOrValues, readValue) {
+    for (const type of PURCHASE_ACTION_TYPES) {
+        const value = readValue(actionsOrValues, type);
+        if (value > 0) return value;
+    }
+    return 0;
+}
+
 export function getPurchaseConversions(actions) {
-    return getActionValue(actions, PURCHASE_ACTION_TYPES);
+    return getFirstPurchaseMetric(actions, getActionValue);
 }
 
 export function getPurchaseRevenue(actionValues) {
-    return getActionValueSum(actionValues, PURCHASE_ACTION_TYPES);
+    return getFirstPurchaseMetric(actionValues, getActionValueSum);
 }
 
 export function getEngagementCount(actions) {

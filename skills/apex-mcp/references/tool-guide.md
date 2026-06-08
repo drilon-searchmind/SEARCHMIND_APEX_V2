@@ -1,0 +1,117 @@
+# APEX MCP tool guide
+
+Complete reference for the ~65 read-only APEX MCP tools (v0.6.0). All customer-scoped tools need **`customerId`** (MongoDB id from `list_customers`).
+
+## Core tools
+
+| Tool | Purpose |
+|------|---------|
+| `ping` | Connectivity check |
+| `list_customers` | All clients: id, name, type, currency, integrations, `clickupTaskId` |
+| `list_mcp_resources` | Catalog of metrics sources + customer + global resources |
+| `get_customer` | Full sanitized settings, objectives, radar, cached team (no secrets) |
+| `list_data_sources` | Platform metric source names |
+| `get_merged_sources` | Combined daily store revenue + all ad spend |
+
+## Platform metrics (`/api/mcp/data/…`)
+
+Requires `customerId`, `startDate`, `endDate` unless noted.
+
+| Tool | Data |
+|------|------|
+| `get_facebook_ads` | Meta daily spend / PS dashboard metrics |
+| `get_google_ads` | Google Ads PPC metrics |
+| `get_pinterest_ads` | Pinterest metrics |
+| `get_snapchat_ads` | Snapchat metrics |
+| `get_reddit_ads` | Reddit metrics |
+| `get_bing_ads` | Microsoft Advertising metrics |
+| `get_klaviyo_metrics` | Klaviyo summary metrics |
+| `get_store_revenue` | E-commerce revenue only (no ad spend) |
+| `get_ga4_metrics` | GA4 sessions/users by day |
+| `get_seo_metrics` | GSC clicks/impressions + top keywords |
+| `list_meta_campaigns` | Meta campaign list |
+| `list_google_campaigns` | Google campaign list |
+| `get_meta_ad_performance` | Ad-level Meta performance |
+| `get_google_ad_performance` | Ad-level Google performance |
+| `get_google_ppc_dashboard` | Full Google PPC dashboard payload |
+| `get_klaviyo_dashboard` | Full Klaviyo EM dashboard (+ optional `prevStartDate`, `prevEndDate`) |
+| `get_pinterest_dashboard` | Full Pinterest dashboard |
+| `get_snapchat_dashboard` | Full Snapchat dashboard |
+| `get_reddit_dashboard` | Full Reddit dashboard |
+| `get_bing_dashboard` | Full Bing dashboard |
+| `get_seo_brand_keywords` | Configured brand keywords (no dates) |
+| `get_seo_exact_keywords` | Exact-match keyword groups |
+| `get_seo_partial_keywords` | Partial-match keyword groups |
+| `get_seo_insights` | Full SEO insights bundle (+ optional `compareStartDate`, `compareEndDate`, `siteUrl`) |
+
+## Customer resources (`/api/mcp/customers/{id}/resources/…`)
+
+| Tool | Extra params | Purpose |
+|------|--------------|---------|
+| `get_clickup_team` | — | ClickUp members + service tags |
+| `get_custom_kpis` | — | Custom KPI definitions |
+| `get_campaigns` | — | APEX campaign records |
+| `get_tracking_scores` | — | Latest tracking/compliance scan |
+| `get_customer_segmentation` | dates | Segmentation from merged data |
+| `get_markets_overview` | dates | Shopify markets overview rows |
+| `get_share_of_search` | — | Saved SoS snapshots |
+| `get_data_wrapped` | `period=YYYY-MM` | Monthly wrap summary |
+| `list_data_wrapped_reports` | — | Saved wrap reports |
+| `get_shopify_markets` | — | Shopify markets catalog |
+| `get_shopify_products` | dates, optional `fast=true` | Product metrics |
+| `get_segmentation_shopifyql` | dates, optional `full=true` | ShopifyQL segmentation |
+| `get_dashboard_audit` | optional `auditId` | List or fetch channel audit |
+| `list_ai_analysis` | optional `dashboardType` | AI analysis chat list |
+| `get_ai_analysis_chat` | `chatId` | Single AI chat |
+| `get_campaign_planner_workspace` | — | Campaign planner v2 state |
+| `list_campaign_planner_comments` | `lineItemId` | Planner comments |
+| `get_bing_webmaster_site_data` | optional dates | Bing traffic/crawl |
+| `get_bing_webmaster_ai_performance` | dates | Bing AI performance series |
+| `get_merged_sources_filtered` | dates + optional `source`, `shopifyMarkets`, `adSpendExclude` | Daily-overview-style filters |
+| `get_apex_radar_customer_settings` | — | Apex Radar channel settings |
+
+## Global resources (`/api/mcp/global/…`)
+
+| Tool | Params | Purpose |
+|------|--------|---------|
+| `list_internal_users` | — | Staff with name, email, `clickupId` |
+| `list_parent_customers` | — | Parent groups + children summary |
+| `list_our_tools` | — | Internal tools directory |
+| `get_parent_customer_detail` | `parentId` | One parent + child list |
+| `get_parent_aggregated_metrics` | `parentId`, dates, optional comparison params | Parent roll-up |
+| `get_parent_customer_filters` | `parentId` | Saved Google/Meta filters |
+| `list_user_campaigns` | `userId` | Campaigns by assigned user |
+| `list_apex_radar_assignments` | `channel` = `facebook` \| `google-ads` | Radar user assignments |
+| `get_apex_radar_google_overview` | dates, optional `customerId` | Google Radar overview |
+| `get_apex_radar_facebook_overview` | dates, optional `customerId` | Meta Radar overview |
+| `get_apex_radar_google_investigator` | `customerId`, `funnelStartDate`, `funnelEndDate`, optional `currentYear` | Google PI |
+| `get_apex_radar_facebook_investigator` | same | Meta PI |
+| `get_bing_webmaster_status` | — | Bing integration config status (booleans only) |
+| `list_seo_properties` | — | GSC properties APEX can access |
+
+## Use-case → tool matrix
+
+| Question type | Start here |
+|---------------|------------|
+| Find client id | `list_customers` |
+| Who works on client? | `get_clickup_team` + `list_internal_users` |
+| Daily / monthly performance | `get_merged_sources` |
+| Daily overview with market filters | `get_merged_sources_filtered` |
+| Meta deep dive | `get_meta_ad_performance` or `get_facebook_ads` |
+| Google deep dive | `get_google_ppc_dashboard` or `get_google_ads` |
+| Email performance | `get_klaviyo_dashboard` |
+| SEO deep dive | `get_seo_insights` |
+| Shopify products | `get_shopify_products` |
+| Client config / objectives | `get_customer` |
+| Parent brand roll-up | `get_parent_aggregated_metrics` |
+| Ops / account health | Apex Radar overview + assignments tools |
+| Audit PDF data | `get_dashboard_audit` |
+| Competitor search share | `get_share_of_search` |
+
+## Parameter notes
+
+- **`period`** (Data Wrapped): `YYYY-MM` e.g. `2025-06`
+- **`channel`** (Radar assignments): exactly `facebook` or `google-ads`
+- **`parentId`**: from `list_parent_customers` or `get_parent_customer_detail`
+- **`auditId`**, **`chatId`**, **`lineItemId`**: ids from list tools
+- **`shopifyMarkets`**, **`adSpendExclude`**: JSON or comma-separated — match APEX daily overview URL params when user specifies filters
