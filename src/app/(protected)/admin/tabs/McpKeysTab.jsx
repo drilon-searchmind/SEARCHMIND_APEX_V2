@@ -116,10 +116,11 @@ export default function McpKeysTab() {
                     MCP API keys
                 </h5>
                 <p className="text-sm text-gray-500 max-w-2xl">
-                    Issue credentials for Claude Code, Cursor, and other MCP clients. Each set
-                    includes an API key (CLI / Bearer header) and OAuth client id + secret (Claude
-                    connector). Access is read-only for all customers. Secrets are shown only once
-                    at creation.
+                    Issue credentials for Claude Code, Cursor, and other MCP clients. Access is
+                    read-only for all customers. For the <strong>Claude connector</strong>, use your{" "}
+                    <strong>Google SSO Client ID</strong> (<code>SSO_GOOGLE_CLIENT_ID</code>) — leave
+                    OAuth Client Secret empty. API keys and apex_oauth credentials are for CLI or
+                    advanced use.
                 </p>
             </div>
 
@@ -155,9 +156,13 @@ export default function McpKeysTab() {
                             <code className="font-mono">{mcpServerUrl}/mcp</code>
                         </p>
                         <p>
-                            In Claude connector settings, use the OAuth Client ID and Secret above.
-                            Sign-in uses Google — only <code>@searchmind.dk</code> accounts are
-                            allowed.
+                            <strong>Claude connector:</strong> OAuth Client ID = your Google SSO
+                            client id (<code>SSO_GOOGLE_CLIENT_ID</code>). Leave secret empty. You
+                            still need at least one active MCP key here for server-side access.
+                        </p>
+                        <p>
+                            <strong>CLI / Bearer:</strong> use the API key above with{" "}
+                            <code>Authorization: Bearer …</code>
                         </p>
                     </div>
 
