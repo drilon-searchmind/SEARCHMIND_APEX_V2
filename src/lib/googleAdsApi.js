@@ -7,6 +7,7 @@ import {
     shouldExcludeAdCampaign,
 } from './adCampaignFilterUtils';
 import { parseGoogleAdsCustomerIds } from './googleAdsCustomerIdUtils';
+import { getCurrencyConversionTable, conversionRateToDkk } from './currencyConversionTable';
 
 export { normalizeGoogleAdsCampaignId } from './googleAdsCampaignIdUtils';
 
@@ -362,6 +363,23 @@ async function fetchGoogleAdsMetricsForOne(
 }
 
 /**
+ * @param {object} row
+ * @param {number} rate — multiply account-currency cost_micros before DKK aggregation
+ */
+function scaleGoogleAdsRowCostMicros(row, rate) {
+    if (!row?.metrics || rate === 1) return row;
+    const raw = Number(row.metrics.cost_micros) || 0;
+    if (!raw) return row;
+    return {
+        ...row,
+        metrics: {
+            ...row.metrics,
+            cost_micros: Math.round(raw * rate),
+        },
+    };
+}
+
+/**
  * Fetches Google Ads metrics (supports comma-separated Google Ads customer IDs).
  */
 export async function fetchGoogleAdsMetrics(
@@ -385,6 +403,7 @@ export async function fetchGoogleAdsMetrics(
         );
     }
     const quietLog = requestOptions.quietLog === true;
+    const { data: currencyData } = await getCurrencyConversionTable();
     const results = await Promise.all(
         ids.map((id) =>
             fetchGoogleAdsMetricsForOne(
@@ -397,20 +416,23 @@ export async function fetchGoogleAdsMetrics(
             )
         )
     );
-    const currencyCode = results[0]?.currencyCode ?? "DKK";
     if (!quietLog) {
         const currencies = new Set(results.map((r) => r.currencyCode).filter(Boolean));
         if (currencies.size > 1) {
             console.warn(
-                "Google Ads: multiple customer IDs use different currencies; using",
-                currencyCode,
-                "for conversion. Accounts:",
+                "Google Ads: multiple customer IDs use different currencies; converting each account to DKK before merge:",
                 [...currencies].join(", ")
             );
         }
     }
-    const metrics = results.flatMap((r) => r.metrics || []);
-    return { metrics, currencyCode };
+    const metrics = [];
+    for (const result of results) {
+        const rate = conversionRateToDkk(result.currencyCode || "DKK", currencyData);
+        for (const row of result.metrics || []) {
+            metrics.push(scaleGoogleAdsRowCostMicros(row, rate));
+        }
+    }
+    return { metrics, currencyCode: "DKK" };
 }
 
 /**
@@ -528,6 +550,7 @@ export async function fetchGoogleAdsSpendByIso2Map(
         const single = ids[0] ?? String(customerId ?? "").trim();
         return fetchGoogleAdsSpendByIso2MapForOne(single, startDate, endDate, requestOptions);
     }
+    const { data: currencyData } = await getCurrencyConversionTable();
     const results = await Promise.all(
         ids.map((id) =>
             fetchGoogleAdsSpendByIso2MapForOne(id, startDate, endDate, {
@@ -536,13 +559,13 @@ export async function fetchGoogleAdsSpendByIso2Map(
             })
         )
     );
-    const currencyCode = results[0]?.currencyCode ?? "DKK";
     /** @type {Map<string, number>} */
     const byIso = new Map();
-    for (const { byIso: map } of results) {
-        for (const [iso, cost] of map || []) {
-            byIso.set(iso, (byIso.get(iso) || 0) + cost);
+    for (const result of results) {
+        const rate = conversionRateToDkk(result.currencyCode || "DKK", currencyData);
+        for (const [iso, cost] of result.byIso || []) {
+            byIso.set(iso, (byIso.get(iso) || 0) + cost * rate);
         }
     }
-    return { byIso, currencyCode };
+    return { byIso, currencyCode: "DKK" };
 }

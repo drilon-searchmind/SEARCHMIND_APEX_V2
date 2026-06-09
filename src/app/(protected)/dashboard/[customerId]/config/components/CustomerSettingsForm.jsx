@@ -107,7 +107,17 @@ function FormCheckbox({ id, name, label, checked, onChange }) {
     );
 }
 
-export default function CustomerSettingsForm({ form, onChange, saving, customerType }) {
+import GoogleAdsMarketMappingSection from "./GoogleAdsMarketMappingSection";
+import { parseGoogleAdsCustomerIds } from "@/lib/googleAdsCustomerIdUtils";
+
+export default function CustomerSettingsForm({
+    form,
+    onChange,
+    saving,
+    customerType,
+    customerId,
+    onGoogleAdsMarketMappingChange,
+}) {
     const shopifyMarketsOn = customerType === "Shopify" && form.shopifyMarketsEnabled === true;
     const storeSection =
         customerType === "Shopify"
@@ -434,6 +444,15 @@ export default function CustomerSettingsForm({ form, onChange, saving, customerT
                     onChange={onChange}
                     placeholder="e.g. France,Spain to exclude from results"
                 />
+                {shopifyMarketsOn && parseGoogleAdsCustomerIds(form.googleAdsCustomerId).length > 1 ? (
+                    <GoogleAdsMarketMappingSection
+                        customerId={customerId}
+                        googleAdsCustomerId={form.googleAdsCustomerId}
+                        mapping={form.googleAdsMarketMapping || []}
+                        onMappingChange={onGoogleAdsMarketMappingChange}
+                        shopifyMarketsEnabled={shopifyMarketsOn}
+                    />
+                ) : null}
             </SettingsSection>
 
             {/* Pinterest Ads */}

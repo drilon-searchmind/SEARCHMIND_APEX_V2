@@ -113,6 +113,19 @@ const CustomerSchema = new mongoose.Schema({
             type: String,
             default: ""
         },
+        /**
+         * Map each Google Ads customer ID to Shopify Markets (shopifyql numeric ids).
+         * Used when multiple Ads accounts + Shopify Markets + "filter marketing spend by markets".
+         */
+        googleAdsMarketMapping: {
+            type: [
+                {
+                    googleAdsCustomerId: { type: String, default: "" },
+                    shopifyqlMarketIds: { type: [String], default: [] },
+                },
+            ],
+            default: [],
+        },
         pinterestAdAccountId: {
             type: String,
             default: ""

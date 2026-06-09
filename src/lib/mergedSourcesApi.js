@@ -24,6 +24,8 @@ import { normalizeDanDomainSettings } from './danDomainCustomerSettings';
 import { fetchFacebookAdsInsights } from './facebookApi';
 import { adCampaignFilterActive, normalizeCampaignNameKeywords } from './adCampaignFilterUtils';
 import { fetchGoogleAdsMetrics } from './googleAdsApi';
+import { parseGoogleAdsCustomerIds } from './googleAdsCustomerIdUtils';
+import { resolveGoogleAdsFetchPlan } from './googleAdsMarketMapping';
 import { getCurrencyConversionTable, conversionRateToDkk } from './currencyConversionTable';
 import { isAdSpendPlatformConfigured } from './customerServiceIntegrations';
 import { AD_SPEND_CHANNELS } from './mergeAdSpendDaily';
@@ -438,6 +440,10 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
         facebookDaily = [];
     }
 
+    const googleMarketFetchPlan = filterAdSpendByMarket
+        ? resolveGoogleAdsFetchPlan(settings, marketsSelectionForSpend)
+        : null;
+
     // Google daily
     let googleDaily = [];
     try {
@@ -445,6 +451,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
             if (
                 zeroAdSpendForNoMarketSelection ||
                 (filterAdSpendByMarket &&
+                    !googleMarketFetchPlan?.useAccountMapping &&
                     marketAdSpendFilters &&
                     marketAdSpendFilters.googleCountryNames.length === 0)
             ) {
@@ -460,12 +467,28 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 googleExcludedCampaigns.length > 0,
                 googleExcludedKeywords
             );
+            const googleFetchPlan = googleMarketFetchPlan || {
+                customerIds: parseGoogleAdsCustomerIds(settings.googleAdsCustomerId),
+                useAccountMapping: false,
+                skipCountryFilter: false,
+            };
+            const googleCustomerIdsForFetch =
+                googleFetchPlan.customerIds.length > 0
+                    ? googleFetchPlan.customerIds.join(", ")
+                    : settings.googleAdsCustomerId;
+            const googleCountryIncludeForFetch = googleFetchPlan.skipCountryFilter
+                ? undefined
+                : googleIncludeForFetch;
+            const googleCountryExcludeForFetch = googleFetchPlan.skipCountryFilter
+                ? undefined
+                : googleExcludeForFetch;
+
             const googleResponse = await fetchGoogleAdsMetrics(
-                settings.googleAdsCustomerId,
+                googleCustomerIdsForFetch,
                 startDate,
                 endDate,
-                googleIncludeForFetch,
-                googleExcludeForFetch,
+                googleCountryIncludeForFetch,
+                googleCountryExcludeForFetch,
                 {
                     excludedCampaignIds:
                         googleExcludedCampaigns.length > 0 ? googleExcludedCampaigns : undefined,

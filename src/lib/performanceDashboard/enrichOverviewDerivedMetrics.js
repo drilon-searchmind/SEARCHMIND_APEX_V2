@@ -12,6 +12,7 @@ import { getFixedExpensesBreakdownLineItems } from "@/lib/customerStaticExpenses
 import {
     percentChange,
     changeTypeForMetric,
+    formatPercentChangeDisplay,
 } from "@/lib/performanceDashboard/metricComparisonChange";
 
 const fmtCur = (n) =>
@@ -157,7 +158,7 @@ function cardFromValues(key, label, curr, prev, { valueType = "currency" } = {})
         icon: (
             <FiDollarSign className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />
         ),
-        change: pct !== null ? Math.abs(pct).toFixed(isPct ? 1 : 0) : undefined,
+        change: formatPercentChangeDisplay(pct, isPct ? 1 : 0),
         changeType: changeTypeForMetric(key, pct),
         changeAbsolute: formatDiff(curr, prev, isPct ? "pct" : "currency"),
         changePrevValue: displayPrev,
@@ -413,7 +414,7 @@ export function buildOverviewDerivedMetricCards(
         icon: (
             <FiPieChart className="text-[var(--color-primary-searchmind-lighter)] font-bold text-lg" />
         ),
-        change: spendPct !== null ? Math.abs(spendPct).toFixed(1) : undefined,
+        change: formatPercentChangeDisplay(spendPct, 1),
         changeType: changeTypeForMetric("spendshare", spendPct),
         changeAbsolute: formatDiff(spendshare * 100, spendsharePrev * 100, "pct"),
         changePrevValue:

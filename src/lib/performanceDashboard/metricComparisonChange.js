@@ -1,6 +1,5 @@
 /**
- * Period-over-period % change display (green = favorable, red = unfavorable).
- * For cost / spend metrics, an increase is unfavorable — direction is inverted.
+ * Period-over-period % change display (green = positive, red = negative).
  */
 
 /** Explicit keys where a higher value vs prior period is worse. */
@@ -50,13 +49,21 @@ export function percentChange(current, prev) {
 }
 
 /**
+ * Signed % string for MetricCard badges (e.g. "-17" or "12.5").
+ * @param {number | null | undefined} pct — from percentChange()
+ * @param {number} [decimals=0]
+ */
+export function formatPercentChangeDisplay(pct, decimals = 0) {
+    if (pct === null || pct === undefined) return undefined;
+    return pct.toFixed(decimals);
+}
+
+/**
  * UI change direction for MetricCard badges (`up` = green, `down` = red).
- * @param {string | undefined} metricKey
+ * @param {string | undefined} _metricKey — kept for call-site compatibility
  * @param {number | null | undefined} pct — from percentChange()
  */
-export function changeTypeForMetric(metricKey, pct) {
-    if (pct === null || pct === undefined) return undefined;
-    const raw = pct > 0 ? "up" : pct < 0 ? "down" : undefined;
-    if (!raw || !isLowerIsBetterMetricKey(metricKey)) return raw;
-    return raw === "up" ? "down" : "up";
+export function changeTypeForMetric(_metricKey, pct) {
+    if (pct === null || pct === undefined || pct === 0) return undefined;
+    return pct > 0 ? "up" : "down";
 }

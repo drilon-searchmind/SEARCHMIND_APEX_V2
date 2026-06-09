@@ -15,6 +15,7 @@ import { defaultRedditSettings, normalizeRedditSettings } from '@/lib/redditCust
 import { defaultDanDomainSettings, normalizeDanDomainSettings } from '@/lib/danDomainCustomerSettings';
 import { pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
 import { prepareCustomerStaticExpensesForSave } from '@/lib/customerStaticExpensesUtils';
+import { normalizeGoogleAdsMarketMapping } from '@/lib/googleAdsMarketMapping';
 
 export default function ConfigPage() {
     const { customerId } = useParams();
@@ -52,6 +53,7 @@ export default function ConfigPage() {
         googleAdsCustomerId: "",
         googleAdsCountryFilter: "",
         googleAdsCountryExclude: "",
+        googleAdsMarketMapping: [],
         pinterestAdAccountId: "",
         snapchat: defaultSnapchatSettings(),
         reddit: defaultRedditSettings(),
@@ -96,6 +98,9 @@ export default function ConfigPage() {
                     snapchat: normalizeSnapchatSettings(data.CustomerSettings || {}),
                     reddit: normalizeRedditSettings(data.CustomerSettings || {}),
                     danDomain: normalizeDanDomainSettings(data.CustomerSettings || {}),
+                    googleAdsMarketMapping: normalizeGoogleAdsMarketMapping(
+                        data.CustomerSettings?.googleAdsMarketMapping
+                    ),
                     CustomerStaticExpenses: {
                         ...defaultFormState.CustomerStaticExpenses,
                         ...(data.CustomerStaticExpenses || {}),
@@ -167,6 +172,13 @@ export default function ConfigPage() {
         setObjectives(updated);
     };
 
+    const handleGoogleAdsMarketMappingChange = (mapping) => {
+        setForm((prev) => ({
+            ...prev,
+            googleAdsMarketMapping: mapping,
+        }));
+    };
+
     const handleSave = async (e) => {
         e.preventDefault && e.preventDefault();
         setSaving(true);
@@ -204,6 +216,7 @@ export default function ConfigPage() {
                 magentoStoreCode,
                 facebookAdAccountId,
                 googleAdsCustomerId,
+                googleAdsMarketMapping,
                 pinterestAdAccountId,
                 snapchat,
                 reddit,
@@ -260,6 +273,9 @@ export default function ConfigPage() {
                             magentoStoreCode,
                             facebookAdAccountId,
                             googleAdsCustomerId,
+                            googleAdsMarketMapping: normalizeGoogleAdsMarketMapping(
+                                googleAdsMarketMapping
+                            ),
                             pinterestAdAccountId,
                             snapchat: {
                                 ...defaultSnapchatSettings(),
@@ -295,6 +311,9 @@ export default function ConfigPage() {
                 snapchat: normalizeSnapchatSettings(saved.CustomerSettings || {}),
                 reddit: normalizeRedditSettings(saved.CustomerSettings || {}),
                 danDomain: normalizeDanDomainSettings(saved.CustomerSettings || {}),
+                googleAdsMarketMapping: normalizeGoogleAdsMarketMapping(
+                    saved.CustomerSettings?.googleAdsMarketMapping
+                ),
                 CustomerStaticExpenses: {
                     ...defaultFormState.CustomerStaticExpenses,
                     ...(saved.CustomerStaticExpenses || {}),
@@ -335,7 +354,16 @@ export default function ConfigPage() {
         {
             key: 'customer',
             label: 'Property Settings',
-            content: <CustomerSettingsForm form={form} onChange={handleChange} saving={saving} customerType={form.customerType} />,
+            content: (
+                <CustomerSettingsForm
+                    form={form}
+                    onChange={handleChange}
+                    saving={saving}
+                    customerType={form.customerType}
+                    customerId={customerId}
+                    onGoogleAdsMarketMappingChange={handleGoogleAdsMarketMappingChange}
+                />
+            ),
         },
         {
             key: 'expenses',

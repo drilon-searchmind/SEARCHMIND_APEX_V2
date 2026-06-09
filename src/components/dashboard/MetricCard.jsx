@@ -105,14 +105,16 @@ export default function MetricCard({
                                 className={`text-[0.65rem] rounded-sm font-medium flex items-center justify-end gap-1 px-2 py-1 min-w-[4rem] tabular-nums ${
                                     changeType === "up"
                                         ? "text-green-600 bg-green-50"
-                                        : "text-red-600 bg-red-50"
+                                        : changeType === "down"
+                                          ? "text-red-600 bg-red-50"
+                                          : "text-gray-600 bg-gray-100"
                                 }`}
                             >
                                 {changeType === "up" ? (
                                     <FiTrendingUp className="text-sm" />
-                                ) : (
+                                ) : changeType === "down" ? (
                                     <FiTrendingDown className="text-sm" />
-                                )}
+                                ) : null}
                                 {change}%
                             </span>
                         </div>
