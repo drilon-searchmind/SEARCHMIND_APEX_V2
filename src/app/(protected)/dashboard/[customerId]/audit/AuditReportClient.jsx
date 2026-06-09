@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { FiArrowLeft, FiList, FiShare2 } from "react-icons/fi";
-import { LuBrainCircuit } from "react-icons/lu";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import AuditFollowUpModal from "@/components/audit-followup/AuditFollowUpModal";
 import Spinner from "@/components/ui/Spinner";
@@ -683,14 +682,6 @@ export default function AuditReportClient() {
                     <section className="mb-6 rounded-xl border border-gray-200 bg-white p-5 md:p-6">
                         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                             <h2 className="text-lg font-bold text-gray-900">Audit report</h2>
-                            <button
-                                type="button"
-                                onClick={() => setFollowUpOpen(true)}
-                                className="inline-flex shrink-0 items-center justify-center whitespace-nowrap bg-purple-50 border border-purple-500 text-purple-700 py-2 px-4 text-xs rounded-lg gap-2 transition-colors shadow-none hover:bg-purple-100"
-                            >
-                                <LuBrainCircuit className="text-base shrink-0" aria-hidden />
-                                Analyze with AI
-                            </button>
                         </div>
 
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm text-gray-600 border-t border-gray-100 pt-5">

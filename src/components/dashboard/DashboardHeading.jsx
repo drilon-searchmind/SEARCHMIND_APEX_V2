@@ -10,6 +10,7 @@ import PdfReportContent from "./PdfReportContent";
 import { useUser } from "@/contexts/UserContext";
 import { exportElementToPdf } from "@/lib/pdfExport";
 import { showToast } from "@/components/ui/ToastProvider";
+import { ANALYZE_WITH_AI_ENABLED } from "@/lib/featureFlags";
 
 /**
  * Optional Shopify Markets filter (only passed when enabled for the customer).
@@ -55,6 +56,7 @@ export default function DashboardHeading({
     adSpendPlatformFilter = null,
 }) {
     const user = useUser();
+    const analyzeWithAiActive = ANALYZE_WITH_AI_ENABLED && showAnalyzeWithAi;
     const [showAnalyzeWithAiModal, setShowAnalyzeWithAiModal] = useState(false);
     const [isExportingPdf, setIsExportingPdf] = useState(false);
     const [runAuditOpen, setRunAuditOpen] = useState(false);
@@ -142,7 +144,7 @@ export default function DashboardHeading({
                     (right ||
                         shopifyMarketFilter ||
                         adSpendPlatformFilter ||
-                        showAnalyzeWithAi ||
+                        analyzeWithAiActive ||
                         showPdfExport ||
                         auditEligible)) && (
                     <div
@@ -179,7 +181,7 @@ export default function DashboardHeading({
                                     {isExportingPdf ? "Exporting…" : "Export to PDF"}
                                 </button>
                             )}
-                            {showAnalyzeWithAi && user?.isAdmin && (
+                            {analyzeWithAiActive && user?.isAdmin && (
                                 <button
                                     type="button"
                                     onClick={handleOpenAiModal}
@@ -425,7 +427,7 @@ export default function DashboardHeading({
                 />
             ) : null}
 
-            {showAnalyzeWithAiModal && (
+            {analyzeWithAiActive && showAnalyzeWithAiModal && (
                 <AiAnalysisModal 
                     onClose={handleCloseAiModal}
                     customerId={customerId}
