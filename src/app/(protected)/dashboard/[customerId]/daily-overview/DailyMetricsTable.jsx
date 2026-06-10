@@ -74,6 +74,7 @@ export default function DailyMetricsTable({
 										tableType="current"
 										hasCorrespondingRow={!!correspondingLastYearRow}
 										visibleMetrics={visibleMetrics}
+										metricColumns={metricColumns}
 										onMouseEnter={onRowHover}
 										onMouseLeave={onRowHoverLeave}
 									/>
@@ -86,7 +87,7 @@ export default function DailyMetricsTable({
 								metricColumns={metricColumns}
 							/>
 							<DailyMetricsLastPeriodRow
-								rows={rowsPrev}
+								rows={rowsLastYear}
 								visibleMetrics={visibleMetrics}
 								metricColumns={metricColumns}
 							/>

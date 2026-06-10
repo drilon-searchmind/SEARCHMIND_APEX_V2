@@ -75,6 +75,7 @@ export default function LastYearPeriodTable({
 										tableType="lastYear"
 										hasCorrespondingRow={!!correspondingCurrentRow}
 										visibleMetrics={visibleMetrics}
+										metricColumns={metricColumns}
 										onMouseEnter={onRowHover}
 										onMouseLeave={onRowHoverLeave}
 									/>

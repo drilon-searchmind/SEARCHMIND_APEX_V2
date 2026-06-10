@@ -12,6 +12,7 @@ export default function DailyMetricsDataRow({
 	onMouseLeave,
 	hasCorrespondingRow,
 	visibleMetrics = {},
+	metricColumns = METRIC_COLUMNS,
 }) {
 	// Net Profit from row (matches performance-dashboard: Net Revenue - COGS - Fixed - Variable - Transaction Fee - Spend)
 	const netProfit = row.netProfit ?? 0;
@@ -38,7 +39,7 @@ export default function DailyMetricsDataRow({
 		onMouseLeave?.();
 	};
 
-	const visibleCols = METRIC_COLUMNS.filter((m) => visibleMetrics[m.key]);
+	const visibleCols = metricColumns.filter((m) => visibleMetrics[m.key]);
 	const getBorderLClass = (key) => {
 		const idx = visibleCols.findIndex((m) => m.key === key);
 		const col = visibleCols[idx];
@@ -199,7 +200,7 @@ export default function DailyMetricsDataRow({
 			onMouseLeave={handleMouseLeave}
 		>
 			<td className="px-3 py-2 whitespace-nowrap">{row.date}</td>
-			{METRIC_COLUMNS.filter((m) => visibleMetrics[m.key]).map((m) =>
+			{metricColumns.filter((m) => visibleMetrics[m.key]).map((m) =>
 				getCellFor(m.key)
 			)}
 		</tr>

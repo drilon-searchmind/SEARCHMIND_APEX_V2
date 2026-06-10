@@ -1,5 +1,6 @@
 'use client';
 
+import { computeTotals } from './utils';
 import { METRIC_COLUMNS } from './metricConfig';
 
 export default function DailyMetricsLastPeriodRow({
@@ -9,53 +10,24 @@ export default function DailyMetricsLastPeriodRow({
 }) {
 	if (!rows?.length) return null;
 
-	const totalOrders = rows.reduce((sum, r) => sum + r.orders, 0);
-	const totalNetRevenue = rows.reduce((sum, r) => sum + (r.netRevenue ?? 0), 0);
-	const totalCogs = rows.reduce((sum, r) => sum + (r.cogs || 0), 0);
-	const totalPpcCost = rows.reduce((sum, r) => sum + r.ppcCost, 0);
-	const totalPsCost = rows.reduce((sum, r) => sum + r.psCost, 0);
-	const totalPinterest = rows.reduce((sum, r) => sum + (r.pinterestCost ?? 0), 0);
-	const totalSnapchat = rows.reduce((sum, r) => sum + (r.snapchatCost ?? 0), 0);
-	const totalBing = rows.reduce((sum, r) => sum + (r.bingCost ?? 0), 0);
-	const totalReddit = rows.reduce((sum, r) => sum + (r.redditCost ?? 0), 0);
-	const totalCost = rows.reduce((sum, r) => sum + (r.totalMarketingSpend ?? 0), 0);
-	const totalVariableExpense = rows.reduce(
-		(sum, r) => sum + (r.variableExpense || 0),
-		0
-	);
-	const totalFixedExpenses = rows.reduce(
-		(sum, r) => sum + (r.fixedExpense || 0),
-		0
-	);
-	const totalNetProfit = rows.reduce(
-		(sum, r) => sum + (r.netProfit ?? 0),
-		0
-	);
-
-	const formatCurrency = (val, decimals = 0) =>
-		val.toLocaleString('da-DK', {
-			style: 'currency',
-			currency: 'DKK',
-			maximumFractionDigits: decimals,
-			minimumFractionDigits: decimals,
-		});
+	const t = computeTotals(rows);
 
 	const values = {
-		orders: totalOrders,
-		netRevenue: formatCurrency(totalNetRevenue, 0),
-		cogs: formatCurrency(totalCogs, 0),
-		aov: totalOrders > 0 ? formatCurrency(totalNetRevenue / totalOrders, 0) : '-',
-		ppcCost: formatCurrency(totalPpcCost, 0),
-		psCost: formatCurrency(totalPsCost, 0),
-		pinterestCost: formatCurrency(totalPinterest, 0),
-		snapchatCost: formatCurrency(totalSnapchat, 0),
-		bingCost: formatCurrency(totalBing, 0),
-		redditCost: formatCurrency(totalReddit, 0),
-		roas: totalCost > 0 ? (totalNetRevenue / totalCost).toFixed(2) : '-',
-		variableExpense: formatCurrency(totalVariableExpense, 0),
-		fixedExpenses: formatCurrency(totalFixedExpenses, 0),
-		poas: totalCost > 0 ? (totalNetProfit / totalCost).toFixed(2) : '-',
-		netProfit: formatCurrency(totalNetProfit, 0),
+		orders: t.orders,
+		netRevenue: t.netRevenue,
+		cogs: t.cogs,
+		aov: t.aov,
+		ppcCost: t.ppcCost,
+		psCost: t.psCost,
+		pinterestCost: t.pinterestCost,
+		snapchatCost: t.snapchatCost,
+		bingCost: t.bingCost,
+		redditCost: t.redditCost,
+		roas: t.roas,
+		variableExpense: t.variableExpense,
+		fixedExpenses: t.fixedExpenses,
+		poas: t.poas,
+		netProfit: t.netProfit,
 	};
 
 	const visibleCols = metricColumns.filter((m) => visibleMetrics[m.key]);

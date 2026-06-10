@@ -8,6 +8,10 @@ import {
 } from '@/lib/mergeAdSpendDaily';
 import { getReturnsOverrideSettings } from '@/lib/performanceDashboard/performanceDashboardConstants';
 import { calcShopifyDayProfitMetrics } from '@/lib/performanceDashboard/profitMetrics';
+import {
+	applyCustomKpiReplacementsToDailyRow,
+	buildShopifyDayFormulaMetrics,
+} from '@/lib/performanceDashboard/dailyOverviewCustomKpis';
 
 async function fetchPeriodData(customerId, startDate, endDate, mergedSourcesQuerySuffix = '') {
 	const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -18,7 +22,19 @@ async function fetchPeriodData(customerId, startDate, endDate, mergedSourcesQuer
 	return await res.json();
 }
 
-function buildDailyRows(merged, customer, revenueType) {
+async function fetchCustomKpis(customerId) {
+	const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+	try {
+		const res = await fetch(`${baseUrl}/api/custom-kpis/${customerId}`);
+		if (!res.ok) return [];
+		const data = await res.json();
+		return Array.isArray(data) ? data : [];
+	} catch {
+		return [];
+	}
+}
+
+function buildDailyRows(merged, customer, revenueType, customKpis = []) {
 	const shopify = merged.shopifyDaily || [];
 	const spendByDate = adSpendByPeriodMap(merged);
 	const chRows = channelDailyRowsFromMerged(merged);
@@ -73,7 +89,7 @@ function buildDailyRows(merged, customer, revenueType) {
 
 		const aov = orders > 0 ? netRevenue / orders : null;
 
-		return {
+		const row = {
 			date,
 			orders,
 			totalSales,
@@ -96,11 +112,26 @@ function buildDailyRows(merged, customer, revenueType) {
 			transactionFee,
 			netProfit,
 		};
+
+		if (customKpis.length > 0) {
+			const formulaMetrics = buildShopifyDayFormulaMetrics(
+				d,
+				channelMaps,
+				ymd,
+				customerSettings
+			);
+			applyCustomKpiReplacementsToDailyRow(row, formulaMetrics, customKpis, {
+				customerSettings,
+				staticExpenses,
+			});
+		}
+
+		return row;
 	});
 }
 
-function buildPrevPeriodRows(mergedPrev, customer, revenueType) {
-	return buildDailyRows(mergedPrev, customer, revenueType);
+function buildPrevPeriodRows(mergedPrev, customer, revenueType, customKpis = []) {
+	return buildDailyRows(mergedPrev, customer, revenueType, customKpis);
 }
 
 /**
@@ -125,6 +156,7 @@ export function useDailyOverviewData(
 	const [rowsLastYear, setRowsLastYear] = useState([]);
 	const [loadingLastYear, setLoadingLastYear] = useState(false);
 	const [visibleMarketingColumnKeys, setVisibleMarketingColumnKeys] = useState(null);
+	const [customKpis, setCustomKpis] = useState([]);
 
 	useEffect(() => {
 		if (!customer || !appliedDateRange) return;
@@ -143,13 +175,18 @@ export function useDailyOverviewData(
 
 		(async () => {
 			try {
-				const merged = await fetchPeriodData(
-					customer._id,
-					appliedDateRange.startDate,
-					appliedDateRange.endDate,
-					mergedSourcesQuerySuffix
-				);
-				const dailyRows = buildDailyRows(merged, customer, revenueType);
+				const [merged, customKpisData] = await Promise.all([
+					fetchPeriodData(
+						customer._id,
+						appliedDateRange.startDate,
+						appliedDateRange.endDate,
+						mergedSourcesQuerySuffix
+					),
+					fetchCustomKpis(customer._id),
+				]);
+				const kpis = Array.isArray(customKpisData) ? customKpisData : [];
+				setCustomKpis(kpis);
+				const dailyRows = buildDailyRows(merged, customer, revenueType, kpis);
 				setRows(dailyRows);
 
 				const start = new Date(appliedDateRange.startDate);
@@ -172,7 +209,8 @@ export function useDailyOverviewData(
 				const dailyRowsPrev = buildPrevPeriodRows(
 					mergedPrev,
 					customer,
-					revenueType
+					revenueType,
+					kpis
 				);
 				setRowsPrev(dailyRowsPrev);
 
@@ -209,11 +247,12 @@ export function useDailyOverviewData(
 						lastYearEnd,
 						mergedSourcesQuerySuffix
 					);
-          const dailyRowsLastYear = buildDailyRows(
-            mergedLastYear,
-            customer,
-            revenueType
-          );
+					const dailyRowsLastYear = buildDailyRows(
+						mergedLastYear,
+						customer,
+						revenueType,
+						kpis
+					);
 					setRowsLastYear(dailyRowsLastYear);
 				} catch (err) {
 					console.error('Error fetching last year data:', err);
@@ -240,5 +279,6 @@ export function useDailyOverviewData(
 		revenueTypeState,
 		customerMetricPreference,
 		visibleMarketingColumnKeys,
+		customKpis,
 	};
 }

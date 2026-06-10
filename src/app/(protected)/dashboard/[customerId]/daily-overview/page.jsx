@@ -11,6 +11,7 @@ import RowComparisonPopover from './RowComparisonPopover';
 import LastYearPeriodTable from './LastYearPeriodTable';
 import MetricToggleBar from './MetricToggleBar';
 import { DEFAULT_VISIBLE_METRICS, METRIC_COLUMNS } from './metricConfig';
+import { applyCustomKpiLabelsToMetricColumns } from '@/lib/performanceDashboard/dailyOverviewCustomKpis';
 import { AD_SPEND_DAILY_COLUMN_KEYS } from '@/lib/mergeAdSpendDaily';
 import GraphCard from '@/components/dashboard/GraphCard';
 import { pushDashboardDateRangeApplied } from '@root/lib/gtmFunctions';
@@ -104,6 +105,7 @@ const DailyOverviewPage = () => {
         revenueTypeState,
         customerMetricPreference,
         visibleMarketingColumnKeys,
+        customKpis,
     } = useDailyOverviewData(customer, appliedDateRange, mergedSourcesQuerySuffix, marketsSpendColumns);
 
     const [hoveredRowIndex, setHoveredRowIndex] = useState(null);
@@ -130,12 +132,15 @@ const DailyOverviewPage = () => {
 
     const metricColumns = useMemo(() => {
         const adKeySet = new Set(AD_SPEND_DAILY_COLUMN_KEYS);
-        if (visibleMarketingColumnKeys == null) return METRIC_COLUMNS;
-        const allow = new Set(visibleMarketingColumnKeys);
-        return METRIC_COLUMNS.filter(
-            (col) => !adKeySet.has(col.key) || allow.has(col.key)
-        );
-    }, [visibleMarketingColumnKeys]);
+        let cols = METRIC_COLUMNS;
+        if (visibleMarketingColumnKeys != null) {
+            const allow = new Set(visibleMarketingColumnKeys);
+            cols = METRIC_COLUMNS.filter(
+                (col) => !adKeySet.has(col.key) || allow.has(col.key)
+            );
+        }
+        return applyCustomKpiLabelsToMetricColumns(cols, customKpis);
+    }, [visibleMarketingColumnKeys, customKpis]);
 
     const visibleMetrics = useMemo(() => {
         const out = {};
@@ -165,11 +170,14 @@ const DailyOverviewPage = () => {
 
     const [showTrendChart, setShowTrendChart] = useState(false);
 
+    const revenueColumnLabel =
+        metricColumns.find((c) => c.key === 'netRevenue')?.label ?? 'Net Revenue';
+
     const trendChartSeries = useMemo(() => {
         if (!rows?.length) return [];
         return [
             {
-                name: 'Net Revenue',
+                name: revenueColumnLabel,
                 data: rows.map((r) => Math.round(r.netRevenue || 0)),
                 color: '#406969',
             },
@@ -184,7 +192,7 @@ const DailyOverviewPage = () => {
                 color: '#1E2B2B',
             },
         ];
-    }, [rows]);
+    }, [rows, revenueColumnLabel]);
 
     const trendChartOptions = useMemo(
         () => ({
