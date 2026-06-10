@@ -59,6 +59,7 @@ export function aggregateMetricsLikePerformanceDashboard(
         shopify,
         shopifyPrev: [],
         customerSettings: cs,
+        customerType: customer?.customerType || "Shopify",
         staticExpenses,
         fetchCogs,
         cogsPercentage,

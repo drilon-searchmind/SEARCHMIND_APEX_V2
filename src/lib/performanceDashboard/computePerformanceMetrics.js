@@ -1,6 +1,7 @@
 import { evaluateFormula } from "@/app/(protected)/dashboard/[customerId]/performance-dashboard/components/kpiFormulaUtils";
 import { getReturnsOverrideSettings } from "./performanceDashboardConstants";
 import { applyVatDisplayToShopifyDayRow } from "@/lib/revenueVatDisplay";
+import { totalSalesExVatFromPeriodTotals } from "@/lib/performanceDashboard/totalSalesExVat";
 
 /**
  * Sum a numeric field across Shopify daily rows.
@@ -89,6 +90,7 @@ export function buildBaseMetricsData({
     channelTotalsPrev,
     staticExpenses,
     customerSettings,
+    customerType = "Shopify",
     fetchCogs,
     cogsPercentage,
     fixedCosts,
@@ -100,12 +102,23 @@ export function buildBaseMetricsData({
     const pickNPackCostPerOrder = staticExpenses.pickNPackCostPerOrder ?? 0;
     const transactionCostPct = staticExpenses.transactionCostPercentage ?? 0.015;
 
+    const totalSalesExVat = totalSalesExVatFromPeriodTotals(
+        curr,
+        customerType,
+        customerSettings
+    );
+    const totalSalesExVatPrev = totalSalesExVatFromPeriodTotals(
+        prev,
+        customerType,
+        customerSettings
+    );
+
     const totalCogs = fetchCogs
         ? curr.cogsFromStore
-        : curr.netRevenue * cogsPercentage;
+        : totalSalesExVat * cogsPercentage;
     const prevTotalCogs = fetchCogs
         ? prev.cogsFromStore
-        : prev.netRevenue * cogsPercentage;
+        : totalSalesExVatPrev * cogsPercentage;
 
     const shippingCost = shippingCostPerOrder * curr.orders;
     const shippingCostPrev = shippingCostPerOrder * prev.orders;
@@ -124,10 +137,14 @@ export function buildBaseMetricsData({
     const aovPrev = prev.orders > 0 ? prev.netRevenue / prev.orders : 0;
     const roas = cost > 0 ? curr.netRevenue / cost : 0;
     const roasPrev = costPrev > 0 ? prev.netRevenue / costPrev : 0;
-    const grossProfit = curr.netRevenue - totalCogs;
-    const grossProfitPrev = prev.netRevenue - prevTotalCogs;
-    const ebit = curr.netRevenue - allCosts;
-    const ebitPrev = prev.netRevenue - allCostsPrev;
+    const grossProfit = totalSalesExVat - totalCogs;
+    const grossProfitPrev = totalSalesExVatPrev - prevTotalCogs;
+    const costsBelowGrossProfit =
+        fixedCosts + variableCosts + transactionFee + cost;
+    const costsBelowGrossProfitPrev =
+        fixedCostsPrev + variableCostsPrev + transactionFeePrev + costPrev;
+    const ebit = grossProfit - costsBelowGrossProfit;
+    const ebitPrev = grossProfitPrev - costsBelowGrossProfitPrev;
     const poas = cost > 0 ? ebit / cost : 0;
     const poasPrev = costPrev > 0 ? ebitPrev / costPrev : 0;
 
@@ -145,6 +162,7 @@ export function buildBaseMetricsData({
         tax: curr.taxes,
         transaction_fee: transactionFee,
         gross_profit: grossProfit,
+        total_sales_ex_vat: totalSalesExVat,
         total_expenses: allCosts,
         ebit,
         cost,
@@ -155,7 +173,7 @@ export function buildBaseMetricsData({
         cac: 0,
         spendshare: curr.netRevenue > 0 ? cost / curr.netRevenue : 0,
         cogs: totalCogs,
-        ebit_pct: curr.netRevenue > 0 ? (ebit / curr.netRevenue) * 100 : 0,
+        ebit_pct: totalSalesExVat !== 0 ? (ebit / totalSalesExVat) * 100 : 0,
         fixed_costs: fixedCosts,
         variable_costs: variableCosts,
         shipping_cost: shippingCost,
@@ -178,6 +196,7 @@ export function buildBaseMetricsData({
         tax: prev.taxes,
         transaction_fee: transactionFeePrev,
         gross_profit: grossProfitPrev,
+        total_sales_ex_vat: totalSalesExVatPrev,
         total_expenses: allCostsPrev,
         ebit: ebitPrev,
         cost: costPrev,
@@ -187,7 +206,7 @@ export function buildBaseMetricsData({
         aov: aovPrev,
         spendshare: prev.netRevenue > 0 ? costPrev / prev.netRevenue : 0,
         cogs: prevTotalCogs,
-        ebit_pct: prev.netRevenue > 0 ? (ebitPrev / prev.netRevenue) * 100 : 0,
+        ebit_pct: totalSalesExVatPrev !== 0 ? (ebitPrev / totalSalesExVatPrev) * 100 : 0,
         fixed_costs: fixedCostsPrev,
         variable_costs: variableCostsPrev,
         shipping_cost: shippingCostPrev,
@@ -231,17 +250,23 @@ export function buildBaseMetricsData({
  * @param {object} base — from buildBaseMetricsData
  * @param {object[]} customKpis
  */
-export function applyCustomKpiReplacements(base, customKpis = []) {
+export function applyCustomKpiReplacements(
+    base,
+    customKpis = [],
+    { formulaMetricsData, formulaMetricsDataPrev } = {}
+) {
     const { metricsData, metricsDataPrev, derived, _meta } = base;
     const effective = { ...metricsData };
     const effectivePrev = { ...metricsDataPrev };
     const replacementByKey = {};
+    const evalCurr = formulaMetricsData ?? metricsData;
+    const evalPrev = formulaMetricsDataPrev ?? metricsDataPrev;
 
     for (const kpi of customKpis) {
         const key = kpi.replacesStandardMetricKey;
         if (!key) continue;
-        const value = evaluateFormula(kpi, metricsData);
-        const valuePrev = evaluateFormula(kpi, metricsDataPrev);
+        const value = evaluateFormula(kpi, evalCurr);
+        const valuePrev = evaluateFormula(kpi, evalPrev);
         if (value == null || Number.isNaN(value)) continue;
         replacementByKey[key] = {
             kpiId: kpi.id || kpi._id?.toString(),
@@ -271,6 +296,12 @@ export function applyCustomKpiReplacements(base, customKpis = []) {
         effectivePrev.revenue = netRevenueFromGrossDiscountsReturns(grossP, discP, retP);
     }
 
+    // Custom total sales is already ex-VAT (or a bespoke formula); do not re-derive ex-VAT from tax.
+    if (replacementByKey.total_sales) {
+        effective.total_sales_ex_vat = Number(effective.total_sales) || 0;
+        effectivePrev.total_sales_ex_vat = Number(effectivePrev.total_sales) || 0;
+    }
+
     // Recompute AOV when orders or revenue change
     if (!replacementByKey.aov) {
         effective.aov =
@@ -287,9 +318,20 @@ export function applyCustomKpiReplacements(base, customKpis = []) {
 
     let totalCogs = derived.totalCogs;
     let prevTotalCogs = derived.prevTotalCogs;
-    if (!fetchCogs && (replacementByKey.revenue || replacementByKey.returns || replacementByKey.gross_sales || replacementByKey.discounts)) {
-        totalCogs = effective.revenue * (cogsPercentage ?? 0);
-        prevTotalCogs = effectivePrev.revenue * (cogsPercentage ?? 0);
+    const salesExVat = Number(effective.total_sales_ex_vat) || 0;
+    const salesExVatPrev = Number(effectivePrev.total_sales_ex_vat) || 0;
+    if (
+        !fetchCogs &&
+        (replacementByKey.total_sales_ex_vat ||
+            replacementByKey.total_sales ||
+            replacementByKey.tax ||
+            replacementByKey.revenue ||
+            replacementByKey.returns ||
+            replacementByKey.gross_sales ||
+            replacementByKey.discounts)
+    ) {
+        totalCogs = salesExVat * (cogsPercentage ?? 0);
+        prevTotalCogs = salesExVatPrev * (cogsPercentage ?? 0);
     }
     effective.cogs = totalCogs;
     effectivePrev.cogs = prevTotalCogs;
@@ -320,21 +362,27 @@ export function applyCustomKpiReplacements(base, customKpis = []) {
     const allCostsPrev =
         prevTotalCogs + fixedCostsPrev + variableCostsPrev + transactionFeePrev + costPrev;
 
-    effective.gross_profit = effective.revenue - totalCogs;
-    effectivePrev.gross_profit = effectivePrev.revenue - prevTotalCogs;
+    const grossProfitEffective = salesExVat - totalCogs;
+    const grossProfitEffectivePrev = salesExVatPrev - prevTotalCogs;
+    effective.gross_profit = grossProfitEffective;
+    effectivePrev.gross_profit = grossProfitEffectivePrev;
     effective.total_expenses = allCosts;
     effectivePrev.total_expenses = allCostsPrev;
-    effective.ebit = effective.revenue - allCosts;
-    effectivePrev.ebit = effectivePrev.revenue - allCostsPrev;
+    const costsBelowGrossProfit =
+        fixedCosts + variableCosts + transactionFee + cost;
+    const costsBelowGrossProfitPrev =
+        fixedCostsPrev + variableCostsPrev + transactionFeePrev + costPrev;
+    effective.ebit = grossProfitEffective - costsBelowGrossProfit;
+    effectivePrev.ebit = grossProfitEffectivePrev - costsBelowGrossProfitPrev;
     effective.roas = cost > 0 ? effective.revenue / cost : 0;
     effectivePrev.roas = costPrev > 0 ? effectivePrev.revenue / costPrev : 0;
     effective.poas = cost > 0 ? effective.ebit / cost : 0;
     effectivePrev.poas = costPrev > 0 ? effectivePrev.ebit / costPrev : 0;
     effective.ebit_pct =
-        effective.revenue > 0 ? (effective.ebit / effective.revenue) * 100 : 0;
+        salesExVat !== 0 ? (effective.ebit / salesExVat) * 100 : 0;
     effectivePrev.ebit_pct =
-        effectivePrev.revenue > 0
-            ? (effectivePrev.ebit / effectivePrev.revenue) * 100
+        salesExVatPrev !== 0
+            ? (effectivePrev.ebit / salesExVatPrev) * 100
             : 0;
     effective.spendshare =
         effective.revenue > 0 ? cost / effective.revenue : 0;
@@ -376,6 +424,7 @@ export function computePerformanceDashboardMetrics({
     shopify,
     shopifyPrev,
     customerSettings,
+    customerType = "Shopify",
     staticExpenses,
     fetchCogs,
     cogsPercentage,
@@ -402,6 +451,7 @@ export function computePerformanceDashboardMetrics({
         channelTotalsPrev,
         staticExpenses,
         customerSettings,
+        customerType,
         fetchCogs,
         cogsPercentage,
         fixedCosts,
@@ -424,6 +474,7 @@ export function computePerformanceDashboardMetrics({
         channelTotalsPrev,
         staticExpenses,
         customerSettings,
+        customerType,
         fetchCogs,
         cogsPercentage,
         fixedCosts,
@@ -431,7 +482,10 @@ export function computePerformanceDashboardMetrics({
         daysInRange,
         prevDaysInRange,
     });
-    const withReplacements = applyCustomKpiReplacements(base, customKpis);
+    const withReplacements = applyCustomKpiReplacements(base, customKpis, {
+        formulaMetricsData: baseForCustomKpis.metricsData,
+        formulaMetricsDataPrev: baseForCustomKpis.metricsDataPrev,
+    });
 
     return {
         curr,

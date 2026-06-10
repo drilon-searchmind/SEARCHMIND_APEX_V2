@@ -490,6 +490,7 @@ export default function PerformanceDashboard() {
             shopify,
             shopifyPrev,
             customerSettings: customer?.CustomerSettings,
+            customerType: customer?.customerType || "Shopify",
             staticExpenses: staticExp,
             fetchCogs,
             cogsPercentage,

@@ -19,6 +19,27 @@ export const REPLACEABLE_STANDARD_METRIC_KEYS = new Set(
     REPLACEABLE_STANDARD_METRICS.map((m) => m.key)
 );
 
+/**
+ * Overview metric keys that should display a custom KPI replacement applied to another key.
+ * e.g. replacing Total Sales should update the Total sales excl. VAT column header.
+ */
+export const REPLACEMENT_DISPLAY_ALIASES = {
+    total_sales: ["total_sales_ex_vat"],
+    revenue: ["revenue_after_discounts"],
+    net_sales: ["revenue_after_discounts"],
+};
+
+/** Custom KPI replacement applied to a metric card key (direct or aliased overview key). */
+export function getReplacementForDisplayKey(metricKey, replacementByKey = {}) {
+    if (replacementByKey[metricKey]) return replacementByKey[metricKey];
+    for (const [sourceKey, aliases] of Object.entries(REPLACEMENT_DISPLAY_ALIASES)) {
+        if (aliases.includes(metricKey) && replacementByKey[sourceKey]) {
+            return replacementByKey[sourceKey];
+        }
+    }
+    return null;
+}
+
 /** Shopify revenue fields from ShopifyQL (labels only; icons assigned in AddKpiModal). */
 export const SHOPIFY_REVENUE_FORMULA_METRIC_DEFS = [
     { key: "net_sales", label: "Net Sales" },

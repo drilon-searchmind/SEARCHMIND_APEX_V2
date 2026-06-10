@@ -8,6 +8,7 @@ import {
     getRevenueDisplayVatMode,
 } from "@/lib/revenueVatDisplay";
 import { shopifyDeductionMagnitudes } from "@/lib/performanceDashboard/computePerformanceMetrics";
+import { computeTotalSalesExVat } from "@/lib/performanceDashboard/totalSalesExVat";
 import { getFixedExpensesBreakdownLineItems } from "@/lib/customerStaticExpensesUtils";
 import {
     percentChange,
@@ -90,26 +91,30 @@ function buildGrossProfitMinusAdSpendCalc(metricsData) {
 }
 
 function buildGrossProfitExVatCalc(metricsData, fetchCogs, cogsPercentage, customerSettings = {}) {
-    const netRevenue = Number(metricsData.revenue) || 0;
+    const totalSalesExVat = Number(metricsData.total_sales_ex_vat) || 0;
     const cogs = Number(metricsData.cogs) || 0;
     const grossProfit = Number(metricsData.gross_profit) || 0;
     const profitLabel = grossProfitVatLabel(customerSettings);
+    const salesLabel = totalSalesVatLabel(customerSettings);
     const popOverContent = fetchCogs
-        ? `${profitLabel}\n= Net revenue − COGS (from store)\n= ${fmtNum(netRevenue)} − ${fmtNum(cogs)}\n= ${fmtNum(grossProfit)}`
-        : `${profitLabel}\n= Net revenue − (COGS % × Net revenue)\n= ${fmtNum(netRevenue)} − (${(cogsPercentage * 100).toFixed(1)}% × ${fmtNum(netRevenue)})\n= ${fmtNum(netRevenue)} − ${fmtNum(cogs)}\n= ${fmtNum(grossProfit)}`;
+        ? `${profitLabel}\n= ${salesLabel} − COGS (from store)\n= ${fmtNum(totalSalesExVat)} − ${fmtNum(cogs)}\n= ${fmtNum(grossProfit)}`
+        : `${profitLabel}\n= ${salesLabel} − (COGS % × ${salesLabel})\n= ${fmtNum(totalSalesExVat)} − (${(cogsPercentage * 100).toFixed(1)}% × ${fmtNum(totalSalesExVat)})\n= ${fmtNum(totalSalesExVat)} − ${fmtNum(cogs)}\n= ${fmtNum(grossProfit)}`;
     return {
         popOverContent,
-        calcValueLabels: `Net revenue: ${fmtNum(netRevenue)}\nCOGS: ${fmtNum(cogs)}`,
+        calcValueLabels: `${salesLabel}: ${fmtNum(totalSalesExVat)}\nCOGS: ${fmtNum(cogs)}`,
     };
 }
 
-function buildNetProfitCalc(metricsData) {
-    const netRevenue = Number(metricsData.revenue) || 0;
+function buildNetProfitCalc(metricsData, customerSettings = {}) {
+    const grossProfit = Number(metricsData.gross_profit) || 0;
+    const cogs = Number(metricsData.cogs) || 0;
     const allCosts = Number(metricsData.total_expenses) || 0;
+    const costsBelowGrossProfit = allCosts - cogs;
     const ebit = Number(metricsData.ebit) || 0;
+    const profitLabel = grossProfitVatLabel(customerSettings);
     return {
-        popOverContent: `Net profit\n= Net revenue − All costs\n= ${fmtNum(netRevenue)} − ${fmtNum(allCosts)}\n= ${fmtNum(ebit)}`,
-        calcValueLabels: `Net revenue: ${fmtNum(netRevenue)}\nAll costs: ${fmtNum(allCosts)}`,
+        popOverContent: `Net profit\n= ${profitLabel} − Remaining costs\n= ${fmtNum(grossProfit)} − ${fmtNum(costsBelowGrossProfit)}\n= ${fmtNum(ebit)}`,
+        calcValueLabels: `${profitLabel}: ${fmtNum(grossProfit)}\nRemaining costs: ${fmtNum(costsBelowGrossProfit)}`,
     };
 }
 
@@ -124,20 +129,11 @@ export function attachOverviewPrimaryMetricCalcs(
         total_sales_ex_vat: buildTotalSalesExVatCalc(metricsData, customerType, customerSettings),
         gross_profit_minus_ad_spend: buildGrossProfitMinusAdSpendCalc(metricsData),
         gross_profit: buildGrossProfitExVatCalc(metricsData, fetchCogs, cogsPercentage, customerSettings),
-        ebit: buildNetProfitCalc(metricsData),
+        ebit: buildNetProfitCalc(metricsData, customerSettings),
     };
     return metricsCards.map((card) => {
         const patch = patches[card.key];
         if (!patch) return card;
-        const hasCalc =
-            card.popOverContent?.trim() &&
-            card.popOverContent.split("\n").some((l) => l.trim().startsWith("="));
-        if (hasCalc) {
-            return {
-                ...card,
-                calcValueLabels: card.calcValueLabels || patch.calcValueLabels,
-            };
-        }
         return { ...card, ...patch };
     });
 }
@@ -183,58 +179,6 @@ function pctOfTotal(value, total) {
     return total > 0 ? (value / total) * 100 : 0;
 }
 
-/**
- * Total sales excluding VAT — aligned across Shopify, WooCommerce, and Magento daily rows.
- */
-export function computeTotalSalesExVat({
-    totalSales = 0,
-    taxes = 0,
-    grossSales = 0,
-    netSales = 0,
-    shippingRevenue = 0,
-    customerType = "Shopify",
-}) {
-    const tax = Math.abs(Number(taxes) || 0);
-    const total = Number(totalSales) || 0;
-    const gross = Number(grossSales) || 0;
-    const net = Number(netSales) || 0;
-    const shipping = Number(shippingRevenue) || 0;
-    const type = customerType || "Shopify";
-
-    if (type === "Magento") {
-        // Magento total_sales is net product + shipping (tax tracked separately).
-        if (total > 0) return total;
-        return Math.max(0, net + shipping);
-    }
-
-    if (type === "WooCommerce") {
-        // Sales report: total_sales = sales (ex-VAT), gross ≈ sales + tax + shipping
-        if (
-            total > 0 &&
-            gross > 0 &&
-            tax > 0 &&
-            Math.abs(total + tax + shipping - gross) <= Math.max(1, gross * 0.02)
-        ) {
-            return total;
-        }
-        // Orders / analytics: total often includes tax
-        if (tax > 0 && total > tax) return total - tax;
-        if (tax > 0 && gross > tax) return gross - tax;
-        return Math.max(0, net + shipping);
-    }
-
-    if (type === "DanDomain") {
-        if (net > 0) return net + shipping;
-        if (total > tax) return total - tax;
-        return Math.max(0, gross - tax);
-    }
-
-    // Shopify: total_sales includes tax
-    if (total > tax) return total - tax;
-    if (gross > tax) return gross - tax;
-    return Math.max(0, net + shipping);
-}
-
 function computeProductSales({
     revenueAfterDiscounts,
     shippingRevenue,
@@ -252,7 +196,13 @@ function computeProductSales({
     return fromComponents;
 }
 
-function buildDerivedSnapshot(md, derived, customerType = "Shopify", customerSettings = {}) {
+function buildDerivedSnapshot(
+    md,
+    derived,
+    customerType = "Shopify",
+    customerSettings = {},
+    replacementByKey = {}
+) {
     const grossSales = Number(md.gross_sales) || 0;
     const discounts = Number(md.discounts) || 0;
     const returns = Number(md.returns) || 0;
@@ -265,18 +215,23 @@ function buildDerivedSnapshot(md, derived, customerType = "Shopify", customerSet
         returns
     );
 
-    const totalSalesExVat =
-        getRevenueDisplayVatMode(customerSettings) === "incl"
-            ? totalSales
-            : computeTotalSalesExVat({
-                  totalSales,
-                  taxes,
-                  grossSales,
-                  netSales,
-                  shippingRevenue,
-                  customerType,
-              });
-    const revenueAfterDiscounts = grossSales - discountDeduction;
+    const totalSalesExVat = replacementByKey.total_sales
+        ? totalSales
+        : getRevenueDisplayVatMode(customerSettings) === "incl"
+          ? totalSales
+          : computeTotalSalesExVat({
+                totalSales,
+                taxes,
+                grossSales,
+                netSales,
+                shippingRevenue,
+                customerType,
+            });
+    const revenueAfterDiscounts = replacementByKey.revenue
+        ? Number(md.revenue) || 0
+        : replacementByKey.net_sales
+          ? Number(md.net_sales) || 0
+          : grossSales - discountDeduction;
     const productSales = computeProductSales({
         revenueAfterDiscounts,
         shippingRevenue,
@@ -333,9 +288,22 @@ export function enrichOverviewDerivedMetrics({
     prevRangeEnd,
     customerType = "Shopify",
     customerSettings = {},
+    replacementByKey = {},
 }) {
-    const currDerived = buildDerivedSnapshot(metricsData, derived, customerType, customerSettings);
-    const prevDerived = buildDerivedSnapshot(metricsDataPrev, derived, customerType, customerSettings);
+    const currDerived = buildDerivedSnapshot(
+        metricsData,
+        derived,
+        customerType,
+        customerSettings,
+        replacementByKey
+    );
+    const prevDerived = buildDerivedSnapshot(
+        metricsDataPrev,
+        derived,
+        customerType,
+        customerSettings,
+        replacementByKey
+    );
 
     const breakdownRows = getFixedExpensesBreakdownLineItems(staticExp);
     const fixedLineCurr = {};

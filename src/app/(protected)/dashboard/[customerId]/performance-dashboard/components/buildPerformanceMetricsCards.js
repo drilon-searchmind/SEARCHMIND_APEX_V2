@@ -6,12 +6,17 @@ import {
     attachOverviewPrimaryMetricCalcs,
 } from "@/lib/performanceDashboard/enrichOverviewDerivedMetrics";
 import { getMonthlyFixedExpensesTotal } from "@/lib/customerStaticExpensesUtils";
-import { revenueVatShortLabel } from "@/lib/revenueVatDisplay";
+import {
+    revenueVatShortLabel,
+    totalSalesVatLabel,
+    grossProfitVatLabel,
+} from "@/lib/revenueVatDisplay";
 import {
     percentChange,
     changeTypeForMetric,
     formatPercentChangeDisplay,
 } from "@/lib/performanceDashboard/metricComparisonChange";
+import { getReplacementForDisplayKey } from "@/lib/performanceDashboard/performanceDashboardConstants";
 import {
     FiDollarSign,
     FiTrendingUp,
@@ -147,20 +152,24 @@ export function buildPerformanceMetricsCards({
     const cac = merged.CACTotalSales ?? null;
     const cacPrev = mergedPrev.CACTotalSales ?? null;
     const vatLabel = revenueVatShortLabel(customerSettings);
+    const totalSalesExVatLabel = totalSalesVatLabel(customerSettings);
+    const grossProfitLabel = grossProfitVatLabel(customerSettings);
+    const totalSalesExVat = Number(metricsData.total_sales_ex_vat) || 0;
+    const costsBelowGrossProfit = allCosts - totalCogs;
     const grossProfitCalculation = fetchCogs
-        ? `Net Revenue (${vatLabel}) - COGS (from Store) \n
-        = ${fmt(netRevenue)} - ${fmt(totalCogs)} \n
+        ? `${totalSalesExVatLabel} - COGS (from Store) \n
+        = ${fmt(totalSalesExVat)} - ${fmt(totalCogs)} \n
         = ${fmt(grossProfit)}
     `
-        : `Net Revenue (${vatLabel}) - (COGS % × Net Revenue) \n
-        = ${fmt(netRevenue)} - (${(cogsPercentage * 100).toFixed(1)}% × ${fmt(netRevenue)}) \n
-        = ${fmt(netRevenue)} - ${fmt(totalCogs)} \n
+        : `${totalSalesExVatLabel} - (COGS % × ${totalSalesExVatLabel}) \n
+        = ${fmt(totalSalesExVat)} - (${(cogsPercentage * 100).toFixed(1)}% × ${fmt(totalSalesExVat)}) \n
+        = ${fmt(totalSalesExVat)} - ${fmt(totalCogs)} \n
         = ${fmt(grossProfit)}
     `;
     const totalAdspendCalculation = merged.calculationsData?.totalAdspendCalculation || "";
     const apiValueLabels = {
         ...(merged.calculationsData?.valueLabels || {}),
-        grossProfit: `Net Revenue: ${fmt(netRevenue)}\nCOGS: ${fmt(totalCogs)}`,
+        grossProfit: `${totalSalesExVatLabel}: ${fmt(totalSalesExVat)}\nCOGS: ${fmt(totalCogs)}`,
     };
 
     const roasCalculation = `Net Revenue / Cost \n
@@ -278,10 +287,10 @@ export function buildPerformanceMetricsCards({
             changePrevValue: fmtCur(prevTotalCogs),
             popOverContent: fetchCogs
                 ? `COGS (from Shopify store)\n= Sum of cost_of_goods_sold per day\n= ${fmt(totalCogs)}`
-                : `COGS = Net Revenue × COGS %\n= ${fmt(netRevenue)} × ${(cogsPercentage * 100).toFixed(1)}%\n= ${fmt(totalCogs)}`,
+                : `COGS = ${totalSalesExVatLabel} × COGS %\n= ${fmt(totalSalesExVat)} × ${(cogsPercentage * 100).toFixed(1)}%\n= ${fmt(totalCogs)}`,
             calcValueLabels: fetchCogs
                 ? `Cost of goods sold (from Shopify): ${fmt(totalCogs)}`
-                : `Net Revenue: ${fmt(netRevenue)}\nCOGS %: ${(cogsPercentage * 100).toFixed(1)}%`,
+                : `${totalSalesExVatLabel}: ${fmt(totalSalesExVat)}\nCOGS %: ${(cogsPercentage * 100).toFixed(1)}%`,
             cogsSettingsHighlight:
                 fetchCogs === true ||
                 (!fetchCogs && Number(cogsPercentage) > 0),
@@ -463,7 +472,7 @@ export function buildPerformanceMetricsCards({
             changeType: chg("gross_profit", grossProfit, grossProfitPrev),
             changeAbsolute: formatDiff(grossProfit, grossProfitPrev, "currency"),
             changePrevValue: fmtCur(grossProfitPrev),
-            tooltip: "Net Revenue - COGS",
+            tooltip: `${totalSalesExVatLabel} - COGS`,
             popOverContent: grossProfitCalculation,
             calcValueLabels: apiValueLabels.grossProfit,
         },
@@ -522,8 +531,8 @@ export function buildPerformanceMetricsCards({
             changeType: chg("ebit", ebit, ebitPrev),
             changeAbsolute: formatDiff(ebit, ebitPrev, "currency"),
             changePrevValue: fmtCur(ebitPrev),
-            popOverContent: `Net Profit = Net Revenue - All Spend\n= ${fmt(netRevenue)} - ${fmt(allCosts)}\n= ${fmt(ebit)}`,
-            calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nAll Spend (COGS + Fixed + Variable + Transaction Fee + Spend): ${fmt(allCosts)}`,
+            popOverContent: `Net Profit = ${grossProfitLabel} - Remaining costs\n= ${fmt(grossProfit)} - ${fmt(costsBelowGrossProfit)}\n= ${fmt(ebit)}`,
+            calcValueLabels: `${grossProfitLabel}: ${fmt(grossProfit)}\nRemaining costs (Fixed + Variable + Transaction Fee + Spend): ${fmt(costsBelowGrossProfit)}`,
         },
         {
             key: "ebit_pct",
@@ -534,8 +543,8 @@ export function buildPerformanceMetricsCards({
             changeType: chg("ebit_pct", ebitPct, ebitPctPrev),
             changeAbsolute: formatDiff(ebitPct, ebitPctPrev, "pct"),
             changePrevValue: ebitPctPrev != null ? `${ebitPctPrev.toFixed(1)}%` : undefined,
-            popOverContent: `EBIT = Net Revenue - All Spend\n= ${fmt(netRevenue)} - ${fmt(allCosts)}\n= ${fmt(ebit)}\nEBIT% = (EBIT / Net Revenue) × 100\n= (${fmt(ebit)} / ${fmt(netRevenue)}) × 100\n= ${ebitPct != null ? ebitPct.toFixed(1) : "N/A"}%`,
-            calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nAll Spend (COGS + Fixed + Variable + Transaction Fee + Spend): ${fmt(allCosts)}`,
+            popOverContent: `EBIT = ${grossProfitLabel} - Remaining costs\n= ${fmt(grossProfit)} - ${fmt(costsBelowGrossProfit)}\n= ${fmt(ebit)}\nEBIT% = (EBIT / ${totalSalesExVatLabel}) × 100\n= (${fmt(ebit)} / ${fmt(totalSalesExVat)}) × 100\n= ${ebitPct != null ? ebitPct.toFixed(1) : "N/A"}%`,
+            calcValueLabels: `${grossProfitLabel}: ${fmt(grossProfit)}\nRemaining costs (Fixed + Variable + Transaction Fee + Spend): ${fmt(costsBelowGrossProfit)}`,
         },
         {
             key: "cac",
@@ -562,6 +571,7 @@ export function buildPerformanceMetricsCards({
         prevRangeEnd,
         customerType,
         customerSettings,
+        replacementByKey,
     });
     const derivedCards = buildOverviewDerivedMetricCards(
         metricsData,
@@ -578,7 +588,7 @@ export function buildPerformanceMetricsCards({
     );
 
     const withReplacements = metricsWithDerived.map((m) => {
-        const rep = replacementByKey?.[m.key];
+        const rep = getReplacementForDisplayKey(m.key, replacementByKey);
         if (!rep) return m;
         const pct =
             rep.valuePrev != null && rep.valuePrev !== 0
