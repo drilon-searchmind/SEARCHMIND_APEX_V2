@@ -164,6 +164,7 @@ export default function PNLPage() {
                     staticExpenses={pnl.staticExpenses}
                     days={pnl.days}
                     fetchCogs={pnl.fetchCogs}
+                    primarySalesRevenueLabel={pnl.primarySalesRevenueLabel}
                     grossSales={pnl.grossSales}
                     totalSalesDisplay={pnl.totalSalesDisplay}
                     discounts={pnl.discounts}

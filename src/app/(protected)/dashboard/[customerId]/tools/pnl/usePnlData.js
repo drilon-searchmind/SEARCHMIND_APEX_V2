@@ -9,6 +9,18 @@ import {
 import { formatComparisonPeriodDates } from "@/lib/dateRangeComparison";
 import { computePeriodMetricsFromMerged } from "@/lib/performanceDashboard/profitMetrics";
 
+async function fetchCustomKpis(customerId) {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    try {
+        const res = await fetch(`${baseUrl}/api/custom-kpis/${customerId}`);
+        if (!res.ok) return [];
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+    } catch {
+        return [];
+    }
+}
+
 /**
  * Fetches merged data (current + previous period) and computes all P&L metrics.
  * Net profit / ROAS use the same pipeline as performance-dashboard overview KPIs.
@@ -25,6 +37,7 @@ export function usePnlData(
     const [error, setError] = useState(null);
     const [merged, setMerged] = useState(null);
     const [mergedPrev, setMergedPrev] = useState(null);
+    const [customKpis, setCustomKpis] = useState([]);
 
     const staticExpenses = customer?.CustomerStaticExpenses || {};
     const customerSettings = customer?.CustomerSettings || {};
@@ -55,6 +68,7 @@ export function usePnlData(
                     fetch(
                         `${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&source=pnl${mergedSourcesQuerySuffix}`
                     ),
+                    fetchCustomKpis(customer._id),
                 ];
                 if (!comparisonDates.skip && comparisonDates.startDate && comparisonDates.endDate) {
                     fetches.push(
@@ -65,7 +79,10 @@ export function usePnlData(
                 }
                 const results = await Promise.all(fetches);
                 const res = results[0];
-                const resPrev = results[1];
+                const kpis = results[1];
+                const resPrev = results[2];
+                setCustomKpis(Array.isArray(kpis) ? kpis : []);
+
                 if (!res.ok) throw new Error("Failed to fetch merged data");
                 const mergedData = await res.json();
                 setMerged(mergedData);
@@ -131,6 +148,7 @@ export function usePnlData(
         fixedExpensesPrev = 0,
         resultPrev = 0,
         blendedPoasPrev = 0;
+    let primarySalesRevenueLabel = "Net Sales";
 
     const compDates = formatComparisonPeriodDates({
         comparisonMethod,
@@ -145,6 +163,7 @@ export function usePnlData(
             shopifyDaily: merged.shopifyDaily || [],
             merged,
             customerSettings,
+            customerType: customer?.customerType || "Shopify",
             staticExpenses,
             dateRange: appliedDateRange,
             shopifyDailyPrev: mergedPrev?.shopifyDaily || [],
@@ -153,6 +172,7 @@ export function usePnlData(
                 !compDates.skip && compDates.startDate && compDates.endDate
                     ? { startDate: compDates.startDate, endDate: compDates.endDate }
                     : null,
+            customKpis,
         });
 
         const md = period.metricsData;
@@ -162,16 +182,17 @@ export function usePnlData(
         const fixed = period.pnlFixedBreakdown;
         const fixedPrev = period.pnlFixedBreakdownPrev;
 
-        totalSales = md.revenue;
+        totalSales = period.primarySalesRevenue;
+        primarySalesRevenueLabel = period.primarySalesRevenueLabel;
         grossSales = curr.grossSales;
-        totalSalesDisplay = curr.totalSales;
+        totalSalesDisplay = period.primarySalesRevenue;
         discounts = curr.discounts;
         refunds = curr.returns;
         deliveryFees = curr.shippingCharges;
         taxes = curr.taxes;
         orders = curr.orders;
         cogs = md.cogs;
-        db1 = totalSales - cogs;
+        db1 = md.gross_profit;
         shipping = period.shippingAndPickPack;
         transactionCosts = md.transaction_fee;
         db2 = db1 - shipping - transactionCosts;
@@ -193,14 +214,14 @@ export function usePnlData(
 
         if (mergedPrev) {
             grossSalesPrev = prev.grossSales;
-            totalSalesDisplayPrev = prev.totalSales;
+            totalSalesDisplayPrev = period.primarySalesRevenuePrev;
             discountsPrev = prev.discounts;
             refundsPrev = prev.returns;
             deliveryFeesPrev = prev.shippingCharges;
             taxesPrev = prev.taxes;
-            totalSalesPrev = mdPrev.revenue;
+            totalSalesPrev = period.primarySalesRevenuePrev;
             cogsPrev = mdPrev.cogs;
-            db1Prev = totalSalesPrev - cogsPrev;
+            db1Prev = mdPrev.gross_profit;
             shippingPrev = period.shippingAndPickPackPrev;
             transactionCostsPrev = mdPrev.transaction_fee;
             db2Prev = db1Prev - shippingPrev - transactionCostsPrev;
@@ -299,5 +320,6 @@ export function usePnlData(
         resultPrev,
         blendedPoasPrev,
         visibleAdSpendChannels,
+        primarySalesRevenueLabel,
     };
 }

@@ -106,6 +106,7 @@ export default function PaceReportPage() {
 		conversionValueData,
 		conversionBudget,
 		conversionPaceAnalysis,
+		revenueLabel,
 	} = usePaceReportData(customer, objectives, appliedDateRange, mergedSourcesQuerySuffix, paceChannelSpecs);
 
 	const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -246,7 +247,7 @@ export default function PaceReportPage() {
 				error={error}
 				onOpenSettings={() => setSidebarOpen(true)}
 				showCalcs={showCalcs}
-				revenueType={customer?.CustomerSettings?.customerRevenueType || 'total_sales'}
+				revenueLabel={revenueLabel}
 			/>
 		</div>
 	);

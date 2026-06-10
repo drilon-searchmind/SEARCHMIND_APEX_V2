@@ -5,7 +5,9 @@ import {
     totalSalesVatLabel,
     grossProfitVatLabel,
     revenueVatShortLabel,
-    getRevenueDisplayVatMode,
+    usesStaticDkVatMultiplier,
+    usesShopifyNativeInclVat,
+    displaysTotalSalesWithoutVatDeduction,
 } from "@/lib/revenueVatDisplay";
 import { shopifyDeductionMagnitudes } from "@/lib/performanceDashboard/computePerformanceMetrics";
 import { computeTotalSalesExVat } from "@/lib/performanceDashboard/totalSalesExVat";
@@ -56,8 +58,10 @@ function buildTotalSalesExVatCalc(metricsData, customerType, customerSettings = 
     const salesLabel = totalSalesVatLabel(customerSettings);
 
     let popOverContent;
-    if (getRevenueDisplayVatMode(customerSettings) === "incl") {
+    if (usesStaticDkVatMultiplier(customerSettings)) {
         popOverContent = `${salesLabel}\n= Store revenue excl. VAT × 1.25\n= ${fmtNum(exVat)}`;
+    } else if (usesShopifyNativeInclVat(customerSettings)) {
+        popOverContent = `${salesLabel}\n= total_sales (incl. VAT from store)\n= ${fmtNum(exVat)}`;
     } else if (type === "Magento") {
         popOverContent = `${salesLabel}\n= Magento order total (product net + shipping)\n= ${fmtNum(exVat)}`;
     } else if (type === "WooCommerce") {
@@ -217,7 +221,7 @@ function buildDerivedSnapshot(
 
     const totalSalesExVat = replacementByKey.total_sales
         ? totalSales
-        : getRevenueDisplayVatMode(customerSettings) === "incl"
+        : displaysTotalSalesWithoutVatDeduction(customerSettings)
           ? totalSales
           : computeTotalSalesExVat({
                 totalSales,

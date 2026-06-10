@@ -7,7 +7,7 @@ import ParentCustomerSelect from './ParentCustomerSelect';
 import FormCreateParentCustomer from './FormCreateParentCustomer';
 
 
-export default function GeneralSettingsForm({ form, onChange, saving }) {
+export default function GeneralSettingsForm({ form, onChange, saving, isExternalUser = false }) {
 
     const [parentCustomers, setParentCustomers] = useState([]);
     const [loadingParents, setLoadingParents] = useState(false);
@@ -15,6 +15,7 @@ export default function GeneralSettingsForm({ form, onChange, saving }) {
     const [creating, setCreating] = useState(false);
 
     useEffect(() => {
+        if (isExternalUser) return;
         async function fetchParentCustomers() {
             setLoadingParents(true);
             try {
@@ -29,7 +30,7 @@ export default function GeneralSettingsForm({ form, onChange, saving }) {
             }
         }
         fetchParentCustomers();
-    }, []);
+    }, [isExternalUser]);
 
 
     const handleCreateParentCustomer = () => {
@@ -73,39 +74,51 @@ export default function GeneralSettingsForm({ form, onChange, saving }) {
                     <FormLabel htmlFor="customerName" required>Customer Name</FormLabel>
                     <FormInputText id="customerName" name="customerName" value={form.customerName} onChange={onChange} required />
                 </div>
-                <div>
-                    <ParentCustomerSelect
-                        parentCustomers={parentCustomers}
-                        value={form.parentCustomer}
-                        onChange={onChange}
-                        onCreateClick={handleCreateParentCustomer}
-                        disabled={loadingParents || saving}
-                    />
-                </div>
-                <div>
-                    <FormLabel htmlFor="customerType" required>Customer Type</FormLabel>
-                    <select id="customerType" name="customerType" value={form.customerType} onChange={onChange} className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20">
-                        <option value="Shopify">Shopify</option>
-                        <option value="WooCommerce">WooCommerce</option>
-                        <option value="Magento">Magento</option>
-                        <option value="DanDomain">DanDomain (HostedShop)</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-                <div className="flex items-center gap-2">
-                    <input id="isArchived" name="isArchived" type="checkbox" checked={form.isArchived} onChange={onChange} className="rounded border-gray-300" />
-                    <FormLabel htmlFor="isArchived">Archived</FormLabel>
-                </div>
+                {!isExternalUser && (
+                    <div>
+                        <ParentCustomerSelect
+                            parentCustomers={parentCustomers}
+                            value={form.parentCustomer}
+                            onChange={onChange}
+                            onCreateClick={handleCreateParentCustomer}
+                            disabled={loadingParents || saving}
+                        />
+                    </div>
+                )}
+                {!isExternalUser && (
+                    <div>
+                        <FormLabel htmlFor="customerType" required>Customer Type</FormLabel>
+                        <select id="customerType" name="customerType" value={form.customerType} onChange={onChange} className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20">
+                            <option value="Shopify">Shopify</option>
+                            <option value="WooCommerce">WooCommerce</option>
+                            <option value="Magento">Magento</option>
+                            <option value="DanDomain">DanDomain (HostedShop)</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                )}
+                {!isExternalUser && (
+                    <div className="flex items-center gap-2">
+                        <input id="isArchived" name="isArchived" type="checkbox" checked={form.isArchived} onChange={onChange} className="rounded border-gray-300" />
+                        <FormLabel htmlFor="isArchived">Archived</FormLabel>
+                    </div>
+                )}
                 <div>
                     <FormLabel htmlFor="revenueDisplayVat">Revenue display (VAT)</FormLabel>
                     <select
                         id="revenueDisplayVat"
                         name="revenueDisplayVat"
-                        value={form.revenueDisplayVat === "incl" ? "incl" : "excl"}
+                        value={
+                            form.revenueDisplayVat === "incl" ||
+                            form.revenueDisplayVat === "incl_shopify"
+                                ? form.revenueDisplayVat
+                                : "excl"
+                        }
                         onChange={onChange}
                         className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20"
                     >
                         <option value="excl">Excl. VAT (store default)</option>
+                        <option value="incl_shopify">Incl. VAT (from Shopify)</option>
                         <option value="incl">Incl. VAT (Danish 25%)</option>
                     </select>
                 </div>

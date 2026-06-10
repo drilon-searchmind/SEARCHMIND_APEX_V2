@@ -1,4 +1,4 @@
-import { getRevenueDisplayVatMode } from "@/lib/revenueVatDisplay";
+import { displaysTotalSalesWithoutVatDeduction } from "@/lib/revenueVatDisplay";
 
 /**
  * Total sales excluding VAT — aligned across Shopify, WooCommerce, and Magento daily rows.
@@ -59,7 +59,7 @@ export function totalSalesExVatFromPeriodTotals(
     customerSettings = {}
 ) {
     const totalSales = Number(periodTotals?.totalSales) || 0;
-    if (getRevenueDisplayVatMode(customerSettings) === "incl") {
+    if (displaysTotalSalesWithoutVatDeduction(customerSettings)) {
         return totalSales;
     }
     return computeTotalSalesExVat({

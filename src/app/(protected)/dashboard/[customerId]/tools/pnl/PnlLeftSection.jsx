@@ -43,6 +43,7 @@ export default function PnlLeftSection({
     db3DGDisplay,
     // Visibility: only breakdown rows for integrations with meaningful spend
     visibleAdSpendChannels = [],
+    primarySalesRevenueLabel = "Net Sales",
     // Previous
     grossSalesPrev,
     totalSalesDisplayPrev,
@@ -116,15 +117,9 @@ export default function PnlLeftSection({
                         currVal: taxes,
                     },
                     {
-                        label: "Total Sales",
-                        tooltip: "Total sales from Shopify (total_sales).",
-                        prevVal: totalSalesDisplayPrev,
-                        currVal: totalSalesDisplay,
-                        zeroAsDash: false,
-                    },
-                    {
-                        label: "Net Sales",
-                        tooltip: "Net sales (net_sales). All P&L calculations are based on this value.",
+                        label: primarySalesRevenueLabel,
+                        tooltip:
+                            "Matches performance-dashboard Total Sales (VAT setting + custom KPI replacement). All P&L calculations are based on this value.",
                         prevVal: totalSalesPrev,
                         currVal: totalSales,
                         bold: true,

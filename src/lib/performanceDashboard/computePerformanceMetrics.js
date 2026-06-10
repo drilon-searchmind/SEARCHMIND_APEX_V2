@@ -1,6 +1,10 @@
 import { evaluateFormula } from "@/app/(protected)/dashboard/[customerId]/performance-dashboard/components/kpiFormulaUtils";
 import { getReturnsOverrideSettings } from "./performanceDashboardConstants";
-import { applyVatDisplayToShopifyDayRow } from "@/lib/revenueVatDisplay";
+import {
+    applyVatDisplayToShopifyDayRow,
+    shopifyDayInclVatRevenue,
+    usesShopifyNativeInclVat,
+} from "@/lib/revenueVatDisplay";
 import { totalSalesExVatFromPeriodTotals } from "@/lib/performanceDashboard/totalSalesExVat";
 
 /**
@@ -55,6 +59,9 @@ function buildPeriodTotals(shopifyRows, returnsOverride, customerSettings) {
         const pct = (returnsOverride.percent ?? 0) / 100;
         returns = grossSales * pct;
         netRevenue = netRevenueFromGrossDiscountsReturns(grossSales, discounts, returns);
+    } else if (usesShopifyNativeInclVat(customerSettings)) {
+        netRevenue =
+            totalSales > 0 ? totalSales : netSalesFromStore + Math.abs(taxes);
     }
 
     return {
@@ -508,6 +515,9 @@ export function netRevenueForShopifyDay(d, returnsOverride, customerSettings) {
         const returns = gross * pct;
         return netRevenueFromGrossDiscountsReturns(gross, discounts, returns);
     }
+    if (usesShopifyNativeInclVat(customerSettings)) {
+        return shopifyDayInclVatRevenue(day);
+    }
     return Number(day.net_sales || day.total_sales || 0);
 }
 
@@ -520,6 +530,9 @@ export function shopifyDayRevenueByType(d, revenueType, returnsOverride, custome
         return netRevenueForShopifyDay(d, returnsOverride, customerSettings);
     }
     const day = applyVatDisplayToShopifyDayRow(d, customerSettings);
+    if (usesShopifyNativeInclVat(customerSettings)) {
+        return shopifyDayInclVatRevenue(day, revenueType);
+    }
     const type = revenueType || "net_sales";
     if (type === "gross_sales") return Number(day.gross_sales) || 0;
     if (type === "total_sales") return Number(day.total_sales) || 0;

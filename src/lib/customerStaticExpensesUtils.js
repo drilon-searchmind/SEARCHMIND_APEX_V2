@@ -19,32 +19,26 @@ export function prepareCustomerStaticExpensesForSave(expenses) {
     updated.marketingBureauCostLineItems = filterCompleteLineItems(
         updated.marketingBureauCostLineItems || []
     );
-    if (updated.marketingBureauCostLineItems.length > 0) {
-        updated.marketingBureauCost = updated.marketingBureauCostLineItems.reduce(
-            (sum, item) => sum + (parseFloat(item.amount) || 0),
-            0
-        );
-    }
+    updated.marketingBureauCost = updated.marketingBureauCostLineItems.reduce(
+        (sum, item) => sum + (parseFloat(item.amount) || 0),
+        0
+    );
 
     updated.marketingToolingCostLineItems = filterCompleteLineItems(
         updated.marketingToolingCostLineItems || []
     );
-    if (updated.marketingToolingCostLineItems.length > 0) {
-        updated.marketingToolingCost = updated.marketingToolingCostLineItems.reduce(
-            (sum, item) => sum + (parseFloat(item.amount) || 0),
-            0
-        );
-    }
+    updated.marketingToolingCost = updated.marketingToolingCostLineItems.reduce(
+        (sum, item) => sum + (parseFloat(item.amount) || 0),
+        0
+    );
 
     updated.fixedExpensesLineItems = filterCompleteLineItems(
         updated.fixedExpensesLineItems || []
     );
-    if (updated.fixedExpensesLineItems.length > 0) {
-        updated.fixedExpenses = updated.fixedExpensesLineItems.reduce(
-            (sum, item) => sum + (parseFloat(item.amount) || 0),
-            0
-        );
-    }
+    updated.fixedExpenses = updated.fixedExpensesLineItems.reduce(
+        (sum, item) => sum + (parseFloat(item.amount) || 0),
+        0
+    );
 
     return updated;
 }
@@ -53,22 +47,44 @@ function sumLineItems(items) {
     return (items || []).reduce((s, item) => s + (parseFloat(item.amount) || 0), 0);
 }
 
+/** Customer uses per-line-item fixed costs (config / dashboard modal) vs legacy single monthly fields. */
+function usesLineItemFixedExpenses(staticExp = {}) {
+    return (
+        Array.isArray(staticExp.marketingBureauCostLineItems) ||
+        Array.isArray(staticExp.marketingToolingCostLineItems) ||
+        Array.isArray(staticExp.fixedExpensesLineItems)
+    );
+}
+
+function monthlyTotalFromLineItemsOrLegacy(staticExp, lineItemsKey, legacyKey) {
+    if (usesLineItemFixedExpenses(staticExp)) {
+        return sumLineItems(staticExp[lineItemsKey]);
+    }
+    return Number(staticExp[legacyKey]) || 0;
+}
+
 export function getMonthlyMarketingBureauTotal(staticExp = {}) {
-    const direct = Number(staticExp.marketingBureauCost) || 0;
-    if (direct > 0) return direct;
-    return sumLineItems(staticExp.marketingBureauCostLineItems);
+    return monthlyTotalFromLineItemsOrLegacy(
+        staticExp,
+        "marketingBureauCostLineItems",
+        "marketingBureauCost"
+    );
 }
 
 export function getMonthlyMarketingToolingTotal(staticExp = {}) {
-    const direct = Number(staticExp.marketingToolingCost) || 0;
-    if (direct > 0) return direct;
-    return sumLineItems(staticExp.marketingToolingCostLineItems);
+    return monthlyTotalFromLineItemsOrLegacy(
+        staticExp,
+        "marketingToolingCostLineItems",
+        "marketingToolingCost"
+    );
 }
 
 export function getMonthlyOtherFixedTotal(staticExp = {}) {
-    const direct = Number(staticExp.fixedExpenses) || 0;
-    if (direct > 0) return direct;
-    return sumLineItems(staticExp.fixedExpensesLineItems);
+    return monthlyTotalFromLineItemsOrLegacy(
+        staticExp,
+        "fixedExpensesLineItems",
+        "fixedExpenses"
+    );
 }
 
 /** Total monthly fixed costs (bureau + tooling + other fixed). */

@@ -1,23 +1,47 @@
 /** Danish standard VAT rate (25%). Store revenue from Shopify/WooCommerce is excl. VAT by default. */
 export const DK_VAT_RATE = 0.25;
 
-/** @typedef {'incl' | 'excl'} RevenueDisplayVatMode */
+/** @typedef {'excl' | 'incl' | 'incl_shopify'} RevenueDisplayVatMode */
+
+const VALID_VAT_MODES = new Set(["excl", "incl", "incl_shopify"]);
 
 /**
  * @param {Record<string, unknown>} [customerSettings]
  * @returns {RevenueDisplayVatMode}
  */
 export function getRevenueDisplayVatMode(customerSettings = {}) {
-    return customerSettings?.revenueDisplayVat === "incl" ? "incl" : "excl";
+    const mode = customerSettings?.revenueDisplayVat;
+    return VALID_VAT_MODES.has(mode) ? mode : "excl";
+}
+
+/** Dashboard shows revenue including VAT (static 25% or native store taxes). */
+export function displaysInclVat(customerSettings = {}) {
+    const mode = getRevenueDisplayVatMode(customerSettings);
+    return mode === "incl" || mode === "incl_shopify";
+}
+
+/** Apply Danish 25% multiplier to store-reported excl. VAT amounts. */
+export function usesStaticDkVatMultiplier(customerSettings = {}) {
+    return getRevenueDisplayVatMode(customerSettings) === "incl";
+}
+
+/** Use store-reported tax fields (e.g. Shopify `total_sales`, `taxes`) without a flat 25% uplift. */
+export function usesShopifyNativeInclVat(customerSettings = {}) {
+    return getRevenueDisplayVatMode(customerSettings) === "incl_shopify";
+}
+
+/** Primary sales metric is shown as-is (no ex-VAT subtraction). */
+export function displaysTotalSalesWithoutVatDeduction(customerSettings = {}) {
+    return displaysInclVat(customerSettings);
 }
 
 /**
- * Store data is excl. VAT; multiply by 1.25 only when dashboard display is incl. VAT.
+ * Store data is excl. VAT; multiply by 1.25 only when dashboard display is incl. VAT (25%).
  * @param {Record<string, unknown>} [customerSettings]
  * @returns {number}
  */
 export function revenueVatDisplayFactor(customerSettings = {}) {
-    if (getRevenueDisplayVatMode(customerSettings) === "incl") {
+    if (usesStaticDkVatMultiplier(customerSettings)) {
         return 1 + DK_VAT_RATE;
     }
     return 1;
@@ -45,6 +69,28 @@ export const SHOPIFY_VAT_MONETARY_FIELDS = [
     "cost_of_goods_sold",
     "custom_1",
 ];
+
+/**
+ * Incl. VAT amount for a single Shopify day using store-reported tax (no flat 25%).
+ * @param {Record<string, unknown>} day — raw or VAT-adjusted row
+ * @param {string} [revenueType]
+ */
+export function shopifyDayInclVatRevenue(day, revenueType = "net_sales") {
+    const total = Number(day?.total_sales) || 0;
+    const net = Number(day?.net_sales) || 0;
+    const gross = Number(day?.gross_sales) || 0;
+    const tax = Math.abs(Number(day?.taxes) || 0);
+    const type = revenueType || "net_sales";
+
+    if (type === "total_sales") {
+        return total > 0 ? total : net + tax;
+    }
+    if (type === "gross_sales") {
+        if (gross > 0 && tax > 0) return gross + tax;
+        return total > 0 ? total : gross || net + tax;
+    }
+    return total > 0 ? total : net + tax;
+}
 
 /**
  * @param {Record<string, unknown>|null|undefined} day
@@ -75,7 +121,10 @@ export function applyVatDisplayToShopifyDailyRows(rows, customerSettings) {
  * @returns {string}
  */
 export function revenueVatDisplayLabelSuffix(customerSettings = {}) {
-    return getRevenueDisplayVatMode(customerSettings) === "incl" ? " (incl. VAT)" : " (excl. VAT)";
+    const mode = getRevenueDisplayVatMode(customerSettings);
+    if (mode === "incl") return " (incl. VAT 25%)";
+    if (mode === "incl_shopify") return " (incl. VAT)";
+    return " (excl. VAT)";
 }
 
 /**
@@ -83,9 +132,10 @@ export function revenueVatDisplayLabelSuffix(customerSettings = {}) {
  * @returns {string}
  */
 export function totalSalesVatLabel(customerSettings = {}) {
-    return getRevenueDisplayVatMode(customerSettings) === "incl"
-        ? "Total sales incl. VAT"
-        : "Total sales excl. VAT";
+    const mode = getRevenueDisplayVatMode(customerSettings);
+    if (mode === "incl") return "Total sales incl. VAT (25%)";
+    if (mode === "incl_shopify") return "Total sales incl. VAT";
+    return "Total sales excl. VAT";
 }
 
 /**
@@ -93,15 +143,27 @@ export function totalSalesVatLabel(customerSettings = {}) {
  * @returns {string}
  */
 export function grossProfitVatLabel(customerSettings = {}) {
-    return getRevenueDisplayVatMode(customerSettings) === "incl"
-        ? "Gross Profit incl. VAT"
-        : "Gross Profit excl. VAT";
+    const mode = getRevenueDisplayVatMode(customerSettings);
+    if (mode === "incl") return "Gross Profit incl. VAT (25%)";
+    if (mode === "incl_shopify") return "Gross Profit incl. VAT";
+    return "Gross Profit excl. VAT";
 }
 
 /**
  * @param {Record<string, unknown>} [customerSettings]
- * @returns {"incl. VAT"|"excl. VAT"}
+ * @returns {string}
  */
 export function revenueVatShortLabel(customerSettings = {}) {
-    return getRevenueDisplayVatMode(customerSettings) === "incl" ? "incl. VAT" : "excl. VAT";
+    const mode = getRevenueDisplayVatMode(customerSettings);
+    if (mode === "incl") return "incl. VAT (25%)";
+    if (mode === "incl_shopify") return "incl. VAT (Shopify)";
+    return "excl. VAT";
+}
+
+/**
+ * @param {unknown} value
+ * @returns {RevenueDisplayVatMode}
+ */
+export function normalizeRevenueDisplayVat(value) {
+    return VALID_VAT_MODES.has(value) ? value : "excl";
 }

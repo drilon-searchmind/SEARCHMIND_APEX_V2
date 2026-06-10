@@ -14,6 +14,11 @@ import {
     computePerformanceDashboardMetrics,
     netRevenueForShopifyDay,
 } from "./computePerformanceMetrics";
+import { enrichOverviewDerivedMetrics } from "./enrichOverviewDerivedMetrics";
+import {
+    periodPrimarySalesRevenue,
+    primarySalesRevenueLabel,
+} from "./primarySalesRevenue";
 
 /**
  * Per-day profit metrics aligned with performance-dashboard chart logic.
@@ -77,6 +82,7 @@ export function computePeriodMetricsFromMerged({
     shopifyDaily = [],
     merged,
     customerSettings = {},
+    customerType = "Shopify",
     staticExpenses = {},
     dateRange,
     shopifyDailyPrev = [],
@@ -84,6 +90,7 @@ export function computePeriodMetricsFromMerged({
     prevDateRange = null,
     channelTotals = null,
     channelTotalsPrev = null,
+    customKpis = [],
 }) {
     const startDate = dateRange?.startDate;
     const endDate = dateRange?.endDate;
@@ -114,6 +121,7 @@ export function computePeriodMetricsFromMerged({
         shopify: shopifyDaily,
         shopifyPrev: shopifyDailyPrev,
         customerSettings,
+        customerType,
         staticExpenses,
         fetchCogs,
         cogsPercentage,
@@ -123,9 +131,24 @@ export function computePeriodMetricsFromMerged({
         channelTotalsPrev: chTotalsPrev,
         fixedCosts,
         fixedCostsPrev,
-        customKpis: [],
+        customKpis,
         daysInRange,
         prevDaysInRange,
+    });
+
+    const replacementByKey = computed.replacementByKey || {};
+    enrichOverviewDerivedMetrics({
+        metricsData: computed.metricsData,
+        metricsDataPrev: computed.metricsDataPrev,
+        derived: computed.derived,
+        staticExp: staticExpenses,
+        rangeStart: startDate,
+        rangeEnd: endDate,
+        prevRangeStart: prevDateRange?.startDate,
+        prevRangeEnd: prevDateRange?.endDate,
+        customerType,
+        customerSettings,
+        replacementByKey,
     });
 
     const md = computed.metricsData;
@@ -183,6 +206,9 @@ export function computePeriodMetricsFromMerged({
 
     return {
         ...computed,
+        primarySalesRevenue: periodPrimarySalesRevenue(md),
+        primarySalesRevenuePrev: periodPrimarySalesRevenue(mdPrev),
+        primarySalesRevenueLabel: primarySalesRevenueLabel(customerSettings, customKpis),
         netProfit: md.ebit,
         netProfitPrev: mdPrev.ebit,
         poas: md.poas,

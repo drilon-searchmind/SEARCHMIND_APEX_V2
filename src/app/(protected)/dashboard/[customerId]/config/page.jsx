@@ -16,6 +16,7 @@ import { defaultDanDomainSettings, normalizeDanDomainSettings } from '@/lib/danD
 import { pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
 import { prepareCustomerStaticExpensesForSave } from '@/lib/customerStaticExpensesUtils';
 import { normalizeGoogleAdsMarketMapping } from '@/lib/googleAdsMarketMapping';
+import { normalizeRevenueDisplayVat } from '@/lib/revenueVatDisplay';
 
 export default function ConfigPage() {
     const { customerId } = useParams();
@@ -237,15 +238,8 @@ export default function ConfigPage() {
                 updatedExpenses,
                 prepareCustomerStaticExpensesForSave(updatedExpenses)
             );
-            const res = await fetch(`/api/customers/${customerId}`,
-                {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
+            const payload = {
                         customerName,
-                        parentCustomer,
-                        customerType,
-                        isArchived,
                         CustomerSettings: {
                             metricPreference,
                             fetchCogsFromStore,
@@ -259,7 +253,7 @@ export default function ConfigPage() {
                             shopifyMarketsEnabled,
                             shopifyOnlineStoreOnly,
                             customerRevenueType,
-                            revenueDisplayVat: revenueDisplayVat === "incl" ? "incl" : "excl",
+                            revenueDisplayVat: normalizeRevenueDisplayVat(revenueDisplayVat),
                             shopifyUrl,
                             shopifyApiPassword,
                             wooCommerceApiKey,
@@ -300,7 +294,19 @@ export default function ConfigPage() {
                         },
                         CustomerStaticExpenses: updatedExpenses,
                         CustomerPropertyObjectives: objectives,
-                    })
+                    };
+
+            if (!user?.isExternal) {
+                payload.parentCustomer = parentCustomer;
+                payload.customerType = customerType;
+                payload.isArchived = isArchived;
+            }
+
+            const res = await fetch(`/api/customers/${customerId}`,
+                {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
                 });
             if (!res.ok) throw new Error('Failed to update customer');
             const saved = await res.json();
@@ -344,7 +350,14 @@ export default function ConfigPage() {
         {
             key: 'general',
             label: 'General Settings',
-            content: <GeneralSettingsForm form={form} onChange={handleChange} saving={saving} />,
+            content: (
+                <GeneralSettingsForm
+                    form={form}
+                    onChange={handleChange}
+                    saving={saving}
+                    isExternalUser={user?.isExternal === true}
+                />
+            ),
         },
         {
             key: 'objectives',
@@ -372,9 +385,7 @@ export default function ConfigPage() {
         },
     ];
 
-    const tabs = user?.isExternal
-        ? allTabs.filter((t) => t.key !== 'general' && t.key !== 'customer')
-        : allTabs;
+    const tabs = allTabs;
 
     const visibleKeys = tabs.map((t) => t.key);
     const effectiveActiveTab = visibleKeys.includes(activeTab) ? activeTab : (visibleKeys[0] ?? 'objectives');

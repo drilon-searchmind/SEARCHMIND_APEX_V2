@@ -6,15 +6,13 @@ import Spinner from '@/components/ui/Spinner';
 
 const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
-const REVENUE_TYPE_LABELS = { total_sales: 'Total Sales', net_sales: 'Net Sales' };
-
 export default function RevenuePaceAnalysisCard({
 	analysis,
 	loading,
 	error,
 	onOpenSettings,
 	showCalcs = false,
-	revenueType = 'total_sales',
+	revenueLabel = 'Total Sales',
 }) {
 	if (loading) {
 		return (
@@ -129,7 +127,7 @@ export default function RevenuePaceAnalysisCard({
 							<span className="tabular-nums">{formatCurrency(analysis.budget)}</span>
 						</div>
 						<div className="flex justify-between gap-4">
-							<span className="text-gray-500">Actual revenue ({REVENUE_TYPE_LABELS[revenueType] || revenueType} from Shopify):</span>
+							<span className="text-gray-500">Actual revenue ({revenueLabel}):</span>
 							<span className="tabular-nums">{formatCurrency(analysis.actualValueToDate)}</span>
 						</div>
 						<div className="flex justify-between gap-4">

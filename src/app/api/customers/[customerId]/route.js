@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../auth/[...nextauth]/route';
 import {
     getCustomerById,
     updateCustomer,
@@ -7,12 +9,36 @@ import {
 } from '../../../../../lib/customerOperations';
 import { getDemoPayload, isDemoCustomerId, mergeDemoCustomerDocument } from '@/lib/demoCustomer';
 
+function externalUserHasCustomerAccess(session, customerId) {
+    if (!session?.user?.isExternal) return true;
+    const sharedIds = (session.user.sharedCustomers || []).map((id) => String(id));
+    return sharedIds.includes(String(customerId));
+}
+
+function sanitizeCustomerUpdateForExternalUser(updateData, existingCustomer) {
+    const sanitized = { ...updateData };
+    delete sanitized.parentCustomer;
+    delete sanitized.customerType;
+    delete sanitized.isArchived;
+    if (existingCustomer) {
+        sanitized.parentCustomer = existingCustomer.parentCustomer ?? null;
+        sanitized.customerType = existingCustomer.customerType;
+        sanitized.isArchived = existingCustomer.isArchived;
+    }
+    return sanitized;
+}
+
 // GET /api/customers/[customerId] - Get a specific customer
 export async function GET(request, { params }) {
     const resolvedParams = await params;
     const customerId = resolvedParams.customerId;
 
     try {
+        const session = await getServerSession(authOptions);
+        if (session?.user?.isExternal && !externalUserHasCustomerAccess(session, customerId)) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+
         if (isDemoCustomerId(customerId)) {
             const demo = getDemoPayload('customer');
             let dbCustomer = null;
@@ -55,7 +81,22 @@ export async function PUT(request, { params }) {
     const customerId = resolvedParams.customerId;
     
     try {
-        const updateData = await request.json();
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        if (!externalUserHasCustomerAccess(session, customerId)) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+
+        let updateData = await request.json();
+
+        if (session.user.isExternal) {
+            const existingCustomer = await getCustomerById(customerId);
+            updateData = sanitizeCustomerUpdateForExternalUser(updateData, existingCustomer);
+        }
+
         const customer = await updateCustomer(customerId, updateData);
         return NextResponse.json(customer);
     } catch (error) {

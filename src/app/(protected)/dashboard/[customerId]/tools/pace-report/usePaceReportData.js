@@ -6,8 +6,23 @@ import {
 	channelSpendTotalsFromMerged,
 	adSpendChannelsForSpendTotals,
 } from '@/lib/mergeAdSpendDaily';
-import { getReturnsOverrideSettings } from '@/lib/performanceDashboard/performanceDashboardConstants';
-import { shopifyDayRevenueByType } from '@/lib/performanceDashboard/computePerformanceMetrics';
+import {
+	buildChannelSpendMapsFromMerged,
+	primarySalesRevenueLabel,
+	shopifyDayPrimarySalesRevenue,
+} from '@/lib/performanceDashboard/primarySalesRevenue';
+
+async function fetchCustomKpis(customerId) {
+	const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+	try {
+		const res = await fetch(`${baseUrl}/api/custom-kpis/${customerId}`);
+		if (!res.ok) return [];
+		const data = await res.json();
+		return Array.isArray(data) ? data : [];
+	} catch {
+		return [];
+	}
+}
 
 export function usePaceReportData(
 	customer,
@@ -25,6 +40,7 @@ export function usePaceReportData(
 	const [conversionValueData, setConversionValueData] = useState([]);
 	const [conversionBudget, setConversionBudget] = useState(0);
 	const [conversionPaceAnalysis, setConversionPaceAnalysis] = useState(null);
+	const [revenueLabel, setRevenueLabel] = useState('Total Sales');
 
 	useEffect(() => {
 		if (!customer || !appliedDateRange) return;
@@ -36,11 +52,20 @@ export function usePaceReportData(
 			try {
 				const baseUrl =
 					process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-				const res = await fetch(
-					`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&source=pace-report${mergedSourcesQuerySuffix}`
+				const [mergedRes, customKpis] = await Promise.all([
+					fetch(
+						`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&source=pace-report${mergedSourcesQuerySuffix}`
+					),
+					fetchCustomKpis(customer._id),
+				]);
+				if (!mergedRes.ok) throw new Error('Failed to fetch merged data');
+				const merged = await mergedRes.json();
+				const customerSettings = customer?.CustomerSettings || {};
+				const customerType = customer?.customerType || 'Shopify';
+				const channelMaps = buildChannelSpendMapsFromMerged(merged);
+				setRevenueLabel(
+					primarySalesRevenueLabel(customerSettings, customKpis)
 				);
-				if (!res.ok) throw new Error('Failed to fetch merged data');
-				const merged = await res.json();
 
 				const startDateObj = dayjs(appliedDateRange.startDate);
 				const endDateObj = dayjs(appliedDateRange.endDate);
@@ -155,22 +180,20 @@ export function usePaceReportData(
 					budgetDaily,
 				});
 
-				const revenueType =
-					customer?.CustomerSettings?.customerRevenueType || 'total_sales';
-				const returnsOverride = getReturnsOverrideSettings(customer?.CustomerSettings);
 				const revenueMap = {};
 				(merged.shopifyDaily || []).forEach((row) => {
-					if (!revenueMap[row.period]) revenueMap[row.period] = 0;
-					revenueMap[row.period] += shopifyDayRevenueByType(
-						row,
-						revenueType,
-						returnsOverride,
-						customer?.CustomerSettings
-					);
+					const ymd = String(row.period).slice(0, 10);
+					if (!revenueMap[ymd]) revenueMap[ymd] = 0;
+					revenueMap[ymd] += shopifyDayPrimarySalesRevenue(row, {
+						customerSettings,
+						customerType,
+						customKpis,
+						channelMaps,
+					});
 				});
 				let revenueCumulative = 0;
 				const revenueDaily = allPeriods.map((period) => {
-					revenueCumulative += revenueMap[period] || 0;
+					revenueCumulative += revenueMap[String(period).slice(0, 10)] || 0;
 					return { period, revenue: Number(revenueCumulative.toFixed(2)) };
 				});
 				setConversionValueData(revenueDaily);
@@ -247,5 +270,6 @@ export function usePaceReportData(
 		conversionValueData,
 		conversionBudget,
 		conversionPaceAnalysis,
+		revenueLabel,
 	};
 }
