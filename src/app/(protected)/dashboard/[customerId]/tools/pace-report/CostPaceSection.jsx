@@ -18,6 +18,7 @@ export default function CostPaceSection({
 	onOpenSettings,
 	showCalcs = false,
 	onShowCalcsChange,
+	objectivesScopeLabel,
 }) {
 	const { chartSeries, chartCategoriesWithStart } = buildCostBudgetChartData(
 		costData,
@@ -91,6 +92,7 @@ export default function CostPaceSection({
 				onOpenSettings={onOpenSettings}
 				settingsButtonText="Adjust your property budgets here."
 				showCalcs={showCalcs}
+				objectivesScopeLabel={objectivesScopeLabel}
 			/>
 			</div>
 			{!loading && channelChartOptions && costByChannelSeries.length > 0 && (

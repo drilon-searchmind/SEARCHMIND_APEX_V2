@@ -350,6 +350,14 @@ const CustomerSchema = new mongoose.Schema({
         }
     },
     /**
+     * Per-Shopify-market property objectives (Shopify Markets customers only).
+     * Keys: shopifyqlMarketId (string). Values: same 12-month shape as CustomerPropertyObjectives.
+     */
+    CustomerMarketPropertyObjectives: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {},
+    },
+    /**
      * Apex Radar per-channel targets (budget, ROAS/CPA, static vs dynamic budget).
      */
     customerApexRadarSettings: {

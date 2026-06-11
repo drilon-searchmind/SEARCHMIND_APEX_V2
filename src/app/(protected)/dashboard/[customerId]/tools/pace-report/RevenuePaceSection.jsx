@@ -18,6 +18,7 @@ export default function RevenuePaceSection({
 	onOpenSettings,
 	showCalcs = false,
 	revenueLabel = 'Total Sales',
+	objectivesScopeLabel,
 }) {
 	const { chartSeries, chartCategoriesWithStart } =
 		buildRevenueTargetChartData(
@@ -58,6 +59,7 @@ export default function RevenuePaceSection({
 				onOpenSettings={onOpenSettings}
 				showCalcs={showCalcs}
 				revenueLabel={revenueLabel}
+				objectivesScopeLabel={objectivesScopeLabel}
 			/>
 		</div>
 	);

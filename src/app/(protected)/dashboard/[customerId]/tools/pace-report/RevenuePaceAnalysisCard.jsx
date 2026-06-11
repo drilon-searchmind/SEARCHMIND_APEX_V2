@@ -13,6 +13,7 @@ export default function RevenuePaceAnalysisCard({
 	onOpenSettings,
 	showCalcs = false,
 	revenueLabel = 'Total Sales',
+	objectivesScopeLabel,
 }) {
 	if (loading) {
 		return (
@@ -123,7 +124,10 @@ export default function RevenuePaceAnalysisCard({
 				<div className="mt-4 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-[10px] font-mono text-gray-600 leading-tight">
 					<div className="mb-1.5 pb-1.5 border-b border-gray-200 space-y-0.5">
 						<div className="flex justify-between gap-4">
-							<span className="text-gray-500">Revenue target (from property objectives):</span>
+							<span className="text-gray-500">
+								Revenue target (from property objectives
+								{objectivesScopeLabel ? ` · ${objectivesScopeLabel}` : ''}):
+							</span>
 							<span className="tabular-nums">{formatCurrency(analysis.budget)}</span>
 						</div>
 						<div className="flex justify-between gap-4">

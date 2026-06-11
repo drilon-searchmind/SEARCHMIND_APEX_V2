@@ -17,6 +17,7 @@ import { pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
 import { prepareCustomerStaticExpensesForSave } from '@/lib/customerStaticExpensesUtils';
 import { normalizeGoogleAdsMarketMapping } from '@/lib/googleAdsMarketMapping';
 import { normalizeRevenueDisplayVat } from '@/lib/revenueVatDisplay';
+import { normalizeMarketPropertyObjectives } from '@/lib/propertyObjectivesUtils';
 
 export default function ConfigPage() {
     const { customerId } = useParams();
@@ -81,6 +82,7 @@ export default function ConfigPage() {
 
     const [form, setForm] = useState(defaultFormState);
     const [objectives, setObjectives] = useState({});
+    const [marketObjectives, setMarketObjectives] = useState({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [activeTab, setActiveTab] = useState('general');
@@ -112,6 +114,9 @@ export default function ConfigPage() {
                     },
                 });
                 setObjectives(data.CustomerPropertyObjectives || {});
+                setMarketObjectives(
+                    normalizeMarketPropertyObjectives(data.CustomerMarketPropertyObjectives)
+                );
             } catch (err) {
                 showToast({ message: 'Failed to load customer', type: 'error', position: 'top-center' });
             } finally {
@@ -171,6 +176,10 @@ export default function ConfigPage() {
 
     const handleObjectivesChange = (updated) => {
         setObjectives(updated);
+    };
+
+    const handleMarketObjectivesChange = (updated) => {
+        setMarketObjectives(updated);
     };
 
     const handleGoogleAdsMarketMappingChange = (mapping) => {
@@ -294,6 +303,7 @@ export default function ConfigPage() {
                         },
                         CustomerStaticExpenses: updatedExpenses,
                         CustomerPropertyObjectives: objectives,
+                        CustomerMarketPropertyObjectives: marketObjectives,
                     };
 
             if (!user?.isExternal) {
@@ -331,6 +341,9 @@ export default function ConfigPage() {
                 },
             });
             setObjectives(saved.CustomerPropertyObjectives || {});
+            setMarketObjectives(
+                normalizeMarketPropertyObjectives(saved.CustomerMarketPropertyObjectives)
+            );
             showToast({ message: 'Settings updated successfully!', type: 'success', position: 'top-center' });
             pushGTMEvent(GTM_EVENTS.DASHBOARD_CONFIG_SAVED, {
                 eventData: { customerId: String(customerId) },
@@ -362,7 +375,17 @@ export default function ConfigPage() {
         {
             key: 'objectives',
             label: 'Property Objectives',
-            content: <PropertyObjectives objectives={objectives} onObjectivesChange={handleObjectivesChange} />,
+            content: (
+                <PropertyObjectives
+                    customerId={customerId}
+                    customerType={form.customerType}
+                    shopifyMarketsEnabled={form.shopifyMarketsEnabled}
+                    objectives={objectives}
+                    marketObjectives={marketObjectives}
+                    onObjectivesChange={handleObjectivesChange}
+                    onMarketObjectivesChange={handleMarketObjectivesChange}
+                />
+            ),
         },
         {
             key: 'customer',

@@ -2,12 +2,19 @@
 
 import { FiX } from 'react-icons/fi';
 import PropertyObjectivesTable from '@/app/(protected)/dashboard/[customerId]/config/components/PropertyObjectivesTable';
+import MarketPropertyObjectivesEditor from '@/app/(protected)/dashboard/[customerId]/config/components/MarketPropertyObjectivesEditor';
 
 export default function PropertyObjectivesSidebar({
 	open,
 	onClose,
+	shopifyMarketsFeatureOn,
+	customerId,
+	shopifyMarkets,
+	shopifyMarketsLoading,
 	localObjectives,
+	localMarketObjectives,
 	onObjectivesChange,
+	onMarketObjectivesChange,
 	onSave,
 	savingObjectives,
 }) {
@@ -26,7 +33,9 @@ export default function PropertyObjectivesSidebar({
 					<div className="flex-1">
 						<h2 className="text-2xl font-bold mb-1">Property Objectives</h2>
 						<p className="text-sm text-white/80">
-							Adjust marketing budgets for each month
+							{shopifyMarketsFeatureOn
+								? 'Set revenue targets and marketing budgets per Shopify market'
+								: 'Adjust marketing budgets for each month'}
 						</p>
 					</div>
 					<button
@@ -39,10 +48,20 @@ export default function PropertyObjectivesSidebar({
 				</div>
 
 				<div className="overflow-y-auto flex-1 p-8">
-					<PropertyObjectivesTable
-						objectives={localObjectives}
-						onObjectivesChange={onObjectivesChange}
-					/>
+					{shopifyMarketsFeatureOn ? (
+						<MarketPropertyObjectivesEditor
+							customerId={customerId}
+							markets={shopifyMarkets}
+							marketsLoading={shopifyMarketsLoading}
+							marketObjectives={localMarketObjectives}
+							onMarketObjectivesChange={onMarketObjectivesChange}
+						/>
+					) : (
+						<PropertyObjectivesTable
+							objectives={localObjectives}
+							onObjectivesChange={onObjectivesChange}
+						/>
+					)}
 				</div>
 
 				<div className="border-t border-gray-200 px-8 py-6 bg-gray-50 flex justify-end gap-3">
