@@ -23,12 +23,13 @@ export async function PATCH(request, { params }) {
             return NextResponse.json({ error: denied.error }, { status: denied.status });
         }
 
+        const { id } = await params;
         const body = await request.json().catch(() => ({}));
         const action = String(body.action || "").trim().toLowerCase();
 
         await dbConnect();
         const result = await reviewRouteAccessRequest(
-            params.id,
+            id,
             /** @type {"approve"|"deny"} */ (action),
             session.user.id
         );
