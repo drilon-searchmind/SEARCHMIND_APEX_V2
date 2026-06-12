@@ -30,6 +30,7 @@ import { useUser } from "@/contexts/UserContext";
 import { useCustomers } from "@/hooks/useCustomers";
 import { getServiceDashboardConfigWarnings } from "@/lib/customerServiceIntegrations";
 import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
+import { isB2BCustomer } from "@/lib/customerBusinessCategory";
 
 function serviceDashboardWarningKeyForHref(href) {
     if (href.includes("service-dashboard/seo")) return "seo";
@@ -138,6 +139,7 @@ const Sidebar = ({ showLinks = true }) => {
     }, [customers, activeCustomerId]);
 
     const shopifyMarketsMenuEnabled = isShopifyMarketsCustomer(activeCustomer);
+    const b2bCustomer = isB2BCustomer(activeCustomer);
 
     const serviceDashboardWarnings = useMemo(() => {
         if (!activeCustomer) return null;
@@ -224,7 +226,7 @@ const Sidebar = ({ showLinks = true }) => {
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                             />
-                                            {shopifyMarketsMenuEnabled ? (
+                                            {shopifyMarketsMenuEnabled && !b2bCustomer ? (
                                                 <NavItem
                                                     href={`/dashboard/${activeCustomerId}/markets-overview`}
                                                     label="Markets"
@@ -234,6 +236,8 @@ const Sidebar = ({ showLinks = true }) => {
                                                     isSmallScreen={isSmallScreen}
                                                 />
                                             ) : null}
+                                            {!b2bCustomer ? (
+                                                <>
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/tools/pace-report`}
                                                 label="Pace Report"
@@ -255,13 +259,16 @@ const Sidebar = ({ showLinks = true }) => {
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                             />
-                                            {/* <NavItem
+                                                </>
+                                            ) : (
+                                            <NavItem
                                                 href={`/dashboard/${activeCustomerId}/analytics`}
                                                 label="Analytics"
                                                 activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
-                                            /> */}
+                                            />
+                                            )}
                                         </ul>
                                     )}
                                     {isSmallScreen && (

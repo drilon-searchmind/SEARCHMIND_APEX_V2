@@ -2,6 +2,7 @@
 
 import DashboardHeading from '@/components/dashboard/DashboardHeading';
 import { useCustomers } from '@/hooks/useCustomers';
+import { useBusinessCategory } from '@/hooks/useBusinessCategory';
 import { useParams } from 'next/navigation';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { useState, useMemo } from 'react';
@@ -17,11 +18,25 @@ import GraphCard from '@/components/dashboard/GraphCard';
 import { pushDashboardDateRangeApplied } from '@root/lib/gtmFunctions';
 import { useShopifyMarketsFilter } from '@/hooks/useShopifyMarketsFilter';
 import { useAdSpendPlatformsFilter } from '@/hooks/useAdSpendPlatformsFilter';
+import B2BDailyOverview from './B2BDailyOverview';
 
-const DailyOverviewPage = () => {
+export default function DailyOverviewPage() {
     const params = useParams();
     const { customers } = useCustomers();
     const customer = customers.find((c) => c._id === params.customerId);
+    const { isB2B } = useBusinessCategory(customer);
+
+    if (isB2B) {
+        return <B2BDailyOverview customer={customer} />;
+    }
+
+    return <EcommerceDailyOverview customer={customer} />;
+}
+
+function EcommerceDailyOverview({ customer: customerProp }) {
+    const params = useParams();
+    const { customers } = useCustomers();
+    const customer = customerProp || customers.find((c) => c._id === params.customerId);
 
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -341,6 +356,5 @@ const DailyOverviewPage = () => {
             </div>
         </div>
     );
-};
+}
 
-export default DailyOverviewPage;

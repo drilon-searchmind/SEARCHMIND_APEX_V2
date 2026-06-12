@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
 import { FiSettings, FiShoppingBag, FiPackage, FiDatabase, FiGlobe, FiFacebook, FiTrendingUp, FiSearch, FiMail, FiImage, FiLayers, FiZap, FiMessageCircle } from "react-icons/fi";
@@ -109,6 +109,40 @@ function FormCheckbox({ id, name, label, checked, onChange }) {
 
 import GoogleAdsMarketMappingSection from "./GoogleAdsMarketMappingSection";
 import { parseGoogleAdsCustomerIds } from "@/lib/googleAdsCustomerIdUtils";
+
+function Ga4SetupHint() {
+    const [serviceAccountEmail, setServiceAccountEmail] = useState("");
+
+    useEffect(() => {
+        fetch("/api/ga4/setup-info")
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+                if (data?.serviceAccountEmail) setServiceAccountEmail(data.serviceAccountEmail);
+            })
+            .catch(() => {});
+    }, []);
+
+    return (
+        <div className="md:col-span-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+            <p className="font-medium mb-1">GA4 access setup</p>
+            <p className="text-blue-800 mb-2">
+                APEX reads GA4 via a Google service account. In Google Analytics, open{" "}
+                <strong>Admin → Property access management</strong> and add this email as{" "}
+                <strong>Viewer</strong> on the client&apos;s property:
+            </p>
+            {serviceAccountEmail ? (
+                <code className="block text-xs bg-white border border-blue-200 rounded px-2 py-1 break-all">
+                    {serviceAccountEmail}
+                </code>
+            ) : (
+                <p className="text-xs text-blue-700">Service account email not configured on server.</p>
+            )}
+            <p className="text-xs text-blue-700 mt-2">
+                Use the numeric Property ID (Admin → Property settings), not the G-XXXX Measurement ID.
+            </p>
+        </div>
+    );
+}
 
 export default function CustomerSettingsForm({
     form,
@@ -629,6 +663,7 @@ export default function CustomerSettingsForm({
                     onChange={onChange}
                     placeholder="e.g. 123456789"
                 />
+                <Ga4SetupHint />
             </SettingsSection>
 
             {/* Email (Klaviyo) */}

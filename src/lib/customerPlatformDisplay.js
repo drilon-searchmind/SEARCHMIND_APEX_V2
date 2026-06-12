@@ -1,3 +1,5 @@
+import { isB2BCustomer } from "@/lib/customerBusinessCategory";
+
 /**
  * Human-readable platform label for customer list / tables.
  * Shopify + Markets mode uses a distinct label from plain Shopify.
@@ -7,6 +9,7 @@
  */
 export function getCustomerPlatformLabel(customer) {
     if (!customer) return "";
+    if (isB2BCustomer(customer)) return "B2B";
     const type = customer.customerType || "";
     if (type === "Shopify" && customer.CustomerSettings?.shopifyMarketsEnabled === true) {
         return "Shopify Markets";

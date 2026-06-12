@@ -7,6 +7,7 @@ import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import Spinner from '@/components/ui/Spinner';
 import { FiPackage, FiUsers } from 'react-icons/fi';
 import { useCustomers } from '@/hooks/useCustomers';
+import { useBusinessCategory } from '@/hooks/useBusinessCategory';
 import { useShopifyMarketsFilter } from '@/hooks/useShopifyMarketsFilter';
 import { useAdSpendPlatformsFilter } from '@/hooks/useAdSpendPlatformsFilter';
 
@@ -43,6 +44,13 @@ export default function EcommercePage() {
     const customerId = params?.customerId;
     const { customers } = useCustomers();
     const customer = customers.find((c) => c._id === customerId);
+    const { isB2B } = useBusinessCategory(customer);
+
+    useEffect(() => {
+        if (isB2B && customerId) {
+            router.replace(`/dashboard/${customerId}/analytics`);
+        }
+    }, [isB2B, customerId, router]);
     const {
         shopifyMarketsFeatureOn,
         shopifyMarkets,

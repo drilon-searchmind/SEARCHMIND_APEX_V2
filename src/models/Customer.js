@@ -27,6 +27,12 @@ const CustomerSchema = new mongoose.Schema({
         enum: ["Shopify", "WooCommerce", "Magento", "Other", "DanDomain"],
         default: "Shopify"
     },
+    /** Ecommerce (store revenue) vs B2B (GA4 as primary dashboard data source). */
+    businessCategory: {
+        type: String,
+        enum: ["ecommerce", "b2b"],
+        default: "ecommerce",
+    },
     CustomerSettings: {
         metricPreference: {
             type: String,
@@ -174,6 +180,11 @@ const CustomerSchema = new mongoose.Schema({
         ga4PropertyId: {
             type: String,
             default: ""
+        },
+        /** B2B: GA4 event names that count as conversions (empty = GA4 default key events). */
+        ga4ConversionEventNames: {
+            type: [String],
+            default: [],
         },
         wooCommerceApiKey: {
             type: String,

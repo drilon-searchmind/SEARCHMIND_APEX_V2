@@ -87,6 +87,15 @@ export default function GeneralSettingsForm({ form, onChange, saving, isExternal
                 )}
                 {!isExternalUser && (
                     <div>
+                        <FormLabel htmlFor="businessCategory" required>Business Category</FormLabel>
+                        <select id="businessCategory" name="businessCategory" value={form.businessCategory || "ecommerce"} onChange={onChange} className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20">
+                            <option value="ecommerce">Ecommerce (store revenue)</option>
+                            <option value="b2b">B2B (GA4 analytics)</option>
+                        </select>
+                    </div>
+                )}
+                {!isExternalUser && form.businessCategory !== "b2b" && (
+                    <div>
                         <FormLabel htmlFor="customerType" required>Customer Type</FormLabel>
                         <select id="customerType" name="customerType" value={form.customerType} onChange={onChange} className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20">
                             <option value="Shopify">Shopify</option>

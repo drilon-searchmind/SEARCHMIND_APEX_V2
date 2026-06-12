@@ -1,4 +1,5 @@
 import { GoogleAuth } from "google-auth-library";
+import { formatGa4ApiError } from "@/lib/ga4ErrorUtils";
 
 const ANALYTICS_DATA_SCOPE = "https://www.googleapis.com/auth/analytics.readonly";
 
@@ -23,6 +24,8 @@ export async function runGa4Report({
     endDate = "today",
     metrics = ["totalUsers", "screenPageViews", "bounceRate", "averageSessionDuration"],
     dimensions = ["date"],
+    dimensionFilter,
+    orderBys,
     limit = 100000,
 } = {}) {
     if (!propertyId) throw new Error("propertyId is required");
@@ -39,6 +42,21 @@ export async function runGa4Report({
         limit,
     };
 
-    const res = await client.request({ url, method: "POST", data: body });
-    return res.data;
+    if (dimensionFilter) {
+        body.dimensionFilter = dimensionFilter;
+    }
+    if (orderBys?.length) {
+        body.orderBys = orderBys;
+    }
+
+    try {
+        const res = await client.request({ url, method: "POST", data: body });
+        return res.data;
+    } catch (err) {
+        const formatted = formatGa4ApiError(err);
+        const error = new Error(formatted.message);
+        error.status = formatted.status;
+        error.code = formatted.code;
+        throw error;
+    }
 }

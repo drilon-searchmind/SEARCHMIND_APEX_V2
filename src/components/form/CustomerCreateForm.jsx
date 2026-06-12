@@ -109,7 +109,8 @@ export default function CustomerCreateForm({
             // Only send required and filled fields, match schema
             const payload = {
                 customerName: form.customerName.trim(),
-                customerType: form.customerType,
+                businessCategory: form.businessCategory || "ecommerce",
+                customerType: form.businessCategory === "b2b" ? "Other" : form.customerType,
                 isArchived: form.isArchived,
                 CustomerSettings: { ...form.CustomerSettings }
             };
@@ -150,6 +151,14 @@ export default function CustomerCreateForm({
                 <FormInputText id="customerName" name="customerName" value={form.customerName} onChange={handleChange} required />
             </div>
             <div>
+                <FormLabel htmlFor="businessCategory">Business Category</FormLabel>
+                <select id="businessCategory" name="businessCategory" value={form.businessCategory || "ecommerce"} onChange={handleChange} className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20">
+                    <option value="ecommerce">Ecommerce (Shopify / WooCommerce / Magento)</option>
+                    <option value="b2b">B2B (GA4 analytics)</option>
+                </select>
+            </div>
+            {form.businessCategory !== "b2b" && (
+            <div>
                 <FormLabel htmlFor="customerType">Customer Type</FormLabel>
                 <select id="customerType" name="customerType" value={form.customerType} onChange={handleChange} className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20">
                     <option value="Shopify">Shopify</option>
@@ -159,9 +168,17 @@ export default function CustomerCreateForm({
                     <option value="Other">Other</option>
                 </select>
             </div>
+            )}
+
+            {form.businessCategory === "b2b" && (
+                <div>
+                    <FormLabel htmlFor="ga4PropertyId">GA4 Property ID</FormLabel>
+                    <FormInputText id="ga4PropertyId" name="ga4PropertyId" value={form.CustomerSettings.ga4PropertyId || ""} onChange={handleChange} placeholder="e.g. 123456789" />
+                </div>
+            )}
 
             {/* Conditional fields based on customer type */}
-            {form.customerType === "Shopify" && (
+            {form.businessCategory !== "b2b" && form.customerType === "Shopify" && (
                 <>
                     <div>
                         <FormLabel htmlFor="shopifyUrl">Shopify URL</FormLabel>
@@ -196,7 +213,7 @@ export default function CustomerCreateForm({
                 </>
             )}
 
-            {form.customerType === "WooCommerce" && (
+            {form.businessCategory !== "b2b" && form.customerType === "WooCommerce" && (
                 <>
                     <div>
                         <FormLabel htmlFor="wooCommerceApiKey">WooCommerce API Key</FormLabel>
@@ -213,7 +230,7 @@ export default function CustomerCreateForm({
                 </>
             )}
 
-            {form.customerType === "Magento" && (
+            {form.businessCategory !== "b2b" && form.customerType === "Magento" && (
                 <>
                     <div>
                         <FormLabel htmlFor="magentoBaseUrl">Magento Base URL</FormLabel>
@@ -238,7 +255,7 @@ export default function CustomerCreateForm({
                 </>
             )}
 
-            {form.customerType === "DanDomain" && (
+            {form.businessCategory !== "b2b" && form.customerType === "DanDomain" && (
                 <>
                     <div>
                         <FormLabel htmlFor="danDomain.shopHost">Shop host</FormLabel>

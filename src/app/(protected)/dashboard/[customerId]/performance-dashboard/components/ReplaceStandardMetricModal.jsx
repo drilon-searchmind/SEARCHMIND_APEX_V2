@@ -12,6 +12,7 @@ export default function ReplaceStandardMetricModal({
     takenKeys = [],
     onSave,
     saving = false,
+    replaceableMetrics = REPLACEABLE_STANDARD_METRICS,
 }) {
     const [selectedKey, setSelectedKey] = useState(currentReplacementKey || "");
 
@@ -59,7 +60,7 @@ export default function ReplaceStandardMetricModal({
                                 None (custom only)
                             </span>
                         </label>
-                        {REPLACEABLE_STANDARD_METRICS.map((m) => {
+                        {replaceableMetrics.map((m) => {
                             const taken =
                                 takenKeys.includes(m.key) &&
                                 m.key !== currentReplacementKey;

@@ -19,10 +19,12 @@ function sanitizeCustomerUpdateForExternalUser(updateData, existingCustomer) {
     const sanitized = { ...updateData };
     delete sanitized.parentCustomer;
     delete sanitized.customerType;
+    delete sanitized.businessCategory;
     delete sanitized.isArchived;
     if (existingCustomer) {
         sanitized.parentCustomer = existingCustomer.parentCustomer ?? null;
         sanitized.customerType = existingCustomer.customerType;
+        sanitized.businessCategory = existingCustomer.businessCategory ?? "ecommerce";
         sanitized.isArchived = existingCustomer.isArchived;
     }
     return sanitized;

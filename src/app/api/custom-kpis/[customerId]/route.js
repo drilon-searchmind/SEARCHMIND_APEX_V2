@@ -30,7 +30,9 @@ export async function GET(request, { params }) {
     }
 
     try {
-        const kpis = await getCustomKpisByCustomerId(customerId);
+        const { searchParams } = new URL(request.url);
+        const dashboardContext = searchParams.get("context") || "ecommerce";
+        const kpis = await getCustomKpisByCustomerId(customerId, { dashboardContext });
         const serialized = kpis.map(serializeKpi);
         return NextResponse.json(serialized);
     } catch (error) {
@@ -56,7 +58,7 @@ export async function POST(request, { params }) {
 
     try {
         const body = await request.json();
-        const { name, parts, metricA, metricB, operator, replacesStandardMetricKey } = body;
+        const { name, parts, metricA, metricB, operator, replacesStandardMetricKey, dashboardContext } = body;
 
         if (!name || !name.trim()) {
             return NextResponse.json(
@@ -72,6 +74,7 @@ export async function POST(request, { params }) {
             metricB: metricB || "",
             operator: operator || "",
             replacesStandardMetricKey: replacesStandardMetricKey || null,
+            dashboardContext: dashboardContext === "b2b" ? "b2b" : "ecommerce",
         };
 
         const kpi = await createCustomKpi(customerId, kpiData);

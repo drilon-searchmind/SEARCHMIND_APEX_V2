@@ -93,6 +93,8 @@ export default function AddKpiModal({
     editingKpi = null,
     saving = false,
     visibleSpendMetricKeys,
+    availableMetrics = AVAILABLE_METRICS,
+    formulaHelpText,
 }) {
     const [name, setName] = useState("");
     const [parts, setParts] = useState([]);
@@ -117,7 +119,7 @@ export default function AddKpiModal({
                 .map((p) => p.value)
                 .filter(Boolean)
         );
-        return AVAILABLE_METRICS.filter((m) => {
+        return availableMetrics.filter((m) => {
             if (!PER_CHANNEL_SPEND_METRIC_KEYS.has(m.key)) return true;
             if (selectedKeys.has(m.key)) return true;
             if (!allow) return true;
@@ -171,7 +173,7 @@ export default function AddKpiModal({
     const formulaPreview = parts
         .map((p) => {
             if (p.type === "metric") {
-                const m = AVAILABLE_METRICS.find((x) => x.key === p.value);
+                const m = availableMetrics.find((x) => x.key === p.value);
                 return m ? m.label : p.value || "?";
             }
             return OPERATORS.find((o) => o.key === p.value)?.label ?? p.value;
@@ -221,9 +223,8 @@ export default function AddKpiModal({
                             Formula
                         </label>
                         <p className="text-xs text-gray-500 mb-3">
-                            Select a single metric (e.g. Orders) or build a formula with multiple metrics and operators.
-                            Calculations run left to right (e.g. Revenue ÷ Orders × 100).
-                            Shopify revenue metrics use store data only (returns % override does not apply here).
+                            {formulaHelpText ||
+                                "Select a single metric (e.g. Orders) or build a formula with multiple metrics and operators. Calculations run left to right (e.g. Revenue ÷ Orders × 100). Shopify revenue metrics use store data only (returns % override does not apply here)."}
                         </p>
 
                         <div className="flex flex-wrap items-center gap-2">

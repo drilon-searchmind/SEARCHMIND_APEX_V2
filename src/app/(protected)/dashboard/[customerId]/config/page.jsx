@@ -26,6 +26,7 @@ export default function ConfigPage() {
         customerName: "",
         parentCustomer: "",
         customerType: "Shopify",
+        businessCategory: "ecommerce",
         isArchived: false,
         metricPreference: "ROAS/POAS",
         fetchCogsFromStore: false,
@@ -196,6 +197,7 @@ export default function ConfigPage() {
             const {
                 customerName,
                 parentCustomer,
+                businessCategory,
                 customerType,
                 isArchived,
                 metricPreference,
@@ -308,6 +310,7 @@ export default function ConfigPage() {
 
             if (!user?.isExternal) {
                 payload.parentCustomer = parentCustomer;
+                payload.businessCategory = businessCategory || "ecommerce";
                 payload.customerType = customerType;
                 payload.isArchived = isArchived;
             }

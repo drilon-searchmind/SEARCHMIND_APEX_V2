@@ -40,6 +40,12 @@ const CustomKpiSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
+        /** ecommerce (default) or b2b — scopes custom KPIs to the dashboard type. */
+        dashboardContext: {
+            type: String,
+            enum: ["ecommerce", "b2b"],
+            default: "ecommerce",
+        },
         createdAt: {
             type: Date,
             default: Date.now,

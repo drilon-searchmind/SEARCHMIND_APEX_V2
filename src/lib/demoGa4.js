@@ -35,6 +35,47 @@ export function getDemoGa4TimeseriesForRange(startDate, endDate) {
     };
 }
 
+/** B2B dashboard demo GA4 daily metrics (extended metric set). */
+export function getDemoB2BGa4DailyForRange(startDate, endDate) {
+    const days = eachDayInclusive(startDate, endDate);
+    return {
+        dimensionHeaders: [{ name: "date" }],
+        metricHeaders: [
+            { name: "sessions" },
+            { name: "totalUsers" },
+            { name: "newUsers" },
+            { name: "engagedSessions" },
+            { name: "engagementRate" },
+            { name: "averageSessionDuration" },
+            { name: "eventCount" },
+            { name: "conversions" },
+            { name: "bounceRate" },
+            { name: "screenPageViews" },
+        ],
+        rows: days.map((date) => {
+            const h = numHash(`b2b-ga4-${date}`);
+            const sessions = 120 + (h % 80);
+            const users = 90 + (h % 50);
+            const engaged = Math.round(sessions * (0.55 + (h % 15) / 100));
+            return {
+                dimensionValues: [{ value: date.replace(/-/g, "") }],
+                metricValues: [
+                    { value: String(sessions) },
+                    { value: String(users) },
+                    { value: String(Math.round(users * (0.35 + (h % 10) / 100))) },
+                    { value: String(engaged) },
+                    { value: String(0.5 + (h % 20) / 100) },
+                    { value: String(90 + (h % 45)) },
+                    { value: String(800 + (h % 400)) },
+                    { value: String(3 + (h % 8)) },
+                    { value: String(0.32 + (h % 12) / 100) },
+                    { value: String(350 + (h % 180)) },
+                ],
+            };
+        }),
+    };
+}
+
 /**
  * Filter static GA4 JSON rows by date dimension when present.
  */

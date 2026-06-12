@@ -1,6 +1,7 @@
 import { runGa4Report } from "@/lib/ga4Api";
 import { getDemoPayload, isDemoCustomerId } from "@/lib/demoCustomer";
 import { filterGa4DemoRowsByRange, getDemoGa4TimeseriesForRange } from "@/lib/demoGa4";
+import { formatGa4ApiError } from "@/lib/ga4ErrorUtils";
 
 function pickDemoGa4Response(searchParams) {
     const metrics = searchParams.get("metrics")?.split(",").filter(Boolean) || [];
@@ -58,8 +59,10 @@ export async function GET(req) {
         const data = await runGa4Report({ propertyId, startDate, endDate, metrics, dimensions, limit });
         return new Response(JSON.stringify(data, null, 2), { status: 200, headers: { "Content-Type": "application/json" } });
     } catch (err) {
-        const status = err?.response?.status || 500;
-        const message = err?.response?.data || err?.message || "Server error";
-        return new Response(JSON.stringify({ error: message }), { status });
+        const formatted = formatGa4ApiError(err);
+        return new Response(
+            JSON.stringify({ error: formatted.message, code: formatted.code }, null, 2),
+            { status: formatted.status, headers: { "Content-Type": "application/json" } }
+        );
     }
 }

@@ -124,6 +124,7 @@ export default function PerformanceDashboardStandardSections({
     onReturnsOverrideClick,
     onCogsSettingsClick,
     onFixedExpensesSettingsClick,
+    onGa4ConversionSettingsClick,
 }) {
     const metricsByKey = useMemo(
         () => new Map(metrics.map((m) => [m.key, m])),
@@ -166,6 +167,46 @@ export default function PerformanceDashboardStandardSections({
     const totalSalesBase = metricsData?.total_sales_ex_vat ?? metricsData?.total_sales ?? 0;
     const ordersCount = metricsData?.orders;
 
+    const renderHeaderSubtitle = (section) => {
+        if (section.headerSubtitle === "orders" && ordersCount != null) {
+            return (
+                <div className="mt-1 text-xs text-gray-500">
+                    {ordersCount.toLocaleString("da-DK", { maximumFractionDigits: 0 })} Orders
+                </div>
+            );
+        }
+        if (section.headerSubtitle === "users" && metricsData?.totalUsers != null) {
+            return (
+                <div className="mt-1 text-xs text-gray-500">
+                    {Number(metricsData.totalUsers).toLocaleString("da-DK", { maximumFractionDigits: 0 })}{" "}
+                    Users
+                </div>
+            );
+        }
+        if (section.headerSubtitle === "conversion_rate" && metricsData?.conversion_rate != null) {
+            const pct = Number(metricsData.conversion_rate) || 0;
+            return (
+                <div className="mt-1 text-xs text-gray-500">
+                    {pct.toFixed(2)}% conversion rate
+                </div>
+            );
+        }
+        if (section.headerSubtitle === "cost_per_session" && metricsData?.cost_per_session != null) {
+            const cps = Number(metricsData.cost_per_session) || 0;
+            return (
+                <div className="mt-1 text-xs text-gray-500">
+                    {cps.toLocaleString("da-DK", {
+                        style: "currency",
+                        currency: "DKK",
+                        maximumFractionDigits: 0,
+                    })}{" "}
+                    per session
+                </div>
+            );
+        }
+        return null;
+    };
+
     if (loading) {
         return (
             <div className="col-span-full text-center py-12">
@@ -207,8 +248,26 @@ export default function PerformanceDashboardStandardSections({
                     changeAbsolute={primaryMetric?.changeAbsolute}
                 >
                     <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                            {section.title}
+                        <div className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                            <span>{section.title}</span>
+                            {section.ga4ConversionSettings && (
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onGa4ConversionSettingsClick?.();
+                                    }}
+                                    className={`p-1 rounded-md transition-colors shrink-0 normal-case ${
+                                        primaryMetric?.ga4ConversionSettingsActive
+                                            ? "text-purple-600 bg-purple-50"
+                                            : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                                    }`}
+                                    aria-label="GA4 conversion events settings"
+                                    title="Configure conversion events"
+                                >
+                                    <FiSettings className="text-sm" />
+                                </button>
+                            )}
                         </div>
                         <div className="flex items-end justify-between gap-2">
                             <span className="text-2xl font-bold text-[var(--color-primary-searchmind)] tabular-nums">
@@ -218,15 +277,8 @@ export default function PerformanceDashboardStandardSections({
                                 <MetricChangeBadge metric={primaryMetric} />
                             )}
                         </div>
-                        {section.headerSubtitle === "orders" && ordersCount != null && (
-                            <div className="mt-1 text-xs text-gray-500">
-                                {ordersCount.toLocaleString("da-DK", {
-                                    maximumFractionDigits: 0,
-                                })}{" "}
-                                Orders
-                            </div>
-                        )}
-                        {section.headerSubtitlePct && totalSalesBase > 0 && (
+                        {renderHeaderSubtitle(section)}
+                        {section.headerSubtitlePct && !section.headerSubtitle && totalSalesBase > 0 && (
                             <div className="mt-1 text-xs text-gray-500">
                                 {pctOfTotal} % of total sales
                             </div>

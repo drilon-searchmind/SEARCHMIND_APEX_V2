@@ -3,6 +3,8 @@
 import React from "react";
 import { useParams } from "next/navigation";
 import { useCustomers } from "@/hooks/useCustomers";
+import { useBusinessCategory } from "@/hooks/useBusinessCategory";
+import B2BPerformanceDashboard from "./B2BPerformanceDashboard";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import MetricCard from "@/components/dashboard/MetricCard";
@@ -56,8 +58,21 @@ import { calcBlendedPoasOrZero } from "@/lib/poasMetrics";
 
 export default function PerformanceDashboard() {
     const params = useParams();
+    const { customers } = useCustomers();
+    const customer = customers.find((c) => c._id === params.customerId);
+    const { isB2B } = useBusinessCategory(customer);
+
+    if (isB2B) {
+        return <B2BPerformanceDashboard customer={customer} />;
+    }
+
+    return <EcommercePerformanceDashboard customer={customer} />;
+}
+
+function EcommercePerformanceDashboard({ customer: customerProp }) {
+    const params = useParams();
     const { customers, updateCustomer } = useCustomers();
-    const customer = customers.find(c => c._id === params.customerId);
+    const customer = customerProp || customers.find(c => c._id === params.customerId);
 
     const defaultRange = getDefaultDashboardDateRange();
 

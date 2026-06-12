@@ -6,6 +6,7 @@ import { defaultDanDomainSettings } from "@/lib/danDomainCustomerSettings";
 export function getDefaultCustomerCreateFormState() {
     return {
         customerName: "",
+        businessCategory: "ecommerce",
         customerType: "Shopify",
         isArchived: false,
         CustomerSettings: {
@@ -39,6 +40,7 @@ export function getDefaultCustomerCreateFormState() {
             reddit: defaultRedditSettings(),
             googleSearchConsoleProperty: "",
             bingWebmasterSiteUrl: "",
+            ga4PropertyId: "",
         },
     };
 }
@@ -61,6 +63,7 @@ function str(v) {
 }
 
 const CUSTOMER_TYPES = new Set(["Shopify", "WooCommerce", "Magento", "DanDomain", "Other"]);
+const BUSINESS_CATEGORIES = new Set(["ecommerce", "b2b"]);
 
 /**
  * Maps an API/database customer into the create-form state, copying only fields
@@ -97,6 +100,9 @@ export function buildCustomerCreateFormStateFromCustomer(customer) {
     return {
         ...base,
         customerName: origName ? `${origName} (copy)` : "",
+        businessCategory: BUSINESS_CATEGORIES.has(customer.businessCategory)
+            ? customer.businessCategory
+            : base.businessCategory,
         customerType: CUSTOMER_TYPES.has(customer.customerType) ? customer.customerType : base.customerType,
         isArchived: Boolean(customer.isArchived),
         CustomerSettings: {
@@ -127,6 +133,7 @@ export function buildCustomerCreateFormStateFromCustomer(customer) {
             changeCurrencyShopifyBillingCountryExclude: str(cs.changeCurrencyShopifyBillingCountryExclude),
             shopifyMarketsEnabled: cs.shopifyMarketsEnabled === true,
             shopifyOnlineStoreOnly: cs.shopifyOnlineStoreOnly === true,
+            ga4PropertyId: str(cs.ga4PropertyId),
         },
     };
 }
