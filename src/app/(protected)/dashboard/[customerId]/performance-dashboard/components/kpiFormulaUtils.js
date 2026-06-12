@@ -4,6 +4,7 @@
  */
 
 import { AD_SPEND_CHANNELS } from "@/lib/mergeAdSpendDaily";
+import { calcBlendedPoasOrZero } from "@/lib/poasMetrics";
 
 export function toParts(kpi) {
     if (kpi.parts && Array.isArray(kpi.parts) && kpi.parts.length >= 1) {
@@ -53,7 +54,7 @@ function aggRowToMetrics(v) {
         tax: v.tax ?? v.taxes ?? 0,
         cost,
         roas: cost > 0 ? revenue / cost : 0,
-        poas: cost > 0 ? grossProfit / cost : 0,
+        poas: calcBlendedPoasOrZero(grossProfit, cost),
         aov: orders > 0 ? revenue / orders : 0,
         cac: orders > 0 ? cost / orders : 0,
         spendshare: revenue > 0 ? cost / revenue : 0,

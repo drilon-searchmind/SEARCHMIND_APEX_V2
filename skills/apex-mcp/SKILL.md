@@ -72,7 +72,7 @@ Default to **inclusive** `YYYY-MM-DD` dates. State the range explicitly in your 
 | **PPC** | Google Ads |
 | **EM** | Email marketing (Klaviyo) |
 | **Merged sources** | Store revenue + all ad spend combined (daily overview backbone) |
-| **POAS / ROAS** | Profit- or revenue-based return on ad spend (check customer `metricPreference`) |
+| **POAS / ROAS** | POAS = Gross Profit / Ad Spend (break-even **1.0**); ROAS = revenue / ad spend (check customer `metricPreference`) |
 | **Parent customer** | Group of child brands rolled up in parent dashboards |
 | **Apex Radar** | Internal ops view of account health across Google/Meta |
 | **ClickUp team** | Staff assigned to a client in ClickUp (PPC lead, PS, etc.) |

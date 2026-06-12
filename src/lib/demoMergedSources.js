@@ -81,7 +81,7 @@ export function sliceAndRecomputeMergedSources(fullMerged, startDate, endDate, s
     const POASNetProfit = totalAdspend !== 0 ? grossProfitNetSales / totalAdspend : 0;
     const poasCalculation =
         totalAdspend !== 0
-            ? `(Net Profit / Cost) \n
+            ? `(Gross Profit / Ad Spend) \n
         = ${fmt(grossProfitNetSales)} / ${fmt(totalAdspend)} \n
         = ${POASNetProfit.toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
     `
@@ -98,7 +98,7 @@ export function sliceAndRecomputeMergedSources(fullMerged, startDate, endDate, s
     const calculationsValueLabels = {
         grossProfit: `Net Revenue: ${fmt(netRevenue)}\nCOGS: ${fmt(totalCogsForNet)}`,
         spend: `Google Adspend: ${fmt(googleAdspend)}\nFB Adspend: ${fmt(fbAdspend)}`,
-        poas: `Net Profit: ${fmt(grossProfitNetSales)}\nCost: ${fmt(totalAdspend)}`,
+        poas: `Gross Profit: ${fmt(grossProfitNetSales)}\nAd Spend: ${fmt(totalAdspend)}`,
         cac: `Google Adspend: ${fmt(googleAdspend)}\nFB Adspend: ${fmt(fbAdspend)}\nOrders: ${orders}`,
     };
 

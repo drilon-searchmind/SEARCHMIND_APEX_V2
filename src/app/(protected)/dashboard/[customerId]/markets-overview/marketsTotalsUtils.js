@@ -2,6 +2,8 @@
  * Aggregate numeric metrics from visible market rows for the totals row.
  * Uses a single period fixed expense (not summed per market).
  */
+import { calcBlendedPoas } from '@/lib/poasMetrics';
+
 export function aggregateIncludedMarketRows(rows, { fixedExpense = 0 } = {}) {
 	const list = Array.isArray(rows) ? rows : [];
 	const sum = (key) => list.reduce((s, r) => s + (Number(r[key]) || 0), 0);
@@ -13,6 +15,7 @@ export function aggregateIncludedMarketRows(rows, { fixedExpense = 0 } = {}) {
 	const transactionFee = sum('transactionFee');
 	const totalMarketingSpend = sum('totalMarketingSpend');
 	const fixed = Number(fixedExpense) || 0;
+	const grossProfit = netRevenue - cogs;
 	const netProfit =
 		netRevenue - cogs - variableExpense - transactionFee - totalMarketingSpend - fixed;
 
@@ -34,7 +37,7 @@ export function aggregateIncludedMarketRows(rows, { fixedExpense = 0 } = {}) {
 		redditCost: sum('redditCost'),
 		totalMarketingSpend,
 		roas: totalMarketingSpend > 0 ? netRevenue / totalMarketingSpend : null,
-		poas: totalMarketingSpend > 0 ? netProfit / totalMarketingSpend : null,
+		poas: calcBlendedPoas(grossProfit, totalMarketingSpend),
 		variableExpense,
 		fixedExpense: fixed,
 		transactionFee,

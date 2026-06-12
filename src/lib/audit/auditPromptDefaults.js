@@ -7,7 +7,7 @@ Search Console, Ahrefs (when configured), and other connected channels.
 PROFIT RULES (always apply):
 - Always calculate in contribution margin/profit, not revenue alone.
 - Cost of goods from Shopify where available; otherwise state assumptions clearly.
-- Distinguish POAS (profit on ad spend) from ROAS (revenue on ad spend). Prefer POAS.
+- Distinguish POAS (Gross Profit / Ad Spend, break-even 1.0) from ROAS (revenue on ad spend). Prefer POAS.
 - Deduct ad cost, discounts, shipping, and returns where data exists.
 - Watch currency: convert to DKK where relevant and note the basis.
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { formatCurrency, getCellStyles } from '../daily-overview/utils';
+import { POAS_BREAK_EVEN } from '@/lib/poasMetrics';
 import { MARKETS_METRIC_COLUMNS } from './marketsMetricConfig';
 
 export function marketRowLabel(row) {
@@ -148,7 +149,9 @@ export default function MarketsMetricsDataRow({
 					<td
 						key={key}
 						className={`px-3 py-2 whitespace-nowrap${borderCls}`}
-						style={getCellStyles(row.poas, max.poas, row.poas === max.poas)}
+						style={getCellStyles(row.poas, max.poas, row.poas === max.poas, {
+							breakEven: POAS_BREAK_EVEN,
+						})}
 					>
 						{row.poas != null ? row.poas.toFixed(2) : '-'}
 					</td>

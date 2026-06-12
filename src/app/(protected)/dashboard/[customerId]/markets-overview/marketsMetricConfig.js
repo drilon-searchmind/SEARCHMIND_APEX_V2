@@ -21,7 +21,7 @@ export const MARKETS_METRIC_COLUMNS = [
 	{ key: 'variableExpense', label: 'Variable Expense', group: 'result' },
 	{ key: 'fixedExpenses', label: 'Fixed Expenses', group: 'result' },
 	{ key: 'transactionFee', label: 'Transaction Fees', group: 'result' },
-	{ key: 'poas', label: 'Blended POAS', group: 'result' },
+	{ key: 'poas', label: 'Blended POAS', group: 'result', tooltip: 'Gross Profit / Ad Spend (break-even = 1.0)' },
 	{ key: 'netProfit', label: 'Net Profit', group: 'result' },
 ];
 

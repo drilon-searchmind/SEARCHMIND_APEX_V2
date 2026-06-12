@@ -1,6 +1,7 @@
 import { evaluateFormula } from "@/app/(protected)/dashboard/[customerId]/performance-dashboard/components/kpiFormulaUtils";
 import { AD_SPEND_CHANNELS } from "@/lib/mergeAdSpendDaily";
 import { applyVatDisplayToShopifyDayRow } from "@/lib/revenueVatDisplay";
+import { calcBlendedPoas, calcBlendedPoasOrZero } from "@/lib/poasMetrics";
 
 /** Standard metric keys replaced by a custom KPI → daily-overview row field. */
 export const DAILY_OVERVIEW_REPLACEMENT_FIELDS = {
@@ -62,7 +63,7 @@ export function buildShopifyDayFormulaMetrics(shopifyDay, channelMaps, ymd, cust
 
     const cost = out.cost;
     out.roas = cost > 0 ? revenue / cost : 0;
-    out.poas = cost > 0 ? (revenue - (out.cogs || 0)) / cost : 0;
+    out.poas = calcBlendedPoasOrZero(revenue - (out.cogs || 0), cost);
     out.aov = orders > 0 ? revenue / orders : 0;
     out.spendshare = revenue > 0 ? cost / revenue : 0;
     out.cac = orders > 0 ? cost / orders : 0;
@@ -106,7 +107,8 @@ function recalcDailyResultMetrics(row, { customerSettings, staticExpenses, repla
         row.roas = cost > 0 ? netRevenue / cost : null;
     }
     if (!replacedKeys.has("poas")) {
-        row.poas = cost > 0 && row.netProfit != null ? row.netProfit / cost : null;
+        const grossProfit = netRevenue - (row.cogs || 0);
+        row.poas = calcBlendedPoas(grossProfit, cost);
     }
     if (!replacedKeys.has("spendshare")) {
         row.spendshare = netRevenue > 0 ? cost / netRevenue : null;

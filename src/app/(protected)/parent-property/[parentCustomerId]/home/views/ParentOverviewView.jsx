@@ -21,6 +21,7 @@ import dayjs from "dayjs";
 import { getChartColors } from "@/components/dashboard/chartColors";
 import ParentChildPropertiesTable from "../components/ParentChildPropertiesTable";
 import { parentTotalSpendFromDailyRow } from "@/lib/parentPropertyAdSpend";
+import { POAS_BREAK_EVEN } from "@/lib/poasMetrics";
 
 function percentChange(current, prev) {
     if (prev === 0 || prev === null || prev === undefined) return null;
@@ -264,6 +265,7 @@ export default function ParentOverviewView({ sharedData }) {
         const allCosts = aggregatedMetrics.allCosts ?? 0;
         const ebit = aggregatedMetrics.ebit ?? 0;
         const cost = aggregatedMetrics.cost ?? 0;
+        const grossProfit = aggregatedMetrics.grossProfit ?? 0;
 
         const grossSalesPrev = aggregatedMetricsPrev?.grossSales ?? 0;
         const discountsPrev = aggregatedMetricsPrev?.discounts ?? 0;
@@ -309,7 +311,7 @@ export default function ParentOverviewView({ sharedData }) {
             { key: "ebit", label: "Net Profit", value: ebit != null ? ebit.toLocaleString("da-DK", { style: "currency", currency: "DKK", maximumFractionDigits: 0 }) : "-", change: percentChange(ebit, ebitPrev) !== null ? Math.abs(percentChange(ebit, ebitPrev)).toFixed(0) : undefined, changeType: changeType(percentChange(ebit, ebitPrev)), popOverContent: `Net Profit = Net Revenue - All Spend\n= ${fmt(revenue)} - ${fmt(allCosts)}\n= ${fmt(ebit)}`, calcValueLabels: `Net Revenue: ${fmt(revenue)}\nAll Spend: ${fmt(allCosts)}` },
             { key: "roas", label: "Blended ROAS", value: roasFull !== null ? roasFull.toFixed(2) : "-", change: percentChange(roasFull, roasPrevFull) !== null ? Math.abs(percentChange(roasFull, roasPrevFull)).toFixed(1) : undefined, changeType: changeType(percentChange(roasFull, roasPrevFull)), popOverContent: cost > 0 ? `ROAS = Net Revenue / Spend\n= ${fmt(revenue)} / ${fmt(cost)}\n= ${roasFull?.toFixed(2) ?? "N/A"}` : null, calcValueLabels: `Net Revenue: ${fmt(revenue)}\nSpend: ${fmt(cost)}` },
             { key: "cac", label: "Blended CAC", value: cac !== null ? cac.toLocaleString("da-DK", { style: "currency", currency: "DKK", maximumFractionDigits: 0 }) : "-", change: percentChange(cac, cacPrev) !== null ? Math.abs(percentChange(cac, cacPrev)).toFixed(0) : undefined, changeType: changeType(percentChange(cac, cacPrev)), popOverContent: orders > 0 ? `CAC = Marketing Spend / Orders\n= ${fmt(cost)} / ${orders}\n= ${fmt(cac)}` : null, calcValueLabels: `Marketing Spend: ${fmt(cost)}\nOrders: ${orders}` },
-            { key: "poas", label: "Blended POAS", value: poas !== null ? poas.toFixed(2) : "-", change: percentChange(poas, poasPrev) !== null ? Math.abs(percentChange(poas, poasPrev)).toFixed(1) : undefined, changeType: changeType(percentChange(poas, poasPrev)), popOverContent: cost > 0 ? `POAS = Net Profit / Spend\n= ${fmt(ebit)} / ${fmt(cost)}\n= ${poas?.toFixed(2) ?? "N/A"}` : null, calcValueLabels: `Net Profit: ${fmt(ebit)}\nSpend: ${fmt(cost)}` },
+            { key: "poas", label: "Blended POAS", value: poas !== null ? poas.toFixed(2) : "-", change: percentChange(poas, poasPrev) !== null ? Math.abs(percentChange(poas, poasPrev)).toFixed(1) : undefined, changeType: changeType(percentChange(poas, poasPrev)), popOverContent: cost > 0 ? `POAS = Gross Profit / Ad Spend (break-even ${POAS_BREAK_EVEN})\n= ${fmt(grossProfit)} / ${fmt(cost)}\n= ${poas?.toFixed(2) ?? "N/A"}` : null, calcValueLabels: `Gross Profit: ${fmt(grossProfit)}\nAd Spend: ${fmt(cost)}` },
             { key: "ebit_pct", label: "EBIT%", value: ebitPct !== null ? `${ebitPct.toFixed(1)}%` : "-", change: percentChange(ebitPct, ebitPctPrev) !== null ? Math.abs(percentChange(ebitPct, ebitPctPrev)).toFixed(1) : undefined, changeType: changeType(percentChange(ebitPct, ebitPctPrev)), changeAbsolute: formatDiff(ebitPct, ebitPctPrev, "pct"), popOverContent: `EBIT% = (EBIT / Net Revenue) × 100\n= (${fmt(ebit)} / ${fmt(revenue)}) × 100\n= ${ebitPct != null ? ebitPct.toFixed(1) : "N/A"}%`, calcValueLabels: `Net Revenue: ${fmt(revenue)}\nEBIT: ${fmt(ebit)}` },
         ];
 

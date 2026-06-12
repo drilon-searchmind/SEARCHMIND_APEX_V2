@@ -52,6 +52,7 @@ import {
     channelSpendTotalsFromMerged,
     totalAdSpendFromMerged,
 } from "@/lib/mergeAdSpendDaily";
+import { calcBlendedPoasOrZero } from "@/lib/poasMetrics";
 
 export default function PerformanceDashboard() {
     const params = useParams();
@@ -765,12 +766,8 @@ export default function PerformanceDashboard() {
                 if (metric === 'poas') {
                     const rev = effectiveRevenue(v);
                     const cogs = effectiveCogs(v, rev);
-                    const fixed = getFixedForPeriod(k);
-                    const variable = (shippingPerOrder + pickPerOrder) * (v.orders || 0);
-                    const txFee = rev * txCostPct;
-                    const allCosts = cogs + fixed + variable + txFee + v.cost;
-                    const ebit = rev - allCosts;
-                    return v.cost > 0 ? Number((ebit / v.cost).toFixed(2)) : null;
+                    const grossProfit = rev - cogs;
+                    return v.cost > 0 ? Number(calcBlendedPoasOrZero(grossProfit, v.cost).toFixed(2)) : null;
                 }
                 if (metric === 'aov') {
                     const rev = effectiveRevenue(v);
@@ -824,12 +821,8 @@ export default function PerformanceDashboard() {
                 if (metric === 'poas') {
                     const rev = v.revenue || 0;
                     const cogs = v.cogs || 0;
-                    const fixed = getFixedForPeriod(prevKey);
-                    const variable = (shippingPerOrder + pickPerOrder) * (v.orders || 0);
-                    const txFee = rev * txCostPct;
-                    const allCosts = cogs + fixed + variable + txFee + v.cost;
-                    const ebit = rev - allCosts;
-                    return (v.cost > 0 ? Number((ebit / v.cost).toFixed(2)) : null);
+                    const grossProfit = rev - cogs;
+                    return v.cost > 0 ? Number(calcBlendedPoasOrZero(grossProfit, v.cost).toFixed(2)) : null;
                 }
                 if (metric === 'aov') return (v.orders > 0 ? Number((v.revenue / v.orders).toFixed(0)) : null);
                 if (metric === 'spendshare') return (v.revenue > 0 ? Number(((v.cost / v.revenue) * 100).toFixed(0)) : null);

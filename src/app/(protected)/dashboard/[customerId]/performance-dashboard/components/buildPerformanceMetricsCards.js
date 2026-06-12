@@ -11,6 +11,7 @@ import {
     totalSalesVatLabel,
     grossProfitVatLabel,
 } from "@/lib/revenueVatDisplay";
+import { calcBlendedPoasOrZero } from "@/lib/poasMetrics";
 import {
     percentChange,
     changeTypeForMetric,
@@ -178,9 +179,9 @@ export function buildPerformanceMetricsCards({
                 `;
     const poasCalculation =
         cost > 0
-            ? `(Net Profit / Spend) \n
-                    = ${fmt(ebit)} / ${fmt(cost)} \n
-                    = ${cost > 0 && ebit !== null ? (ebit / cost).toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "N/A"}
+            ? `(Gross Profit / Ad Spend) \n
+                    = ${fmt(grossProfit)} / ${fmt(cost)} \n
+                    = ${cost > 0 && grossProfit !== null ? calcBlendedPoasOrZero(grossProfit, cost).toLocaleString("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "N/A"}
                 `
             : merged.calculationsData?.poasCalculation || "";
     const cacCalculation = merged.calculationsData?.cacCalculation || "";
@@ -461,7 +462,7 @@ export function buildPerformanceMetricsCards({
             changeAbsolute: formatDiff(poas, poasPrev, "ratio"),
             changePrevValue: poasPrev != null ? poasPrev.toFixed(2) : undefined,
             popOverContent: poasCalculation,
-            calcValueLabels: `Net Profit: ${fmt(ebit)}\nSpend: ${fmt(cost)}`,
+            calcValueLabels: `Gross Profit: ${fmt(grossProfit)}\nAd Spend: ${fmt(cost)}`,
         },
         {
             key: "gross_profit",

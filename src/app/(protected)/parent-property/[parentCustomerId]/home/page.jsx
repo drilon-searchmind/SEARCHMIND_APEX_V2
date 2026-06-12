@@ -29,6 +29,7 @@ import { normalizeMongoId } from "@/lib/parentPropertyGoogleAdsCampaignOverrides
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import { COMPARISON_METHOD } from "@/lib/dateRangeComparison";
 import { normalizeGoogleAdsCampaignId } from "@/lib/googleAdsCampaignIdUtils";
+import { calcBlendedPoas } from "@/lib/poasMetrics";
 import { normalizeMetaAdsCampaignId } from "@/lib/metaAdsCampaignIdUtils";
 import { normalizeCampaignNameKeywords } from "@/lib/adCampaignFilterUtils";
 import ParentChildPropertiesTable from "./components/ParentChildPropertiesTable";
@@ -865,8 +866,8 @@ export default function ParentPropertyHome() {
         const aovPrev = ordersPrev > 0 ? reportingRevenuePrev / ordersPrev : null;
         const roas = cost > 0 ? reportingRevenue / cost : null;
         const roasPrev = costPrev > 0 ? reportingRevenuePrev / costPrev : null;
-        const poas = cost > 0 ? ebit / cost : null;
-        const poasPrev = costPrev > 0 ? ebitPrev / costPrev : null;
+        const poas = calcBlendedPoas(grossProfit, cost);
+        const poasPrev = calcBlendedPoas(grossProfitPrev, costPrev);
         const cac = orders > 0 ? cost / orders : null;
         const cacPrev = ordersPrev > 0 ? costPrev / ordersPrev : null;
         const ebitPct = netRevenue > 0 ? (ebit / netRevenue) * 100 : null;

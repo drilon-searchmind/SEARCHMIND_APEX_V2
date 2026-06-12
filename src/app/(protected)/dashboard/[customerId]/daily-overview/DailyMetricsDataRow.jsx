@@ -1,5 +1,6 @@
 'use client';
 
+import { POAS_BREAK_EVEN } from '@/lib/poasMetrics';
 import { formatCurrency, getCellStyles } from './utils';
 import { METRIC_COLUMNS } from './metricConfig';
 
@@ -177,7 +178,9 @@ export default function DailyMetricsDataRow({
 					<td
 						key={key}
 						className={`px-3 py-2 whitespace-nowrap${borderCls}`}
-						style={getCellStyles(row.poas, max.poas, row.poas === max.poas)}
+						style={getCellStyles(row.poas, max.poas, row.poas === max.poas, {
+							breakEven: POAS_BREAK_EVEN,
+						})}
 					>
 						{row.poas != null ? row.poas.toFixed(2) : '-'}
 					</td>

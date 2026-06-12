@@ -234,7 +234,7 @@ const SLIDES = [
                     />
                 </div>
                 <p className="text-[var(--color-primary-searchmind-lighter)] text-lg">
-                    Profit on ad spend
+                    Gross profit / ad spend (break-even 1.0)
                 </p>
             </div>
         ),

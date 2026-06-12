@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import { calcBlendedPoas, calcBlendedPoasOrZero } from "@/lib/poasMetrics";
 
 /**
  * Format value as DKK currency
@@ -24,9 +25,19 @@ export function getHeatmapStyle(val, maxVal) {
 
 /**
  * Get cell styles (heatmap only, no bold for max)
+ * @param {number} val
+ * @param {number} maxVal
+ * @param {boolean} isMax
+ * @param {{ breakEven?: number }} [options]
  */
-export function getCellStyles(val, maxVal, isMax) {
-	const heatmap = val > 0 && maxVal > 0 ? getHeatmapStyle(val, maxVal) : {};
+export function getCellStyles(val, maxVal, isMax, options = {}) {
+	const breakEven = Number(options.breakEven) || 0;
+	const adjustedVal = val != null ? val - breakEven : 0;
+	const adjustedMax = maxVal != null ? maxVal - breakEven : 0;
+	const heatmap =
+		adjustedVal > 0 && adjustedMax > 0
+			? getHeatmapStyle(adjustedVal, adjustedMax)
+			: {};
 	return { ...heatmap };
 }
 
@@ -98,6 +109,8 @@ export function computeTotals(rows, variant = 'current') {
 		(sum, r) => sum + (r.netProfit ?? 0),
 		0
 	);
+	const totalGrossProfit = totalNetRevenue - totalCogs;
+	const blendedPoas = calcBlendedPoas(totalGrossProfit, totalCost);
 
 	return {
 		orders: totalOrders,
@@ -113,7 +126,7 @@ export function computeTotals(rows, variant = 'current') {
 		fixedExpenses: formatCurrency(totalFixedExpenses),
 		aov: totalOrders > 0 ? formatCurrency(totalNetRevenue / totalOrders) : '-',
 		roas: totalCost > 0 ? (totalNetRevenue / totalCost).toFixed(2) : '-',
-		poas: totalCost > 0 ? (totalNetProfit / totalCost).toFixed(2) : '-',
+		poas: blendedPoas != null ? blendedPoas.toFixed(2) : '-',
 		netProfit: formatCurrency(totalNetProfit),
 	};
 }
@@ -163,6 +176,7 @@ export function computeRawTotals(rows) {
 		(sum, r) => sum + (r.netProfit ?? 0),
 		0
 	);
+	const totalGrossProfit = totalNetRevenue - totalCogs;
 
 	return {
 		orders: totalOrders,
@@ -178,7 +192,7 @@ export function computeRawTotals(rows) {
 		fixedExpenses: totalFixedExpenses,
 		aov: totalOrders > 0 ? totalNetRevenue / totalOrders : 0,
 		roas: totalCost > 0 ? totalNetRevenue / totalCost : 0,
-		poas: totalCost > 0 ? totalNetProfit / totalCost : 0,
+		poas: calcBlendedPoasOrZero(totalGrossProfit, totalCost),
 		netProfit: totalNetProfit,
 	};
 }

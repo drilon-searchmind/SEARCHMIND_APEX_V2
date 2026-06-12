@@ -489,7 +489,7 @@ export default function DataWrappedModalMaskScroll({
                                 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white tabular-nums"
                             />
                         </div>
-                        <p className={sub}>Profit on ad spend</p>
+                        <p className={sub}>Gross profit / ad spend (break-even 1.0)</p>
                     </div>
                 );
             case 5:

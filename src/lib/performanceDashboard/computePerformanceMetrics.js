@@ -6,6 +6,7 @@ import {
     usesShopifyNativeInclVat,
 } from "@/lib/revenueVatDisplay";
 import { totalSalesExVatFromPeriodTotals } from "@/lib/performanceDashboard/totalSalesExVat";
+import { calcBlendedPoasOrZero } from "@/lib/poasMetrics";
 
 /**
  * Sum a numeric field across Shopify daily rows.
@@ -152,8 +153,8 @@ export function buildBaseMetricsData({
         fixedCostsPrev + variableCostsPrev + transactionFeePrev + costPrev;
     const ebit = grossProfit - costsBelowGrossProfit;
     const ebitPrev = grossProfitPrev - costsBelowGrossProfitPrev;
-    const poas = cost > 0 ? ebit / cost : 0;
-    const poasPrev = costPrev > 0 ? ebitPrev / costPrev : 0;
+    const poas = calcBlendedPoasOrZero(grossProfit, cost);
+    const poasPrev = calcBlendedPoasOrZero(grossProfitPrev, costPrev);
 
     const metricsData = {
         total_sales: curr.totalSales,
@@ -383,8 +384,8 @@ export function applyCustomKpiReplacements(
     effectivePrev.ebit = grossProfitEffectivePrev - costsBelowGrossProfitPrev;
     effective.roas = cost > 0 ? effective.revenue / cost : 0;
     effectivePrev.roas = costPrev > 0 ? effectivePrev.revenue / costPrev : 0;
-    effective.poas = cost > 0 ? effective.ebit / cost : 0;
-    effectivePrev.poas = costPrev > 0 ? effectivePrev.ebit / costPrev : 0;
+    effective.poas = calcBlendedPoasOrZero(grossProfitEffective, cost);
+    effectivePrev.poas = calcBlendedPoasOrZero(grossProfitEffectivePrev, costPrev);
     effective.ebit_pct =
         salesExVat !== 0 ? (effective.ebit / salesExVat) * 100 : 0;
     effectivePrev.ebit_pct =

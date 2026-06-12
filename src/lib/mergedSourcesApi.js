@@ -701,7 +701,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
         = ${fmt(totalAdspend)}
     `;
     const POASNetProfit = totalAdspend !== 0 ? grossProfitNetSales / totalAdspend : 0;
-    const poasCalculation = totalAdspend !== 0 ? `(Net Profit / Cost) \n
+    const poasCalculation = totalAdspend !== 0 ? `(Gross Profit / Ad Spend) \n
         = ${fmt(grossProfitNetSales)} / ${fmt(totalAdspend)} \n
         = ${POASNetProfit.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
     ` : 'N/A';
@@ -713,7 +713,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
     const calculationsValueLabels = {
         grossProfit: `Net Revenue: ${fmt(netRevenue)}\nCOGS: ${fmt(totalCogsForNet)}`,
         spend: `Google: ${fmt(googleAdspend)}\nFacebook: ${fmt(fbAdspend)}\nOther paid: ${fmt(otherPaidAdspend)}`,
-        poas: `Net Profit: ${fmt(grossProfitNetSales)}\nCost: ${fmt(totalAdspend)}`,
+        poas: `Gross Profit: ${fmt(grossProfitNetSales)}\nAd Spend: ${fmt(totalAdspend)}`,
         cac: `Paid media total: ${fmt(totalAdspend)}\nOrders: ${orders}`,
     };
 

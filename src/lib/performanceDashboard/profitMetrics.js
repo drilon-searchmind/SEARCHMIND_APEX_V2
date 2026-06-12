@@ -9,6 +9,7 @@ import {
     getMonthlyOtherFixedTotal,
 } from "@/lib/customerStaticExpensesUtils";
 import { applyVatDisplayToShopifyDayRow } from "@/lib/revenueVatDisplay";
+import { calcBlendedPoas } from "@/lib/poasMetrics";
 import { getReturnsOverrideSettings } from "./performanceDashboardConstants";
 import {
     computePerformanceDashboardMetrics,
@@ -54,9 +55,10 @@ export function calcShopifyDayProfitMetrics({
     const fixedExpense = calcFixedCostForSingleDay(ymd, staticExpenses);
     const transactionFee = netRevenue * transactionCostPct;
     const cost = Number(marketingSpend) || 0;
+    const grossProfit = netRevenue - cogs;
     const allCosts = cogs + fixedExpense + variableExpense + transactionFee + cost;
     const netProfit = netRevenue - allCosts;
-    const poas = cost > 0 ? netProfit / cost : null;
+    const poas = calcBlendedPoas(grossProfit, cost);
     const roas = cost > 0 ? netRevenue / cost : null;
     const spendshare = netRevenue > 0 ? cost / netRevenue : null;
 
