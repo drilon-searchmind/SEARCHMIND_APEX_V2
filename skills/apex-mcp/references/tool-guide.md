@@ -1,6 +1,6 @@
 # APEX MCP tool guide
 
-Complete reference for the ~65 read-only APEX MCP tools (v0.6.0). All customer-scoped tools need **`customerId`** (MongoDB id from `list_customers`).
+Complete reference for the ~70 read-only APEX MCP tools (v0.7.0). All customer-scoped tools need **`customerId`** (MongoDB id from `list_customers`).
 
 ## Core tools
 
@@ -107,6 +107,36 @@ Requires `customerId`, `startDate`, `endDate` unless noted.
 | Ops / account health | Apex Radar overview + assignments tools |
 | Audit PDF data | `get_dashboard_audit` |
 | Competitor search share | `get_share_of_search` |
+
+## Proxy tools (v0.7.0 — allowlisted read access)
+
+Use **`list_proxy_routes`** first to see allowlists and guardrails. Prefer curated tools above when they cover your question — proxies are for ad-hoc reads not wrapped by a dedicated tool.
+
+| Tool | Purpose |
+|------|---------|
+| `list_proxy_routes` | Catalog of allowlisted APEX routes, Shopify query types, GAQL resources, Meta endpoints |
+| `call_apex_api` | `{ route, customerId, params }` → allowlisted APEX dashboard APIs |
+| `shopify_graphql_read` | `{ queryType, customerId, params }` → ShopifyQL or Admin GraphQL templates |
+| `google_ads_gaql_read` | `{ customerId, query }` → read-only GAQL SELECT |
+| `meta_ads_read` | `{ endpoint, customerId, params }` → Meta insights / campaigns / adsets / ads / accounts |
+
+### Allowlisted APEX routes (`call_apex_api`)
+
+| Route | Required params |
+|-------|-----------------|
+| `/api/merged-sources` | `startDate`, `endDate` |
+| `/api/markets-overview` | `startDate`, `endDate` |
+| `/api/google-ads` | `startDate`, `endDate` |
+| `/api/facebook-ads` | `startDate`, `endDate` |
+| `/api/klaviyo` | `startDate`, `endDate` |
+| `/api/shopify-products` | `startDate`, `endDate` |
+| `/api/shopify-orders` | `startDate`, `endDate` |
+| `/api/shopify-customers` | `startDate`, `endDate` |
+| `/api/shopify-analytics` | `startDate`, `endDate` |
+| `/api/seo-metrics` | `startDate`, `endDate` |
+| `/api/customer-segmentation` | `startDate`, `endDate` |
+| `/api/data-wrapped` | `period` (YYYY-MM) |
+| `/api/apex-radar` | `startDate`, `endDate`, `channel` (`google-ads` or `facebook`) |
 
 ## Parameter notes
 

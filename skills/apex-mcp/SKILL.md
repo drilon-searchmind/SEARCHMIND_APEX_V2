@@ -106,8 +106,22 @@ For the full catalog and use-case matrix, read **`references/tool-guide.md`**.
 
 ### Discovery
 
-- **`list_mcp_resources`** — lists all metrics sources, customer resources, and global resources.
+- **`list_mcp_resources`** — lists all metrics sources, customer resources, global resources, and **proxy catalog**.
 - **`list_data_sources`** — platform metric endpoints only.
+- **`list_proxy_routes`** — allowlisted proxy routes for `call_apex_api`, Shopify, Google GAQL, Meta.
+
+### Proxy tools (advanced)
+
+When curated tools do not cover a question, use the read-only proxies (credentials stay on APEX; responses are sanitized):
+
+| Tool | When to use |
+|------|-------------|
+| `call_apex_api` | Allowlisted APEX dashboard route + params |
+| `shopify_graphql_read` | ShopifyQL reports or paginated Admin GraphQL reads |
+| `google_ads_gaql_read` | Custom GAQL SELECT (allowlisted resources only) |
+| `meta_ads_read` | Meta insights, campaigns, adsets, ads, accounts |
+
+Always pass **`customerId`**. Call **`list_proxy_routes`** for the full allowlist.
 
 ## Response format
 

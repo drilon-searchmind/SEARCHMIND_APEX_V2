@@ -6,6 +6,7 @@ import {
     listMcpCustomerResources,
     listMcpGlobalResources,
 } from "@root/lib/mcpResourceService";
+import { listMcpProxyCatalog } from "@root/lib/mcpProxyService";
 
 /**
  * GET /api/mcp/resources — catalog of all MCP-readable APEX data (no secrets).
@@ -22,6 +23,7 @@ export async function GET(request) {
             metricsSources: listMcpDataSources(),
             customerResources: listMcpCustomerResources(),
             globalResources: listMcpGlobalResources(),
+            proxy: listMcpProxyCatalog(),
             security: {
                 secretsStripped: true,
                 writeOperations: false,
