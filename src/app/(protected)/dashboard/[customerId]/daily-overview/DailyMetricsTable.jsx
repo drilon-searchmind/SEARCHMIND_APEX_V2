@@ -8,7 +8,7 @@ import DailyMetricsTotalsRow from './DailyMetricsTotalsRow';
 import DailyMetricsLastPeriodRow from './DailyMetricsLastPeriodRow';
 import DailyMetricsDifferenceRow from './DailyMetricsDifferenceRow';
 import DailyMetricsIndexRow from './DailyMetricsIndexRow';
-import { computeRowMax } from './utils';
+import { alignLastYearRowsToCurrentPeriod, computeRowMax } from './utils';
 import { METRIC_COLUMNS } from './metricConfig';
 
 export default function DailyMetricsTable({
@@ -35,6 +35,7 @@ export default function DailyMetricsTable({
 	}
 
 	const max = rows?.length ? computeRowMax(rows) : {};
+	const rowsLastYearAligned = alignLastYearRowsToCurrentPeriod(rows, rowsLastYear);
 	const visibleCount =
 		1 + metricColumns.filter((m) => visibleMetrics[m.key]).length;
 
@@ -87,19 +88,19 @@ export default function DailyMetricsTable({
 								metricColumns={metricColumns}
 							/>
 							<DailyMetricsLastPeriodRow
-								rows={rowsLastYear}
+								rows={rowsLastYearAligned}
 								visibleMetrics={visibleMetrics}
 								metricColumns={metricColumns}
 							/>
 							<DailyMetricsIndexRow
 								rows={rows}
-								rowsPrev={rowsPrev}
+								rowsPrev={rowsLastYearAligned}
 								visibleMetrics={visibleMetrics}
 								metricColumns={metricColumns}
 							/>
 							<DailyMetricsDifferenceRow
 								rows={rows}
-								rowsPrev={rowsPrev}
+								rowsPrev={rowsLastYearAligned}
 								visibleMetrics={visibleMetrics}
 								metricColumns={metricColumns}
 							/>

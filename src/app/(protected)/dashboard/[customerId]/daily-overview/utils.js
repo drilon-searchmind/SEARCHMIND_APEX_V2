@@ -1,3 +1,5 @@
+import dayjs from "dayjs";
+
 /**
  * Format value as DKK currency
  */
@@ -179,6 +181,22 @@ export function computeRawTotals(rows) {
 		poas: totalCost > 0 ? totalNetProfit / totalCost : 0,
 		netProfit: totalNetProfit,
 	};
+}
+
+/**
+ * Match last-year daily rows to the current period (same calendar days, one year earlier).
+ * Used for the summary "Last Year Period" row and Difference/Index rows in the main table.
+ */
+export function alignLastYearRowsToCurrentPeriod(currentRows, lastYearRows) {
+	if (!currentRows?.length || !lastYearRows?.length) return [];
+	const targetDates = new Set(
+		currentRows.map((r) =>
+			dayjs(String(r.date).slice(0, 10)).subtract(1, "year").format("YYYY-MM-DD")
+		)
+	);
+	return lastYearRows.filter((r) =>
+		targetDates.has(String(r.date).slice(0, 10))
+	);
 }
 
 /** Metrics where higher is better (green up, red down) */

@@ -12,6 +12,7 @@ import {
 	applyCustomKpiReplacementsToDailyRow,
 	buildShopifyDayFormulaMetrics,
 } from '@/lib/performanceDashboard/dailyOverviewCustomKpis';
+import { formatComparisonPeriodDates, COMPARISON_METHOD } from '@/lib/dateRangeComparison';
 
 async function fetchPeriodData(customerId, startDate, endDate, mergedSourcesQuerySuffix = '') {
 	const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -189,16 +190,12 @@ export function useDailyOverviewData(
 				const dailyRows = buildDailyRows(merged, customer, revenueType, kpis);
 				setRows(dailyRows);
 
-				const start = new Date(appliedDateRange.startDate);
-				const end = new Date(appliedDateRange.endDate);
-				const days =
-					Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
-				const prevEnd = new Date(start.getTime() - 1000 * 60 * 60 * 24);
-				const prevStart = new Date(
-					prevEnd.getTime() - (days - 1) * 1000 * 60 * 60 * 24
-				);
-				const prevStartStr = prevStart.toISOString().slice(0, 10);
-				const prevEndStr = prevEnd.toISOString().slice(0, 10);
+				const { startDate: prevStartStr, endDate: prevEndStr } =
+					formatComparisonPeriodDates({
+						comparisonMethod: COMPARISON_METHOD.LAST_PERIOD,
+						startDate: appliedDateRange.startDate,
+						endDate: appliedDateRange.endDate,
+					});
 
 				const mergedPrev = await fetchPeriodData(
 					customer._id,
