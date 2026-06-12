@@ -22,6 +22,24 @@ export default function AdminPage() {
         { key: "news", label: "News", content: <NewsTab /> },
         { key: "audit-prompts", label: "Audit Prompt Library", content: <AuditPromptLibraryTab /> },
         { key: "mcp-keys", label: "MCP API Keys", content: <McpKeysTab /> },
+        {
+            key: "route-requests",
+            label: "MCP Route Requests",
+            content: (
+                <div className="space-y-4">
+                    <p className="text-sm text-gray-600">
+                        Review Claude MCP proxy access requests when a route is blocked by the
+                        allowlist.
+                    </p>
+                    <a
+                        href="/admin/route-requests"
+                        className="inline-flex items-center rounded-lg bg-gray-900 text-white px-4 py-2 text-sm hover:bg-gray-800"
+                    >
+                        Open route access requests
+                    </a>
+                </div>
+            ),
+        },
     ];
 
     return (

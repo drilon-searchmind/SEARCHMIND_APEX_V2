@@ -116,6 +116,7 @@ Use **`list_proxy_routes`** first to see allowlists and guardrails. Prefer curat
 |------|---------|
 | `list_proxy_routes` | Catalog of allowlisted APEX routes, Shopify query types, GAQL resources, Meta endpoints |
 | `call_apex_api` | `{ route, customerId, params }` → allowlisted APEX dashboard APIs |
+| `request_route_access` | `{ route, customerId, reason }` → log permission request when a proxy route is blocked |
 | `shopify_graphql_read` | `{ queryType, customerId, params }` → ShopifyQL or Admin GraphQL templates |
 | `google_ads_gaql_read` | `{ customerId, query }` → read-only GAQL SELECT |
 | `meta_ads_read` | `{ endpoint, customerId, params }` → Meta insights / campaigns / adsets / ads / accounts |
@@ -137,6 +138,20 @@ Use **`list_proxy_routes`** first to see allowlists and guardrails. Prefer curat
 | `/api/customer-segmentation` | `startDate`, `endDate` |
 | `/api/data-wrapped` | `period` (YYYY-MM) |
 | `/api/apex-radar` | `startDate`, `endDate`, `channel` (`google-ads` or `facebook`) |
+
+### Approvable routes (`call_apex_api` — require admin approval per customer)
+
+These routes have MCP handlers but are **not** on the default allowlist. Use **`request_route_access`** when blocked.
+
+| Route | Required params |
+|-------|-----------------|
+| `/api/pinterest-ads` | `startDate`, `endDate` |
+| `/api/snapchat-ads` | `startDate`, `endDate` |
+| `/api/reddit-ads` | `startDate`, `endDate` |
+| `/api/bing-ads` | `startDate`, `endDate` |
+| `/api/ga4-metrics` | `startDate`, `endDate` |
+
+Admin review: `https://apex.searchmind.tech/admin/route-requests`
 
 ## Parameter notes
 
