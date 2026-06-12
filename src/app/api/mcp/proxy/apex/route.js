@@ -3,7 +3,7 @@ import { executeMcpApexProxy } from "@root/lib/mcpProxyService";
 
 /**
  * POST /api/mcp/proxy/apex
- * Body: { route, customerId, params? }
+ * Body: { route, customerId, params?, accessReason? }
  */
 export async function POST(request) {
     return handleMcpProxyPost(request, async (body, auth) => {
@@ -13,9 +13,13 @@ export async function POST(request) {
             body.params && typeof body.params === "object" && !Array.isArray(body.params)
                 ? body.params
                 : {};
+        const accessReason = String(body.accessReason || "").trim();
 
         if (!route) throw new Error("route is required");
 
-        return executeMcpApexProxy(route, customerId, params, auth);
+        return executeMcpApexProxy(route, customerId, params, {
+            ...auth,
+            accessReason,
+        });
     });
 }

@@ -62,7 +62,7 @@ Default to **inclusive** `YYYY-MM-DD` dates. State the range explicitly in your 
 | "not configured" | Integration off for that customer | Check `integrations` from `list_customers` or `get_customer` |
 | "required" / missing param | Missing dates or `period` | Add `startDate`/`endDate` or `period=YYYY-MM` for Data Wrapped |
 | "not found" | Wrong `customerId` or no data | Re-run `list_customers` |
-| `ROUTE_NOT_ALLOWLISTED` / "Route not allowlisted" | Proxy route blocked | Call **`request_route_access`** with `route`, `customerId`, and `reason`; tell user admin can approve at `/admin/route-requests` |
+| `ROUTE_NOT_ALLOWLISTED` / "Route not allowlisted" | Proxy route blocked | Read `requestLogged` and `adminReviewUrl` from the error — APEX auto-logs the request. Tell the user and link to `/admin/route-requests`. Retry after admin approval. |
 | Tool missing entirely | Old MCP deploy | Ask user to reconnect connector after deploy |
 
 ## Searchmind terminology
@@ -129,11 +129,13 @@ Always pass **`customerId`**. Call **`list_proxy_routes`** for the full allowlis
 
 When **`call_apex_api`** returns **`code: ROUTE_NOT_ALLOWLISTED`**:
 
-1. Call **`request_route_access`** with `{ route, customerId, reason }` (reason = what the user asked for).
-2. Tell the user: access is not enabled yet; an admin can review at `https://apex.searchmind.tech/admin/route-requests`.
-3. Do **not** retry the same route until the user confirms approval (or start a new session after approval).
+1. APEX **automatically logs** a route access request (`requestLogged: true`) — no separate tool required.
+2. Tell the user using **`userMessage`** and share **`adminReviewUrl`**: `https://apex.searchmind.tech/admin/route-requests`
+3. Do **not** retry the same route until the user confirms admin approval.
 
-Some routes are on the **default allowlist** immediately; others (e.g. Pinterest, Snapchat, Reddit, Bing, GA4 proxy routes) require per-customer admin approval after a request.
+Optional: if **`request_route_access`** exists in the connector, you may call it with a clearer `reason` — but it is not required because blocked calls are auto-logged.
+
+Some routes are on the **default allowlist** immediately; others (e.g. Pinterest, Snapchat, Reddit, Bing, GA4 proxy routes) require per-customer admin approval after a blocked call creates a request.
 
 ## Response format
 

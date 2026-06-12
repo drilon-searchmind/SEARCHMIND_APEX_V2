@@ -116,7 +116,7 @@ Use **`list_proxy_routes`** first to see allowlists and guardrails. Prefer curat
 |------|---------|
 | `list_proxy_routes` | Catalog of allowlisted APEX routes, Shopify query types, GAQL resources, Meta endpoints |
 | `call_apex_api` | `{ route, customerId, params }` → allowlisted APEX dashboard APIs |
-| `request_route_access` | `{ route, customerId, reason }` → log permission request when a proxy route is blocked |
+| `request_route_access` | `{ route, customerId, reason }` → optional; blocked `call_apex_api` calls are **auto-logged** by APEX |
 | `shopify_graphql_read` | `{ queryType, customerId, params }` → ShopifyQL or Admin GraphQL templates |
 | `google_ads_gaql_read` | `{ customerId, query }` → read-only GAQL SELECT |
 | `meta_ads_read` | `{ endpoint, customerId, params }` → Meta insights / campaigns / adsets / ads / accounts |
@@ -141,7 +141,7 @@ Use **`list_proxy_routes`** first to see allowlists and guardrails. Prefer curat
 
 ### Approvable routes (`call_apex_api` — require admin approval per customer)
 
-These routes have MCP handlers but are **not** on the default allowlist. Use **`request_route_access`** when blocked.
+These routes have MCP handlers but are **not** on the default allowlist. A blocked `call_apex_api` call **auto-creates** a pending admin request.
 
 | Route | Required params |
 |-------|-----------------|
