@@ -12,7 +12,10 @@
     "microsoft-ads-token": "node scripts/get-microsoft-ads-refresh-token.js",
     "postmark:test-welcome": "node scripts/send-postmark-welcome-test.js",
     "ahrefs:test-key": "node scripts/test/test-ahrefs-api-key.mjs",
-    "sync:customer-teams": "node scripts/sync-customer-teams-from-clickup.mjs"
+    "sync:customer-teams": "node scripts/sync-customer-teams-from-clickup.mjs",
+    "clickup:fetch-customers": "node scripts/clickup/fetchClickupCustomers.js",
+    "clickup:compare-customers": "node scripts/clickup/compareClickupCustomers.js",
+    "clickup:enrich-missing": "node scripts/clickup/enrichMissingCustomers.js"
   },
   "dependencies": {
     "@googleapis/searchconsole": "^6.0.1",

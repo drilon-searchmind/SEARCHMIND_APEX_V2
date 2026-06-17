@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -7,6 +8,14 @@ import Customer from '../../src/models/Customer.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const DEFAULT_CLICKUP_CSV = path.join(__dirname, 'clickup_customers.csv');
+
+function resolveCsvPath() {
+    const arg = process.argv.find((a) => a.startsWith('--csv='));
+    if (arg) return path.resolve(arg.slice('--csv='.length));
+    return DEFAULT_CLICKUP_CSV;
+}
+
 async function compareClickupCustomers() {
     try {
         // Connect to MongoDB
@@ -14,8 +23,13 @@ async function compareClickupCustomers() {
         await connectToDatabase();
         console.log('Connected to MongoDB');
 
-        // Read CSV file
-        const csvPath = path.join(__dirname, 'TEMP_ clickup_customers_ark1.csv');
+        // Read CSV file (generate fresh data with fetchClickupCustomers.js)
+        const csvPath = resolveCsvPath();
+        if (!fs.existsSync(csvPath)) {
+            console.error(`CSV not found: ${csvPath}`);
+            console.error('Run first: node scripts/clickup/fetchClickupCustomers.js');
+            process.exit(1);
+        }
         console.log('Reading CSV file:', csvPath);
         const csvContent = fs.readFileSync(csvPath, 'utf-8');
         

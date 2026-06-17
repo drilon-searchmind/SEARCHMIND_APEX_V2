@@ -14,8 +14,14 @@ import {
 } from "react-icons/fi";
 import AdminCustomerColumnPicker, {
     useAdminCustomerOptionalColumns,
+    useAdminMissingCustomerOptionalColumns,
 } from "../components/AdminCustomerColumnPicker";
 import { buildVisibleTableColumns } from "@root/lib/adminCustomerTableColumns";
+import {
+    buildVisibleMissingCustomerColumns,
+    ADMIN_MISSING_CUSTOMER_OPTIONAL_COLUMNS,
+    ADMIN_MISSING_CUSTOMER_SEARCH_FIELDS,
+} from "@root/lib/adminMissingCustomerTableColumns";
 
 const TABS = [
     { id: "existing", label: "Existing Customers" },
@@ -51,6 +57,60 @@ function CellValue({ value }) {
     );
 }
 
+function MissingCellValue({ column, row }) {
+    const value = row?.[column.id];
+    const text = value == null || value === "" ? "—" : String(value);
+
+    if (column.cellType === "status") {
+        const status = text.toLowerCase();
+        const cls =
+            status === "ok"
+                ? "bg-green-50 text-green-700"
+                : status === "error"
+                  ? "bg-red-50 text-red-700"
+                  : "bg-gray-100 text-gray-600";
+        return (
+            <span className={`inline-flex rounded-lg px-2 py-0.5 text-xs font-medium ${cls}`}>
+                {text}
+            </span>
+        );
+    }
+
+    if (column.cellType === "url" && text !== "—") {
+        return (
+            <a
+                href={text}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-xs text-[var(--color-primary-searchmind)] hover:underline break-all max-w-[220px] inline-block"
+                title={text}
+            >
+                {text}
+            </a>
+        );
+    }
+
+    if (column.cellType === "long") {
+        return (
+            <span
+                className="text-xs text-gray-800 line-clamp-2 max-w-[280px] inline-block"
+                title={text}
+            >
+                {text}
+            </span>
+        );
+    }
+
+    return (
+        <span
+            className="font-mono text-xs text-gray-800 break-all max-w-[220px] inline-block"
+            title={text}
+        >
+            {text}
+        </span>
+    );
+}
+
 export default function CustomersTab() {
     const [activeTab, setActiveTab] = React.useState("existing");
     const [search, setSearch] = React.useState("");
@@ -59,10 +119,20 @@ export default function CustomersTab() {
     const [loading, setLoading] = React.useState(false);
     const { optionalColumnIds, setOptionalColumnIds, hydrated } =
         useAdminCustomerOptionalColumns();
+    const {
+        optionalColumnIds: missingOptionalColumnIds,
+        setOptionalColumnIds: setMissingOptionalColumnIds,
+        hydrated: missingHydrated,
+    } = useAdminMissingCustomerOptionalColumns();
 
     const visibleDataColumns = React.useMemo(
         () => buildVisibleTableColumns(optionalColumnIds),
         [optionalColumnIds]
+    );
+
+    const visibleMissingColumns = React.useMemo(
+        () => buildVisibleMissingCustomerColumns(missingOptionalColumnIds),
+        [missingOptionalColumnIds]
     );
 
     React.useEffect(() => {
@@ -109,11 +179,18 @@ export default function CustomersTab() {
     const filteredExisting = existingItems.filter((c) =>
         (c.customerName || "").toLowerCase().includes(search.toLowerCase())
     );
-    const filteredMissing = missingItems.filter((c) =>
-        (c.clickup_name || "").toLowerCase().includes(search.toLowerCase())
-    );
+    const filteredMissing = missingItems.filter((c) => {
+        const q = search.toLowerCase().trim();
+        if (!q) return true;
+        return ADMIN_MISSING_CUSTOMER_SEARCH_FIELDS.some((field) =>
+            String(c[field] || "")
+                .toLowerCase()
+                .includes(q)
+        );
+    });
 
     const tableColSpan = 4 + visibleDataColumns.length;
+    const missingTableColSpan = visibleMissingColumns.length;
 
     return (
         <div className="flex flex-col gap-4">
@@ -155,7 +232,15 @@ export default function CustomersTab() {
                         selectedIds={optionalColumnIds}
                         onChange={setOptionalColumnIds}
                     />
-                ) : null}
+                ) : (
+                    <AdminCustomerColumnPicker
+                        selectedIds={missingOptionalColumnIds}
+                        onChange={setMissingOptionalColumnIds}
+                        columns={ADMIN_MISSING_CUSTOMER_OPTIONAL_COLUMNS}
+                        description="Default columns always shown. Add enrichment fields from Context.dev."
+                        resetLabel="Clear extra columns"
+                    />
+                )}
             </div>
 
             {activeTab === "existing" && (
@@ -247,25 +332,39 @@ export default function CustomersTab() {
                 </div>
             )}
 
-            {activeTab === "missing" && (
+            {activeTab === "missing" && missingHydrated && (
                 <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
                     <table className="min-w-full text-sm">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-4 py-2 text-left">ClickUp ID</th>
-                                <th className="px-4 py-2 text-left">ClickUp Name</th>
+                                {visibleMissingColumns.map((col) => (
+                                    <th
+                                        key={col.id}
+                                        className={`px-4 py-2 text-left whitespace-nowrap ${
+                                            col.cellType === "long" ? "min-w-[200px]" : "min-w-[120px]"
+                                        }`}
+                                    >
+                                        {col.label}
+                                    </th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td className="px-4 py-4 text-gray-400" colSpan={2}>
+                                    <td
+                                        className="px-4 py-4 text-gray-400"
+                                        colSpan={missingTableColSpan}
+                                    >
                                         Loading...
                                     </td>
                                 </tr>
                             ) : filteredMissing.length === 0 ? (
                                 <tr>
-                                    <td className="px-4 py-4 text-gray-400" colSpan={2}>
+                                    <td
+                                        className="px-4 py-4 text-gray-400"
+                                        colSpan={missingTableColSpan}
+                                    >
                                         No missing customers
                                     </td>
                                 </tr>
@@ -273,12 +372,13 @@ export default function CustomersTab() {
                                 filteredMissing.map((c, idx) => (
                                     <tr
                                         key={c.clickup_id || idx}
-                                        className="border-b last:border-b-0"
+                                        className="border-b last:border-b-0 align-top"
                                     >
-                                        <td className="px-4 py-2 font-mono text-xs">
-                                            {c.clickup_id}
-                                        </td>
-                                        <td className="px-4 py-2">{c.clickup_name}</td>
+                                        {visibleMissingColumns.map((col) => (
+                                            <td key={col.id} className="px-4 py-2">
+                                                <MissingCellValue column={col} row={c} />
+                                            </td>
+                                        ))}
                                     </tr>
                                 ))
                             )}

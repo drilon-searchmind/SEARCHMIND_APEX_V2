@@ -1,25 +1,44 @@
 clickup_id,clickup_name,mongo_id,mongo_name,is_archived
-"869apru6w","woodbird.dk","69678d7ca72471ae8549e9a4","Woodbird DK",false
-"869ah4b51","gabba.com","69678eada72471ae8549e9ee","Gabba EU",false
-"869ab5pcb","musclehouse.dk","6967906fa72471ae8549eab2","Musclehouse SE",false
-"8699m8d8y","nu-denmark.dk","6964b1a8c37565558e578389","NU Denmark UK",false
-"8699h3afe","dimsstudio.dk","6967915ca72471ae8549eb34","Dimsstudio DK",false
-"8699e2had","linolie.dk","6967921fa72471ae8549eb86","Linolie DK",false
-"86989wm0k","oversizedliftingclub.com","696792eea72471ae8549ebd4","Oversized Lifting Club EU",false
-"8696ju36x","slagterlampe.dk","6971e1f28666e41cc011ec9f","Slagterlampe DK",false
-"8696aq192","heinstudio.com","696793baa72471ae8549ec36","Heinstudio EU",false
-"8694w8cxn","humdakin.dk","695bbfc9ccda769da6f77b83","Humdakin DE",false
-"8694f42gc","buy2sell.dk","696795aba72471ae8549ed02","Buy2Sell DK",false
-"85ztbfgte","carcarefreaks.eu","69679b6ba72471ae8549edd4","CarCare Freaks SE",false
-"85zt9f00d","sinnerup.dk","69679d60a72471ae8549eeb6","Sinnerup DE",false
-"3fddhjq","aarhusbadogfliser.dk","69679e1ba72471ae8549ef24","Aarhus Bad og Fliser DK",false
 "3mekgyt","a-view.dk","69679f43a72471ae8549ef96","A View DK",false
-"4cm4paw","carlab.dk","6967a152a72471ae8549f180","Carlab DE",false
+"869az05n3","alis.dk","69baa85e63277f116b086f16","Alis DK",false
+"4cm4nrx","Angulus.dk","6a180cf4398532223ac4539c","Angulus Markets",false
+"4cm4p0x","apair.dk","69c12a83ccfb3e9b58c5d462","Apair REST",false
+"8694dpu21","aura.dk","6a2beefcbe106fcd31646dcb","Aura DK",false
+"8692vcw5q","Basicandmore.dk","69c1029ecb8981a838f048d8","Basic And More DK",false
+"8693ue6d7","billibi.com","69c0fddc65df8e0d929b0865","Billibi DK",false
 "4cm4nzq","boatlab.dk","6963a8486ee02f2f21e50e44","Boatlab SE",false
-"4cm4nwt","pooloasen.dk","697a07b3c5db19408ec14f69","PoolOasen DK",false
-"4cm4kve","green-comfort.com","6967a439a72471ae8549f37c","Green Comfort SE",false
-"4cm4meb","Langsamt.com","6979f6150e6e5971d2412458","Langsamt DK",false
-"4cm4n4q","rains.com","695bafb0fb3292910a1a9eb5","Rains INT",false
+"8692mnf2z","bysofiesoenderby.dk","69c103c09739b05fae64adca","By Sofie Sonderby DK",false
+"85ztbfgte","carcarefreaks.eu","69679b6ba72471ae8549edd4","CarCare Freaks SE",false
+"4cm4paw","carlab.dk","6967a152a72471ae8549f180","Carlab DE",false
+"8693947d4","cilo.dk","69ba9071ab212ceec2714970","Cilo DK",false
+"2y318yw","clubcollection.com","69c108859739b05fae64af78","Club Collection EU",false
+"869cn3hxw","dkfliser.dk","6a229dd9cf8d186b396022b5","DKFliser DK",false
+"4cm4na7","Dyberglarsen.dk","69c1154e6f1d0735b1cb5bd8","Dyberg Larsen DE",false
 "4cm4n57","filibabba.com","6979fef4d94b6081b0d7c533","Filibabba DK",false
-"4cm4nrx","Angulus.dk","695b8a6c277f67454f4ddf2b","Angulus DE",false
+"869ah4b51","gabba.com","69b7f4497b0a037c7ce73595","Gabba Rest",false
+"4cm4kve","green-comfort.com","6967a439a72471ae8549f37c","Green Comfort SE",false
+"4cm4mfb","grundled.dk","69c110841d4fe544cf8260d8","Grundled SE",false
+"8696aq192","heinstudio.com","696793baa72471ae8549ec36","Heinstudio EU",false
+"860qghgfm","Idealkaffe.dk","69ba925d2df4d9c1e65f010b","Idealkaffe DK",false
+"4cm4pd1","Jt-sport.dk","69f313dee22cdc842e3e5a40","JT Sports DK",false
+"4cm4p1d","jyskegolfbolde.dk","69c12b11018361b54e1fbf1c","Jyske Golf Bolde DK",false
+"8694pyq7k","jyskmobelfabrik.dk","69c0fc3116ae4ad4560f0dac","Jysk MobelFabrik DK",false
+"869b927hv","kaereboern.dk","69ba84c6abca9fa20969fd9b","Kære Børn DK",false
+"4cm4mda","kbhmaterieludlejning.dk","69c10d40cb8981a838f04ce3","KBH Materieludlejning",false
+"8692x4cgu","krenkerupbryggeri.dk","69c100882eeb4245300cef02","Krenkerup Bryggeri DK",false
+"8693z0geq","kvali.dk","69c0fd0a481e8d89b83d5e50","Kvali DK",false
+"869abar0g","maileg.com","69bab188c9c81f3c492db576","Maileg Rest",false
+"869agquta","matterscph.com","69baaaac63277f116b086f8d","MattersCPH DK",false
+"869ab5pcb","musclehouse.dk","6967906fa72471ae8549eab2","Musclehouse SE",false
+"4cm4nph","organicbasics.com","69c11b6afc65e4ff99a07b28","Organic Basics EU",false
+"86989wm0k","oversizedliftingclub.com","6a0aff09b79863ecfdc2966d","Oversized Lifting Club",false
 "4cm4p4b","pompdelux.dk","6956c1dd3245b503d711953e","Pompdelux DE",false
+"4cm4nwt","pooloasen.dk","697a07b3c5db19408ec14f69","PoolOasen DK",false
+"4cm4n4q","rains.com","695bafb0fb3292910a1a9eb5","Rains INT",false
+"8694w30jj","searchmind.dk","6a2bf1b5be106fcd31654e3f","Searchmind B2B [TEST - WIP]",false
+"8696ju36x","slagterlampe.dk","6971e1f28666e41cc011ec9f","Slagterlampe DK",false
+"8698dc0de","terrassevarmer.dk","69c0f29dd182b9c6d43588bb","Terrasse Varmer DK",false
+"32qv1wn","tufra.dk","69c1057dcb8981a838f04a8d","Tufra DK",false
+"869buge7m","tuttelu.dk","69ba772bbfb186663951cc98","Tuttelu DK",false
+"869apru6w","woodbird.dk","69678d7ca72471ae8549e9a4","Woodbird DK",false
+"3fddhjq","aarhusbadogfliser.dk","69679e1ba72471ae8549ef24","Aarhus Bad og Fliser DK",false

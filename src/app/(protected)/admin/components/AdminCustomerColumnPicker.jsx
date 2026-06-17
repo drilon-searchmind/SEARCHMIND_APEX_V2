@@ -6,15 +6,19 @@ import {
     ADMIN_CUSTOMER_ALL_TOGGLEABLE_COLUMNS,
     ADMIN_CUSTOMERS_COLUMNS_STORAGE_KEY,
 } from "@root/lib/adminCustomerTableColumns";
+import {
+    ADMIN_MISSING_CUSTOMER_OPTIONAL_COLUMNS,
+    ADMIN_MISSING_CUSTOMERS_COLUMNS_STORAGE_KEY,
+} from "@root/lib/adminMissingCustomerTableColumns";
 
-function loadStoredColumnIds() {
+function loadStoredColumnIds(storageKey, validIds) {
     if (typeof window === "undefined") return [];
     try {
-        const raw = localStorage.getItem(ADMIN_CUSTOMERS_COLUMNS_STORAGE_KEY);
+        const raw = localStorage.getItem(storageKey);
         if (!raw) return [];
         const parsed = JSON.parse(raw);
         if (!Array.isArray(parsed)) return [];
-        const valid = new Set(ADMIN_CUSTOMER_ALL_TOGGLEABLE_COLUMNS.map((c) => c.id));
+        const valid = new Set(validIds);
         return parsed.filter((id) => valid.has(id));
     } catch {
         return [];
@@ -26,7 +30,12 @@ export function useAdminCustomerOptionalColumns() {
     const [hydrated, setHydrated] = useState(false);
 
     useEffect(() => {
-        setOptionalColumnIds(loadStoredColumnIds());
+        setOptionalColumnIds(
+            loadStoredColumnIds(
+                ADMIN_CUSTOMERS_COLUMNS_STORAGE_KEY,
+                ADMIN_CUSTOMER_ALL_TOGGLEABLE_COLUMNS.map((c) => c.id)
+            )
+        );
         setHydrated(true);
     }, []);
 
@@ -42,7 +51,39 @@ export function useAdminCustomerOptionalColumns() {
     return { optionalColumnIds, setOptionalColumnIds: persist, hydrated };
 }
 
-export default function AdminCustomerColumnPicker({ selectedIds, onChange }) {
+export function useAdminMissingCustomerOptionalColumns() {
+    const [optionalColumnIds, setOptionalColumnIds] = useState([]);
+    const [hydrated, setHydrated] = useState(false);
+
+    useEffect(() => {
+        setOptionalColumnIds(
+            loadStoredColumnIds(
+                ADMIN_MISSING_CUSTOMERS_COLUMNS_STORAGE_KEY,
+                ADMIN_MISSING_CUSTOMER_OPTIONAL_COLUMNS.map((c) => c.id)
+            )
+        );
+        setHydrated(true);
+    }, []);
+
+    const persist = (ids) => {
+        setOptionalColumnIds(ids);
+        try {
+            localStorage.setItem(ADMIN_MISSING_CUSTOMERS_COLUMNS_STORAGE_KEY, JSON.stringify(ids));
+        } catch {
+            /* ignore quota */
+        }
+    };
+
+    return { optionalColumnIds, setOptionalColumnIds: persist, hydrated };
+}
+
+export default function AdminCustomerColumnPicker({
+    selectedIds,
+    onChange,
+    columns = ADMIN_CUSTOMER_ALL_TOGGLEABLE_COLUMNS,
+    resetLabel = "Reset to default",
+    description = "Default view unchanged. Add IDs and extra integration checks.",
+}) {
     const [open, setOpen] = useState(false);
     const [draft, setDraft] = useState(selectedIds);
     const panelRef = useRef(null);
@@ -62,15 +103,15 @@ export default function AdminCustomerColumnPicker({ selectedIds, onChange }) {
 
     const grouped = React.useMemo(() => {
         const draftSet = new Set(draft);
-        /** @type {Record<string, typeof ADMIN_CUSTOMER_ALL_TOGGLEABLE_COLUMNS>} */
+        /** @type {Record<string, typeof columns>} */
         const map = {};
-        for (const col of ADMIN_CUSTOMER_ALL_TOGGLEABLE_COLUMNS) {
+        for (const col of columns) {
             const g = col.group || "Other";
             if (!map[g]) map[g] = [];
             map[g].push({ ...col, _selected: draftSet.has(col.id) });
         }
         return map;
-    }, [draft]);
+    }, [draft, columns]);
 
     const toggle = (id) => {
         setDraft((prev) =>
@@ -110,9 +151,7 @@ export default function AdminCustomerColumnPicker({ selectedIds, onChange }) {
                     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                         <div>
                             <p className="text-sm font-semibold text-gray-900">Table columns</p>
-                            <p className="text-xs text-gray-500 mt-0.5">
-                                Default view unchanged. Add IDs and extra integration checks.
-                            </p>
+                            <p className="text-xs text-gray-500 mt-0.5">{description}</p>
                         </div>
                         <button
                             type="button"
@@ -154,7 +193,7 @@ export default function AdminCustomerColumnPicker({ selectedIds, onChange }) {
                             className="text-xs text-gray-600 hover:text-gray-900 underline"
                             onClick={reset}
                         >
-                            Reset to default
+                            {resetLabel}
                         </button>
                         <button
                             type="button"
