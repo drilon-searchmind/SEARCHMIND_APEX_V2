@@ -1,0 +1,267 @@
+/* Hallmark · theme: Cobalt · page: ps-dashboard */
+
+@import "../../performance-dashboard/performance-dashboard.css";
+
+.apex-ps-panel {
+  margin-top: var(--space-md);
+}
+
+.apex-ps-section {
+  margin-bottom: var(--space-md);
+}
+
+.apex-ps-section__label {
+  margin: 0 0 var(--space-sm);
+  font-family: var(--font-label);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.apex-ps-kpi-grid {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.apex-ps-kpi-grid--4 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 768px) {
+  .apex-ps-kpi-grid--4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.apex-ps-kpi-grid--6 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 768px) {
+  .apex-ps-kpi-grid--6 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .apex-ps-kpi-grid--6 {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+.apex-ps-kpi-grid--5 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 768px) {
+  .apex-ps-kpi-grid--5 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .apex-ps-kpi-grid--5 {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+.apex-ps-kpi-grid--3 {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .apex-ps-kpi-grid--3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.apex-ps-kpi-grid--2 {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .apex-ps-kpi-grid--2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.apex-ps-kpi-card {
+  cursor: pointer;
+}
+
+.apex-ps-chart-block {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+@media (min-width: 768px) {
+  .apex-ps-chart-block {
+    padding: var(--space-lg) var(--space-xl);
+  }
+}
+
+.apex-ps-chart-note {
+  margin: var(--space-sm) 0 0;
+  font-size: 0.65rem;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+.apex-ps-table-panel {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (min-width: 768px) {
+  .apex-ps-table-panel {
+    padding: var(--space-lg) var(--space-xl);
+  }
+}
+
+.apex-ps-table-panel__head {
+  margin-bottom: var(--space-md);
+}
+
+.apex-ps-table-panel__title {
+  margin: 0 0 var(--space-2xs);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-md);
+  color: var(--color-ink);
+}
+
+.apex-ps-table-panel__subtitle {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+.apex-ps-table-wrap {
+  overflow-x: auto;
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+}
+
+.apex-ps-table {
+  width: 100%;
+  min-width: 40rem;
+  border-collapse: collapse;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--color-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.apex-ps-table th {
+  padding: var(--space-xs) var(--space-sm);
+  font-family: var(--font-label);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--color-accent-ink);
+  background: var(--perf-accent);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  white-space: nowrap;
+}
+
+.apex-ps-table th.is-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.apex-ps-table th.is-sortable:hover {
+  background: var(--color-accent-hover);
+}
+
+.apex-ps-table th.is-num,
+.apex-ps-table td.is-num {
+  text-align: right;
+}
+
+.apex-ps-table td {
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  vertical-align: middle;
+}
+
+.apex-ps-table tbody tr:hover {
+  background: var(--perf-canvas);
+}
+
+.apex-ps-table td.is-left {
+  text-align: left;
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-ink);
+}
+
+.apex-ps-table td.is-roas-up {
+  color: oklch(32% 0.1 145);
+  font-weight: 600;
+}
+
+.apex-ps-table td.is-roas-down {
+  color: var(--color-error, oklch(50% 0.15 25));
+  font-weight: 600;
+}
+
+.apex-ps-empty {
+  padding: var(--space-xl) var(--space-md);
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+.apex-ps-error {
+  padding: var(--space-lg);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-error, oklch(50% 0.15 25));
+}
+
+.apex-ps-alert {
+  margin-bottom: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: oklch(45% 0.12 75);
+  background: oklch(97% 0.03 95);
+  border: var(--rule-hair) solid oklch(88% 0.08 95);
+  border-radius: var(--radius-card);
+}
+
+.apex-ps-tables-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-md);
+}
+
+@media (min-width: 1280px) {
+  .apex-ps-tables-grid {
+    grid-template-columns: repeat(2, 1fr);
+    align-items: start;
+  }
+
+  .apex-ps-tables-grid .apex-ps-table-panel {
+    margin-bottom: 0;
+  }
+}
+
+.apex-ps-inline-loading {
+  padding: var(--space-xl) 0;
+}

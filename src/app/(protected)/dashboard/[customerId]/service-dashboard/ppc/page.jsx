@@ -6,7 +6,7 @@ import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import MetricCard from "@/components/dashboard/MetricCard";
 import GraphCard from "@/components/dashboard/GraphCard";
-import Spinner from "@/components/ui/Spinner";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { useCustomers } from "@/hooks/useCustomers";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
@@ -30,6 +30,7 @@ import {
     TERM_TABLE_COLUMNS,
     CAMPAIGN_TABLE_COLUMNS,
 } from "./components/ppcDashboardConfig";
+import "./ppc-dashboard.css";
 
 function formatKpiValue(key, value, opt = {}) {
     if (value === null || value === undefined || Number.isNaN(value)) return "—";
@@ -227,6 +228,7 @@ export default function GoogleAdsPPCPage() {
         return (
             <div
                 key={opt.key}
+                className={chartToggle ? "apex-ppc-kpi-card" : undefined}
                 onClick={
                     chartToggle
                         ? () =>
@@ -238,12 +240,12 @@ export default function GoogleAdsPPCPage() {
                               })
                         : undefined
                 }
-                style={chartToggle ? { cursor: "pointer" } : undefined}
             >
                 <MetricCard
+                    variant="cobalt"
                     label={opt.label}
                     value={formatKpiValue(opt.key, currentValue, opt)}
-                    icon={Icon ? <Icon size={22} color={isActive ? "#fff" : undefined} /> : null}
+                    icon={Icon ? <Icon className="w-4 h-4 shrink-0" /> : null}
                     isActive={isActive}
                     change={change !== null ? Math.abs(change).toFixed(1) : undefined}
                     changeType={changeType(change)}
@@ -321,7 +323,7 @@ export default function GoogleAdsPPCPage() {
     const chartOptions = useMemo(
         () => ({
             chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "Outfit, sans-serif" },
-            xaxis: { categories: chartCategories },
+            xaxis: { categories: chartCategories, labels: { rotate: -45 } },
             yaxis: {
                 min: 0,
                 max: 100,
@@ -357,7 +359,12 @@ export default function GoogleAdsPPCPage() {
                         const raw = s?.meta?.raw?.[opts?.dataPointIndex];
                         const key = s?.meta?.key;
                         if (raw == null) return "—";
-                        if (key === "conv_rate" || key === "impression_share" || key === "is_lost_budget" || key === "is_lost_rank") {
+                        if (
+                            key === "conv_rate" ||
+                            key === "impression_share" ||
+                            key === "is_lost_budget" ||
+                            key === "is_lost_rank"
+                        ) {
                             return `${Number(raw).toFixed(2)}%`;
                         }
                         return formatKpiValue(key, raw);
@@ -380,7 +387,7 @@ export default function GoogleAdsPPCPage() {
                     fontFamily: "Outfit, sans-serif",
                 },
                 plotOptions: { area: { stacking: "normal" } },
-                xaxis: { categories: dates },
+                xaxis: { categories: dates, labels: { rotate: -45 } },
                 yaxis: {
                     labels: {
                         formatter: (v) =>
@@ -410,8 +417,10 @@ export default function GoogleAdsPPCPage() {
     const row2 = CHART_TOGGLE_METRICS.filter((m) => m.row === 2);
 
     return (
-        <div className="w-full">
+        <div id="PpcDashboardPage" className="cobalt-perf w-full" data-theme="cobalt">
             <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
                 title="Paid Search Dashboard"
                 label={customer ? customer.customerName : ""}
                 customerId={params.customerId}
@@ -420,62 +429,91 @@ export default function GoogleAdsPPCPage() {
                 loading={loading}
                 dashboardType="ppc-dashboard"
                 dataSnapshot={{ metricsByDate, campaignsPerformance, searchTerms, selectedMetrics }}
-                right={<DateRangePicker {...dateRangePickerProps} loading={loading} />}
+                right={
+                    <DateRangePicker {...dateRangePickerProps} variant="cobalt" loading={loading} />
+                }
             />
 
             {loading ? (
-                <div className="text-center py-12">
-                    <Spinner size={40} color="#406969" />
+                <div className="apex-perf-loading">
+                    <CobaltLoader
+                        variant="block"
+                        title="Loading PPC metrics"
+                        request="GET /api/google-ppc-dashboard"
+                    />
                 </div>
             ) : error ? (
-                <div className="text-center text-red-500 py-8">{error}</div>
+                <div className="apex-ppc-error">{error}</div>
             ) : (
-                <>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full mb-4">
-                        {row1.map((opt) => buildMetricCard(opt, true))}
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 w-full mb-4">
-                        {row2.map((opt) => buildMetricCard(opt, true))}
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-2 gap-4 w-full mb-8">
-                        {DISPLAY_ONLY_METRICS.map((opt) => buildMetricCard(opt, false))}
-                    </div>
+                <div className="apex-ppc-panel">
+                    <section className="apex-ppc-section">
+                        <h3 className="apex-ppc-section__label">Spend & results</h3>
+                        <div className="apex-ppc-kpi-grid apex-ppc-kpi-grid--4">
+                            {row1.map((opt) => buildMetricCard(opt, true))}
+                        </div>
+                    </section>
 
-                    <div className="mb-8">
+                    <section className="apex-ppc-section">
+                        <h3 className="apex-ppc-section__label">Efficiency</h3>
+                        <div className="apex-ppc-kpi-grid apex-ppc-kpi-grid--5">
+                            {row2.map((opt) => buildMetricCard(opt, true))}
+                        </div>
+                    </section>
+
+                    <section className="apex-ppc-section">
+                        <h3 className="apex-ppc-section__label">Customer mix</h3>
+                        <div className="apex-ppc-kpi-grid apex-ppc-kpi-grid--2">
+                            {DISPLAY_ONLY_METRICS.map((opt) => buildMetricCard(opt, false))}
+                        </div>
+                    </section>
+
+                    <div className="apex-ppc-chart-block">
                         <GraphCard
+                            variant="cobalt"
                             title="Spend over time"
                             chartOptions={chartOptions}
                             chartSeries={chartSeries}
                             hideChartToggle
                         />
-                        <p className="text-[11px] text-gray-500 mt-2">
+                        <p className="apex-ppc-chart-note">
                             Values are normalized to 0–100% of each metric&apos;s maximum for comparable curves.
                             Hover for actual numbers. Click KPI cards above to show or hide metrics.
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full mb-8">
-                        {IMPRESSION_SHARE_METRICS.map((opt) => buildMetricCard(opt, false))}
-                    </div>
+                    <section className="apex-ppc-section">
+                        <h3 className="apex-ppc-section__label">Auction insight</h3>
+                        <div className="apex-ppc-kpi-grid apex-ppc-kpi-grid--3">
+                            {IMPRESSION_SHARE_METRICS.map((opt) => buildMetricCard(opt, false))}
+                        </div>
+                    </section>
+
+                    <section className="apex-ppc-section">
+                        <h3 className="apex-ppc-section__label">Search terms</h3>
+                        <div className="apex-ppc-tables-grid">
+                            <PsSortableMetricsTable
+                                variant="cobalt"
+                                title="Term winners"
+                                subtitle="Search terms with strong ROAS — candidates for exact match, dedicated ad groups, or higher bids."
+                                columns={TERM_TABLE_COLUMNS}
+                                rows={winners.map((r, i) => ({ ...r, id: `${r.search_term}-${i}` }))}
+                                rowKeyField="id"
+                                highlightPositiveNegative
+                            />
+                            <PsSortableMetricsTable
+                                variant="cobalt"
+                                title="Term losers"
+                                subtitle="Search terms with weak ROAS — candidates for negatives, bid reductions, or query exclusions."
+                                columns={TERM_TABLE_COLUMNS}
+                                rows={losers.map((r, i) => ({ ...r, id: `l-${r.search_term}-${i}` }))}
+                                rowKeyField="id"
+                                highlightPositiveNegative
+                            />
+                        </div>
+                    </section>
 
                     <PsSortableMetricsTable
-                        title="Term winners"
-                        subtitle="Search terms with strong ROAS — candidates for exact match, dedicated ad groups, or higher bids."
-                        columns={TERM_TABLE_COLUMNS}
-                        rows={winners.map((r, i) => ({ ...r, id: `${r.search_term}-${i}` }))}
-                        rowKeyField="id"
-                        highlightPositiveNegative
-                    />
-                    <PsSortableMetricsTable
-                        title="Term losers"
-                        subtitle="Search terms with weak ROAS — candidates for negatives, bid reductions, or query exclusions."
-                        columns={TERM_TABLE_COLUMNS}
-                        rows={losers.map((r, i) => ({ ...r, id: `l-${r.search_term}-${i}` }))}
-                        rowKeyField="id"
-                        highlightPositiveNegative
-                    />
-
-                    <PsSortableMetricsTable
+                        variant="cobalt"
                         title="Kampagne performance"
                         columns={CAMPAIGN_TABLE_COLUMNS}
                         rows={campaignsPerformance.map((r, i) => ({
@@ -486,8 +524,9 @@ export default function GoogleAdsPPCPage() {
                         highlightPositiveNegative
                     />
 
-                    <div className="mb-8">
+                    <div className="apex-ppc-chart-block">
                         <GraphCard
+                            variant="cobalt"
                             title="Brand vs Generic spend"
                             chartOptions={brandGenericChart.options}
                             chartSeries={brandGenericChart.series}
@@ -495,7 +534,7 @@ export default function GoogleAdsPPCPage() {
                             hideChartToggle
                         />
                     </div>
-                </>
+                </div>
             )}
         </div>
     );

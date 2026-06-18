@@ -1,0 +1,183 @@
+/* Hallmark · theme: Cobalt · page: reddit-dashboard */
+
+@import "../../performance-dashboard/performance-dashboard.css";
+
+.apex-rd-panel {
+  margin-top: var(--space-md);
+}
+
+.apex-rd-section {
+  margin-bottom: var(--space-md);
+}
+
+.apex-rd-section__label {
+  margin: 0 0 var(--space-sm);
+  font-family: var(--font-label);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.apex-rd-kpi-grid {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.apex-rd-kpi-grid--4 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 768px) {
+  .apex-rd-kpi-grid--4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.apex-rd-kpi-grid--3 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 768px) {
+  .apex-rd-kpi-grid--3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.apex-rd-kpi-card {
+  cursor: pointer;
+}
+
+.apex-rd-chart-block {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+@media (min-width: 768px) {
+  .apex-rd-chart-block {
+    padding: var(--space-lg) var(--space-xl);
+  }
+}
+
+.apex-rd-chart-note {
+  margin: var(--space-sm) 0 0;
+  font-size: 0.65rem;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+.apex-rd-table-panel {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (min-width: 768px) {
+  .apex-rd-table-panel {
+    padding: var(--space-lg) var(--space-xl);
+  }
+}
+
+.apex-rd-table-panel__head {
+  margin-bottom: var(--space-md);
+}
+
+.apex-rd-table-panel__title {
+  margin: 0 0 var(--space-2xs);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-md);
+  color: var(--color-ink);
+}
+
+.apex-rd-table-panel__subtitle {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+.apex-rd-table-wrap {
+  overflow-x: auto;
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+}
+
+.apex-rd-table {
+  width: 100%;
+  min-width: 36rem;
+  border-collapse: collapse;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--color-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.apex-rd-table th {
+  padding: var(--space-xs) var(--space-sm);
+  font-family: var(--font-label);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--color-accent-ink);
+  background: var(--perf-accent);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  white-space: nowrap;
+}
+
+.apex-rd-table th.is-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.apex-rd-table th.is-sortable:hover {
+  background: var(--color-accent-hover);
+}
+
+.apex-rd-table th.is-num,
+.apex-rd-table td.is-num {
+  text-align: right;
+}
+
+.apex-rd-table td {
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  vertical-align: middle;
+}
+
+.apex-rd-table tbody tr:hover {
+  background: var(--perf-canvas);
+}
+
+.apex-rd-table td.is-left {
+  text-align: left;
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-ink);
+}
+
+.apex-rd-empty {
+  padding: var(--space-xl) var(--space-md);
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+.apex-rd-error {
+  padding: var(--space-lg);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-error, oklch(50% 0.15 25));
+}

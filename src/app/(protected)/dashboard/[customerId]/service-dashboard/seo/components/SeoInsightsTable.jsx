@@ -21,10 +21,10 @@ function YoYPill({ pct, invert = false }) {
     if (pct == null || Number.isNaN(pct)) return null;
     const improved = invert ? pct < 0 : pct > 0;
     const worse = invert ? pct > 0 : pct < 0;
-    const cls = improved ? "text-emerald-600" : worse ? "text-red-600" : "text-gray-500";
+    const cls = improved ? "is-up" : worse ? "is-down" : "is-neutral";
     const sign = pct > 0 ? "+" : "";
     return (
-        <span className={`ml-1.5 text-[0.65rem] tabular-nums ${cls}`}>
+        <span className={`apex-seo-yoy ml-1.5 text-[0.65rem] tabular-nums ${cls}`}>
             {sign}
             {fmtNum(pct, 1)}%
         </span>
@@ -34,10 +34,10 @@ function YoYPill({ pct, invert = false }) {
 function PositionYoY({ delta }) {
     if (delta == null || Number.isNaN(delta) || delta === 0) return null;
     const improved = delta > 0;
-    const cls = improved ? "text-emerald-600" : "text-red-600";
+    const cls = improved ? "is-up" : "is-down";
     const sign = delta > 0 ? "+" : "";
     return (
-        <span className={`ml-1.5 text-[0.65rem] font-medium tabular-nums ${cls}`}>
+        <span className={`apex-seo-yoy ml-1.5 text-[0.65rem] font-medium tabular-nums ${cls}`}>
             {sign}
             {fmtNum(delta, 0)}
         </span>
@@ -50,18 +50,14 @@ function PositionSpreadBar({ min, max }) {
     const left = ((lo - 1) / 19) * 100;
     const width = Math.max(4, ((hi - lo) / 19) * 100);
     const spread = hi - lo;
-    const color = spread > 10 ? "bg-red-400" : spread > 6 ? "bg-amber-400" : "bg-emerald-500";
+    const colorClass = spread > 10 ? "is-high" : spread > 6 ? "is-mid" : "is-low";
 
     return (
         <div className="flex items-center gap-2 min-w-[140px]">
-            <div className="relative flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className="apex-seo-spread-track">
                 <div
-                    className={`absolute top-0 h-full rounded-full ${color}`}
+                    className={`apex-seo-spread-bar ${colorClass}`}
                     style={{ left: `${left}%`, width: `${width}%` }}
-                />
-                <div
-                    className="absolute top-0 w-0.5 h-full bg-gray-900"
-                    style={{ left: `${left + width / 2}%` }}
                 />
             </div>
         </div>
@@ -74,7 +70,7 @@ function renderCell(col, row) {
         return (
             <div className="flex flex-col items-end gap-1">
                 <PositionSpreadBar min={row.position_min} max={row.position_max} />
-                <span className="text-[0.65rem] text-gray-500 tabular-nums">{row.position_spread_label}</span>
+                <span className="text-[0.65rem] text-[var(--color-muted)] tabular-nums">{row.position_spread_label}</span>
             </div>
         );
     }
@@ -83,7 +79,7 @@ function renderCell(col, row) {
             <div className="text-right">
                 <span className="font-semibold tabular-nums">{fmtMoney(row.value_potential)}</span>
                 {typeof row.value_uplift === "number" && row.value_uplift > 0 ? (
-                    <span className="block text-emerald-600 text-[0.65rem] tabular-nums">
+                    <span className="block apex-seo-uplift text-[0.65rem] tabular-nums">
                         +{fmtMoney(row.value_uplift)}
                     </span>
                 ) : null}
@@ -103,7 +99,7 @@ function renderCell(col, row) {
     if (col.format === "number") return fmtNum(val, col.numDigits ?? 0);
     if (col.format === "uplift") {
         return typeof val === "number" ? (
-            <span className="text-emerald-600 font-medium">+{fmtNum(val)}</span>
+            <span className="apex-seo-uplift">+{fmtNum(val)}</span>
         ) : (
             "—"
         );
@@ -123,9 +119,7 @@ function renderPrimaryWithYoY(col, row) {
             {renderCell(col, row)}
             {col.yoyKey?.includes("_pp") ? (
                 yoyPct != null ? (
-                    <span
-                        className={`ml-1.5 text-[0.65rem] ${yoyPct >= 0 ? "text-emerald-600" : "text-red-600"}`}
-                    >
+                    <span className={`apex-seo-yoy ml-1.5 text-[0.65rem] ${yoyPct >= 0 ? "is-up" : "is-down"}`}>
                         {yoyPct >= 0 ? "+" : ""}
                         {fmtNum(yoyPct, 1)}%
                     </span>
@@ -137,16 +131,6 @@ function renderPrimaryWithYoY(col, row) {
     );
 }
 
-/**
- * @param {object} props
- * @param {string} props.title
- * @param {string} [props.subtitle]
- * @param {Array} props.columns
- * @param {Array} props.rows
- * @param {number} [props.pageSize]
- * @param {boolean} [props.expandable]
- * @param {string} [props.expandField]
- */
 export default function SeoInsightsTable({
     title,
     subtitle,
@@ -190,25 +174,21 @@ export default function SeoInsightsTable({
     }, [rows, pageSize]);
 
     return (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8 min-w-0 max-w-full">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-                {subtitle ? <p className="text-xs text-gray-500 sm:max-w-md sm:text-right">{subtitle}</p> : null}
+        <section className="apex-seo-table-panel">
+            <div className="apex-seo-table-panel__head">
+                <h3 className="apex-seo-table-panel__title">{title}</h3>
+                {subtitle ? <p className="apex-seo-table-panel__subtitle">{subtitle}</p> : null}
             </div>
 
-            <div className="overflow-x-auto">
-                <table className="min-w-full text-xs text-left border-collapse">
+            <div className="apex-seo-table-wrap">
+                <table className="apex-seo-table">
                     <thead>
-                        <tr className="bg-gray-50 text-gray-600">
-                            {expandable ? <th className="w-8 px-2 py-2" /> : null}
+                        <tr>
+                            {expandable ? <th className="w-8" /> : null}
                             {columns.map((col) => (
                                 <th
                                     key={col.key}
-                                    className={`px-3 py-2 font-semibold whitespace-nowrap ${
-                                        col.align === "left"
-                                            ? "text-left"
-                                            : "text-right cursor-pointer hover:text-gray-900"
-                                    }`}
+                                    className={`${col.align !== "left" ? "is-num is-sortable" : ""}`}
                                     onClick={() => col.align !== "left" && toggleSort(col.key)}
                                 >
                                     {col.label}
@@ -219,10 +199,7 @@ export default function SeoInsightsTable({
                     <tbody>
                         {pageRows.length === 0 ? (
                             <tr>
-                                <td
-                                    colSpan={columns.length + (expandable ? 1 : 0)}
-                                    className="text-center py-8 text-gray-400"
-                                >
+                                <td colSpan={columns.length + (expandable ? 1 : 0)} className="apex-seo-empty">
                                     No data for the selected period.
                                 </td>
                             </tr>
@@ -232,9 +209,9 @@ export default function SeoInsightsTable({
                                 const children = row[expandField];
                                 return (
                                     <React.Fragment key={row.id || idx}>
-                                        <tr className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                                        <tr>
                                             {expandable ? (
-                                                <td className="px-2 py-2">
+                                                <td>
                                                     {Array.isArray(children) && children.length > 0 ? (
                                                         <button
                                                             type="button"
@@ -244,14 +221,10 @@ export default function SeoInsightsTable({
                                                                     [row.id]: !e[row.id],
                                                                 }))
                                                             }
-                                                            className="p-1 text-gray-500 hover:text-gray-800"
+                                                            className="apex-seo-icon-btn"
                                                             aria-expanded={isOpen}
                                                         >
-                                                            {isOpen ? (
-                                                                <FiChevronUp />
-                                                            ) : (
-                                                                <FiChevronDown />
-                                                            )}
+                                                            {isOpen ? <FiChevronUp /> : <FiChevronDown />}
                                                         </button>
                                                     ) : null}
                                                 </td>
@@ -259,11 +232,7 @@ export default function SeoInsightsTable({
                                             {columns.map((col) => (
                                                 <td
                                                     key={col.key}
-                                                    className={`px-3 py-2 whitespace-nowrap ${
-                                                        col.align === "left"
-                                                            ? "text-left text-gray-900 max-w-[280px] truncate"
-                                                            : "text-right text-gray-900"
-                                                    }`}
+                                                    className={col.align === "left" ? "is-left" : "is-num"}
                                                     title={col.align === "left" ? String(row[col.key] ?? "") : undefined}
                                                 >
                                                     {col.yoyKey || col.type === "positionWithYoY"
@@ -274,15 +243,11 @@ export default function SeoInsightsTable({
                                         </tr>
                                         {expandable && isOpen && Array.isArray(children)
                                             ? children.map((u) => (
-                                                  <tr key={`${row.id}-${u.url}`} className="bg-gray-50/80">
-                                                      <td
-                                                          colSpan={columns.length + 1}
-                                                          className="px-3 py-1.5 text-gray-600"
-                                                      >
-                                                          <span className="pl-6">{u.url}</span>
-                                                          <span className="float-right text-gray-500 tabular-nums">
-                                                              pos {fmtNum(u.position, 1)} · {fmtNum(u.clicks)}{" "}
-                                                              clicks
+                                                  <tr key={`${row.id}-${u.url}`} className="apex-seo-table__expand-row">
+                                                      <td colSpan={columns.length + 1}>
+                                                          <span className="pl-4">{u.url}</span>
+                                                          <span className="float-right tabular-nums">
+                                                              pos {fmtNum(u.position, 1)} · {fmtNum(u.clicks)} clicks
                                                           </span>
                                                       </td>
                                                   </tr>
@@ -297,7 +262,7 @@ export default function SeoInsightsTable({
             </div>
 
             {sorted.length > 0 && (
-                <div className="flex items-center justify-between mt-4 text-xs text-gray-500">
+                <div className="apex-seo-table__pager">
                     <span>
                         Page {safePage} of {totalPages} · {sorted.length}{" "}
                         {sorted.length === 1 ? "row" : "rows"}
@@ -307,7 +272,7 @@ export default function SeoInsightsTable({
                             type="button"
                             disabled={safePage <= 1}
                             onClick={() => setPage((p) => Math.max(1, p - 1))}
-                            className="p-2 rounded-full border border-gray-200 disabled:opacity-40 hover:bg-gray-50"
+                            className="apex-perf-btn"
                             aria-label="Previous page"
                         >
                             <FiChevronLeft />
@@ -316,7 +281,7 @@ export default function SeoInsightsTable({
                             type="button"
                             disabled={safePage >= totalPages}
                             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                            className="p-2 rounded-full border border-gray-200 disabled:opacity-40 hover:bg-gray-50"
+                            className="apex-perf-btn"
                             aria-label="Next page"
                         >
                             <FiChevronRight />
@@ -324,6 +289,6 @@ export default function SeoInsightsTable({
                     </div>
                 </div>
             )}
-        </div>
+        </section>
     );
 }
