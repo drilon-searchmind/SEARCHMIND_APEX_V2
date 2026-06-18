@@ -18,6 +18,8 @@ import {
 	getObjectivesScopeLabel,
 	normalizeMarketPropertyObjectives,
 	resolvePropertyObjectives,
+	resolvePropertyObjectivesMode,
+	PROPERTY_OBJECTIVES_MODE_PER_MARKET,
 } from '@/lib/propertyObjectivesUtils';
 
 export default function PaceReportPage() {
@@ -27,6 +29,7 @@ export default function PaceReportPage() {
 
 	const [updatedObjectives, setUpdatedObjectives] = useState(null);
 	const [updatedMarketObjectives, setUpdatedMarketObjectives] = useState(null);
+	const [updatedPropertyObjectivesMode, setUpdatedPropertyObjectivesMode] = useState(null);
 
 	const today = new Date();
 	const yyyy = today.getFullYear();
@@ -91,15 +94,21 @@ export default function PaceReportPage() {
 
 	const customerForObjectives = useMemo(() => {
 		if (!customer) return null;
+		const propertyObjectivesMode =
+			updatedPropertyObjectivesMode ?? resolvePropertyObjectivesMode(customer);
 		return {
 			...customer,
+			CustomerSettings: {
+				...(customer.CustomerSettings || {}),
+				propertyObjectivesMode,
+			},
 			CustomerPropertyObjectives:
 				updatedObjectives ?? customer.CustomerPropertyObjectives ?? {},
 			CustomerMarketPropertyObjectives:
 				updatedMarketObjectives ??
 				normalizeMarketPropertyObjectives(customer.CustomerMarketPropertyObjectives),
 		};
-	}, [customer, updatedObjectives, updatedMarketObjectives]);
+	}, [customer, updatedObjectives, updatedMarketObjectives, updatedPropertyObjectivesMode]);
 
 	const objectives = useMemo(
 		() =>
@@ -120,11 +129,17 @@ export default function PaceReportPage() {
 	const objectivesScopeLabel = useMemo(
 		() =>
 			getObjectivesScopeLabel({
+				customer: customerForObjectives,
 				shopifyMarketsFeatureOn,
 				shopifyMarkets,
 				appliedExcludedMarkets: appliedExcludedShopifyMarkets,
 			}),
-		[shopifyMarketsFeatureOn, shopifyMarkets, appliedExcludedShopifyMarkets]
+		[
+			customerForObjectives,
+			shopifyMarketsFeatureOn,
+			shopifyMarkets,
+			appliedExcludedShopifyMarkets,
+		]
 	);
 
 	const paceChannelSpecs = useMemo(() => {
@@ -155,6 +170,7 @@ export default function PaceReportPage() {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const [localObjectives, setLocalObjectives] = useState({});
 	const [localMarketObjectives, setLocalMarketObjectives] = useState({});
+	const [localPropertyObjectivesMode, setLocalPropertyObjectivesMode] = useState('global');
 	const [savingObjectives, setSavingObjectives] = useState(false);
 	const [showCalcs, setShowCalcs] = useState(false);
 
@@ -166,8 +182,11 @@ export default function PaceReportPage() {
 					updatedMarketObjectives ?? customer.CustomerMarketPropertyObjectives
 				)
 			);
+			setLocalPropertyObjectivesMode(
+				updatedPropertyObjectivesMode ?? resolvePropertyObjectivesMode(customer)
+			);
 		}
-	}, [sidebarOpen, customer, updatedMarketObjectives]);
+	}, [sidebarOpen, customer, updatedMarketObjectives, updatedPropertyObjectivesMode]);
 
 	const handleObjectivesChange = (updated) => {
 		setLocalObjectives(updated);
@@ -177,13 +196,29 @@ export default function PaceReportPage() {
 		setLocalMarketObjectives(updated);
 	};
 
+	const handlePropertyObjectivesModeChange = (mode) => {
+		setLocalPropertyObjectivesMode(mode);
+	};
+
 	const handleSaveObjectives = async () => {
 		if (!customer) return;
 		setSavingObjectives(true);
 		try {
-			const payload = shopifyMarketsFeatureOn
-				? { CustomerMarketPropertyObjectives: localMarketObjectives }
-				: { CustomerPropertyObjectives: localObjectives };
+			const payload = {
+				CustomerSettings: {
+					...(customer.CustomerSettings || {}),
+					propertyObjectivesMode: localPropertyObjectivesMode,
+				},
+			};
+
+			if (
+				shopifyMarketsFeatureOn &&
+				localPropertyObjectivesMode === PROPERTY_OBJECTIVES_MODE_PER_MARKET
+			) {
+				payload.CustomerMarketPropertyObjectives = localMarketObjectives;
+			} else {
+				payload.CustomerPropertyObjectives = localObjectives;
+			}
 
 			const res = await fetch(`/api/customers/${customer._id}`, {
 				method: 'PUT',
@@ -192,7 +227,11 @@ export default function PaceReportPage() {
 			});
 			if (!res.ok) throw new Error('Failed to update objectives');
 
-			if (shopifyMarketsFeatureOn) {
+			setUpdatedPropertyObjectivesMode(localPropertyObjectivesMode);
+			if (
+				shopifyMarketsFeatureOn &&
+				localPropertyObjectivesMode === PROPERTY_OBJECTIVES_MODE_PER_MARKET
+			) {
 				setUpdatedMarketObjectives(localMarketObjectives);
 			} else {
 				setUpdatedObjectives(localObjectives);
@@ -226,9 +265,10 @@ export default function PaceReportPage() {
 				open={sidebarOpen}
 				onClose={() => setSidebarOpen(false)}
 				shopifyMarketsFeatureOn={shopifyMarketsFeatureOn}
+				customerType={customer?.customerType}
 				customerId={params.customerId}
-				shopifyMarkets={shopifyMarkets}
-				shopifyMarketsLoading={shopifyMarketsLoading}
+				localPropertyObjectivesMode={localPropertyObjectivesMode}
+				onPropertyObjectivesModeChange={handlePropertyObjectivesModeChange}
 				localObjectives={localObjectives}
 				localMarketObjectives={localMarketObjectives}
 				onObjectivesChange={handleObjectivesChange}

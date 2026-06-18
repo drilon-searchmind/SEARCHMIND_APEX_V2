@@ -19,6 +19,7 @@ export function getDefaultCustomerCreateFormState() {
             changeCurrencyShopifyBillingCountryName: "",
             changeCurrencyShopifyBillingCountryExclude: "",
             shopifyMarketsEnabled: false,
+            propertyObjectivesMode: "global",
             shopifyOnlineStoreOnly: false,
             customerRevenueType: "total_sales",
             revenueDisplayVat: "excl",

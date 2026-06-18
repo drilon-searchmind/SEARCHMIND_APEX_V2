@@ -27,11 +27,11 @@ function resolveAdCampaignOverride(overrides, customerId) {
     }
     return null;
 }
-import {
-    channelSpendTotalsFromMerged,
-    totalAdSpendFromMerged,
-} from "@/lib/mergeAdSpendDaily";
 import { formatComparisonPeriodDates } from "@/lib/dateRangeComparison";
+import {
+    computeChildFullMetricsForParent,
+    sumChildShopifyRevenue,
+} from "@/lib/parentPropertyMetrics";
 
 function plainCustomer(c) {
     if (!c) return c;
@@ -45,110 +45,6 @@ function buildSettings(customer) {
         customerType: customer.customerType || "Shopify",
         ...(customer.CustomerSettings || {}),
         CustomerStaticExpenses: customer.CustomerStaticExpenses || {},
-    };
-}
-
-/** Prorate fixed expenses by actual days in each month (handles multi-month spans). */
-function calcFixedForRange(rangeStart, rangeEnd, fixedExpensesMonthly) {
-    const monthly = Number(fixedExpensesMonthly) || 0;
-    let total = 0;
-    const d = new Date(rangeStart);
-    const end = new Date(rangeEnd);
-    while (d <= end) {
-        const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-        total += monthly / daysInMonth;
-        d.setDate(d.getDate() + 1);
-    }
-    return total;
-}
-
-/** Compute full performance-dashboard metrics for a single child from merged data. */
-function computeChildFullMetrics(customer, merged, mergedPrev, startStr, endStr, prevStartStr, prevEndStr) {
-    const shopify = merged?.shopifyDaily || [];
-    const shopifyPrev = mergedPrev?.shopifyDaily || [];
-    const channelSpend = channelSpendTotalsFromMerged(merged);
-    const channelSpendPrev = channelSpendTotalsFromMerged(mergedPrev);
-    const metaSpend = Number(channelSpend.meta_spend) || 0;
-    const googleSpend = Number(channelSpend.google_spend) || 0;
-    const snapchatSpend = Number(channelSpend.snapchat_spend) || 0;
-    const redditSpend = Number(channelSpend.reddit_spend) || 0;
-    const pinterestSpend = Number(channelSpend.pinterest_spend) || 0;
-    const bingSpend = Number(channelSpend.bing_spend) || 0;
-    const cost = totalAdSpendFromMerged(merged);
-    const metaSpendPrev = Number(channelSpendPrev.meta_spend) || 0;
-    const googleSpendPrev = Number(channelSpendPrev.google_spend) || 0;
-    const snapchatSpendPrev = Number(channelSpendPrev.snapchat_spend) || 0;
-    const redditSpendPrev = Number(channelSpendPrev.reddit_spend) || 0;
-    const pinterestSpendPrev = Number(channelSpendPrev.pinterest_spend) || 0;
-    const bingSpendPrev = Number(channelSpendPrev.bing_spend) || 0;
-    const costPrev = totalAdSpendFromMerged(mergedPrev);
-
-    const totalSales = shopify.reduce((s, d) => s + (d.total_sales || 0), 0);
-    const grossSales = shopify.reduce((s, d) => s + (d.gross_sales || 0), 0);
-    const discounts = shopify.reduce((s, d) => s + (d.discounts || 0), 0);
-    const returns = shopify.reduce((s, d) => s + (d.returns || 0), 0);
-    const netRevenue = shopify.reduce((s, d) => s + (d.net_sales || 0), 0);
-    const orders = shopify.reduce((s, d) => s + (d.orders || 0), 0);
-    const shippingCharges = shopify.reduce((s, d) => s + (d.shipping_charges || 0), 0);
-    const taxes = shopify.reduce((s, d) => s + (d.taxes || 0), 0);
-
-    const totalSalesPrev = shopifyPrev.reduce((s, d) => s + (d.total_sales || 0), 0);
-    const grossSalesPrev = shopifyPrev.reduce((s, d) => s + (d.gross_sales || 0), 0);
-    const discountsPrev = shopifyPrev.reduce((s, d) => s + (d.discounts || 0), 0);
-    const returnsPrev = shopifyPrev.reduce((s, d) => s + (d.returns || 0), 0);
-    const netRevenuePrev = shopifyPrev.reduce((s, d) => s + (d.net_sales || 0), 0);
-    const ordersPrev = shopifyPrev.reduce((s, d) => s + (d.orders || 0), 0);
-    const shippingChargesPrev = shopifyPrev.reduce((s, d) => s + (d.shipping_charges || 0), 0);
-    const taxesPrev = shopifyPrev.reduce((s, d) => s + (d.taxes || 0), 0);
-
-    const staticExp = customer?.CustomerStaticExpenses || {};
-    const cogsPercentage = staticExp.cogsPercentage ?? 0;
-    const fetchCogs = customer?.CustomerSettings?.fetchCogsFromStore === true;
-    const totalCogs = fetchCogs
-        ? shopify.reduce((s, d) => s + (d.cost_of_goods_sold || 0), 0)
-        : netRevenue * cogsPercentage;
-    const prevTotalCogs = fetchCogs
-        ? shopifyPrev.reduce((s, d) => s + (d.cost_of_goods_sold || 0), 0)
-        : netRevenuePrev * cogsPercentage;
-
-    const fixedExpensesMonthly = Number(staticExp.fixedExpenses) || 0;
-    const fixedCosts = calcFixedForRange(startStr, endStr, fixedExpensesMonthly);
-    const fixedCostsPrev = calcFixedForRange(prevStartStr, prevEndStr, fixedExpensesMonthly);
-
-    const shippingCostPerOrder = staticExp.shippingCostPerOrder ?? 0;
-    const pickNPackCostPerOrder = staticExp.pickNPackCostPerOrder ?? 0;
-    const transactionCostPct = staticExp.transactionCostPercentage ?? 0.015;
-    const shippingCost = shippingCostPerOrder * orders;
-    const shippingCostPrev = shippingCostPerOrder * ordersPrev;
-    const pickPackCost = pickNPackCostPerOrder * orders;
-    const pickPackCostPrev = pickNPackCostPerOrder * ordersPrev;
-    const transactionFee = netRevenue * transactionCostPct;
-    const transactionFeePrev = netRevenuePrev * transactionCostPct;
-    const variableCosts = shippingCost + pickPackCost;
-    const variableCostsPrev = shippingCostPrev + pickPackCostPrev;
-
-    const allCosts = totalCogs + fixedCosts + variableCosts + transactionFee + cost;
-    const allCostsPrev = prevTotalCogs + fixedCostsPrev + variableCostsPrev + transactionFeePrev + costPrev;
-    const ebit = netRevenue - allCosts;
-    const ebitPrev = netRevenuePrev - allCostsPrev;
-    const grossProfit = netRevenue - totalCogs;
-    const grossProfitPrev = netRevenuePrev - prevTotalCogs;
-
-    const cac = orders > 0 ? cost / orders : null;
-    const cacPrev = ordersPrev > 0 ? costPrev / ordersPrev : null;
-
-    return {
-        totalSales, grossSales, discounts, returns, netRevenue, orders, shippingCharges, taxes,
-        metaSpend, googleSpend, snapchatSpend, redditSpend, pinterestSpend, bingSpend,
-        channelSpend, channelSpendPrev,
-        cost, totalCogs, prevTotalCogs, fixedCosts, fixedCostsPrev,
-        variableCosts, variableCostsPrev, shippingCost, shippingCostPrev, pickPackCost, pickPackCostPrev,
-        transactionFee, transactionFeePrev, allCosts, allCostsPrev, ebit, ebitPrev,
-        grossProfit, grossProfitPrev, cac, cacPrev,
-        totalSalesPrev, grossSalesPrev, discountsPrev, returnsPrev, netRevenuePrev, ordersPrev,
-        shippingChargesPrev, taxesPrev,
-        metaSpendPrev, googleSpendPrev, snapchatSpendPrev, redditSpendPrev, pinterestSpendPrev, bingSpendPrev,
-        costPrev,
     };
 }
 
@@ -348,7 +244,8 @@ export async function GET(request, { params }) {
                   : await fetchMergedSources(settings, prevStartStr, prevEndStr, mergeOptsBase);
 
             const shopify = mergedCurrent.shopifyDaily || [];
-            const revenue = shopify.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
+            const customerSettings = cust?.CustomerSettings || {};
+            const revenue = sumChildShopifyRevenue(shopify, revenueType, customerSettings);
             const orders = shopify.reduce((sum, d) => sum + (d.orders || 0), 0);
             const spendCurr = parentRowAdspendFromMerged(mergedCurrent);
             const spendPrev = parentRowAdspendFromMerged(mergedPrev);
@@ -358,13 +255,13 @@ export async function GET(request, { params }) {
             const spendshare = revenue > 0 ? adspend / revenue : null;
 
             const shopifyPrev = mergedPrev.shopifyDaily || [];
-            const revenuePrev = shopifyPrev.reduce((sum, d) => sum + (d[revenueType] || 0), 0);
+            const revenuePrev = sumChildShopifyRevenue(shopifyPrev, revenueType, customerSettings);
             const ordersPrev = shopifyPrev.reduce((sum, d) => sum + (d.orders || 0), 0);
             const adspendPrev = spendPrev.adspend;
             const roasPrev = adspendPrev > 0 ? revenuePrev / adspendPrev : null;
             const spendsharePrev = revenuePrev > 0 ? adspendPrev / revenuePrev : null;
 
-            const fullMetrics = computeChildFullMetrics(
+            const fullMetrics = computeChildFullMetricsForParent(
                 cust,
                 mergedCurrent,
                 mergedPrev,

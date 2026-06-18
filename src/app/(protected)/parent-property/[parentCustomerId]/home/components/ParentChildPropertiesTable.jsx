@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import Link from "next/link";
 import FormButton from "@/components/form/FormButton";
 import Spinner from "@/components/ui/Spinner";
@@ -8,26 +8,38 @@ import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
 import { adSpendChannelsForShopifyMarketsFilterUi } from "@/lib/mergeAdSpendDaily";
 import { isValidIntegrationId } from "@/lib/customerServiceIntegrations";
 import { normalizeMongoId } from "@/lib/parentPropertyGoogleAdsCampaignOverrides";
+import { buildOrderedVisibleColumns } from "@root/lib/parentChildPropertiesTableColumns";
 import ParentChildShopifyMarketsActions from "./ParentChildShopifyMarketsActions";
 import ParentChildAdSpendPlatformsActions from "./ParentChildAdSpendPlatformsActions";
 import ParentChildGoogleAdsCampaignsActions from "./ParentChildGoogleAdsCampaignsActions";
 import ParentChildMetaAdsCampaignsActions from "./ParentChildMetaAdsCampaignsActions";
 import ParentGoogleAdsCampaignFilterBar from "./ParentGoogleAdsCampaignFilterBar";
 import ParentMetaAdsCampaignFilterBar from "./ParentMetaAdsCampaignFilterBar";
+import ParentChildPropertiesColumnPicker, {
+    useParentChildPropertiesTableColumns,
+} from "./ParentChildPropertiesColumnPicker";
 
 function formatDkk(n) {
     return (n ?? 0).toLocaleString("da-DK", { style: "currency", currency: "DKK" });
+}
+
+function formatPercentRatio(n) {
+    if (n == null || Number.isNaN(n)) return "-";
+    return `${(n * 100).toFixed(2)}%`;
 }
 
 /**
  * Child property breakdown table with Markets / Spend filters per Shopify Markets row.
  */
 export default function ParentChildPropertiesTable({
+    parentCustomerId,
     loading,
     error,
     rows = [],
     childCustomers = [],
     visibleAdSpendChannels = [],
+    visibleColumnIds: visibleColumnIdsProp,
+    onVisibleColumnIdsChange,
     shopifyRevenueField = "net_sales",
     predominantMetricPreference = "ROAS/POAS",
     groupMarketExcludedDraft = {},
@@ -56,11 +68,14 @@ export default function ParentChildPropertiesTable({
     onApplyMetaCampaignsForChild,
     onMetaCampaignsMenuOpen,
 }) {
-    const channelColLabel = (ch) => {
-        if (ch.id === "facebook") return "Meta Adspend";
-        if (ch.id === "google") return "Google Adspend";
-        return `${ch.label} Adspend`;
-    };
+    const hook = useParentChildPropertiesTableColumns(parentCustomerId, visibleAdSpendChannels);
+    const visibleColumnIds = visibleColumnIdsProp ?? hook.visibleColumnIds;
+    const setVisibleColumnIds = onVisibleColumnIdsChange ?? hook.setVisibleColumnIds;
+
+    const orderedColumns = useMemo(
+        () => buildOrderedVisibleColumns(visibleColumnIds, hook.allColumns),
+        [visibleColumnIds, hook.allColumns]
+    );
 
     const getRowChannelSpend = (row, channelId) =>
         row.channelAdspend?.[channelId] ??
@@ -69,9 +84,7 @@ export default function ParentChildPropertiesTable({
         (channelId === "google" ? row.googleAdspend : undefined) ??
         0;
 
-    const channelColCount =
-        visibleAdSpendChannels.length > 0 ? visibleAdSpendChannels.length : 2;
-    const colSpan = 7 + channelColCount;
+    const colSpan = 1 + orderedColumns.length + 1;
 
     const childIdKey = (row) => normalizeMongoId(row._id);
 
@@ -87,50 +100,110 @@ export default function ParentChildPropertiesTable({
         return isValidIntegrationId(childDoc?.CustomerSettings?.facebookAdAccountId);
     };
 
-    const renderChannelCell = (row, ch) => {
-        const spend = formatDkk(getRowChannelSpend(row, ch.id));
+    const blendedHeaderLabel =
+        predominantMetricPreference === "Spendshare" ? "Spendshare" : "Blended ROAS";
+
+    const columnHeaderLabel = (col) => {
+        if (col.id === "blended") return blendedHeaderLabel;
+        return col.label;
+    };
+
+    const renderChannelCell = (row, channelId) => {
+        const spend = formatDkk(getRowChannelSpend(row, channelId));
         const cid = childIdKey(row);
-        const isGoogle = ch.id === "google";
-        const isFacebook = ch.id === "facebook";
+        const isGoogle = channelId === "google";
+        const isFacebook = channelId === "facebook";
         return (
-            <td key={ch.id} className="px-3 py-2 whitespace-nowrap">
-                <span className="inline-flex items-center gap-1">
-                    {spend}
-                    {isGoogle && showGoogleCampaignCog(row) && (
-                        <ParentChildGoogleAdsCampaignsActions
-                            customerId={cid}
-                            propertyLabel={row.customerName}
-                            startDate={appliedDateRange?.startDate}
-                            endDate={appliedDateRange?.endDate}
-                            excludedCampaigns={groupGoogleCampaignExcludedDraft[cid] || {}}
-                            excludedKeywords={groupGoogleCampaignKeywordsDraft[cid] || []}
-                            onApplyCampaigns={onApplyGoogleCampaignsForChild}
-                            onMenuWillOpen={() => onGoogleCampaignsMenuOpen?.(row._id)}
-                            fetchDisabled={fetchDisabled}
-                        />
-                    )}
-                    {isFacebook && showMetaCampaignCog(row) && (
-                        <ParentChildMetaAdsCampaignsActions
-                            customerId={cid}
-                            propertyLabel={row.customerName}
-                            startDate={appliedDateRange?.startDate}
-                            endDate={appliedDateRange?.endDate}
-                            excludedCampaigns={groupMetaCampaignExcludedDraft[cid] || {}}
-                            excludedKeywords={groupMetaCampaignKeywordsDraft[cid] || []}
-                            onApplyCampaigns={onApplyMetaCampaignsForChild}
-                            onMenuWillOpen={() => onMetaCampaignsMenuOpen?.(row._id)}
-                            fetchDisabled={fetchDisabled}
-                        />
-                    )}
-                </span>
-            </td>
+            <span className="inline-flex items-center gap-1">
+                {spend}
+                {isGoogle && showGoogleCampaignCog(row) && (
+                    <ParentChildGoogleAdsCampaignsActions
+                        customerId={cid}
+                        propertyLabel={row.customerName}
+                        startDate={appliedDateRange?.startDate}
+                        endDate={appliedDateRange?.endDate}
+                        excludedCampaigns={groupGoogleCampaignExcludedDraft[cid] || {}}
+                        excludedKeywords={groupGoogleCampaignKeywordsDraft[cid] || []}
+                        onApplyCampaigns={onApplyGoogleCampaignsForChild}
+                        onMenuWillOpen={() => onGoogleCampaignsMenuOpen?.(row._id)}
+                        fetchDisabled={fetchDisabled}
+                    />
+                )}
+                {isFacebook && showMetaCampaignCog(row) && (
+                    <ParentChildMetaAdsCampaignsActions
+                        customerId={cid}
+                        propertyLabel={row.customerName}
+                        startDate={appliedDateRange?.startDate}
+                        endDate={appliedDateRange?.endDate}
+                        excludedCampaigns={groupMetaCampaignExcludedDraft[cid] || {}}
+                        excludedKeywords={groupMetaCampaignKeywordsDraft[cid] || []}
+                        onApplyCampaigns={onApplyMetaCampaignsForChild}
+                        onMenuWillOpen={() => onMetaCampaignsMenuOpen?.(row._id)}
+                        fetchDisabled={fetchDisabled}
+                    />
+                )}
+            </span>
         );
+    };
+
+    const renderMetricCell = (row, columnId) => {
+        switch (columnId) {
+            case "revenue":
+                return (
+                    <>
+                        {formatDkk(row.revenue)}
+                        {shopifyRevenueField === "net_sales" && (
+                            <span className="ml-1 text-xs text-gray-400">(net sales)</span>
+                        )}
+                        {shopifyRevenueField === "gross_sales" && (
+                            <span className="ml-1 text-xs text-gray-400">(gross sales)</span>
+                        )}
+                    </>
+                );
+            case "orders":
+                return row.orders.toLocaleString();
+            case "total_adspend":
+                return formatDkk(row.adspend);
+            case "blended":
+                return predominantMetricPreference === "Spendshare"
+                    ? formatPercentRatio(row.spendshare)
+                    : row.roas != null
+                      ? row.roas.toFixed(2)
+                      : "-";
+            case "aov":
+                return row.aov ? formatDkk(row.aov) : "-";
+            case "net_profit":
+                return row.netProfit != null ? formatDkk(row.netProfit) : "-";
+            case "poas":
+                return row.poas != null ? row.poas.toFixed(2) : "-";
+            case "cac":
+                return row.cac != null ? formatDkk(row.cac) : "-";
+            case "gross_sales":
+                return row.grossSales != null ? formatDkk(row.grossSales) : "-";
+            case "returns":
+                return row.returns != null ? formatDkk(row.returns) : "-";
+            case "discounts":
+                return row.discounts != null ? formatDkk(row.discounts) : "-";
+            default:
+                if (columnId.startsWith("channel_")) {
+                    const channelId = columnId.slice("channel_".length);
+                    return renderChannelCell(row, channelId);
+                }
+                return "-";
+        }
     };
 
     return (
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
             <div className="flex flex-col gap-2 mb-4">
-                <h3 className="text-lg font-semibold">Child Properties</h3>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <h3 className="text-lg font-semibold">Child Properties</h3>
+                    <ParentChildPropertiesColumnPicker
+                        visibleAdSpendChannels={visibleAdSpendChannels}
+                        selectedIds={visibleColumnIds}
+                        onChange={setVisibleColumnIds}
+                    />
+                </div>
                 <div className="flex flex-col gap-2">
                     <ParentGoogleAdsCampaignFilterBar
                         enabled={googleCampaignFilterEnabled}
@@ -159,34 +232,14 @@ export default function ParentChildPropertiesTable({
                         <thead>
                             <tr className="bg-gray-50">
                                 <th className="px-3 py-1.5 font-semibold text-gray-700">Property Name</th>
-                                <th className="px-3 py-1.5 font-semibold text-gray-700">Revenue</th>
-                                <th className="px-3 py-1.5 font-semibold text-gray-700">Orders</th>
-                                <th className="px-3 py-1.5 font-semibold text-gray-700">Total Adspend</th>
-                                {visibleAdSpendChannels.length > 0
-                                    ? visibleAdSpendChannels.map((ch) => (
-                                          <th
-                                              key={ch.id}
-                                              className="px-3 py-1.5 font-semibold text-gray-700"
-                                          >
-                                              {channelColLabel(ch)}
-                                          </th>
-                                      ))
-                                    : (
-                                        <>
-                                            <th className="px-3 py-1.5 font-semibold text-gray-700">
-                                                Facebook Adspend
-                                            </th>
-                                            <th className="px-3 py-1.5 font-semibold text-gray-700">
-                                                Google Adspend
-                                            </th>
-                                        </>
-                                    )}
-                                <th className="px-3 py-1.5 font-semibold text-gray-700">
-                                    {predominantMetricPreference === "Spendshare"
-                                        ? "Spendshare"
-                                        : "ROAS"}
-                                </th>
-                                <th className="px-3 py-1.5 font-semibold text-gray-700">AOV</th>
+                                {orderedColumns.map((col) => (
+                                    <th
+                                        key={col.id}
+                                        className="px-3 py-1.5 font-semibold text-gray-700 whitespace-nowrap"
+                                    >
+                                        {columnHeaderLabel(col)}
+                                    </th>
+                                ))}
                                 <th className="px-3 py-1.5 font-semibold text-gray-700">Actions</th>
                             </tr>
                         </thead>
@@ -204,109 +257,14 @@ export default function ParentChildPropertiesTable({
                                         className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
                                     >
                                         <td className="px-3 py-2 whitespace-nowrap">{row.customerName}</td>
-                                        <td className="px-3 py-2 whitespace-nowrap">
-                                            {formatDkk(row.revenue)}
-                                            {shopifyRevenueField === "net_sales" && (
-                                                <span className="ml-1 text-xs text-gray-400">(net sales)</span>
-                                            )}
-                                            {shopifyRevenueField === "gross_sales" && (
-                                                <span className="ml-1 text-xs text-gray-400">(gross sales)</span>
-                                            )}
-                                        </td>
-                                        <td className="px-3 py-2 whitespace-nowrap">
-                                            {row.orders.toLocaleString()}
-                                        </td>
-                                        <td className="px-3 py-2 whitespace-nowrap">
-                                            {formatDkk(row.adspend)}
-                                        </td>
-                                        {visibleAdSpendChannels.length > 0
-                                            ? visibleAdSpendChannels.map((ch) =>
-                                                  renderChannelCell(row, ch)
-                                              )
-                                            : (
-                                                <>
-                                                    <td className="px-3 py-2 whitespace-nowrap">
-                                                        <span className="inline-flex items-center gap-1">
-                                                            {formatDkk(row.facebookAdspend)}
-                                                            {showMetaCampaignCog(row) && (
-                                                                <ParentChildMetaAdsCampaignsActions
-                                                                    customerId={childIdKey(row)}
-                                                                    propertyLabel={row.customerName}
-                                                                    startDate={
-                                                                        appliedDateRange?.startDate
-                                                                    }
-                                                                    endDate={appliedDateRange?.endDate}
-                                                                    excludedCampaigns={
-                                                                        groupMetaCampaignExcludedDraft[
-                                                                            childIdKey(row)
-                                                                        ] || {}
-                                                                    }
-                                                                    excludedKeywords={
-                                                                        groupMetaCampaignKeywordsDraft[
-                                                                            childIdKey(row)
-                                                                        ] || []
-                                                                    }
-                                                                    onApplyCampaigns={
-                                                                        onApplyMetaCampaignsForChild
-                                                                    }
-                                                                    onMenuWillOpen={() =>
-                                                                        onMetaCampaignsMenuOpen?.(
-                                                                            row._id
-                                                                        )
-                                                                    }
-                                                                    fetchDisabled={fetchDisabled}
-                                                                />
-                                                            )}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-3 py-2 whitespace-nowrap">
-                                                        <span className="inline-flex items-center gap-1">
-                                                            {formatDkk(row.googleAdspend)}
-                                                            {showGoogleCampaignCog(row) && (
-                                                                <ParentChildGoogleAdsCampaignsActions
-                                                                    customerId={childIdKey(row)}
-                                                                    propertyLabel={row.customerName}
-                                                                    startDate={
-                                                                        appliedDateRange?.startDate
-                                                                    }
-                                                                    endDate={appliedDateRange?.endDate}
-                                                                    excludedCampaigns={
-                                                                        groupGoogleCampaignExcludedDraft[
-                                                                            childIdKey(row)
-                                                                        ] || {}
-                                                                    }
-                                                                    excludedKeywords={
-                                                                        groupGoogleCampaignKeywordsDraft[
-                                                                            childIdKey(row)
-                                                                        ] || []
-                                                                    }
-                                                                    onApplyCampaigns={
-                                                                        onApplyGoogleCampaignsForChild
-                                                                    }
-                                                                    onMenuWillOpen={() =>
-                                                                        onGoogleCampaignsMenuOpen?.(
-                                                                            row._id
-                                                                        )
-                                                                    }
-                                                                    fetchDisabled={fetchDisabled}
-                                                                />
-                                                            )}
-                                                        </span>
-                                                    </td>
-                                                </>
-                                            )}
-                                        <td className="px-3 py-2 whitespace-nowrap">
-                                            {predominantMetricPreference === "Spendshare"
-                                                ? row.spendshare !== null
-                                                    ? `${(row.spendshare * 100).toFixed(2)}%`
-                                                    : "-"
-                                                : row.roas !== null
-                                                  ? row.roas.toFixed(2)
-                                                  : "-"}
-                                        </td>
-                                        <td className="px-3 py-2 whitespace-nowrap">
-                                            {row.aov ? formatDkk(row.aov) : "-"}
-                                        </td>
+                                        {orderedColumns.map((col) => (
+                                            <td
+                                                key={col.id}
+                                                className="px-3 py-2 whitespace-nowrap"
+                                            >
+                                                {renderMetricCell(row, col.id)}
+                                            </td>
+                                        ))}
                                         <td className="px-3 py-2 align-middle text-right">
                                             <div className="flex flex-wrap gap-2 justify-end items-center">
                                                 {(() => {

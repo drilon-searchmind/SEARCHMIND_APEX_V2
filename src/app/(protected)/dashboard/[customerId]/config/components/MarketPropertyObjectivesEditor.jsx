@@ -108,8 +108,7 @@ export default function MarketPropertyObjectivesEditor({
                 </select>
             </div>
             <p className="text-xs text-gray-500">
-                Set revenue targets and marketing budgets per market. Dashboard totals sum objectives for
-                all enabled markets; filtering to specific markets uses only those markets&apos; objectives.
+                Configure revenue targets and marketing budgets for the selected market.
             </p>
             <PropertyObjectivesTable
                 objectives={selectedObjectives}

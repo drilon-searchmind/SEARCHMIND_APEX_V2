@@ -2,6 +2,9 @@
  * Property objectives helpers — global and per-Shopify-market.
  */
 
+export const PROPERTY_OBJECTIVES_MODE_GLOBAL = "global";
+export const PROPERTY_OBJECTIVES_MODE_PER_MARKET = "per_market";
+
 export const PROPERTY_OBJECTIVE_MONTHS = [
     "january",
     "february",
@@ -33,6 +36,33 @@ export function normalizeMarketPropertyObjectives(raw) {
     if (raw instanceof Map) return Object.fromEntries(raw.entries());
     if (typeof raw === "object") return { ...raw };
     return {};
+}
+
+/** @param {Record<string, unknown> | null | undefined} customer */
+export function customerMarketPropertyObjectivesHasData(customer) {
+    const marketObjectives = normalizeMarketPropertyObjectives(
+        customer?.CustomerMarketPropertyObjectives
+    );
+    return Object.values(marketObjectives).some(marketObjectivesHasData);
+}
+
+/**
+ * Resolve which objectives mode is active for a Shopify Markets customer.
+ * Legacy customers without an explicit mode infer from existing per-market data.
+ * @param {Record<string, unknown> | null | undefined} customer
+ */
+export function resolvePropertyObjectivesMode(customer) {
+    const stored = customer?.CustomerSettings?.propertyObjectivesMode;
+    if (
+        stored === PROPERTY_OBJECTIVES_MODE_GLOBAL ||
+        stored === PROPERTY_OBJECTIVES_MODE_PER_MARKET
+    ) {
+        return stored;
+    }
+
+    return customerMarketPropertyObjectivesHasData(customer)
+        ? PROPERTY_OBJECTIVES_MODE_PER_MARKET
+        : PROPERTY_OBJECTIVES_MODE_GLOBAL;
 }
 
 /** @param {Record<string, unknown> | null | undefined} objectives */
@@ -70,9 +100,9 @@ export function mergePropertyObjectives(objectivesList) {
 /**
  * Resolve objectives for dashboard views based on Shopify Markets filter.
  * - Non-markets customers: CustomerPropertyObjectives
- * - All markets / subset: sum per-market rows for enabled markets
- * - No markets selected: zero targets
- * - Fallback to global objectives when no per-market data exists yet
+ * - Markets + global mode: CustomerPropertyObjectives (same for all market filters)
+ * - Markets + per_market mode: sum per-market rows for enabled markets
+ * - No markets selected (per_market): zero targets
  */
 export function resolvePropertyObjectives({
     customer,
@@ -83,6 +113,10 @@ export function resolvePropertyObjectives({
     const global = customer?.CustomerPropertyObjectives || {};
 
     if (!shopifyMarketsFeatureOn || !Array.isArray(shopifyMarkets) || shopifyMarkets.length === 0) {
+        return global;
+    }
+
+    if (resolvePropertyObjectivesMode(customer) === PROPERTY_OBJECTIVES_MODE_GLOBAL) {
         return global;
     }
 
@@ -102,20 +136,21 @@ export function resolvePropertyObjectives({
         (m) => marketObjectives[String(m.shopifyqlMarketId)] || {}
     );
 
-    if (!listsToMerge.some(marketObjectivesHasData)) {
-        return global;
-    }
-
     return mergePropertyObjectives(listsToMerge);
 }
 
 /** Human-readable label for which markets drive the current objective totals. */
 export function getObjectivesScopeLabel({
+    customer = null,
     shopifyMarketsFeatureOn = false,
     shopifyMarkets = [],
     appliedExcludedMarkets = {},
 }) {
     if (!shopifyMarketsFeatureOn || !shopifyMarkets.length) return null;
+
+    if (resolvePropertyObjectivesMode(customer) === PROPERTY_OBJECTIVES_MODE_GLOBAL) {
+        return "Global";
+    }
 
     const enabled = shopifyMarkets.filter(
         (m) => appliedExcludedMarkets[m.shopifyqlMarketId] !== true

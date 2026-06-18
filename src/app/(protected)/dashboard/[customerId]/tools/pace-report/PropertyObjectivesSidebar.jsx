@@ -1,16 +1,16 @@
 'use client';
 
 import { FiX } from 'react-icons/fi';
-import PropertyObjectivesTable from '@/app/(protected)/dashboard/[customerId]/config/components/PropertyObjectivesTable';
-import MarketPropertyObjectivesEditor from '@/app/(protected)/dashboard/[customerId]/config/components/MarketPropertyObjectivesEditor';
+import PropertyObjectives from '@/app/(protected)/dashboard/[customerId]/config/components/PropertyObjectives';
 
 export default function PropertyObjectivesSidebar({
 	open,
 	onClose,
 	shopifyMarketsFeatureOn,
+	customerType,
 	customerId,
-	shopifyMarkets,
-	shopifyMarketsLoading,
+	localPropertyObjectivesMode,
+	onPropertyObjectivesModeChange,
 	localObjectives,
 	localMarketObjectives,
 	onObjectivesChange,
@@ -34,7 +34,7 @@ export default function PropertyObjectivesSidebar({
 						<h2 className="text-2xl font-bold mb-1">Property Objectives</h2>
 						<p className="text-sm text-white/80">
 							{shopifyMarketsFeatureOn
-								? 'Set revenue targets and marketing budgets per Shopify market'
+								? 'Set global or per-market revenue targets and marketing budgets'
 								: 'Adjust marketing budgets for each month'}
 						</p>
 					</div>
@@ -48,20 +48,18 @@ export default function PropertyObjectivesSidebar({
 				</div>
 
 				<div className="overflow-y-auto flex-1 p-8">
-					{shopifyMarketsFeatureOn ? (
-						<MarketPropertyObjectivesEditor
-							customerId={customerId}
-							markets={shopifyMarkets}
-							marketsLoading={shopifyMarketsLoading}
-							marketObjectives={localMarketObjectives}
-							onMarketObjectivesChange={onMarketObjectivesChange}
-						/>
-					) : (
-						<PropertyObjectivesTable
-							objectives={localObjectives}
-							onObjectivesChange={onObjectivesChange}
-						/>
-					)}
+					<PropertyObjectives
+						showTitle={false}
+						customerId={customerId}
+						customerType={customerType}
+						shopifyMarketsEnabled={shopifyMarketsFeatureOn}
+						propertyObjectivesMode={localPropertyObjectivesMode}
+						onPropertyObjectivesModeChange={onPropertyObjectivesModeChange}
+						objectives={localObjectives}
+						marketObjectives={localMarketObjectives}
+						onObjectivesChange={onObjectivesChange}
+						onMarketObjectivesChange={onMarketObjectivesChange}
+					/>
 				</div>
 
 				<div className="border-t border-gray-200 px-8 py-6 bg-gray-50 flex justify-end gap-3">
