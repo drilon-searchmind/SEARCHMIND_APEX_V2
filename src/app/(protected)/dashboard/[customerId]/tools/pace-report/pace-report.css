@@ -1,0 +1,331 @@
+/* Hallmark · theme: Cobalt · page: pace-report */
+
+@import "../../performance-dashboard/performance-dashboard.css";
+
+/* ── Sections ── */
+
+.apex-pace-section {
+  margin-top: var(--space-xl);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+@media (min-width: 768px) {
+  .apex-pace-section {
+    padding: var(--space-lg) var(--space-xl);
+  }
+}
+
+.apex-pace-section + .apex-pace-section {
+  margin-top: var(--space-lg);
+}
+
+.apex-pace-section__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.apex-pace-section__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-ink);
+}
+
+.apex-pace-section__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+@media (min-width: 768px) {
+  .apex-pace-section__row {
+    flex-direction: row;
+    align-items: stretch;
+  }
+}
+
+.apex-pace-section__chart {
+  flex: 1;
+  min-width: 0;
+}
+
+.apex-pace-section__chart .apex-perf-graph {
+  min-height: 320px;
+  height: 100%;
+}
+
+.apex-pace-section__secondary {
+  margin-top: var(--space-lg);
+}
+
+/* ── Analysis side panel ── */
+
+.apex-pace-analysis {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 320px;
+  background: var(--perf-canvas);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .apex-pace-analysis {
+    width: 22rem;
+    flex-shrink: 0;
+  }
+}
+
+.apex-pace-analysis__head {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--perf-raised);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-pace-analysis__title {
+  margin: 0;
+  font-family: var(--font-label);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-accent-light);
+}
+
+.apex-pace-analysis__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: var(--space-md);
+  gap: var(--space-md);
+}
+
+.apex-pace-analysis__gauge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-block: var(--space-xs);
+}
+
+.apex-pace-analysis__stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+}
+
+.apex-pace-analysis__stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0;
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  font-size: var(--text-xs);
+  color: var(--color-ink-2);
+}
+
+.apex-pace-analysis__stat:last-child {
+  border-bottom: none;
+}
+
+.apex-pace-analysis__stat dt {
+  margin: 0;
+  font-weight: 500;
+  color: var(--color-muted);
+}
+
+.apex-pace-analysis__stat dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink);
+  text-align: right;
+}
+
+.apex-pace-analysis__stat--primary {
+  padding-bottom: var(--space-sm);
+  margin-bottom: var(--space-2xs);
+  border-bottom: var(--rule-hair) solid var(--color-rule-2);
+}
+
+.apex-pace-analysis__stat--primary dt {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.apex-pace-analysis__stat--primary dd {
+  font-size: var(--text-md);
+}
+
+.apex-pace-analysis__calcs {
+  padding: var(--space-sm);
+  font-family: var(--font-mono, "JetBrains Mono", ui-monospace, monospace);
+  font-size: 0.62rem;
+  line-height: 1.45;
+  color: var(--color-muted);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+}
+
+.apex-pace-analysis__calcs-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 2px 0;
+}
+
+.apex-pace-analysis__calcs-row span:last-child {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-2);
+}
+
+.apex-pace-analysis__calcs-divider {
+  margin: var(--space-xs) 0;
+  padding-top: var(--space-xs);
+  border-top: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-pace-analysis__calcs-result {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+}
+
+.apex-pace-analysis__calcs-result strong {
+  font-weight: 600;
+  color: var(--color-accent-light);
+}
+
+.apex-pace-analysis__footer {
+  margin-top: auto;
+  padding-top: var(--space-xs);
+}
+
+.apex-pace-analysis__settings {
+  width: 100%;
+  font-size: var(--text-xs);
+}
+
+.apex-pace-analysis__empty,
+.apex-pace-analysis__error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 12rem;
+  padding: var(--space-lg);
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.apex-pace-analysis__error {
+  color: var(--color-error, oklch(50% 0.15 25));
+}
+
+/* ── Objectives sidebar ── */
+
+.apex-pace-sidebar-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: flex-end;
+  background: oklch(22% 0.02 165 / 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.apex-pace-sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 42rem;
+  height: 100%;
+  background: var(--perf-raised);
+  border-left: var(--rule-hair) solid var(--color-rule);
+  box-shadow: var(--shadow-card);
+}
+
+.apex-pace-sidebar__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-lg) var(--space-xl);
+  background: var(--color-graphite);
+  color: var(--color-code-ink-body);
+  border-bottom: var(--rule-hair) solid var(--color-code-border);
+}
+
+.apex-pace-sidebar__title {
+  margin: 0 0 var(--space-2xs);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-lg);
+  color: var(--color-code-ink-body);
+}
+
+.apex-pace-sidebar__lede {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--color-code-ink-muted);
+}
+
+.apex-pace-sidebar__close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  color: var(--color-code-ink-muted);
+  background: transparent;
+  border: var(--rule-hair) solid var(--color-code-border);
+  border-radius: var(--radius-input);
+  cursor: pointer;
+  transition:
+    color var(--dur-micro) var(--ease-out),
+    border-color var(--dur-micro) var(--ease-out),
+    background-color var(--dur-micro) var(--ease-out);
+}
+
+.apex-pace-sidebar__close:hover {
+  color: var(--color-code-ink-body);
+  border-color: oklch(82% 0.13 155 / 0.45);
+  background: oklch(98% 0.006 165 / 0.08);
+}
+
+.apex-pace-sidebar__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-lg) var(--space-xl);
+}
+
+.apex-pace-sidebar__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-xl);
+  background: var(--perf-canvas);
+  border-top: var(--rule-hair) solid var(--color-rule);
+}

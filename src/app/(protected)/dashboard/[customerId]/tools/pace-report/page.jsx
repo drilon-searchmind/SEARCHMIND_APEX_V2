@@ -10,6 +10,7 @@ import { usePaceReportData } from './usePaceReportData';
 import PropertyObjectivesSidebar from './PropertyObjectivesSidebar';
 import CostPaceSection from './CostPaceSection';
 import RevenuePaceSection from './RevenuePaceSection';
+import './pace-report.css';
 import { pushDashboardDateRangeApplied, pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
 import { useShopifyMarketsFilter } from '@/hooks/useShopifyMarketsFilter';
 import { useAdSpendPlatformsFilter } from '@/hooks/useAdSpendPlatformsFilter';
@@ -259,7 +260,7 @@ export default function PaceReportPage() {
 	};
 
 	return (
-		<div className="w-full">
+		<div id="PaceReportPage" className="cobalt-perf w-full" data-theme="cobalt">
 			<ToastProvider />
 			<PropertyObjectivesSidebar
 				open={sidebarOpen}
@@ -277,6 +278,8 @@ export default function PaceReportPage() {
 				savingObjectives={savingObjectives}
 			/>
 			<DashboardHeading
+				variant="cobalt"
+				showRunAudit={false}
 				title="Marketing Pace Report"
 				label={customer ? customer.customerName : ''}
 				customerId={params.customerId}
@@ -323,6 +326,7 @@ export default function PaceReportPage() {
 				}
 				right={
 					<DateRangePicker
+						variant="cobalt"
 						onApply={handleDateRangeApply}
 						startDate={tempDateRange.startDate}
 						endDate={tempDateRange.endDate}

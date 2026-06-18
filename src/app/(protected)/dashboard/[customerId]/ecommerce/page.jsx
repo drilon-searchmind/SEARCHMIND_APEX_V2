@@ -4,17 +4,16 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import DashboardHeading from '@/components/dashboard/DashboardHeading';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
-import Spinner from '@/components/ui/Spinner';
+import ProductPerfomance from './components/ProductPerfomance';
+import CustomerPerformance from './components/CustomerPerformance';
 import { FiPackage, FiUsers } from 'react-icons/fi';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useBusinessCategory } from '@/hooks/useBusinessCategory';
 import { useShopifyMarketsFilter } from '@/hooks/useShopifyMarketsFilter';
 import { useAdSpendPlatformsFilter } from '@/hooks/useAdSpendPlatformsFilter';
-
-import ProductPerfomance from './components/ProductPerfomance';
-import CustomerPerformance from './components/CustomerPerformance';
 import { pushDashboardDateRangeApplied, pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
 import { adSpendChannelsForSpendTotals, adSpendChannelsForShopifyMarketsFilterUi } from '@/lib/mergeAdSpendDaily';
+import './ecommerce.css';
 
 const TABS = [
     { id: 'products', label: 'Product Performance', icon: FiPackage },
@@ -22,13 +21,9 @@ const TABS = [
 ];
 
 const defaultRange = () => {
-    // Date range state
     const today = new Date();
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, '0');
-
-    // If today is the 1st of the month, use 1st as both start and end
-    // Otherwise, use 1st as start and yesterday as end
     const isFirstOfMonth = today.getDate() === 1;
     const defaultStart = `${yyyy}-${mm}-01`;
     const defaultEnd = isFirstOfMonth ? `${yyyy}-${mm}-01` : `${yyyy}-${mm}-${String(today.getDate() - 1).padStart(2, '0')}`;
@@ -51,6 +46,7 @@ export default function EcommercePage() {
             router.replace(`/dashboard/${customerId}/analytics`);
         }
     }, [isB2B, customerId, router]);
+
     const {
         shopifyMarketsFeatureOn,
         shopifyMarkets,
@@ -118,7 +114,6 @@ export default function EcommercePage() {
         router.replace(url.pathname + url.search, { scroll: false });
     };
 
-    // Sync tab from URL (e.g. on refresh or browser back/forward)
     useEffect(() => {
         const t = searchParams.get('tab');
         if (t && TAB_IDS.includes(t)) setActiveTabState(t);
@@ -195,7 +190,7 @@ export default function EcommercePage() {
     useEffect(() => {
         if (!customerId || !appliedRange.startDate || !appliedRange.endDate || activeTab !== 'customers') return;
         if (segmentation && segmentationFetchedFor === rangeKey) {
-            setLtvLoading(false); // Cached data - no background LTV fetch
+            setLtvLoading(false);
             return;
         }
         let cancelled = false;
@@ -204,7 +199,6 @@ export default function EcommercePage() {
             setError(null);
             setLtvError(null);
             try {
-                // 1. Try ShopifyQL first (fast: new/returning + merged-sources)
                 const shopifyqlRes = await fetch(
                     `/api/customer-segmentation-shopifyql/${customerId}?startDate=${appliedRange.startDate}&endDate=${appliedRange.endDate}&full=true${mergedSourcesQuerySuffix}`
                 );
@@ -212,18 +206,11 @@ export default function EcommercePage() {
 
                 if (!cancelled) {
                     if (shopifyqlRes.ok) {
-                        console.log('[Customer Performance] ShopifyQL data loaded (fast path)', {
-                            newCustomers: shopifyqlData.newCustomers,
-                            returningCustomers: shopifyqlData.returningCustomers,
-                            totalOrders: shopifyqlData.totalOrders,
-                        });
                         setSegmentation(shopifyqlData);
                         setSegmentationFetchedFor(rangeKey);
                         setSegmentationLoading(false);
-                        // 2. Background: fetch full LTV (slow). Only merge ltv30/90/180 - never overwrite other data.
                         setLtvLoading(true);
                         setLtvError(null);
-                        console.log('[Customer Performance] LTV background fetch started…');
                         try {
                             const ltvRes = await fetch(
                                 `/api/customer-segmentation/${customerId}?startDate=${appliedRange.startDate}&endDate=${appliedRange.endDate}&extendForLtv=true`
@@ -232,11 +219,6 @@ export default function EcommercePage() {
                             if (!cancelled) {
                                 if (ltvRes.ok && !ltvData.error) {
                                     setLtvError(null);
-                                    console.log('[Customer Performance] LTV background fetch completed', {
-                                        ltv30: ltvData.ltv30,
-                                        ltv90: ltvData.ltv90,
-                                        ltv180: ltvData.ltv180,
-                                    });
                                     const ltvOnly = {
                                         ltv30: ltvData.ltv30,
                                         ltv90: ltvData.ltv90,
@@ -250,23 +232,17 @@ export default function EcommercePage() {
                                 } else {
                                     const errMsg = ltvData?.error || (ltvRes.ok ? null : 'Failed to load LTV');
                                     setLtvError(errMsg);
-                                    console.warn('[Customer Performance] LTV fetch returned error', {
-                                        ok: ltvRes.ok,
-                                        error: errMsg,
-                                    });
                                 }
                             }
                         } catch (ltvErr) {
                             if (!cancelled) {
                                 setLtvError(ltvErr?.message || 'Failed to load LTV');
-                                console.warn('[Customer Performance] LTV background fetch failed:', ltvErr);
                             }
                         } finally {
                             if (!cancelled) setLtvLoading(false);
                         }
                         return;
                     }
-                    // 3. Fallback: full customer-segmentation (when ShopifyQL fails)
                     const res = await fetch(
                         `/api/customer-segmentation/${customerId}?startDate=${appliedRange.startDate}&endDate=${appliedRange.endDate}&extendForLtv=true`
                     );
@@ -289,14 +265,18 @@ export default function EcommercePage() {
 
     if (!customerId) return null;
 
+    const pageLoading = activeTab === 'products' ? productsLoading : segmentationLoading;
+
     return (
-        <div className="space-y-6">
+        <div id="EcommercePage" className="cobalt-perf w-full" data-theme="cobalt">
             <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
                 title="Ecommerce"
-                label="Ecommerce Dashboard"
+                label={customer ? customer.customerName : 'Ecommerce Dashboard'}
                 customerId={customerId}
                 dateRange={appliedRange}
-                loading={activeTab === 'products' ? productsLoading : segmentationLoading}
+                loading={pageLoading}
                 dashboardType="ecommerce"
                 dataSnapshot={{
                     products,
@@ -305,6 +285,7 @@ export default function EcommercePage() {
                 }}
                 right={(
                     <DateRangePicker
+                        variant="cobalt"
                         onApply={handleDateRangeApply}
                         startDate={tempRange.startDate}
                         endDate={tempRange.endDate}
@@ -346,58 +327,53 @@ export default function EcommercePage() {
                 }
             />
 
-            {/* Horizontal Tabs */}
-            <div className="bg-white rounded-lg border border-gray-200">
-                <div className="flex gap-8 px-6">
-                    {TABS.map(tab => {
-                        const Icon = tab.icon;
-                        return (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`py-3 px-1 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === tab.id
-                                        ? 'border-[var(--color-primary-searchmind)] text-[var(--color-primary-searchmind)]'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                    }`}
-                            >
-                                <Icon className="text-base" />
-                                {tab.label}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
+            <nav className="apex-ecom-tabs" aria-label="Ecommerce views">
+                {TABS.map(tab => {
+                    const Icon = tab.icon;
+                    return (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`apex-ecom-tabs__btn${activeTab === tab.id ? ' is-active' : ''}`}
+                            aria-current={activeTab === tab.id ? 'page' : undefined}
+                        >
+                            <Icon aria-hidden />
+                            {tab.label}
+                        </button>
+                    );
+                })}
+            </nav>
 
             {error ? (
-                <div className="bg-white border border-red-100 rounded-xl p-6 text-red-600">Error: {error}</div>
+                <div className="apex-ecom-error mt-4">Error: {error}</div>
             ) : (
                 <>
                     {activeTab === 'products' && (
-                        <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
-                            <ProductPerfomance products={products} loading={productsLoading} inventoryLoading={inventoryLoading} />
-                        </div>
+                        <ProductPerfomance
+                            products={products}
+                            loading={productsLoading}
+                            inventoryLoading={inventoryLoading}
+                        />
                     )}
 
                     {activeTab === 'customers' && (
-                        <div className="relative">
-                            {segmentationLoading && (
-                                <div className="sticky top-10 mt-10 z-50 flex items-center justify-center gap-3 py-4 px-6 w-full min-h-[72px] bg-white/60 backdrop-blur-xl border-b border-white/20 shadow-lg">
-                                    <Spinner size={24} />
-                                    <span className="text-sm font-medium text-gray-800">
-                                        Fetching data for LTV last 180 days, calculating and crunching numbers…
+                        <>
+                            {ltvLoading && segmentation && (
+                                <div className="apex-ecom-loading-banner">
+                                    <span className="apex-ecom-loading-banner__text">
+                                        Calculating LTV for 90 and 180 day windows…
                                     </span>
                                 </div>
                             )}
-                            <div className={segmentationLoading ? 'pointer-events-none select-none blur-md transition-all duration-300' : 'transition-all duration-300'}>
-                                <CustomerPerformance
-                                    segmentation={segmentation}
-                                    loading={segmentationLoading}
-                                    ltvLoading={ltvLoading}
-                                    ltvError={ltvError}
-                                    visibleAdSpendChannels={visibleAdSpendChannels}
-                                />
-                            </div>
-                        </div>
+                            <CustomerPerformance
+                                segmentation={segmentation}
+                                loading={segmentationLoading}
+                                ltvLoading={ltvLoading}
+                                ltvError={ltvError}
+                                visibleAdSpendChannels={visibleAdSpendChannels}
+                            />
+                        </>
                     )}
                 </>
             )}
