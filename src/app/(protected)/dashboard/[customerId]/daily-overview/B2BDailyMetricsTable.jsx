@@ -1,6 +1,6 @@
 "use client";
 
-import Spinner from "@/components/ui/Spinner";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { B2B_METRIC_COLUMNS, formatB2BCellValue } from "./b2bMetricConfig";
 import B2BDailyMetricsTableHeader from "./B2BDailyMetricsTableHeader";
 import {
@@ -9,18 +9,34 @@ import {
     computeB2BDifference,
     computeB2BIndex,
     getB2BVisibleColumns,
-    getB2BBorderLClass,
     getB2BCellStyle,
 } from "./b2bDailyUtils";
+import {
+    dailyCellClass,
+    dailyEmptyCellClass,
+    dailyMutedCellClass,
+    dailyRowClass,
+    dailyTableClass,
+    dailyTableStyle,
+    dailyTableWrapClass,
+    getB2BGroupStartFlag,
+    isCobaltDaily,
+} from "./dailyTableUi";
 
-function SummaryRow({ label, values, visibleCols, className = "bg-gray-100 font-semibold border-t border-b border-gray-200" }) {
+function SummaryRow({
+    label,
+    values,
+    visibleCols,
+    variant,
+    rowType = "total",
+}) {
     return (
-        <tr className={className}>
-            <td className="px-3 py-2 whitespace-nowrap">{label}</td>
+        <tr className={dailyRowClass(variant, rowType)}>
+            <td className={dailyCellClass(variant)}>{label}</td>
             {visibleCols.map((col) => (
                 <td
                     key={col.key}
-                    className={`px-3 py-2 whitespace-nowrap tabular-nums${getB2BBorderLClass(visibleCols, col.key)}`}
+                    className={dailyCellClass(variant, getB2BGroupStartFlag(visibleCols, col.key))}
                 >
                     {values[col.key] ?? "—"}
                 </td>
@@ -36,20 +52,33 @@ export default function B2BDailyMetricsTable({
     error,
     visibleMetrics = {},
     metricColumns = B2B_METRIC_COLUMNS,
+    variant = "default",
 }) {
     const visibleCols = getB2BVisibleColumns(metricColumns, visibleMetrics);
     const visibleCount = 1 + visibleCols.length;
 
     if (loading) {
-        return (
+        return isCobaltDaily(variant) ? (
+            <div className="apex-daily-loading">
+                <CobaltLoader
+                    variant="block"
+                    title="Loading daily metrics"
+                    request="GET /api/b2b-dashboard"
+                />
+            </div>
+        ) : (
             <div className="flex justify-center items-center min-h-[200px]">
-                <Spinner size={40} color="#406969" />
+                <div className="text-sm text-gray-500">Loading…</div>
             </div>
         );
     }
 
     if (error) {
-        return <div className="text-red-500 text-center py-4">{error}</div>;
+        return (
+            <div className={isCobaltDaily(variant) ? "apex-daily-error" : "text-red-500 text-center py-4"}>
+                {error}
+            </div>
+        );
     }
 
     const max = rows?.length ? computeB2BRowMax(rows) : {};
@@ -59,50 +88,35 @@ export default function B2BDailyMetricsTable({
     const indexData = rows?.length ? computeB2BIndex(rows, rowsPrev) : null;
 
     return (
-        <div className="overflow-x-auto">
-            <table
-                className="min-w-full text-xs text-left border-collapse"
-                style={{ fontSize: "12px" }}
-            >
+        <div className={dailyTableWrapClass(variant)}>
+            <table className={dailyTableClass(variant)} style={dailyTableStyle(variant)}>
                 <B2BDailyMetricsTableHeader
+                    variant={variant}
                     visibleMetrics={visibleMetrics}
                     metricColumns={metricColumns}
                 />
-                <tbody className="text-[12px]">
+                <tbody className={isCobaltDaily(variant) ? undefined : "text-[12px]"}>
                     {!rows?.length ? (
                         <tr>
-                            <td
-                                colSpan={visibleCount}
-                                className="text-center py-8 text-gray-400"
-                            >
+                            <td colSpan={visibleCount} className={dailyEmptyCellClass(variant)}>
                                 No data for selected range.
                             </td>
                         </tr>
                     ) : (
                         <>
                             {rows.map((row, idx) => (
-                                <tr
-                                    key={row.date}
-                                    className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                                >
-                                    <td className="px-3 py-2 whitespace-nowrap text-gray-800">
-                                        {row.date}
-                                    </td>
+                                <tr key={row.date} className={dailyRowClass(variant, "data", idx)}>
+                                    <td className={dailyCellClass(variant)}>{row.date}</td>
                                     {visibleCols.map((col) => (
                                         <td
                                             key={col.key}
-                                            className={`px-3 py-2 whitespace-nowrap tabular-nums${getB2BBorderLClass(visibleCols, col.key)}`}
-                                            style={getB2BCellStyle(
-                                                col.key,
-                                                row[col.key],
-                                                max
+                                            className={dailyCellClass(
+                                                variant,
+                                                getB2BGroupStartFlag(visibleCols, col.key)
                                             )}
+                                            style={getB2BCellStyle(col.key, row[col.key], max)}
                                         >
-                                            {formatB2BCellValue(
-                                                col.key,
-                                                row[col.key],
-                                                col
-                                            )}
+                                            {formatB2BCellValue(col.key, row[col.key], col)}
                                         </td>
                                     ))}
                                 </tr>
@@ -113,6 +127,8 @@ export default function B2BDailyMetricsTable({
                                     label="Total"
                                     values={totals}
                                     visibleCols={visibleCols}
+                                    variant={variant}
+                                    rowType="total"
                                 />
                             )}
 
@@ -121,15 +137,16 @@ export default function B2BDailyMetricsTable({
                                     label="Previous Period"
                                     values={prevTotals}
                                     visibleCols={visibleCols}
-                                    className="bg-gray-50 font-semibold border-t border-b border-gray-200"
+                                    variant={variant}
+                                    rowType="lastPeriod"
                                 />
                             )}
 
                             {indexData && rowsPrev?.length > 0 && (
-                                <tr className="bg-slate-50/80 font-medium border-t border-b border-gray-200">
-                                    <td className="px-3 py-2 whitespace-nowrap">Index</td>
+                                <tr className={dailyRowClass(variant, "index")}>
+                                    <td className={dailyCellClass(variant)}>Index</td>
                                     {visibleCols.map((col) => {
-                                        const borderCls = getB2BBorderLClass(
+                                        const groupStart = getB2BGroupStartFlag(
                                             visibleCols,
                                             col.key
                                         );
@@ -138,7 +155,10 @@ export default function B2BDailyMetricsTable({
                                             return (
                                                 <td
                                                     key={col.key}
-                                                    className={`px-3 py-2 whitespace-nowrap text-gray-500 tabular-nums${borderCls}`}
+                                                    className={dailyMutedCellClass(
+                                                        variant,
+                                                        groupStart
+                                                    )}
                                                 >
                                                     —
                                                 </td>
@@ -147,7 +167,7 @@ export default function B2BDailyMetricsTable({
                                         return (
                                             <td
                                                 key={col.key}
-                                                className={`px-3 py-2 whitespace-nowrap tabular-nums${borderCls}`}
+                                                className={dailyCellClass(variant, groupStart)}
                                             >
                                                 {cell.formatted}
                                             </td>
@@ -157,10 +177,10 @@ export default function B2BDailyMetricsTable({
                             )}
 
                             {diff && rowsPrev?.length > 0 && (
-                                <tr className="bg-amber-50/50 font-medium border-t border-b border-gray-200">
-                                    <td className="px-3 py-2 whitespace-nowrap">Difference</td>
+                                <tr className={dailyRowClass(variant, "difference")}>
+                                    <td className={dailyCellClass(variant)}>Difference</td>
                                     {visibleCols.map((col) => {
-                                        const borderCls = getB2BBorderLClass(
+                                        const groupStart = getB2BGroupStartFlag(
                                             visibleCols,
                                             col.key
                                         );
@@ -169,7 +189,10 @@ export default function B2BDailyMetricsTable({
                                             return (
                                                 <td
                                                     key={col.key}
-                                                    className={`px-3 py-2 whitespace-nowrap text-gray-500 tabular-nums${borderCls}`}
+                                                    className={dailyMutedCellClass(
+                                                        variant,
+                                                        groupStart
+                                                    )}
                                                 >
                                                     —
                                                 </td>
@@ -178,7 +201,7 @@ export default function B2BDailyMetricsTable({
                                         return (
                                             <td
                                                 key={col.key}
-                                                className={`px-3 py-2 whitespace-nowrap tabular-nums${borderCls}`}
+                                                className={dailyCellClass(variant, groupStart)}
                                             >
                                                 {cell.formatted}
                                             </td>

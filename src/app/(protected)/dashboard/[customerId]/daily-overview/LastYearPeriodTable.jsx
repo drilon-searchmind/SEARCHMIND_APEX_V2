@@ -1,12 +1,19 @@
 'use client';
 
 import dayjs from 'dayjs';
-import Spinner from '@/components/ui/Spinner';
+import CobaltLoader from '@/components/ui/CobaltLoader';
 import DailyMetricsTableHeader from './DailyMetricsTableHeader';
 import DailyMetricsDataRow from './DailyMetricsDataRow';
 import DailyMetricsTotalsRow from './DailyMetricsTotalsRow';
 import { computeRowMax } from './utils';
 import { METRIC_COLUMNS } from './metricConfig';
+import {
+	dailyEmptyCellClass,
+	dailyTableClass,
+	dailyTableStyle,
+	dailyTableWrapClass,
+	isCobaltDaily,
+} from './dailyTableUi';
 
 export default function LastYearPeriodTable({
 	rowsLastYear,
@@ -16,11 +23,20 @@ export default function LastYearPeriodTable({
 	onRowHoverLeave,
 	visibleMetrics = {},
 	metricColumns = METRIC_COLUMNS,
+	variant = 'default',
 }) {
 	if (loading) {
-		return (
+		return isCobaltDaily(variant) ? (
+			<div className="apex-daily-loading">
+				<CobaltLoader
+					variant="block"
+					title="Loading last year period"
+					request="GET /api/merged-sources?source=daily-overview"
+				/>
+			</div>
+		) : (
 			<div className="flex justify-center items-center min-h-[200px]">
-				<Spinner size={40} color="#406969" />
+				<div className="text-sm text-gray-500">Loading…</div>
 			</div>
 		);
 	}
@@ -30,29 +46,24 @@ export default function LastYearPeriodTable({
 		1 + metricColumns.filter((m) => visibleMetrics[m.key]).length;
 
 	return (
-		<div className="overflow-x-auto">
-			<table
-				className="min-w-full text-xs text-left border-collapse"
-				style={{ fontSize: '12px' }}
-			>
+		<div className={dailyTableWrapClass(variant)}>
+			<table className={dailyTableClass(variant)} style={dailyTableStyle(variant)}>
 				<DailyMetricsTableHeader
-					variant="lastYear"
+					variant={variant === 'cobalt' ? 'cobalt' : 'lastYear'}
 					visibleMetrics={visibleMetrics}
 					metricColumns={metricColumns}
 				/>
-				<tbody className="text-[12px]">
+				<tbody className={isCobaltDaily(variant) ? undefined : 'text-[12px]'}>
 					{!rowsLastYear?.length ? (
 						<tr>
-							<td
-								colSpan={visibleCount}
-								className="text-center py-8 text-gray-400"
-							>
+							<td colSpan={visibleCount} className={dailyEmptyCellClass(variant)}>
 								No data for last year period.
 							</td>
 						</tr>
 					) : (
 						<>
 							<DailyMetricsTotalsRow
+								variant={variant}
 								rows={rowsLastYear}
 								label="Total"
 								visibleMetrics={visibleMetrics}
@@ -69,6 +80,7 @@ export default function LastYearPeriodTable({
 								return (
 									<DailyMetricsDataRow
 										key={idx}
+										variant={variant}
 										row={row}
 										max={max}
 										index={idx}
