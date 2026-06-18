@@ -17,7 +17,7 @@ import { pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
 import { prepareCustomerStaticExpensesForSave } from '@/lib/customerStaticExpensesUtils';
 import { normalizeGoogleAdsMarketMapping } from '@/lib/googleAdsMarketMapping';
 import { normalizeRevenueDisplayVat } from '@/lib/revenueVatDisplay';
-import { normalizeMarketPropertyObjectives } from '@/lib/propertyObjectivesUtils';
+import { normalizeMarketPropertyObjectives, resolvePropertyObjectivesMode } from '@/lib/propertyObjectivesUtils';
 
 export default function ConfigPage() {
     const { customerId } = useParams();
@@ -38,6 +38,7 @@ export default function ConfigPage() {
         changeCurrencyShopifyBillingCountryName: "",
         changeCurrencyShopifyBillingCountryExclude: "",
         shopifyMarketsEnabled: false,
+        propertyObjectivesMode: "global",
         shopifyOnlineStoreOnly: false,
         customerRevenueType: "total_sales",
         revenueDisplayVat: "excl",
@@ -99,6 +100,7 @@ export default function ConfigPage() {
                     ...defaultFormState,
                     ...data,
                     ...(data.CustomerSettings || {}),
+                    propertyObjectivesMode: resolvePropertyObjectivesMode(data),
                     snapchat: normalizeSnapchatSettings(data.CustomerSettings || {}),
                     reddit: normalizeRedditSettings(data.CustomerSettings || {}),
                     danDomain: normalizeDanDomainSettings(data.CustomerSettings || {}),
@@ -183,6 +185,13 @@ export default function ConfigPage() {
         setMarketObjectives(updated);
     };
 
+    const handlePropertyObjectivesModeChange = (mode) => {
+        setForm((prev) => ({
+            ...prev,
+            propertyObjectivesMode: mode,
+        }));
+    };
+
     const handleGoogleAdsMarketMappingChange = (mapping) => {
         setForm((prev) => ({
             ...prev,
@@ -212,6 +221,7 @@ export default function ConfigPage() {
                 changeCurrencyShopifyBillingCountryName,
                 changeCurrencyShopifyBillingCountryExclude,
                 shopifyMarketsEnabled,
+                propertyObjectivesMode,
                 shopifyOnlineStoreOnly,
                 customerRevenueType,
                 revenueDisplayVat,
@@ -262,6 +272,7 @@ export default function ConfigPage() {
                             changeCurrencyShopifyBillingCountryName,
                             changeCurrencyShopifyBillingCountryExclude,
                             shopifyMarketsEnabled,
+                            propertyObjectivesMode,
                             shopifyOnlineStoreOnly,
                             customerRevenueType,
                             revenueDisplayVat: normalizeRevenueDisplayVat(revenueDisplayVat),
@@ -327,6 +338,7 @@ export default function ConfigPage() {
                 ...defaultFormState,
                 ...saved,
                 ...(saved.CustomerSettings || {}),
+                propertyObjectivesMode: resolvePropertyObjectivesMode(saved),
                 snapchat: normalizeSnapchatSettings(saved.CustomerSettings || {}),
                 reddit: normalizeRedditSettings(saved.CustomerSettings || {}),
                 danDomain: normalizeDanDomainSettings(saved.CustomerSettings || {}),
@@ -383,6 +395,8 @@ export default function ConfigPage() {
                     customerId={customerId}
                     customerType={form.customerType}
                     shopifyMarketsEnabled={form.shopifyMarketsEnabled}
+                    propertyObjectivesMode={form.propertyObjectivesMode}
+                    onPropertyObjectivesModeChange={handlePropertyObjectivesModeChange}
                     objectives={objectives}
                     marketObjectives={marketObjectives}
                     onObjectivesChange={handleObjectivesChange}

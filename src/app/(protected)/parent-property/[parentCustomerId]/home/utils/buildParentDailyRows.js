@@ -1,24 +1,30 @@
 import dayjs from "dayjs";
 import { AD_SPEND_CHANNELS } from "@/lib/mergeAdSpendDaily";
+import { applyVatDisplayToShopifyDayRow } from "@/lib/revenueVatDisplay";
+import { getReturnsOverrideSettings } from "@/lib/performanceDashboard/performanceDashboardConstants";
+import { calcShopifyDayProfitMetrics } from "@/lib/performanceDashboard/profitMetrics";
+import { parentChildDayDisplayRevenue } from "@/lib/parentPropertyMetrics";
 
 /**
  * Build daily rows for parent property by aggregating child data.
- * Matches the structure expected by DailyMetricsTable (daily-overview).
+ * Matches single-property daily overview logic (returns override, VAT display, profit metrics).
  * @param {Array} dailyDataList - Filtered allDailyChartData (per child: shopifyDaily, channel *Daily, *DailyPrev)
  * @param {Array} childCustomers - Full customer objects with CustomerStaticExpenses
  * @param {Object} options - { usePrev: boolean, shopifyRevenueField?: 'net_sales'|'gross_sales' }
- *   Display revenue / ROAS / Spendshare / AOV use shopifyRevenueField; COGS%, transaction fees, net profit use net_sales.
  */
 export function buildParentDailyRows(dailyDataList, childCustomers, options = {}) {
     const { usePrev = false, shopifyRevenueField = "net_sales" } = options;
     const shopifyKey = usePrev ? "shopifyDailyPrev" : "shopifyDaily";
-    const revenueField = shopifyRevenueField === "gross_sales" ? "gross_sales" : "net_sales";
 
     const periodMap = {};
 
     dailyDataList.forEach((result) => {
         const customer = childCustomers.find((c) => String(c._id) === String(result._id));
         if (!customer) return;
+
+        const customerSettings = customer?.CustomerSettings || {};
+        const staticExpenses = customer?.CustomerStaticExpenses || {};
+        const returnsOverride = getReturnsOverrideSettings(customerSettings);
 
         const shopify = result[shopifyKey] || [];
         /** @type {Record<string, Record<string, number>>} */
@@ -31,19 +37,15 @@ export function buildParentDailyRows(dailyDataList, childCustomers, options = {}
             );
         }
 
-        const cogsPercentage = customer?.CustomerStaticExpenses?.cogsPercentage ?? 0;
-        const shippingCostPerOrder = customer?.CustomerStaticExpenses?.shippingCostPerOrder ?? 0;
-        const pickNPackCostPerOrder = customer?.CustomerStaticExpenses?.pickNPackCostPerOrder ?? 0;
-        const transactionCostPercentage = customer?.CustomerStaticExpenses?.transactionCostPercentage ?? 0.015;
-        const fixedExpensesMonthly = Number(customer?.CustomerStaticExpenses?.fixedExpenses) || 0;
-        const fetchCogs = customer?.CustomerSettings?.fetchCogsFromStore === true;
-
         shopify.forEach((d) => {
             const date = d.period;
-            const orders = d.orders || 0;
-            const totalSales = d.total_sales || 0;
-            const economicsNetSales = d.net_sales || 0;
-            const displaySales = (d[revenueField] != null ? d[revenueField] : economicsNetSales) || 0;
+            const vatDay = applyVatDisplayToShopifyDayRow(d, customerSettings);
+            const totalSales = Number(vatDay.total_sales) || 0;
+            const displaySales = parentChildDayDisplayRevenue(
+                d,
+                shopifyRevenueField,
+                customerSettings
+            );
 
             let paidMediaCost = 0;
             const channelCosts = {};
@@ -52,6 +54,14 @@ export function buildParentDailyRows(dailyDataList, childCustomers, options = {}
                 channelCosts[c.dailyOverviewColumnKey] = v;
                 paidMediaCost += v;
             }
+
+            const profit = calcShopifyDayProfitMetrics({
+                shopifyDay: d,
+                marketingSpend: paidMediaCost,
+                customerSettings,
+                staticExpenses,
+                returnsOverride,
+            });
 
             if (!periodMap[date]) {
                 periodMap[date] = {
@@ -70,16 +80,10 @@ export function buildParentDailyRows(dailyDataList, childCustomers, options = {}
                 };
             }
 
-            const cogs = fetchCogs ? d.cost_of_goods_sold || 0 : economicsNetSales * cogsPercentage;
-            const variableExpense = shippingCostPerOrder * orders + pickNPackCostPerOrder * orders;
-            const daysInMonth = dayjs(date).daysInMonth();
-            const fixedExpense = fixedExpensesMonthly / daysInMonth;
-            const transactionFee = economicsNetSales * transactionCostPercentage;
-
-            periodMap[date].orders += orders;
+            periodMap[date].orders += profit.orders;
             periodMap[date].totalSales += totalSales;
             periodMap[date].displayRevenue += displaySales;
-            periodMap[date].economicsNetSales += economicsNetSales;
+            periodMap[date].economicsNetSales += profit.netRevenue;
             periodMap[date].ppcCost += channelCosts.ppcCost || 0;
             periodMap[date].psCost += channelCosts.psCost || 0;
             periodMap[date].snapchatCost += channelCosts.snapchatCost || 0;
@@ -87,10 +91,10 @@ export function buildParentDailyRows(dailyDataList, childCustomers, options = {}
             periodMap[date].pinterestCost += channelCosts.pinterestCost || 0;
             periodMap[date].bingCost += channelCosts.bingCost || 0;
             periodMap[date].childContribs.push({
-                cogs,
-                variableExpense,
-                fixedExpense,
-                transactionFee,
+                cogs: profit.cogs,
+                variableExpense: profit.variableExpense,
+                fixedExpense: profit.fixedExpense,
+                transactionFee: profit.transactionFee,
             });
         });
     });

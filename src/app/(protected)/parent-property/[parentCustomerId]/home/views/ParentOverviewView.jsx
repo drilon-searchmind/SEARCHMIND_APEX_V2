@@ -617,6 +617,7 @@ export default function ParentOverviewView({ sharedData }) {
                     </div>
 
                     <ParentChildPropertiesTable
+                        parentCustomerId={parentCustomerId}
                         loading={pageBusy ?? loading}
                         error={error}
                         rows={childPropertyRowsForUi || filteredTableRows}

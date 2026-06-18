@@ -83,6 +83,10 @@ export default function AdminCustomerColumnPicker({
     columns = ADMIN_CUSTOMER_ALL_TOGGLEABLE_COLUMNS,
     resetLabel = "Reset to default",
     description = "Default view unchanged. Add IDs and extra integration checks.",
+    /** 'extra' = badge shows +N optional columns (admin). 'none' = hide badge. */
+    selectionBadge = "extra",
+    /** When set, Reset uses these ids instead of []. */
+    getResetIds,
 }) {
     const [open, setOpen] = useState(false);
     const [draft, setDraft] = useState(selectedIds);
@@ -125,8 +129,9 @@ export default function AdminCustomerColumnPicker({
     };
 
     const reset = () => {
-        setDraft([]);
-        onChange([]);
+        const resetIds = getResetIds ? getResetIds() : [];
+        setDraft(resetIds);
+        onChange(resetIds);
         setOpen(false);
     };
 
@@ -139,7 +144,7 @@ export default function AdminCustomerColumnPicker({
             >
                 <FiColumns size={16} />
                 Columns
-                {selectedIds.length > 0 ? (
+                {selectionBadge === "extra" && selectedIds.length > 0 ? (
                     <span className="text-xs bg-[var(--color-primary-searchmind)] text-white rounded-full px-2 py-0.5">
                         +{selectedIds.length}
                     </span>

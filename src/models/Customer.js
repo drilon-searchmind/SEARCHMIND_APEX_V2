@@ -78,6 +78,15 @@ const CustomerSchema = new mongoose.Schema({
             type: Boolean,
             default: false,
         },
+        /**
+         * Shopify Markets customers only: use global CustomerPropertyObjectives ("global")
+         * or per-market CustomerMarketPropertyObjectives ("per_market"). Only one mode is active.
+         */
+        propertyObjectivesMode: {
+            type: String,
+            enum: ["global", "per_market"],
+            default: "global",
+        },
         /** When true: ShopifyQL sales and order-based fetches only include the Online Store channel (excludes POS, draft orders, etc.). */
         shopifyOnlineStoreOnly: {
             type: Boolean,

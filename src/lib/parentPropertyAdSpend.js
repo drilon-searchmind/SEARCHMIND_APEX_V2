@@ -5,6 +5,7 @@ import {
     channelSpendTotalsFromMerged,
     totalAdSpendFromMerged,
 } from "./mergeAdSpendDaily";
+import { parentChildDayDisplayRevenue } from "./parentPropertyMetrics";
 
 /** Key on parent aggregated daily rows, e.g. `facebookSpend`, `snapchatSpend`. */
 export function parentDailySpendKey(channelId) {
@@ -61,8 +62,13 @@ export function parentGroupVisibleAdSpendChannels(childCustomers) {
 /**
  * @param {Array<Record<string, unknown>>} dailyDataList — per-child daily payloads from parent API
  * @param {string} shopifyRevenueField
+ * @param {Record<string, { CustomerSettings?: Record<string, unknown> }>} [customersById]
  */
-export function aggregateParentGroupDailyChart(dailyDataList, shopifyRevenueField = "net_sales") {
+export function aggregateParentGroupDailyChart(
+    dailyDataList,
+    shopifyRevenueField = "net_sales",
+    customersById = {}
+) {
     /** @type {Record<string, Record<string, number|string>>} */
     const dailyMap = {};
 
@@ -77,10 +83,13 @@ export function aggregateParentGroupDailyChart(dailyDataList, shopifyRevenueFiel
     };
 
     for (const result of dailyDataList || []) {
+        const customerSettings =
+            customersById[String(result._id)]?.CustomerSettings || {};
         const shopifyDaily = result.shopifyDaily || [];
         for (const d of shopifyDaily) {
             const row = ensure(d.period);
-            const rv = (d[shopifyRevenueField] ?? d.net_sales ?? 0) || 0;
+            const rv =
+                parentChildDayDisplayRevenue(d, shopifyRevenueField, customerSettings) || 0;
             row.revenue += rv;
             row.orders += d.orders || 0;
         }

@@ -53,18 +53,25 @@ function deriveDisplayedChildRow(row, shopifyRevenueField, groupMetricPreference
         revenue = row.revenue ?? 0;
         revenuePrev = row.prevData?.revenue ?? 0;
     }
-    const adspend = row.adspend ?? 0;
+    const adspend = fm?.cost ?? row.adspend ?? 0;
     const orders = row.orders ?? 0;
     const roas = adspend > 0 ? revenue / adspend : null;
     const spendshare = revenue > 0 ? adspend / revenue : null;
     const aov = orders > 0 ? revenue / orders : null;
     const adspendPrev = row.prevData?.adspend ?? 0;
+    const grossProfit = fm?.grossProfit ?? null;
     return {
         ...row,
         revenue,
         roas,
         spendshare,
         aov,
+        netProfit: fm?.ebit ?? null,
+        poas: grossProfit != null && adspend > 0 ? grossProfit / adspend : null,
+        cac: fm?.cac ?? null,
+        grossSales: fm?.grossSales ?? null,
+        returns: fm?.returns ?? null,
+        discounts: fm?.discounts ?? null,
         metricPreference: groupMetricPreference,
         prevData: row.prevData
             ? {
@@ -787,9 +794,14 @@ export default function ParentPropertyHome() {
             (r) => enabledProperties[String(r._id)] !== false
         );
 
+        const customersById = Object.fromEntries(
+            childCustomers.map((c) => [String(c._id), c])
+        );
+
         const aggregatedDaily = aggregateParentGroupDailyChart(
             allDailyChartData.filter((result) => enabledProperties[String(result._id)] !== false),
-            shopifyRevenueField
+            shopifyRevenueField,
+            customersById
         );
 
         // Calculate metrics from filtered data (revenue aligns with chosen Shopify basis + group metric prefs)
