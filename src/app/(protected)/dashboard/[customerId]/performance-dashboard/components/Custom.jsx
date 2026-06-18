@@ -22,8 +22,7 @@ import {
     getFirstMetricKey,
     toParts,
 } from "./kpiFormulaUtils";
-import { AVAILABLE_METRICS } from "./AddKpiModal";
-import Spinner from "@/components/ui/Spinner";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { pushGTMEvent, GTM_EVENTS } from "@root/lib/gtmFunctions";
 import { aggregateShopifyAndAdSpendByPeriodFromRows } from "@/lib/mergeAdSpendDaily";
 import {
@@ -32,117 +31,11 @@ import {
     resolveChartCategoryPrevKey,
 } from "@/lib/dateRangeComparison";
 
-const METRIC_LABELS = Object.fromEntries(
-    AVAILABLE_METRICS.map((m) => [m.key, m.label])
-);
-// Extra metrics from metricsData not in AddKpiModal
-Object.assign(METRIC_LABELS, {
-    net_sales: "Net Sales",
-    cogs: "COGS",
-    gross_sales: "Gross Sales",
-    discounts: "Discounts",
-    shipping_revenue: "Shipping Charges",
-    shipping_cost: "Shipping Cost",
-    transaction_fee: "Transaction Fee",
-    tax: "Taxes",
-    duties: "Duties",
-    additional_fees: "Additional Fees",
-    fixed_costs: "Fixed Costs",
-    variable_costs: "Variable Costs",
-    pick_pack: "Pick & Pack",
-    ebit_pct: "EBIT%",
-    meta_spend: "Meta spend",
-    google_spend: "Google Ads spend",
-    pinterest_spend: "Pinterest spend",
-    snapchat_spend: "Snapchat spend",
-    bing_spend: "Bing Ads spend",
-    reddit_spend: "Reddit spend",
-});
-
 const fmt = (n, decimals = 0) =>
     (n ?? 0).toLocaleString("da-DK", {
         maximumFractionDigits: decimals,
         minimumFractionDigits: decimals,
     });
-
-/** Format a metric value for calc display (currency vs ratio) */
-function fmtMetricValue(val, key) {
-    if (val == null || isNaN(val)) return "-";
-    if (RATIO_KEYS.includes(key))
-        return fmt(val, 2);
-    if (CURRENCY_KEYS.includes(key) || key === "fixed_costs" || key === "variable_costs" || key === "pick_pack")
-        return fmt(val, 0);
-    return fmt(val, 0);
-}
-
-/** Format formula result for calc display (infer ratio vs currency from operands) */
-function fmtFormulaResult(result, parts) {
-    if (result == null || isNaN(result)) return "-";
-    const metricKeys = parts
-        .filter((p) => p.type === "metric")
-        .map((p) => p.value);
-    const hasDivision = parts.some(
-        (p) => p.type === "operator" && p.value === "/"
-    );
-    const hasOrders = metricKeys.includes("orders");
-    const hasCost = metricKeys.includes("cost");
-    // ROAS, POAS, Spendshare: division resulting in ratio
-    if (hasDivision && (hasCost || metricKeys.includes("revenue")) && !hasOrders)
-        return fmt(result, 2);
-    return fmt(result, 0);
-}
-
-/**
- * Build calc content (valueLabels + calcLines) for any KPI.
- * Used when standard metric has no popOverContent (formulas, single metrics without calc).
- */
-function buildKpiCalcContent(kpi, data) {
-    const parts = toParts(kpi);
-    if (!parts?.length) return null;
-
-    const metricParts = parts.filter((p) => p.type === "metric");
-
-    // Value labels: each metric with its formatted value
-    const valueLabelLines = metricParts.map((p) => {
-        const key = p.value;
-        const val = data[key] ?? 0;
-        const label = METRIC_LABELS[key] || key;
-        return `${label}: ${fmtMetricValue(val, key)}`;
-    });
-    const valueLabels = valueLabelLines.join("\n");
-
-    // Calc lines
-    const result = evaluateFormula(kpi, data);
-
-    if (metricParts.length === 1) {
-        const val = data[metricParts[0].value] ?? 0;
-        const key = metricParts[0].value;
-        return {
-            valueLabels,
-            calcLines: [`= ${fmtMetricValue(val, key)}`],
-        };
-    }
-
-    // Formula: build "= a op b op c" and "= result"
-    const exprParts = [];
-    for (let i = 0; i < parts.length; i++) {
-        const p = parts[i];
-        if (p.type === "metric") {
-            const val = data[p.value] ?? 0;
-            exprParts.push(fmtMetricValue(val, p.value));
-        } else if (p.type === "operator") {
-            const opChar =
-                { "/": "÷", "*": "×", "+": "+", "-": "−" }[p.value] ?? p.value;
-            exprParts.push(opChar);
-        }
-    }
-    const exprLine = `= ${exprParts.join(" ")}`;
-    const resultLine = `= ${fmtFormulaResult(result, parts)}`;
-    return {
-        valueLabels,
-        calcLines: [exprLine, resultLine],
-    };
-}
 
 const STORAGE_KEY_PREFIX = "performance-dashboard-custom-kpis";
 const MIGRATION_KEY = "performance-dashboard-custom-kpis-migrated";
@@ -294,7 +187,6 @@ export default function Custom({
     customerId = "",
     metricsData = null,
     metrics = [],
-    showCalcs = false,
     shopifyDaily = [],
     shopifyDailyPrev = [],
     adChannelRowsCurr = {},
@@ -590,7 +482,7 @@ export default function Custom({
             chart: {
                 toolbar: { show: false },
                 zoom: { enabled: false },
-                fontFamily: "Outfit, sans-serif",
+                fontFamily: "Inter, sans-serif",
             },
             xaxis: {
                 categories,
@@ -655,13 +547,24 @@ export default function Custom({
     return (
         <div className="w-full">
             {error && (
-                <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-600 text-sm">
+                <div className="apex-perf-alert apex-perf-alert--error mb-4">
                     {error}
                 </div>
             )}
             {loading ? (
-                <div className="flex justify-center py-12">
-                    <Spinner size={40} color="#406969" />
+                <div className="apex-perf-loading">
+                    <CobaltLoader
+                        variant="panel"
+                        eyebrow="Custom KPIs"
+                        title="Loading KPIs"
+                        subtitle="Fetching your saved formulas and metric definitions."
+                        steps={[
+                            "Load custom KPIs",
+                            "Evaluate formulas",
+                            "Prepare chart series",
+                        ]}
+                        request="GET /api/custom-kpis"
+                    />
                 </div>
             ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6 w-full">
@@ -671,8 +574,6 @@ export default function Custom({
                     const Icon =
                         METRIC_ICONS[getFirstMetricKey(kpi)] || FiBarChart2;
                     const isSelected = selectedKpis.includes(kpi.id);
-
-                    // Show calc fold-out for ALL custom KPIs when showCalcs is on
                     const parts = toParts(kpi);
                     const isSingleMetric =
                         parts?.length === 1 && parts[0]?.type === "metric";
@@ -682,28 +583,6 @@ export default function Custom({
                     const standardMetric = metrics?.find(
                         (m) => m.key === metricKey
                     );
-                    const hasCalc = showCalcs;
-
-                    // Prefer standard metric calc when available; else build from formula
-                    let valueLabels, calcLines;
-                    if (
-                        isSingleMetric &&
-                        standardMetric?.popOverContent &&
-                        !STORE_REPORTED_METRIC_KEYS.has(metricKey)
-                    ) {
-                        calcLines = standardMetric.popOverContent
-                            .split("\n")
-                            .map((l) => l.trim())
-                            .filter(
-                                (l) =>
-                                    l && l.startsWith("=") && /\d/.test(l)
-                            );
-                        valueLabels = standardMetric.calcValueLabels;
-                    } else {
-                        const built = buildKpiCalcContent(kpi, dataForCards);
-                        valueLabels = built?.valueLabels;
-                        calcLines = built?.calcLines;
-                    }
 
                     return (
                         <div
@@ -715,10 +594,11 @@ export default function Custom({
                                 (e.key === "Enter" || e.key === " ") &&
                                 toggleKpiSelection(kpi.id)
                             }
-                            className={`relative group cursor-pointer rounded-lg ${hasCalc && calcLines?.length ? "flex flex-col" : ""}`}
+                            className="relative group cursor-pointer rounded-lg"
                             aria-pressed={isSelected}
                         >
                             <MetricCard
+                                variant="cobalt"
                                 label={kpi.name}
                                 value={displayValue}
                                 icon={
@@ -753,84 +633,14 @@ export default function Custom({
                                         : null
                                 }
                             />
-                            {hasCalc && calcLines?.length > 0 && (
-                                <div className="mt-0.5 px-3 py-2 rounded-b-xl bg-gray-50 border border-t-0 border-gray-200 text-[10px] font-mono text-gray-600 leading-tight">
-                                    {valueLabels && (
-                                        <div className="mb-1.5 pb-1.5 border-b border-gray-200 space-y-0.5">
-                                            {valueLabels
-                                                .split("\n")
-                                                .filter(Boolean)
-                                                .map((line, i) => {
-                                                    const colonIdx =
-                                                        line.indexOf(":");
-                                                    const label =
-                                                        colonIdx >= 0
-                                                            ? line
-                                                                  .slice(
-                                                                      0,
-                                                                      colonIdx
-                                                                  )
-                                                                  .trim()
-                                                            : line;
-                                                    const val =
-                                                        colonIdx >= 0
-                                                            ? line
-                                                                  .slice(
-                                                                      colonIdx +
-                                                                          1
-                                                                  )
-                                                                  .trim()
-                                                            : "";
-                                                    return (
-                                                        <div
-                                                            key={i}
-                                                            className="flex justify-between gap-4"
-                                                        >
-                                                            <span className="text-gray-500">
-                                                                {label}
-                                                            </span>
-                                                            <span className="tabular-nums">
-                                                                {val}
-                                                            </span>
-                                                        </div>
-                                                    );
-                                                })}
-                                        </div>
-                                    )}
-                                    <div className="flex justify-between gap-4">
-                                        {!valueLabels && (
-                                            <span className="shrink-0 text-gray-500">
-                                                {kpi.name}
-                                            </span>
-                                        )}
-                                        <div
-                                            className={`text-right flex flex-col items-end ${valueLabels ? "ml-auto" : ""}`}
-                                        >
-                                            {calcLines.map((line, i) => (
-                                                <span
-                                                    key={i}
-                                                    className={
-                                                        i ===
-                                                        calcLines.length - 1
-                                                            ? "font-bold text-[var(--color-primary-searchmind)]"
-                                                            : ""
-                                                    }
-                                                >
-                                                    {line}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                            <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="apex-perf-custom__hover-actions">
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         e.preventDefault();
                                         setReplaceModalKpi(kpi);
                                     }}
-                                    className="p-1.5 rounded-lg bg-white/90 hover:bg-purple-50 text-gray-400 hover:text-purple-700 shadow-sm"
+                                    className="apex-perf-icon-btn"
                                     aria-label="Replace standard metric"
                                     title="Replace standard metric"
                                 >
@@ -842,7 +652,7 @@ export default function Custom({
                                         e.preventDefault();
                                         handleEdit(kpi);
                                     }}
-                                    className="p-1.5 rounded-lg bg-white/90 hover:bg-gray-100 text-gray-400 hover:text-gray-600 shadow-sm"
+                                    className="apex-perf-icon-btn"
                                     aria-label="Edit KPI"
                                 >
                                     <FiEdit2 className="text-sm" />
@@ -853,7 +663,7 @@ export default function Custom({
                                         e.preventDefault();
                                         handleDelete(kpi);
                                     }}
-                                    className="p-1.5 rounded-lg bg-white/90 hover:bg-red-50 text-gray-400 hover:text-red-600 shadow-sm"
+                                    className="apex-perf-icon-btn hover:text-[var(--color-error)]"
                                     aria-label="Delete KPI"
                                 >
                                     <FiTrash2 className="text-sm" />
@@ -866,11 +676,11 @@ export default function Custom({
                 <button
                     type="button"
                     onClick={handleAddClick}
-                    className="group flex flex-col justify-center items-center border-2 border-dashed border-gray-300 rounded-xl min-w-[160px] min-h-[110px] px-6 py-5 hover:border-[var(--color-primary-searchmind)] hover:bg-gray-50/50 transition-colors"
+                    className="group apex-perf-custom__add"
                     aria-label="Add KPI"
                 >
-                    <FiPlus className="text-3xl text-gray-400 group-hover:text-[var(--color-primary-searchmind)] transition-colors" />
-                    <span className="text-xs text-gray-400 mt-2 group-hover:text-[var(--color-primary-searchmind)] transition-colors">
+                    <FiPlus className="apex-perf-custom__add-icon" />
+                    <span className="apex-perf-custom__add-label">
                         Add KPI
                     </span>
                 </button>
@@ -888,11 +698,7 @@ export default function Custom({
                                     onClick={() =>
                                         toggleKpiSelection(kpi.id)
                                     }
-                                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 ${
-                                        selectedKpis.includes(kpi.id)
-                                            ? "bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]"
-                                            : "bg-white text-gray-700 border-gray-200 hover:bg-gray-100"
-                                    }`}
+                                    className={`apex-perf-chip${selectedKpis.includes(kpi.id) ? " is-active" : ""}`}
                                 >
                                     {kpi.name}
                                 </button>
@@ -902,6 +708,7 @@ export default function Custom({
 
                     {selectedKpis.length > 0 ? (
                         <GraphCard
+                            variant="cobalt"
                             title={
                                 selectedKpis.length === 1
                                     ? `${kpis.find((k) => k.id === selectedKpis[0])?.name || "KPI"} Over Time`
@@ -911,8 +718,8 @@ export default function Custom({
                             chartSeries={chartSeries}
                         />
                     ) : (
-                        <div className="flex items-center justify-center h-64 border border-dashed border-gray-200 rounded-xl bg-gray-50/50">
-                            <p className="text-sm text-gray-500">
+                        <div className="apex-perf-empty h-64 flex items-center justify-center">
+                            <p className="text-sm">
                                 Select KPIs above to display on the graph
                             </p>
                         </div>

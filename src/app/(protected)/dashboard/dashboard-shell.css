@@ -1,0 +1,862 @@
+/* Hallmark · theme: Cobalt · shell: dashboard (sidebar + topbar) */
+
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+@import "../../../../tokens.css";
+
+.cobalt-dashboard {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+  background: var(--color-paper);
+  overflow: hidden;
+}
+
+.cobalt-dashboard *,
+.cobalt-dashboard *::before,
+.cobalt-dashboard *::after {
+  box-sizing: border-box;
+}
+
+.apex-dash__content {
+  min-width: 0;
+  flex: 1;
+  overflow-y: auto;
+  background: var(--color-paper);
+  padding: var(--space-lg) var(--space-md);
+}
+
+@media (min-width: 1280px) {
+  .apex-dash__content {
+    padding: var(--space-xl) var(--space-2xl);
+  }
+}
+
+/* ── Sidebar (graphite rail) ── */
+
+.apex-dash-sidebar {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  height: 100%;
+  background: var(--color-graphite);
+  color: var(--color-code-ink-body);
+  border-right: var(--rule-hair) solid var(--color-code-border);
+  transition: width var(--dur-short) var(--ease-out), padding var(--dur-short) var(--ease-out);
+  z-index: 50;
+}
+
+.apex-dash-sidebar.is-expanded {
+  width: 18rem;
+  padding: var(--space-lg) var(--space-md);
+}
+
+.apex-dash-sidebar.is-collapsed {
+  width: 3.25rem;
+  padding: var(--space-md) var(--space-xs);
+}
+
+.apex-dash-sidebar.is-collapsed .apex-dash-nav__section-btn,
+.apex-dash-sidebar.is-collapsed .apex-dash-sidebar__menu-label,
+.apex-dash-sidebar.is-collapsed .apex-dash-sidebar__brand-name {
+  display: none;
+}
+
+.apex-dash-sidebar__brand {
+  display: block;
+  margin-bottom: 0;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.apex-dash-sidebar__brand-mark {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--space-sm) var(--space-md);
+  background: oklch(98% 0.006 165 / 0.94);
+  border: var(--rule-hair) solid var(--color-code-border);
+  border-radius: var(--radius-input);
+  transition:
+    border-color var(--dur-micro) var(--ease-out),
+    background-color var(--dur-micro) var(--ease-out);
+}
+
+.apex-dash-sidebar__brand:hover .apex-dash-sidebar__brand-mark {
+  border-color: oklch(82% 0.13 155 / 0.45);
+  background: var(--color-paper);
+}
+
+.apex-dash-sidebar__brand-mark img {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.apex-dash-sidebar__brand-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-ink);
+  line-height: 1;
+  min-width: 0;
+}
+
+.apex-dash-sidebar.is-collapsed .apex-dash-sidebar__brand-mark {
+  justify-content: center;
+  padding: var(--space-sm);
+  min-height: 2.5rem;
+}
+
+.apex-dash-sidebar.is-collapsed .apex-dash-sidebar__scroll {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-sm);
+}
+
+.apex-dash-sidebar__brand-sub {
+  font-family: var(--font-label);
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  color: var(--color-code-ink-muted);
+}
+
+.apex-dash-sidebar__menu-label {
+  font-family: var(--font-label);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-code-ink-muted);
+  margin: 0 0 var(--space-md);
+}
+
+.apex-dash-sidebar__scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  margin-top: var(--space-2xl);
+  padding-top: var(--space-md);
+  border-top: var(--rule-hair) solid var(--color-code-border);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.apex-dash-sidebar__scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.apex-dash-nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.apex-dash-nav > li {
+  margin: 0;
+}
+
+.apex-dash-nav__section-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-2xs) var(--space-sm);
+  margin-bottom: var(--space-xs);
+  border: none;
+  background: transparent;
+  font-family: var(--font-label);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-code-ink-muted);
+  cursor: pointer;
+  border-radius: var(--radius-input);
+  transition: color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out);
+}
+
+.apex-dash-nav__section-btn:hover {
+  color: var(--color-code-ink-light);
+  background: var(--color-code-bar);
+}
+
+.apex-dash-nav__section-btn svg:last-child {
+  width: 0.75rem;
+  height: 0.75rem;
+  opacity: 0.6;
+}
+
+.apex-dash-nav__section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.apex-dash-nav__section-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--color-syntax-key);
+}
+
+.apex-dash-nav__sub {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.apex-dash-nav__link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-input);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-code-ink-dim);
+  text-decoration: none;
+  border: var(--rule-hair) solid transparent;
+  transition:
+    color var(--dur-micro) var(--ease-out),
+    background-color var(--dur-micro) var(--ease-out),
+    border-color var(--dur-micro) var(--ease-out);
+}
+
+.apex-dash-nav__link:hover {
+  color: var(--color-code-ink-light);
+  background: var(--color-code-bar);
+}
+
+.apex-dash-nav__item.is-active .apex-dash-nav__link {
+  color: var(--color-code-ink-light);
+  background: var(--color-code-bg);
+  border-color: var(--color-code-border);
+  border-left: 2px solid var(--color-syntax-key);
+  padding-left: calc(var(--space-sm) - 1px);
+}
+
+.apex-dash-nav__link-main svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.apex-dash-nav__item {
+  position: relative;
+}
+
+.apex-dash-nav__link-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+  flex: 1;
+}
+
+.apex-dash-nav__link-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+.apex-dash-nav__item.is-collapsed .apex-dash-nav__link {
+  justify-content: center;
+  padding: var(--space-sm) var(--space-xs);
+}
+
+.apex-dash-nav__tooltip {
+  position: absolute;
+  left: calc(100% + 0.5rem);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: var(--space-2xs) var(--space-sm);
+  background: var(--color-code-bg);
+  border: var(--rule-hair) solid var(--color-code-border);
+  border-radius: var(--radius-input);
+  font-size: var(--text-xs);
+  color: var(--color-code-ink-light);
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 60;
+  transition: opacity var(--dur-micro) var(--ease-out);
+}
+
+.apex-dash-nav__item.is-collapsed:hover .apex-dash-nav__tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.apex-dash-nav__badge {
+  font-family: var(--font-label);
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border: var(--rule-hair) solid var(--color-code-border);
+  border-radius: 4px;
+  color: var(--color-code-ink-muted);
+}
+
+.apex-dash-nav__warn {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--color-syntax-num);
+  flex-shrink: 0;
+}
+
+/* ── Topbar ── */
+
+.apex-dash-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  padding: var(--space-sm) var(--space-lg);
+  background: oklch(98% 0.006 165 / 0.94);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  backdrop-filter: blur(8px);
+  font-family: var(--font-body);
+}
+
+@media (min-width: 768px) {
+  .apex-dash-topbar {
+    padding: var(--space-sm) var(--space-2xl);
+  }
+}
+
+.apex-dash-topbar__left {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+.apex-dash-topbar__right {
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+.apex-dash-topbar__right--desktop {
+  display: none;
+}
+
+@media (min-width: 1280px) {
+  .apex-dash-topbar__right--desktop {
+    display: flex;
+  }
+}
+
+.apex-dash-topbar__right--mobile {
+  display: flex;
+}
+
+@media (min-width: 1280px) {
+  .apex-dash-topbar__right--mobile {
+    display: none;
+  }
+}
+
+.cobalt-dashboard .apex-dash-topbar__left .apex-home__search {
+  flex: 1 1 12rem;
+  min-width: 0;
+  max-width: 28rem;
+}
+
+.apex-dash-search__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-ink);
+}
+
+/* ── Icon boxes (match home rail / topbar icons) ── */
+
+.apex-dash__icon-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+  background: var(--color-paper-2);
+  overflow: hidden;
+  color: var(--color-muted);
+}
+
+.apex-dash__icon-box--user {
+  width: 2rem;
+  height: 2rem;
+}
+
+.apex-dash__icon-box--user img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0;
+}
+
+.apex-dash__icon-box--menu {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.apex-dash__icon-box--menu svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.apex-dash-topbar__home {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-input);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-ink-2);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.apex-dash-topbar__home:hover {
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.apex-dash-topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.apex-dash-topbar__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  min-height: 2.25rem;
+  padding: var(--space-xs) var(--space-md);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  border: var(--rule-hair) solid var(--color-rule-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-paper);
+  color: var(--color-ink-2);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out);
+}
+
+.apex-dash-topbar__btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-ink);
+}
+
+.apex-dash-topbar__btn--primary {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  border-color: var(--color-accent);
+}
+
+.apex-dash-topbar__btn--primary:hover {
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+  color: var(--color-accent-ink);
+}
+
+.apex-dash-topbar__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-pill);
+  background: var(--color-paper);
+  color: var(--color-ink-2);
+  cursor: pointer;
+  transition: border-color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out);
+}
+
+.apex-dash-topbar__icon-btn:hover {
+  border-color: var(--color-rule-2);
+  background: var(--color-paper-2);
+}
+
+.apex-dash-topbar__icon-btn--highlight {
+  background: var(--color-paper-2);
+  border-color: var(--color-syntax-key);
+  color: var(--color-accent);
+}
+
+.apex-dash-topbar__badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-label);
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  background: var(--color-paper);
+  border: var(--rule-hair) solid var(--color-accent);
+  border-radius: 999px;
+}
+
+.apex-dash-topbar__user {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-2xs) var(--space-xs);
+  border: var(--rule-hair) solid transparent;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--radius-input);
+  transition: background-color var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out);
+}
+
+.apex-dash-topbar__user:hover {
+  background: var(--color-paper-2);
+  border-color: var(--color-rule);
+}
+
+.apex-dash-topbar__user-name {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
+.apex-dash-topbar__user-chevron {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--color-muted);
+}
+
+.apex-dash-topbar__menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.375rem);
+  width: min(16rem, calc(100vw - 2rem));
+  padding: var(--space-sm);
+  background: var(--color-paper);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+  box-shadow: 0 4px 20px oklch(27.5% 0.038 165 / 0.08);
+  z-index: 50;
+}
+
+.apex-dash-topbar__menu-head {
+  margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-sm);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-dash-topbar__menu-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs);
+}
+
+.apex-dash-topbar__menu-user-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.apex-dash-topbar__menu-user-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.apex-dash-topbar__menu-user-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.apex-dash-topbar__menu-user-email {
+  margin: 2px 0 0;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apex-dash-topbar__menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.apex-dash-topbar__menu-list a,
+.apex-dash-topbar__menu-list button,
+.apex-dash-topbar__menu-radar-link,
+.apex-dash-topbar__menu-signout {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-input);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-ink-2);
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out);
+}
+
+.apex-dash-topbar__menu-list a:hover,
+.apex-dash-topbar__menu-list button:hover,
+.apex-dash-topbar__menu-radar-link:hover,
+.apex-dash-topbar__menu-signout:hover {
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+}
+
+.apex-dash-topbar__menu-signout {
+  color: var(--color-syntax-num);
+}
+
+.apex-dash-topbar__menu-signout:hover {
+  color: var(--color-syntax-num);
+}
+
+.apex-dash-topbar__menu-divider {
+  height: 1px;
+  background: var(--color-rule);
+  margin: var(--space-xs) var(--space-sm);
+  border: none;
+}
+
+.apex-dash-topbar__notif-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  width: min(22rem, calc(100vw - 2rem));
+  max-height: min(70vh, 24rem);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-paper);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  z-index: 50;
+  overflow: hidden;
+}
+
+.apex-dash-topbar__mobile-menu {
+  position: fixed;
+  top: 3.25rem;
+  left: 3.25rem;
+  right: 0;
+  max-height: calc(100vh - 3.5rem);
+  overflow-y: auto;
+  background: var(--color-paper);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  box-shadow: var(--shadow-card);
+  z-index: 39;
+  padding: var(--space-md) var(--space-lg);
+  scrollbar-width: none;
+}
+
+.apex-dash-topbar__mobile-menu::-webkit-scrollbar {
+  display: none;
+}
+
+.apex-dash-topbar__mobile-section {
+  padding-bottom: var(--space-md);
+  margin-bottom: var(--space-md);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-dash-topbar__mobile-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.apex-dash-topbar__mobile-label {
+  font-family: var(--font-label);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin: 0 0 var(--space-sm);
+}
+
+.apex-dash-topbar__mobile-link,
+.apex-dash-topbar__mobile-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-input);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-ink-2);
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color var(--dur-micro) var(--ease-out);
+}
+
+.apex-dash-topbar__mobile-link:hover,
+.apex-dash-topbar__mobile-btn:hover {
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+}
+
+.apex-dash-topbar__mobile-link svg,
+.apex-dash-topbar__mobile-btn svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  color: var(--color-muted);
+  flex-shrink: 0;
+}
+
+.apex-dash-topbar__mobile-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.apex-dash-topbar__mobile-user img {
+  border-radius: 0;
+}
+
+/* Team members in dashboard shell */
+.cobalt-dashboard #teamMembers,
+.cobalt-dashboard #teamMembers-mobile {
+  font-family: var(--font-body);
+}
+
+.cobalt-dashboard #teamMembers p,
+.cobalt-dashboard #teamMembers-mobile p {
+  font-family: var(--font-label);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.cobalt-dashboard .apex-dash-member {
+  width: 2rem;
+  height: 2rem;
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+  overflow: hidden;
+}
+
+.cobalt-dashboard .apex-dash-member img {
+  border-radius: 0;
+}
+
+/* Property search palette — portaled above dashboard UI */
+.apex-dash-cmdk {
+  z-index: 10050;
+}
+
+.apex-dash-cmdk .apex-home__cmdk-backdrop {
+  pointer-events: auto;
+}
+
+/* cmdk current property highlight */
+.apex-home__cmdk-item.is-current {
+  border-left: 2px solid var(--color-accent);
+  padding-left: calc(var(--space-md) - 1px);
+}
+
+.apex-dash-topbar__mobile-user-name {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+}
+
+.apex-dash-topbar__mobile-user-email {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+.apex-dash-topbar__mobile-signout {
+  color: var(--color-syntax-num);
+}
+
+.apex-dash-topbar__mobile-signout svg {
+  color: var(--color-syntax-num);
+}
+
+.apex-dash-topbar__mobile-badge {
+  display: inline-block;
+  margin: 0 0 var(--space-sm) var(--space-sm);
+}
+
+/* Dark mode: keep shell readable */
+.dark .cobalt-dashboard .apex-dash-topbar {
+  background: oklch(22% 0.034 165 / 0.92);
+}
+
+.dark .cobalt-dashboard .apex-dash-topbar__user-name,
+.dark .cobalt-dashboard .apex-dash-topbar__home {
+  color: var(--color-code-ink-light);
+}
+
+.dark .cobalt-dashboard .apex-dash__content {
+  background: var(--color-graphite);
+}

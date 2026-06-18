@@ -1250,9 +1250,10 @@ a.apex-home__group-name:hover {
 }
 
 .apex-home__cmdk-results {
-  max-height: 18rem;
+  max-height: min(24rem, 60vh);
   overflow-y: auto;
   padding: var(--space-xs) 0;
+  scrollbar-width: thin;
 }
 
 .apex-home__cmdk-group {

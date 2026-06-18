@@ -198,7 +198,9 @@ export default function DateRangePicker({
     customPresets = null,
     usePortal = false,
     triggerClassName = "",
+    variant = "default",
 }) {
+    const isCobalt = variant === "cobalt";
     const [isOpen, setIsOpen] = useState(false);
     const [portalStyle, setPortalStyle] = useState({ top: 0, right: 0 });
     const [rangePresetId, setRangePresetId] = useState("mtd");
@@ -581,7 +583,7 @@ export default function DateRangePicker({
         createPortal(
             <div
                 ref={portalContentRef}
-                className={`fixed z-[10000] bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden ${monthOnly ? "datepicker-monthly" : ""}`}
+                className={`fixed z-[10000] overflow-hidden ${monthOnly ? "datepicker-monthly" : ""} ${isCobalt ? "apex-perf-date-panel" : "bg-white border border-gray-200 rounded-lg shadow-lg"}`}
                 style={{ top: portalStyle.top, right: portalStyle.right }}
             >
                 {dropdownInner}
@@ -598,14 +600,16 @@ export default function DateRangePicker({
                     type="button"
                     onClick={() => !loading && setIsOpen((o) => !o)}
                     disabled={loading}
-                    className={`text-nowrap text-center border border-gray-200 rounded-lg px-3 py-2 text-xs w-full min-w-[50px] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:opacity-50 disabled:cursor-not-allowed${triggerClassName ? ` ${triggerClassName}` : ""}`}
+                    className={isCobalt
+                        ? `apex-perf-date-trigger text-nowrap text-center w-full min-w-[50px] disabled:opacity-50 disabled:cursor-not-allowed${triggerClassName ? ` ${triggerClassName}` : ""}`
+                        : `text-nowrap text-center border border-gray-200 rounded-lg px-3 py-2 text-xs w-full min-w-[50px] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:opacity-50 disabled:cursor-not-allowed${triggerClassName ? ` ${triggerClassName}` : ""}`}
                 >
                     {displayText}
                 </button>
 
                 {isOpen && !usePortal && (
                     <div
-                        className={`absolute right-0 top-full mt-1 z-[100] bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden ${monthOnly ? "datepicker-monthly" : ""}`}
+                        className={`absolute right-0 top-full mt-1 z-[100] overflow-hidden ${monthOnly ? "datepicker-monthly" : ""} ${isCobalt ? "apex-perf-date-panel" : "bg-white border border-gray-200 rounded-lg shadow-lg"}`}
                     >
                         {dropdownInner}
                     </div>

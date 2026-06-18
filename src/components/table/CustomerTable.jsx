@@ -344,7 +344,6 @@ export default function CustomerTable({ showLatestNews = true }) {
         const q = cmdkQuery.trim().toLowerCase();
         return accessibleCustomers
             .filter((c) => !q || c.customerName.toLowerCase().includes(q))
-            .slice(0, 12)
             .map((c) => ({
                 id: String(c._id),
                 name: c.customerName,

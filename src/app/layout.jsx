@@ -6,6 +6,9 @@ import { GoogleTagManager } from '@next/third-parties/google';
 
 import "./globals.css";
 
+/** Re-enable with Topbar theme switcher (`THEME_TOGGLE_ENABLED`). */
+const THEME_TOGGLE_ENABLED = false;
+
 const geistSans = Geist({
 	variable: "--font-geist-sans",
 	subsets: ["latin"],
@@ -26,26 +29,21 @@ export const metadata = {
 	},
 };
 
-// Client-only theme sync component
-function ThemeScript() {
-	if (typeof window !== 'undefined') {
-		const theme = window.localStorage.getItem('theme') || 'light';
-		if (theme === 'dark') {
-			document.documentElement.classList.add('dark');
-		} else {
-			document.documentElement.classList.remove('dark');
-		}
-	}
-	return null;
-}
 export default function RootLayout({ children }) {
-    const gtmId = "GTM-MWM37VKJ"
-	
+	const gtmId = "GTM-MWM37VKJ";
+
 	return (
-		<html lang="en">
+		<html lang="en" suppressHydrationWarning>
+			<head>
+				<script
+					dangerouslySetInnerHTML={{
+						__html: THEME_TOGGLE_ENABLED
+							? `(function(){try{var t=localStorage.getItem('theme')||'light';document.documentElement.classList.toggle('dark',t==='dark');}catch(e){}})();`
+							: `(function(){try{localStorage.setItem('theme','light');document.documentElement.classList.remove('dark');}catch(e){}})();`,
+					}}
+				/>
+			</head>
 			<body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-				{/* Client-only theme sync */}
-				<ThemeScript />
 				<AuthProvider>
 					<UserProvider>
 						<AuthGuard>

@@ -14,11 +14,12 @@ import GraphCard from "@/components/dashboard/GraphCard";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import dayjs from "dayjs";
 import { getChartColors } from "@/components/dashboard/chartColors";
-import Spinner from "@/components/ui/Spinner";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import Custom from "./components/Custom";
 import ReturnsOverrideModal from "./components/ReturnsOverrideModal";
 import CogsSettingsModal from "./components/CogsSettingsModal";
 import FixedExpensesSettingsModal from "./components/FixedExpensesSettingsModal";
+import CalculationWalkthroughModal from "./components/CalculationWalkthroughModal";
 import {
     prepareCustomerStaticExpensesForSave,
     getMonthlyFixedExpensesTotal,
@@ -55,6 +56,7 @@ import {
     totalAdSpendFromMerged,
 } from "@/lib/mergeAdSpendDaily";
 import { calcBlendedPoasOrZero } from "@/lib/poasMetrics";
+import "./performance-dashboard.css";
 
 export default function PerformanceDashboard() {
     const params = useParams();
@@ -601,7 +603,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
     const [selectedMetrics, setSelectedMetrics] = useState(['revenue']); // revenue default
     const [aggregateBy, setAggregateBy] = useState('period'); // 'period' | 'monthly'
     const [viewMode, setViewMode] = useState('standard'); // 'standard' | 'custom'
-    const [showCalcs, setShowCalcs] = useState(false); // Default ON for Standard view
+    const [calcWalkthroughOpen, setCalcWalkthroughOpen] = useState(false);
 
     const fixedBreakdownRows = useMemo(
         () => getFixedExpensesBreakdownLineItems(customer?.CustomerStaticExpenses || {}),
@@ -856,7 +858,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
         const formatChartValue = (v) => (typeof v === 'number' && !isNaN(v) ? v.toLocaleString('da-DK', { maximumFractionDigits: 2, minimumFractionDigits: 0 }) : v);
         const isCurrentSeries = (s) => s.name && s.name.includes('(Current)');
         const options = {
-            chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
+            chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, sans-serif' },
             xaxis: { categories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
             yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' }, formatter: formatChartValue } },
             tooltip: { theme: 'light', y: { formatter: formatChartValue } },
@@ -909,7 +911,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
             : []),
     ];
     const revenueOptions = {
-        chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
+        chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, sans-serif' },
         xaxis: { categories: revenueCategories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
         yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' } } },
         colors: [chartColors.lime || '#C6ED62', '#94a3b8'],
@@ -976,7 +978,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
         "#fdba74",
     ];
     const spendOptions = {
-        chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "Outfit, sans-serif" },
+        chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "Inter, sans-serif" },
         xaxis: {
             categories: spendCategories,
             labels: { style: { colors: chartColors.primaryLighter || "#406969" } },
@@ -1087,7 +1089,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
     }
 
     metricOptions = {
-        chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
+        chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, sans-serif' },
         xaxis: { categories: metricCategories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
         yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' } } },
         colors: [chartColors.green || '#213834', '#94a3b8'],
@@ -1133,7 +1135,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
             : []),
     ];
     const aovOptions = {
-        chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Outfit, sans-serif' },
+        chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, sans-serif' },
         xaxis: { categories: aovCategories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
         yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' } } },
         colors: [chartColors.secondary || '#D6CDB6', '#94a3b8'],
@@ -1146,9 +1148,11 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
     };
 
     return (
-        <div className="w-full">
+        <div className="cobalt-perf w-full" data-theme="cobalt">
             {/* Top Card */}
             <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
                 title="Performance Dashboard"
                 label={customer ? customer.customerName : ""}
                 customerId={params.customerId}
@@ -1209,6 +1213,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
                 }}
                 right={
                     <DateRangePicker
+                        variant="cobalt"
                         onApply={handleDateRangeApply}
                         startDate={tempDateRange.startDate}
                         endDate={tempDateRange.endDate}
@@ -1227,20 +1232,18 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
             />
 
             {/* View Mode Toggler + Show calcs + Metrics Cards Section */}
-            <div className="mb-4 flex flex-wrap items-center gap-3">
-                <div className="flex border border-gray-200 bg-gray-100 rounded-lg overflow-hidden w-fit">
+            <div className="apex-perf-toolbar">
+                <div className="apex-perf-segment">
                     <button
                         type="button"
-                        className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium focus:outline-none transition-colors duration-150 ${viewMode === 'standard' ? 'bg-white text-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500 hover:text-[var(--color-primary-searchmind)]'}`}
-                        style={{ borderRadius: '8px 0 0 8px' }}
+                        className={`apex-perf-segment__btn${viewMode === 'standard' ? ' is-active' : ''}`}
                         onClick={() => setViewMode('standard')}
                     >
                         Standard
                     </button>
                     <button
                         type="button"
-                        className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium focus:outline-none transition-colors duration-150 ${viewMode === 'custom' ? 'bg-white text-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500 hover:text-[var(--color-primary-searchmind)]'}`}
-                        style={{ borderRadius: '0 8px 8px 0' }}
+                        className={`apex-perf-segment__btn${viewMode === 'custom' ? ' is-active' : ''}`}
                         onClick={() => setViewMode('custom')}
                     >
                         Custom
@@ -1248,8 +1251,8 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
                 </div>
                 <button
                     type="button"
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors focus:outline-none ${showCalcs ? 'bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
-                    onClick={() => setShowCalcs((v) => !v)}
+                    className={`apex-perf-chip${calcWalkthroughOpen ? " is-active" : ""}`}
+                    onClick={() => setCalcWalkthroughOpen(true)}
                 >
                     Show calcs
                 </button>
@@ -1259,12 +1262,12 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
             <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 w-full mb-8">
                 <PerformanceDashboardStandardSections
+                    variant="cobalt"
                     sections={STANDARD_SECTIONS}
                     metrics={metrics}
                     metricsData={metricsData}
                     loading={loading}
                     error={error}
-                    showCalcs={showCalcs}
                     comparisonMethod={comparisonMethodForUi}
                     selectedMetrics={selectedMetrics}
                     onToggleMetric={toggleMetricSelection}
@@ -1280,7 +1283,6 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
                     customerId={params.customerId}
                     metricsData={metricsDataForCustomKpis}
                     metrics={metrics}
-                    showCalcs={showCalcs}
                     shopifyDaily={shopifyDaily}
                     shopifyDailyPrev={shopifyDailyPrev}
                     adChannelRowsCurr={channelRowsCurr}
@@ -1303,7 +1305,8 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
                         {METRIC_OPTIONS.map(opt => (
                             <button
                                 key={opt.key}
-                                className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 ${selectedMetrics.includes(opt.key) ? 'bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'}`}
+                                type="button"
+                                className={`apex-perf-chip${selectedMetrics.includes(opt.key) ? ' is-active' : ''}`}
                                 onClick={() => setSelectedMetrics(prev => prev.includes(opt.key) ? (prev.length > 1 ? prev.filter(k => k !== opt.key) : prev) : [...prev, opt.key])}
                             >
                                 {opt.label}
@@ -1313,14 +1316,20 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
                 </div>
 
                 {loading ? (
-                    <div className="flex items-center justify-center h-64"><Spinner size={40} color="#406969" /></div>
+                    <div className="apex-perf-loading h-64">
+                        <CobaltLoader
+                            variant="block"
+                            title="Updating chart"
+                            request="GET /api/merged-sources"
+                        />
+                    </div>
                 ) : (
-                    <GraphCard title={selectedMetrics.length === 1 ? `${METRIC_OPTIONS.find(o=>o.key===selectedMetrics[0])?.label} Over Time` : 'Performance Metrics Over Time'} chartOptions={combinedOptions} chartSeries={combinedSeries} />
+                    <GraphCard variant="cobalt" title={selectedMetrics.length === 1 ? `${METRIC_OPTIONS.find(o=>o.key===selectedMetrics[0])?.label} Over Time` : 'Performance Metrics Over Time'} chartOptions={combinedOptions} chartSeries={combinedSeries} />
                 )}
 
                 {!loading && !error && overviewKpiMetrics.length > 0 && (
                     <div className="mt-6">
-                        <h3 className="text-sm font-medium text-gray-500 mb-3">Key metrics</h3>
+                        <h3 className="apex-perf-section-label">Key metrics</h3>
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                             {overviewKpiMetrics.map((metric) => (
                                 <div
@@ -1335,6 +1344,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
                                     }
                                 >
                                     <MetricCard
+                                        variant="cobalt"
                                         label={metric.label}
                                         value={metric.value}
                                         change={metric.change}
@@ -1381,6 +1391,17 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
                 initialStaticExpenses={customer?.CustomerStaticExpenses || {}}
                 onSave={handleFixedExpensesSave}
                 saving={settingsSaving}
+            />
+            <CalculationWalkthroughModal
+                open={calcWalkthroughOpen}
+                onClose={() => setCalcWalkthroughOpen(false)}
+                sections={STANDARD_SECTIONS}
+                metrics={metrics}
+                dateLabel={
+                    appliedDateRange?.startDate && appliedDateRange?.endDate
+                        ? `${appliedDateRange.startDate} – ${appliedDateRange.endDate}`
+                        : null
+                }
             />
         </div>
     );
