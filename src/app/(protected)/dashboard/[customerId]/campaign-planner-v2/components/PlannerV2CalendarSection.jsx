@@ -114,10 +114,10 @@ export default function PlannerV2CalendarSection({
     if (event.kind === "parent") {
       return {
         style: {
-          backgroundColor: "rgba(59, 130, 246, 0.22)",
-          color: "#0f172a",
-          border: "1px solid rgba(37, 99, 235, 0.45)",
-          borderLeft: "4px solid var(--color-primary-searchmind)",
+          backgroundColor: "var(--perf-accent)",
+          color: "var(--color-ink)",
+          border: "1px solid var(--color-accent)",
+          borderLeft: "4px solid var(--color-accent)",
           fontWeight: 600,
         },
       };
@@ -153,34 +153,31 @@ export default function PlannerV2CalendarSection({
 
   return (
     <section
-      className={`${embedded ? "mt-0" : "mt-10"} rounded-xl border border-gray-200 bg-gray-100 p-4 md:p-6`}
+      className={`apex-cp-schedule-panel ${embedded ? "mt-0" : "mt-10"}`}
       aria-labelledby="planner-v2-calendar-heading"
     >
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+      <div className="apex-cp-schedule-head">
         <div className="flex gap-3">
-          <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white border border-gray-200 text-[var(--color-primary-searchmind)]"
-            aria-hidden
-          >
+          <div className="apex-cp-schedule-head__icon" aria-hidden>
             <FiCalendar className="w-5 h-5" />
           </div>
           <div>
             <h2
               id="planner-v2-calendar-heading"
-              className="text-lg font-semibold text-gray-900 tracking-tight"
+              className="apex-cp-schedule-head__title"
             >
               Calendar
             </h2>
-            <p className="text-sm text-gray-600 mt-0.5 max-w-xl">
+            <p className="apex-cp-schedule-head__subtitle">
               Campaign windows and campaign-type schedules from your current
               filters. Click an event to edit.
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-3 text-xs text-gray-600 sm:justify-end">
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-gray-200 px-3 py-1.5">
+        <div className="flex flex-wrap gap-3 text-xs text-[var(--color-muted)] sm:justify-end">
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--perf-raised)] border border-[var(--color-rule)] px-3 py-1.5">
             <span
-              className="h-2.5 w-2.5 rounded-sm border-l-2 border-[var(--color-primary-searchmind)] bg-blue-100"
+              className="h-2.5 w-2.5 rounded-sm border-l-2 border-[var(--color-accent)] bg-[var(--perf-accent)]"
               aria-hidden
             />
             Campaign
@@ -188,11 +185,11 @@ export default function PlannerV2CalendarSection({
         </div>
       </div>
 
-      <div className="rounded-xl bg-white border border-gray-200 p-3 md:p-4">
+      <div className="apex-cp-schedule-surface">
         {events.length === 0 ? (
-          <div className="flex flex-col items-center justify-center min-h-[400px] text-center px-4 text-gray-500">
-            <FiCalendar className="w-12 h-12 text-gray-300 mb-3" />
-            <p className="font-medium text-gray-700">Nothing to show yet</p>
+          <div className="apex-cp-schedule-empty">
+            <FiCalendar className="w-12 h-12 mb-3 opacity-40" />
+            <p className="font-medium text-[var(--color-ink-2)]">Nothing to show yet</p>
             <p className="text-sm mt-1 max-w-sm">
               Add start dates to campaigns or campaign types, or widen your
               filters above.

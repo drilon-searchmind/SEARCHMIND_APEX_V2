@@ -99,8 +99,8 @@ export default function PlannerV2Gantt({
 				sub: "Campaign",
 				parent: p,
 				range: pr,
-				color: "rgba(59, 130, 246, 0.35)",
-				border: "rgba(37, 99, 235, 0.8)",
+				color: "var(--perf-accent)",
+				border: "var(--color-accent)",
 			});
 		});
 		lineItemsWithContext.forEach((li) => {
@@ -125,18 +125,18 @@ export default function PlannerV2Gantt({
 
 	return (
 		<section
-			className={`${embedded ? "mt-0" : "mt-10"} rounded-xl border border-gray-200 bg-gray-100 p-4 md:p-6`}
+			className={`apex-cp-schedule-panel ${embedded ? "mt-0" : "mt-10"}`}
 			aria-labelledby="planner-v2-gantt-heading"
 		>
-			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+			<div className="apex-cp-schedule-head">
 				<div>
 					<h2
 						id="planner-v2-gantt-heading"
-						className="text-lg font-semibold text-gray-900"
+						className="apex-cp-schedule-head__title"
 					>
 						Gantt
 					</h2>
-					<p className="text-sm text-gray-600 mt-0.5">
+					<p className="apex-cp-schedule-head__subtitle">
 						Campaign and campaign-type spans for the selected year. Click a bar
 						to edit.
 					</p>
@@ -145,18 +145,18 @@ export default function PlannerV2Gantt({
 					<button
 						type="button"
 						onClick={() => onYearChange?.(year - 1)}
-						className="p-2 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+						className="apex-cp-icon-btn"
 						aria-label="Previous year"
 					>
 						<FiChevronLeft className="w-5 h-5" />
 					</button>
-					<span className="text-sm font-semibold text-gray-900 tabular-nums min-w-[3.5rem] text-center">
+					<span className="text-sm font-semibold text-[var(--color-ink)] tabular-nums min-w-[3.5rem] text-center">
 						{year}
 					</span>
 					<button
 						type="button"
 						onClick={() => onYearChange?.(year + 1)}
-						className="p-2 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+						className="apex-cp-icon-btn"
 						aria-label="Next year"
 					>
 						<FiChevronRight className="w-5 h-5" />
@@ -164,23 +164,23 @@ export default function PlannerV2Gantt({
 				</div>
 			</div>
 
-			<div className="rounded-xl bg-white border border-gray-200 overflow-hidden">
+			<div className="apex-cp-gantt-grid">
 				<div
-					className="grid text-xs text-gray-500 border-b border-gray-200 bg-gray-50"
+					className="apex-cp-gantt-head"
 					style={{
 						gridTemplateColumns: "minmax(200px,240px) repeat(12, 1fr)",
 					}}
 				>
-					<div className="px-3 py-2 font-medium text-gray-700">Name</div>
+					<div className="apex-cp-gantt-head__label">Name</div>
 					{monthTicks.map((m) => (
-						<div key={m} className="px-1 py-2 text-center border-l border-gray-100">
+						<div key={m} className="apex-cp-gantt-head__month">
 							{m}
 						</div>
 					))}
 				</div>
 				<div className="max-h-[560px] overflow-y-auto">
 					{rows.length === 0 ? (
-						<div className="py-16 text-center text-gray-500 text-sm">
+						<div className="apex-cp-schedule-empty py-16">
 							No rows with dates in {year}.
 						</div>
 					) : (
@@ -191,14 +191,14 @@ export default function PlannerV2Gantt({
 							return (
 								<div
 									key={row.key}
-									className="grid border-b border-gray-100 items-stretch min-h-[44px]"
+									className="apex-cp-gantt-row"
 									style={{
 										gridTemplateColumns: "minmax(200px, 240px) 1fr",
 									}}
 								>
 									<button
 										type="button"
-										className="text-left px-3 py-2 text-sm text-gray-900 hover:bg-gray-50 border-r border-gray-100"
+										className="apex-cp-gantt-row__label"
 										onClick={() => {
 											if (row.kind === "parent" && row.parent)
 												onSelectParent?.(row.parent);
@@ -207,9 +207,11 @@ export default function PlannerV2Gantt({
 										}}
 									>
 										<div className="font-medium truncate">{row.label}</div>
-										<div className="text-xs text-gray-500 truncate">{row.sub}</div>
+										<div className="text-xs text-[var(--color-muted)] truncate">
+											{row.sub}
+										</div>
 									</button>
-									<div className="relative py-2 pr-2 pl-0">
+									<div className="apex-cp-gantt-track relative py-2 pr-2 pl-0">
 										<div
 											className="absolute inset-y-0 left-0 right-2 flex pointer-events-none"
 											aria-hidden
@@ -217,7 +219,7 @@ export default function PlannerV2Gantt({
 											{monthTicks.map((m) => (
 												<div
 													key={m}
-													className="flex-1 border-l border-gray-100/90"
+													className="flex-1 border-l border-[var(--color-rule)]"
 												/>
 											))}
 										</div>
@@ -230,12 +232,13 @@ export default function PlannerV2Gantt({
 													if (row.kind === "lineItem" && row.lineItem)
 														onSelectLineItem?.(row.lineItem);
 												}}
-												className="relative h-6 mt-1 rounded border text-left px-2 text-[11px] font-medium text-gray-900 truncate hover:opacity-90 z-[1]"
+												className="apex-cp-gantt-bar text-left px-2 text-[11px] font-medium text-[var(--color-ink)] truncate hover:opacity-90 z-[1]"
 												style={{
 													marginLeft: `${leftPct}%`,
 													width: `${widthPct}%`,
 													backgroundColor: row.color,
 													borderColor: row.border,
+													border: `1px solid ${row.border}`,
 												}}
 												title={row.label}
 											>

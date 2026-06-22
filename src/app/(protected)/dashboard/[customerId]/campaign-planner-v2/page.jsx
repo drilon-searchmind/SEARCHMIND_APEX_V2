@@ -3,8 +3,7 @@
 import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
-import FormButton from "@/components/form/FormButton";
-import Spinner from "@/components/ui/Spinner";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import usePlannerV2Store from "./hooks/usePlannerV2Store";
 import usePlannerOverviewFilters from "./hooks/usePlannerOverviewFilters";
 import ParentCampaignModal from "./components/ParentCampaignModal";
@@ -14,6 +13,7 @@ import CampaignOverviewFilters from "./components/CampaignOverviewFilters";
 import LineItemsKanban from "./components/LineItemsKanban";
 import PlannerV2ScheduleSection from "./components/PlannerV2ScheduleSection";
 import { isLineItemEndedVisual } from "./lib/lineItemStatus";
+import "./campaign-planner-v2.css";
 
 function CampaignPlannerV2Page() {
 	const params = useParams();
@@ -136,7 +136,6 @@ function CampaignPlannerV2Page() {
 		});
 	};
 
-	/** Open campaign type modal from ?lineItemId= (e.g. notification deep link) */
 	useEffect(() => {
 		if (!hydrated || !lineItemIdFromUrl || !customerId) return;
 		const item = lineItemsWithContext.find(
@@ -159,74 +158,89 @@ function CampaignPlannerV2Page() {
 		router,
 	]);
 
-	if (!hydrated) {
-		return (
-			<div className="w-full flex justify-center py-24">
-				<Spinner />
-			</div>
-		);
-	}
-
 	const lineModalServiceName =
 		lineModal?.service?.serviceName || lineModal?.lineItem?._serviceName || "";
 
 	return (
-		<div className="w-full">
+		<div id="CampaignPlannerV2Page" className="cobalt-perf w-full" data-theme="cobalt">
 			<DashboardHeading
+				variant="cobalt"
+				showRunAudit={false}
 				title="Campaign Planner"
 				label="Overview of your campaigns"
-				right={
-					<span onClick={() => setParentModal({ mode: "create" })}>
-						<FormButton buttonSize="small">+ Create campaign</FormButton>
-					</span>
-				}
+				customerId={customerId}
 				showAnalyzeWithAi={false}
 				showPdfExport={false}
+				right={
+					<button
+						type="button"
+						className="apex-perf-btn apex-perf-btn--primary"
+						onClick={() => setParentModal({ mode: "create" })}
+					>
+						+ Create campaign
+					</button>
+				}
 			/>
 
-			<div className="space-y-8 mt-2">
-				<CampaignOverviewFilters
-					filters={filters}
-					updateFilter={updateFilter}
-					resetFilters={resetFilters}
-					activeFilterCount={activeFilterCount}
-					totalCount={parents.length}
-					filteredCount={filteredParents.length}
-				/>
-				<CampaignOverview
-					parents={filteredParents}
-					storedParentCount={parents.length}
-					services={services}
-					lineItems={lineItems}
-					customerId={customerId}
-					onEditParent={(p) => setParentModal({ mode: "edit", parent: p })}
-					onDeleteParent={handleDeleteParent}
-					onUpdateService={updateService}
-					onAddLineItem={(svc) =>
-						setLineModal({ mode: "create", service: svc })
-					}
-					onEditLineItem={(li, svc) =>
-						setLineModal({ mode: "edit", lineItem: li, service: svc })
-					}
-					onDeleteLineItem={handleDeleteLineItem}
-					onDuplicateLineItem={(li) => duplicateLineItem(li.id)}
-					onLineItemStatusChange={setLineItemStatus}
-				/>
+			{!hydrated ? (
+				<div className="apex-perf-loading">
+					<CobaltLoader variant="block" title="Loading campaign planner" />
+				</div>
+			) : (
+				<div className="apex-cp-stack apex-cp-panel">
+					<CampaignOverviewFilters
+						filters={filters}
+						updateFilter={updateFilter}
+						resetFilters={resetFilters}
+						activeFilterCount={activeFilterCount}
+						totalCount={parents.length}
+						filteredCount={filteredParents.length}
+					/>
 
-				<LineItemsKanban
-					lineItemsWithContext={filteredLineItemsWithContext}
-					onStatusChange={setLineItemStatus}
-					onOpenLineItem={openLineItemFromKanban}
-					filterDateRange={filters.dateRange}
-				/>
-			</div>
+					<section>
+						<h3 className="apex-cp-section__label">Campaign overview</h3>
+						<CampaignOverview
+							parents={filteredParents}
+							storedParentCount={parents.length}
+							services={services}
+							lineItems={lineItems}
+							customerId={customerId}
+							onEditParent={(p) => setParentModal({ mode: "edit", parent: p })}
+							onDeleteParent={handleDeleteParent}
+							onUpdateService={updateService}
+							onAddLineItem={(svc) =>
+								setLineModal({ mode: "create", service: svc })
+							}
+							onEditLineItem={(li, svc) =>
+								setLineModal({ mode: "edit", lineItem: li, service: svc })
+							}
+							onDeleteLineItem={handleDeleteLineItem}
+							onDuplicateLineItem={(li) => duplicateLineItem(li.id)}
+							onLineItemStatusChange={setLineItemStatus}
+						/>
+					</section>
 
-			<PlannerV2ScheduleSection
-				parents={scheduleParents}
-				lineItemsWithContext={filteredLineItemsWithContext}
-				onSelectParent={(p) => setParentModal({ mode: "edit", parent: p })}
-				onSelectLineItem={openLineItemFromKanban}
-			/>
+					<section>
+						<h3 className="apex-cp-section__label">Workflow</h3>
+						<LineItemsKanban
+							lineItemsWithContext={filteredLineItemsWithContext}
+							onStatusChange={setLineItemStatus}
+							onOpenLineItem={openLineItemFromKanban}
+							filterDateRange={filters.dateRange}
+						/>
+					</section>
+
+					<section>
+						<h3 className="apex-cp-section__label">Schedule</h3>
+						<PlannerV2ScheduleSection
+							parents={scheduleParents}
+							lineItemsWithContext={filteredLineItemsWithContext}
+							onSelectParent={(p) => setParentModal({ mode: "edit", parent: p })}
+							onSelectLineItem={openLineItemFromKanban}
+						/>
+					</section>
+				</div>
+			)}
 
 			<ParentCampaignModal
 				open={!!parentModal}
@@ -266,8 +280,8 @@ export default function CampaignPlannerV2PageWithSuspense() {
 	return (
 		<Suspense
 			fallback={
-				<div className="w-full flex justify-center py-24">
-					<Spinner />
+				<div className="cobalt-perf w-full apex-perf-loading" data-theme="cobalt">
+					<CobaltLoader variant="block" title="Loading campaign planner" />
 				</div>
 			}
 		>

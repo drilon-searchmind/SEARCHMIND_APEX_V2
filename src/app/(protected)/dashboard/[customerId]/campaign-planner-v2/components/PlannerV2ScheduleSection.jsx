@@ -14,28 +14,20 @@ export default function PlannerV2ScheduleSection({
 	const [ganttYear, setGanttYear] = useState(() => new Date().getFullYear());
 
 	return (
-		<div className="mt-10">
+		<div>
 			<div className="flex flex-wrap gap-2 mb-4">
-				<div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5">
+				<div className="apex-cp-tab-group">
 					<button
 						type="button"
 						onClick={() => setTab("calendar")}
-						className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-							tab === "calendar"
-								? "bg-[var(--color-primary-searchmind)] text-white"
-								: "text-gray-600 hover:bg-gray-50"
-						}`}
+						className={`apex-cp-tab ${tab === "calendar" ? "is-active" : ""}`}
 					>
 						Calendar
 					</button>
 					<button
 						type="button"
 						onClick={() => setTab("gantt")}
-						className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-							tab === "gantt"
-								? "bg-[var(--color-primary-searchmind)] text-white"
-								: "text-gray-600 hover:bg-gray-50"
-						}`}
+						className={`apex-cp-tab ${tab === "gantt" ? "is-active" : ""}`}
 					>
 						Gantt
 					</button>
