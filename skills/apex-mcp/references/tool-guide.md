@@ -150,6 +150,7 @@ These routes have MCP handlers but are **not** on the default allowlist. A block
 | `/api/reddit-ads` | `startDate`, `endDate` |
 | `/api/bing-ads` | `startDate`, `endDate` |
 | `/api/ga4-metrics` | `startDate`, `endDate` |
+| `/api/shopify-channel-attribution` | `startDate`, `endDate` |
 
 Admin review: `https://apex.searchmind.tech/admin/route-requests`
 
