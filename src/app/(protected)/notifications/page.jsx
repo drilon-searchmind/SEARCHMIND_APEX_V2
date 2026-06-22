@@ -3,7 +3,10 @@
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import DashboardHeading from "@/components/dashboard/DashboardHeading";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { normalizeInternalNotificationHref } from "@/lib/notificationLink";
+import "./notifications.css";
 
 function formatRelative(iso) {
     const d = new Date(iso);
@@ -43,12 +46,10 @@ function groupNotifications(items) {
     return groups;
 }
 
-function NotificationRow({ n }) {
-    const raw = (n.linkUrl || "").trim();
-    const href = raw ? normalizeInternalNotificationHref(raw) : null;
-    const inner = (
-        <div className="flex gap-3 py-4 border-b border-gray-100 last:border-0">
-            <div className="relative shrink-0">
+function NotificationRowContent({ n }) {
+    return (
+        <div className="apex-notifications-row">
+            <div className="apex-notifications-row__avatar">
                 {n.authorImage ? (
                     <Image
                         src={n.authorImage}
@@ -59,47 +60,59 @@ function NotificationRow({ n }) {
                         unoptimized
                     />
                 ) : (
-                    <div className="w-10 h-10 rounded-full bg-[var(--color-primary-searchmind-lighter)] flex items-center justify-center text-sm font-semibold text-gray-700">
+                    <div className="apex-notifications-row__avatar-fallback">
                         {(n.authorName || "A")[0]}
                     </div>
                 )}
-                {!n.readAt && <span className="absolute -left-1 top-0 w-2 h-2 rounded-full bg-red-500" />}
+                {!n.readAt ? <span className="apex-notifications-row__unread" aria-label="Unread" /> : null}
             </div>
-            <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900">{n.title}</p>
-                <p className="text-sm text-gray-600 mt-0.5">{n.body}</p>
-                <p className="text-xs text-gray-400 mt-1">{formatRelative(n.createdAt)}</p>
+            <div className="apex-notifications-row__content">
+                <p className="apex-notifications-row__title">{n.title}</p>
+                <p className="apex-notifications-row__body">{n.body}</p>
+                <p className="apex-notifications-row__time">{formatRelative(n.createdAt)}</p>
             </div>
             {n.imageUrl ? (
-                <div className="relative w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                <div className="apex-notifications-row__thumb">
                     <Image src={n.imageUrl} alt="" fill className="object-cover" unoptimized />
                 </div>
             ) : null}
         </div>
     );
+}
+
+function NotificationRow({ n }) {
+    const raw = (n.linkUrl || "").trim();
+    const href = raw ? normalizeInternalNotificationHref(raw) : null;
+
     if (href) {
         if (href.startsWith("http")) {
             return (
-                <a href={href} target="_blank" rel="noopener noreferrer" className="block hover:bg-gray-50/80 -mx-2 px-2 rounded-lg">
-                    {inner}
+                <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="apex-notifications-row-wrap"
+                >
+                    <NotificationRowContent n={n} />
                 </a>
             );
         }
         return (
-            <Link href={href} className="block hover:bg-gray-50/80 -mx-2 px-2 rounded-lg">
-                {inner}
+            <Link href={href} className="apex-notifications-row-wrap">
+                <NotificationRowContent n={n} />
             </Link>
         );
     }
-    return inner;
+
+    return <NotificationRowContent n={n} />;
 }
 
 function Section({ title, items }) {
     if (!items.length) return null;
     return (
-        <section className="mb-8">
-            <h2 className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">{title}</h2>
-            <div className="bg-white rounded-xl border border-gray-200 px-4">
+        <section className="apex-notifications-section">
+            <h2 className="apex-notifications-section__title">{title}</h2>
+            <div className="apex-notifications-panel">
                 {items.map((n) => (
                     <NotificationRow key={n.id} n={n} />
                 ))}
@@ -129,31 +142,56 @@ export default function NotificationsPage() {
     }, []);
 
     const groups = useMemo(() => groupNotifications(items), [items]);
+    const unreadCount = useMemo(
+        () => items.filter((n) => !n.readAt).length,
+        [items]
+    );
 
     return (
-        <div className="max-w-2xl mx-auto">
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">Notifications</h1>
-            <p className="text-sm text-gray-600 mb-8">
-                You have{" "}
-                <span className="font-semibold text-[var(--color-primary-searchmind)]">{items.length}</span>{" "}
-                notification{items.length !== 1 ? "s" : ""} in your history.
-            </p>
+        <div id="NotificationsPage" className="cobalt-perf w-full apex-notifications-stack" data-theme="cobalt">
+            <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
+                title="Notifications"
+                label={
+                    unreadCount > 0
+                        ? `${unreadCount} unread · ${items.length} total`
+                        : `${items.length} in your history`
+                }
+            />
 
-            {loading && <p className="text-gray-500">Loading…</p>}
-            {error && <p className="text-red-600 text-sm">{error}</p>}
+            {!loading && !error && items.length > 0 ? (
+                <p className="apex-notifications-summary">
+                    You have <strong>{items.length}</strong> notification
+                    {items.length !== 1 ? "s" : ""} in your history
+                    {unreadCount > 0 ? (
+                        <>
+                            {" "}
+                            — <strong>{unreadCount}</strong> unread
+                        </>
+                    ) : null}
+                    .
+                </p>
+            ) : null}
 
-            {!loading && !error && (
+            {loading ? (
+                <div className="apex-perf-loading">
+                    <CobaltLoader variant="block" title="Loading notifications" request="GET /api/notifications" />
+                </div>
+            ) : null}
+
+            {error ? <p className="apex-notifications-error">{error}</p> : null}
+
+            {!loading && !error ? (
                 <>
                     <Section title="Today" items={groups.today} />
                     <Section title="This week" items={groups.thisWeek} />
                     <Section title="Earlier" items={groups.older} />
-                    {items.length === 0 && (
-                        <p className="text-gray-500 text-sm text-center py-12 bg-white rounded-xl border border-gray-200">
-                            No notifications yet.
-                        </p>
-                    )}
+                    {items.length === 0 ? (
+                        <p className="apex-notifications-empty">No notifications yet.</p>
+                    ) : null}
                 </>
-            )}
+            ) : null}
         </div>
     );
 }

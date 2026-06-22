@@ -3,14 +3,13 @@
 import React from "react";
 import FormLabel from "@/components/form/FormLabel";
 import FormInputText from "@/components/form/FormInputText";
-import FormButton from "@/components/form/FormButton";
 
 export default function GeneralAppSettings() {
-    const [form, setForm] = React.useState({ 
-        appName: "Searchmind Apex", 
-        theme: "light", 
+    const [form, setForm] = React.useState({
+        appName: "Searchmind Apex",
+        theme: "light",
         timezone: "Europe/Copenhagen",
-        gtmCode: "GTM-123123"
+        gtmCode: "GTM-123123",
     });
     const [saving, setSaving] = React.useState(false);
 
@@ -18,11 +17,15 @@ export default function GeneralAppSettings() {
         const { name, value } = e.target;
         setForm((prev) => ({ ...prev, [name]: value }));
     };
-    const onSubmit = (e) => { e.preventDefault(); setSaving(true); setTimeout(() => setSaving(false), 500); };
+    const onSubmit = (e) => {
+        e.preventDefault();
+        setSaving(true);
+        setTimeout(() => setSaving(false), 500);
+    };
 
     return (
-        <form className="flex flex-col gap-4" onSubmit={onSubmit}>
-            <h5 className="text-lg font-semibold text-[var(--color-primary-searchmind)] mb-2">General App Settings</h5>
+        <form className="apex-admin-form apex-admin-form--panel apex-admin-form--narrow" onSubmit={onSubmit}>
+            <h2 className="apex-admin-section__title">General App Settings</h2>
             <div>
                 <FormLabel htmlFor="appName" required>App Name</FormLabel>
                 <FormInputText id="appName" name="appName" value={form.appName} onChange={onChange} required />
@@ -33,7 +36,7 @@ export default function GeneralAppSettings() {
             </div>
             <div>
                 <FormLabel htmlFor="theme" required>Theme</FormLabel>
-                <select id="theme" name="theme" value={form.theme} onChange={onChange} className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20">
+                <select id="theme" name="theme" value={form.theme} onChange={onChange}>
                     <option value="light">Light</option>
                     <option value="dark">Dark</option>
                 </select>
@@ -42,8 +45,10 @@ export default function GeneralAppSettings() {
                 <FormLabel htmlFor="gtmCode" required>GTM Code</FormLabel>
                 <FormInputText id="gtmCode" name="gtmCode" value={form.gtmCode} onChange={onChange} required={false} />
             </div>
-            <div className="w-full md:w-40">
-                <FormButton>{saving ? "Saving..." : "Save"}</FormButton>
+            <div className="apex-admin-actions">
+                <button type="submit" className="apex-perf-btn apex-perf-btn--primary" disabled={saving}>
+                    {saving ? "Saving..." : "Save"}
+                </button>
             </div>
         </form>
     );

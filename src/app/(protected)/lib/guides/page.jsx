@@ -1,16 +1,16 @@
-"use client"
+"use client";
 
 import React from "react";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import { FaFacebookSquare, FaWordpress } from "react-icons/fa";
 import { SiShopify, SiGoogle, SiGoogleanalytics, SiWoocommerce } from "react-icons/si";
 import { FiSearch } from "react-icons/fi";
-
+import "./guides.css";
 
 const sections = [
     {
         id: "meta",
-        title: "Meta ",
+        title: "Meta",
         items: [
             "Option A: Ads Manager Dropdown (Fastest): Go to Meta Ads Manager, click the dropdown in the top-left corner (usually shows 'Campaigns'), and your account name and ID will appear.",
             "Option B: URL Bar: Open Ads Manager, and the number following act= in the website address bar is your ID.",
@@ -28,7 +28,7 @@ const sections = [
             "1. Open the Dev Dashboard.",
             "2. Click Apps and select your app.",
             "3. Click Settings.",
-            "4. View or copy your client ID and secret."
+            "4. View or copy your client ID and secret.",
         ],
         content: `Your app's client credentials (client ID and client secret) authenticate your app when it requests access to a store's data. You can retrieve your app's client credentials in the Dev Dashboard. Note: the store must have the App installed to their Shopify store. See more here: https://shopify.dev/docs/apps/build/authentication-authorization/client-secrets`,
         images: [
@@ -47,7 +47,7 @@ const sections = [
         ],
         content: `To start using REST API, you first need to generate API keys. See more here: https://developer.woocommerce.com/docs/apis/rest-api/`,
         images: [
-            "https://developer.woocommerce.com/wp-content/uploads/2023/12/keys.png"
+            "https://developer.woocommerce.com/wp-content/uploads/2023/12/keys.png",
         ],
     },
     {
@@ -55,7 +55,7 @@ const sections = [
         title: "Google Ads",
         items: [
             "Option A: Top-Right Corner: Once signed in, your 10-digit ID is displayed in the top-right corner.",
-            "Option B: Profile Menu: Click your profile picture in the top-right corner to see the ID under 'Account Information'."
+            "Option B: Profile Menu: Click your profile picture in the top-right corner to see the ID under 'Account Information'.",
         ],
         content: `To find your 10-digit Google Ads customer ID, sign in to your account and look at the top-right corner of the header bar next to your profile picture, where it is listed under account information. Alternatively, click the help icon (?) in the top right corner or click your profile name/avatar. See more here: https://support.google.com/google-ads/answer/1704344?hl=en`,
         images: [
@@ -82,96 +82,12 @@ const sections = [
     },
     {
         id: "ga4",
-        title: "GA4 (Google Analytics 4) ",
+        title: "GA4 (Google Analytics 4)",
         items: [],
         content: `To be updated.`,
         images: [],
     },
 ];
-
-export default function GuidesPage() {
-    const scrollToId = (e, id) => {
-        e.preventDefault();
-        const el = document.getElementById(id);
-        if (el) {
-            el.scrollIntoView({ behavior: "smooth", block: "start" });
-            try { history.replaceState(null, "", `#${id}`); } catch (e) { }
-            el.focus({ preventScroll: true });
-        }
-    };
-
-    const placeholderSvg = encodeURIComponent(
-        "<svg xmlns='http://www.w3.org/2000/svg' width='800' height='400'><rect width='100%' height='100%' fill='#e2e8f0'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='20' fill='#374151'>Placeholder image</text></svg>"
-    );
-    const placeholderSrc = `data:image/svg+xml;utf8,${placeholderSvg}`;
-
-    return (
-        <div className="w-full">
-            <div className="max-w-7xl mx-auto">
-                <DashboardHeading title="Integration Guides" label="How to request access & find IDs" right={null} showRight={false} />
-
-                <div className="bg-white border border-gray-200 rounded-lg p-6">
-                    <div className="lg:flex lg:gap-8">
-                        <aside className="hidden lg:block w-64 shrink-0">
-                            <div className="sticky top-28">
-                                <div className="bg-white border border-gray-100 rounded p-4">
-                                    <h2 className="text-sm font-medium text-slate-700 mb-3">Table of Contents</h2>
-                                    <nav className="space-y-2">
-                                        {sections.map((s) => {
-                                            const Icon = iconForId(s.id);
-                                            return (
-                                                <a key={s.id} href={`#${s.id}`} onClick={(e) => scrollToId(e, s.id)} className="flex items-center gap-2 text-slate-600 hover:text-sky-600">
-                                                    {Icon ? <Icon className="w-4 h-4 text-slate-500" aria-hidden /> : <span className="w-4" />}
-                                                    <span> {s.title}</span>
-                                                </a>
-                                            );
-                                        })}
-                                    </nav>
-                                </div>
-                            </div>
-                        </aside>
-
-                        <div className="flex-1">
-                            <div className="space-y-6">
-                                {sections.map((s) => {
-                                    const Icon = iconForId(s.id);
-                                    return (
-                                        <section id={s.id} key={s.id} className="bg-white border border-gray-100 rounded-lg p-6" tabIndex={-1}>
-                                            <div className="flex items-start justify-between">
-                                                <h3 className="text-lg font-semibold flex items-center gap-2">
-                                                    {Icon ? <Icon className="w-5 h-5 text-slate-500" aria-hidden /> : null}
-                                                    {s.title}
-                                                </h3>
-                                            </div>
-
-                                            <div className="mt-4 text-sm text-slate-700">
-                                                <p className="mb-3">{s.content}</p>
-                                                <ul className="list-disc ml-5 space-y-1 mb-4">
-                                                    {s.items.map((it, idx) => (
-                                                        <li key={idx}>{it}</li>
-                                                    ))}
-                                                </ul>
-
-                                                <details className="bg-slate-50 p-4 rounded border">
-                                                    <summary className="cursor-pointer text-sm font-medium">Helpful links & examples</summary>
-                                                    <div className="mt-3 text-xs text-slate-600">
-                                                        {s?.images?.map((img, idx) => (
-                                                            <img key={idx} src={img} alt="placeholder" className="w-full h-auto object-contain rounded" />
-                                                        ))}
-                                                    </div>
-                                                </details>
-                                            </div>
-                                        </section>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
 
 function iconForId(id) {
     switch (id) {
@@ -190,4 +106,111 @@ function iconForId(id) {
         default:
             return null;
     }
+}
+
+export default function GuidesPage() {
+    const scrollToId = (e, id) => {
+        e.preventDefault();
+        const el = document.getElementById(id);
+        if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+            try {
+                history.replaceState(null, "", `#${id}`);
+            } catch {
+                /* ignore */
+            }
+            el.focus({ preventScroll: true });
+        }
+    };
+
+    return (
+        <div id="GuidesPage" className="cobalt-perf w-full apex-guides-stack" data-theme="cobalt">
+            <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
+                title="Integration Guides"
+                label="How to request access & find IDs"
+            />
+
+            <div className="apex-guides-shell">
+                <div className="apex-guides-layout">
+                    <aside className="apex-guides-toc" aria-label="Guide sections">
+                        <div className="apex-guides-toc__inner">
+                            <p className="apex-guides-toc__label">On this page</p>
+                            <ul className="apex-guides-toc__list">
+                                {sections.map((s) => {
+                                    const Icon = iconForId(s.id);
+                                    return (
+                                        <li key={s.id}>
+                                            <a
+                                                href={`#${s.id}`}
+                                                className="apex-guides-toc__link"
+                                                onClick={(e) => scrollToId(e, s.id)}
+                                            >
+                                                {Icon ? <Icon aria-hidden /> : null}
+                                                <span>{s.title}</span>
+                                            </a>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </div>
+                    </aside>
+
+                    <div className="apex-guides-content">
+                        <div className="apex-guides-sections">
+                            {sections.map((s) => {
+                                const Icon = iconForId(s.id);
+                                const hasImages = Array.isArray(s.images) && s.images.length > 0;
+
+                                return (
+                                    <section
+                                        id={s.id}
+                                        key={s.id}
+                                        className="apex-guides-section"
+                                        tabIndex={-1}
+                                    >
+                                        <div className="apex-guides-section__head">
+                                            {Icon ? <Icon aria-hidden /> : null}
+                                            <h2 className="apex-guides-section__title">{s.title}</h2>
+                                        </div>
+
+                                        <p className="apex-guides-section__intro">{s.content}</p>
+
+                                        {s.items.length > 0 ? (
+                                            <ul className="apex-guides-section__list">
+                                                {s.items.map((it, idx) => (
+                                                    <li key={idx}>{it}</li>
+                                                ))}
+                                            </ul>
+                                        ) : null}
+
+                                        <details className="apex-guides-details">
+                                            <summary>Helpful links & examples</summary>
+                                            <div className="apex-guides-details__body">
+                                                {hasImages ? (
+                                                    s.images.map((img, idx) => (
+                                                        <img
+                                                            key={idx}
+                                                            src={img}
+                                                            alt={`${s.title} example`}
+                                                            loading="lazy"
+                                                        />
+                                                    ))
+                                                ) : (
+                                                    <p className="apex-guides-details__empty">
+                                                        No examples available yet.
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </details>
+                                    </section>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 }

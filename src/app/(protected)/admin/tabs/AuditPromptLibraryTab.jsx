@@ -1,10 +1,9 @@
 "use client";
 
 import React from "react";
-import FormButton from "@/components/form/FormButton";
 import FormLabel from "@/components/form/FormLabel";
 import { showToast } from "@/components/ui/ToastProvider";
-import Spinner from "@/components/ui/Spinner";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { FiPlus, FiTrash2 } from "react-icons/fi";
 
 function activeIdsForScope(scope, selection) {
@@ -208,96 +207,77 @@ export default function AuditPromptLibraryTab() {
     };
 
     const scopeMeta = library?.scopes?.find((s) => s.id === activeScope);
+
     if (loading) {
-        return (
-            <div className="flex justify-center py-16">
-                <Spinner />
-            </div>
-        );
+        return <CobaltLoader variant="block" title="Loading audit prompt library" />;
     }
 
     if (!library) {
-        return (
-            <p className="text-sm text-gray-600">Could not load the audit prompt library.</p>
-        );
+        return <p className="apex-admin-empty">Could not load the audit prompt library.</p>;
     }
 
     return (
-        <div className="flex flex-col gap-4">
+        <div className="apex-admin-tab">
             <div>
-                <h5 className="text-lg font-semibold text-[var(--color-primary-searchmind)] mb-1">
-                    Audit Prompt Library
-                </h5>
-                <p className="text-sm text-gray-600 max-w-3xl">
-                    Create multiple prompts per section. For each channel (Cross-channel, SEO,
-                    PPC, PS, EM), check all prompts that should appear in Run Audit — multiple
-                    can be active at once. System prompt: pick exactly one. Active prompts show
-                    as selectable cards in Run Audit (title + description from here).
+                <h2 className="apex-admin-section__title">Audit Prompt Library</h2>
+                <p className="apex-admin-section__subtitle">
+                    Create multiple prompts per section. For each channel (Cross-channel, SEO, PPC,
+                    PS, EM), check all prompts that should appear in Run Audit — multiple can be
+                    active at once. System prompt: pick exactly one. Active prompts show as
+                    selectable cards in Run Audit (title + description from here).
                 </p>
             </div>
 
-            <div className="flex flex-col lg:flex-row gap-4 min-h-[32rem]">
-                <nav
-                    className="lg:w-56 shrink-0 rounded-xl border border-gray-200 bg-gray-50/80 overflow-hidden"
-                    aria-label="Audit prompt sections"
-                >
-                    <ul className="divide-y divide-gray-200">
-                        {(library.scopes || []).map((s) => {
-                            const isActive = s.id === activeScope;
-                            const count = (library.promptsByScope?.[s.id] || []).length;
-                            const activeCount = activeIdsForScope(s.id, library.selection).length;
-                            return (
-                                <li key={s.id}>
-                                    <button
-                                        type="button"
-                                        onClick={() => changeScope(s.id)}
-                                        className={`w-full text-left px-4 py-3 text-sm transition-colors ${
-                                            isActive
-                                                ? "bg-white border-l-4 border-l-[var(--color-primary-searchmind)] font-semibold text-gray-900"
-                                                : "text-gray-700 hover:bg-white/80"
-                                        }`}
-                                    >
-                                        <span className="block">{s.label}</span>
-                                        <span className="mt-0.5 block text-[0.65rem] font-normal text-gray-500">
-                                            {count} prompt{count === 1 ? "" : "s"}
-                                            {s.id === "system"
-                                                ? activeCount
-                                                    ? " · 1 active"
-                                                    : ""
-                                                : activeCount
-                                                  ? ` · ${activeCount} active`
-                                                  : ""}
-                                        </span>
-                                    </button>
-                                </li>
-                            );
-                        })}
-                    </ul>
+            <div className="apex-admin-audit">
+                <nav className="apex-admin-audit__scopes" aria-label="Audit prompt sections">
+                    {(library.scopes || []).map((s) => {
+                        const isActive = s.id === activeScope;
+                        const count = (library.promptsByScope?.[s.id] || []).length;
+                        const activeCount = activeIdsForScope(s.id, library.selection).length;
+                        return (
+                            <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => changeScope(s.id)}
+                                className={`apex-admin-audit__scope-btn${isActive ? " is-active" : ""}`}
+                            >
+                                <span>{s.label}</span>
+                                <span className="apex-admin-audit__scope-meta">
+                                    {count} prompt{count === 1 ? "" : "s"}
+                                    {s.id === "system"
+                                        ? activeCount
+                                            ? " · 1 active"
+                                            : ""
+                                        : activeCount
+                                          ? ` · ${activeCount} active`
+                                          : ""}
+                                </span>
+                            </button>
+                        );
+                    })}
                 </nav>
 
-                <div className="lg:w-72 shrink-0 flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50/50 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <div className="apex-admin-audit__list-panel">
+                    <div className="apex-admin-audit__list-head">
+                        <p className="apex-admin-audit__list-label">
                             {scopeMeta?.label || activeScope}
                         </p>
                         <button
                             type="button"
                             onClick={handleCreate}
                             disabled={saving}
-                            className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            className="apex-perf-btn apex-perf-btn--secondary apex-admin-btn-sm"
                         >
                             <FiPlus className="h-3.5 w-3.5" />
                             Add
                         </button>
                     </div>
                     {scopeMeta?.description ? (
-                        <p className="text-[0.7rem] text-gray-500 leading-snug">
-                            {scopeMeta.description}
-                        </p>
+                        <p className="apex-admin-field-hint">{scopeMeta.description}</p>
                     ) : null}
-                    <ul className="flex-1 overflow-y-auto space-y-1 min-h-[12rem] max-h-[24rem]">
+                    <ul className="apex-admin-audit__prompt-list">
                         {promptsInScope.length === 0 ? (
-                            <li className="text-xs text-gray-500 px-2 py-4">
+                            <li className="apex-admin-empty px-2 py-4">
                                 No prompts yet. Click Add to create one.
                             </li>
                         ) : (
@@ -311,13 +291,9 @@ export default function AuditPromptLibraryTab() {
                                 return (
                                     <li
                                         key={p.id}
-                                        className={`rounded-lg border ${
-                                            isEditing
-                                                ? "border-[var(--color-primary-searchmind)] bg-white"
-                                                : "border-transparent bg-white/60"
-                                        }`}
+                                        className={`apex-admin-audit__prompt-item${isEditing ? " is-editing" : ""}`}
                                     >
-                                        <div className="flex items-start gap-2 p-2">
+                                        <div className="apex-admin-audit__prompt-row">
                                             <input
                                                 type={activeScope === "system" ? "radio" : "checkbox"}
                                                 name={`scope-${activeScope}`}
@@ -326,7 +302,6 @@ export default function AuditPromptLibraryTab() {
                                                 onChange={() =>
                                                     handleToggleActive(p.id, isActive)
                                                 }
-                                                className="mt-1 shrink-0"
                                                 title={
                                                     activeScope === "system"
                                                         ? "Active system prompt"
@@ -338,26 +313,16 @@ export default function AuditPromptLibraryTab() {
                                                 onClick={() => {
                                                     if (
                                                         dirty &&
-                                                        !confirm(
-                                                            "Discard unsaved changes?"
-                                                        )
+                                                        !confirm("Discard unsaved changes?")
                                                     )
                                                         return;
                                                     setActivePromptId(p.id);
                                                 }}
-                                                className="flex-1 text-left text-sm min-w-0"
+                                                className={`apex-admin-audit__prompt-select${isEditing ? " is-editing" : ""}`}
                                             >
-                                                <span
-                                                    className={`block truncate ${
-                                                        isEditing
-                                                            ? "font-semibold text-gray-900"
-                                                            : "text-gray-800"
-                                                    }`}
-                                                >
-                                                    {p.title}
-                                                </span>
+                                                <span>{p.title}</span>
                                                 {isActive ? (
-                                                    <span className="text-[0.65rem] text-emerald-700 font-medium">
+                                                    <span className="apex-admin-audit__prompt-active">
                                                         {activeScope === "system"
                                                             ? "Active system prompt"
                                                             : "Shown in Run Audit"}
@@ -373,10 +338,7 @@ export default function AuditPromptLibraryTab() {
                 </div>
 
                 {activePrompt ? (
-                    <form
-                        className="flex-1 min-w-0 rounded-xl border border-gray-200 bg-white p-5 flex flex-col gap-4"
-                        onSubmit={handleSave}
-                    >
+                    <form className="apex-admin-audit__editor apex-admin-form" onSubmit={handleSave}>
                         <div>
                             <FormLabel htmlFor="prompt-title">Display title</FormLabel>
                             <input
@@ -387,7 +349,6 @@ export default function AuditPromptLibraryTab() {
                                     setDraftTitle(e.target.value);
                                     setDirty(true);
                                 }}
-                                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)]/20"
                             />
                         </div>
                         <div>
@@ -402,7 +363,6 @@ export default function AuditPromptLibraryTab() {
                                     setDraftDescription(e.target.value);
                                     setDirty(true);
                                 }}
-                                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)]/20"
                             />
                         </div>
                         <div className="flex-1 flex flex-col min-h-0">
@@ -410,7 +370,7 @@ export default function AuditPromptLibraryTab() {
                                 <FormLabel htmlFor="prompt-body" required>
                                     Prompt text
                                 </FormLabel>
-                                <span className="text-xs text-gray-400 tabular-nums">
+                                <span className="apex-admin-audit__char-count">
                                     {draftBody.length} characters
                                 </span>
                             </div>
@@ -423,26 +383,27 @@ export default function AuditPromptLibraryTab() {
                                 }}
                                 required
                                 rows={16}
-                                className="flex-1 min-h-[14rem] w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono text-gray-800 leading-relaxed focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)]/20 resize-y"
+                                className="font-mono flex-1 min-h-[14rem]"
                             />
                         </div>
                         {activePrompt.updatedAt ? (
-                            <p className="text-xs text-gray-400">
-                                Last saved{" "}
-                                {new Date(activePrompt.updatedAt).toLocaleString()}
+                            <p className="apex-admin-audit__saved-at">
+                                Last saved {new Date(activePrompt.updatedAt).toLocaleString()}
                             </p>
                         ) : null}
-                        <div className="flex flex-wrap items-center gap-3">
-                            <div className="w-full sm:w-40">
-                                <FormButton disabled={saving || !draftBody.trim()}>
-                                    {saving ? "Saving…" : dirty ? "Save changes" : "Save"}
-                                </FormButton>
-                            </div>
+                        <div className="apex-admin-actions">
+                            <button
+                                type="submit"
+                                className="apex-perf-btn apex-perf-btn--primary"
+                                disabled={saving || !draftBody.trim()}
+                            >
+                                {saving ? "Saving…" : dirty ? "Save changes" : "Save"}
+                            </button>
                             <button
                                 type="button"
                                 onClick={handleDelete}
                                 disabled={saving || promptsInScope.length <= 1}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="apex-admin-danger-btn"
                                 title={
                                     promptsInScope.length <= 1
                                         ? "Cannot delete the last prompt in this section"
@@ -455,12 +416,12 @@ export default function AuditPromptLibraryTab() {
                         </div>
                     </form>
                 ) : (
-                    <div className="flex-1 rounded-xl border border-gray-200 bg-white p-8 text-sm text-gray-500 flex flex-col items-center justify-center gap-3">
+                    <div className="apex-admin-audit__editor-empty">
                         <p>No prompts in this section yet.</p>
                         <button
                             type="button"
                             onClick={handleCreate}
-                            className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-primary-searchmind)] px-4 py-2 text-sm font-medium text-white"
+                            className="apex-perf-btn apex-perf-btn--primary"
                         >
                             <FiPlus />
                             Create first prompt

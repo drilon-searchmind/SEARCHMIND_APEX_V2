@@ -5,18 +5,12 @@ import { useSession } from "next-auth/react";
 import { FiX } from "react-icons/fi";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
-import FormButton from "@/components/form/FormButton";
 import ContentTagPicker from "@/components/content-tags/ContentTagPicker";
 import {
     TOOL_CATEGORY_FILTER_OPTIONS,
     TOOL_ICON_OPTIONS,
 } from "../toolsData";
-
-const selectClass =
-    "mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20 focus:outline-none focus:ring-2";
-
-const textareaClass =
-    "mt-2 shadow-none min-h-[88px] w-full rounded-lg border appearance-none px-4 py-2.5 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-3 bg-transparent text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20";
+import "../our-tools.css";
 
 const defaultForm = () => ({
     title: "",
@@ -96,24 +90,24 @@ export default function ToolItemModal({
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center glassmorphism2">
-            <div className="bg-white rounded-xl shadow-xl p-8 w-full max-w-lg relative max-h-[90vh] overflow-y-auto">
+        <div className="apex-tools-modal-backdrop" data-theme="cobalt">
+            <div className="apex-tools-modal cobalt-perf">
                 <button
                     type="button"
-                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-xl"
+                    className="apex-tools-modal__close"
                     onClick={() => !saving && onClose()}
                     aria-label="Close"
                 >
-                    <FiX size={24} />
+                    <FiX size={20} />
                 </button>
-                <h2 className="text-xl font-bold mb-1 text-gray-900">
+                <h2 className="apex-tools-modal__title">
                     {mode === "edit" ? "Edit tool" : "Add tool"}
                 </h2>
-                <p className="text-sm text-gray-500 mb-6">
+                <p className="apex-tools-modal__subtitle">
                     External tools appear on the Our Tools page for your team.
                 </p>
 
-                <form className="grid grid-cols-1 gap-4" onSubmit={handleSubmit}>
+                <form className="apex-tools-form" onSubmit={handleSubmit}>
                     <div>
                         <FormLabel htmlFor="ot-title" required>
                             Title
@@ -136,7 +130,6 @@ export default function ToolItemModal({
                             value={form.description}
                             onChange={handleChange}
                             rows={3}
-                            className={textareaClass}
                             disabled={saving}
                             placeholder="Short summary shown on the card"
                         />
@@ -151,7 +144,6 @@ export default function ToolItemModal({
                             name="category"
                             value={form.category}
                             onChange={handleChange}
-                            className={selectClass}
                             disabled={saving}
                             required
                         >
@@ -190,7 +182,6 @@ export default function ToolItemModal({
                             name="icon"
                             value={form.icon}
                             onChange={handleChange}
-                            className={selectClass}
                             disabled={saving}
                         >
                             {TOOL_ICON_OPTIONS.map((opt) => (
@@ -226,9 +217,7 @@ export default function ToolItemModal({
                     </div>
 
                     <div>
-                        <FormLabel htmlFor="ot-bg">
-                            Background image URL (optional)
-                        </FormLabel>
+                        <FormLabel htmlFor="ot-bg">Background image URL (optional)</FormLabel>
                         <FormInputText
                             id="ot-bg"
                             name="backgroundImage"
@@ -239,18 +228,22 @@ export default function ToolItemModal({
                         />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <div className="apex-tools-modal__actions">
                         <button
                             type="button"
-                            className="h-12 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                            className="apex-tools-modal__cancel"
                             onClick={() => !saving && onClose()}
                             disabled={saving}
                         >
                             Cancel
                         </button>
-                        <FormButton disabled={saving}>
+                        <button
+                            type="submit"
+                            className="apex-perf-btn apex-perf-btn--primary"
+                            disabled={saving}
+                        >
                             {saving ? "Saving…" : mode === "edit" ? "Save changes" : "Add tool"}
-                        </FormButton>
+                        </button>
                     </div>
                 </form>
             </div>

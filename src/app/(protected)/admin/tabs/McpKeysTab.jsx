@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import FormButton from "@/components/form/FormButton";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
 import { showToast } from "@/components/ui/ToastProvider";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { FiCopy, FiKey, FiTrash2 } from "react-icons/fi";
 
 function formatDate(value) {
@@ -109,24 +109,24 @@ export default function McpKeysTab() {
         "https://mcp-server-apex-production.up.railway.app";
 
     return (
-        <div className="flex flex-col gap-8">
+        <div className="apex-admin-tab apex-admin-stack-section">
             <div>
-                <h5 className="text-lg font-semibold text-[var(--color-primary-searchmind)] mb-1 flex items-center gap-2">
+                <h2 className="apex-admin-section__title flex items-center gap-2">
                     <FiKey />
                     MCP API keys
-                </h5>
-                <p className="text-sm text-gray-500 max-w-2xl">
+                </h2>
+                <p className="apex-admin-section__subtitle">
                     Issue credentials for Claude Code, Cursor, and other MCP clients. Access is
                     read-only for all customers. For the <strong>Claude connector</strong>, use your{" "}
-                    <strong>Google SSO Client ID</strong> (<code>SSO_GOOGLE_CLIENT_ID</code>) — leave
-                    OAuth Client Secret empty. API keys and apex_oauth credentials are for CLI or
-                    advanced use.
+                    <strong>Google SSO Client ID</strong> (<code>SSO_GOOGLE_CLIENT_ID</code>) —
+                    leave OAuth Client Secret empty. API keys and apex_oauth credentials are for
+                    CLI or advanced use.
                 </p>
             </div>
 
             {revealedCredentials && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 max-w-3xl space-y-4">
-                    <p className="text-sm font-semibold text-amber-900">
+                <div className="apex-admin-alert">
+                    <p className="apex-admin-alert__title">
                         Copy these credentials now — they will not be shown again
                     </p>
 
@@ -150,10 +150,10 @@ export default function McpKeysTab() {
                         }
                     />
 
-                    <div className="text-xs text-amber-900/80 space-y-1 pt-1 border-t border-amber-200">
+                    <div className="apex-admin-alert__body pt-2 mt-2 border-t border-[var(--color-rule)]">
                         <p>
-                            <span className="font-medium">MCP server URL:</span>{" "}
-                            <code className="font-mono">{mcpServerUrl}/mcp</code>
+                            <strong>MCP server URL:</strong>{" "}
+                            <code>{mcpServerUrl}/mcp</code>
                         </p>
                         <p>
                             <strong>Claude connector:</strong> OAuth Client ID = your Google SSO
@@ -166,17 +166,20 @@ export default function McpKeysTab() {
                         </p>
                     </div>
 
-                    <FormButton type="button" onClick={() => setRevealedCredentials(null)}>
-                        Dismiss
-                    </FormButton>
+                    <div className="apex-admin-actions mt-4">
+                        <button
+                            type="button"
+                            className="apex-perf-btn apex-perf-btn--secondary"
+                            onClick={() => setRevealedCredentials(null)}
+                        >
+                            Dismiss
+                        </button>
+                    </div>
                 </div>
             )}
 
-            <form
-                onSubmit={handleCreate}
-                className="flex flex-col gap-4 max-w-3xl border border-gray-200 rounded-xl p-6"
-            >
-                <h6 className="text-sm font-semibold text-gray-800">Generate new credentials</h6>
+            <form onSubmit={handleCreate} className="apex-admin-form apex-admin-form--panel">
+                <h3 className="apex-admin-subtitle-sm">Generate new credentials</h3>
 
                 <div>
                     <FormLabel htmlFor="mcp-key-name">Label (optional)</FormLabel>
@@ -188,103 +191,107 @@ export default function McpKeysTab() {
                     />
                 </div>
 
-                <p className="text-xs text-gray-500">
+                <p className="apex-admin-field-hint">
                     Access: read-only · all customers · includes API key + OAuth client
                 </p>
 
-                <FormButton type="submit" disabled={creating}>
-                    {creating ? "Generating…" : "Generate MCP credentials"}
-                </FormButton>
+                <div className="apex-admin-actions">
+                    <button
+                        type="submit"
+                        className="apex-perf-btn apex-perf-btn--primary"
+                        disabled={creating}
+                    >
+                        {creating ? "Generating…" : "Generate MCP credentials"}
+                    </button>
+                </div>
             </form>
 
             <div>
-                <h6 className="text-sm font-semibold text-gray-800 mb-3">Existing keys</h6>
-                <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-4 py-2 text-left">Prefix</th>
-                                <th className="px-4 py-2 text-left">OAuth Client ID</th>
-                                <th className="px-4 py-2 text-left">Label</th>
-                                <th className="px-4 py-2 text-left">Access</th>
-                                <th className="px-4 py-2 text-left">Created by</th>
-                                <th className="px-4 py-2 text-left">Created</th>
-                                <th className="px-4 py-2 text-left">Status</th>
-                                <th className="px-4 py-2 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
+                <h3 className="apex-admin-subtitle-sm mb-3">Existing keys</h3>
+                <div className="apex-admin-table-wrap">
+                    {loading ? (
+                        <CobaltLoader variant="block" title="Loading MCP keys" />
+                    ) : (
+                        <table className="apex-admin-table">
+                            <thead>
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-4 text-gray-400">
-                                        Loading…
-                                    </td>
+                                    <th>Prefix</th>
+                                    <th>OAuth Client ID</th>
+                                    <th>Label</th>
+                                    <th>Access</th>
+                                    <th>Created by</th>
+                                    <th>Created</th>
+                                    <th>Status</th>
+                                    <th className="is-right">Actions</th>
                                 </tr>
-                            ) : keys.length === 0 ? (
-                                <tr>
-                                    <td colSpan={8} className="px-4 py-4 text-gray-400">
-                                        No MCP keys yet
-                                    </td>
-                                </tr>
-                            ) : (
-                                keys.map((k) => (
-                                    <tr
-                                        key={k.id}
-                                        className={`border-t ${k.isRevoked ? "opacity-50" : ""}`}
-                                    >
-                                        <td className="px-4 py-2 font-mono text-xs">
-                                            {k.keyPrefix}…
-                                        </td>
-                                        <td className="px-4 py-2 font-mono text-xs max-w-[12rem] truncate">
-                                            {k.oauthClientId ? (
-                                                <span title={k.oauthClientId}>
-                                                    {k.oauthClientId}
-                                                </span>
-                                            ) : (
-                                                <span className="text-gray-400 italic">
-                                                    Regenerate for OAuth
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-2">{k.name || "—"}</td>
-                                        <td className="px-4 py-2 text-xs text-gray-600">
-                                            Read-only · all customers
-                                        </td>
-                                        <td className="px-4 py-2 text-xs text-gray-600">
-                                            {k.createdByName || "—"}
-                                        </td>
-                                        <td className="px-4 py-2 whitespace-nowrap text-xs text-gray-600">
-                                            {formatDate(k.createdAt)}
-                                        </td>
-                                        <td className="px-4 py-2">
-                                            {k.isRevoked ? (
-                                                <span className="text-red-600 text-xs font-medium">
-                                                    Revoked
-                                                </span>
-                                            ) : (
-                                                <span className="text-green-700 text-xs font-medium">
-                                                    Active
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-2 text-right">
-                                            {!k.isRevoked && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleRevoke(k.id)}
-                                                    disabled={revokingId === k.id}
-                                                    className="inline-flex items-center gap-1 text-red-600 hover:text-red-800 text-xs font-medium disabled:opacity-50"
-                                                >
-                                                    <FiTrash2 size={14} />
-                                                    {revokingId === k.id ? "Revoking…" : "Revoke"}
-                                                </button>
-                                            )}
+                            </thead>
+                            <tbody>
+                                {keys.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={8} className="is-empty">
+                                            No MCP keys yet
                                         </td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                ) : (
+                                    keys.map((k) => (
+                                        <tr key={k.id} className={k.isRevoked ? "opacity-50" : ""}>
+                                            <td>
+                                                <span className="apex-admin-cell-mono">
+                                                    {k.keyPrefix}…
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {k.oauthClientId ? (
+                                                    <span
+                                                        className="apex-admin-cell-mono"
+                                                        title={k.oauthClientId}
+                                                    >
+                                                        {k.oauthClientId}
+                                                    </span>
+                                                ) : (
+                                                    <span className="is-empty italic">
+                                                        Regenerate for OAuth
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td>{k.name || "—"}</td>
+                                            <td>Read-only · all customers</td>
+                                            <td>{k.createdByName || "—"}</td>
+                                            <td className="whitespace-nowrap">
+                                                {formatDate(k.createdAt)}
+                                            </td>
+                                            <td>
+                                                {k.isRevoked ? (
+                                                    <span className="apex-admin-badge apex-admin-badge--error">
+                                                        Revoked
+                                                    </span>
+                                                ) : (
+                                                    <span className="apex-admin-badge apex-admin-badge--ok">
+                                                        Active
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="is-right">
+                                                {!k.isRevoked && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRevoke(k.id)}
+                                                        disabled={revokingId === k.id}
+                                                        className="apex-admin-link-btn apex-admin-link-btn--danger"
+                                                    >
+                                                        <FiTrash2 size={14} />
+                                                        {revokingId === k.id
+                                                            ? "Revoking…"
+                                                            : "Revoke"}
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
             </div>
         </div>
@@ -293,18 +300,16 @@ export default function McpKeysTab() {
 
 function CredentialRow({ label, value, onCopy }) {
     return (
-        <div>
-            <p className="text-xs font-medium text-amber-900 mb-1">{label}</p>
-            <div className="flex flex-wrap items-center gap-2">
-                <code className="flex-1 min-w-0 break-all rounded-lg bg-white border border-amber-200 px-3 py-2 text-xs font-mono">
-                    {value}
-                </code>
-                <FormButton type="button" onClick={onCopy}>
+        <div className="apex-admin-credential">
+            <p className="apex-admin-credential__label">{label}</p>
+            <div className="apex-admin-credential__row">
+                <code className="apex-admin-credential__value">{value}</code>
+                <button type="button" onClick={onCopy} className="apex-perf-btn apex-perf-btn--secondary apex-admin-btn-sm">
                     <span className="flex items-center gap-1">
                         <FiCopy size={14} />
                         Copy
                     </span>
-                </FormButton>
+                </button>
             </div>
         </div>
     );

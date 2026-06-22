@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import FormButton from "@/components/form/FormButton";
 import Link from "next/link";
 import {
     FiCheck,
@@ -22,6 +21,7 @@ import {
     ADMIN_MISSING_CUSTOMER_OPTIONAL_COLUMNS,
     ADMIN_MISSING_CUSTOMER_SEARCH_FIELDS,
 } from "@root/lib/adminMissingCustomerTableColumns";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 
 const TABS = [
     { id: "existing", label: "Existing Customers" },
@@ -39,19 +39,16 @@ const CHECK_COLUMN_ICONS = {
 
 function CheckIcon({ hasValue }) {
     return hasValue ? (
-        <FiCheck className="text-green-600 mx-auto" size={18} />
+        <FiCheck className="apex-admin-check-ok mx-auto" size={18} />
     ) : (
-        <FiX className="text-red-600 mx-auto" size={18} />
+        <FiX className="apex-admin-check-no mx-auto" size={18} />
     );
 }
 
 function CellValue({ value }) {
     const text = value == null || value === "" ? "—" : String(value);
     return (
-        <span
-            className="font-mono text-xs text-gray-800 break-all max-w-[220px] inline-block"
-            title={text}
-        >
+        <span className={`apex-admin-cell-mono${text === "—" ? " is-empty" : ""}`} title={text}>
             {text}
         </span>
     );
@@ -65,15 +62,11 @@ function MissingCellValue({ column, row }) {
         const status = text.toLowerCase();
         const cls =
             status === "ok"
-                ? "bg-green-50 text-green-700"
+                ? "apex-admin-badge--ok"
                 : status === "error"
-                  ? "bg-red-50 text-red-700"
-                  : "bg-gray-100 text-gray-600";
-        return (
-            <span className={`inline-flex rounded-lg px-2 py-0.5 text-xs font-medium ${cls}`}>
-                {text}
-            </span>
-        );
+                  ? "apex-admin-badge--error"
+                  : "apex-admin-badge--neutral";
+        return <span className={`apex-admin-badge ${cls}`}>{text}</span>;
     }
 
     if (column.cellType === "url" && text !== "—") {
@@ -82,7 +75,7 @@ function MissingCellValue({ column, row }) {
                 href={text}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-mono text-xs text-[var(--color-primary-searchmind)] hover:underline break-all max-w-[220px] inline-block"
+                className="apex-admin-cell-link"
                 title={text}
             >
                 {text}
@@ -92,20 +85,14 @@ function MissingCellValue({ column, row }) {
 
     if (column.cellType === "long") {
         return (
-            <span
-                className="text-xs text-gray-800 line-clamp-2 max-w-[280px] inline-block"
-                title={text}
-            >
+            <span className={`apex-admin-cell-clamp${text === "—" ? " is-empty" : ""}`} title={text}>
                 {text}
             </span>
         );
     }
 
     return (
-        <span
-            className="font-mono text-xs text-gray-800 break-all max-w-[220px] inline-block"
-            title={text}
-        >
+        <span className={`apex-admin-cell-mono${text === "—" ? " is-empty" : ""}`} title={text}>
             {text}
         </span>
     );
@@ -193,25 +180,20 @@ export default function CustomersTab() {
     const missingTableColSpan = visibleMissingColumns.length;
 
     return (
-        <div className="flex flex-col gap-4">
-            <h5 className="text-lg font-semibold text-[var(--color-primary-searchmind)] mb-2">
-                Customers
-            </h5>
+        <div className="apex-admin-tab">
+            <h2 className="apex-admin-section__title">Customers</h2>
 
-            <div className="bg-white rounded-lg border border-gray-200">
-                <div className="flex gap-8 px-6">
+            <div className="apex-admin-subtabs">
+                <div className="apex-admin-subtabs__list">
                     {TABS.map((tab) => (
                         <button
                             key={tab.id}
+                            type="button"
                             onClick={() => {
                                 setActiveTab(tab.id);
                                 setSearch("");
                             }}
-                            className={`py-3 px-1 text-sm font-medium border-b-2 transition-colors ${
-                                activeTab === tab.id
-                                    ? "border-[var(--color-primary-searchmind)] text-[var(--color-primary-searchmind)]"
-                                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                            }`}
+                            className={`apex-admin-subtab${activeTab === tab.id ? " is-active" : ""}`}
                         >
                             {tab.label}
                         </button>
@@ -219,14 +201,15 @@ export default function CustomersTab() {
                 </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                <input
-                    type="text"
-                    placeholder={`Search ${activeTab === "existing" ? "existing" : "missing"} customers...`}
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="mt-0 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20"
-                />
+            <div className="apex-admin-search-row">
+                <div className="apex-admin-search">
+                    <input
+                        type="text"
+                        placeholder={`Search ${activeTab === "existing" ? "existing" : "missing"} customers...`}
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                </div>
                 {activeTab === "existing" ? (
                     <AdminCustomerColumnPicker
                         selectedIds={optionalColumnIds}
@@ -244,146 +227,127 @@ export default function CustomersTab() {
             </div>
 
             {activeTab === "existing" && (
-                <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-4 py-2 text-left">Name</th>
-                                <th className="px-4 py-2 text-left">Type</th>
-                                <th className="px-4 py-2 text-left">Archived</th>
-                                {visibleDataColumns.map((col) => {
-                                    const Icon = CHECK_COLUMN_ICONS[col.id];
-                                    return (
-                                        <th
-                                            key={col.id}
-                                            className={`px-4 py-2 ${col.kind === "value" ? "text-left min-w-[140px]" : "text-center"}`}
-                                        >
-                                            {Icon ? (
-                                                <div className="flex items-center justify-center gap-1">
-                                                    <Icon className="text-gray-600" size={16} />
-                                                    <span>{col.label}</span>
-                                                </div>
-                                            ) : (
-                                                col.label
-                                            )}
-                                        </th>
-                                    );
-                                })}
-                                <th className="px-4 py-2 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
+                <div className="apex-admin-table-wrap">
+                    {loading ? (
+                        <CobaltLoader variant="block" title="Loading customers" />
+                    ) : (
+                        <table className="apex-admin-table">
+                            <thead>
                                 <tr>
-                                    <td className="px-4 py-4 text-gray-400" colSpan={tableColSpan}>
-                                        Loading...
-                                    </td>
-                                </tr>
-                            ) : filteredExisting.length === 0 ? (
-                                <tr>
-                                    <td className="px-4 py-4 text-gray-400" colSpan={tableColSpan}>
-                                        No customers
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredExisting.map((c) => (
-                                    <tr key={c._id} className="border-b last:border-b-0">
-                                        <td className="px-4 py-2">{c.customerName}</td>
-                                        <td className="px-4 py-2">{c.customerType}</td>
-                                        <td className="px-4 py-2">
-                                            <span
-                                                className={`inline-flex rounded-lg px-5 py-0.5 text-xs font-medium ${
-                                                    c.isArchived
-                                                        ? "bg-gray-100 text-gray-700"
-                                                        : "bg-orange-50 text-orange-700"
-                                                }`}
-                                            >
-                                                {c.isArchived ? "Yes" : "No"}
-                                            </span>
-                                        </td>
-                                        {visibleDataColumns.map((col) => (
-                                            <td
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Archived</th>
+                                    {visibleDataColumns.map((col) => {
+                                        const Icon = CHECK_COLUMN_ICONS[col.id];
+                                        return (
+                                            <th
                                                 key={col.id}
-                                                className={`px-4 py-2 ${col.kind === "value" ? "text-left align-top" : "text-center"}`}
+                                                className={col.kind === "value" ? "text-left" : "is-center"}
                                             >
-                                                {col.kind === "check" ? (
-                                                    <CheckIcon
-                                                        hasValue={Boolean(
-                                                            c.checks?.[col.checkKey]
-                                                        )}
-                                                    />
-                                                ) : col.kind === "value" ? (
-                                                    <CellValue value={c.columns?.[col.id]} />
-                                                ) : null}
-                                            </td>
-                                        ))}
-                                        <td className="px-4 py-2 text-right">
-                                            <Link href={`/dashboard/${c._id}/config`}>
-                                                <FormButton borderType="outline" buttonSize="small">
-                                                    Config
-                                                </FormButton>
-                                            </Link>
+                                                {Icon ? (
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <Icon size={14} />
+                                                        <span>{col.label}</span>
+                                                    </div>
+                                                ) : (
+                                                    col.label
+                                                )}
+                                            </th>
+                                        );
+                                    })}
+                                    <th className="is-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredExisting.length === 0 ? (
+                                    <tr>
+                                        <td className="is-empty" colSpan={tableColSpan}>
+                                            No customers
                                         </td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                ) : (
+                                    filteredExisting.map((c) => (
+                                        <tr key={c._id}>
+                                            <td>{c.customerName}</td>
+                                            <td>{c.customerType}</td>
+                                            <td>
+                                                <span
+                                                    className={`apex-admin-badge ${
+                                                        c.isArchived
+                                                            ? "apex-admin-badge--neutral"
+                                                            : "apex-admin-badge--warn"
+                                                    }`}
+                                                >
+                                                    {c.isArchived ? "Yes" : "No"}
+                                                </span>
+                                            </td>
+                                            {visibleDataColumns.map((col) => (
+                                                <td
+                                                    key={col.id}
+                                                    className={col.kind === "value" ? "" : "is-center"}
+                                                >
+                                                    {col.kind === "check" ? (
+                                                        <CheckIcon
+                                                            hasValue={Boolean(
+                                                                c.checks?.[col.checkKey]
+                                                            )}
+                                                        />
+                                                    ) : col.kind === "value" ? (
+                                                        <CellValue value={c.columns?.[col.id]} />
+                                                    ) : null}
+                                                </td>
+                                            ))}
+                                            <td className="is-right">
+                                                <Link
+                                                    href={`/dashboard/${c._id}/config`}
+                                                    className="apex-perf-btn apex-perf-btn--secondary apex-admin-btn-sm"
+                                                >
+                                                    Config
+                                                </Link>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
             )}
 
             {activeTab === "missing" && missingHydrated && (
-                <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                {visibleMissingColumns.map((col) => (
-                                    <th
-                                        key={col.id}
-                                        className={`px-4 py-2 text-left whitespace-nowrap ${
-                                            col.cellType === "long" ? "min-w-[200px]" : "min-w-[120px]"
-                                        }`}
-                                    >
-                                        {col.label}
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
+                <div className="apex-admin-table-wrap">
+                    {loading ? (
+                        <CobaltLoader variant="block" title="Loading missing customers" />
+                    ) : (
+                        <table className="apex-admin-table">
+                            <thead>
                                 <tr>
-                                    <td
-                                        className="px-4 py-4 text-gray-400"
-                                        colSpan={missingTableColSpan}
-                                    >
-                                        Loading...
-                                    </td>
+                                    {visibleMissingColumns.map((col) => (
+                                        <th key={col.id}>{col.label}</th>
+                                    ))}
                                 </tr>
-                            ) : filteredMissing.length === 0 ? (
-                                <tr>
-                                    <td
-                                        className="px-4 py-4 text-gray-400"
-                                        colSpan={missingTableColSpan}
-                                    >
-                                        No missing customers
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredMissing.map((c, idx) => (
-                                    <tr
-                                        key={c.clickup_id || idx}
-                                        className="border-b last:border-b-0 align-top"
-                                    >
-                                        {visibleMissingColumns.map((col) => (
-                                            <td key={col.id} className="px-4 py-2">
-                                                <MissingCellValue column={col} row={c} />
-                                            </td>
-                                        ))}
+                            </thead>
+                            <tbody>
+                                {filteredMissing.length === 0 ? (
+                                    <tr>
+                                        <td className="is-empty" colSpan={missingTableColSpan}>
+                                            No missing customers
+                                        </td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                ) : (
+                                    filteredMissing.map((c, idx) => (
+                                        <tr key={c.clickup_id || idx}>
+                                            {visibleMissingColumns.map((col) => (
+                                                <td key={col.id}>
+                                                    <MissingCellValue column={col} row={c} />
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
             )}
         </div>

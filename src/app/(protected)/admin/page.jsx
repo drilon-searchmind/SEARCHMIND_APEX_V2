@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
+import Link from "next/link";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import VerticalTabs from "./components/VerticalTabs";
 import GeneralAppSettings from "./tabs/GeneralAppSettings";
@@ -10,6 +11,7 @@ import NotificationsTab from "./tabs/NotificationsTab";
 import NewsTab from "./tabs/NewsTab";
 import AuditPromptLibraryTab from "./tabs/AuditPromptLibraryTab";
 import McpKeysTab from "./tabs/McpKeysTab";
+import "./admin.css";
 
 export default function AdminPage() {
     const [activeTab, setActiveTab] = useState("general");
@@ -26,26 +28,29 @@ export default function AdminPage() {
             key: "route-requests",
             label: "MCP Route Requests",
             content: (
-                <div className="space-y-4">
-                    <p className="text-sm text-gray-600">
+                <div className="apex-admin-tab">
+                    <h2 className="apex-admin-section__title">MCP Route Requests</h2>
+                    <p className="apex-admin-section__subtitle">
                         Review Claude MCP proxy access requests when a route is blocked by the
                         allowlist.
                     </p>
-                    <a
-                        href="/admin/route-requests"
-                        className="inline-flex items-center rounded-lg bg-gray-900 text-white px-4 py-2 text-sm hover:bg-gray-800"
-                    >
+                    <Link href="/admin/route-requests" className="apex-perf-btn apex-perf-btn--primary w-fit">
                         Open route access requests
-                    </a>
+                    </Link>
                 </div>
             ),
         },
     ];
 
     return (
-        <div id="AdminPage" className="w-full">
-            <DashboardHeading title="Admin" label="Application Configuration" />
-            <div className="bg-white border border-gray-200 rounded-xl">
+        <div id="AdminPage" className="cobalt-perf w-full apex-admin-stack" data-theme="cobalt">
+            <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
+                title="Admin"
+                label="Application Configuration"
+            />
+            <div className="apex-admin-panel">
                 <VerticalTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
             </div>
         </div>
