@@ -48,10 +48,7 @@ export default function ApexRadarCustomerTeamResyncModal({ open, onClose, custom
     );
 
     const selectableIds = useMemo(
-        () =>
-            new Set(
-                selectableFiltered.map((c) => String(c._id)).filter(Boolean)
-            ),
+        () => new Set(selectableFiltered.map((c) => String(c._id)).filter(Boolean)),
         [selectableFiltered]
     );
 
@@ -117,55 +114,45 @@ export default function ApexRadarCustomerTeamResyncModal({ open, onClose, custom
     if (!open) return null;
 
     return (
-        <div
-            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/45"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="apex-resync-title"
-        >
-            <div className="w-full max-w-lg rounded-xl border border-gray-200 bg-white overflow-hidden shadow-xl max-h-[85vh] flex flex-col">
-                <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
+        <div className="apex-radar-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="apex-resync-title">
+            <div className="apex-radar-modal apex-radar-modal--lg max-h-[85vh]">
+                <div className="apex-radar-modal__head">
                     <div>
-                        <h2 id="apex-resync-title" className="text-lg font-semibold text-gray-900">
+                        <h2 id="apex-resync-title" className="apex-radar-modal__title">
                             Re-sync ClickUp teams
                         </h2>
-                        <p className="text-xs text-gray-500 mt-1">
-                            Refreshes cached customerTeam fields (roster + services) for chosen customers. Properties
-                            need a
-                            ClickUp ID configured.
+                        <p className="apex-radar-modal__subtitle">
+                            Refreshes cached customerTeam fields (roster + services) for chosen customers.
+                            Properties need a ClickUp ID configured.
                         </p>
                     </div>
                     <button
                         type="button"
                         onClick={() => !syncing && onClose?.()}
                         disabled={syncing}
-                        className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                        className="apex-radar-modal__close"
                         aria-label="Close"
                     >
                         <FiX className="h-5 w-5" />
                     </button>
                 </div>
 
-                <div className="px-5 py-3 border-b border-gray-50 space-y-2 shrink-0">
-                    <div className="relative">
-                        <FiSearch
-                            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-                            aria-hidden
-                        />
+                <div className="px-5 py-3 border-b border-[var(--color-rule)] space-y-2 shrink-0">
+                    <div className="apex-radar-search-wrap">
+                        <FiSearch className="h-4 w-4" aria-hidden />
                         <input
                             type="search"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search customers…"
                             autoComplete="off"
-                            className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[var(--color-primary-searchmind-lighter)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind-lighter)]/30"
                         />
                     </div>
                     <button
                         type="button"
                         onClick={toggleSelectAllFiltered}
                         disabled={!selectableFiltered.length || syncing}
-                        className="text-xs font-semibold text-[var(--color-primary-searchmind)] hover:underline disabled:opacity-40 disabled:pointer-events-none"
+                        className="apex-radar-link-btn disabled:opacity-40 disabled:pointer-events-none"
                     >
                         {allSelectableSelected ? "Deselect all in list" : "Select all in list"}
                     </button>
@@ -173,9 +160,9 @@ export default function ApexRadarCustomerTeamResyncModal({ open, onClose, custom
 
                 <div className="flex-1 min-h-[200px] overflow-y-auto px-2 py-2">
                     {filtered.length === 0 ? (
-                        <p className="text-sm text-gray-500 text-center py-8 px-3">No customers match your search.</p>
+                        <p className="apex-radar-empty py-8">No customers match your search.</p>
                     ) : (
-                        <ul className="divide-y divide-gray-100 rounded-lg border border-gray-100 overflow-hidden bg-white">
+                        <ul className="apex-radar-modal-list">
                             {filtered.map((c) => {
                                 const cid = String(c._id || "");
                                 const cu = clickupIdLabel(c);
@@ -183,23 +170,18 @@ export default function ApexRadarCustomerTeamResyncModal({ open, onClose, custom
                                 const checked = selected.has(cid);
                                 return (
                                     <li key={cid}>
-                                        <label
-                                            className={`flex items-start gap-3 px-3 py-2.5 ${
-                                                disabledRow ? "opacity-55 cursor-not-allowed" : "cursor-pointer hover:bg-gray-50"
-                                            }`}
-                                        >
+                                        <label className={disabledRow ? "is-disabled" : ""}>
                                             <input
                                                 type="checkbox"
-                                                className="mt-0.5 rounded border-gray-300 text-[var(--color-primary-searchmind)] focus:ring-[var(--color-primary-searchmind)]"
                                                 checked={checked}
                                                 disabled={disabledRow || syncing}
                                                 onChange={() => toggleOne(cid)}
                                             />
                                             <span className="flex-1 min-w-0">
-                                                <span className="block text-sm font-medium text-gray-900 truncate">
+                                                <span className="block font-medium truncate">
                                                     {c.customerName || "Unnamed"}
                                                 </span>
-                                                <span className="block text-[0.65rem] text-gray-400 font-mono truncate">
+                                                <span className="block text-[0.65rem] font-mono text-[var(--color-muted)] truncate">
                                                     {cid}
                                                 </span>
                                                 {!cu ? (
@@ -217,19 +199,19 @@ export default function ApexRadarCustomerTeamResyncModal({ open, onClose, custom
                 </div>
 
                 {lastError ? (
-                    <div className="px-5 py-2 text-xs text-red-700 bg-red-50 shrink-0 border-t border-red-100">
+                    <div className="px-5 py-2 text-xs text-[var(--color-error,oklch(50%_0.15_25))] bg-[var(--color-paper-3)] shrink-0 border-t border-[var(--color-rule)]">
                         {lastError}
                     </div>
                 ) : null}
 
-                <div className="flex items-center justify-between gap-2 px-5 py-4 border-t border-gray-100 bg-gray-50 shrink-0">
-                    <span className="text-xs text-gray-500">{selected.size} selected</span>
+                <div className="apex-radar-modal__foot apex-radar-modal__foot--between">
+                    <span className="text-xs text-[var(--color-muted)]">{selected.size} selected</span>
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
                             disabled={syncing}
                             onClick={() => !syncing && onClose?.()}
-                            className="text-xs font-semibold text-gray-700 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50"
+                            className="apex-perf-btn apex-perf-btn--secondary"
                         >
                             Cancel
                         </button>
@@ -237,7 +219,7 @@ export default function ApexRadarCustomerTeamResyncModal({ open, onClose, custom
                             type="button"
                             disabled={syncing || !selected.size}
                             onClick={handleRun}
-                            className="text-xs font-semibold text-white px-3 py-2 rounded-lg bg-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind-hover)] disabled:opacity-50"
+                            className="apex-perf-btn apex-perf-btn--primary"
                         >
                             {syncing ? "Syncing…" : "Run sync"}
                         </button>
