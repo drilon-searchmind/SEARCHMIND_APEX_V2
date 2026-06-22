@@ -3,11 +3,11 @@
 import React from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import FormButton from "@/components/form/FormButton";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
 import ContentTagPicker from "@/components/content-tags/ContentTagPicker";
 import { showToast } from "@/components/ui/ToastProvider";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 
 export default function NewsTab() {
     const { data: session } = useSession();
@@ -97,7 +97,7 @@ export default function NewsTab() {
     };
 
     const remove = async (post) => {
-        if (!confirm(`Delete “${post.title}”?`)) return;
+        if (!confirm(`Delete "${post.title}"?`)) return;
         try {
             const res = await fetch(`/api/admin/news/${post.id}`, { method: "DELETE" });
             if (!res.ok) {
@@ -112,16 +112,21 @@ export default function NewsTab() {
     };
 
     return (
-        <div className="flex flex-col gap-8">
+        <div className="apex-admin-tab apex-admin-stack-section">
             <div>
-                <h5 className="text-lg font-semibold text-[var(--color-primary-searchmind)] mb-2">Create news post</h5>
-                <p className="text-sm text-gray-600 mb-4">
-                    Markdown-friendly body (renders on the public news article page). Cover image: paste a URL.
+                <h2 className="apex-admin-section__title">Create news post</h2>
+                <p className="apex-admin-section__subtitle">
+                    Markdown-friendly body (renders on the public news article page). Cover image:
+                    paste a URL.
                 </p>
-                <form onSubmit={handleCreate} className="space-y-4 bg-gray-50 border border-gray-200 rounded-xl p-6 max-w-3xl">
+                <form onSubmit={handleCreate} className="apex-admin-form apex-admin-form--panel">
                     <div>
                         <FormLabel htmlFor="news-title">Title</FormLabel>
-                        <FormInputText id="news-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+                        <FormInputText
+                            id="news-title"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                        />
                     </div>
                     <div>
                         <FormLabel htmlFor="news-excerpt">Excerpt</FormLabel>
@@ -155,11 +160,11 @@ export default function NewsTab() {
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
                             rows={14}
-                            className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-800 font-mono"
+                            className="font-mono"
                             placeholder="## Heading&#10;&#10;Your markdown or plain text…"
                         />
                     </div>
-                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <label className="apex-admin-checkbox-row">
                         <input
                             type="checkbox"
                             checked={published}
@@ -167,74 +172,78 @@ export default function NewsTab() {
                         />
                         Publish immediately
                     </label>
-                    <FormButton type="submit" disabled={saving} borderType="primary">
-                        {saving ? "Saving…" : "Create post"}
-                    </FormButton>
+                    <div className="apex-admin-actions">
+                        <button
+                            type="submit"
+                            className="apex-perf-btn apex-perf-btn--primary"
+                            disabled={saving}
+                        >
+                            {saving ? "Saving…" : "Create post"}
+                        </button>
+                    </div>
                 </form>
             </div>
 
             <div>
-                <h5 className="text-lg font-semibold text-[var(--color-primary-searchmind)] mb-3">All posts</h5>
+                <h2 className="apex-admin-section__title">All posts</h2>
                 {loading ? (
-                    <p className="text-sm text-gray-500">Loading…</p>
+                    <CobaltLoader variant="block" title="Loading posts" />
+                ) : posts.length === 0 ? (
+                    <p className="apex-admin-empty">No posts yet.</p>
                 ) : (
-                    <div className="border border-gray-200 rounded-xl overflow-hidden">
-                        <table className="min-w-full text-sm">
-                            <thead className="bg-gray-50">
+                    <div className="apex-admin-table-wrap">
+                        <table className="apex-admin-table">
+                            <thead>
                                 <tr>
-                                    <th className="px-4 py-2 text-left">Title</th>
-                                    <th className="px-4 py-2 text-left">Slug</th>
-                                    <th className="px-4 py-2 text-left">Status</th>
-                                    <th className="px-4 py-2 text-right">Actions</th>
+                                    <th>Title</th>
+                                    <th>Slug</th>
+                                    <th>Status</th>
+                                    <th className="is-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {posts.map((p) => (
-                                    <tr key={p.id} className="border-t border-gray-100">
-                                        <td className="px-4 py-2 font-medium text-gray-900">{p.title}</td>
-                                        <td className="px-4 py-2 text-gray-600">{p.slug}</td>
-                                        <td className="px-4 py-2">
-                                            {p.published ? (
-                                                <span className="text-green-700 bg-green-50 px-2 py-0.5 rounded text-xs">
-                                                    Published
-                                                </span>
-                                            ) : (
-                                                <span className="text-gray-600 bg-gray-100 px-2 py-0.5 rounded text-xs">
-                                                    Draft
-                                                </span>
-                                            )}
+                                    <tr key={p.id}>
+                                        <td>{p.title}</td>
+                                        <td className="is-empty">{p.slug}</td>
+                                        <td>
+                                            <span
+                                                className={`apex-admin-badge ${
+                                                    p.published
+                                                        ? "apex-admin-badge--ok"
+                                                        : "apex-admin-badge--draft"
+                                                }`}
+                                            >
+                                                {p.published ? "Published" : "Draft"}
+                                            </span>
                                         </td>
-                                        <td className="px-4 py-2 text-right space-x-2">
-                                            {p.published && (
-                                                <Link
-                                                    href={`/news/${p.slug}`}
-                                                    className="text-[var(--color-primary-searchmind)] text-xs font-semibold"
+                                        <td className="is-right">
+                                            <div className="apex-admin-table-actions">
+                                                {p.published && (
+                                                    <Link href={`/news/${p.slug}`} className="apex-admin-link">
+                                                        View
+                                                    </Link>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => togglePublished(p)}
+                                                    className="apex-admin-link-btn"
                                                 >
-                                                    View
-                                                </Link>
-                                            )}
-                                            <button
-                                                type="button"
-                                                onClick={() => togglePublished(p)}
-                                                className="text-xs font-semibold text-gray-700 underline"
-                                            >
-                                                {p.published ? "Unpublish" : "Publish"}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => remove(p)}
-                                                className="text-xs font-semibold text-red-600 underline"
-                                            >
-                                                Delete
-                                            </button>
+                                                    {p.published ? "Unpublish" : "Publish"}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => remove(p)}
+                                                    className="apex-admin-link-btn apex-admin-link-btn--danger"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
-                        {posts.length === 0 && (
-                            <p className="px-4 py-8 text-center text-gray-500 text-sm">No posts yet.</p>
-                        )}
                     </div>
                 )}
             </div>

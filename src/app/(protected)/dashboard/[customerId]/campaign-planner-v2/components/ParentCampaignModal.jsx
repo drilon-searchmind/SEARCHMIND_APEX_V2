@@ -118,17 +118,17 @@ export default function ParentCampaignModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center glassmorphism2">
-      <div className="bg-white rounded-xl shadow-xl p-8 w-full max-w-2xl relative max-h-[90vh] overflow-y-auto">
+    <div className="apex-cp-modal-backdrop" data-theme="cobalt">
+      <div className="apex-cp-modal max-w-2xl">
         <button
           type="button"
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-xl"
+          className="apex-cp-modal__close"
           onClick={onClose}
           aria-label="Close"
         >
           <FiX size={24} />
         </button>
-        <h2 className="text-xl font-bold mb-6 text-gray-900">
+        <h2 className="apex-cp-panel-card__title mb-6">
           {mode === "edit" ? "Edit campaign" : "Create campaign"}
         </h2>
         <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={handleSubmit}>
@@ -147,7 +147,7 @@ export default function ParentCampaignModal({
 
           <div className="md:col-span-2">
             <FormLabel required>Services</FormLabel>
-            <p className="text-xs text-gray-500 mb-2">
+            <p className="text-xs text-[var(--color-muted)] mb-2">
               Select one or more — click to add or remove (no Ctrl/Cmd needed).
             </p>
             <div className="flex flex-wrap gap-2">
@@ -158,11 +158,7 @@ export default function ParentCampaignModal({
                     key={s}
                     type="button"
                     onClick={() => toggleService(s)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                      on
-                        ? "bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]"
-                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                    }`}
+                    className={`apex-cp-btn ${on ? "apex-cp-tab is-active" : ""}`}
                   >
                     {on ? "✓ " : ""}
                     {s}
@@ -179,7 +175,7 @@ export default function ParentCampaignModal({
               name="responsible"
               value={form.responsible}
               onChange={handleChange}
-              className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20"
+              className="apex-cp-select mt-2"
             >
               <option value="searchmind">Searchmind</option>
               <option value="kunde">Internal</option>
@@ -195,7 +191,7 @@ export default function ParentCampaignModal({
               onChange={handleChange}
               className="rounded border-gray-300"
             />
-            <label htmlFor="v2-alwaysOn" className="text-sm text-gray-700">
+            <label htmlFor="v2-alwaysOn" className="text-sm text-[var(--color-ink-2)]">
               Always on
             </label>
           </div>
@@ -209,7 +205,7 @@ export default function ParentCampaignModal({
                 name="startDate"
                 value={form.startDate}
                 onChange={handleChange}
-                className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20"
+                className="apex-cp-select mt-2"
               />
             </div>
           ) : (
@@ -217,6 +213,7 @@ export default function ParentCampaignModal({
               <FormLabel>Schedule (same date range control as in Apex / Overview)</FormLabel>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <DateRangePicker
+                  variant="cobalt"
                   usePortal
                   onApply={() => {}}
                   startDate={form.startDate}
@@ -249,7 +246,7 @@ export default function ParentCampaignModal({
               value={form.brief}
               onChange={handleChange}
               rows={3}
-              className="mt-2 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20"
+              className="apex-cp-select mt-2 w-full min-h-[5.5rem] py-2"
             />
           </div>
 
@@ -261,15 +258,15 @@ export default function ParentCampaignModal({
               value={form.furtherBrief}
               onChange={handleChange}
               rows={2}
-              className="mt-2 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20"
+              className="apex-cp-select mt-2 w-full min-h-[5.5rem] py-2"
             />
           </div>
 
-          <div className="md:col-span-2 border-t border-gray-100 pt-4">
+          <div className="md:col-span-2 border-t border-[var(--color-rule)] pt-4">
             <button
               type="button"
               onClick={() => setAdvancedOpen((o) => !o)}
-              className="flex items-center gap-2 text-sm font-semibold text-gray-800 hover:text-gray-950"
+              className="flex items-center gap-2 text-sm font-semibold text-[var(--color-ink)] hover:text-[var(--color-ink-2)]"
             >
               Advanced
               {advancedOpen ? <FiChevronUp /> : <FiChevronDown />}
@@ -306,7 +303,7 @@ export default function ParentCampaignModal({
                       name="budgetCurrency"
                       value={form.budgetCurrency}
                       onChange={handleChange}
-                      className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300"
+                      className="apex-cp-select mt-2"
                     >
                       {PLANNER_V2_BUDGET_CURRENCIES.map((c) => (
                         <option key={c} value={c}>
@@ -345,17 +342,10 @@ export default function ParentCampaignModal({
           </div>
 
           <div className="md:col-span-2 flex justify-end gap-2 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-11 px-5 rounded-lg border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 text-sm font-medium"
-            >
+            <button type="button" onClick={onClose} className="apex-cp-btn">
               Cancel
             </button>
-            <button
-              type="submit"
-              className="h-11 px-5 rounded-lg text-white bg-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind-lighter)] text-sm font-semibold"
-            >
+            <button type="submit" className="apex-perf-btn apex-perf-btn--primary">
               {mode === "edit" ? "Save" : "Create"}
             </button>
           </div>

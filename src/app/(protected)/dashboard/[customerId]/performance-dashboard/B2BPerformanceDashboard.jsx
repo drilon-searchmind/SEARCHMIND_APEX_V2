@@ -6,10 +6,12 @@ import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import MetricCard from "@/components/dashboard/MetricCard";
 import GraphCard from "@/components/dashboard/GraphCard";
-import Spinner from "@/components/ui/Spinner";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import PerformanceDashboardStandardSections from "./components/PerformanceDashboardStandardSections";
 import B2BCustom from "./components/B2BCustom";
 import Ga4ConversionEventsModal from "./components/Ga4ConversionEventsModal";
+import CalculationWalkthroughModal from "./components/CalculationWalkthroughModal";
+import "./performance-dashboard.css";
 import { useCustomers } from "@/hooks/useCustomers";
 import { getGa4ConversionEventNames } from "@/lib/ga4ConversionEvents";
 import {
@@ -86,7 +88,7 @@ export default function B2BPerformanceDashboard({ customer: customerProp }) {
     const [comparisonMethod, setComparisonMethod] = useState(COMPARISON_METHOD.LAST_YEAR);
     const [tempComparisonMethod, setTempComparisonMethod] = useState(COMPARISON_METHOD.LAST_YEAR);
     const [viewMode, setViewMode] = useState("standard");
-    const [showCalcs, setShowCalcs] = useState(false);
+    const [calcWalkthroughOpen, setCalcWalkthroughOpen] = useState(false);
     const [selectedMetrics, setSelectedMetrics] = useState(["sessions", "cost"]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -349,7 +351,7 @@ export default function B2BPerformanceDashboard({ customer: customerProp }) {
                 chart: {
                     id: "b2b-overview-chart",
                     toolbar: { show: false },
-                    fontFamily: "Outfit, sans-serif",
+                    fontFamily: "Inter, sans-serif",
                 },
                 xaxis: { categories: chartCategories, labels: { rotate: -45 } },
                 yaxis: {
@@ -401,12 +403,15 @@ export default function B2BPerformanceDashboard({ customer: customerProp }) {
     };
 
     return (
-        <div className="w-full">
+        <div className="cobalt-perf w-full" data-theme="cobalt">
             <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
                 title="Overview"
                 subtitle="B2B performance — traffic, leads & marketing spend"
                 right={
                     <DateRangePicker
+                        variant="cobalt"
                         startDate={tempDateRange.startDate}
                         endDate={tempDateRange.endDate}
                         onApply={handleDateRangeApply}
@@ -429,18 +434,18 @@ export default function B2BPerformanceDashboard({ customer: customerProp }) {
             />
 
             {!loading && error && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 mb-6">
+                <div className="apex-perf-alert apex-perf-alert--error mb-6">
                     {error}
                 </div>
             )}
 
             {!loading && !error && !ga4Configured && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-8 text-center mb-8">
-                    <FiGlobe className="mx-auto mb-3 text-3xl text-amber-600" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <div className="apex-perf-empty mb-8">
+                    <FiGlobe className="mx-auto mb-3 text-3xl text-[var(--color-accent-light)]" />
+                    <h3 className="apex-perf-custom__title mb-2">
                         Connect GA4 to get started
                     </h3>
-                    <p className="text-gray-600 max-w-md mx-auto">
+                    <p className="text-sm text-[var(--color-muted)] max-w-md mx-auto">
                         Add a GA4 Property ID in Property Configuration to load traffic and
                         conversion metrics.
                     </p>
@@ -449,26 +454,18 @@ export default function B2BPerformanceDashboard({ customer: customerProp }) {
 
             {(ga4Configured || loading) && (
                 <>
-                    <div className="mb-4 flex flex-wrap items-center gap-3">
-                        <div className="flex border border-gray-200 bg-gray-100 rounded-lg overflow-hidden w-fit">
+                    <div className="apex-perf-toolbar">
+                        <div className="apex-perf-segment">
                             <button
                                 type="button"
-                                className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium focus:outline-none transition-colors duration-150 ${
-                                    viewMode === "standard"
-                                        ? "bg-white text-[var(--color-primary-searchmind)] shadow-sm"
-                                        : "text-gray-500 hover:text-[var(--color-primary-searchmind)]"
-                                }`}
+                                className={`apex-perf-segment__btn${viewMode === "standard" ? " is-active" : ""}`}
                                 onClick={() => setViewMode("standard")}
                             >
                                 Standard
                             </button>
                             <button
                                 type="button"
-                                className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium focus:outline-none transition-colors duration-150 ${
-                                    viewMode === "custom"
-                                        ? "bg-white text-[var(--color-primary-searchmind)] shadow-sm"
-                                        : "text-gray-500 hover:text-[var(--color-primary-searchmind)]"
-                                }`}
+                                className={`apex-perf-segment__btn${viewMode === "custom" ? " is-active" : ""}`}
                                 onClick={() => setViewMode("custom")}
                             >
                                 Custom
@@ -477,12 +474,8 @@ export default function B2BPerformanceDashboard({ customer: customerProp }) {
                         {viewMode === "standard" && (
                             <button
                                 type="button"
-                                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors focus:outline-none ${
-                                    showCalcs
-                                        ? "bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]"
-                                        : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-                                }`}
-                                onClick={() => setShowCalcs((v) => !v)}
+                                className={`apex-perf-chip${calcWalkthroughOpen ? " is-active" : ""}`}
+                                onClick={() => setCalcWalkthroughOpen(true)}
                             >
                                 Show calcs
                             </button>
@@ -493,12 +486,12 @@ export default function B2BPerformanceDashboard({ customer: customerProp }) {
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 w-full mb-8">
                                 <PerformanceDashboardStandardSections
+                                    variant="cobalt"
                                     sections={STANDARD_SECTIONS}
                                     metrics={metrics}
                                     metricsData={metricsData}
                                     loading={loading}
                                     error={error}
-                                    showCalcs={showCalcs}
                                     comparisonMethod={comparisonMethodForUi}
                                     selectedMetrics={selectedMetrics}
                                     onToggleMetric={toggleMetricSelection}
@@ -514,11 +507,7 @@ export default function B2BPerformanceDashboard({ customer: customerProp }) {
                                         <button
                                             key={opt.key}
                                             type="button"
-                                            className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 ${
-                                                selectedMetrics.includes(opt.key)
-                                                    ? "bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]"
-                                                    : "bg-white text-gray-700 border-gray-200 hover:bg-gray-100"
-                                            }`}
+                                            className={`apex-perf-chip${selectedMetrics.includes(opt.key) ? " is-active" : ""}`}
                                             onClick={() => toggleMetricSelection(opt.key)}
                                         >
                                             {opt.label}
@@ -527,11 +516,16 @@ export default function B2BPerformanceDashboard({ customer: customerProp }) {
                                 </div>
 
                                 {loading ? (
-                                    <div className="flex items-center justify-center h-64">
-                                        <Spinner size={40} color="#406969" />
+                                    <div className="apex-perf-loading h-64">
+                                        <CobaltLoader
+                                            variant="block"
+                                            title="Updating chart"
+                                            request="GET /api/b2b-dashboard"
+                                        />
                                     </div>
                                 ) : (
                                     <GraphCard
+                                        variant="cobalt"
                                         title={
                                             selectedMetrics.length === 1
                                                 ? `${
@@ -548,7 +542,7 @@ export default function B2BPerformanceDashboard({ customer: customerProp }) {
 
                                 {!loading && overviewKpiMetrics.length > 0 && (
                                     <div className="mt-6">
-                                        <h3 className="text-sm font-medium text-gray-500 mb-3">
+                                        <h3 className="apex-perf-section-label">
                                             Key metrics
                                         </h3>
                                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
@@ -565,6 +559,7 @@ export default function B2BPerformanceDashboard({ customer: customerProp }) {
                                                     }
                                                 >
                                                     <MetricCard
+                                                        variant="cobalt"
                                                         label={metric.label}
                                                         value={metric.value}
                                                         change={metric.change}
@@ -610,6 +605,19 @@ export default function B2BPerformanceDashboard({ customer: customerProp }) {
                 dateRange={appliedDateRange}
                 onSave={handleGa4ConversionSave}
                 saving={settingsSaving}
+            />
+            <CalculationWalkthroughModal
+                open={calcWalkthroughOpen}
+                onClose={() => setCalcWalkthroughOpen(false)}
+                sections={STANDARD_SECTIONS}
+                metrics={metrics}
+                title="How your metrics connect"
+                subtitle="Follow each step to see how traffic, conversions, and marketing spend combine for this period."
+                dateLabel={
+                    appliedDateRange?.startDate && appliedDateRange?.endDate
+                        ? `${appliedDateRange.startDate} – ${appliedDateRange.endDate}`
+                        : null
+                }
             />
         </div>
     );

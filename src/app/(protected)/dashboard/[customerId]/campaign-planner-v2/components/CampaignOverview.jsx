@@ -79,22 +79,18 @@ function lineItemDateRangeLabel(li) {
 function Detail({ label, children }) {
 	return (
 		<div>
-			<div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-				{label}
-			</div>
-			<div className="mt-0.5 text-sm text-gray-900">{children}</div>
+			<div className="apex-cp-detail__label">{label}</div>
+			<div className="apex-cp-detail__value">{children}</div>
 		</div>
 	);
 }
 
 function SectionRule({ title }) {
 	return (
-		<div className="flex items-center gap-3 py-2">
-			<div className="h-px flex-1 bg-gray-300" />
-			<span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-				{title}
-			</span>
-			<div className="h-px flex-1 bg-gray-300" />
+		<div className="apex-cp-section-rule">
+			<div className="apex-cp-section-rule__line" />
+			<span className="apex-cp-section-rule__title">{title}</span>
+			<div className="apex-cp-section-rule__line" />
 		</div>
 	);
 }
@@ -170,23 +166,15 @@ export default function CampaignOverview({
 		return (
 			<div
 				key={parent.id}
-				className={`rounded-xl border overflow-hidden transition-colors ${
-					groundedStyle
-						? "border-[#9a3412] bg-[#fff7ed] shadow-[inset_4px_0_0_0_#c2410c]"
-						: "border-gray-200 bg-white"
+				className={`apex-cp-parent-card ${
+					groundedStyle ? "apex-cp-parent-card--ended" : ""
 				}`}
 			>
-				<div
-					className={`flex flex-wrap items-center gap-3 p-4 border-b ${
-						groundedStyle
-							? "border-orange-200/80 bg-orange-50/50"
-							: "border-gray-100"
-					}`}
-				>
+				<div className="apex-cp-parent-card__head">
 					<button
 						type="button"
 						onClick={() => toggle(parent.id)}
-						className="flex items-center gap-2 text-gray-700 hover:text-gray-900"
+						className="apex-cp-parent-card__toggle"
 						aria-expanded={!!isOpen}
 					>
 						{isOpen ? (
@@ -194,22 +182,20 @@ export default function CampaignOverview({
 						) : (
 							<FiChevronRight className="w-5 h-5" />
 						)}
-						<span className="font-semibold text-gray-900 text-left">
+						<span className="apex-cp-parent-card__name">
 							{parent.campaignName}
 						</span>
 					</button>
 					{groundedStyle && (
-						<span className="text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-[#c2410c]/15 text-[#9a3412] border border-[#c2410c]/30">
-							Ended
-						</span>
+						<span className="apex-cp-badge apex-cp-badge--ended">Ended</span>
 					)}
 					{overBudget && (
-						<span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-200">
+						<span className="apex-cp-badge apex-cp-badge--warn">
 							<FiAlertTriangle className="w-3.5 h-3.5" />
 							Over budget
 						</span>
 					)}
-					<span className="text-sm text-gray-500">
+					<span className="apex-cp-parent-card__meta">
 						{parent.alwaysOn
 							? "Always on"
 							: `${formatDate(parent.startDate)} – ${formatDate(parent.endDate)}`}
@@ -217,7 +203,9 @@ export default function CampaignOverview({
 					{hasCap && (
 						<span
 							className={`text-xs sm:text-sm ${
-								overBudget ? "text-amber-800 font-medium" : "text-gray-500"
+								overBudget
+									? "text-[var(--color-ink)] font-medium"
+									: "text-[var(--color-muted)]"
 							}`}
 						>
 							Allocated {formatBudgetAmount(allocated, currency)}
@@ -230,7 +218,7 @@ export default function CampaignOverview({
 							href={parent.materialLink}
 							target="_blank"
 							rel="noopener noreferrer"
-							className="inline-flex items-center gap-1 text-sm text-[var(--color-primary-searchmind)] hover:underline"
+							className="apex-cp-link"
 						>
 							<FiExternalLink className="w-4 h-4" />
 							Material
@@ -240,7 +228,7 @@ export default function CampaignOverview({
 						<button
 							type="button"
 							onClick={() => onEditParent(parent)}
-							className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+							className="apex-cp-icon-btn"
 							title="Edit campaign"
 						>
 							<FiEdit2 className="w-4 h-4" />
@@ -248,7 +236,7 @@ export default function CampaignOverview({
 						<button
 							type="button"
 							onClick={() => onDeleteParent(parent.id)}
-							className="p-2 rounded-lg border border-gray-200 text-red-600 hover:bg-red-50"
+							className="apex-cp-icon-btn apex-cp-icon-btn--danger"
 							title="Delete campaign"
 						>
 							<FiTrash2 className="w-4 h-4" />
@@ -258,10 +246,8 @@ export default function CampaignOverview({
 
 				{isOpen && (
 					<div className="p-4 overflow-x-auto">
-						<div className="rounded-lg border border-gray-200 bg-gray-50/90 p-4 mb-4">
-							<h4 className="text-sm font-semibold text-gray-900 mb-3">
-								Campaign details
-							</h4>
+						<div className="apex-cp-inner-panel">
+							<h4 className="apex-cp-inner-panel__title">Campaign details</h4>
 							<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 								<Detail label="Responsible">
 									{responsibleLabel(parent.responsible)}
@@ -286,7 +272,7 @@ export default function CampaignOverview({
 											href={parent.landingPageLink}
 											target="_blank"
 											rel="noopener noreferrer"
-											className="text-[var(--color-primary-searchmind)] hover:underline inline-flex items-center gap-1 break-all"
+											className="apex-cp-link break-all"
 										>
 											{parent.landingPageLink}
 											<FiExternalLink className="w-3.5 h-3.5 shrink-0" />
@@ -298,20 +284,18 @@ export default function CampaignOverview({
 							</div>
 
 							{hasCap && (
-								<div className="mt-4 pt-4 border-t border-gray-200">
-									<h5 className="text-sm font-semibold text-gray-900 mb-2">
-										Service budget allocation
-									</h5>
+								<div className="mt-4 pt-4 border-t border-[var(--color-rule)]">
+									<h5 className="apex-cp-inner-panel__title">Service budget allocation</h5>
 									<div className="flex flex-wrap items-baseline justify-between gap-2 text-sm mb-2">
 										<span>
-											<span className="text-gray-600">Allocated: </span>
-											<span className="font-semibold text-gray-900">
+											<span className="text-[var(--color-muted)]">Allocated: </span>
+											<span className="font-semibold text-[var(--color-ink)]">
 												{formatBudgetAmount(allocated, currency)}
 											</span>
 										</span>
 										<span>
-											<span className="text-gray-600">Campaign cap: </span>
-											<span className="font-semibold text-gray-900">
+											<span className="text-[var(--color-muted)]">Campaign cap: </span>
+											<span className="font-semibold text-[var(--color-ink)]">
 												{formatBudgetAmount(cap, currency)}
 											</span>
 										</span>
@@ -319,7 +303,7 @@ export default function CampaignOverview({
 									{allocated > 0 && (
 										<div className="mt-2">
 											<div
-												className="h-2.5 rounded-full bg-gray-200 overflow-hidden flex w-full"
+												className="h-2.5 rounded-full bg-[var(--perf-canvas)] overflow-hidden flex w-full border border-[var(--color-rule)]"
 												title="Share of allocated budget by service"
 											>
 												<div className="flex h-full w-full min-w-0 rounded-full overflow-hidden">
@@ -341,7 +325,7 @@ export default function CampaignOverview({
 													})}
 												</div>
 											</div>
-											<div className="mt-1 flex flex-wrap gap-3 text-xs text-gray-600">
+											<div className="mt-1 flex flex-wrap gap-3 text-xs text-[var(--color-muted)]">
 												{row.services.map((s) => (
 													<span key={s.id} className="inline-flex items-center gap-1">
 														<span
@@ -356,7 +340,7 @@ export default function CampaignOverview({
 												))}
 											</div>
 											{overBudget && (
-												<div className="mt-2 flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 text-amber-950 text-sm px-3 py-2">
+												<div className="mt-2 flex items-start gap-2 rounded-md apex-cp-badge apex-cp-badge--warn text-sm px-3 py-2">
 													<FiAlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
 													<span>
 														Service budgets exceed the campaign total by{" "}
@@ -375,26 +359,23 @@ export default function CampaignOverview({
 
 						<div className="space-y-3">
 							{row.services.map((svc) => (
-								<div
-									key={svc.id}
-									className="border border-gray-200 rounded-lg overflow-hidden bg-white"
-								>
+								<div key={svc.id} className="apex-cp-service-card">
 									<div
-										className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2.5 border-b border-black/5"
+										className="apex-cp-service-card__head"
 										style={{
 											backgroundColor: groundedStyle
 												? "#ffedd5"
 												: SERVICE_COLORS[svc.serviceName] || "#e5e7eb",
 										}}
 									>
-										<span className="font-semibold text-sm text-gray-900">
+										<span className="font-semibold text-sm text-[var(--color-ink)]">
 											{svc.serviceName}
 										</span>
 										{hasCap &&
 											svc.budget != null &&
 											!Number.isNaN(Number(svc.budget)) &&
 											Number(svc.budget) > 0 && (
-												<span className="text-sm text-gray-800">
+												<span className="text-sm text-[var(--color-ink-2)]">
 													Budget{" "}
 													<span className="font-medium tabular-nums">
 														{formatBudgetAmount(Number(svc.budget), currency)}
@@ -402,11 +383,11 @@ export default function CampaignOverview({
 												</span>
 											)}
 									</div>
-									<div className="px-3 py-3 space-y-2 bg-white">
+									<div className="apex-cp-service-card__body">
 										{hasCap && (
-											<div className="flex flex-wrap items-center gap-3 pb-2 mb-1 border-b border-gray-100 text-xs text-gray-600">
+											<div className="flex flex-wrap items-center gap-3 pb-2 mb-1 border-b border-[var(--color-rule)] text-xs text-[var(--color-muted)]">
 												<label className="inline-flex items-center gap-2">
-													<span className="text-gray-500">Service budget</span>
+													<span>Service budget</span>
 													<span className="inline-flex items-center gap-1">
 														<input
 															type="number"
@@ -420,9 +401,9 @@ export default function CampaignOverview({
 																	budget: v === "" ? null : Number(v),
 																});
 															}}
-															className="w-28 h-8 rounded border border-gray-300 px-2 text-xs tabular-nums bg-white"
+															className="apex-cp-select w-28 h-8 tabular-nums"
 														/>
-														<span className="text-gray-400">{currency}</span>
+														<span>{currency}</span>
 													</span>
 												</label>
 											</div>
@@ -448,9 +429,9 @@ export default function CampaignOverview({
 												return (
 													<div
 														key={`${svc.id}-${st}`}
-														className="rounded-lg border border-gray-200 bg-white p-3 space-y-2"
+														className="apex-cp-status-group"
 													>
-														<div className="flex items-center gap-2 text-xs font-semibold text-gray-800">
+														<div className="apex-cp-status-group__label">
 															<span
 																className="w-2.5 h-2.5 rounded-sm shrink-0"
 																style={{
@@ -480,34 +461,32 @@ export default function CampaignOverview({
 																return (
 																	<div
 																		key={li.id}
-																		className={`flex items-stretch gap-2 rounded-lg border bg-white hover:border-[var(--color-primary-searchmind)]/50 transition-colors ${
-																			lineEnded
-																				? "border-[#9a3412] border-l-4 border-l-[#c2410c] bg-[#fff7ed]/60"
-																				: "border-gray-200"
+																		className={`apex-cp-line-item ${
+																			lineEnded ? "apex-cp-line-item--ended" : ""
 																		}`}
 																	>
 																		<div className="min-w-0 flex-1 flex flex-col">
 																			<button
 																				type="button"
 																				onClick={() => onEditLineItem(li, svc)}
-																				className="text-left w-full px-3 py-2 flex flex-col gap-0.5"
+																				className="apex-cp-line-item__main"
 																			>
-																				<div className="font-medium text-sm text-gray-900">
+																				<div className="apex-cp-line-item__title">
 																					{li.name}
 																				</div>
-																				<div className="text-xs text-gray-600">
+																				<div className="apex-cp-line-item__sub">
 																					{[li.media, lineFormatsLabel(li)]
 																						.filter(Boolean)
 																						.join(" · ") || "—"}
 																				</div>
-																				<div className="text-xs text-gray-500">
+																				<div className="apex-cp-line-item__sub">
 																					{lineItemDateRangeLabel(li)}
 																				</div>
 																				{hasCap &&
 																					li.budget != null &&
 																					!Number.isNaN(Number(li.budget)) &&
 																					Number(li.budget) > 0 && (
-																						<div className="text-xs text-gray-600">
+																						<div className="apex-cp-line-item__sub">
 																							{formatBudgetAmount(
 																								Number(li.budget),
 																								currency
@@ -528,7 +507,7 @@ export default function CampaignOverview({
 																								e.target.value
 																							);
 																						}}
-																						className="text-xs font-semibold rounded-md border-2 pl-2 pr-7 py-1.5 max-w-[min(100%,15rem)] cursor-pointer"
+																						className="apex-cp-select text-xs font-semibold max-w-[min(100%,15rem)] cursor-pointer"
 																						style={{
 																							backgroundColor: lineStPal.bg,
 																							borderColor: lineStPal.border,
@@ -545,7 +524,7 @@ export default function CampaignOverview({
 																				{performanceHref && (
 																					<Link
 																						href={performanceHref}
-																						className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-primary-searchmind)] hover:underline"
+																						className="apex-cp-link"
 																						onClick={(e) => e.stopPropagation()}
 																					>
 																						<FiBarChart2 className="w-3.5 h-3.5" />
@@ -562,7 +541,7 @@ export default function CampaignOverview({
 																						e.stopPropagation();
 																						onDuplicateLineItem(li);
 																					}}
-																					className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+																					className="apex-cp-icon-btn"
 																					title="Duplicate"
 																				>
 																					<FiCopy className="w-4 h-4" />
@@ -574,7 +553,7 @@ export default function CampaignOverview({
 																					e.stopPropagation();
 																					onDeleteLineItem(li.id);
 																				}}
-																				className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+																				className="apex-cp-icon-btn apex-cp-icon-btn--danger"
 																				title="Delete"
 																			>
 																				<FiTrash2 className="w-4 h-4" />
@@ -591,7 +570,7 @@ export default function CampaignOverview({
 										<button
 											type="button"
 											onClick={() => onAddLineItem(svc)}
-											className="w-full flex items-center justify-center gap-1 py-2 rounded-lg border border-dashed border-gray-300 text-sm text-gray-600 hover:bg-gray-50"
+											className="apex-cp-add-btn"
 										>
 											<FiPlus className="w-4 h-4" />
 											Campaign type
@@ -603,23 +582,19 @@ export default function CampaignOverview({
 						</div>
 
 						{(parent.brief || parent.furtherBrief) && (
-							<div className="mt-4 grid md:grid-cols-2 gap-3 text-sm">
+							<div className="mt-4 grid md:grid-cols-2 gap-3">
 								{parent.brief && (
-									<div className="rounded-lg bg-white border border-gray-100 p-3">
-										<div className="text-xs font-semibold text-gray-500 mb-1">
-											Brief
-										</div>
-										<p className="text-gray-800 whitespace-pre-wrap">
+									<div className="apex-cp-brief">
+										<div className="apex-cp-brief__label">Brief</div>
+										<p className="whitespace-pre-wrap text-[var(--color-ink-2)]">
 											{parent.brief}
 										</p>
 									</div>
 								)}
 								{parent.furtherBrief && (
-									<div className="rounded-lg bg-white border border-gray-100 p-3">
-										<div className="text-xs font-semibold text-gray-500 mb-1">
-											Further brief
-										</div>
-										<p className="text-gray-800 whitespace-pre-wrap">
+									<div className="apex-cp-brief">
+										<div className="apex-cp-brief__label">Further brief</div>
+										<p className="whitespace-pre-wrap text-[var(--color-ink-2)]">
 											{parent.furtherBrief}
 										</p>
 									</div>
@@ -636,15 +611,11 @@ export default function CampaignOverview({
 		const filteredOut =
 			typeof storedParentCount === "number" && storedParentCount > 0;
 		return (
-			<div className="bg-white border border-gray-200 rounded-xl p-10 text-center text-gray-500">
+			<div className="apex-cp-empty">
 				{filteredOut ? (
 					<>
-						<p className="text-gray-700 font-medium">
-							No campaigns match your filters.
-						</p>
-						<p className="mt-2 text-sm">
-							Reset filters or broaden the period to see campaigns again.
-						</p>
+						<strong>No campaigns match your filters.</strong>
+						Reset filters or broaden the period to see campaigns again.
 					</>
 				) : (
 					"No campaigns yet. Create one using the button above."
@@ -654,7 +625,7 @@ export default function CampaignOverview({
 	}
 
 	return (
-		<div className="space-y-4 bg-gray-100 rounded-xl p-4">
+		<div className="apex-cp-overview">
 			{scheduledParents.length > 0 && (
 				<>
 					<SectionRule title="Campaigns" />

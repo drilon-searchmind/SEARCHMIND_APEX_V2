@@ -184,7 +184,7 @@ export default function PerformanceInvestigatorCopyToSlides({
                         type="button"
                         disabled={disabled}
                         onClick={copyToClipboard}
-                        className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+                        className="apex-perf-btn apex-perf-btn--secondary"
                     >
                         <FiCopy className="h-4 w-4 shrink-0" />
                         Copy to slides
@@ -194,7 +194,7 @@ export default function PerformanceInvestigatorCopyToSlides({
                     type="button"
                     disabled={disabled}
                     onClick={() => setModalOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                    className="apex-perf-btn apex-perf-btn--secondary"
                 >
                     <FiLayers className="h-4 w-4 shrink-0" />
                     Slides options
@@ -203,106 +203,100 @@ export default function PerformanceInvestigatorCopyToSlides({
 
             {modalOpen && (
                 <div
-                    className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40"
+                    className="apex-radar-modal-backdrop"
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="pi-slides-modal-title"
                 >
-                    <div className="w-full max-w-lg rounded-xl bg-white shadow-xl border border-gray-200 p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-                        <div className="flex items-start justify-between gap-3">
-                            <h2 id="pi-slides-modal-title" className="text-lg font-semibold text-gray-900">
+                    <div className="apex-radar-modal apex-radar-modal--lg">
+                        <div className="apex-radar-modal__head">
+                            <h2 id="pi-slides-modal-title" className="apex-radar-modal__title">
                                 Copy to Google Slides
                             </h2>
                             <button
                                 type="button"
                                 onClick={() => setModalOpen(false)}
-                                className="text-gray-500 hover:text-gray-800 text-sm"
+                                className="apex-radar-modal__close"
                             >
                                 Close
                             </button>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="block text-xs font-medium text-gray-700">
-                                Google Slides presentation URL or ID
-                            </label>
-                            <input
-                                type="text"
-                                value={presentationInput}
-                                onChange={(e) => persistPresentationId(e.target.value)}
-                                placeholder="https://docs.google.com/presentation/d/XXXXXXXX/edit"
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                            />
-                            {openInSlides && (
-                                <a
-                                    href={openInSlides}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 text-sm text-[var(--color-primary-searchmind)] hover:underline"
-                                >
-                                    <FiExternalLink className="h-4 w-4" />
-                                    Open this presentation
-                                </a>
-                            )}
-                        </div>
+                        <div className="apex-radar-modal__body apex-radar-form space-y-4">
+                            <div>
+                                <label className="apex-radar-field-label">
+                                    Google Slides presentation URL or ID
+                                </label>
+                                <input
+                                    type="text"
+                                    value={presentationInput}
+                                    onChange={(e) => persistPresentationId(e.target.value)}
+                                    placeholder="https://docs.google.com/presentation/d/XXXXXXXX/edit"
+                                />
+                                {openInSlides && (
+                                    <a
+                                        href={openInSlides}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="apex-radar-link inline-flex items-center gap-1.5 mt-2"
+                                    >
+                                        <FiExternalLink className="h-4 w-4" />
+                                        Open this presentation
+                                    </a>
+                                )}
+                            </div>
 
-                        <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
-                            <button
-                                type="button"
-                                onClick={copyToClipboard}
-                                disabled={disabled}
-                                className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary-searchmind)] text-white px-4 py-2 text-sm font-medium hover:opacity-95 disabled:opacity-50"
-                            >
-                                <FiCopy className="h-4 w-4" />
-                                Copy data again
-                            </button>
-                            <button
-                                type="button"
-                                onClick={downloadTxt}
-                                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
-                            >
-                                <FiUpload className="h-4 w-4" />
-                                Download .txt
-                            </button>
-                        </div>
-
-                        {slidesApi.enabled ? (
-                            <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-4 space-y-3 text-sm">
-                                <p className="font-medium text-emerald-900">Server append is enabled</p>
-                                <p className="text-emerald-800">
-                                    Share this presentation with{" "}
-                                    <code className="rounded bg-white/80 px-1 py-0.5 text-xs">
-                                        {slidesApi.shareWithEmail || "the service account email"}
-                                    </code>{" "}
-                                    as <strong>Editor</strong>, then append adds formatted slides (one section per slide,
-                                    tables styled like Performance Investigator).
-                                </p>
+                            <div className="flex flex-wrap gap-2 pt-2 border-t border-[var(--color-rule)]">
                                 <button
                                     type="button"
-                                    disabled={appendBusy || disabled || !presentationId}
-                                    onClick={appendToGoogleSlides}
-                                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 text-white px-4 py-2 text-sm font-medium hover:bg-emerald-800 disabled:opacity-50"
+                                    onClick={copyToClipboard}
+                                    disabled={disabled}
+                                    className="apex-perf-btn apex-perf-btn--primary"
                                 >
-                                    {appendBusy ? "Working…" : "Append to presentation (new slides)"}
+                                    <FiCopy className="h-4 w-4" />
+                                    Copy data again
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={downloadTxt}
+                                    className="apex-perf-btn apex-perf-btn--secondary"
+                                >
+                                    <FiUpload className="h-4 w-4" />
+                                    Download .txt
                                 </button>
                             </div>
-                        ) : (
-                            <div className="rounded-lg border border-amber-200 bg-amber-50/90 p-4 text-sm text-amber-950">
-                                <p className="font-medium mb-1">Google Slides API (optional)</p>
-                                <p className="text-amber-900/90">
-                                    Automatic append is off until the server has a service account with the Slides API
-                                    enabled — either reuse{" "}
-                                    <code className="text-xs rounded bg-white/60 px-1">
-                                        GOOGLE_ADS_SERVICE_ACCOUNT_CREDENTIALS
-                                    </code>{" "}
-                                    or set{" "}
-                                    <code className="text-xs rounded bg-white/60 px-1">
-                                        GOOGLE_SLIDES_SERVICE_ACCOUNT_JSON
-                                    </code>
-                                    . Until then, use <strong>Copy data again</strong> below and paste manually.
-                                </p>
-                            </div>
-                        )}
+
+                            {slidesApi.enabled ? (
+                                <div className="apex-radar-modal-callout space-y-3">
+                                    <p className="font-medium text-[var(--color-ink)]">Server append is enabled</p>
+                                    <p>
+                                        Share this presentation with{" "}
+                                        <code>{slidesApi.shareWithEmail || "the service account email"}</code> as{" "}
+                                        <strong>Editor</strong>, then append adds formatted slides (one section per
+                                        slide, tables styled like Performance Investigator).
+                                    </p>
+                                    <button
+                                        type="button"
+                                        disabled={appendBusy || disabled || !presentationId}
+                                        onClick={appendToGoogleSlides}
+                                        className="apex-perf-btn apex-perf-btn--primary"
+                                    >
+                                        {appendBusy ? "Working…" : "Append to presentation (new slides)"}
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="apex-radar-alert">
+                                    <p className="font-medium mb-1">Google Slides API (optional)</p>
+                                    <p>
+                                        Automatic append is off until the server has a service account with the Slides
+                                        API enabled — either reuse{" "}
+                                        <code>GOOGLE_ADS_SERVICE_ACCOUNT_CREDENTIALS</code> or set{" "}
+                                        <code>GOOGLE_SLIDES_SERVICE_ACCOUNT_JSON</code>. Until then, use{" "}
+                                        <strong>Copy data again</strong> below and paste manually.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

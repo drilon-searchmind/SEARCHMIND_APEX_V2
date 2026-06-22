@@ -1,5 +1,6 @@
 'use client';
 
+import './daily-overview.css';
 import DashboardHeading from '@/components/dashboard/DashboardHeading';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useBusinessCategory } from '@/hooks/useBusinessCategory';
@@ -237,8 +238,10 @@ function EcommerceDailyOverview({ customer: customerProp }) {
     );
 
     return (
-        <div id="DailyOverviewPage" className="w-full">
+        <div id="DailyOverviewPage" className="cobalt-perf w-full" data-theme="cobalt">
             <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
                 title="Daily Overview"
                 label={customer ? customer.customerName : ''}
                 customerId={params.customerId}
@@ -285,6 +288,7 @@ function EcommerceDailyOverview({ customer: customerProp }) {
                 }
                 right={
                     <DateRangePicker
+                        variant="cobalt"
                         onApply={handleDateRangeApply}
                         startDate={tempDateRange.startDate}
                         endDate={tempDateRange.endDate}
@@ -294,20 +298,22 @@ function EcommerceDailyOverview({ customer: customerProp }) {
                 }
             />
 
-            <div className="mt-8 bg-white rounded-xl border border-gray-200 p-6">
-                <div className="mb-5">
+            <div className="apex-daily-panel">
+                <div className="apex-daily-panel__toolbar">
                     <MetricToggleBar
+                        variant="cobalt"
                         visibleMetrics={visibleMetrics}
                         onToggle={handleMetricToggle}
                         showTrendChart={showTrendChart}
                         onTrendChartToggle={() => setShowTrendChart((v) => !v)}
                         metricColumns={metricColumns}
                     />
-                    <h3 className="text-lg font-semibold">Daily Metrics</h3>
+                    <h3 className="apex-daily-panel__title">Daily Metrics</h3>
                 </div>
                 {showTrendChart && rows?.length > 0 && (
                     <div className="mb-6">
                         <GraphCard
+                            variant="cobalt"
                             title="Net Revenue, Spend & Net Profit Over Time"
                             chartOptions={trendChartOptions}
                             chartSeries={trendChartSeries}
@@ -317,6 +323,7 @@ function EcommerceDailyOverview({ customer: customerProp }) {
                     </div>
                 )}
                 <DailyMetricsTable
+                    variant="cobalt"
                     rows={rows}
                     rowsPrev={rowsPrev}
                     rowsLastYear={rowsLastYear}
@@ -341,10 +348,11 @@ function EcommerceDailyOverview({ customer: customerProp }) {
                 metricColumns={metricColumns}
             />
 
-            <div className="mt-8 bg-gray-50 rounded-xl border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold mb-0">Last Year Period</h3>
-                <div class="mt-0 text-xs text-gray-500 mb-5">Full month</div>
+            <div className="apex-daily-panel apex-daily-panel--muted">
+                <h3 className="apex-daily-panel__title">Last Year Period</h3>
+                <p className="apex-daily-panel__subtitle">Full month</p>
                 <LastYearPeriodTable
+                    variant="cobalt"
                     rowsLastYear={rowsLastYear}
                     rows={rows}
                     loading={loadingLastYear}

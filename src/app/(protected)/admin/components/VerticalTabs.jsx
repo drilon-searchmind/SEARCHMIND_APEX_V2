@@ -1,26 +1,21 @@
-import React from 'react';
+import React from "react";
 
 export default function VerticalTabs({ tabs = [], activeTab, onTabChange }) {
     return (
-        <div className="flex w-full">
-            {/* Tabs */}
-            <div className="flex flex-col min-w-[250px] border-r border-gray-200 bg-gray-50 rounded-l-xl py-6 px-6">
+        <div className="apex-admin-tabs">
+            <nav className="apex-admin-tabs__nav" aria-label="Admin sections">
                 {tabs.map((tab) => (
                     <button
                         key={tab.key}
-                        className={`text-left px-4 py-3 rounded-lg mb-1 font-semibold transition-colors ${activeTab === tab.key
-                            ? 'bg-[var(--color-primary-searchmind-lighter-opacity)] text-[var(--color-primary-searchmind)]'
-                            : 'text-gray-500 hover:bg-gray-100'
-                            }`}
+                        type="button"
+                        className={`apex-admin-tabs__btn${activeTab === tab.key ? " is-active" : ""}`}
                         onClick={() => onTabChange?.(tab.key)}
-                        style={{ outline: 'none' }}
                     >
-                        <h6 className="text-sm">{tab.label}</h6>
+                        {tab.label}
                     </button>
                 ))}
-            </div>
-            {/* Content */}
-            <div className="flex-1 bg-white rounded-r-xl p-8 min-h-[320px]">
+            </nav>
+            <div className="apex-admin-tabs__content">
                 {tabs.find((t) => t.key === activeTab)?.content}
             </div>
         </div>

@@ -61,42 +61,28 @@ export default function ApexRadarGoogleSettingsModal({ row, onClose, onSaved }) 
         }
     };
 
-    const labelCls = "block text-xs font-semibold text-gray-500 mb-1.5";
-    const inputCls =
-        "w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)]";
-
     return (
-        <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/45"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="apex-google-settings-title"
-        >
-            <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white overflow-hidden shadow-lg">
-                <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-100">
+        <div className="apex-radar-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="apex-google-settings-title">
+            <div className="apex-radar-modal apex-radar-modal--md">
+                <div className="apex-radar-modal__head">
                     <div>
-                        <h2 id="apex-google-settings-title" className="text-lg font-semibold text-gray-900">
+                        <h2 id="apex-google-settings-title" className="apex-radar-modal__title">
                             Apex Radar — Google Ads
                         </h2>
-                        <p className="text-xs text-gray-500 mt-1">{row.entity}</p>
+                        <p className="apex-radar-modal__subtitle">{row.entity}</p>
                     </div>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-                        aria-label="Close"
-                    >
+                    <button type="button" onClick={onClose} className="apex-radar-modal__close" aria-label="Close">
                         <FiX className="h-5 w-5" />
                     </button>
                 </div>
 
-                <div className="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+                <div className="apex-radar-modal__body apex-radar-form space-y-4">
                     {isDemo ? (
-                        <p className="text-sm text-gray-500">Demo properties cannot be edited.</p>
+                        <p className="apex-radar-section__subtitle">Demo properties cannot be edited.</p>
                     ) : (
                         <>
                             <div>
-                                <label className={labelCls} htmlFor="apex-google-budget">
+                                <label className="apex-radar-field-label" htmlFor="apex-google-budget">
                                     Budget (mål)
                                 </label>
                                 <input
@@ -104,19 +90,17 @@ export default function ApexRadarGoogleSettingsModal({ row, onClose, onSaved }) 
                                     type="number"
                                     min={0}
                                     step="any"
-                                    className={inputCls}
                                     value={targetBudget}
                                     onChange={(e) => setTargetBudget(e.target.value)}
                                     placeholder="Fx. månedligt budget"
                                 />
                             </div>
                             <div>
-                                <label className={labelCls} htmlFor="apex-google-metric">
+                                <label className="apex-radar-field-label" htmlFor="apex-google-metric">
                                     Target type
                                 </label>
                                 <select
                                     id="apex-google-metric"
-                                    className={inputCls}
                                     value={targetMetricType}
                                     onChange={(e) => setTargetMetricType(e.target.value)}
                                 >
@@ -125,7 +109,7 @@ export default function ApexRadarGoogleSettingsModal({ row, onClose, onSaved }) 
                                 </select>
                             </div>
                             <div>
-                                <label className={labelCls} htmlFor="apex-google-target-val">
+                                <label className="apex-radar-field-label" htmlFor="apex-google-target-val">
                                     Target {targetMetricType === "CPA" ? "(CPA)" : "(ROAS)"}
                                 </label>
                                 <input
@@ -133,19 +117,17 @@ export default function ApexRadarGoogleSettingsModal({ row, onClose, onSaved }) 
                                     type="number"
                                     min={0}
                                     step="any"
-                                    className={inputCls}
                                     value={targetValue}
                                     onChange={(e) => setTargetValue(e.target.value)}
                                     placeholder={targetMetricType === "CPA" ? "Fx. 250" : "Fx. 5"}
                                 />
                             </div>
                             <div>
-                                <label className={labelCls} htmlFor="apex-google-budget-mode">
+                                <label className="apex-radar-field-label" htmlFor="apex-google-budget-mode">
                                     Budget type
                                 </label>
                                 <select
                                     id="apex-google-budget-mode"
-                                    className={inputCls}
                                     value={budgetMode}
                                     onChange={(e) => setBudgetMode(e.target.value)}
                                 >
@@ -153,24 +135,22 @@ export default function ApexRadarGoogleSettingsModal({ row, onClose, onSaved }) 
                                     <option value="STATIC">Statisk</option>
                                 </select>
                             </div>
-                            {error ? <p className="text-sm text-red-600">{error}</p> : null}
+                            {error ? (
+                                <p className="text-sm text-[var(--color-error,oklch(50%_0.15_25))]">{error}</p>
+                            ) : null}
                         </>
                     )}
                 </div>
 
-                <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100 bg-gray-50">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="text-xs font-semibold text-gray-700 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
-                    >
+                <div className="apex-radar-modal__foot">
+                    <button type="button" onClick={onClose} className="apex-perf-btn apex-perf-btn--secondary">
                         Cancel
                     </button>
                     <button
                         type="button"
                         disabled={saving || isDemo}
                         onClick={handleSave}
-                        className="text-xs font-semibold text-white px-3 py-2 rounded-lg bg-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind-hover)] transition-colors disabled:opacity-50"
+                        className="apex-perf-btn apex-perf-btn--primary"
                     >
                         {saving ? "Saving…" : "Save"}
                     </button>

@@ -4,16 +4,22 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { FiGrid, FiList, FiSearch } from "react-icons/fi";
+import DashboardHeading from "@/components/dashboard/DashboardHeading";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { inlineTagStyle } from "@/components/content-tags/tagPresets";
+import "./news.css";
 
 function NewsListCard({ post, tagMeta, compact }) {
-    const inner = (
-        <>
-            <div className="flex flex-col md:flex-row">
+    return (
+        <Link
+            href={`/news/${post.slug}`}
+            className={`apex-news-card${compact ? " apex-news-card--compact" : ""}`}
+        >
+            <div className="apex-news-card__inner">
                 {post.coverImageUrl ? (
                     <div
-                        className={`relative w-full bg-gray-100 shrink-0 overflow-hidden ${
-                            compact ? "h-36 md:w-40 md:min-h-[120px]" : "h-40 md:w-52 md:min-h-[160px]"
+                        className={`apex-news-card__media ${
+                            compact ? "apex-news-card__media--grid" : "apex-news-card__media--list"
                         }`}
                     >
                         <Image
@@ -25,21 +31,13 @@ function NewsListCard({ post, tagMeta, compact }) {
                         />
                     </div>
                 ) : null}
-                <div className={`p-5 flex-1 ${compact ? "py-4" : ""}`}>
-                    <h2
-                        className={`font-semibold text-[var(--color-primary-searchmind)] mb-2 ${
-                            compact ? "text-base line-clamp-1" : "text-lg"
-                        }`}
-                    >
-                        {post.title}
-                    </h2>
+                <div className="apex-news-card__body">
+                    <h2 className="apex-news-card__title">{post.title}</h2>
                     {post.excerpt ? (
-                        <p className={`text-sm text-gray-600 mb-3 ${compact ? "line-clamp-2" : "line-clamp-2"}`}>
-                            {post.excerpt}
-                        </p>
+                        <p className="apex-news-card__excerpt">{post.excerpt}</p>
                     ) : null}
-                    <div className="flex flex-wrap gap-2 items-center text-xs text-gray-500">
-                        {post.publishedAt && (
+                    <div className="apex-news-card__meta">
+                        {post.publishedAt ? (
                             <time dateTime={post.publishedAt}>
                                 {new Date(post.publishedAt).toLocaleDateString(undefined, {
                                     year: "numeric",
@@ -47,14 +45,14 @@ function NewsListCard({ post, tagMeta, compact }) {
                                     day: "numeric",
                                 })}
                             </time>
-                        )}
+                        ) : null}
                         {(post.tags || []).map((slug) => {
                             const meta = tagMeta[slug];
                             const label = meta?.label || slug;
                             return (
                                 <span
                                     key={slug}
-                                    className="px-2 py-0.5 rounded-full font-medium"
+                                    className="apex-news-chip"
                                     style={inlineTagStyle(meta?.color)}
                                 >
                                     {label}
@@ -64,15 +62,6 @@ function NewsListCard({ post, tagMeta, compact }) {
                     </div>
                 </div>
             </div>
-        </>
-    );
-
-    return (
-        <Link
-            href={`/news/${post.slug}`}
-            className="block bg-white rounded-xl border border-gray-200 hover:border-[var(--color-primary-searchmind)] transition-colors overflow-hidden"
-        >
-            {inner}
         </Link>
     );
 }
@@ -135,58 +124,58 @@ export default function NewsPage() {
     }, [posts, search, tagFilter, tagMeta]);
 
     return (
-        <div className="max-w-4xl mx-auto">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">News</h1>
-            <p className="text-gray-600 text-sm mb-6">Apex updates, tips, and announcements.</p>
+        <div id="NewsPage" className="cobalt-perf w-full apex-news-stack" data-theme="cobalt">
+            <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
+                title="News"
+                label="Apex updates, tips, and announcements"
+            />
 
-            <div className="bg-white border border-gray-200 rounded-xl p-4 md:p-6 space-y-4 mb-6">
-                <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-                    <div className="relative flex-1">
-                        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <div className="apex-news-toolbar">
+                <div className="apex-news-toolbar__row">
+                    <div className="apex-news-search">
+                        <FiSearch className="apex-news-search__icon" aria-hidden />
                         <input
                             type="search"
                             placeholder="Search articles..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)]/30 focus:border-[var(--color-primary-searchmind)]"
+                            aria-label="Search articles"
                         />
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-xs text-gray-500 hidden sm:inline">View</span>
-                        <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="apex-news-view">
+                        <span className="apex-news-view__label">View</span>
+                        <div className="apex-news-view-toggle">
                             <button
                                 type="button"
                                 aria-pressed={viewMode === "grid"}
                                 onClick={() => setViewMode("grid")}
-                                className={`p-2.5 ${viewMode === "grid" ? "bg-[var(--color-primary-searchmind)] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+                                className={`apex-news-view-toggle__btn${viewMode === "grid" ? " is-active" : ""}`}
                                 aria-label="Grid view"
                             >
-                                <FiGrid className="w-5 h-5" />
+                                <FiGrid aria-hidden />
                             </button>
                             <button
                                 type="button"
                                 aria-pressed={viewMode === "list"}
                                 onClick={() => setViewMode("list")}
-                                className={`p-2.5 border-l border-gray-200 ${viewMode === "list" ? "bg-[var(--color-primary-searchmind)] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+                                className={`apex-news-view-toggle__btn${viewMode === "list" ? " is-active" : ""}`}
                                 aria-label="List view"
                             >
-                                <FiList className="w-5 h-5" />
+                                <FiList aria-hidden />
                             </button>
                         </div>
                     </div>
                 </div>
 
                 <div>
-                    <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Tags</p>
-                    <div className="flex flex-wrap gap-2">
+                    <p className="apex-news-tags__label">Tags</p>
+                    <div className="apex-news-tags">
                         <button
                             type="button"
                             onClick={() => setTagFilter(null)}
-                            className={`text-xs px-3 py-1.5 rounded-full font-medium border transition-colors ${
-                                tagFilter === null
-                                    ? "border-[var(--color-primary-searchmind)] bg-[var(--color-primary-searchmind)]/10 text-[var(--color-primary-searchmind)]"
-                                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-                            }`}
+                            className={`apex-news-tag-filter${tagFilter === null ? " is-active" : ""}`}
                         >
                             All tags
                         </button>
@@ -195,10 +184,8 @@ export default function NewsPage() {
                                 key={t.slug}
                                 type="button"
                                 onClick={() => setTagFilter((cur) => (cur === t.slug ? null : t.slug))}
-                                className={`text-xs px-3 py-1.5 rounded-full font-medium border ${
-                                    tagFilter === t.slug ? "ring-2 ring-offset-1 ring-[var(--color-primary-searchmind)]" : "opacity-90 hover:opacity-100"
-                                }`}
-                                style={inlineTagStyle(t.color)}
+                                className={`apex-news-tag-filter${tagFilter === t.slug ? " is-active" : ""}`}
+                                style={tagFilter === t.slug ? undefined : inlineTagStyle(t.color)}
                             >
                                 {t.label}
                             </button>
@@ -207,17 +194,22 @@ export default function NewsPage() {
                 </div>
             </div>
 
-            {loading && <p className="text-gray-500">Loading…</p>}
-            {error && <p className="text-red-600 text-sm">{error}</p>}
+            {loading ? (
+                <div className="apex-perf-loading">
+                    <CobaltLoader variant="block" title="Loading news" request="GET /api/news" />
+                </div>
+            ) : null}
 
-            {!loading && !error && (
+            {error ? <p className="apex-news-error">{error}</p> : null}
+
+            {!loading && !error ? (
                 <>
-                    <p className="text-sm text-gray-500 mb-4">
+                    <p className="apex-news-meta">
                         {filteredPosts.length} article{filteredPosts.length !== 1 ? "s" : ""}
                     </p>
                     {filteredPosts.length > 0 ? (
                         viewMode === "grid" ? (
-                            <ul className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <ul className="apex-news-grid apex-news-grid--grid">
                                 {filteredPosts.map((p) => (
                                     <li key={p.id}>
                                         <NewsListCard post={p} tagMeta={tagMeta} compact />
@@ -225,7 +217,7 @@ export default function NewsPage() {
                                 ))}
                             </ul>
                         ) : (
-                            <ul className="space-y-6">
+                            <ul className="apex-news-list">
                                 {filteredPosts.map((p) => (
                                     <li key={p.id}>
                                         <NewsListCard post={p} tagMeta={tagMeta} />
@@ -234,24 +226,24 @@ export default function NewsPage() {
                             </ul>
                         )
                     ) : (
-                        <p className="text-gray-500 text-sm">
+                        <p className="apex-news-empty">
                             {posts.length === 0 ? "No published articles yet." : "No articles match your filters."}
                         </p>
                     )}
-                    {posts.length > 0 && filteredPosts.length === 0 && (
+                    {posts.length > 0 && filteredPosts.length === 0 ? (
                         <button
                             type="button"
                             onClick={() => {
                                 setSearch("");
                                 setTagFilter(null);
                             }}
-                            className="mt-3 text-sm font-medium text-[var(--color-primary-searchmind)] hover:underline"
+                            className="apex-news-link-btn"
                         >
                             Clear filters
                         </button>
-                    )}
+                    ) : null}
                 </>
-            )}
+            ) : null}
         </div>
     );
 }

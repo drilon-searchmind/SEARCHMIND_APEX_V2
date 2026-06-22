@@ -81,67 +81,56 @@ export default function ApexRadarAssignUsersModal({
     };
 
     return (
-        <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/45"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="apex-assign-title"
-        >
-            <div className="w-full max-w-lg rounded-xl border border-gray-200 bg-white overflow-hidden shadow-xl">
-                <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-100">
+        <div className="apex-radar-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="apex-assign-title">
+            <div className="apex-radar-modal apex-radar-modal--lg">
+                <div className="apex-radar-modal__head">
                     <div>
-                        <h2 id="apex-assign-title" className="text-lg font-semibold text-gray-900">
+                        <h2 id="apex-assign-title" className="apex-radar-modal__title">
                             Assign team
                         </h2>
-                        <p className="text-xs text-gray-500 mt-1">{row.entity}</p>
+                        <p className="apex-radar-modal__subtitle">{row.entity}</p>
                     </div>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-                        aria-label="Close"
-                    >
+                    <button type="button" onClick={onClose} className="apex-radar-modal__close" aria-label="Close">
                         <FiX className="h-5 w-5" />
                     </button>
                 </div>
 
-                <div className="px-5 py-4 max-h-[62vh] overflow-y-auto space-y-4">
-                    <div className="flex items-baseline justify-between gap-2">
-                        <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-600">
-                            Team (Apex users)
-                        </h3>
+                <div className="apex-radar-modal__body">
+                    <div className="flex items-baseline justify-between gap-2 mb-3">
+                        <h3 className="apex-radar-field-label mb-0">Team (Apex users)</h3>
                         {syncedHint ? (
-                            <span className="text-[0.65rem] text-gray-400 whitespace-nowrap">{syncedHint}</span>
+                            <span className="apex-radar-field-hint mb-0 whitespace-nowrap">{syncedHint}</span>
                         ) : null}
                     </div>
-                    <p className="text-xs text-gray-500">
-                        Defaults use your ClickUp user id on each Apex account matched to this customer’s Paid Social
-                        roster. Re-sync ClickUp teams to refresh matches. Uncheck someone to leave them off this
-                        property; you can still add anyone else below.
+                    <p className="apex-radar-section__subtitle mb-4">
+                        Defaults use your ClickUp user id on each Apex account matched to this customer&apos;s Paid
+                        Social roster. Re-sync ClickUp teams to refresh matches. Uncheck someone to leave them off
+                        this property; you can still add anyone else below.
                     </p>
                     {sortedUsers.length === 0 ? (
-                        <p className="text-sm text-gray-500 py-2">No internal users available.</p>
+                        <p className="apex-radar-empty py-2">No internal users available.</p>
                     ) : (
-                        <ul className="space-y-1">
+                        <ul className="apex-radar-modal-list">
                             {sortedUsers.map((u) => {
                                 const isPs = matchedIds.has(u.id);
                                 const hasCu = Boolean(String(u.clickupId || "").trim());
                                 return (
                                     <li key={u.id}>
-                                        <label className="flex items-center gap-3 cursor-pointer rounded-lg px-2 py-2 hover:bg-gray-50">
+                                        <label>
                                             <input
                                                 type="checkbox"
                                                 checked={checked.has(u.id)}
                                                 onChange={() => toggleUser(u.id)}
-                                                className="rounded border-gray-300 text-[var(--color-primary-searchmind)] focus:ring-[var(--color-primary-searchmind)]"
                                             />
-                                            <span className="text-sm text-gray-900 flex-1 min-w-0">{u.name}</span>
+                                            <span className="flex-1 min-w-0">{u.name}</span>
                                             {isPs ? (
-                                                <span className="shrink-0 text-[0.65rem] font-semibold uppercase tracking-wide text-[var(--color-primary-searchmind)]">
+                                                <span className="shrink-0 text-[0.65rem] font-semibold uppercase tracking-wide text-[var(--color-accent)]">
                                                     PS roster
                                                 </span>
                                             ) : !hasCu ? (
-                                                <span className="shrink-0 text-[0.65rem] text-amber-700">No CU id</span>
+                                                <span className="shrink-0 text-[0.65rem] text-amber-700">
+                                                    No CU id
+                                                </span>
                                             ) : null}
                                         </label>
                                     </li>
@@ -151,26 +140,14 @@ export default function ApexRadarAssignUsersModal({
                     )}
                 </div>
 
-                <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100 bg-gray-50">
-                    <button
-                        type="button"
-                        onClick={handleClearAll}
-                        className="text-xs font-semibold text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors"
-                    >
+                <div className="apex-radar-modal__foot">
+                    <button type="button" onClick={handleClearAll} className="apex-radar-link-btn mr-auto">
                         Clear all
                     </button>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="text-xs font-semibold text-gray-700 px-3 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
-                    >
+                    <button type="button" onClick={onClose} className="apex-perf-btn apex-perf-btn--secondary">
                         Cancel
                     </button>
-                    <button
-                        type="button"
-                        onClick={handleSave}
-                        className="text-xs font-semibold text-white px-3 py-2 rounded-lg bg-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind-hover)] transition-colors"
-                    >
+                    <button type="button" onClick={handleSave} className="apex-perf-btn apex-perf-btn--primary">
                         Save
                     </button>
                 </div>

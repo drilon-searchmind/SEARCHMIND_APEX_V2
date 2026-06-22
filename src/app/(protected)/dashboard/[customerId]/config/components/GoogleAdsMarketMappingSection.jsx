@@ -76,34 +76,31 @@ export default function GoogleAdsMarketMappingSection({
     };
 
     return (
-        <div className="col-span-full mt-2 rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-sm font-medium text-gray-800 mb-1">
+        <div className="apex-config-mapping-panel">
+            <p className="apex-config-mapping-panel__title">
                 Google Ads account → Shopify Market mapping
             </p>
-            <p className="text-xs text-gray-600 leading-snug mb-4">
+            <p className="apex-config-mapping-panel__subtitle">
                 When &quot;Filter marketing spend by markets&quot; is enabled on dashboards, mapped
                 accounts are used for the selected markets (full account spend, converted to DKK).
                 Unmapped selections still use country-based filtering.
             </p>
             {marketsLoading ? (
-                <p className="text-xs text-gray-500">Loading Shopify Markets…</p>
+                <p className="apex-config-empty">Loading Shopify Markets…</p>
             ) : marketsError ? (
-                <p className="text-xs text-amber-700">{marketsError}</p>
+                <p className="apex-config-hint apex-config-hint--warn">{marketsError}</p>
             ) : markets.length === 0 ? (
-                <p className="text-xs text-gray-500">
+                <p className="apex-config-empty">
                     No Shopify Markets found. Check store credentials and the read_markets scope.
                 </p>
             ) : (
-                <div className="overflow-x-auto">
-                    <table className="min-w-full text-xs border-collapse">
+                <div className="apex-config-table-wrap">
+                    <table className="apex-config-table">
                         <thead>
-                            <tr className="border-b border-gray-200 text-left text-gray-500">
-                                <th className="py-2 pr-4 font-medium">Google Ads ID</th>
+                            <tr>
+                                <th>Google Ads ID</th>
                                 {markets.map((m) => (
-                                    <th
-                                        key={m.shopifyqlMarketId}
-                                        className="py-2 px-2 font-medium whitespace-nowrap"
-                                    >
+                                    <th key={m.shopifyqlMarketId} className="is-center">
                                         {m.name}
                                     </th>
                                 ))}
@@ -111,20 +108,15 @@ export default function GoogleAdsMarketMappingSection({
                         </thead>
                         <tbody>
                             {syncedMapping.map((row) => (
-                                <tr
-                                    key={row.googleAdsCustomerId}
-                                    className="border-b border-gray-100 last:border-0"
-                                >
-                                    <td className="py-2 pr-4 font-mono text-gray-800">
-                                        {row.googleAdsCustomerId}
-                                    </td>
+                                <tr key={row.googleAdsCustomerId}>
+                                    <td className="is-brand">{row.googleAdsCustomerId}</td>
                                     {markets.map((m) => {
                                         const marketId = String(m.shopifyqlMarketId);
                                         const checked = (row.shopifyqlMarketIds || []).includes(
                                             marketId
                                         );
                                         return (
-                                            <td key={marketId} className="py-2 px-2 text-center">
+                                            <td key={marketId} className="is-center">
                                                 <input
                                                     type="checkbox"
                                                     checked={checked}
@@ -135,7 +127,6 @@ export default function GoogleAdsMarketMappingSection({
                                                             e.target.checked
                                                         )
                                                     }
-                                                    className="rounded border-gray-300"
                                                     aria-label={`${row.googleAdsCustomerId} → ${m.name}`}
                                                 />
                                             </td>

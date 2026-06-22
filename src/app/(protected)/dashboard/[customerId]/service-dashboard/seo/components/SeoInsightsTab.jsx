@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import dynamic from "next/dynamic";
-import Spinner from "@/components/ui/Spinner";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import GraphCard from "@/components/dashboard/GraphCard";
 import { formatComparisonPeriodDates, COMPARISON_METHOD } from "@/lib/dateRangeComparison";
 import SeoInsightsTable from "./SeoInsightsTable";
@@ -195,7 +194,7 @@ export default function SeoInsightsTab({
 
     if (!siteUrl) {
         return (
-            <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+            <div className="apex-seo-alert">
                 Add a Google Search Console property in Property Settings to load organic insights.
             </div>
         );
@@ -203,14 +202,14 @@ export default function SeoInsightsTab({
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center h-64">
-                <Spinner size={48} />
+            <div className="apex-perf-loading">
+                <CobaltLoader variant="block" title="Loading organic insights" request="POST /api/seo-dashboard/insights" />
             </div>
         );
     }
 
     if (error) {
-        return <div className="text-red-500 text-center py-8">{error}</div>;
+        return <div className="apex-seo-error">{error}</div>;
     }
 
     if (!data) return null;
@@ -225,8 +224,9 @@ export default function SeoInsightsTab({
                 pageSize={10}
             />
 
-            <div className="mb-8">
+            <div className="apex-seo-chart-block mb-6">
                 <GraphCard
+                    variant="cobalt"
                     title="Branded vs non-branded clicks"
                     chartOptions={brandChart.options}
                     chartSeries={brandChart.series}

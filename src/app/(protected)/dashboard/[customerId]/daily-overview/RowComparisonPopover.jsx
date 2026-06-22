@@ -48,7 +48,6 @@ export default function RowComparisonPopover({
 		comparisonRow = rows?.find((r) => r.date === currentDate);
 	}
 
-	// Net Profit from row (matches performance-dashboard)
 	const netProfit = comparisonRow?.netProfit ?? 0;
 
 	const visibleCols = metricColumns.filter((m) => visibleMetrics[m.key]);
@@ -105,30 +104,27 @@ export default function RowComparisonPopover({
 			}}
 		>
 			<div
-				className="bg-white border border-gray-300 rounded-lg shadow-xl p-4"
+				className="apex-daily-popover relative"
 				style={{
 					width: tableWidth ? `${tableWidth}px` : 'auto',
 					minWidth: tableWidth ? `${tableWidth}px` : '500px',
 				}}
 			>
-				<div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-white"></div>
-				<div className="absolute -top-2.5 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-gray-300"></div>
+				<div className="apex-daily-popover__arrow-border" />
+				<div className="apex-daily-popover__arrow" />
 
-				<div className="text-xs font-semibold text-gray-700 mb-2">
+				<div className="apex-daily-popover__label">
 					{hoveredRowTable === 'current'
 						? 'Last Year Period'
 						: 'Current Period'}
 				</div>
 				<div className="overflow-x-auto">
-					<table className="min-w-full text-xs text-left border-collapse">
+					<table className="apex-daily-popover__table">
 						<thead>
-							<tr className="bg-gray-50">
-								<th className="px-2 py-1 font-semibold text-gray-700">Date</th>
+							<tr className="apex-daily-popover__head-row">
+								<th className="apex-daily-popover__head-cell">Date</th>
 								{visibleCols.map((m) => (
-									<th
-										key={m.key}
-										className="px-2 py-1 font-semibold text-gray-700"
-									>
+									<th key={m.key} className="apex-daily-popover__head-cell">
 										{POPOVER_LABELS[m.key]}
 									</th>
 								))}
@@ -137,23 +133,17 @@ export default function RowComparisonPopover({
 						<tbody>
 							{!comparisonRow ? (
 								<tr>
-									<td
-										colSpan={colSpan}
-										className="px-2 py-2 text-center text-gray-400"
-									>
+									<td colSpan={colSpan} className="apex-daily-popover__empty">
 										No corresponding data
 									</td>
 								</tr>
 							) : (
-								<tr className="bg-white">
-									<td className="px-2 py-2 whitespace-nowrap">
+								<tr>
+									<td className="apex-daily-popover__cell">
 										{comparisonRow.date}
 									</td>
 									{visibleCols.map((m) => (
-										<td
-											key={m.key}
-											className="px-2 py-2 whitespace-nowrap"
-										>
+										<td key={m.key} className="apex-daily-popover__cell">
 											{getCellValue(m.key)}
 										</td>
 									))}

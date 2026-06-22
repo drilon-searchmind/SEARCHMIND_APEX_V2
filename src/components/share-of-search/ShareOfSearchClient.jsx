@@ -16,10 +16,9 @@ import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import GraphCard from "@/components/dashboard/GraphCard";
 import MetricCard from "@/components/dashboard/MetricCard";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import Spinner from "@/components/ui/Spinner";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { useCustomers } from "@/hooks/useCustomers";
+import { getCobaltChartBaseOptions } from "@/lib/charts/cobaltChartTheme";
 import { cn } from "@/lib/utils";
 import {
     getCountrySelectOptions,
@@ -42,28 +41,32 @@ const MONTH_OF_YEAR = {
     DECEMBER: 12,
 };
 
-const CHART_COLORS = ["#406969", "#C6ED62", "#60a5fa", "#94a3b8", "#6ee7b7", "#a78bfa", "#f472b6"];
+const CHART_COLORS = ["#213b34", "#3d6b5e", "#5c756a", "#7a9489", "#2d4a42", "#a8bdb6", "#60a5fa"];
 
 const COUNTRY_SELECT_STYLES = {
     control: (base, state) => ({
         ...base,
-        minHeight: 36,
+        minHeight: 40,
         borderRadius: 6,
-        borderColor: state.isFocused ? "#406969" : "#e5e7eb",
-        boxShadow: state.isFocused ? "0 0 0 1px #406969" : "none",
+        borderColor: state.isFocused ? "#213b34" : "#a8bdb6",
+        boxShadow: state.isFocused ? "0 0 0 1px #213b34" : "none",
         fontSize: "0.875rem",
-        backgroundColor: "white",
-        "&:hover": { borderColor: "#d1d5db" },
+        backgroundColor: "#ffffff",
+        "&:hover": { borderColor: "#d4ddd9" },
     }),
-    menu: (base) => ({ ...base, zIndex: 50 }),
+    menu: (base) => ({ ...base, zIndex: 50, backgroundColor: "#ffffff" }),
     option: (base, state) => ({
         ...base,
         fontSize: "0.875rem",
-        backgroundColor: state.isSelected ? "#1E2B2B" : state.isFocused ? "#f3f4f6" : "white",
-        color: state.isSelected ? "white" : "#111827",
+        backgroundColor: state.isSelected
+            ? "#213b34"
+            : state.isFocused
+              ? "#e2e9e6"
+              : "#ffffff",
+        color: state.isSelected ? "#f4f7f6" : "#213b34",
     }),
-    singleValue: (base) => ({ ...base, color: "#111827" }),
-    input: (base) => ({ ...base, color: "#111827" }),
+    singleValue: (base) => ({ ...base, color: "#213b34" }),
+    input: (base) => ({ ...base, color: "#213b34" }),
 };
 
 function parseMonthKey(m) {
@@ -138,7 +141,6 @@ function toSharePercentSeries(series) {
     return out;
 }
 
-const METRIC_CARD_MIN_HEIGHT = "min-h-[200px] h-[200px]";
 
 function formatSharePctValue(val) {
     if (val == null || val === "" || Number.isNaN(Number(val))) return "—";
@@ -423,32 +425,40 @@ export default function ShareOfSearchClient() {
                   ? Math.round(val).toLocaleString()
                   : val;
 
+        const cobaltBase = getCobaltChartBaseOptions();
         const options = {
+            ...cobaltBase,
             chart: {
+                ...cobaltBase.chart,
                 toolbar: { show: false },
                 zoom: { enabled: false },
                 stacked,
             },
             stroke: { width: 2, curve: "smooth" },
-            // ApexCharts: a single fill.opacity on multi-series line charts can hide strokes; area uses fill, line omits it.
             ...(stacked
                 ? {
                       fill: { type: "solid", opacity: 0.72 },
                   }
                 : {}),
             markers: { size: stacked ? 0 : 2, hover: { size: stacked ? 5 : 6 } },
-            xaxis: { categories },
-            legend: { position: "top" },
+            xaxis: {
+                ...cobaltBase.xaxis,
+                categories,
+            },
+            legend: { ...cobaltBase.legend, position: "top" },
             colors: seriesColors,
             dataLabels: { enabled: false },
             yaxis: {
+                ...cobaltBase.yaxis,
                 min: isShare ? 0 : undefined,
                 max: isShare ? 100 : undefined,
                 labels: {
+                    ...cobaltBase.yaxis?.labels,
                     formatter: formatYAxis,
                 },
             },
             tooltip: {
+                ...cobaltBase.tooltip,
                 y: {
                     formatter: formatTooltipY,
                 },
@@ -510,8 +520,10 @@ export default function ShareOfSearchClient() {
     ]);
 
     return (
-        <div className="pb-10">
+        <div id="ShareOfSearchPage" className="cobalt-perf w-full apex-sos-stack" data-theme="cobalt">
             <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
                 title="Share of Search"
                 label={customer?.customerName || "Customer"}
                 customerId={customerId}
@@ -524,6 +536,8 @@ export default function ShareOfSearchClient() {
                 loading={loading}
                 right={
                     <DateRangePicker
+                        variant="cobalt"
+                        usePortal
                         onApply={handleApplyRange}
                         startDate={tempRange.startDate}
                         endDate={tempRange.endDate}
@@ -536,19 +550,16 @@ export default function ShareOfSearchClient() {
                 }
             />
 
-            <div className="border border-gray-200 rounded-xl bg-white p-4 md:p-6 mb-8 space-y-4">
+            <section className="apex-sos-setup">
                 <div>
-                    <label className="text-sm font-medium text-gray-700 block mb-1">Brands</label>
-                    <div className="flex gap-2 flex-wrap">
+                    <label className="apex-sos-field__label">Brands</label>
+                    <div className="apex-sos-brand-list">
                         {brands.map((b) => (
-                            <span
-                                key={b}
-                                className="inline-flex items-center gap-1 pl-2 pr-1 py-1 rounded-lg bg-gray-100 text-sm text-gray-800"
-                            >
+                            <span key={b} className="apex-sos-brand-chip">
                                 {b}
                                 <button
                                     type="button"
-                                    className="p-0.5 rounded hover:bg-gray-200 text-gray-500"
+                                    className="apex-sos-brand-chip__remove"
                                     onClick={() => removeBrand(b)}
                                     aria-label={`Remove ${b}`}
                                 >
@@ -557,8 +568,10 @@ export default function ShareOfSearchClient() {
                             </span>
                         ))}
                     </div>
-                    <div className="flex gap-2 mt-2">
-                        <Input
+                    <div className="apex-sos-add-row">
+                        <input
+                            type="text"
+                            className="apex-sos-input"
                             placeholder="Add brand name…"
                             value={draft}
                             onChange={(e) => setDraft(e.target.value)}
@@ -568,23 +581,21 @@ export default function ShareOfSearchClient() {
                                     addBrand();
                                 }
                             }}
-                            className="flex-1"
                         />
-                        <Button
+                        <button
                             type="button"
-                            size="icon"
-                            className="shrink-0 bg-[var(--color-primary-searchmind)] hover:opacity-90 text-white"
+                            className="apex-sos-btn apex-sos-btn--primary apex-sos-btn--icon"
                             onClick={addBrand}
                             aria-label="Add brand"
                         >
                             <FiPlus className="w-4 h-4" />
-                        </Button>
+                        </button>
                     </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+                <div className="apex-sos-setup__row">
                     <div className="flex-1 min-w-0">
-                        <label className="text-sm font-medium text-gray-700 block mb-1" htmlFor="sos-country">
+                        <label className="apex-sos-field__label" htmlFor="sos-country">
                             Country
                         </label>
                         <Select
@@ -600,38 +611,35 @@ export default function ShareOfSearchClient() {
                             className="text-sm"
                         />
                     </div>
-                                       <div className="flex flex-wrap gap-2 sm:ml-auto">
-                        <Button
+                    <div className="apex-sos-setup__actions">
+                        <button
                             type="button"
-                            variant="outline"
-                            className="gap-2"
+                            className="apex-sos-btn"
                             disabled={loading || (brands.length === 0 && !draft.trim())}
                             onClick={clearBrands}
                         >
                             Clear
-                        </Button>
-                        <Button
+                        </button>
+                        <button
                             type="button"
-                            className="gap-2 bg-[var(--color-primary-searchmind)] hover:opacity-90 text-white"
+                            className="apex-sos-btn apex-sos-btn--primary"
                             disabled={loading || brands.length === 0}
                             onClick={fetchMetrics}
                         >
-                            {loading ? <Spinner size={18} color="white" /> : <FiRefreshCw className="w-4 h-4" />}
+                            <FiRefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
                             Fetch data
-                        </Button>
+                        </button>
                     </div>
                 </div>
 
-                {error && (
-                    <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-                        {error}
-                    </p>
-                )}
-            </div>
+                {error && <p className="apex-sos-alert">{error}</p>}
+            </section>
 
             {metricsRows && metricsRows.length > 0 && (
                 <>
-                    <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-stretch">
+                    <section>
+                        <h3 className="apex-sos-section__label">Brand metrics</h3>
+                        <div className="apex-sos-kpi-grid">
                         {chartDisplayMode === "volume" && (
                             <div
                                 role="button"
@@ -640,16 +648,17 @@ export default function ShareOfSearchClient() {
                                 onKeyDown={(e) =>
                                     (e.key === "Enter" || e.key === " ") && toggleChartKey("__total__")
                                 }
-                                className="cursor-pointer h-[200px]"
+                                className="apex-sos-kpi-card"
                             >
                                 <MetricCard
+                                    variant="cobalt"
                                     label="Total search volume"
                                     value={totalVolume.toLocaleString()}
                                     icon={<FiLayers />}
                                     isActive={selectedChartKeys.includes("__total__")}
                                     comparisonMethod={null}
                                     hideIconBackdrop
-                                    className={cn("h-full", METRIC_CARD_MIN_HEIGHT)}
+                                    className="h-full"
                                 />
                             </div>
                         )}
@@ -662,9 +671,10 @@ export default function ShareOfSearchClient() {
                                 onKeyDown={(e) =>
                                     (e.key === "Enter" || e.key === " ") && toggleChartKey(row.brand)
                                 }
-                                className="cursor-pointer h-[200px]"
+                                className="apex-sos-kpi-card"
                             >
                                 <MetricCard
+                                    variant="cobalt"
                                     label={
                                         <span className="flex items-center gap-2 min-w-0">
                                             <span
@@ -700,70 +710,54 @@ export default function ShareOfSearchClient() {
                                     isActive={selectedChartKeys.includes(row.brand)}
                                     comparisonMethod={null}
                                     hideIconBackdrop
-                                    className={cn("h-full", METRIC_CARD_MIN_HEIGHT)}
+                                    className="h-full"
                                 />
                             </div>
                         ))}
-                    </div>
+                        </div>
+                    </section>
 
-                    <div className="w-full mb-8">
-                        <div className="flex flex-wrap gap-2 mb-3">
+                    <section>
+                        <h3 className="apex-sos-section__label">Trend chart</h3>
+                        <div className="apex-sos-chart-block">
+                        <div className="apex-sos-tab-group">
                             <button
                                 type="button"
-                                className={cn(
-                                    "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150",
-                                    chartDisplayMode === "share"
-                                        ? "bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]"
-                                        : "bg-white text-gray-700 border-gray-200 hover:bg-gray-100"
-                                )}
+                                className={cn("apex-sos-tab", chartDisplayMode === "share" && "is-active")}
                                 onClick={() => handleChartModeChange("share")}
                             >
                                 Share of search
                             </button>
                             <button
                                 type="button"
-                                className={cn(
-                                    "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150",
-                                    chartDisplayMode === "volume"
-                                        ? "bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]"
-                                        : "bg-white text-gray-700 border-gray-200 hover:bg-gray-100"
-                                )}
+                                className={cn("apex-sos-tab", chartDisplayMode === "volume" && "is-active")}
                                 onClick={() => handleChartModeChange("volume")}
                             >
                                 Search volume
                             </button>
-                            <span className="w-px h-5 bg-gray-200 self-center mx-1 hidden sm:block" aria-hidden />
+                            <span className="apex-sos-tab-divider hidden sm:block" aria-hidden />
                             <button
                                 type="button"
-                                className={cn(
-                                    "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150",
-                                    chartVisualMode === "stacked"
-                                        ? "bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]"
-                                        : "bg-white text-gray-700 border-gray-200 hover:bg-gray-100"
-                                )}
+                                className={cn("apex-sos-tab", chartVisualMode === "stacked" && "is-active")}
                                 onClick={() => setChartVisualMode("stacked")}
                             >
                                 Stacked
                             </button>
                             <button
                                 type="button"
-                                className={cn(
-                                    "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors duration-150",
-                                    chartVisualMode === "lines"
-                                        ? "bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]"
-                                        : "bg-white text-gray-700 border-gray-200 hover:bg-gray-100"
-                                )}
+                                className={cn("apex-sos-tab", chartVisualMode === "lines" && "is-active")}
                                 onClick={() => setChartVisualMode("lines")}
                             >
                                 Lines
                             </button>
                         </div>
                         {loading ? (
-                            <div className="flex items-center justify-center h-64">
-                                <Spinner size={40} color="#406969" />
+                            <div className="apex-sos-chart-empty">
+                                <CobaltLoader variant="inline" title="Loading chart data" />
                             </div>
                         ) : chartSeries.length > 0 ? (
                             <GraphCard
+                                variant="cobalt"
                                 key={`sos-chart-${chartVisualMode}`}
                                 title={chartTitle}
                                 chartType={chartVisualMode === "stacked" ? "area" : "line"}
@@ -773,114 +767,117 @@ export default function ShareOfSearchClient() {
                                 hideChartToggle
                             />
                         ) : (
-                            <p className="text-sm text-gray-500">Select at least one metric to show the chart.</p>
+                            <p className="apex-sos-chart-empty">
+                                Select at least one metric to show the chart.
+                            </p>
                         )}
-                    </div>
+                        </div>
+                    </section>
 
-                    <div className="overflow-x-auto rounded-lg border border-gray-200 mb-10">
-                        <table className="min-w-full text-sm">
-                            <thead className="bg-gray-50 text-left text-gray-600">
+                    <section className="apex-sos-table-panel">
+                        <div className="apex-sos-table-panel__head">
+                            <h3 className="apex-sos-table-panel__title">Results</h3>
+                            <p className="apex-sos-table-panel__subtitle">
+                                Keyword Planner volumes and share for the selected period.
+                            </p>
+                        </div>
+                        <div className="apex-sos-table-wrap">
+                        <table className="apex-sos-table">
+                            <thead>
                                 <tr>
-                                    <th className="px-3 py-2 font-medium">Brand</th>
-                                    <th className="px-3 py-2 font-medium">Keyword (API)</th>
-                                    <th className="px-3 py-2 font-medium text-right">Volume in range</th>
-                                    <th className="px-3 py-2 font-medium text-right">Share</th>
+                                    <th>Brand</th>
+                                    <th>Keyword (API)</th>
+                                    <th className="is-num">Volume in range</th>
+                                    <th className="is-num">Share</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {metricsRows.map((r) => (
-                                    <tr key={r.brand} className="border-t border-gray-100">
-                                        <td className="px-3 py-2 text-gray-900">{r.brand}</td>
-                                        <td className="px-3 py-2 text-gray-600">{r.apiKeywordText}</td>
-                                        <td className="px-3 py-2 text-right tabular-nums">
+                                    <tr key={r.brand}>
+                                        <td className="is-brand">{r.brand}</td>
+                                        <td className="is-muted">{r.apiKeywordText}</td>
+                                        <td className="is-num">
                                             {Number(r.volumeInRange || 0).toLocaleString()}
                                         </td>
-                                        <td className="px-3 py-2 text-right tabular-nums">{r.sharePct}%</td>
+                                        <td className="is-num">{r.sharePct}%</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        </div>
+                    </section>
+                </>
+            )}
+
+            <section className="apex-sos-table-panel">
+                <div className="apex-sos-table-panel__head">
+                    <h2 className="apex-sos-table-panel__title">History</h2>
+                    <p className="apex-sos-table-panel__subtitle">
+                        Previously saved searches. Load one to restore settings and results, or delete it.
+                    </p>
+                </div>
+                {historyLoading ? (
+                    <div className="apex-sos-loading">
+                        <CobaltLoader variant="inline" title="Loading history" />
+                    </div>
+                ) : history.length === 0 ? (
+                    <p className="apex-sos-empty">No saved searches yet. Fetch data to create one.</p>
+                ) : (
+                    <div className="apex-sos-table-wrap">
+                        <table className="apex-sos-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Brands</th>
+                                    <th>Country</th>
+                                    <th>Period</th>
+                                    <th className="is-num">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {history.map((h) => (
+                                    <tr key={String(h._id)}>
+                                        <td className="whitespace-nowrap">
+                                            {h.createdAt
+                                                ? dayjs(h.createdAt).format("YYYY-MM-DD HH:mm")
+                                                : "—"}
+                                        </td>
+                                        <td>{(h.brands || []).join(", ")}</td>
+                                        <td>{h.geoLabel}</td>
+                                        <td className="is-muted whitespace-nowrap">
+                                            {h.startDate} → {h.endDate}
+                                        </td>
+                                        <td className="is-num">
+                                            <div className="apex-sos-table__actions">
+                                                <button
+                                                    type="button"
+                                                    className="apex-sos-btn apex-sos-btn--sm"
+                                                    onClick={() => reuseSnapshot(h)}
+                                                >
+                                                    <FiRotateCcw className="w-3.5 h-3.5" />
+                                                    Load
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="apex-sos-btn apex-sos-btn--sm apex-sos-btn--danger"
+                                                    disabled={deletingId === String(h._id)}
+                                                    onClick={() => deleteSnapshot(h._id)}
+                                                >
+                                                    {deletingId === String(h._id) ? (
+                                                        <FiRefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                                    ) : (
+                                                        <FiTrash2 className="w-3.5 h-3.5" />
+                                                    )}
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
-                </>
-            )}
-
-            <section className="border border-gray-200 rounded-xl bg-white overflow-hidden">
-                <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-                    <h2 className="text-base font-semibold text-gray-900">History</h2>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                        Previously saved searches. Load one to restore settings and results, or delete it.
-                    </p>
-                </div>
-                <div className="p-4">
-                    {historyLoading ? (
-                        <div className="flex justify-center py-8">
-                            <Spinner />
-                        </div>
-                    ) : history.length === 0 ? (
-                        <p className="text-sm text-gray-500">No saved searches yet. Fetch data to create one.</p>
-                    ) : (
-                        <div className="overflow-x-auto rounded-lg border border-gray-200">
-                            <table className="min-w-full text-sm">
-                                <thead className="bg-gray-50 text-left text-gray-600">
-                                    <tr>
-                                        <th className="px-3 py-2 font-medium">Date</th>
-                                        <th className="px-3 py-2 font-medium">Brands</th>
-                                        <th className="px-3 py-2 font-medium">Country</th>
-                                        <th className="px-3 py-2 font-medium">Period</th>
-                                        <th className="px-3 py-2 font-medium text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {history.map((h) => (
-                                        <tr key={String(h._id)} className="border-t border-gray-100">
-                                            <td className="px-3 py-2 text-gray-700 whitespace-nowrap">
-                                                {h.createdAt
-                                                    ? dayjs(h.createdAt).format("YYYY-MM-DD HH:mm")
-                                                    : "—"}
-                                            </td>
-                                            <td className="px-3 py-2 text-gray-700">
-                                                {(h.brands || []).join(", ")}
-                                            </td>
-                                            <td className="px-3 py-2 text-gray-700">{h.geoLabel}</td>
-                                            <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
-                                                {h.startDate} → {h.endDate}
-                                            </td>
-                                            <td className="px-3 py-2 text-right whitespace-nowrap">
-                                                <div className="inline-flex items-center gap-2 justify-end">
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="gap-1"
-                                                        onClick={() => reuseSnapshot(h)}
-                                                    >
-                                                        <FiRotateCcw className="w-3.5 h-3.5" />
-                                                        Load
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="text-red-600 hover:text-red-700 hover:bg-red-50 gap-1"
-                                                        disabled={deletingId === String(h._id)}
-                                                        onClick={() => deleteSnapshot(h._id)}
-                                                    >
-                                                        {deletingId === String(h._id) ? (
-                                                            <Spinner size={14} />
-                                                        ) : (
-                                                            <FiTrash2 className="w-3.5 h-3.5" />
-                                                        )}
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
+                )}
             </section>
         </div>
     );

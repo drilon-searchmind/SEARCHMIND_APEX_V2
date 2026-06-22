@@ -1,0 +1,305 @@
+/* Hallmark · theme: Cobalt · page: daily-overview */
+
+@import "../performance-dashboard/performance-dashboard.css";
+
+/* ── Panels ── */
+
+.apex-daily-panel {
+  margin-top: var(--space-xl);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+.apex-daily-panel--muted {
+  background: var(--perf-canvas);
+}
+
+.apex-daily-panel__toolbar {
+  margin-bottom: var(--space-md);
+}
+
+.apex-daily-panel__title {
+  margin: 0 0 var(--space-2xs);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-md);
+  color: var(--color-ink);
+}
+
+.apex-daily-panel__subtitle {
+  margin: 0 0 var(--space-md);
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+.apex-daily-toggle-label {
+  margin-right: var(--space-sm);
+  font-family: var(--font-label);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.apex-daily-toggle-divider {
+  margin-inline: var(--space-xs);
+  color: var(--color-rule-2);
+}
+
+/* ── Table ── */
+
+.apex-daily-table-wrap {
+  overflow-x: auto;
+  margin-inline: calc(var(--space-xs) * -1);
+  padding-inline: var(--space-xs);
+}
+
+.apex-daily-table {
+  width: 100%;
+  min-width: 100%;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--color-ink-2);
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.apex-daily-table__head-group-row {
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-daily-table__head-date {
+  padding: var(--space-xs) var(--space-sm);
+  font-family: var(--font-label);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  text-align: left;
+  vertical-align: middle;
+  color: var(--color-accent-ink);
+  background: var(--perf-accent);
+  border-right: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-daily-table__head-group {
+  padding: var(--space-2xs) var(--space-sm);
+  font-family: var(--font-label);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--color-ink);
+  border-left: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-daily-table__head-group.is-sales {
+  background: var(--color-paper-3);
+}
+
+.apex-daily-table__head-group.is-marketing {
+  background: var(--color-paper-2);
+}
+
+.apex-daily-table__head-group.is-result {
+  background: var(--perf-canvas);
+}
+
+.apex-daily-table__head-group.is-traffic {
+  background: var(--color-paper-3);
+}
+
+.apex-daily-table__head-group.is-engagement {
+  background: var(--color-paper-2);
+}
+
+.apex-daily-table__head-group.is-efficiency {
+  background: var(--perf-canvas);
+}
+
+.apex-daily-table__head-row {
+  background: var(--perf-canvas);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-daily-table__head-cell {
+  padding: var(--space-xs) var(--space-sm);
+  font-family: var(--font-label);
+  font-size: 0.58rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+
+.apex-daily-table__head-cell.is-group-start {
+  border-left: var(--rule-hair) solid var(--color-rule-2);
+}
+
+.apex-daily-table__row {
+  background: var(--perf-raised);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  transition: background-color var(--dur-micro) var(--ease-out);
+}
+
+.apex-daily-table__row.is-alt {
+  background: var(--color-paper);
+}
+
+.apex-daily-table__row:hover:not(.is-total):not(.is-summary):not(.is-index):not(.is-difference) {
+  background: var(--perf-canvas);
+}
+
+.apex-daily-table__row.is-total,
+.apex-daily-table__row.is-summary {
+  font-weight: 600;
+  background: var(--color-paper-2);
+  border-top: var(--rule-hair) solid var(--color-rule-2);
+  border-bottom: var(--rule-hair) solid var(--color-rule-2);
+}
+
+.apex-daily-table__row.is-index {
+  font-weight: 500;
+  background: var(--color-paper);
+}
+
+.apex-daily-table__row.is-difference {
+  font-weight: 500;
+  background: oklch(97% 0.02 85 / 0.45);
+}
+
+.apex-daily-table__cell {
+  padding: var(--space-xs) var(--space-sm);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.apex-daily-table__cell.is-group-start {
+  border-left: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-daily-table__cell.is-muted {
+  color: var(--color-muted);
+}
+
+.apex-daily-table__row.is-total .apex-daily-table__cell:first-child,
+.apex-daily-table__row.is-summary .apex-daily-table__cell:first-child,
+.apex-daily-table__row.is-index .apex-daily-table__cell:first-child,
+.apex-daily-table__row.is-difference .apex-daily-table__cell:first-child {
+  font-family: var(--font-label);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.apex-daily-table__empty {
+  padding: var(--space-xl) var(--space-md);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
+.apex-daily-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 12rem;
+}
+
+.apex-daily-error {
+  padding: var(--space-md);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-error);
+}
+
+/* ── Row comparison popover ── */
+
+.apex-daily-popover {
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-raised);
+  padding: var(--space-md);
+}
+
+.apex-daily-popover__arrow {
+  position: absolute;
+  top: -0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid var(--perf-raised);
+}
+
+.apex-daily-popover__arrow-border {
+  position: absolute;
+  top: -0.55rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid var(--color-rule);
+}
+
+.apex-daily-popover__label {
+  margin-bottom: var(--space-xs);
+  font-family: var(--font-label);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.apex-daily-popover__table {
+  width: 100%;
+  min-width: 100%;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--color-ink-2);
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.apex-daily-popover__head-row {
+  background: var(--perf-canvas);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-daily-popover__head-cell {
+  padding: var(--space-2xs) var(--space-sm);
+  font-family: var(--font-label);
+  font-size: 0.58rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+
+.apex-daily-popover__cell {
+  padding: var(--space-xs) var(--space-sm);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.apex-daily-popover__empty {
+  padding: var(--space-sm);
+  text-align: center;
+  color: var(--color-muted);
+}

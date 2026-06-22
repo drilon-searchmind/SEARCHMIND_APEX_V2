@@ -6,11 +6,9 @@ import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import { useParams } from "next/navigation";
 import MetricCard from "@/components/dashboard/MetricCard";
-import Spinner from "@/components/ui/Spinner";
 import { FiTrendingUp, FiDollarSign, FiShoppingCart, FiPercent } from "react-icons/fi";
-import ParentRevenueOrdersChart from "./components/ParentRevenueOrdersChart";
-import ParenteAdspendChart from "./components/ParentAdspendChart";
-import ParentROASChart from "./components/ParentROASChart";
+import ParentChildPropertiesTable from "./components/ParentChildPropertiesTable";
+import ParentHomeCharts from "./components/ParentHomeCharts";
 import { useParentPropertyView, PARENT_VIEWS } from "@/contexts/ParentPropertyViewContext";
 import { useParentPropertyFilter } from "@/contexts/ParentPropertyFilterContext";
 import { useParentPropertyGroupSettings } from "@/contexts/ParentPropertyGroupSettingsContext";
@@ -32,7 +30,6 @@ import { normalizeGoogleAdsCampaignId } from "@/lib/googleAdsCampaignIdUtils";
 import { calcBlendedPoas } from "@/lib/poasMetrics";
 import { normalizeMetaAdsCampaignId } from "@/lib/metaAdsCampaignIdUtils";
 import { normalizeCampaignNameKeywords } from "@/lib/adCampaignFilterUtils";
-import ParentChildPropertiesTable from "./components/ParentChildPropertiesTable";
 import {
     buildDefaultExcludedAdSpendPlatformsForShopifyMarkets,
 } from "@/lib/mergeAdSpendDaily";
@@ -1114,8 +1111,10 @@ export default function ParentPropertyHome() {
                 activeView !== PARENT_VIEWS.PACE_REPORT &&
                 activeView !== PARENT_VIEWS.PNL &&
                 activeView !== PARENT_VIEWS.ECOMMERCE && (
-                    <div className="w-full">
+                    <div id="ParentPropertyHome" className="cobalt-perf w-full apex-parent-stack" data-theme="cobalt">
             <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
                 title="Parent Property Overview"
                 label={parentCustomer?.name || parentCustomerId}
                 customerId={parentCustomerId}
@@ -1124,16 +1123,16 @@ export default function ParentPropertyHome() {
                 dashboardType="parent-property"
                 dataSnapshot={{ metrics, metricsPrev, tableRows: filteredTableRows, dailyChartData: filteredDailyData, predominantMetricPreference }}
                 right={
-                    <DateRangePicker {...dateRangePickerProps} loading={pageBusy} />
+                    <DateRangePicker variant="cobalt" {...dateRangePickerProps} loading={pageBusy} />
                 }
                 comparisonMethod={comparisonMethod}
             />
 
-            {/* Metric Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 w-full mb-8">
+            <div className="apex-parent-kpi-grid">
                 {metricCards.map((card, idx) => (
                     <MetricCard
                         key={idx}
+                        variant="cobalt"
                         label={card.label}
                         value={card.value}
                         icon={card.icon}
@@ -1179,24 +1178,13 @@ export default function ParentPropertyHome() {
                 onMetaCampaignsMenuOpen={handleMetaCampaignsMenuOpen}
             />
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mb-8">
-                <ParentRevenueOrdersChart
-                    dailyData={filteredDailyData}
-                    loading={chartBusy}
-                    shopifyRevenueField={shopifyRevenueField}
-                />
-                <ParenteAdspendChart
-                    dailyData={filteredDailyData}
-                    loading={chartBusy}
-                    visibleAdSpendChannels={parentVisibleAdSpendChannels}
-                />
-                <ParentROASChart
-                    dailyData={filteredDailyData}
-                    loading={chartBusy}
-                    metricPreference={predominantMetricPreference}
-                    visibleAdSpendChannels={parentVisibleAdSpendChannels}
-                />
-            </div>
+            <ParentHomeCharts
+                dailyData={filteredDailyData}
+                loading={chartBusy}
+                shopifyRevenueField={shopifyRevenueField}
+                visibleAdSpendChannels={parentVisibleAdSpendChannels}
+                metricPreference={predominantMetricPreference}
+            />
         </div>
                 )}
         </>

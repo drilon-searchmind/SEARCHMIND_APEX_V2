@@ -187,42 +187,35 @@ export default function AddKpiModal({
     const isValid = name.trim() && metricCount >= 1 && allMetricsFilled;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center glassmorphism2">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl relative max-h-[90vh] overflow-hidden flex flex-col">
-                {/* Close button */}
+        <div className="apex-perf-modal-scrim">
+            <div className="apex-perf-modal apex-perf-modal--wide apex-perf-modal--scroll">
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 z-10 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="apex-perf-modal__close"
                     aria-label="Close modal"
                 >
-                    <FiX className="text-2xl" />
+                    <FiX className="text-xl" />
                 </button>
 
-                <div className="p-6 overflow-y-auto flex-1">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                <div className="apex-perf-modal__body">
+                    <h2 className="apex-perf-modal__title">
                         {editingKpi ? "Edit KPI" : "Add KPI"}
                     </h2>
 
-                    {/* KPI Name */}
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            KPI Name
-                        </label>
+                        <label className="apex-perf-modal__field-label">KPI Name</label>
                         <input
                             type="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="e.g. Revenue per Order"
-                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)] focus:ring-opacity-20"
+                            className="apex-perf-modal__input"
                         />
                     </div>
 
-                    {/* Formula Section */}
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Formula
-                        </label>
-                        <p className="text-xs text-gray-500 mb-3">
+                        <label className="apex-perf-modal__field-label">Formula</label>
+                        <p className="text-xs text-[var(--color-muted)] mb-3">
                             {formulaHelpText ||
                                 "Select a single metric (e.g. Orders) or build a formula with multiple metrics and operators. Calculations run left to right (e.g. Revenue ÷ Orders × 100). Shopify revenue metrics use store data only (returns % override does not apply here)."}
                         </p>
@@ -237,7 +230,7 @@ export default function AddKpiModal({
                                                 <select
                                                     value={parts[idx - 1]?.value || "+"}
                                                     onChange={(e) => setPart(idx - 1, "value", e.target.value)}
-                                                    className="w-16 border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)] focus:ring-opacity-20 bg-gray-50"
+                                                    className="apex-perf-modal__input w-16 font-medium bg-[var(--color-paper-2)]"
                                                 >
                                                     {OPERATORS.map((op) => (
                                                         <option key={op.key} value={op.key}>
@@ -249,7 +242,7 @@ export default function AddKpiModal({
                                             <select
                                                 value={part.value}
                                                 onChange={(e) => setPart(idx, "value", e.target.value)}
-                                                className="min-w-[140px] border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)] focus:ring-opacity-20"
+                                                className="apex-perf-modal__input min-w-[140px]"
                                             >
                                                 <option value="">Select metric</option>
                                                 {modalMetricOptions.map((m) => (
@@ -262,7 +255,7 @@ export default function AddKpiModal({
                                                 <button
                                                     type="button"
                                                     onClick={() => removeOperation(idx - 1)}
-                                                    className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600"
+                                                    className="apex-perf-icon-btn hover:text-[var(--color-error)]"
                                                     aria-label="Remove last operation"
                                                 >
                                                     <FiTrash2 className="text-sm" />
@@ -277,7 +270,7 @@ export default function AddKpiModal({
                             <button
                                 type="button"
                                 onClick={addOperation}
-                                className="flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-[var(--color-primary-searchmind)] hover:bg-gray-50 rounded-lg transition-colors border border-dashed border-gray-200"
+                                className="flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-[var(--color-accent)] hover:bg-[var(--color-paper-2)] rounded-[var(--radius-input)] transition-colors border border-dashed border-[var(--color-rule)]"
                             >
                                 <FiPlus className="text-sm" />
                                 Add
@@ -285,9 +278,9 @@ export default function AddKpiModal({
                         </div>
 
                         {formulaPreview && (
-                            <div className="mt-3 px-3 py-2 bg-gray-50 rounded-lg border border-gray-100">
-                                <p className="text-xs text-gray-500">Preview</p>
-                                <p className="text-sm font-medium text-gray-900 font-mono">
+                            <div className="mt-3 px-3 py-2 apex-perf-calc">
+                                <p className="text-xs text-[var(--color-muted)]">Preview</p>
+                                <p className="text-sm font-medium text-[var(--color-ink)] font-mono">
                                     {formulaPreview}
                                 </p>
                             </div>
@@ -295,21 +288,22 @@ export default function AddKpiModal({
                     </div>
                 </div>
 
-                {/* Actions - sticky bottom */}
-                <div className="p-4 pt-0 flex gap-2 justify-end border-t border-gray-100">
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleSave}
-                        disabled={!isValid || saving}
-                        className="px-4 py-2 text-sm font-medium text-white bg-[var(--color-primary-searchmind)] rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {saving ? "Saving..." : "Save"}
-                    </button>
+                <div className="apex-perf-modal__footer">
+                    <div className="apex-perf-modal__actions mt-0">
+                        <button
+                            onClick={onClose}
+                            className="apex-perf-btn"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            disabled={!isValid || saving}
+                            className="apex-perf-btn apex-perf-btn--primary"
+                        >
+                            {saving ? "Saving..." : "Save"}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

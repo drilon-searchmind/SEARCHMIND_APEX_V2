@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FiChevronDown, FiInfo, FiRefreshCw, FiSearch } from "react-icons/fi";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { getApexRadarLast30DaysRange } from "@/lib/apexRadarDateRange";
 import ApexRadarOverviewTable from "../components/ApexRadarOverviewTable";
 import ApexRadarAssignUsersModal from "../components/ApexRadarAssignUsersModal";
@@ -215,8 +216,10 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
     }, [supportsOverviewTable, overviewLoading, overviewRows, overviewError, filteredRows]);
 
     return (
-        <div id="ApexRadarOverviewPage" className="w-full max-w-[1920px] mx-auto">
+        <div id="ApexRadarOverviewPage" className="w-full max-w-[1920px] mx-auto apex-radar-stack">
             <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
                 title="Apex Radar Overview"
                 label={headingLabel}
                 showAnalyzeWithAi={false}
@@ -227,14 +230,11 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
 
             {supportsOverviewTable ? (
                 <>
-                    <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6 mb-6">
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                            <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-end gap-4">
-                                <div className="flex-1 min-w-0 max-w-md">
-                                    <label
-                                        htmlFor="apex-radar-user"
-                                        className="block text-xs font-semibold text-gray-500 mb-1.5"
-                                    >
+                    <div className="apex-radar-panel apex-radar-panel--padded mb-6">
+                        <div className="apex-radar-toolbar">
+                            <div className="apex-radar-toolbar__fields">
+                                <div className="apex-radar-toolbar__field apex-radar-form">
+                                    <label htmlFor="apex-radar-user" className="apex-radar-field-label">
                                         Team members
                                     </label>
                                     <select
@@ -242,7 +242,6 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                                         value={userFilter}
                                         onChange={(e) => setUserFilter(e.target.value)}
                                         disabled={internalUsersLoading || assignmentsLoading}
-                                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)] disabled:opacity-60"
                                     >
                                         {teamFilterOptions.map((u) => (
                                             <option key={u.id} value={u.id}>
@@ -250,23 +249,17 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                                             </option>
                                         ))}
                                     </select>
-                                    <p className="text-[0.7rem] text-gray-400 mt-1.5">
-                                        Filter by who is assigned to each account (use + under Team members).
+                                    <p className="apex-radar-field-hint">
+                                        Filter by who is assigned to each account
                                     </p>
                                 </div>
-                                <div className="w-full sm:flex-1 sm:min-w-[200px] sm:max-w-md flex flex-col sm:flex-row gap-3 sm:items-end">
-                                    <div className="flex-1 min-w-0 flex flex-col">
-                                        <label
-                                            htmlFor="apex-radar-customer-search"
-                                            className="block text-xs font-semibold text-gray-500 mb-1.5"
-                                        >
+                                <div className="flex flex-col sm:flex-row gap-3 sm:items-end flex-1 min-w-0">
+                                    <div className="flex-1 min-w-0 apex-radar-form">
+                                        <label htmlFor="apex-radar-customer-search" className="apex-radar-field-label">
                                             Search customers
                                         </label>
-                                        <div className="relative">
-                                            <FiSearch
-                                                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-                                                aria-hidden
-                                            />
+                                        <div className="apex-radar-search-wrap">
+                                            <FiSearch className="h-4 w-4" aria-hidden />
                                             <input
                                                 id="apex-radar-customer-search"
                                                 type="search"
@@ -274,19 +267,15 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                                                 onChange={(e) => setCustomerSearch(e.target.value)}
                                                 placeholder="Search properties…"
                                                 autoComplete="off"
-                                                className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[var(--color-primary-searchmind-lighter)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind-lighter)]/30"
                                                 aria-label="Search customers"
                                             />
                                         </div>
-                                        <p className="text-[0.7rem] text-gray-400 mt-1.5">
+                                        <p className="apex-radar-field-hint">
                                             Search for customers by name or ID.
                                         </p>
                                     </div>
-                                    <div className="flex-1 min-w-0 flex flex-col">
-                                        <span
-                                            className="block text-xs font-semibold text-gray-500 mb-1.5"
-                                            id="apex-radar-resync-label"
-                                        >
+                                    <div className="flex-1 min-w-0">
+                                        <span className="apex-radar-field-label" id="apex-radar-resync-label">
                                             Re-sync ClickUp teams
                                         </span>
                                         <button
@@ -294,21 +283,19 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                                             id="apex-radar-resync-button"
                                             aria-labelledby="apex-radar-resync-label"
                                             onClick={() => setResyncTeamOpen(true)}
-                                            className="shrink-0 inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-800  hover:border-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] bg-[var(--color-primary-searchmind)] text-white"
+                                            className="apex-perf-btn apex-perf-btn--primary w-full sm:w-auto"
                                         >
-                                            <FiRefreshCw className="h-4 w-4 text-white" aria-hidden />
+                                            <FiRefreshCw className="h-4 w-4" aria-hidden />
                                             Re-sync members
                                         </button>
-                                        <p className="text-[0.7rem] text-gray-400 mt-1.5">
-                                            Resync ClickUp.
-                                        </p>
+                                        <p className="apex-radar-field-hint">Resync ClickUp.</p>
                                     </div>
                                 </div>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setMetricsInfoOpen(true)}
-                                className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:text-[var(--color-primary-searchmind)] hover:border-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] self-start lg:self-center"
+                                className="apex-radar-icon-btn self-start lg:self-center"
                                 aria-label="How overview metrics are calculated"
                                 title="How metrics are calculated"
                             >
@@ -316,18 +303,18 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                             </button>
                         </div>
 
-                        <div className="mt-4 border-t border-gray-100 pt-2">
+                        <div className="mt-4 border-t border-[var(--color-rule)] pt-2">
                             <button
                                 type="button"
                                 id="apex-radar-more-settings-trigger"
                                 aria-expanded={moreSettingsOpen}
                                 aria-controls="apex-radar-more-settings-panel"
                                 onClick={() => setMoreSettingsOpen((o) => !o)}
-                                className="flex w-full items-center justify-between gap-2 rounded-lg px-1 py-2 text-left text-sm font-semibold text-gray-700 outline-none transition hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)]"
+                                className="apex-radar-collapse-trigger"
                             >
                                 <span>More settings</span>
                                 <FiChevronDown
-                                    className={`h-4 w-4 shrink-0 text-gray-500 transition-transform ${moreSettingsOpen ? "rotate-180" : ""}`}
+                                    className={`h-4 w-4 shrink-0 transition-transform ${moreSettingsOpen ? "rotate-180" : ""}`}
                                     aria-hidden
                                 />
                             </button>
@@ -336,14 +323,11 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                                     id="apex-radar-more-settings-panel"
                                     role="region"
                                     aria-labelledby="apex-radar-more-settings-trigger"
-                                    className="mt-2 rounded-lg border border-gray-100 bg-gray-50/80 p-4"
+                                    className="apex-radar-collapse-panel"
                                 >
                                     <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
-                                        <div className="min-w-0 flex-1 sm:max-w-xs">
-                                            <label
-                                                htmlFor="apex-radar-dod-threshold"
-                                                className="mb-1.5 block text-xs font-semibold text-gray-500"
-                                            >
+                                        <div className="min-w-0 flex-1 sm:max-w-xs apex-radar-form">
+                                            <label htmlFor="apex-radar-dod-threshold" className="apex-radar-field-label">
                                                 DoD spend alert threshold (% change)
                                             </label>
                                             <input
@@ -353,37 +337,26 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                                                 value={spendDodThresholdDraft}
                                                 onChange={(e) => setSpendDodThresholdDraft(e.target.value)}
                                                 placeholder="-90"
-                                                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[var(--color-primary-searchmind-lighter)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind-lighter)]/30"
                                                 aria-describedby="apex-radar-dod-threshold-hint"
                                             />
-                                            <p
-                                                id="apex-radar-dod-threshold-hint"
-                                                className="mt-1.5 text-[0.7rem] text-gray-400"
-                                            >
+                                            <p id="apex-radar-dod-threshold-hint" className="apex-radar-field-hint">
                                                 Highlights when day-over-day change is at or below this value
                                             </p>
                                         </div>
                                         <div className="min-w-0 shrink-0 sm:min-w-[220px]">
-                                            <span
-                                                className="mb-1.5 block text-xs font-semibold text-gray-500"
-                                                id="apex-radar-dod-view-label"
-                                            >
+                                            <span className="apex-radar-field-label" id="apex-radar-dod-view-label">
                                                 Spend DoD view
                                             </span>
                                             <div
                                                 role="group"
                                                 aria-labelledby="apex-radar-dod-view-label"
-                                                className="inline-flex rounded-lg border border-gray-200 bg-gray-100 p-0.5 shadow-inner"
+                                                className="apex-radar-segmented"
                                             >
                                                 <button
                                                     type="button"
                                                     onClick={() => setDodVisibilityFilter("all")}
                                                     aria-pressed={dodVisibilityFilter === "all"}
-                                                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] ${
-                                                        dodVisibilityFilter === "all"
-                                                            ? "bg-white text-gray-900 shadow-sm"
-                                                            : "text-gray-600 hover:text-gray-800"
-                                                    }`}
+                                                    className={`apex-radar-segmented__btn${dodVisibilityFilter === "all" ? " is-active" : ""}`}
                                                 >
                                                     All
                                                 </button>
@@ -391,16 +364,12 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                                                     type="button"
                                                     onClick={() => setDodVisibilityFilter("alerts")}
                                                     aria-pressed={dodVisibilityFilter === "alerts"}
-                                                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] ${
-                                                        dodVisibilityFilter === "alerts"
-                                                            ? "bg-white text-gray-900 shadow-sm"
-                                                            : "text-gray-600 hover:text-gray-800"
-                                                    }`}
+                                                    className={`apex-radar-segmented__btn${dodVisibilityFilter === "alerts" ? " is-active" : ""}`}
                                                 >
                                                     Meets threshold
                                                 </button>
                                             </div>
-                                            <p className="mt-1.5 text-[0.7rem] text-gray-400">
+                                            <p className="apex-radar-field-hint">
                                                 Show every account or only those at or below the threshold above.
                                             </p>
                                         </div>
@@ -411,15 +380,13 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                     </div>
 
                     {overviewError ? (
-                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 mb-4">
+                        <div className="apex-radar-alert mb-4">
                             {overviewError} — showing placeholder rows until the overview loads.
                         </div>
                     ) : null}
 
                     {customersLoading ? (
-                        <div className="rounded-xl border border-gray-200 bg-white p-12 text-center text-sm text-gray-500">
-                            Loading customers…
-                        </div>
+                        <CobaltLoader variant="block" title="Loading customers" />
                     ) : (
                         <ApexRadarOverviewTable
                             rows={tableRowsForDisplay}
@@ -496,9 +463,9 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                     ) : null}
                 </>
             ) : (
-                <div className="rounded-xl border border-gray-200 bg-white p-10 text-center">
-                    <h2 className="text-lg font-semibold text-gray-900">Apex Radar</h2>
-                    <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
+                <div className="apex-radar-empty apex-radar-empty-panel">
+                    <h2 className="apex-radar-section__title">Apex Radar</h2>
+                    <p className="apex-radar-section__subtitle mt-2 max-w-md mx-auto">
                         This channel is not available. Open Facebook (PS) or Google Ads from the Apex Radar menu.
                     </p>
                 </div>

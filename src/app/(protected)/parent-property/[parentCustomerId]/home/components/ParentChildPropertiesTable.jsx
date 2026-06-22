@@ -3,7 +3,7 @@
 import React, { useMemo } from "react";
 import Link from "next/link";
 import FormButton from "@/components/form/FormButton";
-import Spinner from "@/components/ui/Spinner";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
 import { adSpendChannelsForShopifyMarketsFilterUi } from "@/lib/mergeAdSpendDaily";
 import { isValidIntegrationId } from "@/lib/customerServiceIntegrations";
@@ -153,10 +153,10 @@ export default function ParentChildPropertiesTable({
                     <>
                         {formatDkk(row.revenue)}
                         {shopifyRevenueField === "net_sales" && (
-                            <span className="ml-1 text-xs text-gray-400">(net sales)</span>
+                            <span className="apex-parent-table__meta">(net sales)</span>
                         )}
                         {shopifyRevenueField === "gross_sales" && (
-                            <span className="ml-1 text-xs text-gray-400">(gross sales)</span>
+                            <span className="apex-parent-table__meta">(gross sales)</span>
                         )}
                     </>
                 );
@@ -194,79 +194,70 @@ export default function ParentChildPropertiesTable({
     };
 
     return (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
-            <div className="flex flex-col gap-2 mb-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <h3 className="text-lg font-semibold">Child Properties</h3>
+        <div className="apex-parent-panel">
+            <div className="apex-parent-panel__head">
+                <div>
+                    <h3 className="apex-parent-panel__title">Child properties</h3>
+                    <p className="apex-parent-panel__subtitle">
+                        Per-property metrics with markets, spend, and campaign filters.
+                    </p>
+                </div>
+                <div className="apex-parent-panel__actions">
                     <ParentChildPropertiesColumnPicker
                         visibleAdSpendChannels={visibleAdSpendChannels}
                         selectedIds={visibleColumnIds}
                         onChange={setVisibleColumnIds}
                     />
                 </div>
-                <div className="flex flex-col gap-2">
-                    <ParentGoogleAdsCampaignFilterBar
-                        enabled={googleCampaignFilterEnabled}
-                        onEnabledChange={onGoogleCampaignFilterEnabledChange}
-                        disabled={fetchDisabled}
-                    />
-                    <ParentMetaAdsCampaignFilterBar
-                        enabled={metaCampaignFilterEnabled}
-                        onEnabledChange={onMetaCampaignFilterEnabledChange}
-                        disabled={fetchDisabled}
-                    />
-                </div>
+            </div>
+            <div className="flex flex-col gap-2 mb-4">
+                <ParentGoogleAdsCampaignFilterBar
+                    enabled={googleCampaignFilterEnabled}
+                    onEnabledChange={onGoogleCampaignFilterEnabledChange}
+                    disabled={fetchDisabled}
+                />
+                <ParentMetaAdsCampaignFilterBar
+                    enabled={metaCampaignFilterEnabled}
+                    onEnabledChange={onMetaCampaignFilterEnabledChange}
+                    disabled={fetchDisabled}
+                />
             </div>
             {loading ? (
-                <div className="flex justify-center items-center min-h-[120px]">
-                    <Spinner size={40} />
+                <div className="apex-parent-loader-panel min-h-[8rem]">
+                    <CobaltLoader variant="block" title="Loading child properties" />
                 </div>
             ) : error ? (
-                <div className="text-red-500 text-center">{error}</div>
+                <div className="apex-daily-error">{error}</div>
             ) : (
-                <div className="overflow-x-auto">
-                    <table
-                        className="min-w-full text-xs text-left border-collapse"
-                        style={{ fontSize: "13px" }}
-                    >
+                <div className="apex-parent-table-wrap">
+                    <table className="apex-parent-table">
                         <thead>
-                            <tr className="bg-gray-50">
-                                <th className="px-3 py-1.5 font-semibold text-gray-700">Property Name</th>
+                            <tr>
+                                <th>Property name</th>
                                 {orderedColumns.map((col) => (
-                                    <th
-                                        key={col.id}
-                                        className="px-3 py-1.5 font-semibold text-gray-700 whitespace-nowrap"
-                                    >
-                                        {columnHeaderLabel(col)}
-                                    </th>
+                                    <th key={col.id}>{columnHeaderLabel(col)}</th>
                                 ))}
-                                <th className="px-3 py-1.5 font-semibold text-gray-700">Actions</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {rows.length === 0 ? (
                                 <tr>
-                                    <td colSpan={colSpan} className="text-center py-8 text-gray-400">
+                                    <td colSpan={colSpan} className="apex-parent-table__empty">
                                         No child properties found.
                                     </td>
                                 </tr>
                             ) : (
-                                rows.map((row, idx) => (
-                                    <tr
-                                        key={row._id}
-                                        className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                                    >
-                                        <td className="px-3 py-2 whitespace-nowrap">{row.customerName}</td>
+                                rows.map((row) => (
+                                    <tr key={row._id}>
+                                        <td className="whitespace-nowrap">{row.customerName}</td>
                                         {orderedColumns.map((col) => (
-                                            <td
-                                                key={col.id}
-                                                className="px-3 py-2 whitespace-nowrap"
-                                            >
+                                            <td key={col.id} className="whitespace-nowrap">
                                                 {renderMetricCell(row, col.id)}
                                             </td>
                                         ))}
-                                        <td className="px-3 py-2 align-middle text-right">
-                                            <div className="flex flex-wrap gap-2 justify-end items-center">
+                                        <td className="text-right">
+                                            <div className="apex-parent-table__actions">
                                                 {(() => {
                                                     const childDoc = childCustomers.find(
                                                         (c) => String(c._id) === String(row._id)

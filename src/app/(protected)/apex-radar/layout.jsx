@@ -5,8 +5,12 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Topbar from "@/components/layout/Topbar";
 import ApexRadarSidebar from "@/components/layout/ApexRadarSidebar";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { useUser } from "@/contexts/UserContext";
 import { canAccessApexRadar } from "@/lib/apexRadarAccess";
+import "../home/home.css";
+import "../dashboard/dashboard-shell.css";
+import "./apex-radar.css";
 
 export default function ApexRadarLayout({ children }) {
     const { status } = useSession();
@@ -23,8 +27,8 @@ export default function ApexRadarLayout({ children }) {
 
     if (status === "loading") {
         return (
-            <div className="flex h-screen items-center justify-center bg-slate-50 text-sm text-gray-600">
-                Loading…
+            <div className="cobalt-perf flex h-screen items-center justify-center bg-[var(--color-paper-2,#f4f6f5)]" data-theme="cobalt">
+                <CobaltLoader variant="block" title="Loading Apex Radar" />
             </div>
         );
     }
@@ -34,13 +38,11 @@ export default function ApexRadarLayout({ children }) {
     }
 
     return (
-        <div className="flex h-screen">
+        <div className="cobalt-dashboard cobalt-perf flex h-screen" data-theme="cobalt">
             <ApexRadarSidebar />
             <div className="flex min-w-0 flex-1 flex-col">
                 <Topbar showLinks={false} showLogo={true} showPropertySection={false} />
-                <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50 px-4 py-10 xl:px-20">
-                    {children}
-                </main>
+                <main className="apex-dash__content">{children}</main>
             </div>
         </div>
     );

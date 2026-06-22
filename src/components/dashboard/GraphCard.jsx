@@ -1,5 +1,9 @@
 import React from "react";
 import dynamic from "next/dynamic";
+import {
+    applyCobaltSeriesStyle,
+    getCobaltChartBaseOptions,
+} from "@/lib/charts/cobaltChartTheme";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -37,7 +41,8 @@ function deepClonePreserveFunctions(obj) {
     return out;
 }
 
-export default function GraphCard({ title, chartOptions, chartSeries, chartType = "line", height = 300, children, hideChartToggle = false }) {
+export default function GraphCard({ title, chartOptions, chartSeries, chartType = "line", height = 300, children, hideChartToggle = false, variant = "default" }) {
+    const isCobalt = variant === "cobalt";
     // Toggle state (Period active by default). When hideChartToggle, always use Period view.
     const [toggle, setToggle] = React.useState("Period");
     const [isDark, setIsDark] = React.useState(false);
@@ -112,6 +117,10 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
             seriesCopy.forEach((s, i) => {
                 s.color = DARK_CHART_OVERRIDES.colors[i % DARK_CHART_OVERRIDES.colors.length];
             });
+        } else if (isCobalt) {
+            optionsCopy = deepMerge(optionsCopy, getCobaltChartBaseOptions());
+            const styledSeries = applyCobaltSeriesStyle(seriesCopy, optionsCopy);
+            seriesCopy.splice(0, seriesCopy.length, ...styledSeries);
         }
         
         if (toggle === "Monthly" && !hideChartToggle) {
@@ -147,8 +156,8 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
                     },
                     plotOptions: {
                         bar: {
-                            borderRadius: 4,
-                            columnWidth: '60%',
+                            borderRadius: 6,
+                            columnWidth: '52%',
                         }
                     },
                     tooltip: {
@@ -171,14 +180,36 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
             series: seriesCopy,
             type: chartType
         };
-    }, [toggle, chartOptions, chartSeries, chartType, aggregateByMonth, isDark, hideChartToggle]);
+    }, [toggle, chartOptions, chartSeries, chartType, aggregateByMonth, isDark, hideChartToggle, isCobalt]);
 
     return (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col justify-between h-full min-h-[320px]">
-            <div className="mb-2 flex justify-between items-center">
-                <h6 className="text-[var(--color-primary-searchmind)] mb-2 font-bold">{title}</h6>
+        <div className={isCobalt ? "apex-perf-graph" : "bg-white rounded-xl border border-gray-200 p-6 flex flex-col justify-between h-full min-h-[320px]"}>
+            <div className={isCobalt ? "apex-perf-graph__head" : "mb-2 flex justify-between items-center"}>
+                {isCobalt ? (
+                    <h6 className="apex-perf-graph__title">{title}</h6>
+                ) : (
+                    <h6 className="text-[var(--color-primary-searchmind)] mb-2 font-bold">{title}</h6>
+                )}
                 {!hideChartToggle && (
                 <div id="chartToggler">
+                    {isCobalt ? (
+                    <div className="apex-perf-segment">
+                        <button
+                            type="button"
+                            className={`apex-perf-segment__btn${toggle === "Monthly" ? " is-active" : ""}`}
+                            onClick={() => setToggle("Monthly")}
+                        >
+                            Monthly
+                        </button>
+                        <button
+                            type="button"
+                            className={`apex-perf-segment__btn${toggle === "Period" ? " is-active" : ""}`}
+                            onClick={() => setToggle("Period")}
+                        >
+                            Period
+                        </button>
+                    </div>
+                    ) : (
                     <div className="flex border border-gray-200 bg-gray-100 rounded-lg overflow-hidden">
                         <button
                             className={`px-4 py-1 text-sm font-medium focus:outline-none transition-colors duration-150 ${toggle === 'Monthly' ? 'bg-white text-[var(--color-primary-searchmind)] shadow-sm' : 'text-gray-500  over:text-[var(--color-primary-searchmind)]'}`}
@@ -195,10 +226,11 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
                             Period
                         </button>
                     </div>
+                    )}
                 </div>
                 )}
             </div>
-            <div className="flex-1 flex items-center justify-center w-full">
+            <div className={isCobalt ? "apex-perf-graph__body" : "flex-1 flex items-center justify-center w-full"}>
                 <div style={{ width: '100%' }}>
                     <ReactApexChart
                         key={`chart-${toggle}`}

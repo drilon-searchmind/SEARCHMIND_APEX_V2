@@ -9,6 +9,7 @@ import LastYearPeriodTable from "@/app/(protected)/dashboard/[customerId]/daily-
 import MetricToggleBar from "@/app/(protected)/dashboard/[customerId]/daily-overview/MetricToggleBar";
 import { DEFAULT_VISIBLE_METRICS, mapMetricColumnsForRevenueBasis } from "@/app/(protected)/dashboard/[customerId]/daily-overview/metricConfig";
 import GraphCard from "@/components/dashboard/GraphCard";
+import { getCobaltChartBaseOptions } from "@/lib/charts/cobaltChartTheme";
 import { buildParentDailyRows } from "../utils/buildParentDailyRows";
 import dayjs from "dayjs";
 
@@ -115,38 +116,33 @@ export default function ParentDailyView({ sharedData }) {
     const trendChartSeries = useMemo(() => {
         if (!rows?.length) return [];
         return [
-            { name: revenueTrendLabel, data: rows.map((r) => Math.round(r.netRevenue || 0)), color: "#406969" },
-            { name: "Spend", data: rows.map((r) => Math.round((r.ppcCost || 0) + (r.psCost || 0))), color: "#D6CDB6" },
-            { name: "Net Profit", data: rows.map((r) => Math.round(r.netProfit ?? 0)), color: "#1E2B2B" },
+            { name: revenueTrendLabel, data: rows.map((r) => Math.round(r.netRevenue || 0)) },
+            { name: "Spend", data: rows.map((r) => Math.round((r.ppcCost || 0) + (r.psCost || 0))) },
+            { name: "Net Profit", data: rows.map((r) => Math.round(r.netProfit ?? 0)) },
         ];
     }, [rows, revenueTrendLabel]);
 
     const trendChartOptions = useMemo(
-        () => ({
-            chart: { id: "parent-daily-trend", toolbar: { show: false }, fontFamily: "Outfit, sans-serif" },
-            xaxis: {
-                categories: rows?.map((r) => r.date) || [],
-                labels: { rotate: -45 },
-                axisTicks: { show: true },
-                axisBorder: { show: true },
-            },
-            stroke: { curve: "smooth", width: 2 },
-            legend: { show: true, position: "top" },
-            tooltip: { shared: true },
-            grid: {
-                borderColor: "#e5e7eb",
-                strokeDashArray: 0,
-                xaxis: { lines: { show: false } },
-                yaxis: { lines: { show: true } },
-            },
-            dataLabels: { enabled: false },
-        }),
+        () =>
+            getCobaltChartBaseOptions({
+                chart: { id: "parent-daily-trend", toolbar: { show: false } },
+                xaxis: {
+                    categories: rows?.map((r) => r.date) || [],
+                    labels: { rotate: -45 },
+                },
+                stroke: { curve: "smooth", width: 2 },
+                legend: { show: true, position: "top" },
+                tooltip: { shared: true },
+                dataLabels: { enabled: false },
+            }),
         [rows]
     );
 
     return (
-        <div id="ParentDailyView" className="w-full">
+        <div id="ParentDailyView" className="cobalt-perf w-full apex-parent-stack" data-theme="cobalt">
             <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
                 title="Daily Overview"
                 label={parentCustomer?.name || "Parent Property"}
                 customerId={parentCustomerId}
@@ -161,26 +157,32 @@ export default function ParentDailyView({ sharedData }) {
                 }}
                 right={
                     <DateRangePicker
+                        variant="cobalt"
                         {...dateRangePickerProps}
                         loading={pageBusy ?? loading}
                     />
                 }
             />
 
-            <div className="mt-8 bg-white rounded-xl border border-gray-200 p-6">
-                <div className="mb-5">
-                    <MetricToggleBar
-                        visibleMetrics={visibleMetrics}
-                        onToggle={handleMetricToggle}
-                        showTrendChart={showTrendChart}
-                        onTrendChartToggle={() => setShowTrendChart((v) => !v)}
-                        metricColumns={metricColumnsParent}
-                    />
-                    <h3 className="text-lg font-semibold">Daily Metrics</h3>
+            <div className="apex-parent-panel">
+                <div className="apex-parent-panel__head">
+                    <div>
+                        <MetricToggleBar
+                            variant="cobalt"
+                            visibleMetrics={visibleMetrics}
+                            onToggle={handleMetricToggle}
+                            showTrendChart={showTrendChart}
+                            onTrendChartToggle={() => setShowTrendChart((v) => !v)}
+                            metricColumns={metricColumnsParent}
+                        />
+                        <h3 className="apex-parent-panel__title">Daily metrics</h3>
+                    </div>
                 </div>
-                {showTrendChart && rows?.length > 0 && (
+
+                {showTrendChart && rows?.length > 0 ? (
                     <div className="mb-6">
                         <GraphCard
+                            variant="cobalt"
                             title={`${revenueTrendLabel}, Spend & Net Profit Over Time`}
                             chartOptions={trendChartOptions}
                             chartSeries={trendChartSeries}
@@ -188,8 +190,10 @@ export default function ParentDailyView({ sharedData }) {
                             height={320}
                         />
                     </div>
-                )}
+                ) : null}
+
                 <DailyMetricsTable
+                    variant="cobalt"
                     rows={rows}
                     rowsPrev={rowsPrev}
                     rowsLastYear={rowsLastYear}
@@ -213,9 +217,10 @@ export default function ParentDailyView({ sharedData }) {
                 visibleMetrics={visibleMetrics}
             />
 
-            <div className="mt-8 bg-gray-50 rounded-xl border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold mb-5">Last Year Period</h3>
+            <div className="apex-parent-panel">
+                <h3 className="apex-parent-panel__title mb-5">Last year period</h3>
                 <LastYearPeriodTable
+                    variant="cobalt"
                     rowsLastYear={rowsLastYear}
                     rows={rows}
                     loading={loadingLastYear}

@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useMemo } from "react";
-import GraphCard from "@/components/dashboard/GraphCard";
 import { parentDailySpendKey } from "@/lib/parentPropertyAdSpend";
+import { ParentHomeGraphCard, ParentHomeChartShell } from "./ParentHomeChartShell";
 
-const CHART_COLORS = ["#406969", "#C6ED62", "#f59e0b", "#ef4444", "#8b5cf6", "#0ea5e9"];
+const CHANNEL_COLORS = ["#213b34", "#3d6b5e", "#5c756a", "#7a9489", "#a8bdb6"];
 
 export default function ParentAdspendChart({ dailyData, loading, visibleAdSpendChannels = [] }) {
     const channels = useMemo(() => {
@@ -15,102 +15,69 @@ export default function ParentAdspendChart({ dailyData, loading, visibleAdSpendC
         ];
     }, [visibleAdSpendChannels]);
 
-    const chartTitle = useMemo(() => {
-        if (channels.length <= 2) {
-            return "Ad Spend Allocation (Facebook & Google)";
-        }
-        const names = channels.map((c) => c.label).join(", ");
-        return `Ad Spend Allocation (${names})`;
-    }, [channels]);
+    const title = "Ad spend by channel";
+    const subtitle =
+        channels.length <= 2
+            ? "Meta and Google daily spend"
+            : `Daily spend · ${channels.map((c) => c.label).join(", ")}`;
 
-    if (loading) {
+    if (loading || !dailyData?.length) {
         return (
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-                <div className="flex justify-center items-center h-80">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-primary-searchmind)]" />
-                </div>
-            </div>
-        );
-    }
-
-    if (!dailyData || dailyData.length === 0) {
-        return (
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Ad Spend Allocation</h3>
-                <div className="flex justify-center items-center h-80 text-gray-400">
-                    No data available for the selected period
-                </div>
-            </div>
+            <ParentHomeChartShell
+                title={title}
+                subtitle={subtitle}
+                loading={loading}
+                empty={!loading && !dailyData?.length}
+            />
         );
     }
 
     const categories = dailyData.map((d) => d.period);
-    const chartSeries = channels.map((ch) => ({
+    const chartSeries = channels.map((ch, i) => ({
         name: ch.label,
-        data: dailyData.map((d) => Number(d[parentDailySpendKey(ch.id)] || 0).toFixed(2)),
+        data: dailyData.map((d) => Math.round(Number(d[parentDailySpendKey(ch.id)] || 0))),
+        color: CHANNEL_COLORS[i % CHANNEL_COLORS.length],
     }));
 
     const chartOptions = {
-        chart: {
-            id: "parent-adspend",
-            toolbar: { show: false },
-            fontFamily: "Outfit, sans-serif",
-            zoom: { enabled: false },
-        },
-        stroke: { curve: "smooth", width: 2 },
-        colors: CHART_COLORS.slice(0, channels.length),
-        fill: {
-            type: "gradient",
-            gradient: {
-                shade: "light",
-                type: "vertical",
-                shadeIntensity: 0.4,
-                inverseColors: false,
-                opacityFrom: 0.45,
-                opacityTo: 0.1,
-                stops: [5, 80, 100],
+        chart: { id: "parent-home-adspend", stacked: true },
+        stroke: { width: 0 },
+        plotOptions: {
+            bar: {
+                borderRadius: 4,
+                columnWidth: "68%",
             },
         },
         xaxis: {
-            type: "category",
             categories,
-            labels: {
-                rotate: -45,
-                style: { colors: "#406969" },
-            },
-            axisTicks: { show: true },
-            axisBorder: { show: true },
+            labels: { rotate: -35, hideOverlappingLabels: true },
         },
         yaxis: {
-            title: { text: "Ad Spend (DKK)", style: { color: "#1E2B2B" } },
+            title: { text: "DKK" },
             labels: {
-                style: { colors: "#1E2B2B" },
-                formatter: (val) => (val !== undefined ? Number(val).toLocaleString() : val),
+                formatter: (val) =>
+                    val != null ? Number(val).toLocaleString("da-DK") : val,
             },
         },
-        legend: {
-            position: "top",
-            labels: { colors: "#1E2B2B" },
-        },
+        legend: { show: true, position: "top", horizontalAlign: "left" },
         tooltip: {
             shared: true,
             intersect: false,
-            theme: "light",
             y: {
-                formatter: (val) => `${Number(val).toLocaleString()} kr`,
+                formatter: (val) => `${Number(val).toLocaleString("da-DK")} kr`,
             },
         },
-        dataLabels: { enabled: false },
-        grid: { borderColor: "#e5e7eb", strokeDashArray: 0 },
+        fill: { opacity: 1 },
     };
 
     return (
-        <GraphCard
-            title={chartTitle}
+        <ParentHomeGraphCard
+            title={title}
+            subtitle={subtitle}
             chartOptions={chartOptions}
             chartSeries={chartSeries}
-            chartType="area"
-            height={380}
+            chartType="bar"
+            height={300}
         />
     );
 }

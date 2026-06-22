@@ -29,6 +29,17 @@ export function getDemoPayload(key) {
     return b[key];
 }
 
+/** Demo Shopify Markets catalog for config / filters when live API is unavailable. */
+export function getDemoShopifyMarkets() {
+    const fromBundle = getDemoPayload("shopifyMarkets");
+    if (Array.isArray(fromBundle) && fromBundle.length > 0) return fromBundle;
+    return [
+        { shopifyqlMarketId: "1001", name: "Denmark", handle: "dk" },
+        { shopifyqlMarketId: "1002", name: "Sweden", handle: "se" },
+        { shopifyqlMarketId: "1003", name: "Norway", handle: "no" },
+    ];
+}
+
 /**
  * Demo Mongo docs often initialize numeric static expense fields as 0. Spreading DB over the demo
  * template then hides all demo defaults. Use this merge so non-zero values from the DB win, and

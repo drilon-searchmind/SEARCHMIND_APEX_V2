@@ -2,16 +2,16 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
+import ToastProvider, { showToast } from "@/components/ui/ToastProvider";
 import { useUser, useSetUser } from "@/contexts/UserContext";
-import { showToast } from "@/components/ui/ToastProvider";
 import ProfileForm from "./components/ProfileForm";
 import ProfileIntegrations from "./components/ProfileIntegrations";
 import SharedCustomersCard from "./components/SharedCustomersCard";
 import { useSession } from "next-auth/react";
 import { pushGTMEvent, GTM_EVENTS } from "@root/lib/gtmFunctions";
+import "./profile.css";
 
 export default function ProfilePage() {
-    // TODO: Test Cursor
     const sessionUser = useUser();
     const setUser = useSetUser();
     const { update: updateSession } = useSession();
@@ -83,7 +83,7 @@ export default function ProfilePage() {
                     eventData: {
                         userId: userId,
                     },
-                })
+                });
 
                 showToast({ type: "success", message: "Profile updated" });
                 setForm((prev) => ({
@@ -94,7 +94,6 @@ export default function ProfilePage() {
                     image: data?.image ?? prev.image,
                     createdAt: data?.createdAt ? new Date(data.createdAt).toLocaleString() : prev.createdAt,
                 }));
-                // Update NextAuth session so global UI reflects changes immediately
                 try {
                     await updateSession({
                         user: {
@@ -105,7 +104,6 @@ export default function ProfilePage() {
                         },
                     });
                 } catch { }
-                // Also update local UserContext right away
                 try {
                     setUser?.({
                         ...(sessionUser || {}),
@@ -151,13 +149,12 @@ export default function ProfilePage() {
                     eventData: {
                         userId: userId,
                     },
-                })
+                });
 
                 setIntegrations({
                     slackId: data?.slackId ?? integrations.slackId,
                     clickupId: data?.clickupId ?? integrations.clickupId,
                 });
-                // Update local UserContext
                 try {
                     setUser?.({
                         ...(sessionUser || {}),
@@ -176,22 +173,24 @@ export default function ProfilePage() {
     const sharedCustomers = Array.isArray(sessionUser?.sharedCustomers) ? sessionUser.sharedCustomers : [];
 
     return (
-        <div className="w-full">
-            <DashboardHeading title="Profile" label={form.name || "My Profile"} right={null} />
+        <div id="ProfilePage" className="cobalt-perf w-full apex-profile-stack" data-theme="cobalt">
+            <ToastProvider />
+            <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
+                title="Profile"
+                label={form.name || "My Profile"}
+            />
 
-            {/* Editable profile form (User schema fields only) */}
             <ProfileForm form={form} onChange={handleChange} onSubmit={handleSubmit} saving={saving} />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Integrations form */}
+            <div className="apex-profile-split">
                 <ProfileIntegrations
                     form={integrations}
                     onChange={handleIntegrationsChange}
                     onSubmit={handleIntegrationsSubmit}
                     saving={savingIntegrations}
                 />
-
-                {/* Read-only shared customers */}
                 <SharedCustomersCard sharedCustomers={sharedCustomers} />
             </div>
         </div>

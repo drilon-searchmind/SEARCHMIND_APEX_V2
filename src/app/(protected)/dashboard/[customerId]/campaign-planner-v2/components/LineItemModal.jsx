@@ -176,14 +176,16 @@ function CommentTextWithMentions({ text, users }) {
 /** Grouped block with header for cleaner modal layout */
 function ModalSection({ title, description, children }) {
 	return (
-		<section className="rounded-xl border border-gray-200 bg-white overflow-visible h-full min-h-0 flex flex-col">
-			<div className="px-4 py-3 bg-gradient-to-b from-gray-50/95 to-gray-50/60 border-b border-gray-100">
-				<h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+		<section className="apex-cp-inner-panel overflow-visible h-full min-h-0 flex flex-col">
+			<div className="pb-3 mb-3 border-b border-[var(--color-rule)]">
+				<h3 className="text-sm font-semibold text-[var(--color-ink)]">{title}</h3>
 				{description ? (
-					<p className="text-xs text-gray-500 mt-1 leading-relaxed">{description}</p>
+					<p className="text-xs text-[var(--color-muted)] mt-1 leading-relaxed">
+						{description}
+					</p>
 				) : null}
 			</div>
-			<div className="p-4 sm:p-5 space-y-4 flex-1 min-h-0">{children}</div>
+			<div className="space-y-4 flex-1 min-h-0">{children}</div>
 		</section>
 	);
 }
@@ -696,11 +698,11 @@ export default function LineItemModal({
 	if (!open) return null;
 
 	return (
-		<div className="fixed inset-0 z-[60] flex items-center justify-center glassmorphism2 p-4">
-			<div className="bg-white rounded-xl border border-gray-200/90 p-6 sm:p-8 w-full max-w-6xl relative max-h-[90vh] overflow-y-auto">
+		<div className="apex-cp-modal-backdrop" data-theme="cobalt">
+			<div className="apex-cp-modal max-w-6xl">
 				<button
 					type="button"
-					className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-xl z-10"
+					className="apex-cp-modal__close"
 					onClick={onClose}
 					aria-label="Close"
 				>
@@ -709,11 +711,11 @@ export default function LineItemModal({
 
 				<div className="flex flex-wrap items-start justify-between gap-3 pr-10 mb-2">
 					<div>
-						<h2 className="text-xl font-bold text-gray-900">
+						<h2 className="apex-cp-panel-card__title">
 							{isCreate ? "New campaign type" : "Campaign type"}
 						</h2>
 						{serviceName && (
-							<p className="text-sm text-gray-500 mt-0.5">
+							<p className="text-sm text-[var(--color-muted)] mt-0.5">
 								Channel group: {serviceName}
 							</p>
 						)}
@@ -723,7 +725,7 @@ export default function LineItemModal({
 							<button
 								type="button"
 								onClick={onDuplicate}
-								className="inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+								className="apex-cp-btn"
 							>
 								<FiCopy className="w-4 h-4" />
 								Duplicate
@@ -736,7 +738,7 @@ export default function LineItemModal({
 									if (editing) exitEditMode();
 									else setEditing(true);
 								}}
-								className="inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+								className="apex-cp-btn"
 							>
 								{editing ? (
 									<>
@@ -1472,19 +1474,15 @@ export default function LineItemModal({
 						</ModalSection>
 					)}
 
-					<div className="flex justify-end gap-2 pt-2 flex-wrap border-t border-gray-100 mt-2">
-						<button
-							type="button"
-							onClick={onClose}
-							className="h-11 px-5 rounded-lg border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 text-sm font-medium"
-						>
+					<div className="flex justify-end gap-2 pt-2 flex-wrap border-t border-[var(--color-rule)] mt-2">
+						<button type="button" onClick={onClose} className="apex-cp-btn">
 							Close
 						</button>
 						{!isCreate && editing && (
 							<button
 								type="button"
 								onClick={exitEditMode}
-								className="h-11 px-5 rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 text-sm font-medium"
+								className="apex-cp-btn"
 							>
 								Cancel edit
 							</button>
@@ -1492,7 +1490,7 @@ export default function LineItemModal({
 						{(isCreate || editing) && (
 							<button
 								type="submit"
-								className="h-11 px-5 rounded-lg text-white bg-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind-lighter)] text-sm font-semibold"
+								className="apex-perf-btn apex-perf-btn--primary"
 							>
 								{isCreate ? "Add" : "Save changes"}
 							</button>

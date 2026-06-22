@@ -89,7 +89,7 @@ export default function ParentChildAdSpendPlatformsActions({
                       ref={menuRef}
                       role="listbox"
                       aria-label="Adspend"
-                      className="flex flex-col bg-white border border-gray-200 rounded-lg shadow-lg text-left overflow-hidden"
+                      className="apex-parent-popover flex flex-col text-left overflow-hidden"
                       style={placementStyle}
                   >
                       <div className="overflow-y-auto py-2 flex-1 min-h-0">
@@ -151,7 +151,7 @@ export default function ParentChildAdSpendPlatformsActions({
                     }
                     disabled={fetchDisabled || platforms.length === 0}
                     title={title}
-                    className="inline-flex items-center gap-1 h-auto text-xs px-3 py-1.5 rounded-lg shadow-none border border-gray-200 text-gray-600 bg-white hover:bg-white hover:text-[var(--color-primary-searchmind)] hover:border-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="apex-perf-btn !text-xs !min-h-0 !py-1.5 !px-3"
                 >
                     <FiPieChart className="w-3 h-3 shrink-0 opacity-70" aria-hidden />
                     Spend

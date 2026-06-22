@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FiSearch, FiX } from "react-icons/fi";
-import Spinner from "@/components/ui/Spinner";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 
 export default function Ga4ConversionEventsModal({
     open,
@@ -74,56 +74,58 @@ export default function Ga4ConversionEventsModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center glassmorphism2">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg relative max-h-[90vh] flex flex-col">
+        <div className="apex-perf-modal-scrim">
+            <div className="apex-perf-modal apex-perf-modal--wide apex-perf-modal--scroll">
                 <button
                     type="button"
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10"
+                    className="apex-perf-modal__close"
                     aria-label="Close"
                 >
-                    <FiX className="text-2xl" />
+                    <FiX className="text-xl" />
                 </button>
 
-                <div className="p-6 pb-4 border-b border-gray-100">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-1">
-                        GA4 conversion events
-                    </h2>
-                    <p className="text-sm text-gray-500">
+                <div className="shrink-0 pb-4 border-b border-[var(--color-rule)]">
+                    <h2 className="apex-perf-modal__title">GA4 conversion events</h2>
+                    <p className="apex-perf-modal__lede mb-0">
                         Choose which GA4 events count as conversions for this customer. When none
                         are selected, the GA4 default key events metric is used.
                     </p>
                 </div>
 
-                <div className="px-6 py-3 border-b border-gray-100">
+                <div className="py-3 border-b border-[var(--color-rule)] shrink-0">
                     <div className="relative">
-                        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" />
                         <input
                             type="text"
                             placeholder="Search events…"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm"
+                            className="apex-perf-modal__input pl-9"
                         />
                     </div>
                     {selected.length > 0 && (
-                        <p className="mt-2 text-xs text-[var(--color-primary-searchmind)]">
+                        <p className="mt-2 text-xs text-[var(--color-accent)]">
                             {selected.length} event{selected.length !== 1 ? "s" : ""} selected
                         </p>
                     )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-6 py-3 min-h-[200px]">
+                <div className="apex-perf-modal__body py-3 min-h-[200px]">
                     {loading ? (
-                        <div className="flex justify-center py-12">
-                            <Spinner size={32} color="#406969" />
+                        <div className="apex-perf-loading py-8">
+                            <CobaltLoader
+                                variant="inline"
+                                request="GET /api/b2b-dashboard/ga4-events"
+                                statusLabel="fetching"
+                            />
                         </div>
                     ) : loadError ? (
-                        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        <div className="apex-perf-alert apex-perf-alert--error">
                             {loadError}
                         </div>
                     ) : filteredEvents.length === 0 ? (
-                        <p className="text-sm text-gray-500 py-8 text-center">
+                        <p className="text-sm text-[var(--color-muted)] py-8 text-center">
                             {events.length === 0
                                 ? "No events found for this period."
                                 : "No events match your search."}
@@ -134,17 +136,17 @@ export default function Ga4ConversionEventsModal({
                                 const checked = selected.includes(event.name);
                                 return (
                                     <li key={event.name}>
-                                        <label className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <label className="flex items-center gap-3 px-2 py-2 rounded-[var(--radius-input)] hover:bg-[var(--color-paper-2)] cursor-pointer">
                                             <input
                                                 type="checkbox"
                                                 checked={checked}
                                                 onChange={() => toggleEvent(event.name)}
-                                                className="rounded border-gray-300"
+                                                className="rounded border-[var(--color-rule)]"
                                             />
-                                            <span className="flex-1 text-sm text-gray-800 truncate">
+                                            <span className="flex-1 text-sm text-[var(--color-ink)] truncate">
                                                 {event.name}
                                             </span>
-                                            <span className="text-xs text-gray-400 tabular-nums shrink-0">
+                                            <span className="text-xs text-[var(--color-muted)] tabular-nums shrink-0">
                                                 {event.count.toLocaleString("da-DK")}
                                             </span>
                                         </label>
@@ -155,22 +157,20 @@ export default function Ga4ConversionEventsModal({
                     )}
                 </div>
 
-                <div className="p-6 pt-4 border-t border-gray-100 flex justify-end gap-2">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="px-4 py-2 text-sm font-medium rounded-lg bg-[var(--color-primary-searchmind)] text-white hover:opacity-90 disabled:opacity-50"
-                    >
-                        {saving ? "Saving…" : "Save"}
-                    </button>
+                <div className="apex-perf-modal__footer">
+                    <div className="apex-perf-modal__actions mt-0">
+                        <button type="button" onClick={onClose} className="apex-perf-btn">
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="apex-perf-btn apex-perf-btn--primary"
+                        >
+                            {saving ? "Saving…" : "Save"}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

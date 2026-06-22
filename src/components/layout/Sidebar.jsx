@@ -12,8 +12,6 @@ import {
     FiDollarSign,
     FiShoppingCart,
     FiActivity,
-    FiChevronsLeft,
-    FiChevronsRight,
     FiGift,
     FiImage,
     FiLayers,
@@ -25,7 +23,6 @@ import {
 } from "react-icons/fi";
 import Image from "next/image";
 import { useParams, usePathname } from "next/navigation";
-import SmallLabel from "../ui/SmallLabel";
 import { useUser } from "@/contexts/UserContext";
 import { useCustomers } from "@/hooks/useCustomers";
 import { getServiceDashboardConfigWarnings } from "@/lib/customerServiceIntegrations";
@@ -73,49 +70,44 @@ const getIconForRoute = (href) => {
 const CONFIG_WARNING_TITLE =
     "Integration not configured for this customer (check Config or set a valid ID — not empty, 0, or 1)";
 
-const NavItem = ({ href, label, activeCustomerId, pathname, subLabel, isSmallScreen, configWarning }) => {
+const NavItem = ({ href, label, pathname, subLabel, isSmallScreen, configWarning }) => {
     const isActive = pathname === href;
     const icon = getIconForRoute(href);
 
     return (
-        <li
-            className={`py-2 rounded-lg w-full group relative ` +
-                (isSmallScreen ? 'px-2' : 'px-6') +
-                (isActive ? " bg-[var(--color-primary-searchmind-lighter)]" : "")
-            }
-        >
-            <Link href={href} className="w-full">
-                <span className={`flex items-center justify-between text-[0.85rem] font-medium ${isActive ? "text-white" : "text-slate-600"}`}>
-                    {isSmallScreen ? (
-                        <>
-                            <span className="flex items-center gap-0.5" title={configWarning ? CONFIG_WARNING_TITLE : undefined}>
-                                {icon}
-                                {configWarning ? (
-                                    <FiAlertTriangle className="w-3 h-3 text-amber-400 shrink-0" aria-hidden />
-                                ) : null}
-                            </span>
-                            {/* Small screen tooltip */}
-                            <div className="absolute left-[70px] bg-gray-900 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
-                                {label}
-                                {configWarning ? " — not configured" : ""}
-                            </div>
-                        </>
-                    ) : (
-                        <span className="flex items-center justify-between gap-1.5 flex-wrap w-full">
+        <li className={`apex-dash-nav__item${isActive ? " is-active" : ""}${isSmallScreen ? " is-collapsed" : ""}`}>
+            <Link href={href} className="apex-dash-nav__link">
+                {isSmallScreen ? (
+                    <>
+                        <span className="apex-dash-nav__link-main" title={configWarning ? CONFIG_WARNING_TITLE : label}>
+                            {icon}
+                            {configWarning ? (
+                                <FiAlertTriangle className="apex-dash-nav__warn" aria-hidden />
+                            ) : null}
+                        </span>
+                        <span className="apex-dash-nav__tooltip">
+                            {label}
+                            {configWarning ? " — not configured" : ""}
+                        </span>
+                    </>
+                ) : (
+                    <>
+                        <span className="apex-dash-nav__link-main">
+                            {icon}
                             <span>{label}</span>
-                            <span className="flex items-center gap-2">
+                        </span>
+                        <span className="apex-dash-nav__link-meta">
                             {configWarning ? (
                                 <FiAlertTriangle
-                                    className="w-3.5 h-3.5 text-amber-500 shrink-0"
+                                    className="apex-dash-nav__warn"
                                     aria-label="Integration not configured"
                                     title={CONFIG_WARNING_TITLE}
                                 />
                             ) : null}
-                            {subLabel && <SmallLabel>{subLabel}</SmallLabel>}
-                            </span>
+                            {subLabel ? <span className="apex-dash-nav__badge">{subLabel}</span> : null}
                         </span>
-                    )}
-                </span>
+                    </>
+                )}
             </Link>
         </li>
     );
@@ -124,7 +116,7 @@ const NavItem = ({ href, label, activeCustomerId, pathname, subLabel, isSmallScr
 const Sidebar = ({ showLinks = true }) => {
     const [dashboardOpen, setDashboardOpen] = useState(true);
     const [serviceOpen, setServiceOpen] = useState(true);
-    const [isActiveMenu, setIsActiveMenu] = useState(true);
+    const [miscOpen, setMiscOpen] = useState(true);
     const [isSmallScreen, setIsSmallScreen] = useState(false);
 
     const params = useParams();
@@ -167,62 +159,53 @@ const Sidebar = ({ showLinks = true }) => {
     }, []);
 
     return (
-        <aside id="mainSidebar" className={`flex flex-col xl:mt-0 top-0 left-0 bg-[var(--color-primary-searchmind)] text-gray-900 h-full transition-all duration-300 ease-in-out z-50 border-r border-gray-200 ${isSmallScreen ? 'w-[50px] px-2' : 'w-[300px] px-8'
-            }`}>
-            <div className={`py-8 flex justify-start ${isSmallScreen ? 'mb-0' : 'mb-0'}`}>
-                <Link href="/" className="flex flex-col gap-0">
-                    <span className="flex items-end gap-2">
-                        <Image
-                            src="/images/icons/apex-icon-svg.svg"
-                            alt="Apex Icon"
-                            width={20}
-                            height={20}
-                            className="mb-0 h-auto"
-                            id="logoApex"
-                        />
-                        <h2 className="text-xl font-bold hidden xl:block">Apex</h2>
-                    </span>
-                    {!isSmallScreen && <p className="text-gray-400 text-xs">by Searchmind</p>}
-                </Link>
-            </div>
+        <aside
+            id="mainSidebar"
+            className={`apex-dash-sidebar ${isSmallScreen ? "is-collapsed" : "is-expanded"}`}
+        >
+            <Link href="/home" className="apex-dash-sidebar__brand">
+                <span className="apex-dash-sidebar__brand-mark">
+                    <Image
+                        src="/images/icons/apex-icon-svg.svg"
+                        alt=""
+                        width={20}
+                        height={20}
+                        aria-hidden
+                    />
+                    {!isSmallScreen && (
+                        <span className="apex-dash-sidebar__brand-name">Apex</span>
+                    )}
+                </span>
+            </Link>
 
             {showLinks && (
                 <>
-                    {!isSmallScreen && (
-                        <div className="">
-                            <p className="text-gray-400 mb-4 uppercase text-xs">Menu</p>
-                        </div>
-                    )}
-
-                    <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
-                        <nav className="mb-6">
-                            <ul className="space-y-4">
-                                {/* Dashboard */}
+                    <div className="apex-dash-sidebar__scroll no-scrollbar">
+                        <nav>
+                            <ul className="apex-dash-nav">
                                 <li>
                                     <button
-                                        className={`mb-3 flex items-center justify-between w-full text-left text-gray-600 hover:text-gray-800 group ${isSmallScreen ? "hidden" : ""}`}
+                                        type="button"
+                                        className="apex-dash-nav__section-btn"
                                         onClick={() => setDashboardOpen(!dashboardOpen)}
-                                        title={isSmallScreen ? "Dashboard" : ""}
                                     >
-                                        <span className="flex items-center text-slate-800 font-medium rounded-lg w-full">
-                                            <FiBarChart className={isSmallScreen ? "" : "mr-2"} />
-                                            {!isSmallScreen && "Dashboard"}
+                                        <span className="apex-dash-nav__section-label">
+                                            <FiBarChart className="apex-dash-nav__section-icon" aria-hidden />
+                                            Dashboard
                                         </span>
-                                        {!isSmallScreen && (dashboardOpen ? <FiChevronUp /> : <FiChevronDown />)}
+                                        {dashboardOpen ? <FiChevronUp /> : <FiChevronDown />}
                                     </button>
                                     {dashboardOpen && (
-                                        <ul className={`mt-2 space-y-2 flex flex-col w-full ${isSmallScreen ? 'ml-0' : ''}`}>
+                                        <ul className="apex-dash-nav__sub">
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/performance-dashboard`}
                                                 label="Overview"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                             />
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/daily-overview`}
                                                 label="Daily"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                             />
@@ -231,7 +214,6 @@ const Sidebar = ({ showLinks = true }) => {
                                                     href={`/dashboard/${activeCustomerId}/markets-overview`}
                                                     label="Markets"
                                                     subLabel="NEW"
-                                                    activeCustomerId={activeCustomerId}
                                                     pathname={pathname}
                                                     isSmallScreen={isSmallScreen}
                                                 />
@@ -241,21 +223,18 @@ const Sidebar = ({ showLinks = true }) => {
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/tools/pace-report`}
                                                 label="Pace Report"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                             />
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/tools/pnl`}
                                                 label="P&L"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                             />
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/ecommerce`}
                                                 label="Ecommerce"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                             />
@@ -264,39 +243,31 @@ const Sidebar = ({ showLinks = true }) => {
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/analytics`}
                                                 label="Analytics"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                             />
                                             )}
                                         </ul>
                                     )}
-                                    {isSmallScreen && (
-                                        <div className="absolute left-[70px] bg-gray-900 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
-                                            Dashboard
-                                        </div>
-                                    )}
                                 </li>
 
-                                {/* Service Dashboard */}
                                 <li>
                                     <button
-                                        className={`mb-3 flex items-center justify-between w-full text-left text-gray-600 hover:text-gray-800 group ${isSmallScreen ? "hidden" : ""}`}
+                                        type="button"
+                                        className="apex-dash-nav__section-btn"
                                         onClick={() => setServiceOpen(!serviceOpen)}
-                                        title={isSmallScreen ? "Service Dashboard" : ""}
                                     >
-                                        <span className="flex items-center text-slate-800 font-medium rounded-lg">
-                                            <FiTool className={isSmallScreen ? "" : "mr-2"} />
-                                            {!isSmallScreen && "Service Dashboard"}
+                                        <span className="apex-dash-nav__section-label">
+                                            <FiTool className="apex-dash-nav__section-icon" aria-hidden />
+                                            Service Dashboard
                                         </span>
-                                        {!isSmallScreen && (serviceOpen ? <FiChevronUp /> : <FiChevronDown />)}
+                                        {serviceOpen ? <FiChevronUp /> : <FiChevronDown />}
                                     </button>
                                     {serviceOpen && (
-                                        <ul className="mt-2 space-y-2 flex flex-col w-full">
+                                        <ul className="apex-dash-nav__sub">
                                             <NavItem
                                                 href={serviceDashboardHref("seo")}
                                                 label="SEO"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                                 subLabel={"BETA"}
@@ -305,7 +276,6 @@ const Sidebar = ({ showLinks = true }) => {
                                             <NavItem
                                                 href={serviceDashboardHref("ppc")}
                                                 label="PPC"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                                 subLabel={"BETA"}
@@ -314,7 +284,6 @@ const Sidebar = ({ showLinks = true }) => {
                                             <NavItem
                                                 href={serviceDashboardHref("ps")}
                                                 label="PS"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                                 subLabel={"BETA"}
@@ -323,7 +292,6 @@ const Sidebar = ({ showLinks = true }) => {
                                             <NavItem
                                                 href={serviceDashboardHref("pinterest")}
                                                 label="Pinterest"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                                 subLabel={"BETA"}
@@ -332,7 +300,6 @@ const Sidebar = ({ showLinks = true }) => {
                                             <NavItem
                                                 href={serviceDashboardHref("snapchat")}
                                                 label="Snapchat"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                                 subLabel={"BETA"}
@@ -341,7 +308,6 @@ const Sidebar = ({ showLinks = true }) => {
                                             <NavItem
                                                 href={serviceDashboardHref("reddit")}
                                                 label="Reddit"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                                 subLabel={"BETA"}
@@ -350,7 +316,6 @@ const Sidebar = ({ showLinks = true }) => {
                                             <NavItem
                                                 href={serviceDashboardHref("bing")}
                                                 label="Bing Ads"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                                 subLabel={"BETA"}
@@ -359,7 +324,6 @@ const Sidebar = ({ showLinks = true }) => {
                                             <NavItem
                                                 href={serviceDashboardHref("em")}
                                                 label="EM"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                                 subLabel={"BETA"}
@@ -367,32 +331,25 @@ const Sidebar = ({ showLinks = true }) => {
                                             />
                                         </ul>
                                     )}
-                                    {isSmallScreen && (
-                                        <div className="absolute left-[70px] bg-gray-900 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
-                                            Service Dashboard
-                                        </div>
-                                    )}
                                 </li>
 
-                                {/* Misc */}
                                 <li>
                                     <button
-                                        className={`mb-3 flex items-center justify-between w-full text-left text-gray-600 hover:text-gray-800 group ${isSmallScreen ? "hidden" : ""}`}
-                                        onClick={() => setServiceOpen(!serviceOpen)}
-                                        title={isSmallScreen ? "Misc" : ""}
+                                        type="button"
+                                        className="apex-dash-nav__section-btn"
+                                        onClick={() => setMiscOpen(!miscOpen)}
                                     >
-                                        <span className="flex items-center text-slate-800 font-medium rounded-lg">
-                                            <FiSettings className={isSmallScreen ? "" : "mr-2"} />
-                                            {!isSmallScreen && "Misc"}
+                                        <span className="apex-dash-nav__section-label">
+                                            <FiSettings className="apex-dash-nav__section-icon" aria-hidden />
+                                            Misc
                                         </span>
-                                        {!isSmallScreen && (serviceOpen ? <FiChevronUp /> : <FiChevronDown />)}
+                                        {miscOpen ? <FiChevronUp /> : <FiChevronDown />}
                                     </button>
-                                    {serviceOpen && (
-                                        <ul className="mt-2 space-y-2 flex flex-col w-full">
+                                    {miscOpen && (
+                                        <ul className="apex-dash-nav__sub">
                                             {/* <NavItem
                                                 href={`/dashboard/${activeCustomerId}/campaign-planner`}
                                                 label="Campaign Planner"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 subLabel={"BETA"}
                                                 isSmallScreen={isSmallScreen}
@@ -400,7 +357,6 @@ const Sidebar = ({ showLinks = true }) => {
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/campaign-planner-v2`}
                                                 label="Campaign Planner"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 subLabel={"WIP"}
                                                 isSmallScreen={isSmallScreen}
@@ -408,7 +364,6 @@ const Sidebar = ({ showLinks = true }) => {
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/share-of-search`}
                                                 label="SoS"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 subLabel={"NEW"}
                                                 isSmallScreen={isSmallScreen}
@@ -416,7 +371,6 @@ const Sidebar = ({ showLinks = true }) => {
                                             <NavItem
                                                 href={serviceDashboardHref("bing-webmaster")}
                                                 label="Bing Webmaster"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                                 subLabel={"WIP"}
@@ -425,7 +379,6 @@ const Sidebar = ({ showLinks = true }) => {
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/config`}
                                                 label="Config"
-                                                activeCustomerId={activeCustomerId}
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                             />
@@ -433,17 +386,11 @@ const Sidebar = ({ showLinks = true }) => {
                                                 <NavItem
                                                     href={`/dashboard/${activeCustomerId}/test-page`}
                                                     label="Test Page"
-                                                    activeCustomerId={activeCustomerId}
                                                     pathname={pathname}
                                                     isSmallScreen={isSmallScreen}
                                                 />
                                             )}
                                         </ul>
-                                    )}
-                                    {isSmallScreen && (
-                                        <div className="absolute left-[70px] bg-gray-900 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
-                                            Misc
-                                        </div>
                                     )}
                                 </li>
                             </ul>

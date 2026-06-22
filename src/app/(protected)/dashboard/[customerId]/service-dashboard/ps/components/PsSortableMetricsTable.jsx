@@ -37,22 +37,16 @@ const FORMATTERS = {
     roas: roasX,
 };
 
-function heatAlpha(value, max, invert = false) {
+function heatAlpha(value, max, invert = false, isCobalt = false) {
     if (!max || max <= 0 || value == null) return {};
     const t = Math.min(1, Math.max(0, value / max));
     const alpha = 0.15 + 0.85 * (invert ? 1 - t : t);
+    if (isCobalt) {
+        return { backgroundColor: `oklch(93% 0.04 165 / ${0.2 + alpha * 0.45})` };
+    }
     return { backgroundColor: `rgba(214,205,182,${alpha})` };
 }
 
-/**
- * @param {object} props
- * @param {string} props.title
- * @param {string} [props.subtitle]
- * @param {Array<{ key: string, label: string, align?: 'left'|'right', format?: keyof FORMATTERS, heatmap?: boolean, heatmapInvert?: boolean }>} props.columns
- * @param {Array<Record<string, unknown>>} props.rows
- * @param {string} [props.rowKeyField]
- * @param {boolean} [props.highlightPositiveNegative] — color roas-like cells green/red
- */
 export default function PsSortableMetricsTable({
     title,
     subtitle,
@@ -60,7 +54,11 @@ export default function PsSortableMetricsTable({
     rows = [],
     rowKeyField = "id",
     highlightPositiveNegative = false,
+    variant = "default",
+    cobaltScope = "ppc",
 }) {
+    const isCobalt = variant === "cobalt";
+    const scope = ["ps", "pin", "sc", "rd", "bing", "em"].includes(cobaltScope) ? cobaltScope : "ppc";
     const [sortKey, setSortKey] = useState(columns.find((c) => c.align !== "left")?.key || columns[0]?.key);
     const [sortDir, setSortDir] = useState("desc");
 
@@ -93,13 +91,83 @@ export default function PsSortableMetricsTable({
         }
     };
 
-    const formatCell = (col, value, row) => {
+    const formatCell = (col, value) => {
         if (col.format === "percent" && typeof value === "number" && value <= 1) {
             return FORMATTERS.percent(value);
         }
         const fn = FORMATTERS[col.format] || FORMATTERS.text;
-        return fn(value, row);
+        return fn(value);
     };
+
+    if (isCobalt) {
+        return (
+            <section className={`apex-${scope}-table-panel`}>
+                <div className={`apex-${scope}-table-panel__head`}>
+                    <h3 className={`apex-${scope}-table-panel__title`}>{title}</h3>
+                    {subtitle ? <p className={`apex-${scope}-table-panel__subtitle`}>{subtitle}</p> : null}
+                </div>
+                <div className={`apex-${scope}-table-wrap`}>
+                    <table className={`apex-${scope}-table`}>
+                        <thead>
+                            <tr>
+                                {columns.map((col) => (
+                                    <th
+                                        key={col.key}
+                                        className={`${col.align !== "left" ? "is-num is-sortable" : ""}`}
+                                        onClick={() => col.align !== "left" && toggleSort(col.key)}
+                                    >
+                                        {col.label}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {sorted.length === 0 ? (
+                                <tr>
+                                    <td colSpan={columns.length} className={`apex-${scope}-empty`}>
+                                        No data for selected range.
+                                    </td>
+                                </tr>
+                            ) : (
+                                sorted.map((row, idx) => (
+                                    <tr key={String(row[rowKeyField] ?? idx)}>
+                                        {columns.map((col) => {
+                                            const val = row[col.key];
+                                            const isRoas = highlightPositiveNegative && col.key === "roas";
+                                            let roasClass = "";
+                                            if (isRoas && typeof val === "number") {
+                                                if (val >= 3) roasClass = "is-roas-up";
+                                                else if (val < 1.5) roasClass = "is-roas-down";
+                                            }
+                                            return (
+                                                <td
+                                                    key={col.key}
+                                                    className={`${col.align === "left" ? "is-left" : `is-num ${roasClass}`}`}
+                                                    style={
+                                                        col.heatmap
+                                                            ? heatAlpha(
+                                                                  Number(val) || 0,
+                                                                  maxByCol[col.key],
+                                                                  col.heatmapInvert,
+                                                                  true
+                                                              )
+                                                            : undefined
+                                                    }
+                                                    title={col.align === "left" ? String(val ?? "") : undefined}
+                                                >
+                                                    {formatCell(col, val)}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        );
+    }
 
     return (
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8 min-w-0 max-w-full">
@@ -160,7 +228,7 @@ export default function PsSortableMetricsTable({
                                                 }
                                                 title={col.align === "left" ? String(val ?? "") : undefined}
                                             >
-                                                {formatCell(col, val, row)}
+                                                {formatCell(col, val)}
                                             </td>
                                         );
                                     })}

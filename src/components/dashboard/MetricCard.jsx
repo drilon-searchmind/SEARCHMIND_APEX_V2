@@ -19,11 +19,70 @@ export default function MetricCard({
     hideIconBackdrop = false,
     className = "",
     subCaption = null,
+    variant = "default",
 }) {
-    const activeBg = isActive ? "#1E2B2B" : "";
-    const activeText = isActive ? "text-white" : "text-gray-900";
-    const iconBg = isActive ? "bg-[#243636]" : "bg-gray-50";
-    const labelText = isActive ? "text-white" : "text-gray-400";
+    const isCobalt = variant === "cobalt";
+    const activeBg = !isCobalt && isActive ? "#1E2B2B" : "";
+    const activeText = isActive ? (isCobalt ? "" : "text-white") : "text-gray-900";
+    const iconBg = isActive ? (isCobalt ? "" : "bg-[#243636]") : "bg-gray-50";
+    const labelText = isActive ? (isCobalt ? "" : "text-white") : "text-gray-400";
+
+    if (isCobalt) {
+        return (
+            <ComparisonPeriodPopover
+                comparisonMethod={comparisonMethod}
+                changePrevValue={changePrevValue}
+                changeAbsolute={changeAbsolute}
+                extraContent={popOverContent}
+            >
+                <div className={cn("apex-perf-metric", isActive && "is-active", className)}>
+                    <div className="apex-perf-metric__body">
+                        <div className="apex-perf-metric__top">
+                            <span className="apex-perf-metric__label">{label}</span>
+                            {!hideIconBackdrop && icon ? (
+                                <span className="apex-perf-metric__icon">
+                                    {React.isValidElement(icon)
+                                        ? React.cloneElement(icon, {
+                                              className: cn("w-4 h-4 shrink-0", icon.props?.className),
+                                          })
+                                        : icon}
+                                </span>
+                            ) : null}
+                        </div>
+                        {children}
+                    </div>
+                    <div className="apex-perf-metric__bottom">
+                        <div className="min-w-0">
+                            <span className="apex-perf-metric__value">
+                                {value}
+                                {unit && <span className="apex-perf-metric__unit">{unit}</span>}
+                            </span>
+                            {subCaption != null && subCaption !== "" && (
+                                <div className="apex-perf-metric__caption">{subCaption}</div>
+                            )}
+                        </div>
+                        {change !== undefined && (
+                            <span
+                                className={cn(
+                                    "apex-perf-change",
+                                    changeType === "up" && "is-up",
+                                    changeType === "down" && "is-down",
+                                    changeType !== "up" && changeType !== "down" && "is-neutral"
+                                )}
+                            >
+                                {changeType === "up" ? (
+                                    <FiTrendingUp className="text-xs" aria-hidden />
+                                ) : changeType === "down" ? (
+                                    <FiTrendingDown className="text-xs" aria-hidden />
+                                ) : null}
+                                {change}%
+                            </span>
+                        )}
+                    </div>
+                </div>
+            </ComparisonPeriodPopover>
+        );
+    }
 
     return (
         <ComparisonPeriodPopover

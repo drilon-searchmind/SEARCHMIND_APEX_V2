@@ -21,44 +21,39 @@ export default function ApexRadarPlatformModal({ onClose }) {
 
     return (
         <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/45"
+            className="apex-radar-modal-backdrop"
             role="dialog"
             aria-modal="true"
             aria-labelledby="apex-radar-platform-title"
         >
-            <div className="w-full max-w-lg rounded-xl border border-gray-200 bg-white overflow-hidden">
-                <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-100">
+            <div className="apex-radar-modal apex-radar-modal--md">
+                <div className="apex-radar-modal__head">
                     <div>
-                        <h2 id="apex-radar-platform-title" className="text-lg font-semibold text-gray-900">
+                        <h2 id="apex-radar-platform-title" className="apex-radar-modal__title">
                             Choose platform
                         </h2>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="apex-radar-modal__subtitle">
                             Apex Radar is split by ad platform. You can switch anytime in the sidebar.
                         </p>
                     </div>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-                        aria-label="Close"
-                    >
+                    <button type="button" onClick={onClose} className="apex-radar-modal__close" aria-label="Close">
                         <FiX className="h-5 w-5" />
                     </button>
                 </div>
-                <div className="p-5 space-y-3">
+                <div className="apex-radar-modal__body space-y-3">
                     <button
                         type="button"
                         onClick={() => choose(APEX_RADAR_CHANNEL_FACEBOOK)}
-                        className="w-full flex items-center gap-4 rounded-xl border border-gray-200 px-4 py-4 text-left transition-colors hover:border-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind-lighter)]/20"
+                        className="apex-radar-platform-card"
                     >
-                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#1877F2]/10 text-[#1877F2]">
+                        <span className="apex-radar-platform-card__icon bg-[#1877F2]/10 text-[#1877F2]">
                             <SiFacebook className="h-7 w-7" aria-hidden />
                         </span>
                         <span>
-                            <span className="block font-semibold text-gray-900">
+                            <span className="apex-radar-platform-card__title">
                                 {APEX_RADAR_CHANNEL_META[APEX_RADAR_CHANNEL_FACEBOOK].label}
                             </span>
-                            <span className="block text-xs text-gray-500 mt-0.5">
+                            <span className="apex-radar-platform-card__desc">
                                 {APEX_RADAR_CHANNEL_META[APEX_RADAR_CHANNEL_FACEBOOK].description}
                             </span>
                         </span>
@@ -66,16 +61,16 @@ export default function ApexRadarPlatformModal({ onClose }) {
                     <button
                         type="button"
                         onClick={() => choose(APEX_RADAR_CHANNEL_GOOGLE_ADS)}
-                        className="w-full flex items-center gap-4 rounded-xl border border-gray-200 px-4 py-4 text-left transition-colors hover:border-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind-lighter)]/20"
+                        className="apex-radar-platform-card"
                     >
-                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#4285F4]/10 text-[#4285F4]">
+                        <span className="apex-radar-platform-card__icon bg-[#4285F4]/10 text-[#4285F4]">
                             <SiGoogleads className="h-7 w-7" aria-hidden />
                         </span>
                         <span>
-                            <span className="block font-semibold text-gray-900">
+                            <span className="apex-radar-platform-card__title">
                                 {APEX_RADAR_CHANNEL_META[APEX_RADAR_CHANNEL_GOOGLE_ADS].label}
                             </span>
-                            <span className="block text-xs text-gray-500 mt-0.5">
+                            <span className="apex-radar-platform-card__desc">
                                 {APEX_RADAR_CHANNEL_META[APEX_RADAR_CHANNEL_GOOGLE_ADS].description}
                             </span>
                         </span>

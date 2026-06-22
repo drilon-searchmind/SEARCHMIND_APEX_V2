@@ -4,6 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import connectToDatabase from "@root/lib/mongodb";
 import Customer from "@/models/Customer";
 import { fetchShopifyMarketsCatalog } from "@/lib/shopifyMarketsApi";
+import { getDemoPayload, getDemoShopifyMarkets, isDemoCustomerId, mergeDemoCustomerDocument } from "@/lib/demoCustomer";
 
 /**
  * Lists Shopify Markets for customers with `CustomerSettings.shopifyMarketsEnabled` and Shopify credentials.
@@ -22,19 +23,50 @@ export async function GET(_request, { params }) {
 
         const customer = await Customer.findById(customerId).lean();
         if (!customer) {
+            if (isDemoCustomerId(customerId)) {
+                const demo = getDemoPayload("customer");
+                if (!demo) {
+                    return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+                }
+                const merged = { ...demo, _id: customerId };
+                const cs = merged.CustomerSettings || {};
+                if (!cs.shopifyMarketsEnabled) {
+                    return NextResponse.json({ markets: [], featureDisabled: true });
+                }
+                return NextResponse.json({
+                    markets: getDemoShopifyMarkets().map((m) => ({
+                        shopifyqlMarketId: m.shopifyqlMarketId,
+                        name: m.name,
+                        handle: m.handle,
+                    })),
+                });
+            }
             return NextResponse.json({ error: "Customer not found" }, { status: 404 });
         }
 
-        const cs = customer.CustomerSettings || {};
+        const merged = isDemoCustomerId(customerId)
+            ? mergeDemoCustomerDocument(customer)
+            : customer;
+        const cs = merged.CustomerSettings || {};
         if (!cs.shopifyMarketsEnabled) {
             return NextResponse.json({ markets: [], featureDisabled: true });
         }
 
-        if (customer.customerType !== "Shopify") {
+        if (merged.customerType !== "Shopify") {
             return NextResponse.json(
                 { markets: [], error: "Shopify Markets is only available for Shopify stores." },
                 { status: 400 }
             );
+        }
+
+        if (isDemoCustomerId(customerId)) {
+            return NextResponse.json({
+                markets: getDemoShopifyMarkets().map((m) => ({
+                    shopifyqlMarketId: m.shopifyqlMarketId,
+                    name: m.name,
+                    handle: m.handle,
+                })),
+            });
         }
 
         const shop = (cs.shopifyUrl || "").replace(/^https?:\/\//, "").replace(/\/$/, "");

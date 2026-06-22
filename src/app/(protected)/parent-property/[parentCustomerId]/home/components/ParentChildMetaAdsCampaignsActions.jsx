@@ -36,9 +36,7 @@ export default function ParentChildMetaAdsCampaignsActions({
                         ? `${excludedCount} campaign(s), ${keywordCount} keyword(s) excluded — configure`
                         : "Filter Meta Ads campaigns"
                 }
-                className={`inline-flex items-center justify-center p-0.5 rounded hover:bg-gray-100 text-gray-500 hover:text-[var(--color-primary-searchmind)] ${
-                    filterActive ? "text-[var(--color-primary-searchmind)]" : ""
-                }`}
+                className={`apex-parent-icon-btn !w-auto !h-auto p-1${filterActive ? " border-[var(--color-accent)] text-[var(--color-accent)]" : ""}`}
                 disabled={fetchDisabled}
                 onClick={() => {
                     onMenuWillOpen?.();

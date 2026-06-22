@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import FormButton from "@/components/form/FormButton";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
 import { showToast } from "@/components/ui/ToastProvider";
@@ -76,13 +75,14 @@ export default function NotificationsTab() {
     );
 
     return (
-        <div className="flex flex-col gap-6 max-w-3xl">
-            <h5 className="text-lg font-semibold text-[var(--color-primary-searchmind)]">Push notifications</h5>
-            <p className="text-sm text-gray-600">
-                Creates in-app notifications for selected users. Recipients see them in the bell on the top bar.
+        <div className="apex-admin-tab">
+            <h2 className="apex-admin-section__title">Push notifications</h2>
+            <p className="apex-admin-section__subtitle">
+                Creates in-app notifications for selected users. Recipients see them in the bell on
+                the top bar.
             </p>
 
-            <form onSubmit={handleSubmit} className="space-y-4 bg-gray-50 border border-gray-200 rounded-xl p-6">
+            <form onSubmit={handleSubmit} className="apex-admin-form apex-admin-form--panel">
                 <div>
                     <FormLabel htmlFor="notif-title">Title</FormLabel>
                     <FormInputText
@@ -99,7 +99,6 @@ export default function NotificationsTab() {
                         value={body}
                         onChange={(e) => setBody(e.target.value)}
                         rows={4}
-                        className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:ring-brand-500/20"
                         placeholder="Notification body text"
                     />
                 </div>
@@ -129,7 +128,6 @@ export default function NotificationsTab() {
                         id="notif-cat"
                         value={category}
                         onChange={(e) => setCategory(e.target.value)}
-                        className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300"
                     >
                         <option value="system">System</option>
                         <option value="feature">Feature</option>
@@ -138,9 +136,9 @@ export default function NotificationsTab() {
                 </div>
 
                 <div>
-                    <p className="text-sm font-medium text-gray-700 mb-2">Audience</p>
-                    <div className="space-y-2 text-sm">
-                        <label className="flex items-center gap-2 cursor-pointer">
+                    <p className="apex-admin-subtitle-sm">Audience</p>
+                    <div className="flex flex-col gap-2">
+                        <label className="apex-admin-radio-row">
                             <input
                                 type="radio"
                                 name="aud"
@@ -149,7 +147,7 @@ export default function NotificationsTab() {
                             />
                             All internal users (not external)
                         </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
+                        <label className="apex-admin-radio-row">
                             <input
                                 type="radio"
                                 name="aud"
@@ -158,7 +156,7 @@ export default function NotificationsTab() {
                             />
                             All users (including external)
                         </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
+                        <label className="apex-admin-radio-row">
                             <input
                                 type="radio"
                                 name="aud"
@@ -171,25 +169,25 @@ export default function NotificationsTab() {
                 </div>
 
                 {audience === "selected" && (
-                    <div className="border border-gray-200 rounded-lg p-4 bg-white max-h-56 overflow-y-auto">
+                    <div className="apex-admin-user-list">
                         <input
                             type="text"
                             placeholder="Search users..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="mb-3 h-9 w-full rounded-lg border px-3 text-sm border-gray-300"
+                            className="mb-3"
                         />
-                        <ul className="space-y-1 text-sm">
+                        <ul>
                             {filteredUsers.map((u) => (
                                 <li key={u._id}>
-                                    <label className="flex items-center gap-2 cursor-pointer py-0.5">
+                                    <label>
                                         <input
                                             type="checkbox"
                                             checked={!!selectedIds[u._id]}
                                             onChange={() => toggleUser(u._id)}
                                         />
-                                        <span className="font-medium text-gray-800">{u.name}</span>
-                                        <span className="text-gray-500 text-xs">{u.email}</span>
+                                        <span>{u.name}</span>
+                                        <span className="is-muted">{u.email}</span>
                                     </label>
                                 </li>
                             ))}
@@ -197,9 +195,15 @@ export default function NotificationsTab() {
                     </div>
                 )}
 
-                <FormButton type="submit" disabled={sending} borderType="primary">
-                    {sending ? "Sending…" : "Send notifications"}
-                </FormButton>
+                <div className="apex-admin-actions">
+                    <button
+                        type="submit"
+                        className="apex-perf-btn apex-perf-btn--primary"
+                        disabled={sending}
+                    >
+                        {sending ? "Sending…" : "Send notifications"}
+                    </button>
+                </div>
             </form>
         </div>
     );

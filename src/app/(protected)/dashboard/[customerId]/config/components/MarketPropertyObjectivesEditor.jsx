@@ -72,12 +72,12 @@ export default function MarketPropertyObjectivesEditor({
     };
 
     if (marketsLoading) {
-        return <p className="text-sm text-gray-500">Loading Shopify markets…</p>;
+        return <p className="apex-config-empty">Loading Shopify markets…</p>;
     }
 
     if (!markets.length) {
         return (
-            <p className="text-sm text-gray-500">
+            <p className="apex-config-empty">
                 No Shopify markets found. Ensure the Admin API token includes the read_markets scope.
             </p>
         );
@@ -86,12 +86,12 @@ export default function MarketPropertyObjectivesEditor({
     return (
         <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <label className="text-sm font-medium text-gray-700" htmlFor="market-objectives-select">
+                <label className="apex-config-card__title" htmlFor="market-objectives-select">
                     Market
                 </label>
                 <select
                     id="market-objectives-select"
-                    className="w-full sm:max-w-xs px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+                    className="w-full sm:max-w-xs"
                     value={selectedMarketId}
                     onChange={(e) => setSelectedMarketId(e.target.value)}
                 >
@@ -107,7 +107,7 @@ export default function MarketPropertyObjectivesEditor({
                     })}
                 </select>
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="apex-config-field-hint">
                 Configure revenue targets and marketing budgets for the selected market.
             </p>
             <PropertyObjectivesTable

@@ -8,19 +8,28 @@ export default function MetricToggleBar({
 	showTrendChart = false,
 	onTrendChartToggle,
 	metricColumns = METRIC_COLUMNS,
+	variant = 'default',
 }) {
+	const isCobalt = variant === 'cobalt';
+
 	return (
-		<div className="flex flex-wrap items-center gap-2 mb-4">
-			<span className="text-sm text-gray-600 mr-2">Toggle metrics:</span>
+		<div className={isCobalt ? 'apex-daily-panel__toolbar flex flex-wrap items-center gap-2' : 'flex flex-wrap items-center gap-2 mb-4'}>
+			<span className={isCobalt ? 'apex-daily-toggle-label' : 'text-sm text-gray-600 mr-2'}>
+				Toggle metrics:
+			</span>
 			{metricColumns.map((opt) => (
 				<button
 					key={opt.key}
 					type="button"
-					className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 ${
-						visibleMetrics[opt.key]
-							? 'bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]'
-							: 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
-					}`}
+					className={
+						isCobalt
+							? `apex-perf-chip${visibleMetrics[opt.key] ? ' is-active' : ''}`
+							: `px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 ${
+									visibleMetrics[opt.key]
+										? 'bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]'
+										: 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+								}`
+					}
 					onClick={() => onToggle(opt.key)}
 				>
 					{opt.label}
@@ -28,14 +37,18 @@ export default function MetricToggleBar({
 			))}
 			{onTrendChartToggle && (
 				<>
-					<span className="text-sm text-gray-400 mx-1">|</span>
+					<span className={isCobalt ? 'apex-daily-toggle-divider' : 'text-sm text-gray-400 mx-1'}>|</span>
 					<button
 						type="button"
-						className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 ${
-							showTrendChart
-								? 'bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]'
-								: 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
-						}`}
+						className={
+							isCobalt
+								? `apex-perf-chip${showTrendChart ? ' is-active' : ''}`
+								: `px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 ${
+										showTrendChart
+											? 'bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]'
+											: 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+									}`
+						}
 						onClick={onTrendChartToggle}
 					>
 						Trend Chart

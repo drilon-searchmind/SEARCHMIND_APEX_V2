@@ -9,6 +9,7 @@ import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import SeoDefaultTab from "./components/SeoDefaultTab";
 import SeoInsightsTab from "./components/SeoInsightsTab";
+import "./seo-dashboard.css";
 
 const TABS = [
     { id: "default", label: "Default", icon: FiBarChart2 },
@@ -97,8 +98,10 @@ export default function SEODashboardPage() {
     const headingLoading = activeTab === "default" && defaultLoading;
 
     return (
-        <div className="mx-auto w-full">
+        <div id="SeoDashboardPage" className="cobalt-perf w-full" data-theme="cobalt">
             <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
                 title="SEO Dashboard"
                 label={siteUrl || "No property set"}
                 customerId={customerId}
@@ -107,55 +110,58 @@ export default function SEODashboardPage() {
                 loading={headingLoading}
                 dashboardType="seo-dashboard"
                 dataSnapshot={{ siteUrl, activeTab }}
-                right={<DateRangePicker {...dateRangePickerProps} loading={headingLoading} />}
+                right={
+                    <DateRangePicker
+                        {...dateRangePickerProps}
+                        variant="cobalt"
+                        loading={headingLoading}
+                    />
+                }
             />
 
-            <div className="bg-white rounded-lg border border-gray-200 mb-6">
-                <div className="flex gap-8 px-6">
-                    {TABS.map((tab) => {
-                        const Icon = tab.icon;
-                        return (
-                            <button
-                                key={tab.id}
-                                type="button"
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`py-3 px-1 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
-                                    activeTab === tab.id
-                                        ? "border-[var(--color-primary-searchmind)] text-[var(--color-primary-searchmind)]"
-                                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                                }`}
-                            >
-                                <Icon className="text-base" aria-hidden />
-                                {tab.label}
-                            </button>
-                        );
-                    })}
-                </div>
+            <nav className="apex-seo-tabs" aria-label="SEO views">
+                {TABS.map((tab) => {
+                    const Icon = tab.icon;
+                    return (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`apex-seo-tabs__btn${activeTab === tab.id ? " is-active" : ""}`}
+                            aria-current={activeTab === tab.id ? "page" : undefined}
+                        >
+                            <Icon aria-hidden />
+                            {tab.label}
+                        </button>
+                    );
+                })}
+            </nav>
+
+            <div className="apex-seo-panel">
+                {activeTab === "default" && (
+                    <SeoDefaultTab
+                        active
+                        siteUrl={siteUrl}
+                        customerId={customerId}
+                        appliedRange={appliedRange}
+                        appliedCompareRange={appliedCompareRange}
+                        comparisonMethod={comparisonMethod}
+                        comparisonLabel={comparisonLabel}
+                        onLoadingChange={handleDefaultLoadingChange}
+                    />
+                )}
+
+                {activeTab === "insights" && (
+                    <SeoInsightsTab
+                        siteUrl={siteUrl}
+                        customerId={customerId}
+                        startDate={appliedRange.startDate}
+                        endDate={appliedRange.endDate}
+                        appliedCompareRange={appliedCompareRange}
+                        comparisonMethod={comparisonMethod}
+                    />
+                )}
             </div>
-
-            {activeTab === "default" && (
-                <SeoDefaultTab
-                    active
-                    siteUrl={siteUrl}
-                    customerId={customerId}
-                    appliedRange={appliedRange}
-                    appliedCompareRange={appliedCompareRange}
-                    comparisonMethod={comparisonMethod}
-                    comparisonLabel={comparisonLabel}
-                    onLoadingChange={handleDefaultLoadingChange}
-                />
-            )}
-
-            {activeTab === "insights" && (
-                <SeoInsightsTab
-                    siteUrl={siteUrl}
-                    customerId={customerId}
-                    startDate={appliedRange.startDate}
-                    endDate={appliedRange.endDate}
-                    appliedCompareRange={appliedCompareRange}
-                    comparisonMethod={comparisonMethod}
-                />
-            )}
         </div>
     );
 }

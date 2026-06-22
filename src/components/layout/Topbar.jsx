@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import Image from "next/image";
 import { FaMoon, FaSun } from "react-icons/fa";
 import { FiBell } from "react-icons/fi";
-import { FiChevronDown, FiHome, FiUser, FiSettings, FiBarChart2, FiLogOut, FiSearch, FiUsers, FiBookOpen, FiShare2, FiGift, FiFileText } from "react-icons/fi";
+import { FiChevronDown, FiHome, FiUser, FiSettings, FiBarChart2, FiLogOut, FiBookOpen, FiShare2, FiGift, FiFileText } from "react-icons/fi";
 import { useUser } from "@/contexts/UserContext";
 import { signOut } from "next-auth/react";
 import { useCustomers } from "@/hooks/useCustomers";
@@ -11,24 +11,42 @@ import { parseApexRadarPath, APEX_RADAR_CHANNEL_FACEBOOK, apexRadarOverviewHref 
 
 /** Sentinel value for Apex Radar "All properties" in the customer Select. */
 const APEX_RADAR_CUSTOMER_SELECT_ALL = "__apex_radar_all__";
-import Select from 'react-select';
+import PropertySearchCmdk from './PropertySearchCmdk';
 import TeamMembers, { ClickupTeamMembersProvider } from './TeamMembers';
-import TrackingScore from './TrackingScore';
 import SharePropertyModal from '@/components/dashboard/SharePropertyModal';
 import ParentPropertyFilterDropdown from './ParentPropertyFilterDropdown';
 import ParentPropertyGroupSettingsTrigger from './ParentPropertyGroupSettingsTrigger';
 import Link from "next/link";
-import FormButton from "../form/FormButton";
 import { LuRadar } from "react-icons/lu";
 import { RiToolsFill } from "react-icons/ri";
 import { getDemoCustomerIds } from "@/lib/demoCustomerId";
 import { normalizeInternalNotificationHref } from "@/lib/notificationLink";
 import { canAccessApexRadar } from "@/lib/apexRadarAccess";
 
+/** Set true to restore the topbar dark/light mode switcher. */
+const THEME_TOGGLE_ENABLED = false;
+
 function getLastMonthPeriod() {
     const d = new Date();
     d.setMonth(d.getMonth() - 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getInitialTheme() {
+    if (!THEME_TOGGLE_ENABLED) return "light";
+    if (typeof window !== "undefined") {
+        return localStorage.getItem("theme") || "light";
+    }
+    return "light";
+}
+
+function applyDocumentTheme(nextTheme) {
+    if (typeof window === "undefined") return;
+    const resolvedTheme = THEME_TOGGLE_ENABLED ? nextTheme : "light";
+    document.documentElement.classList.toggle("dark", resolvedTheme === "dark");
+    if (!THEME_TOGGLE_ENABLED) {
+        localStorage.setItem("theme", "light");
+    }
 }
 
 function getOpenedPeriodsForCustomer(openedWrappedPeriods, customerId) {
@@ -66,12 +84,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
     const user = useUser();
     const [notifPreview, setNotifPreview] = useState([]);
     const [notifUnreadCount, setNotifUnreadCount] = useState(0);
-    const [theme, setTheme] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('theme') || 'light';
-        }
-        return 'light';
-    });
+    const [theme, setTheme] = useState(getInitialTheme);
     const { customers } = useCustomers();
     const params = useParams();
     const pathname = usePathname();
@@ -144,23 +157,31 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
         }
     };
 
-    // Prepare options for react-select
-    const baseCustomerOptions = useMemo(
-        () =>
-            accessibleCustomers.map((customer) => ({
-                value: customer._id,
-                label: `${customer.customerName}`,
-                customer,
-            })),
-        [accessibleCustomers]
-    );
+    // accessibleCustomers used by property search
 
     const apexRadarPath = parseApexRadarPath(pathname);
 
-    const customerSelectOptions = useMemo(() => {
-        if (!apexRadarPath.isApexRadar) return baseCustomerOptions;
-        return [{ value: APEX_RADAR_CUSTOMER_SELECT_ALL, label: "All" }, ...baseCustomerOptions];
-    }, [apexRadarPath.isApexRadar, baseCustomerOptions]);
+    const customerSearchExtraItems = useMemo(() => {
+        if (!apexRadarPath.isApexRadar) return [];
+        const ch = apexRadarPath.channel ?? APEX_RADAR_CHANNEL_FACEBOOK;
+        return [{ id: APEX_RADAR_CUSTOMER_SELECT_ALL, name: "All", href: apexRadarOverviewHref(ch) }];
+    }, [apexRadarPath.isApexRadar, apexRadarPath.channel]);
+
+    const activeCustomerName = useMemo(() => {
+        if (apexRadarPath.isApexRadar && !apexRadarPath.customerId) return "All";
+        return activeCustomer?.customerName ?? null;
+    }, [apexRadarPath.isApexRadar, apexRadarPath.customerId, activeCustomer?.customerName]);
+
+    const buildPropertyHref = useCallback(
+        (customerId) => {
+            if (apexRadarPath.isApexRadar) {
+                const ch = apexRadarPath.channel ?? APEX_RADAR_CHANNEL_FACEBOOK;
+                return `/apex-radar/${ch}/${customerId}`;
+            }
+            return `/dashboard/${customerId}/performance-dashboard`;
+        },
+        [apexRadarPath.isApexRadar, apexRadarPath.channel]
+    );
 
     // Check if activeCustomerId is accessible, if not redirect to first accessible customer
     const isActiveCustomerAccessible = accessibleCustomers.some((c) => c._id === activeCustomerId);
@@ -176,58 +197,32 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
         router.push(`/dashboard/${first}/performance-dashboard`);
     }, [activeCustomerId, isActiveCustomerAccessible, accessibleCustomers, router, pathname]);
 
-    const selectedOption = useMemo(() => {
-        if (apexRadarPath.isApexRadar && !apexRadarPath.customerId) {
-            return customerSelectOptions.find((o) => o.value === APEX_RADAR_CUSTOMER_SELECT_ALL) ?? null;
-        }
-        return baseCustomerOptions.find((option) => option.value === activeCustomerId) ?? null;
-    }, [
-        apexRadarPath.isApexRadar,
-        apexRadarPath.customerId,
-        activeCustomerId,
-        baseCustomerOptions,
-        customerSelectOptions,
-    ]);
-
     const handleToggleTheme = () => {
+        if (!THEME_TOGGLE_ENABLED) return;
         const newTheme = theme === "light" ? "dark" : "light";
         setTheme(newTheme);
-        if (typeof window !== 'undefined') {
-            localStorage.setItem('theme', newTheme);
-            document.documentElement.classList.toggle('dark', newTheme === 'dark');
+        if (typeof window !== "undefined") {
+            localStorage.setItem("theme", newTheme);
+            applyDocumentTheme(newTheme);
         }
     };
 
     // On mount, sync theme from localStorage and set <html> class
     React.useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            setTheme(savedTheme);
-            document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+        if (!THEME_TOGGLE_ENABLED) {
+            setTheme("light");
+            applyDocumentTheme("light");
+            return;
         }
+        const savedTheme = localStorage.getItem("theme") || "light";
+        setTheme(savedTheme);
+        applyDocumentTheme(savedTheme);
     }, []);
 
     // Update <html> class when theme changes
     React.useEffect(() => {
-        if (typeof window !== 'undefined') {
-            document.documentElement.classList.toggle('dark', theme === 'dark');
-        }
+        applyDocumentTheme(theme);
     }, [theme]);
-
-    const handleCustomerChange = (selectedOption) => {
-        if (!selectedOption) return;
-        const { isApexRadar, channel } = parseApexRadarPath(pathname);
-        if (isApexRadar) {
-            const ch = channel ?? APEX_RADAR_CHANNEL_FACEBOOK;
-            if (selectedOption.value === APEX_RADAR_CUSTOMER_SELECT_ALL) {
-                router.push(apexRadarOverviewHref(ch));
-                return;
-            }
-            router.push(`/apex-radar/${ch}/${selectedOption.value}`);
-            return;
-        }
-        router.push(`/dashboard/${selectedOption.value}/performance-dashboard`);
-    };
 
     // Close menu on outside click
     useEffect(() => {
@@ -308,60 +303,57 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                         ? `Notifications, ${notifUnreadCount} unread`
                         : "Notifications"
                 }
-                className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 transition-colors duration-200 hover:bg-gray-50"
+                className="apex-dash-topbar__icon-btn relative"
             >
                 <FiBell className="size-[1.15rem]" aria-hidden />
                 {notifUnreadCount > 0 && (
-                    <span
-                        className="absolute -top-1 -right-1 text-[9px] font-semibold text-[var(--color-primary-searchmind)] bg-white rounded min-w-[16px] h-4 flex items-center justify-center px-1 border border-[var(--color-primary-searchmind)]"
-                        aria-hidden
-                    >
+                    <span className="apex-dash-topbar__badge" aria-hidden>
                         {notifUnreadCount > 99 ? "99+" : notifUnreadCount}
                     </span>
                 )}
             </button>
 
             {bellMenuOpen && (
-                <div className="absolute right-0 mt-[22px] w-[min(100vw-2rem,22rem)] bg-white rounded-[1rem] z-50 py-3 border border-gray-200 max-h-[min(70vh,24rem)] flex flex-col shadow-lg">
-                    <div className="px-4 pb-2 border-b border-gray-100 shrink-0">
-                        <p className="font-semibold text-gray-900 text-sm">Notifications</p>
-                        <p className="text-xs text-gray-500 mt-0.5">
+                <div className="apex-dash-topbar__notif-panel">
+                    <div className="px-4 pb-2 border-b border-[var(--color-rule)] shrink-0">
+                        <p className="font-semibold text-[var(--color-ink)] text-sm">Notifications</p>
+                        <p className="text-xs text-[var(--color-muted)] mt-0.5">
                             {notifPreview.length ? `Latest ${notifPreview.length}` : "No recent items"}
                         </p>
                     </div>
                     <div className="overflow-y-auto flex-1 px-2 py-1">
                         {notifPreview.length === 0 ? (
-                            <p className="text-xs text-gray-500 text-center py-6 px-2">You&apos;re all caught up.</p>
+                            <p className="text-xs text-[var(--color-muted)] text-center py-6 px-2">You&apos;re all caught up.</p>
                         ) : (
                             <ul className="space-y-0">
                                 {notifPreview.map((n) => (
-                                    <li key={n.id} className="border-b border-gray-50 last:border-0">
+                                    <li key={n.id} className="border-b border-[var(--color-rule)] last:border-0">
                                         {n.linkUrl?.startsWith("http") ? (
                                             <a
                                                 href={n.linkUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="block px-2 py-2.5 rounded-lg hover:bg-gray-50 text-left"
+                                                className="block px-2 py-2.5 rounded-lg hover:bg-[var(--color-paper-2)] text-left"
                                             >
-                                                <p className="text-xs font-semibold text-gray-900 line-clamp-1">{n.title}</p>
-                                                <p className="text-xs text-gray-600 line-clamp-2 mt-0.5">{n.body}</p>
-                                                <p className="text-[0.65rem] text-gray-400 mt-1">{formatNotificationTime(n.createdAt)}</p>
+                                                <p className="text-xs font-semibold text-[var(--color-ink)] line-clamp-1">{n.title}</p>
+                                                <p className="text-xs text-[var(--color-ink-2)] line-clamp-2 mt-0.5">{n.body}</p>
+                                                <p className="text-[0.65rem] text-[var(--color-muted)] mt-1">{formatNotificationTime(n.createdAt)}</p>
                                             </a>
                                         ) : n.linkUrl ? (
                                             <Link
                                                 href={normalizeInternalNotificationHref(n.linkUrl)}
-                                                className="block px-2 py-2.5 rounded-lg hover:bg-gray-50 text-left"
+                                                className="block px-2 py-2.5 rounded-lg hover:bg-[var(--color-paper-2)] text-left"
                                                 onClick={() => setBellMenuOpen(false)}
                                             >
-                                                <p className="text-xs font-semibold text-gray-900 line-clamp-1">{n.title}</p>
-                                                <p className="text-xs text-gray-600 line-clamp-2 mt-0.5">{n.body}</p>
-                                                <p className="text-[0.65rem] text-gray-400 mt-1">{formatNotificationTime(n.createdAt)}</p>
+                                                <p className="text-xs font-semibold text-[var(--color-ink)] line-clamp-1">{n.title}</p>
+                                                <p className="text-xs text-[var(--color-ink-2)] line-clamp-2 mt-0.5">{n.body}</p>
+                                                <p className="text-[0.65rem] text-[var(--color-muted)] mt-1">{formatNotificationTime(n.createdAt)}</p>
                                             </Link>
                                         ) : (
                                             <div className="px-2 py-2.5">
-                                                <p className="text-xs font-semibold text-gray-900 line-clamp-1">{n.title}</p>
-                                                <p className="text-xs text-gray-600 line-clamp-2 mt-0.5">{n.body}</p>
-                                                <p className="text-[0.65rem] text-gray-400 mt-1">{formatNotificationTime(n.createdAt)}</p>
+                                                <p className="text-xs font-semibold text-[var(--color-ink)] line-clamp-1">{n.title}</p>
+                                                <p className="text-xs text-[var(--color-ink-2)] line-clamp-2 mt-0.5">{n.body}</p>
+                                                <p className="text-[0.65rem] text-[var(--color-muted)] mt-1">{formatNotificationTime(n.createdAt)}</p>
                                             </div>
                                         )}
                                     </li>
@@ -369,10 +361,10 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                             </ul>
                         )}
                     </div>
-                    <div className="px-3 pt-2 border-t border-gray-100 shrink-0">
+                    <div className="px-3 pt-2 border-t border-[var(--color-rule)] shrink-0">
                         <Link
                             href="/notifications"
-                            className="block text-center text-xs font-semibold text-[var(--color-primary-searchmind)] py-2 rounded-lg hover:bg-[var(--color-primary-searchmind-lighter)]"
+                            className="block text-center text-xs font-semibold text-[var(--color-accent-light)] py-2 rounded-lg hover:bg-[var(--color-paper-2)]"
                             onClick={() => setBellMenuOpen(false)}
                         >
                             Show all
@@ -389,9 +381,9 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                 customerId={activeCustomerId}
                 enabled={teamMembersDataEnabled}
             >
-                <div className="sticky top-0 bg-white flex items-center justify-between px-4 xl:px-20 py-4 xl:py-5 border-b border-gray-200 transition-colors duration-200 z-40">
+                <div className="apex-dash-topbar">
                     {/* Left Section */}
-                    <div className="flex items-center space-x-4 xl:space-x-5 flex-1 xl:flex-none">
+                    <div className="apex-dash-topbar__left">
                         {/* Logo - Hidden on mobile */}
                         {showLogo && (
                             <div className="relative hidden">
@@ -407,110 +399,49 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                             </div>
                         )}
 
-                        {/* Home — far left on desktop; mobile uses hamburger menu */}
                         <div className="relative hidden xl:flex items-center shrink-0">
-                            <Link
-                                href="/home"
-                                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-100 transition-colors"
-                            >
-                                <FiHome className="text-[var(--color-primary-searchmind)] h-4 w-4 shrink-0" aria-hidden />
+                            <Link href="/home" className="apex-dash-topbar__home">
+                                <FiHome className="h-4 w-4 shrink-0" aria-hidden />
                                 <span>Home</span>
                             </Link>
                         </div>
 
-                        {/* Customer Selector - Visible on mobile and desktop */}
-                        <div className="flex items-center space-x-2 flex-1 xl:flex-none">
-                            <FiUsers className="text-gray-400 h-4 w-4 hidden xl:block" />
-                            <div className="w-32 xl:w-64">
-                                <Select
-                                    value={selectedOption}
-                                    onChange={handleCustomerChange}
-                                    options={customerSelectOptions}
-                                    placeholder="Select"
-                                    isSearchable={true}
-                                    isClearable={false}
-                                    className="react-select-container text-xs xl:text-sm"
-                                    classNamePrefix="react-select"
-                                    styles={{
-                                        control: (provided, state) => ({
-                                            ...provided,
-                                            border: '1px solid #d1d5db',
-                                            borderRadius: '0.375rem',
-                                            backgroundColor: 'white',
-                                            minHeight: '36px',
-                                            boxShadow: state.isFocused ? '0 0 0 2px rgba(59, 130, 246, 0.5)' : 'none',
-                                            '&:hover': {
-                                                borderColor: '#9ca3af'
-                                            }
-                                        }),
-                                        menu: (provided) => ({
-                                            ...provided,
-                                            border: '1px solid #e5e7eb',
-                                            borderRadius: '0.5rem',
-                                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                                            backgroundColor: 'white',
-                                            zIndex: 50
-                                        }),
-                                        option: (provided, state) => ({
-                                            ...provided,
-                                            backgroundColor: state.isSelected ? '#3b82f6' : state.isFocused ? '#f3f4f6' : 'white',
-                                            color: state.isSelected ? 'white' : '#374151',
-                                            padding: '8px 12px',
-                                            cursor: 'pointer',
-                                            '&:active': {
-                                                backgroundColor: state.isSelected ? '#2563eb' : '#e5e7eb'
-                                            }
-                                        }),
-                                        singleValue: (provided) => ({
-                                            ...provided,
-                                            color: '#374151'
-                                        }),
-                                        placeholder: (provided) => ({
-                                            ...provided,
-                                            color: '#9ca3af'
-                                        }),
-                                        input: (provided) => ({
-                                            ...provided,
-                                            color: '#374151'
-                                        })
-                                    }}
-                                />
-                            </div>
-                        </div>
+                        <PropertySearchCmdk
+                            customers={accessibleCustomers}
+                            activeCustomerId={
+                                apexRadarPath.isApexRadar && !apexRadarPath.customerId
+                                    ? APEX_RADAR_CUSTOMER_SELECT_ALL
+                                    : activeCustomerId
+                            }
+                            activeCustomerName={activeCustomerName}
+                            buildHref={buildPropertyHref}
+                            extraItems={customerSearchExtraItems}
+                        />
 
-                        {/* Team Members - desktop (xl+). Tracking score remains admin-only. */}
                         {showLinks && (
                             <div id="teamMembers" className="hidden xl:flex items-center gap-6">
-                                {!user?.isExternal && (
-                                    <TrackingScore customerId={activeCustomerId} />
-                                )}
                                 <TeamMembers />
                             </div>
                         )}
                     </div>
 
-                    {/* Right Section - Desktop Layout */}
-                    <div className="hidden xl:flex items-center space-x-4">
+                    <div className="apex-dash-topbar__right apex-dash-topbar__right--desktop">
                         {showPropertySection && (
                             <>
-                                <div className="flex items-center gap-4 mr-4">
+                                <div className="apex-dash-topbar__actions">
                                     <Link href={`/parent-property/${activeCustomer?.parentCustomer || ""}/home`}>
-                                        <FormButton buttonSize="small" type="button" borderType="">
-                                            Group View
-                                        </FormButton>
+                                        <span className="apex-dash-topbar__btn">Group View</span>
                                     </Link>
 
-                                    <div>
-                                        {!user?.isExternal && (
-                                            <span
-                                                onClick={() => setShowShareModal(true)}
-                                            >
-                                                <FormButton buttonSize="small" type="button" borderType="outline">
-                                                    <FiShare2 className="mr-0" /> Share
-                                                </FormButton>
-                                            </span>
-                                        )}
-                                    </div>
+                                    {!user?.isExternal && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowShareModal(true)}
+                                            className="apex-dash-topbar__btn"
+                                        >
+                                            <FiShare2 aria-hidden /> Share
+                                        </button>
+                                    )}
 
                                     {activeCustomerId && (() => {
                                         const lastMonthPeriod = getLastMonthPeriod();
@@ -521,20 +452,15 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                         const hasOpenedLastMonth = opened.includes(lastMonthPeriod);
                                         const hasUnreadWrapped = !hasOpenedLastMonth;
                                         return (
-                                            <div className="relative flex items-center justify-center w-10 h-10 overflow-visible mr-0">
+                                            <div className="relative flex items-center justify-center">
                                                 <Link
                                                     href={`/dashboard/${activeCustomerId}/data-wrapped`}
-                                                    className={`relative z-10 flex items-center justify-center w-full h-full rounded-lg transition-colors ${hasUnreadWrapped
-                                                        ? "bg-[var(--color-lime)]/100"
-                                                        : "bg-gray-100 hover:bg-gray-200"
-                                                        }`}
+                                                    className={`apex-dash-topbar__icon-btn${hasUnreadWrapped ? " apex-dash-topbar__icon-btn--highlight" : ""}`}
                                                     title="Data Wrapped"
                                                 >
-                                                    <FiGift className={hasUnreadWrapped ? "text-[var(--color-primary-searchmind)]" : "text-gray-700"} />
+                                                    <FiGift aria-hidden />
                                                     {hasUnreadWrapped && (
-                                                        <span className="absolute -top-1 -right-1 text-[9px] font-semibold text-[var(--color-primary-searchmind)] bg-white rounded min-w-[16px] h-4 flex items-center justify-center px-1 border border-[var(--color-primary-searchmind)]">
-                                                            1
-                                                        </span>
+                                                        <span className="apex-dash-topbar__badge" aria-hidden>1</span>
                                                     )}
                                                 </Link>
                                             </div>
@@ -551,11 +477,11 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                 <ParentPropertyGroupSettingsTrigger />
                             </div>
                         )}
-                        <div>
+                        {THEME_TOGGLE_ENABLED && (
                             <button
                                 type="button"
                                 onClick={handleToggleTheme}
-                                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 transition-colors duration-200 hover:bg-gray-50"
+                                className="apex-dash-topbar__icon-btn"
                                 aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
                             >
                                 {theme === "dark" ? (
@@ -564,92 +490,117 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                     <FaMoon className="size-[1.15rem]" aria-hidden />
                                 )}
                             </button>
-                        </div>
+                        )}
 
                         {renderNotificationsBell()}
 
                         <div className="relative" ref={menuRef}>
                             <button
-                                className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+                                type="button"
+                                className="apex-dash-topbar__user"
                                 onClick={() => setMenuOpen(!menuOpen)}
+                                aria-expanded={menuOpen}
+                                aria-haspopup="true"
                             >
-                                <Image
-                                    src={user?.image || "/images/users/default-avatar-photo-placeholder-profile-icon-vector.jpg"}
-                                    alt="User"
-                                    width={32}
-                                    height={32}
-                                    className="rounded-full"
-                                />
-                                <span className="text-gray-900 text-sm">{user?.name || "User"}</span>
-                                <FiChevronDown className="ml-2 text-gray-700" />
+                                <span className="apex-dash__icon-box apex-dash__icon-box--user">
+                                    <Image
+                                        src={user?.image || "/images/users/default-avatar-photo-placeholder-profile-icon-vector.jpg"}
+                                        alt=""
+                                        width={32}
+                                        height={32}
+                                        aria-hidden
+                                    />
+                                </span>
+                                <span className="apex-dash-topbar__user-name">{user?.name || "User"}</span>
+                                <FiChevronDown className="apex-dash-topbar__user-chevron" aria-hidden />
                             </button>
                             {menuOpen && (
-                                <div className="absolute right-0 mt-[22px] w-75 bg-white shadow-xs rounded-[1rem] px-4 overflow-hidden z-50 py-4 border border-gray-200 transition-colors duration-200">
-                                    <div className="mb-4">
-                                        <div className="flex items-center justify-between">
-                                            <p className="font-semibold text-gray-900">{user?.name}</p>
-                                            {user?.isAdmin && (
-                                                <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mt-1">
-                                                    Admin
-                                                </span>
-                                            )}
-
-                                            {user?.isExternal && (
-                                                <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mt-1 ml-1">
-                                                    External
-                                                </span>
-                                            )}
+                                <div className="apex-dash-topbar__menu">
+                                    <div className="apex-dash-topbar__menu-head">
+                                        <div className="apex-dash-topbar__menu-user">
+                                            <span className="apex-dash__icon-box apex-dash__icon-box--user">
+                                                <Image
+                                                    src={user?.image || "/images/users/default-avatar-photo-placeholder-profile-icon-vector.jpg"}
+                                                    alt=""
+                                                    width={40}
+                                                    height={40}
+                                                    aria-hidden
+                                                />
+                                            </span>
+                                            <div className="apex-dash-topbar__menu-user-meta">
+                                                <div className="apex-dash-topbar__menu-user-row">
+                                                    <p className="apex-dash-topbar__menu-user-name">{user?.name}</p>
+                                                    {user?.isAdmin && (
+                                                        <span className="apex-dash-nav__badge">Admin</span>
+                                                    )}
+                                                    {user?.isExternal && (
+                                                        <span className="apex-dash-nav__badge">External</span>
+                                                    )}
+                                                </div>
+                                                <p className="apex-dash-topbar__menu-user-email">{user?.email}</p>
+                                            </div>
                                         </div>
-                                        <p className="text-gray-400 text-xs">{user?.email}</p>
                                     </div>
 
-                                    <ul className="flex flex-col gap-4 py-2">
-                                        <li className="flex items-center gap-2">
-                                            <FiUser />
-                                            <Link href="/profile" className="text-sm text-slate-800 font-semibold">My Account</Link>
+                                    <ul className="apex-dash-topbar__menu-list">
+                                        <li>
+                                            <Link href="/profile" onClick={() => setMenuOpen(false)}>
+                                                <span className="apex-dash__icon-box apex-dash__icon-box--menu"><FiUser aria-hidden /></span>
+                                                My Account
+                                            </Link>
                                         </li>
-                                        <li className="flex items-center gap-2 hidden">
-                                            <FiBarChart2 />
-                                            <Link href="/my-campaigns" className="text-sm text-slate-800 font-semibold">My Campaigns</Link>
+                                        <li className="hidden">
+                                            <Link href="/my-campaigns"><FiBarChart2 aria-hidden /> My Campaigns</Link>
                                         </li>
-                                        <li className="flex items-center gap-2">
-                                            <FiBookOpen />
-                                            <Link href="/lib/guides" className="text-sm text-slate-800 font-semibold">Guides</Link>
+                                        <li>
+                                            <Link href="/lib/guides" onClick={() => setMenuOpen(false)}>
+                                                <span className="apex-dash__icon-box apex-dash__icon-box--menu"><FiBookOpen aria-hidden /></span>
+                                                Guides
+                                            </Link>
                                         </li>
-                                        <li className="flex items-center gap-2">
-                                            <FiFileText />
-                                            <Link href="/news" className="text-sm text-slate-800 font-semibold">News</Link>
+                                        <li>
+                                            <Link href="/news" onClick={() => setMenuOpen(false)}>
+                                                <span className="apex-dash__icon-box apex-dash__icon-box--menu"><FiFileText aria-hidden /></span>
+                                                News
+                                            </Link>
                                         </li>
-                                        <li className="flex items-center gap-2">
-                                            <FiBell />
-                                            <Link href="/notifications" className="text-sm text-slate-800 font-semibold">Notifications</Link>
+                                        <li>
+                                            <Link href="/notifications" onClick={() => setMenuOpen(false)}>
+                                                <span className="apex-dash__icon-box apex-dash__icon-box--menu"><FiBell aria-hidden /></span>
+                                                Notifications
+                                            </Link>
                                         </li>
                                         {!user?.isExternal && (
-                                            <li className="flex items-center gap-2">
-                                                <RiToolsFill />
-                                                <Link href="/our-tools" className="text-sm text-slate-800 font-semibold">Our Tools</Link>
-                                                
+                                            <li>
+                                                <Link href="/our-tools" onClick={() => setMenuOpen(false)}>
+                                                    <span className="apex-dash__icon-box apex-dash__icon-box--menu"><RiToolsFill aria-hidden /></span>
+                                                    Our Tools
+                                                </Link>
                                             </li>
                                         )}
                                         {user?.isAdmin && (
-                                            <li className="flex items-center gap-2">
-                                                <FiSettings />
-                                                <Link href="/admin" className="text-sm text-slate-800 font-semibold">Admin</Link>
+                                            <li>
+                                                <Link href="/admin" onClick={() => setMenuOpen(false)}>
+                                                    <span className="apex-dash__icon-box apex-dash__icon-box--menu"><FiSettings aria-hidden /></span>
+                                                    Admin
+                                                </Link>
                                             </li>
                                         )}
                                         {canAccessApexRadar(user) && (
-                                            <li
-                                                id="apexRadar-link"
-                                                className="flex items-center gap-2 bg-[var(--color-primary-searchmind-lighter)] text-white rounded py-2 px-3"
-                                            >
-                                                <Link href="/apex-radar" className="text-sm font-semibold">Apex Radar</Link>
-                                                <span className="text-[0.5rem] text-black bg-gray-200 rounded px-3 py-1">BETA</span>
+                                            <li>
+                                                <Link href="/apex-radar" onClick={() => setMenuOpen(false)} className="apex-dash-topbar__menu-radar-link">
+                                                    <span className="apex-dash__icon-box apex-dash__icon-box--menu"><LuRadar aria-hidden /></span>
+                                                    <span className="flex-1">Apex Radar</span>
+                                                    <span className="apex-dash-nav__badge">BETA</span>
+                                                </Link>
                                             </li>
                                         )}
-                                        <hr className="text-gray-200" />
-                                        <li className="flex items-center gap-2">
-                                            <FiLogOut />
-                                            <button onClick={() => signOut({ callbackUrl: "/login" })} className="text-sm text-slate-800 font-semibold">Sign Out</button>
+                                        <li><hr className="apex-dash-topbar__menu-divider" /></li>
+                                        <li>
+                                            <button type="button" onClick={() => signOut({ callbackUrl: "/login" })} className="apex-dash-topbar__menu-signout">
+                                                <span className="apex-dash__icon-box apex-dash__icon-box--menu"><FiLogOut aria-hidden /></span>
+                                                Sign Out
+                                            </button>
                                         </li>
                                     </ul>
                                 </div>
@@ -657,24 +608,26 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                         </div>
                     </div>
 
-                    {/* Mobile Menu Toggle + Theme */}
-                    <div className="flex xl:hidden items-center space-x-3 ml-auto">
-                        <button
-                            type="button"
-                            onClick={handleToggleTheme}
-                            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 transition-colors duration-200 hover:bg-gray-50"
-                            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-                        >
-                            {theme === "dark" ? (
-                                <FaSun className="size-[1.15rem]" aria-hidden />
-                            ) : (
-                                <FaMoon className="size-[1.15rem]" aria-hidden />
-                            )}
-                        </button>
+                    <div className="apex-dash-topbar__right apex-dash-topbar__right--mobile">
+                        {THEME_TOGGLE_ENABLED && (
+                            <button
+                                type="button"
+                                onClick={handleToggleTheme}
+                                className="apex-dash-topbar__icon-btn"
+                                aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                            >
+                                {theme === "dark" ? (
+                                    <FaSun className="size-[1.15rem]" aria-hidden />
+                                ) : (
+                                    <FaMoon className="size-[1.15rem]" aria-hidden />
+                                )}
+                            </button>
+                        )}
                         {renderNotificationsBell()}
                         <button
+                            type="button"
                             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                            className="p-2 rounded-lg border border-gray-200 bg-white text-gray-700 transition-colors duration-200 hover:bg-gray-50"
+                            className="apex-dash-topbar__icon-btn"
                             aria-label="Toggle menu"
                         >
                             {mobileMenuOpen ? (
@@ -692,193 +645,132 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
 
                 {/* Mobile Menu - Slides down on mobile */}
                 {mobileMenuOpen && (
-                    <div
-                        ref={mobileMenuRef}
-                        className="fixed xl:hidden top-16 left-0 right-0 bg-white border-b border-gray-200 shadow-lg z-40 max-h-[calc(100vh-64px)] overflow-y-auto"
-                    >
-                        <div className="px-4 py-4 space-y-4 ml-[50px]">
-                            {/* Home Link */}
-                            <Link
-                                href="/home"
-                                className="flex items-center space-x-3 py-1 rounded-lg hover:bg-gray-50 transition-colors"
-                                onClick={() => setMobileMenuOpen(false)}
-                            >
-                                <FiHome className="text-gray-400 h-5 w-5" />
-                                <span className="text-gray-900 font-medium">Home</span>
-                            </Link>
+                    <div ref={mobileMenuRef} className="apex-dash-topbar__mobile-menu">
+                        <Link
+                            href="/home"
+                            className="apex-dash-topbar__mobile-link"
+                            onClick={() => setMobileMenuOpen(false)}
+                        >
+                            <FiHome aria-hidden />
+                            <span>Home</span>
+                        </Link>
 
-                            {/* Team Members - Mobile */}
-                            {showLinks && (
-                                <div id="teamMembers-mobile" className="py-2 border-b border-gray-200">
-                                    <TeamMembers />
-                                </div>
-                            )}
+                        {showLinks && (
+                            <div id="teamMembers-mobile" className="apex-dash-topbar__mobile-section">
+                                <TeamMembers />
+                            </div>
+                        )}
 
-                            {/* Property Actions - Mobile */}
-                            {showPropertySection && (
-                                <>
-                                    <div className="py-2">
-                                        <p className="text-xs font-semibold text-gray-500 px-3 mb-2">PROPERTY</p>
-                                        <Link
-                                            href={`/parent-property/${activeCustomer?.parentCustomer || ""}/home`}
-                                            onClick={() => setMobileMenuOpen(false)}
-                                            className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
-                                        >
-                                            <FiHome className="text-gray-400 h-5 w-5" />
-                                            <span className="text-gray-900 font-medium text-sm">View Group Property</span>
-                                        </Link>
+                        {showPropertySection && (
+                            <div className="apex-dash-topbar__mobile-section">
+                                <p className="apex-dash-topbar__mobile-label">Property</p>
+                                <Link
+                                    href={`/parent-property/${activeCustomer?.parentCustomer || ""}/home`}
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className="apex-dash-topbar__mobile-link"
+                                >
+                                    <FiHome aria-hidden />
+                                    <span>View Group Property</span>
+                                </Link>
                                         {activeCustomerId && (() => {
                                             const lastMonthPeriod = getLastMonthPeriod();
                                             const opened = getOpenedPeriodsForCustomer(user?.openedWrappedPeriods, activeCustomerId);
                                             const hasOpenedLastMonth = opened.includes(lastMonthPeriod);
                                             const hasUnreadWrapped = !hasOpenedLastMonth;
                                             return (
-                                                <Link
-                                                    href={`/dashboard/${activeCustomerId}/data-wrapped`}
-                                                    onClick={() => setMobileMenuOpen(false)}
-                                                    className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors mt-2"
-                                                >
-                                                    <div className="relative flex items-center justify-center w-8 h-8">
-                                                        <FiGift className={`h-5 w-5 ${hasUnreadWrapped ? "text-[var(--color-primary-searchmind)]" : "text-gray-400"}`} />
-                                                        {hasUnreadWrapped && (
-                                                            <span className="absolute -top-0.5 -right-0.5 text-[9px] font-semibold text-[var(--color-primary-searchmind)] bg-white rounded min-w-[14px] h-3.5 flex items-center justify-center px-0.5 border border-[var(--color-primary-searchmind)]">
-                                                                (1)
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <span className="text-gray-900 font-medium text-sm">Data Wrapped</span>
-                                                </Link>
+                                        <Link
+                                            href={`/dashboard/${activeCustomerId}/data-wrapped`}
+                                            onClick={() => setMobileMenuOpen(false)}
+                                            className="apex-dash-topbar__mobile-link"
+                                        >
+                                            <div className="relative flex items-center justify-center">
+                                                <FiGift aria-hidden />
+                                                {hasUnreadWrapped && (
+                                                    <span className="apex-dash-topbar__badge" aria-hidden>1</span>
+                                                )}
+                                            </div>
+                                            <span>Data Wrapped</span>
+                                        </Link>
                                             );
                                         })()}
                                         {!user?.isExternal && (
-                                            <button
-                                                onClick={() => {
-                                                    setShowShareModal(true);
-                                                    setMobileMenuOpen(false);
-                                                }}
-                                                className="w-full flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors mt-2"
-                                            >
-                                                <FiUsers className="text-gray-400 h-5 w-5" />
-                                                <span className="text-gray-900 font-medium text-sm">Share property</span>
-                                            </button>
-                                        )}
-                                    </div>
-                                </>
-                            )}
-
-                            {/* User Menu Items - Mobile */}
-                            <div className="border-t border-gray-200 pt-4">
-                                <p className="text-xs font-semibold text-gray-500 px-3 mb-3">ACCOUNT</p>
-                                <div className="mb-3">
-                                    <div className="flex items-center space-x-3 px-3 py-2">
-                                        <Image
-                                            src={user?.image || "/images/users/default-avatar-photo-placeholder-profile-icon-vector.jpg"}
-                                            alt="User"
-                                            width={32}
-                                            height={32}
-                                            className="rounded-full"
-                                        />
-                                        <div>
-                                            <p className="font-semibold text-gray-900 text-sm">{user?.name || "User"}</p>
-                                            <p className="text-gray-400 text-xs">{user?.email}</p>
-                                        </div>
-                                    </div>
-                                    {user?.isAdmin && (
-                                        <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full ml-11">
-                                            Admin
-                                        </span>
-                                    )}
-                                    {user?.isExternal && (
-                                        <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full ml-11 ml-1">
-                                            External
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Link
-                                        href="/profile"
-                                        onClick={() => setMobileMenuOpen(false)}
-                                        className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
-                                    >
-                                        <FiUser className="text-gray-400 h-5 w-5" />
-                                        <span className="text-gray-900 font-medium text-sm">User Profile</span>
-                                    </Link>
-                                    <Link
-                                        href="/lib/guides"
-                                        onClick={() => setMobileMenuOpen(false)}
-                                        className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
-                                    >
-                                        <FiBookOpen className="text-gray-400 h-5 w-5" />
-                                        <span className="text-gray-900 font-medium text-sm">Guides</span>
-                                    </Link>
-                                    <Link
-                                        href="/news"
-                                        onClick={() => setMobileMenuOpen(false)}
-                                        className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
-                                    >
-                                        <FiFileText className="text-gray-400 h-5 w-5" />
-                                        <span className="text-gray-900 font-medium text-sm">News</span>
-                                    </Link>
-                                    <Link
-                                        href="/notifications"
-                                        onClick={() => setMobileMenuOpen(false)}
-                                        className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
-                                    >
-                                        <FiBell className="text-gray-400 h-5 w-5" />
-                                        <span className="text-gray-900 font-medium text-sm">Notifications</span>
-                                    </Link>
-                                    {!user?.isExternal && (
-                                        <Link
-                                            href="/our-tools"
-                                            onClick={() => setMobileMenuOpen(false)}
-                                            className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
-                                        >
-                                            <RiToolsFill className="text-gray-400 h-5 w-5" />
-                                            <span className="text-gray-900 font-medium text-sm">Our Tools</span>
-                                        </Link>
-                                    )}
-                                    {user?.isAdmin && (
-                                        <Link
-                                            href="/admin"
-                                            onClick={() => setMobileMenuOpen(false)}
-                                            className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
-                                        >
-                                            <FiSettings className="text-gray-400 h-5 w-5" />
-                                            <span className="text-gray-900 font-medium text-sm">Admin</span>
-                                        </Link>
-                                    )}
-                                    {canAccessApexRadar(user) && (
-                                        <Link
-                                            href="/apex-radar"
-                                            onClick={() => setMobileMenuOpen(false)}
-                                            className="flex items-center space-x-3 py-2 px-3 rounded-lg bg-[var(--color-primary-searchmind-lighter)]/30 hover:bg-[var(--color-primary-searchmind-lighter)]/50 transition-colors"
-                                        >
-                                            <LuRadar className="text-[var(--color-primary-searchmind)] h-5 w-5" />
-                                            <span className="text-gray-900 font-medium text-sm">Apex Radar</span>
-                                            <span className="text-[0.6rem] font-semibold text-gray-600 bg-gray-200 rounded px-1.5 py-0.5">BETA</span>
-                                        </Link>
-                                    )}
-                                    <Link
-                                        href="/profile"
-                                        onClick={() => setMobileMenuOpen(false)}
-                                        className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
-                                    >
-                                        <FiBarChart2 className="text-gray-400 h-5 w-5" />
-                                        <span className="text-gray-900 font-medium text-sm">Campaigns</span>
-                                    </Link>
                                     <button
+                                        type="button"
                                         onClick={() => {
-                                            signOut({ callbackUrl: "/login" });
+                                            setShowShareModal(true);
                                             setMobileMenuOpen(false);
                                         }}
-                                        className="w-full flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors text-red-600"
+                                        className="apex-dash-topbar__mobile-btn"
                                     >
-                                        <FiLogOut className="h-5 w-5" />
-                                        <span className="font-medium text-sm">Sign Out</span>
+                                        <FiShare2 aria-hidden />
+                                        <span>Share property</span>
                                     </button>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="apex-dash-topbar__mobile-section">
+                            <p className="apex-dash-topbar__mobile-label">Account</p>
+                            <div className="apex-dash-topbar__mobile-user">
+                                <span className="apex-dash__icon-box apex-dash__icon-box--user">
+                                    <Image
+                                        src={user?.image || "/images/users/default-avatar-photo-placeholder-profile-icon-vector.jpg"}
+                                        alt=""
+                                        width={32}
+                                        height={32}
+                                        aria-hidden
+                                    />
+                                </span>
+                                <div>
+                                    <p className="apex-dash-topbar__mobile-user-name">{user?.name || "User"}</p>
+                                    <p className="apex-dash-topbar__mobile-user-email">{user?.email}</p>
                                 </div>
                             </div>
+                            {user?.isAdmin && (
+                                <span className="apex-dash-nav__badge apex-dash-topbar__mobile-badge">Admin</span>
+                            )}
+                            {user?.isExternal && (
+                                <span className="apex-dash-nav__badge apex-dash-topbar__mobile-badge">External</span>
+                            )}
+
+                            <Link href="/profile" onClick={() => setMobileMenuOpen(false)} className="apex-dash-topbar__mobile-link">
+                                <FiUser aria-hidden /> <span>User Profile</span>
+                            </Link>
+                            <Link href="/lib/guides" onClick={() => setMobileMenuOpen(false)} className="apex-dash-topbar__mobile-link">
+                                <FiBookOpen aria-hidden /> <span>Guides</span>
+                            </Link>
+                            <Link href="/news" onClick={() => setMobileMenuOpen(false)} className="apex-dash-topbar__mobile-link">
+                                <FiFileText aria-hidden /> <span>News</span>
+                            </Link>
+                            <Link href="/notifications" onClick={() => setMobileMenuOpen(false)} className="apex-dash-topbar__mobile-link">
+                                <FiBell aria-hidden /> <span>Notifications</span>
+                            </Link>
+                            {!user?.isExternal && (
+                                <Link href="/our-tools" onClick={() => setMobileMenuOpen(false)} className="apex-dash-topbar__mobile-link">
+                                    <RiToolsFill aria-hidden /> <span>Our Tools</span>
+                                </Link>
+                            )}
+                            {user?.isAdmin && (
+                                <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="apex-dash-topbar__mobile-link">
+                                    <FiSettings aria-hidden /> <span>Admin</span>
+                                </Link>
+                            )}
+                            {canAccessApexRadar(user) && (
+                                <Link href="/apex-radar" onClick={() => setMobileMenuOpen(false)} className="apex-dash-topbar__mobile-link">
+                                    <LuRadar aria-hidden /> <span>Apex Radar</span>
+                                    <span className="apex-dash-nav__badge">BETA</span>
+                                </Link>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    signOut({ callbackUrl: "/login" });
+                                    setMobileMenuOpen(false);
+                                }}
+                                className="apex-dash-topbar__mobile-btn apex-dash-topbar__mobile-signout"
+                            >
+                                <FiLogOut aria-hidden /> <span>Sign Out</span>
+                            </button>
                         </div>
                     </div>
                 )}

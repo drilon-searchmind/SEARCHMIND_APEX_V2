@@ -136,73 +136,61 @@ export default function AdminCustomerColumnPicker({
     };
 
     return (
-        <div className="relative" ref={panelRef}>
+        <div className="apex-admin-column-picker" ref={panelRef}>
             <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
-                className="inline-flex items-center gap-2 h-11 px-4 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="apex-admin-column-picker__trigger"
             >
                 <FiColumns size={16} />
                 Columns
                 {selectionBadge === "extra" && selectedIds.length > 0 ? (
-                    <span className="text-xs bg-[var(--color-primary-searchmind)] text-white rounded-full px-2 py-0.5">
+                    <span className="apex-admin-column-picker__count">
                         +{selectedIds.length}
                     </span>
                 ) : null}
             </button>
 
             {open ? (
-                <div className="absolute right-0 top-full mt-2 z-50 w-[min(420px,calc(100vw-2rem))] bg-white border border-gray-200 rounded-xl shadow-xl">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <div className="apex-admin-column-picker__panel">
+                    <div className="apex-admin-column-picker__head">
                         <div>
-                            <p className="text-sm font-semibold text-gray-900">Table columns</p>
-                            <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+                            <p className="apex-admin-column-picker__title">Table columns</p>
+                            <p className="apex-admin-column-picker__desc">{description}</p>
                         </div>
                         <button
                             type="button"
-                            className="p-1 text-gray-400 hover:text-gray-600"
+                            className="apex-admin-link-btn apex-admin-link-btn--muted"
                             onClick={() => setOpen(false)}
                             aria-label="Close"
                         >
                             <FiX size={18} />
                         </button>
                     </div>
-                    <div className="max-h-[min(420px,60vh)] overflow-y-auto p-4 space-y-4">
+                    <div className="apex-admin-column-picker__body">
                         {Object.entries(grouped).map(([group, cols]) => (
-                            <div key={group}>
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                                    {group}
-                                </p>
-                                <div className="space-y-1">
-                                    {cols.map((col) => (
-                                        <label
-                                            key={col.id}
-                                            className="flex items-start gap-2 py-1.5 px-2 rounded-lg hover:bg-gray-50 cursor-pointer"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                className="mt-0.5 rounded border-gray-300"
-                                                checked={col._selected}
-                                                onChange={() => toggle(col.id)}
-                                            />
-                                            <span className="text-sm text-gray-800">{col.label}</span>
-                                        </label>
-                                    ))}
-                                </div>
+                            <div key={group} className="apex-admin-column-picker__group">
+                                <p className="apex-admin-column-picker__group-label">{group}</p>
+                                {cols.map((col) => (
+                                    <label key={col.id} className="apex-admin-column-picker__option">
+                                        <input
+                                            type="checkbox"
+                                            checked={col._selected}
+                                            onChange={() => toggle(col.id)}
+                                        />
+                                        <span>{col.label}</span>
+                                    </label>
+                                ))}
                             </div>
                         ))}
                     </div>
-                    <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-gray-100 bg-gray-50 rounded-b-xl">
-                        <button
-                            type="button"
-                            className="text-xs text-gray-600 hover:text-gray-900 underline"
-                            onClick={reset}
-                        >
+                    <div className="apex-admin-column-picker__foot">
+                        <button type="button" className="apex-admin-link-btn" onClick={reset}>
                             {resetLabel}
                         </button>
                         <button
                             type="button"
-                            className="px-4 py-2 text-sm font-semibold rounded-lg bg-[var(--color-primary-searchmind)] text-white hover:opacity-90"
+                            className="apex-perf-btn apex-perf-btn--primary"
                             onClick={apply}
                         >
                             Apply columns

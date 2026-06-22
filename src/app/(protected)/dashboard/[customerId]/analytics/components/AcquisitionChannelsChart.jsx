@@ -1,30 +1,62 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import dynamic from "next/dynamic";
-import { getChartColors } from "@/components/dashboard/chartColors";
+import { getCobaltChartBaseOptions, getCobaltChartTokens } from "@/lib/charts/cobaltChartTheme";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-export default function AcquisitionChannelsChart({ title = "Acquisition Channels", categories = [], series = [] }) {
-    const colors = getChartColors();
-    const palette = [colors.primaryLighter || "#406969", "#7ea6a6", "#a9c7c7", "#cfe0e0", "#e5eeee"]; // subtle stack
+export default function AcquisitionChannelsChart({
+    title = "Acquisition channels",
+    subtitle = "Sessions by channel group, stacked by month",
+    categories = [],
+    series = [],
+}) {
+    const { options, chartSeries } = useMemo(() => {
+        const t = getCobaltChartTokens();
+        const base = getCobaltChartBaseOptions();
+        const palette = [t.ink, t.accentLight, t.neutral, t.rule2, t.muted];
 
-    const options = {
-        chart: { stacked: true, toolbar: { show: false }, fontFamily: "Outfit, sans-serif" },
-        xaxis: { categories, labels: { rotate: -45 } },
-        yaxis: { labels: { formatter: (v) => Math.round(v).toLocaleString("da-DK") } },
-        plotOptions: { bar: { columnWidth: "45%", borderRadius: 6 } },
-        grid: { borderColor: "#e5e7eb" },
-        legend: { position: "top", horizontalAlign: "left", fontSize: "12px" },
-        colors: palette,
-        dataLabels: { enabled: false },
-    };
+        return {
+            chartSeries: series,
+            options: {
+                ...base,
+                chart: {
+                    ...base.chart,
+                    stacked: true,
+                    toolbar: { show: false },
+                },
+                xaxis: {
+                    ...base.xaxis,
+                    categories,
+                    labels: { ...base.xaxis?.labels, rotate: -45 },
+                },
+                yaxis: {
+                    ...base.yaxis,
+                    labels: {
+                        ...base.yaxis?.labels,
+                        formatter: (v) => Math.round(v).toLocaleString("da-DK"),
+                    },
+                },
+                plotOptions: {
+                    ...base.plotOptions,
+                    bar: { ...base.plotOptions?.bar, columnWidth: "45%" },
+                },
+                legend: {
+                    ...base.legend,
+                    position: "top",
+                    horizontalAlign: "left",
+                },
+                colors: palette,
+            },
+        };
+    }, [categories, series]);
 
     return (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold mb-2">{title}</h3>
-            <ReactApexChart type="bar" height={320} series={series} options={options} />
+        <div className="apex-analytics-panel apex-analytics-chart-panel">
+            <h3 className="apex-analytics-panel__title">{title}</h3>
+            <p className="apex-analytics-panel__subtitle">{subtitle}</p>
+            <ReactApexChart type="bar" height={320} series={chartSeries} options={options} />
         </div>
     );
 }

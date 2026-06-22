@@ -105,8 +105,14 @@ export default function PerformanceInvestigatorClient({ channel, customerId }) {
     }, [piError, piPayload?.funnel]);
 
     return (
-        <div id="ApexRadarPerformanceInvestigatorPage" className="w-full max-w-[min(100%,1920px)] mx-auto px-2 sm:px-4 lg:px-6">
+        <div
+            id="ApexRadarPerformanceInvestigatorPage"
+            className="cobalt-perf w-full max-w-[min(100%,1920px)] mx-auto apex-radar-stack"
+            data-theme="cobalt"
+        >
             <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
                 title="Performance Investigator"
                 label={headingLabel}
                 showAnalyzeWithAi={false}
@@ -131,9 +137,9 @@ export default function PerformanceInvestigatorClient({ channel, customerId }) {
                 }
             />
 
-            <div className="space-y-10">
+            <div className="space-y-8">
                 {!supportsPerformanceInvestigator ? (
-                    <div className="rounded-xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-600">
+                    <div className="apex-radar-empty apex-radar-empty-panel">
                         Performance investigator is only available for Facebook (PS) or Google Ads.
                     </div>
                 ) : (

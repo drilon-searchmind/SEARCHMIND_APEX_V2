@@ -6,7 +6,7 @@ import MetricCard from "@/components/dashboard/MetricCard";
 import GraphCard from "@/components/dashboard/GraphCard";
 import AddKpiModal from "./AddKpiModal";
 import ReplaceStandardMetricModal from "./ReplaceStandardMetricModal";
-import Spinner from "@/components/ui/Spinner";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { B2B_METRIC_DEFS } from "@/lib/b2bDashboard/b2bKpiConstants";
 import { B2B_REPLACEABLE_STANDARD_METRICS } from "@/lib/b2bDashboard/b2bKpiConstants";
 import { evaluateB2BFormula } from "@/lib/b2bDashboard/b2bKpiFormulaUtils";
@@ -184,7 +184,7 @@ export default function B2BCustom({
 
     const chartOptions = useMemo(
         () => ({
-            chart: { toolbar: { show: false }, fontFamily: "Outfit, sans-serif" },
+            chart: { toolbar: { show: false }, fontFamily: "Inter, sans-serif" },
             xaxis: { categories, labels: { rotate: -45 } },
             stroke: { curve: "smooth", width: 2 },
             legend: { show: true, position: "top" },
@@ -199,8 +199,15 @@ export default function B2BCustom({
 
     if (loading) {
         return (
-            <div className="flex justify-center py-12">
-                <Spinner size={40} color="#406969" />
+            <div className="apex-perf-loading">
+                <CobaltLoader
+                    variant="panel"
+                    eyebrow="B2B KPIs"
+                    title="Loading custom KPIs"
+                    subtitle="Fetching GA4 and ad spend formulas for this property."
+                    steps={["Load custom KPIs", "Evaluate B2B metrics"]}
+                    request="GET /api/custom-kpis?context=b2b"
+                />
             </div>
         );
     }
@@ -208,13 +215,13 @@ export default function B2BCustom({
     return (
         <div>
             {error && (
-                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+                <div className="apex-perf-alert apex-perf-alert--error mb-4">
                     {error}
                 </div>
             )}
 
-            <div className="flex items-center justify-between mb-4">
-                <p className="text-sm text-gray-500">
+            <div className="apex-perf-custom__header">
+                <p className="text-sm text-[var(--color-muted)] mb-0">
                     Build custom lead-gen KPIs from GA4 traffic and ad spend metrics.
                 </p>
                 <button
@@ -223,7 +230,7 @@ export default function B2BCustom({
                         setEditingKpi(null);
                         setModalOpen(true);
                     }}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg bg-[var(--color-primary-searchmind)] text-white"
+                    className="apex-perf-btn apex-perf-btn--primary"
                 >
                     <FiPlus /> Add KPI
                 </button>
@@ -256,6 +263,7 @@ export default function B2BCustom({
                                 }
                             >
                                 <MetricCard
+                                    variant="cobalt"
                                     label={kpi.name}
                                     value={formatKpiValue(val, kpi)}
                                     change={change != null ? change.toFixed(1) : undefined}
@@ -265,10 +273,10 @@ export default function B2BCustom({
                                     className="min-w-0"
                                 />
                             </div>
-                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="apex-perf-custom__hover-actions">
                                 <button
                                     type="button"
-                                    className="p-1 rounded bg-white border border-gray-200 text-gray-500 hover:text-gray-800"
+                                    className="apex-perf-icon-btn"
                                     onClick={() => {
                                         setEditingKpi({ ...kpi, id });
                                         setModalOpen(true);
@@ -279,7 +287,7 @@ export default function B2BCustom({
                                 </button>
                                 <button
                                     type="button"
-                                    className="p-1 rounded bg-white border border-gray-200 text-gray-500 hover:text-gray-800"
+                                    className="apex-perf-icon-btn"
                                     onClick={() => setReplaceModalKpi({ ...kpi, id })}
                                     aria-label="Replace standard metric"
                                 >
@@ -287,7 +295,7 @@ export default function B2BCustom({
                                 </button>
                                 <button
                                     type="button"
-                                    className="p-1 rounded bg-white border border-gray-200 text-red-500 hover:text-red-700"
+                                    className="apex-perf-icon-btn hover:text-[var(--color-error)]"
                                     onClick={() => handleDelete(id)}
                                     aria-label="Delete KPI"
                                 >
@@ -300,13 +308,14 @@ export default function B2BCustom({
             </div>
 
             {kpis.length === 0 && (
-                <div className="text-center py-8 text-gray-400 border border-dashed border-gray-200 rounded-xl mb-8">
+                <div className="apex-perf-empty mb-8">
                     No custom KPIs yet. Click &quot;Add KPI&quot; to create one (e.g. Conversions ÷ Marketing Spend).
                 </div>
             )}
 
             {chartSeries.length > 0 && (
                 <GraphCard
+                    variant="cobalt"
                     title="Custom KPIs Over Time"
                     chartOptions={chartOptions}
                     chartSeries={chartSeries}

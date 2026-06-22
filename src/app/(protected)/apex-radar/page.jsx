@@ -17,21 +17,21 @@ export default function ApexRadarPlatformPickerPage() {
         <div className="w-full max-w-xl mx-auto py-12 px-4">
             {modalOpen && <ApexRadarPlatformModal onClose={() => setModalOpen(false)} />}
 
-            <div className="rounded-xl border border-gray-200 bg-white p-8 text-center">
-                <h1 className="text-xl font-bold text-gray-900">Apex Radar</h1>
-                <p className="text-sm text-gray-500 mt-2">
+            <div className="apex-radar-picker-card">
+                <h1 className="apex-radar-section__title">Apex Radar</h1>
+                <p className="apex-radar-section__subtitle mt-2">
                     Pick an ad platform to open the overview, or use the switcher at the bottom of the sidebar.
                 </p>
                 <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
                     <Link
                         href={apexRadarOverviewHref(APEX_RADAR_CHANNEL_FACEBOOK)}
-                        className="inline-flex justify-center rounded-lg bg-[var(--color-primary-searchmind)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-searchmind-hover)] transition-colors"
+                        className="apex-perf-btn apex-perf-btn--primary justify-center"
                     >
                         {APEX_RADAR_CHANNEL_META[APEX_RADAR_CHANNEL_FACEBOOK].label}
                     </Link>
                     <Link
                         href={apexRadarOverviewHref(APEX_RADAR_CHANNEL_GOOGLE_ADS)}
-                        className="inline-flex justify-center rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors"
+                        className="apex-perf-btn apex-perf-btn--secondary justify-center"
                     >
                         {APEX_RADAR_CHANNEL_META[APEX_RADAR_CHANNEL_GOOGLE_ADS].label}
                     </Link>
@@ -39,7 +39,7 @@ export default function ApexRadarPlatformPickerPage() {
                 <button
                     type="button"
                     onClick={() => setModalOpen(true)}
-                    className="mt-6 text-xs font-semibold text-[var(--color-primary-searchmind)] hover:underline"
+                    className="mt-6 text-xs font-semibold text-[var(--color-accent-light)] hover:underline"
                 >
                     Open platform picker again
                 </button>

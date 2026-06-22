@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import Spinner from "@/components/ui/Spinner";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { Tooltip } from "@/components/ui/Tooltip";
 import {
     PI_METRIC_HEADERS,
@@ -10,24 +10,23 @@ import {
     computePiYearOverYearDiff,
 } from "../lib/mockPerformanceInvestigatorData";
 
-/** Same palette / structure as `DailyMetricsTableHeader` (daily-overview) */
 const PI_GROUPS = [
     {
         key: "reach",
         label: "Reach & engagement",
-        headerClass: "bg-[#1e2b2b]",
+        groupClass: "pi-th-group--reach",
         keys: ["impr", "clicks", "ctr", "freq"],
     },
     {
         key: "spend",
         label: "Spend & efficiency",
-        headerClass: "bg-[#3b5252]",
+        groupClass: "pi-th-group--spend",
         keys: ["avgCpc", "cost"],
     },
     {
         key: "conversion",
         label: "Conversions & value",
-        headerClass: "bg-[#5e8888]",
+        groupClass: "pi-th-group--conv",
         keys: ["conv", "convValue", "convRate", "aov", "roas", "cpa"],
     },
 ];
@@ -79,14 +78,14 @@ function formatMetricCell(key, value) {
 function diffHeatClass(pct) {
     if (pct == null || Number.isNaN(pct)) return "";
     if (pct > 0) {
-        if (pct >= 15) return "ml-2 bg-emerald-100 text-emerald-900";
-        if (pct >= 5) return "ml-2 bg-green-50 text-green-800";
-        return "ml-2 bg-green-50/60 text-green-800";
+        if (pct >= 15) return "apex-radar-pi-diff-pos-strong";
+        if (pct >= 5) return "apex-radar-pi-diff-pos";
+        return "apex-radar-pi-diff-pos";
     }
     if (pct < 0) {
-        if (pct <= -15) return "ml-2 bg-red-100 text-red-900";
-        if (pct <= -5) return "ml-2 bg-red-50 text-red-800";
-        return "ml-2 bg-red-50/60 text-red-800";
+        if (pct <= -15) return "apex-radar-pi-diff-neg-strong";
+        if (pct <= -5) return "apex-radar-pi-diff-neg";
+        return "apex-radar-pi-diff-neg";
     }
     return "";
 }
@@ -107,49 +106,41 @@ function borderLForMetricKey(key, flatKeys) {
     const prev = flatKeys[idx - 1];
     const g = groupForKey(key);
     const gp = groupForKey(prev);
-    if (g && gp && g.key !== gp.key) return " border-l border-gray-200";
+    if (g && gp && g.key !== gp.key) return " border-l border-[var(--color-rule)]";
     return "";
 }
 
-const TABLE_CLASS = "min-w-full text-xs text-left border-collapse";
-const TABLE_STYLE = { fontSize: "12px" };
+const TABLE_CLASS = "apex-radar-table apex-radar-pi-table min-w-full border-collapse text-left";
 
 function PiTableHeader({ firstColumnLabel, variant = "default" }) {
-    const subHeaderBg = variant === "lastYear" ? "bg-gray-100" : "bg-gray-50";
     const flatKeys = PI_METRIC_KEYS;
 
     return (
         <thead>
-            <tr className="bg-gray-200">
-                <th
-                    className="px-3 py-1.5 font-semibold text-gray-200 bg-black"
-                    rowSpan={2}
-                >
+            <tr>
+                <th className="pi-th-first" rowSpan={2}>
                     {firstColumnLabel}
                 </th>
                 {PI_GROUPS.map((g) => (
                     <th
                         key={g.key}
-                        className={`px-3 py-1.5 font-semibold text-gray-200 text-center border-l border-gray-300 ${g.headerClass}`}
+                        className={`pi-th-group ${g.groupClass}`}
                         colSpan={g.keys.length}
                     >
                         {g.label}
                     </th>
                 ))}
             </tr>
-            <tr className={subHeaderBg}>
+            <tr>
                 {flatKeys.map((k) => {
                     const idx = flatKeys.indexOf(k);
                     const prev = idx > 0 ? flatKeys[idx - 1] : null;
                     const showBorderL =
-                        idx === 0 ||
-                        (prev && groupForKey(k)?.key !== groupForKey(prev)?.key);
+                        idx === 0 || (prev && groupForKey(k)?.key !== groupForKey(prev)?.key);
                     return (
                         <th
                             key={k}
-                            className={`px-3 py-1.5 font-semibold text-gray-700 ${
-                                showBorderL ? "border-l border-gray-300" : ""
-                            }`}
+                            className={`pi-th-metric${showBorderL ? " border-l border-[var(--color-rule)]" : ""}`}
                         >
                             {METRIC_LABEL[k]}
                         </th>
@@ -164,28 +155,22 @@ function DataTableBody({ rows, footerRows = [] }) {
     const flatKeys = PI_METRIC_KEYS;
 
     return (
-        <tbody className="text-[12px]">
+        <tbody>
             {rows.map((row, index) => (
-                <tr key={`${row.label}-${index}`} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                    <td className="px-3 py-2 whitespace-nowrap">{row.label}</td>
+                <tr key={`${row.label}-${index}`}>
+                    <td>{row.label}</td>
                     {flatKeys.map((k) => (
-                        <td
-                            key={k}
-                            className={`px-3 py-2 whitespace-nowrap${borderLForMetricKey(k, flatKeys)}`}
-                        >
+                        <td key={k} className={borderLForMetricKey(k, flatKeys)}>
                             {formatMetricCell(k, row[k])}
                         </td>
                     ))}
                 </tr>
             ))}
             {footerRows.map((fr, fi) => (
-                <tr key={`foot-${fi}`} className="bg-gray-100 font-semibold border-t border-b border-gray-200">
-                    <td className="px-3 py-2 whitespace-nowrap">{fr.label}</td>
+                <tr key={`foot-${fi}`} className="pi-footer">
+                    <td>{fr.label}</td>
                     {flatKeys.map((k) => (
-                        <td
-                            key={k}
-                            className={`px-3 py-2 whitespace-nowrap${borderLForMetricKey(k, flatKeys)}`}
-                        >
+                        <td key={k} className={borderLForMetricKey(k, flatKeys)}>
                             {formatMetricCell(k, fr[k])}
                         </td>
                     ))}
@@ -197,8 +182,8 @@ function DataTableBody({ rows, footerRows = [] }) {
 
 function DataTable({ yearLabel, rows, footerRows = [], variant = "default" }) {
     return (
-        <div className="overflow-x-auto">
-            <table className={TABLE_CLASS} style={TABLE_STYLE}>
+        <div className="apex-radar-table-wrap">
+            <table className={TABLE_CLASS}>
                 <PiTableHeader firstColumnLabel={yearLabel} variant={variant} />
                 <DataTableBody rows={rows} footerRows={footerRows} />
             </table>
@@ -210,10 +195,10 @@ function DiffTableBody({ rows }) {
     const flatKeys = PI_METRIC_KEYS;
 
     return (
-        <tbody className="text-[12px]">
+        <tbody>
             {rows.map((row, index) => (
-                <tr key={`${row.label}-d-${index}`} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                    <td className="px-3 py-2 whitespace-nowrap font-medium">{row.label}</td>
+                <tr key={`${row.label}-d-${index}`}>
+                    <td className="font-medium">{row.label}</td>
                     {flatKeys.map((k) => {
                         const p = row.pct?.[k];
                         const show = p != null && !Number.isNaN(p);
@@ -221,7 +206,7 @@ function DiffTableBody({ rows }) {
                         return (
                             <td
                                 key={k}
-                                className={`px-3 py-2 whitespace-nowrap${borderLForMetricKey(k, flatKeys)}${heat ? ` ${heat}` : ""}`}
+                                className={`${borderLForMetricKey(k, flatKeys)}${heat ? ` ${heat}` : ""}`}
                             >
                                 {show ? formatDiffCell(p) : ""}
                             </td>
@@ -235,8 +220,8 @@ function DiffTableBody({ rows }) {
 
 function DiffTable({ rows }) {
     return (
-        <div className="overflow-x-auto">
-            <table className={TABLE_CLASS} style={TABLE_STYLE}>
+        <div className="apex-radar-table-wrap">
+            <table className={TABLE_CLASS}>
                 <PiTableHeader firstColumnLabel="Difference" variant="default" />
                 <DiffTableBody rows={rows} />
             </table>
@@ -294,24 +279,24 @@ function CompactUnifiedTable({
         );
         const inner = (
             <span className="block w-full min-w-[4.25rem]">
-                <span className="font-semibold tabular-nums text-gray-900">{main || "—"}</span>
+                <span className="font-semibold tabular-nums text-[var(--color-ink)]">{main || "—"}</span>
                 {showPct ? (
                     <span
-                        className={`mt-0.5 inline-block max-w-full rounded px-1 py-0.5 text-[11px] font-semibold tabular-nums leading-tight${heat ? ` ${heat}` : ""}`}
+                        className={`mt-0.5 inline-block max-w-full rounded px-1 py-0.5 text-[10px] font-semibold tabular-nums leading-tight${heat ? ` ${heat}` : ""}`}
                     >
                         {formatDiffCell(pct)}
                     </span>
                 ) : (
-                    <span className="mt-0.5 block text-[10px] text-gray-400">YoY —</span>
+                    <span className="mt-0.5 block text-[10px] text-[var(--color-muted)]">YoY —</span>
                 )}
             </span>
         );
         return (
-            <td className={`px-2 py-1.5 align-top sm:px-3 sm:py-2${borderL}`}>
+            <td className={`align-top${borderL}`}>
                 <Tooltip content={tip}>
                     <button
                         type="button"
-                        className="block w-max max-w-full cursor-default text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] focus-visible:ring-offset-1 rounded"
+                        className="block w-max max-w-full cursor-default text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-1 rounded"
                     >
                         {inner}
                     </button>
@@ -321,22 +306,19 @@ function CompactUnifiedTable({
     }
 
     return (
-        <div className="overflow-x-auto rounded-lg border border-gray-100">
-            <p className="border-b border-gray-100 bg-gray-50 px-3 py-2 text-[11px] text-gray-600 sm:text-xs">
+        <div className="apex-radar-table-wrap">
+            <p className="apex-radar-pi-compact-note">
                 {currentYear}: primary value · <strong>YoY %</strong> below · {previousYear} on hover over any cell.
             </p>
-            <table className={`${TABLE_CLASS} text-[11px] sm:text-xs`}>
+            <table className={TABLE_CLASS}>
                 <PiTableHeader firstColumnLabel={firstColLabel} variant="default" />
                 <tbody>
                     {currentYearRows.map((row, index) => {
                         const prev = previousYearRows[index];
                         const diff = diffRows[index];
                         return (
-                            <tr
-                                key={`c-${row.label}-${index}`}
-                                className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                            >
-                                <td className="px-3 py-2 whitespace-nowrap font-medium">{row.label}</td>
+                            <tr key={`c-${row.label}-${index}`}>
+                                <td className="font-medium">{row.label}</td>
                                 {flatKeys.map((k) => (
                                     <Cell
                                         key={k}
@@ -350,11 +332,8 @@ function CompactUnifiedTable({
                         );
                     })}
                     {currentFooter.map((fr, fi) => (
-                        <tr
-                            key={`cf-${fi}`}
-                            className="border-t-2 border-gray-300 bg-gray-100 font-semibold text-gray-900"
-                        >
-                            <td className="px-3 py-2 whitespace-nowrap">{fr.label}</td>
+                        <tr key={`cf-${fi}`} className="pi-footer">
+                            <td>{fr.label}</td>
                             {flatKeys.map((k) => (
                                 <Cell
                                     key={k}
@@ -418,37 +397,28 @@ export default function PerformanceInvestigatorMonthlyTables({
 
     if (loading && !currentYearRows.length) {
         return (
-            <section className="rounded-xl border border-gray-200 bg-white p-12 flex flex-col items-center gap-3" aria-busy="true">
-                <Spinner size={40} color="#406969" />
-                <p className="text-sm text-gray-500">Loading monthly metrics…</p>
-            </section>
+            <div className="apex-radar-pi-loader-panel">
+                <CobaltLoader variant="block" title="Loading monthly metrics" />
+            </div>
         );
     }
 
     return (
-        <section className="space-y-8" aria-label="Monthly performance tables">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 sm:px-5">
-                <p className="text-sm text-gray-700">
-                    <span className="font-semibold text-gray-900">Monthly metrics</span>
-                    <span className="hidden text-gray-500 sm:inline">
+        <section className="space-y-6" aria-label="Monthly performance tables">
+            <div className="apex-radar-pi-toolbar">
+                <p className="text-sm text-[var(--color-ink-2)]">
+                    <span className="font-semibold text-[var(--color-ink)]">Monthly metrics</span>
+                    <span className="hidden sm:inline text-[var(--color-muted)]">
                         {" · "}
                         {currentYear} vs {previousYear}
                     </span>
                 </p>
-                <div
-                    className="inline-flex shrink-0 rounded-lg border border-gray-200 bg-gray-100 p-0.5"
-                    role="group"
-                    aria-label="Table layout density"
-                >
+                <div className="apex-radar-segmented" role="group" aria-label="Table layout density">
                     <button
                         type="button"
                         onClick={() => setMonthlyViewMode("full")}
                         aria-pressed={monthlyViewMode === "full"}
-                        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] ${
-                            monthlyViewMode === "full"
-                                ? "bg-white text-gray-900 ring-1 ring-gray-200"
-                                : "text-gray-600 hover:text-gray-800"
-                        }`}
+                        className={`apex-radar-segmented__btn${monthlyViewMode === "full" ? " is-active" : ""}`}
                     >
                         Full
                     </button>
@@ -456,25 +426,17 @@ export default function PerformanceInvestigatorMonthlyTables({
                         type="button"
                         onClick={() => setMonthlyViewMode("compact")}
                         aria-pressed={monthlyViewMode === "compact"}
-                        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] ${
-                            monthlyViewMode === "compact"
-                                ? "bg-white text-gray-900 ring-1 ring-gray-200"
-                                : "text-gray-600 hover:text-gray-800"
-                        }`}
+                        className={`apex-radar-segmented__btn${monthlyViewMode === "compact" ? " is-active" : ""}`}
                     >
                         Compact
                     </button>
                 </div>
             </div>
 
-            {error ? (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                    {error}
-                </div>
-            ) : null}
+            {error ? <div className="apex-radar-alert">{error}</div> : null}
 
             {monthlyViewMode === "compact" ? (
-                <div className="rounded-xl border border-gray-200 bg-white p-6">
+                <div className="apex-radar-pi-section">
                     <CompactUnifiedTable
                         currentYear={currentYear}
                         previousYear={previousYear}
@@ -487,8 +449,8 @@ export default function PerformanceInvestigatorMonthlyTables({
                 </div>
             ) : (
                 <>
-                    <div className="rounded-xl border border-gray-200 bg-white p-6">
-                        <h3 className="mb-5 text-lg font-semibold text-gray-900">Monthly metrics ({currentYear})</h3>
+                    <div className="apex-radar-pi-section">
+                        <h3 className="apex-radar-pi-section__title">Monthly metrics ({currentYear})</h3>
                         <DataTable
                             yearLabel={String(currentYear)}
                             rows={currentYearRows}
@@ -497,8 +459,8 @@ export default function PerformanceInvestigatorMonthlyTables({
                         />
                     </div>
 
-                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-6">
-                        <h3 className="mb-5 text-lg font-semibold text-gray-900">Monthly metrics ({previousYear})</h3>
+                    <div className="apex-radar-pi-section apex-radar-pi-section--muted">
+                        <h3 className="apex-radar-pi-section__title">Monthly metrics ({previousYear})</h3>
                         <DataTable
                             yearLabel={String(previousYear)}
                             rows={previousYearRows}
@@ -507,8 +469,8 @@ export default function PerformanceInvestigatorMonthlyTables({
                         />
                     </div>
 
-                    <div className="rounded-xl border border-gray-200 bg-white p-6">
-                        <h3 className="mb-5 text-lg font-semibold text-gray-900">Difference (year over year)</h3>
+                    <div className="apex-radar-pi-section">
+                        <h3 className="apex-radar-pi-section__title">Difference (year over year)</h3>
                         <DiffTable rows={diffRows} />
                     </div>
                 </>

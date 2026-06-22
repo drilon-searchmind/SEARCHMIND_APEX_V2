@@ -8,10 +8,12 @@ import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import { usePnlData } from "./usePnlData";
 import PnlLeftSection from "./PnlLeftSection";
 import PnlChartsSidebar from "./PnlChartsSidebar";
+import PnlSummaryStrip from "./PnlSummaryStrip";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import { useShopifyMarketsFilter } from "@/hooks/useShopifyMarketsFilter";
 import { useAdSpendPlatformsFilter } from "@/hooks/useAdSpendPlatformsFilter";
+import "./pnl.css";
 
 export default function PNLPage() {
     const params = useParams();
@@ -81,8 +83,10 @@ export default function PNLPage() {
     );
 
     return (
-        <div className="w-full">
+        <div id="PnlPage" className="cobalt-perf w-full" data-theme="cobalt">
             <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
                 title="P&L Report"
                 label={customer ? customer.customerName : ""}
                 customerId={params.customerId}
@@ -152,10 +156,22 @@ export default function PNLPage() {
                         : null
                 }
                 right={
-                    <DateRangePicker {...dateRangePickerProps} loading={pnl.loading} />
+                    <DateRangePicker
+                        {...dateRangePickerProps}
+                        variant="cobalt"
+                        loading={pnl.loading}
+                    />
                 }
             />
-            <div className="flex flex-col md:flex-row gap-8 mt-4">
+
+            <PnlSummaryStrip
+                loading={pnl.loading}
+                result={pnl.result}
+                realizedROAS={pnl.realizedROAS}
+                breakEvenROAS={pnl.breakEvenROAS}
+            />
+
+            <div className="apex-pnl-layout">
                 <PnlLeftSection
                     loading={pnl.loading}
                     error={pnl.error}
@@ -185,8 +201,6 @@ export default function PNLPage() {
                     db3={pnl.db3}
                     fixedExpenses={pnl.fixedExpenses}
                     result={pnl.result}
-                    realizedROAS={pnl.realizedROAS}
-                    breakEvenROAS={pnl.breakEvenROAS}
                     db1CTSDisplay={pnl.db1CTSDisplay}
                     db2CTSDisplay={pnl.db2CTSDisplay}
                     db3CTSDisplay={pnl.db3CTSDisplay}
@@ -213,17 +227,19 @@ export default function PNLPage() {
                     fixedExpensesPrev={pnl.fixedExpensesPrev}
                     resultPrev={pnl.resultPrev}
                 />
-                <PnlChartsSidebar
-                    appliedDateRange={appliedDateRange}
-                    customerId={params.customerId}
-                    staticExpenses={pnl.staticExpenses}
-                    db1Pct={pnl.db1Pct}
-                    db2Pct={pnl.db2Pct}
-                    db3Pct={pnl.db3Pct}
-                    db1={pnl.db1}
-                    db2={pnl.db2}
-                    db3={pnl.db3}
-                />
+                <div className="apex-pnl-layout__aside">
+                    <PnlChartsSidebar
+                        appliedDateRange={appliedDateRange}
+                        customerId={params.customerId}
+                        staticExpenses={pnl.staticExpenses}
+                        db1Pct={pnl.db1Pct}
+                        db2Pct={pnl.db2Pct}
+                        db3Pct={pnl.db3Pct}
+                        db1={pnl.db1}
+                        db2={pnl.db2}
+                        db3={pnl.db3}
+                    />
+                </div>
             </div>
         </div>
     );

@@ -5,7 +5,7 @@ import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import MetricCard from "@/components/dashboard/MetricCard";
 import GraphCard from "@/components/dashboard/GraphCard";
-import Spinner from "@/components/ui/Spinner";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import {
     FiDollarSign,
     FiTrendingUp,
@@ -413,8 +413,10 @@ export default function ParentOverviewView({ sharedData }) {
     };
 
     return (
-        <div className="w-full">
+        <div id="ParentOverviewView" className="cobalt-perf w-full apex-parent-stack" data-theme="cobalt">
             <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
                 title="Performance Dashboard"
                 label={parentCustomer?.name || "Parent Property"}
                 customerId={parentCustomerId}
@@ -435,42 +437,38 @@ export default function ParentOverviewView({ sharedData }) {
                 }}
                 right={
                     <DateRangePicker
+                        variant="cobalt"
                         {...dateRangePickerProps}
                         loading={pageBusy ?? loading}
                     />
                 }
             />
 
-            <div className="mb-4 flex flex-wrap items-center gap-3">
-                <div className="flex border border-gray-200 bg-gray-100 rounded-lg overflow-hidden w-fit">
-                    <button
-                        type="button"
-                        disabled={pageBusy ?? loading}
-                        className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium focus:outline-none transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${viewMode === "standard" ? "bg-white text-[var(--color-primary-searchmind)] shadow-sm" : "text-gray-500 hover:text-[var(--color-primary-searchmind)]"}`}
-                        style={{ borderRadius: "8px 0 0 8px" }}
-                        onClick={() => setViewMode("standard")}
-                    >
-                        Standard
-                    </button>
-                    <button
-                        type="button"
-                        disabled={pageBusy ?? loading}
-                        className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium focus:outline-none transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${viewMode === "custom" ? "bg-white text-[var(--color-primary-searchmind)] shadow-sm" : "text-gray-500 hover:text-[var(--color-primary-searchmind)]"}`}
-                        style={{ borderRadius: "0 8px 8px 0" }}
-                        onClick={() => setViewMode("custom")}
-                    >
-                        Custom
-                    </button>
-                </div>
-                {/* Show calcs button hidden for now */}
+            <div className="apex-perf-segment">
+                <button
+                    type="button"
+                    disabled={pageBusy ?? loading}
+                    className={`apex-perf-segment__btn${viewMode === "standard" ? " is-active" : ""}`}
+                    onClick={() => setViewMode("standard")}
+                >
+                    Standard
+                </button>
+                <button
+                    type="button"
+                    disabled={pageBusy ?? loading}
+                    className={`apex-perf-segment__btn${viewMode === "custom" ? " is-active" : ""}`}
+                    onClick={() => setViewMode("custom")}
+                >
+                    Custom
+                </button>
             </div>
 
             {viewMode === "standard" ? (
                 <>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
                         {loading ? (
-                            <div className="col-span-full text-center py-12">
-                                <Spinner size={40} color="#406969" />
+                            <div className="col-span-full apex-parent-loader-panel">
+                                <CobaltLoader variant="block" title="Loading performance metrics" />
                             </div>
                         ) : (
                             STANDARD_SECTIONS.map((section) => {
@@ -487,32 +485,42 @@ export default function ParentOverviewView({ sharedData }) {
                                 const pctOfTotal = revenue > 0 ? ((primaryValue / revenue) * 100).toFixed(1) : "0";
 
                                 return (
-                                    <div
-                                        key={section.key}
-                                        className="flex flex-col rounded-xl border border-gray-200 bg-white overflow-hidden"
-                                    >
-                                        <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
-                                            <div className="text-sm font-medium text-gray-500 mb-1">{section.title}</div>
-                                            <div className="flex items-end justify-between gap-2">
-                                                <span className="text-2xl font-bold text-[var(--color-primary-searchmind)]">
+                                    <div key={section.key} className="apex-perf-section">
+                                        <div className="apex-perf-section__head">
+                                            <div className="apex-perf-section__eyebrow">{section.title}</div>
+                                            <div className="apex-perf-section__value-row">
+                                                <span className="apex-perf-section__value">
                                                     {primaryMetric?.value ?? "-"}
                                                 </span>
-                                                {revenue > 0 && (primaryMetric?.key === "revenue" || primaryMetric?.key === "total_expenses" || primaryMetric?.key === "ebit") && (
-                                                    <span className="text-xs text-gray-500 tabular-nums">
-                                                        {primaryMetric?.key === "revenue" ? `${pctOfTotal}% of total sales` : primaryMetric?.key === "total_expenses" ? `${pctOfTotal}% spend of revenue` : primaryMetric?.key === "ebit" ? `${pctOfTotal}% margin` : ""}
+                                                {revenue > 0 &&
+                                                (primaryMetric?.key === "revenue" ||
+                                                    primaryMetric?.key === "total_expenses" ||
+                                                    primaryMetric?.key === "ebit") ? (
+                                                    <span className="apex-perf-section__sub tabular-nums">
+                                                        {primaryMetric?.key === "revenue"
+                                                            ? `${pctOfTotal}% of total sales`
+                                                            : primaryMetric?.key === "total_expenses"
+                                                              ? `${pctOfTotal}% spend of revenue`
+                                                              : primaryMetric?.key === "ebit"
+                                                                ? `${pctOfTotal}% margin`
+                                                                : ""}
                                                     </span>
-                                                )}
+                                                ) : null}
                                             </div>
-                                            {primaryMetric?.change !== undefined && (
-                                                <div className="mt-2 flex items-center gap-1">
+                                            {primaryMetric?.change !== undefined ? (
+                                                <div className="mt-2">
                                                     <span
-                                                        className={`text-[0.65rem] rounded-sm font-medium flex items-center justify-end gap-1 px-2 py-1 tabular-nums ${primaryMetric.changeType === "up" ? "text-green-600 bg-green-50" : "text-red-600 bg-red-50"}`}
+                                                        className={`apex-perf-change${primaryMetric.changeType === "up" ? " is-up" : primaryMetric.changeType === "down" ? " is-down" : ""}`}
                                                     >
-                                                        {primaryMetric.changeType === "up" ? <FiTrendingUp className="text-sm" /> : <FiTrendingDown className="text-sm" />}
+                                                        {primaryMetric.changeType === "up" ? (
+                                                            <FiTrendingUp aria-hidden />
+                                                        ) : primaryMetric.changeType === "down" ? (
+                                                            <FiTrendingDown aria-hidden />
+                                                        ) : null}
                                                         {primaryMetric.change}%
                                                     </span>
                                                 </div>
-                                            )}
+                                            ) : null}
                                         </div>
 
                                         {showCalcs && primaryMetric?.popOverContent && (
@@ -551,26 +559,31 @@ export default function ParentOverviewView({ sharedData }) {
                                             </div>
                                         )}
 
-                                        <div className="flex flex-col divide-y divide-gray-100">
-                                            {sectionMetrics.slice(1).map((metric) => {
-                                                const hasCalc = showCalcs && metric.popOverContent;
-                                                const calcLines = metric.popOverContent ? metric.popOverContent.split("\n").map((l) => l.trim()).filter((l) => l && l.startsWith("=") && /\d/.test(l)) : [];
-
-                                                return (
-                                                    <div key={metric.key} className="px-5 py-3 flex items-center justify-between gap-4 hover:bg-gray-50/50">
-                                                        <span className="text-sm font-medium text-gray-700">{metric.label}</span>
+                                        <div className="apex-perf-section__rows">
+                                            {sectionMetrics.slice(1).map((metric) => (
+                                                <div key={metric.key} className="apex-perf-section__row">
+                                                    <div className="apex-perf-section__row-inner">
+                                                        <span className="apex-perf-section__row-label">
+                                                            {metric.label}
+                                                        </span>
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-sm font-semibold tabular-nums text-gray-900">{metric.value}</span>
+                                                            <span className="apex-perf-section__row-value">
+                                                                {metric.value}
+                                                            </span>
                                                             <span
-                                                                className={`text-[0.65rem] rounded-sm font-medium flex items-center justify-end gap-0.5 px-1.5 py-0.5 min-w-[4rem] tabular-nums ${metric.changeType === "up" ? "text-green-600 bg-green-50" : metric.changeType === "down" ? "text-red-600 bg-red-50" : "text-gray-600 bg-gray-100"}`}
+                                                                className={`apex-perf-change${metric.changeType === "up" ? " is-up" : metric.changeType === "down" ? " is-down" : ""}`}
                                                             >
-                                                                {metric.changeType === "up" ? <FiTrendingUp className="text-xs" /> : metric.changeType === "down" ? <FiTrendingDown className="text-xs" /> : null}
+                                                                {metric.changeType === "up" ? (
+                                                                    <FiTrendingUp aria-hidden />
+                                                                ) : metric.changeType === "down" ? (
+                                                                    <FiTrendingDown aria-hidden />
+                                                                ) : null}
                                                                 {(metric.change ?? 0)}%
                                                             </span>
                                                         </div>
                                                     </div>
-                                                );
-                                            })}
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 );
@@ -578,33 +591,36 @@ export default function ParentOverviewView({ sharedData }) {
                         )}
                     </div>
 
-                    <div className="w-full mb-8">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                            <div className="flex flex-wrap items-center gap-2">
-                                {METRIC_OPTIONS.map((opt) => (
-                                    <button
-                                        key={opt.key}
-                                        type="button"
-                                        disabled={pageBusy ?? loading}
-                                        className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${selectedMetrics.includes(opt.key) ? "bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]" : "bg-white text-gray-700 border-gray-200 hover:bg-gray-100"}`}
-                                        onClick={() =>
-                                            setSelectedMetrics((prev) =>
-                                                prev.includes(opt.key) ? (prev.length > 1 ? prev.filter((k) => k !== opt.key) : prev) : [...prev, opt.key]
-                                            )
-                                        }
-                                    >
-                                        {opt.label}
-                                    </button>
-                                ))}
-                            </div>
+                    <div className="w-full">
+                        <div className="flex flex-wrap items-center gap-2 mb-4">
+                            {METRIC_OPTIONS.map((opt) => (
+                                <button
+                                    key={opt.key}
+                                    type="button"
+                                    disabled={pageBusy ?? loading}
+                                    className={`apex-perf-chip${selectedMetrics.includes(opt.key) ? " is-active" : ""}`}
+                                    onClick={() =>
+                                        setSelectedMetrics((prev) =>
+                                            prev.includes(opt.key)
+                                                ? prev.length > 1
+                                                    ? prev.filter((k) => k !== opt.key)
+                                                    : prev
+                                                : [...prev, opt.key]
+                                        )
+                                    }
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
                         </div>
 
                         {(chartBusy ?? chartLoading) ? (
-                            <div className="flex items-center justify-center h-64">
-                                <Spinner size={40} color="#406969" />
+                            <div className="apex-parent-loader-panel h-64">
+                                <CobaltLoader variant="block" title="Updating chart" />
                             </div>
                         ) : (
                             <GraphCard
+                                variant="cobalt"
                                 title={
                                     selectedMetrics.length === 1
                                         ? `${METRIC_OPTIONS.find((o) => o.key === selectedMetrics[0])?.label} Over Time`
@@ -653,8 +669,11 @@ export default function ParentOverviewView({ sharedData }) {
                     />
                 </>
             ) : (
-                <div className="flex items-center justify-center min-h-[300px] text-gray-500 rounded-xl border border-gray-200 bg-gray-50/50">
-                    <p className="text-sm">Custom view (KPIs) is available for single-property dashboards.</p>
+                <div className="apex-parent-stub">
+                    <h2 className="apex-parent-stub__title">Custom view</h2>
+                    <p className="apex-parent-stub__text">
+                        Custom KPIs are available for single-property dashboards.
+                    </p>
                 </div>
             )}
         </div>

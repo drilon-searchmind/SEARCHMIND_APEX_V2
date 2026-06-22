@@ -9,14 +9,14 @@ function SettingsSection({ title, icon: Icon, children, sectionId }) {
     return (
         <section
             id={sectionId}
-            className={`mb-8 last:mb-0 ${sectionId ? "scroll-mt-24" : ""}`}
+            className={`apex-config-section${sectionId ? " scroll-mt-24" : ""}`}
         >
-            <div className="bg-gray-50 p-8 rounded-xl border border-gray-200">
-                <h6 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4 pb-2 border-b border-gray-200 flex items-center gap-2">
-                    {Icon && <Icon className="w-4 h-4 text-[var(--color-primary-searchmind)]" />}
+            <div className="apex-config-section__panel">
+                <h6 className="apex-config-section__head">
+                    {Icon && <Icon className="w-4 h-4" />}
                     {title}
                 </h6>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
+                <div className="apex-config-section__grid">{children}</div>
             </div>
         </section>
     );
@@ -29,18 +29,15 @@ function scrollToSection(id) {
 
 function TableOfContents({ items }) {
     return (
-        <nav
-            aria-label="On this page"
-            className="mb-8 rounded-xl border border-gray-200 bg-white p-4"
-        >
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">On this page</p>
-            <ul className="flex flex-wrap gap-2">
+        <nav aria-label="On this page" className="apex-config-toc">
+            <p className="apex-config-toc__label">On this page</p>
+            <ul className="apex-config-toc__list">
                 {items.map(({ id, label }) => (
                     <li key={id}>
                         <button
                             type="button"
                             onClick={() => scrollToSection(id)}
-                            className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-left text-sm font-medium text-gray-700 transition-colors hover:border-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind-lighter)] hover:text-gray-900"
+                            className="apex-config-toc__btn"
                         >
                             {label}
                         </button>
@@ -74,13 +71,7 @@ function FormSelect({ id, name, label, value, onChange, options }) {
     return (
         <div>
             <FormLabel htmlFor={id}>{label}</FormLabel>
-            <select
-                id={id}
-                name={name}
-                value={value}
-                onChange={onChange}
-                className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20"
-            >
+            <select id={id} name={name} value={value} onChange={onChange}>
                 {options.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                         {opt.label}
@@ -93,14 +84,13 @@ function FormSelect({ id, name, label, value, onChange, options }) {
 
 function FormCheckbox({ id, name, label, checked, onChange }) {
     return (
-        <div className="flex items-center gap-2">
+        <div className="apex-config-checkbox-row">
             <input
                 id={id}
                 name={name}
                 type="checkbox"
                 checked={checked || false}
                 onChange={onChange}
-                className="rounded border-gray-300"
             />
             <FormLabel htmlFor={id}>{label}</FormLabel>
         </div>
@@ -123,21 +113,19 @@ function Ga4SetupHint() {
     }, []);
 
     return (
-        <div className="md:col-span-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+        <div className="apex-config-hint apex-config-hint--info apex-config-col-full">
             <p className="font-medium mb-1">GA4 access setup</p>
-            <p className="text-blue-800 mb-2">
+            <p className="mb-2">
                 APEX reads GA4 via a Google service account. In Google Analytics, open{" "}
                 <strong>Admin → Property access management</strong> and add this email as{" "}
                 <strong>Viewer</strong> on the client&apos;s property:
             </p>
             {serviceAccountEmail ? (
-                <code className="block text-xs bg-white border border-blue-200 rounded px-2 py-1 break-all">
-                    {serviceAccountEmail}
-                </code>
+                <code>{serviceAccountEmail}</code>
             ) : (
-                <p className="text-xs text-blue-700">Service account email not configured on server.</p>
+                <p className="apex-config-field-hint">Service account email not configured on server.</p>
             )}
-            <p className="text-xs text-blue-700 mt-2">
+            <p className="apex-config-field-hint mt-2">
                 Use the numeric Property ID (Admin → Property settings), not the G-XXXX Measurement ID.
             </p>
         </div>
@@ -178,7 +166,7 @@ export default function CustomerSettingsForm({
     ];
 
     return (
-        <form className="flex flex-col" onSubmit={(e) => e.preventDefault()}>
+        <form className="apex-config-form" onSubmit={(e) => e.preventDefault()}>
             <TableOfContents items={tocItems} />
 
             {/* General */}
@@ -271,7 +259,7 @@ export default function CustomerSettingsForm({
                         onChange={onChange}
                     />
                     {shopifyMarketsOn ? (
-                        <p className="col-span-full text-xs text-gray-600 leading-snug">
+                        <p className="apex-config-col-full apex-config-field-hint leading-snug">
                             Shopify Analytics revenue uses the full store (billing-country include/exclude below is ignored).
                             Listing markets requires the Admin API scope read_markets.
                         </p>

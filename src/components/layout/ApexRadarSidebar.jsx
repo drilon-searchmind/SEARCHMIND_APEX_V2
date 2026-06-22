@@ -16,37 +16,23 @@ import {
 } from "@/lib/apexRadarChannels";
 import ApexRadarPerformanceInvestigatorCustomerModal from "@/components/apex-radar/ApexRadarPerformanceInvestigatorCustomerModal";
 
-const ApexNavLink = ({ href, label, icon: Icon, pathname, isSmallScreen, isActive }) => {
+const ApexNavLink = ({ href, label, icon: Icon, isSmallScreen, isActive }) => {
     return (
-        <li
-            className={
-                `py-2 rounded-lg w-full group relative ` +
-                (isSmallScreen ? "px-2" : "px-6") +
-                (isActive ? " bg-[var(--color-primary-searchmind-lighter)]" : "")
-            }
-        >
-            <Link href={href} className="w-full">
-                <span
-                    className={`flex items-center justify-between text-[0.85rem] font-medium ${
-                        isActive ? "text-white" : "text-slate-600"
-                    }`}
-                >
-                    {isSmallScreen ? (
-                        <>
-                            <span className="flex items-center gap-0.5">
-                                <Icon className="w-4 h-4" />
-                            </span>
-                            <div className="absolute left-[70px] bg-gray-900 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
-                                {label}
-                            </div>
-                        </>
-                    ) : (
-                        <span className="flex items-center gap-2">
-                            <Icon className="w-4 h-4 shrink-0" />
-                            {label}
+        <li className={`apex-dash-nav__item${isActive ? " is-active" : ""}${isSmallScreen ? " is-collapsed" : ""}`}>
+            <Link href={href} className="apex-dash-nav__link">
+                {isSmallScreen ? (
+                    <>
+                        <span className="apex-dash-nav__link-main">
+                            <Icon className="w-4 h-4" aria-hidden />
                         </span>
-                    )}
-                </span>
+                        <span className="apex-dash-nav__tooltip">{label}</span>
+                    </>
+                ) : (
+                    <span className="apex-dash-nav__link-main">
+                        <Icon className="w-4 h-4 shrink-0" aria-hidden />
+                        <span>{label}</span>
+                    </span>
+                )}
             </Link>
         </li>
     );
@@ -54,27 +40,23 @@ const ApexNavLink = ({ href, label, icon: Icon, pathname, isSmallScreen, isActiv
 
 const ApexNavPlaceholder = ({ label, icon: Icon, isSmallScreen }) => (
     <li
-        className={`py-2 rounded-lg w-full group relative opacity-65 ${isSmallScreen ? "px-2" : "px-6"}`}
+        className={`apex-dash-nav__item opacity-65${isSmallScreen ? " is-collapsed" : ""}`}
         title="Coming soon"
     >
-        <span className="w-full cursor-default block">
-            <span className="flex items-center justify-between text-[0.85rem] font-medium text-slate-500">
-                {isSmallScreen ? (
-                    <>
-                        <span className="flex items-center gap-0.5">
-                            <Icon className="w-4 h-4" />
-                        </span>
-                        <div className="absolute left-[70px] bg-gray-900 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
-                            {label}
-                        </div>
-                    </>
-                ) : (
-                    <span className="flex items-center gap-2">
-                        <Icon className="w-4 h-4 shrink-0" />
-                        {label}
+        <span className="apex-dash-nav__link cursor-default">
+            {isSmallScreen ? (
+                <>
+                    <span className="apex-dash-nav__link-main">
+                        <Icon className="w-4 h-4" aria-hidden />
                     </span>
-                )}
-            </span>
+                    <span className="apex-dash-nav__tooltip">{label}</span>
+                </>
+            ) : (
+                <span className="apex-dash-nav__link-main">
+                    <Icon className="w-4 h-4 shrink-0" aria-hidden />
+                    <span>{label}</span>
+                </span>
+            )}
         </span>
     </li>
 );
@@ -82,26 +64,18 @@ const ApexNavPlaceholder = ({ label, icon: Icon, isSmallScreen }) => (
 function ApexRadarChannelSwitcher({ channel, customerId, isSmallScreen }) {
     if (isSmallScreen) {
         return (
-            <div className="mt-auto pt-3 border-t border-gray-200/30 px-1 pb-3 space-y-2">
+            <div className="apex-radar-sidebar__switch-compact">
                 <Link
                     href={apexRadarOverviewHref(APEX_RADAR_CHANNEL_FACEBOOK, customerId)}
                     title={APEX_RADAR_CHANNEL_META[APEX_RADAR_CHANNEL_FACEBOOK].label}
-                    className={`flex justify-center rounded-md py-2 text-[0.65rem] font-bold ${
-                        channel === APEX_RADAR_CHANNEL_FACEBOOK
-                            ? "bg-[var(--color-primary-searchmind-lighter)] text-white"
-                            : "text-slate-600 hover:bg-white/10"
-                    }`}
+                    className={channel === APEX_RADAR_CHANNEL_FACEBOOK ? "is-active" : ""}
                 >
                     PS
                 </Link>
                 <Link
                     href={apexRadarOverviewHref(APEX_RADAR_CHANNEL_GOOGLE_ADS, customerId)}
                     title={APEX_RADAR_CHANNEL_META[APEX_RADAR_CHANNEL_GOOGLE_ADS].label}
-                    className={`flex justify-center rounded-md py-2 text-[0.65rem] font-bold ${
-                        channel === APEX_RADAR_CHANNEL_GOOGLE_ADS
-                            ? "bg-[var(--color-primary-searchmind-lighter)] text-white"
-                            : "text-slate-600 hover:bg-white/10"
-                    }`}
+                    className={channel === APEX_RADAR_CHANNEL_GOOGLE_ADS ? "is-active" : ""}
                 >
                     Ads
                 </Link>
@@ -110,32 +84,24 @@ function ApexRadarChannelSwitcher({ channel, customerId, isSmallScreen }) {
     }
 
     return (
-        <div className="mt-auto pt-4 border-t border-gray-200/30 pb-6 shrink-0">
-            <p className="text-gray-400 mb-2 uppercase text-xs">Platform</p>
-            <div className="flex rounded-lg border border-gray-300/80 bg-white/10 overflow-hidden p-0.5 gap-0.5">
+        <div className="apex-radar-sidebar__platform shrink-0">
+            <p className="apex-dash-sidebar__menu-label">Platform</p>
+            <div className="apex-radar-sidebar__switch">
                 <Link
                     href={apexRadarOverviewHref(APEX_RADAR_CHANNEL_FACEBOOK, customerId)}
-                    className={`flex-1 text-center rounded-md py-2 text-xs font-semibold transition-colors ${
-                        channel === APEX_RADAR_CHANNEL_FACEBOOK
-                            ? "bg-[var(--color-primary-searchmind-lighter)] text-white"
-                            : "text-slate-700 hover:bg-white/20"
-                    }`}
+                    className={channel === APEX_RADAR_CHANNEL_FACEBOOK ? "is-active" : ""}
                 >
                     {APEX_RADAR_CHANNEL_META[APEX_RADAR_CHANNEL_FACEBOOK].shortLabel}
                 </Link>
                 <Link
                     href={apexRadarOverviewHref(APEX_RADAR_CHANNEL_GOOGLE_ADS, customerId)}
-                    className={`flex-1 text-center rounded-md py-2 text-xs font-semibold transition-colors ${
-                        channel === APEX_RADAR_CHANNEL_GOOGLE_ADS
-                            ? "bg-[var(--color-primary-searchmind-lighter)] text-white"
-                            : "text-slate-700 hover:bg-white/20"
-                    }`}
+                    className={channel === APEX_RADAR_CHANNEL_GOOGLE_ADS ? "is-active" : ""}
                 >
                     {APEX_RADAR_CHANNEL_META[APEX_RADAR_CHANNEL_GOOGLE_ADS].shortLabel}
                 </Link>
             </div>
             {!channel && (
-                <p className="text-[0.65rem] text-gray-500 mt-2 leading-snug">
+                <p className="apex-radar-sidebar__platform-hint">
                     Choose PS or GAds after opening a platform from the picker.
                 </p>
             )}
@@ -143,9 +109,6 @@ function ApexRadarChannelSwitcher({ channel, customerId, isSmallScreen }) {
     );
 }
 
-/**
- * Dashboard-style sidebar for Apex Radar routes (same shell as {@link Sidebar}, different links).
- */
 export default function ApexRadarSidebar() {
     const [radarOpen, setRadarOpen] = useState(true);
     const [isSmallScreen, setIsSmallScreen] = useState(false);
@@ -169,57 +132,48 @@ export default function ApexRadarSidebar() {
     return (
         <aside
             id="apexRadarSidebar"
-            className={`flex flex-col min-h-0 h-full xl:mt-0 top-0 left-0 bg-[var(--color-primary-searchmind)] text-gray-900 transition-all duration-300 ease-in-out z-50 border-r border-gray-200 ${
-                isSmallScreen ? "w-[50px] px-2" : "w-[300px] px-8"
-            }`}
+            className={`apex-dash-sidebar ${isSmallScreen ? "is-collapsed" : "is-expanded"}`}
         >
-            <div className={`py-8 flex justify-start shrink-0 ${isSmallScreen ? "mb-0" : "mb-0"}`}>
-                <Link href="/" className="flex flex-col gap-0">
-                    <span className="flex items-end gap-2">
-                        <Image
-                            id="logoApex"
-                            src="/images/icons/apex-icon-svg.svg"
-                            alt="Apex Icon"
-                            width={20}
-                            height={20}
-                            className="mb-0 h-auto"
-                        />
-                        <h2 className="text-xl font-bold hidden xl:block">Apex</h2>
-                    </span>
-                    {!isSmallScreen && <p className="text-gray-400 text-xs">by Searchmind</p>}
-                </Link>
-            </div>
+            <Link href="/home" className="apex-dash-sidebar__brand">
+                <span className="apex-dash-sidebar__brand-mark">
+                    <Image
+                        src="/images/icons/apex-icon-svg.svg"
+                        alt=""
+                        width={20}
+                        height={20}
+                        aria-hidden
+                    />
+                    {!isSmallScreen && (
+                        <span className="apex-dash-sidebar__brand-name">Apex</span>
+                    )}
+                </span>
+            </Link>
 
-            {!isSmallScreen && (
-                <div className="shrink-0">
-                    <p className="text-gray-400 mb-4 uppercase text-xs">Menu</p>
-                </div>
-            )}
+            {!isSmallScreen && <p className="apex-dash-sidebar__menu-label">Menu</p>}
 
-            <div className="flex-1 min-h-0 flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
-                <nav className="mb-6 shrink-0">
-                    <ul className="space-y-4">
+            <div className="apex-dash-sidebar__scroll no-scrollbar">
+                <nav>
+                    <ul className="apex-dash-nav">
                         <li>
-                            <button
-                                type="button"
-                                className={`mb-3 flex items-center justify-between w-full text-left text-gray-600 hover:text-gray-800 group ${
-                                    isSmallScreen ? "hidden" : ""
-                                }`}
-                                onClick={() => setRadarOpen(!radarOpen)}
-                            >
-                                <span className="flex items-center text-slate-800 font-medium rounded-lg w-full">
-                                    <LuRadar className={isSmallScreen ? "" : "mr-2"} />
-                                    {!isSmallScreen && "Apex Radar"}
-                                </span>
-                                {!isSmallScreen && (radarOpen ? <FiChevronUp /> : <FiChevronDown />)}
-                            </button>
-                            {radarOpen && (
-                                <ul className={`mt-2 space-y-2 flex flex-col w-full ${isSmallScreen ? "ml-0" : ""}`}>
+                            {!isSmallScreen && (
+                                <button
+                                    type="button"
+                                    className="apex-dash-nav__section-btn"
+                                    onClick={() => setRadarOpen(!radarOpen)}
+                                >
+                                    <span className="apex-dash-nav__section-label">
+                                        <LuRadar className="apex-dash-nav__section-icon" aria-hidden />
+                                        Apex Radar
+                                    </span>
+                                    {radarOpen ? <FiChevronUp /> : <FiChevronDown />}
+                                </button>
+                            )}
+                            {(radarOpen || isSmallScreen) && (
+                                <ul className="apex-dash-nav__sub">
                                     <ApexNavLink
                                         href={overviewHref}
                                         label="Overview"
                                         icon={FiBarChart}
-                                        pathname={pathname}
                                         isSmallScreen={isSmallScreen}
                                         isActive={overviewActive}
                                     />
@@ -228,46 +182,35 @@ export default function ApexRadarSidebar() {
                                             href={performanceInvestigatorHref}
                                             label="Performance Investigator"
                                             icon={FiSearch}
-                                            pathname={pathname}
                                             isSmallScreen={isSmallScreen}
                                             isActive={performanceInvestigatorActive}
                                         />
                                     ) : (
                                         <li
-                                            className={
-                                                `py-2 rounded-lg w-full group relative ` +
-                                                (isSmallScreen ? "px-2" : "px-6") +
-                                                (performanceInvestigatorActive
-                                                    ? " bg-[var(--color-primary-searchmind-lighter)]"
-                                                    : "")
-                                            }
+                                            className={`apex-dash-nav__item${
+                                                performanceInvestigatorActive ? " is-active" : ""
+                                            }${isSmallScreen ? " is-collapsed" : ""}`}
                                         >
                                             <button
                                                 type="button"
-                                                className="w-full"
+                                                className="apex-dash-nav__link w-full"
                                                 onClick={() => setPerformanceInvestigatorModalOpen(true)}
                                             >
-                                                <span
-                                                    className={`flex items-center justify-between text-[0.85rem] font-medium ${
-                                                        performanceInvestigatorActive ? "text-white" : "text-slate-600"
-                                                    }`}
-                                                >
-                                                    {isSmallScreen ? (
-                                                        <>
-                                                            <span className="flex items-center gap-0.5">
-                                                                <FiSearch className="w-4 h-4" />
-                                                            </span>
-                                                            <div className="absolute left-[70px] bg-gray-900 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
-                                                                Performance Investigator
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        <span className="flex items-center gap-2">
-                                                            <FiSearch className="w-4 h-4 shrink-0" />
+                                                {isSmallScreen ? (
+                                                    <>
+                                                        <span className="apex-dash-nav__link-main">
+                                                            <FiSearch className="w-4 h-4" aria-hidden />
+                                                        </span>
+                                                        <span className="apex-dash-nav__tooltip">
                                                             Performance Investigator
                                                         </span>
-                                                    )}
-                                                </span>
+                                                    </>
+                                                ) : (
+                                                    <span className="apex-dash-nav__link-main">
+                                                        <FiSearch className="w-4 h-4 shrink-0" aria-hidden />
+                                                        <span>Performance Investigator</span>
+                                                    </span>
+                                                )}
                                             </button>
                                         </li>
                                     )}
@@ -281,9 +224,13 @@ export default function ApexRadarSidebar() {
                         </li>
                     </ul>
                 </nav>
-
-                <ApexRadarChannelSwitcher channel={channel} customerId={customerId} isSmallScreen={isSmallScreen} />
             </div>
+
+            <ApexRadarChannelSwitcher
+                channel={channel}
+                customerId={customerId}
+                isSmallScreen={isSmallScreen}
+            />
 
             <ApexRadarPerformanceInvestigatorCustomerModal
                 open={performanceInvestigatorModalOpen}

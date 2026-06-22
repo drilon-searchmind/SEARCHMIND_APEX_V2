@@ -1,22 +1,12 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import MetricCard from "@/components/dashboard/MetricCard";
 import GraphCard from "@/components/dashboard/GraphCard";
-import Spinner from "@/components/ui/Spinner";
-import {
-    FiTrendingUp,
-    FiShoppingCart,
-    FiEye,
-    FiMousePointer,
-    FiPercent,
-    FiArrowDownRight,
-    FiArrowUpRight,
-    FiDollarSign,
-} from "react-icons/fi";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { useCustomers } from "@/hooks/useCustomers";
 import dayjs from "dayjs";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
@@ -26,26 +16,69 @@ import {
     resolveDailyComparisonDate,
     COMPARISON_METHOD,
 } from "@/lib/dateRangeComparison";
+import PsSortableMetricsTable from "../ps/components/PsSortableMetricsTable";
+import {
+    CHART_TOGGLE_ROW1,
+    CHART_TOGGLE_ROW2,
+    METRIC_OPTIONS,
+    CAMPAIGN_TABLE_COLUMNS,
+} from "./components/bingDashboardConfig";
+import "./bing-dashboard.css";
 
-const METRIC_OPTIONS = [
-    { key: "ad_spend", label: "Ad spend", icon: FiTrendingUp },
-    { key: "conversions", label: "Conversions", icon: FiShoppingCart },
-    { key: "impressions", label: "Impressions", icon: FiEye },
-    { key: "clicks", label: "Clicks", icon: FiMousePointer },
-    { key: "conversion_value", label: "Conversion value", icon: FiDollarSign },
-    { key: "ctr", label: "CTR", icon: FiPercent },
-    { key: "cpc", label: "CPC", icon: FiArrowDownRight },
-    { key: "cpm", label: "CPM", icon: FiArrowUpRight },
-];
+function aggregateMetric(key, data) {
+    if (!data?.length) return null;
+    if (key === "conversions") {
+        return data.reduce((sum, row) => sum + (Number(row.conversions) || 0), 0);
+    }
+    if (key === "conversion_value") {
+        return data.reduce((sum, row) => sum + (Number(row.conversion_value) || 0), 0);
+    }
+    if (key === "ctr") {
+        const totalClicks = data.reduce((sum, row) => sum + (row.clicks || 0), 0);
+        const totalImpressions = data.reduce((sum, row) => sum + (row.impressions || 0), 0);
+        return totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : null;
+    }
+    return data.reduce((sum, row) => sum + (Number(row[key]) || 0), 0);
+}
+
+function formatKpiValue(key, value, opt = {}) {
+    if (value === null || value === undefined || Number.isNaN(value)) return "—";
+    if (opt.isPercent || key === "ctr") {
+        return `${Number(value).toLocaleString("da-DK", { maximumFractionDigits: 2 })}%`;
+    }
+    if (key === "ad_spend" || key === "conversion_value" || key === "cpc" || key === "cpm" || opt.isCurrency) {
+        return Number(value).toLocaleString("da-DK", {
+            style: "currency",
+            currency: "DKK",
+            maximumFractionDigits: opt.decimals ?? (key === "cpc" || key === "cpm" ? 2 : 0),
+            minimumFractionDigits: opt.decimals ?? (key === "cpc" || key === "cpm" ? 2 : 0),
+        });
+    }
+    return Number(value).toLocaleString("da-DK", { maximumFractionDigits: 0 });
+}
+
+function getDailyValue(row, key) {
+    if (!row) return null;
+    if (key === "ctr" && row.impressions > 0) {
+        return ((row.clicks || 0) / row.impressions) * 100;
+    }
+    const val = row[key];
+    if (typeof val !== "number" || Number.isNaN(val)) return val ?? null;
+    return key === "ctr" ? Number(val.toFixed(2)) : Math.round(val);
+}
 
 export default function BingAdsServiceDashboardPage() {
     const params = useParams();
+    const searchParams = useSearchParams();
+    const rangeStartQ = searchParams.get("startDate");
+    const rangeEndQ = searchParams.get("endDate");
     const { customers } = useCustomers();
     const customer = customers.find((c) => c._id === params.customerId);
 
     const {
-        tempDateRange: tempRange,
+        setTempDateRange: setTempRange,
         appliedDateRange: appliedRange,
+        setAppliedDateRange: setAppliedRange,
         appliedCompareRange,
         comparisonMethod,
         comparisonLabel,
@@ -67,16 +100,20 @@ export default function BingAdsServiceDashboardPage() {
     const [topCampaigns, setTopCampaigns] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-
     const [selectedMetrics, setSelectedMetrics] = useState(["ad_spend"]);
 
     useEffect(() => {
-        if (selectedMetrics.length === 0) {
-            setSelectedMetrics(["ad_spend"]);
-        }
+        if (selectedMetrics.length === 0) setSelectedMetrics(["ad_spend"]);
     }, [selectedMetrics]);
 
-    /** When the API has no rows for the range, still show one point per day at 0 (server also fills; this covers edge cases). */
+    useEffect(() => {
+        if (rangeStartQ && rangeEndQ) {
+            setTempRange({ startDate: rangeStartQ, endDate: rangeEndQ });
+            setAppliedRange({ startDate: rangeStartQ, endDate: rangeEndQ });
+        }
+    }, [rangeStartQ, rangeEndQ, setTempRange, setAppliedRange]);
+
+    /** When the API has no rows for the range, still show one point per day at 0. */
     const displayMetricsByDate = useMemo(() => {
         if (metricsByDate.length > 0) return metricsByDate;
         if (loading || error) return [];
@@ -120,50 +157,25 @@ export default function BingAdsServiceDashboardPage() {
                 const q = (s, e) =>
                     `startDate=${encodeURIComponent(s)}&endDate=${encodeURIComponent(e)}&dashboardCustomerId=${encodeURIComponent(String(customer._id))}`;
 
-                const fetches = [
-                    fetch(`/api/bing-dashboard?${q(appliedRange.startDate, appliedRange.endDate)}`),
-                ];
+                const fetches = [fetch(`/api/bing-dashboard?${q(appliedRange.startDate, appliedRange.endDate)}`)];
                 if (!compDates.skip && compDates.startDate && compDates.endDate) {
-                    fetches.push(
-                        fetch(`/api/bing-dashboard?${q(compDates.startDate, compDates.endDate)}`)
-                    );
+                    fetches.push(fetch(`/api/bing-dashboard?${q(compDates.startDate, compDates.endDate)}`));
                 }
-                const results = await Promise.all(fetches);
-                const curRes = results[0];
-                const prevRes = results[1];
+                const [curRes, prevRes] = await Promise.all(fetches);
 
                 if (!curRes.ok) {
                     const errJson = await curRes.json().catch(() => ({}));
                     throw new Error(errJson.error || "Failed to fetch Bing Ads dashboard metrics");
                 }
                 const metrics = await curRes.json();
-                const byDate = metrics.metrics_by_date || [];
-                const campaigns = metrics.top_campaigns || [];
-                setMetricsByDate(byDate);
-                setTopCampaigns(campaigns);
+                setMetricsByDate(metrics.metrics_by_date || []);
+                setTopCampaigns(metrics.top_campaigns || []);
 
-                if (prevRes.ok) {
+                if (prevRes?.ok) {
                     const metricsPrev = await prevRes.json();
                     setMetricsByDatePrev(metricsPrev.metrics_by_date || []);
                 } else {
                     setMetricsByDatePrev([]);
-                    const errPrev = await prevRes.json().catch(() => ({}));
-                    if (process.env.NODE_ENV === "development") {
-                        console.debug("[Bing dashboard] comparison period fetch failed", prevRes.status, errPrev);
-                    }
-                }
-
-                if (process.env.NODE_ENV === "development") {
-                    const spend = byDate.reduce((s, r) => s + (Number(r.ad_spend) || 0), 0);
-                    console.debug("[Bing dashboard]", {
-                        range: `${appliedRange.startDate}–${appliedRange.endDate}`,
-                        days: byDate.length,
-                        totalAdSpend: spend,
-                        topCampaigns: campaigns.length,
-                        sampleDay: byDate[0],
-                        comparison: comparisonMethod,
-                        prevOk: prevRes.ok,
-                    });
                 }
             } catch (err) {
                 setError(err.message);
@@ -174,13 +186,7 @@ export default function BingAdsServiceDashboardPage() {
                 setLoading(false);
             }
         })();
-    }, [
-        customer,
-        appliedRange.startDate,
-        appliedRange.endDate,
-        appliedCompareRange,
-        comparisonMethod,
-    ]);
+    }, [customer, appliedRange, appliedCompareRange, comparisonMethod]);
 
     const percentChange = (current, prev) => {
         if (prev === 0 || prev === null || prev === undefined) return null;
@@ -191,69 +197,75 @@ export default function BingAdsServiceDashboardPage() {
         return val > 0 ? "up" : val < 0 ? "down" : undefined;
     };
 
-    const metrics = useMemo(() => {
-        if (!displayMetricsByDate.length) return [];
+    const buildMetricCard = (opt) => {
+        const currentValue = aggregateMetric(opt.key, displayMetricsByDate);
+        const prevValue =
+            metricsByDatePrev.length > 0 ? aggregateMetric(opt.key, metricsByDatePrev) : null;
+        const change = percentChange(currentValue, prevValue);
+        const isActive = selectedMetrics.includes(opt.key);
+        const Icon = opt.icon;
 
-        const agg = (key, data) => {
-            if (key === "conversions") {
-                return data.reduce((sum, row) => sum + (row.conversions || 0), 0);
-            }
-            if (key === "conversion_value") {
-                return data.reduce((sum, row) => sum + (Number(row.conversion_value) || 0), 0);
-            }
-            if (key === "ctr") {
-                const totalClicks = data.reduce((sum, row) => sum + (row.clicks || 0), 0);
-                const totalImpressions = data.reduce((sum, row) => sum + (row.impressions || 0), 0);
-                return totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : null;
-            }
-            return data.reduce((sum, row) => sum + (row[key] || 0), 0);
-        };
+        return (
+            <div
+                key={opt.key}
+                className="apex-bing-kpi-card"
+                onClick={() =>
+                    setSelectedMetrics((prev) => {
+                        if (prev.includes(opt.key)) {
+                            return prev.length > 1 ? prev.filter((m) => m !== opt.key) : prev;
+                        }
+                        return [...prev, opt.key];
+                    })
+                }
+            >
+                <MetricCard
+                    variant="cobalt"
+                    label={opt.label}
+                    value={formatKpiValue(opt.key, currentValue, opt)}
+                    icon={Icon ? <Icon className="w-4 h-4 shrink-0" /> : null}
+                    isActive={isActive}
+                    change={change !== null ? Math.abs(change).toFixed(1) : undefined}
+                    changeType={changeType(change)}
+                    comparisonMethod={comparisonMethod}
+                />
+            </div>
+        );
+    };
 
-        return METRIC_OPTIONS.map((opt) => {
-            const currentValue = agg(opt.key, displayMetricsByDate);
-            const prevValue = metricsByDatePrev.length > 0 ? agg(opt.key, metricsByDatePrev) : null;
-            const change = percentChange(currentValue, prevValue);
-
-            return {
-                label: opt.label,
-                value: currentValue,
-                change: change !== null ? Math.abs(change).toFixed(1) : undefined,
-                changeType: changeType(change),
-            };
-        });
-    }, [displayMetricsByDate, metricsByDatePrev]);
+    const chartCategories = displayMetricsByDate.map((row) => row.date);
+    const metricsByDatePrevMap = Object.fromEntries(metricsByDatePrev.map((row) => [row.date, row]));
+    const sortedPrevDates = metricsByDatePrev.map((row) => row.date).sort();
 
     const { chartOptions, chartSeries } = useMemo(() => {
-        const chartCategories = displayMetricsByDate.map((row) => row.date);
-        const metricsByDatePrevMap = Object.fromEntries(metricsByDatePrev.map((row) => [row.date, row]));
         const series = [];
 
-        selectedMetrics.forEach((metricKey) => {
+        for (const metricKey of selectedMetrics) {
             const metricOption = METRIC_OPTIONS.find((opt) => opt.key === metricKey);
             series.push({
                 name: `${metricOption?.label || "Metric"} (Current)`,
-                data: chartCategories.map((date) => {
-                    const row = displayMetricsByDate.find((r) => r.date === date);
-                    if (!row) return null;
-                    let val = row[metricKey];
-                    if (metricKey === "ctr" && row.impressions > 0) {
-                        val = ((row.clicks || 0) / row.impressions) * 100;
-                    }
-                    if (typeof val === "number" && !isNaN(val)) {
-                        return metricKey === "ctr" ? Number(val.toFixed(2)) : Math.round(val);
-                    }
-                    return val ?? null;
-                }),
+                data: chartCategories.map((date) =>
+                    getDailyValue(
+                        displayMetricsByDate.find((r) => r.date === date),
+                        metricKey
+                    )
+                ),
+                meta: {
+                    key: metricKey,
+                    opt: metricOption,
+                    raw: chartCategories.map((date) =>
+                        getDailyValue(
+                            displayMetricsByDate.find((r) => r.date === date),
+                            metricKey
+                        )
+                    ),
+                },
             });
-        });
+        }
 
-        const sortedPrevDates = metricsByDatePrev.map((r) => r.date).sort();
         if (comparisonMethod !== COMPARISON_METHOD.NONE) {
-        selectedMetrics.forEach((metricKey) => {
-            const metricOption = METRIC_OPTIONS.find((opt) => opt.key === metricKey);
-            series.push({
-                name: `${metricOption?.label || "Metric"} (${comparisonLabel})`,
-                data: chartCategories.map((date) => {
+            for (const metricKey of selectedMetrics) {
+                const metricOption = METRIC_OPTIONS.find((opt) => opt.key === metricKey);
+                const prevRaw = chartCategories.map((date) => {
                     const prevDate = resolveDailyComparisonDate({
                         comparisonMethod,
                         currentDate: date,
@@ -261,32 +273,27 @@ export default function BingAdsServiceDashboardPage() {
                         appliedEndDate: appliedRange.endDate,
                         sortedPrevKeys: sortedPrevDates,
                     });
-
-                    const row = prevDate ? metricsByDatePrevMap[prevDate] : null;
-                    if (!row) return null;
-                    let val = row[metricKey];
-                    if (metricKey === "ctr" && row.impressions > 0) {
-                        val = ((row.clicks || 0) / row.impressions) * 100;
-                    }
-                    if (typeof val === "number" && !isNaN(val)) {
-                        return metricKey === "ctr" ? Number(val.toFixed(2)) : Math.round(val);
-                    }
-                    return val ?? null;
-                }),
-            });
-        });
+                    return getDailyValue(prevDate ? metricsByDatePrevMap[prevDate] : null, metricKey);
+                });
+                series.push({
+                    name: `${metricOption?.label || "Metric"} (${comparisonLabel})`,
+                    data: prevRaw,
+                    meta: { key: metricKey, opt: metricOption, raw: prevRaw },
+                });
+            }
         }
 
-        const selectedMetricsCount = selectedMetrics.length;
-        const strokeWidths = [...Array(selectedMetricsCount).fill(2), ...Array(selectedMetricsCount).fill(1)];
-        const strokeDashArrays = [...Array(selectedMetricsCount).fill(0), ...Array(selectedMetricsCount).fill(5)];
-        const fillOpacities = [...Array(selectedMetricsCount).fill(1), ...Array(selectedMetricsCount).fill(0.5)];
+        const selectedCount = selectedMetrics.length;
+        const compCount = comparisonMethod !== COMPARISON_METHOD.NONE ? selectedCount : 0;
+        const strokeWidths = [...Array(selectedCount).fill(2), ...Array(compCount).fill(1)];
+        const strokeDashArrays = [...Array(selectedCount).fill(0), ...Array(compCount).fill(5)];
+        const fillOpacities = [...Array(selectedCount).fill(1), ...Array(compCount).fill(0.5)];
 
         return {
             chartSeries: series,
             chartOptions: {
                 chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "Outfit, sans-serif" },
-                xaxis: { categories: chartCategories },
+                xaxis: { categories: chartCategories, labels: { rotate: -45 } },
                 yaxis: {},
                 colors: [
                     "#406969",
@@ -301,15 +308,8 @@ export default function BingAdsServiceDashboardPage() {
                     "#EC4899",
                     "#10B981",
                 ],
-                stroke: {
-                    width: strokeWidths,
-                    curve: "smooth",
-                    dashArray: strokeDashArrays,
-                },
-                fill: {
-                    type: "solid",
-                    opacity: fillOpacities,
-                },
+                stroke: { width: strokeWidths, curve: "smooth", dashArray: strokeDashArrays },
+                fill: { type: "solid", opacity: fillOpacities },
                 grid: {
                     borderColor: "#e5e7eb",
                     strokeDashArray: 0,
@@ -317,22 +317,53 @@ export default function BingAdsServiceDashboardPage() {
                     yaxis: { lines: { show: true } },
                 },
                 dataLabels: { enabled: false },
-                tooltip: { theme: "light" },
+                tooltip: {
+                    theme: "light",
+                    y: {
+                        formatter: (_val, opts) => {
+                            const s = series[opts?.seriesIndex];
+                            const raw = s?.meta?.raw?.[opts?.dataPointIndex];
+                            const key = s?.meta?.key;
+                            const metricOpt = s?.meta?.opt;
+                            if (raw == null) return "—";
+                            return formatKpiValue(key, raw, metricOpt || {});
+                        },
+                    },
+                },
                 legend: { show: true, position: "top" },
             },
         };
     }, [
         displayMetricsByDate,
-        metricsByDatePrev,
+        metricsByDatePrevMap,
+        chartCategories,
+        sortedPrevDates,
         selectedMetrics,
         comparisonMethod,
-        appliedRange.startDate,
-        appliedRange.endDate,
+        comparisonLabel,
+        appliedRange,
     ]);
 
+    const chartTitle =
+        selectedMetrics.length === 1
+            ? `${METRIC_OPTIONS.find((opt) => opt.key === selectedMetrics[0])?.label ?? "Metric"} over time`
+            : "Bing Ads metrics over time";
+
+    const campaignRows = useMemo(
+        () =>
+            topCampaigns.map((r, i) => ({
+                ...r,
+                id: r.campaign_name || i,
+                ctr: r.ctr != null && r.ctr <= 1 ? r.ctr : r.ctr != null ? r.ctr / 100 : null,
+            })),
+        [topCampaigns]
+    );
+
     return (
-        <div className="w-full">
+        <div id="BingDashboardPage" className="cobalt-perf w-full" data-theme="cobalt">
             <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
                 title="Bing Ads Dashboard"
                 label={customer ? customer.customerName : ""}
                 customerId={params.customerId}
@@ -348,223 +379,60 @@ export default function BingAdsServiceDashboardPage() {
                     METRIC_OPTIONS,
                 }}
                 right={
-                    <DateRangePicker {...dateRangePickerProps} loading={loading} />
+                    <DateRangePicker {...dateRangePickerProps} variant="cobalt" loading={loading} />
                 }
             />
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6 w-full mb-8">
-                {loading ? (
-                    <div className="col-span-5 text-center">
-                        <Spinner size={40} color="#406969" />
-                    </div>
-                ) : error ? (
-                    <div className="col-span-5 text-center text-red-500">{error}</div>
-                ) : (
-                    metrics.map((metric, idx) => {
-                        const Icon = METRIC_OPTIONS.find((opt) => opt.label === metric.label)?.icon;
-                        const isActive = selectedMetrics.includes(METRIC_OPTIONS[idx].key);
-                        return (
-                            <div
-                                key={idx}
-                                onClick={() =>
-                                    setSelectedMetrics((prev) => {
-                                        const metricKey = METRIC_OPTIONS[idx].key;
-                                        if (prev.includes(metricKey)) {
-                                            return prev.length > 1 ? prev.filter((m) => m !== metricKey) : prev;
-                                        }
-                                        return [...prev, metricKey];
-                                    })
-                                }
-                                style={{ cursor: "pointer" }}
-                            >
-                                <MetricCard
-                                    label={metric.label}
-                                    value={
-                                        metric.value !== null && metric.value !== undefined
-                                            ? typeof metric.value === "number" && !isNaN(metric.value)
-                                                ? metric.label === "Ad spend" || metric.label === "Conversion value"
-                                                    ? metric.value.toLocaleString("da-DK", {
-                                                          style: "currency",
-                                                          currency: "DKK",
-                                                          maximumFractionDigits: 0,
-                                                          minimumFractionDigits: 0,
-                                                      })
-                                                    : metric.label === "CTR"
-                                                      ? `${metric.value.toFixed(2)}%`
-                                                      : metric.label === "CPC" || metric.label === "CPM"
-                                                        ? metric.value.toLocaleString("da-DK", {
-                                                              style: "currency",
-                                                              currency: "DKK",
-                                                              maximumFractionDigits: 2,
-                                                              minimumFractionDigits: 2,
-                                                          })
-                                                        : metric.value.toLocaleString(undefined, {
-                                                              maximumFractionDigits: 0,
-                                                              minimumFractionDigits: 0,
-                                                          })
-                                                : metric.value
-                                            : "-"
-                                    }
-                                    icon={Icon ? <Icon size={22} color={isActive ? "#fff" : undefined} /> : null}
-                                    isActive={isActive}
-                                    change={metric.change}
-                                    changeType={metric.changeType}
-                                    comparisonMethod={comparisonMethod}
-                                />
-                            </div>
-                        );
-                    })
-                )}
-            </div>
-
-            <div className="mb-8">
-                <div className="flex items-center gap-4 mb-2">
-                    <span className="font-semibold">Metric:</span>
-                    <div className="flex flex-wrap gap-2">
-                        {METRIC_OPTIONS.map((opt) => (
-                            <button
-                                key={opt.key}
-                                className={`px-3 py-1 rounded text-xs font-medium border transition-colors duration-150 ${
-                                    selectedMetrics.includes(opt.key)
-                                        ? "bg-white text-[var(--color-primary-searchmind)] border-[var(--color-primary-searchmind)] shadow-sm"
-                                        : "text-gray-500 border-gray-200 hover:text-[var(--color-primary-searchmind)]"
-                                }`}
-                                onClick={() =>
-                                    setSelectedMetrics((prev) => {
-                                        if (prev.includes(opt.key)) {
-                                            return prev.length > 1 ? prev.filter((m) => m !== opt.key) : prev;
-                                        }
-                                        return [...prev, opt.key];
-                                    })
-                                }
-                            >
-                                {opt.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-                {loading ? (
-                    <div className="flex items-center justify-center h-64">
-                        <Spinner size={40} color="#406969" />
-                    </div>
-                ) : (
-                    <GraphCard
-                        title={
-                            (selectedMetrics || []).length === 1 && (selectedMetrics || [])[0]
-                                ? `${METRIC_OPTIONS.find((opt) => opt.key === (selectedMetrics || [])[0])?.label ?? "Metric"} vs ${comparisonMethod}`
-                                : `Multiple Bing Ads metrics vs ${comparisonMethod}`
-                        }
-                        chartOptions={chartOptions}
-                        chartSeries={chartSeries}
+            {loading ? (
+                <div className="apex-perf-loading">
+                    <CobaltLoader
+                        variant="block"
+                        title="Loading Bing Ads metrics"
+                        request="GET /api/bing-dashboard"
                     />
-                )}
-            </div>
+                </div>
+            ) : error ? (
+                <div className="apex-bing-error">{error}</div>
+            ) : (
+                <div className="apex-bing-panel">
+                    <section className="apex-bing-section">
+                        <h3 className="apex-bing-section__label">Spend & delivery</h3>
+                        <div className="apex-bing-kpi-grid apex-bing-kpi-grid--4">
+                            {CHART_TOGGLE_ROW1.map((opt) => buildMetricCard(opt))}
+                        </div>
+                    </section>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold mb-4">Top performance campaigns</h3>
-                {loading ? (
-                    <div className="flex justify-center items-center min-h-[120px]">
-                        <Spinner size={40} color="#406969" />
+                    <section className="apex-bing-section">
+                        <h3 className="apex-bing-section__label">Value & efficiency</h3>
+                        <div className="apex-bing-kpi-grid apex-bing-kpi-grid--4">
+                            {CHART_TOGGLE_ROW2.map((opt) => buildMetricCard(opt))}
+                        </div>
+                    </section>
+
+                    <div className="apex-bing-chart-block">
+                        <GraphCard
+                            variant="cobalt"
+                            title={chartTitle}
+                            chartOptions={chartOptions}
+                            chartSeries={chartSeries}
+                            hideChartToggle
+                        />
+                        <p className="apex-bing-chart-note">
+                            Click KPI cards above to show or hide metrics on the chart. Comparison period shown as dashed lines when enabled.
+                        </p>
                     </div>
-                ) : error ? (
-                    <div className="text-red-500 text-center">{error}</div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-xs text-left border-collapse" style={{ fontSize: "12px" }}>
-                            <thead>
-                                <tr className="bg-gray-50">
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Campaign</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Clicks</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Impressions</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">Conversions</th>
-                                    <th className="px-3 py-1.5 font-semibold text-gray-700">CTR</th>
-                                </tr>
-                            </thead>
-                            <tbody className="text-[12px]">
-                                {topCampaigns.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={5} className="text-center py-8 text-gray-400">
-                                            No campaign data for selected range.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    topCampaigns.map((row, idx) => {
-                                        const max = {
-                                            clicks: Math.max(...topCampaigns.map((r) => Number(r.clicks) || 0)),
-                                            impressions: Math.max(
-                                                ...topCampaigns.map((r) => Number(r.impressions) || 0)
-                                            ),
-                                            conversions: Math.max(
-                                                ...topCampaigns.map((r) => Number(r.conversions) || 0)
-                                            ),
-                                            ctr: Math.max(...topCampaigns.map((r) => (Number(r.ctr) || 0) * 100)),
-                                        };
-                                        return (
-                                            <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                                                <td className="px-3 py-2 whitespace-nowrap">{row.campaign_name}</td>
-                                                <td
-                                                    className="px-3 py-2 whitespace-nowrap"
-                                                    style={{
-                                                        ...(row.clicks > 0
-                                                            ? {
-                                                                  backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.clicks / max.clicks)})`,
-                                                              }
-                                                            : {}),
-                                                    }}
-                                                >
-                                                    {Number(row.clicks || 0).toLocaleString(undefined, {
-                                                        maximumFractionDigits: 0,
-                                                    })}
-                                                </td>
-                                                <td
-                                                    className="px-3 py-2 whitespace-nowrap"
-                                                    style={{
-                                                        ...(row.impressions > 0
-                                                            ? {
-                                                                  backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.impressions / max.impressions)})`,
-                                                              }
-                                                            : {}),
-                                                    }}
-                                                >
-                                                    {Number(row.impressions || 0).toLocaleString(undefined, {
-                                                        maximumFractionDigits: 0,
-                                                    })}
-                                                </td>
-                                                <td
-                                                    className="px-3 py-2 whitespace-nowrap"
-                                                    style={{
-                                                        ...(row.conversions > 0
-                                                            ? {
-                                                                  backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (row.conversions / max.conversions)})`,
-                                                              }
-                                                            : {}),
-                                                    }}
-                                                >
-                                                    {Number(row.conversions || 0).toLocaleString(undefined, {
-                                                        maximumFractionDigits: 0,
-                                                    })}
-                                                </td>
-                                                <td
-                                                    className="px-3 py-2 whitespace-nowrap"
-                                                    style={{
-                                                        ...(row.ctr > 0
-                                                            ? {
-                                                                  backgroundColor: `rgba(214,205,182,${0.15 + 0.85 * (((Number(row.ctr) || 0) * 100) / max.ctr)})`,
-                                                              }
-                                                            : {}),
-                                                    }}
-                                                >
-                                                    {row.ctr ? `${(Number(row.ctr) * 100).toFixed(2)}%` : "-"}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
+
+                    <PsSortableMetricsTable
+                        variant="cobalt"
+                        cobaltScope="bing"
+                        title="Top performance campaigns"
+                        subtitle="Heatmap highlights relative volume within the table."
+                        columns={CAMPAIGN_TABLE_COLUMNS}
+                        rows={campaignRows}
+                        rowKeyField="id"
+                    />
+                </div>
+            )}
         </div>
     );
 }

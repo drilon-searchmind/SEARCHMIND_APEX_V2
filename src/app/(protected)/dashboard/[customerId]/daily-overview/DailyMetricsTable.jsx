@@ -1,7 +1,7 @@
 'use client';
 
 import dayjs from 'dayjs';
-import Spinner from '@/components/ui/Spinner';
+import CobaltLoader from '@/components/ui/CobaltLoader';
 import DailyMetricsTableHeader from './DailyMetricsTableHeader';
 import DailyMetricsDataRow from './DailyMetricsDataRow';
 import DailyMetricsTotalsRow from './DailyMetricsTotalsRow';
@@ -10,6 +10,13 @@ import DailyMetricsDifferenceRow from './DailyMetricsDifferenceRow';
 import DailyMetricsIndexRow from './DailyMetricsIndexRow';
 import { alignLastYearRowsToCurrentPeriod, computeRowMax } from './utils';
 import { METRIC_COLUMNS } from './metricConfig';
+import {
+	dailyEmptyCellClass,
+	dailyTableClass,
+	dailyTableStyle,
+	dailyTableWrapClass,
+	isCobaltDaily,
+} from './dailyTableUi';
 
 export default function DailyMetricsTable({
 	rows,
@@ -21,17 +28,30 @@ export default function DailyMetricsTable({
 	onRowHoverLeave,
 	visibleMetrics = {},
 	metricColumns = METRIC_COLUMNS,
+	variant = 'default',
 }) {
 	if (loading) {
-		return (
+		return isCobaltDaily(variant) ? (
+			<div className="apex-daily-loading">
+				<CobaltLoader
+					variant="block"
+					title="Loading daily metrics"
+					request="GET /api/merged-sources?source=daily-overview"
+				/>
+			</div>
+		) : (
 			<div className="flex justify-center items-center min-h-[200px]">
-				<Spinner size={40} color="#406969" />
+				<div className="text-sm text-gray-500">Loading…</div>
 			</div>
 		);
 	}
 
 	if (error) {
-		return <div className="text-red-500 text-center">{error}</div>;
+		return (
+			<div className={isCobaltDaily(variant) ? 'apex-daily-error' : 'text-red-500 text-center'}>
+				{error}
+			</div>
+		);
 	}
 
 	const max = rows?.length ? computeRowMax(rows) : {};
@@ -40,19 +60,17 @@ export default function DailyMetricsTable({
 		1 + metricColumns.filter((m) => visibleMetrics[m.key]).length;
 
 	return (
-		<div className="overflow-x-auto">
-			<table
-				className="min-w-full text-xs text-left border-collapse"
-				style={{ fontSize: '12px' }}
-			>
-				<DailyMetricsTableHeader visibleMetrics={visibleMetrics} metricColumns={metricColumns} />
-				<tbody className="text-[12px]">
+		<div className={dailyTableWrapClass(variant)}>
+			<table className={dailyTableClass(variant)} style={dailyTableStyle(variant)}>
+				<DailyMetricsTableHeader
+					variant={variant}
+					visibleMetrics={visibleMetrics}
+					metricColumns={metricColumns}
+				/>
+				<tbody className={isCobaltDaily(variant) ? undefined : 'text-[12px]'}>
 					{!rows?.length ? (
 						<tr>
-							<td
-								colSpan={visibleCount}
-								className="text-center py-8 text-gray-400"
-							>
+							<td colSpan={visibleCount} className={dailyEmptyCellClass(variant)}>
 								No data for selected range.
 							</td>
 						</tr>
@@ -69,6 +87,7 @@ export default function DailyMetricsTable({
 								return (
 									<DailyMetricsDataRow
 										key={idx}
+										variant={variant}
 										row={row}
 										max={max}
 										index={idx}
@@ -82,23 +101,27 @@ export default function DailyMetricsTable({
 								);
 							})}
 							<DailyMetricsTotalsRow
+								variant={variant}
 								rows={rows}
 								label="Total"
 								visibleMetrics={visibleMetrics}
 								metricColumns={metricColumns}
 							/>
 							<DailyMetricsLastPeriodRow
+								variant={variant}
 								rows={rowsLastYearAligned}
 								visibleMetrics={visibleMetrics}
 								metricColumns={metricColumns}
 							/>
 							<DailyMetricsIndexRow
+								variant={variant}
 								rows={rows}
 								rowsPrev={rowsLastYearAligned}
 								visibleMetrics={visibleMetrics}
 								metricColumns={metricColumns}
 							/>
 							<DailyMetricsDifferenceRow
+								variant={variant}
 								rows={rows}
 								rowsPrev={rowsLastYearAligned}
 								visibleMetrics={visibleMetrics}

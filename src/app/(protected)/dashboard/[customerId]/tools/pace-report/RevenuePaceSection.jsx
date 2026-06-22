@@ -1,7 +1,7 @@
 'use client';
 
 import GraphCard from '@/components/dashboard/GraphCard';
-import Spinner from '@/components/ui/Spinner';
+import CobaltLoader from '@/components/ui/CobaltLoader';
 import RevenuePaceAnalysisCard from './RevenuePaceAnalysisCard';
 import {
 	buildRevenueTargetChartData,
@@ -37,30 +37,41 @@ export default function RevenuePaceSection({
 	};
 
 	return (
-		<div className="flex flex-col md:flex-row gap-8 mt-8">
-			<div className="flex-1">
-				{loading ? (
-					<div className="flex items-center justify-center h-64">
-						<Spinner size={40} color="#406969" />
-					</div>
-				) : (
-					<GraphCard
-						title="Revenue vs Budget"
-						chartOptions={chartOptions}
-						chartSeries={chartSeries}
-						chartType="line"
-					/>
-				)}
+		<section className="apex-pace-section">
+			<div className="apex-pace-section__head">
+				<h2 className="apex-pace-section__title">Revenue pacing</h2>
 			</div>
-			<RevenuePaceAnalysisCard
-				analysis={conversionPaceAnalysis}
-				loading={loading}
-				error={error}
-				onOpenSettings={onOpenSettings}
-				showCalcs={showCalcs}
-				revenueLabel={revenueLabel}
-				objectivesScopeLabel={objectivesScopeLabel}
-			/>
-		</div>
+			<div className="apex-pace-section__row">
+				<div className="apex-pace-section__chart">
+					{loading ? (
+						<div className="apex-perf-loading">
+							<CobaltLoader
+								variant="block"
+								title="Loading revenue data"
+								request="GET /api/merged-sources"
+							/>
+						</div>
+					) : (
+						<GraphCard
+							variant="cobalt"
+							hideChartToggle
+							title="Revenue vs Budget"
+							chartOptions={chartOptions}
+							chartSeries={chartSeries}
+							chartType="line"
+						/>
+					)}
+				</div>
+				<RevenuePaceAnalysisCard
+					analysis={conversionPaceAnalysis}
+					loading={loading}
+					error={error}
+					onOpenSettings={onOpenSettings}
+					showCalcs={showCalcs}
+					revenueLabel={revenueLabel}
+					objectivesScopeLabel={objectivesScopeLabel}
+				/>
+			</div>
+		</section>
 	);
 }

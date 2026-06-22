@@ -5,9 +5,11 @@ import { useParams } from "next/navigation";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useSetUser } from "@/contexts/UserContext";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
-import DataWrappedModalMaskScroll from "./components/DataWrappedModalMaskScroll";
+import CobaltLoader from "@/components/ui/CobaltLoader";
+import DataWrappedCobaltModal from "./components/DataWrappedCobaltModal";
 import { FiGift, FiCalendar, FiChevronRight } from "react-icons/fi";
 import { pushGTMEvent, GTM_EVENTS } from "@root/lib/gtmFunctions";
+import "./data-wrapped.css";
 
 function getCurrentPeriod() {
     const d = new Date();
@@ -31,6 +33,19 @@ function getLastMonthPeriod() {
 const getLatestAvailablePeriod = () =>
     isLastDayOfMonth() ? getCurrentPeriod() : getLastMonthPeriod();
 
+const MONTH_NAMES = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+];
+
+function getPeriodLabel(period) {
+    if (!period || !/^\d{4}-\d{2}$/.test(period)) return "";
+    const [y, m] = period.split("-").map(Number);
+    return `${MONTH_NAMES[m - 1]} ${y}`;
+}
+
+const WRAPPED_TOPICS = ["Revenue", "Orders", "ROAS & POAS", "Ad spend", "Team"];
+
 export default function DataWrappedPage() {
     const params = useParams();
     const setUser = useSetUser();
@@ -45,20 +60,29 @@ export default function DataWrappedPage() {
 
     const copyByType = {
         monthly: {
-            title: "Your Monthly Ecommerce Wrapped",
-            description: "A personalized summary of your store's performance this month — revenue, orders, ROAS, and more.",
+            title: "Your monthly ecommerce wrapped",
+            description:
+                "A personalized summary of your store's performance — revenue, orders, ROAS, team, and more.",
         },
         quarterly: {
-            title: "Your Quarterly Ecommerce Wrapped",
-            description: "A personalized summary of your store's performance this quarter — revenue, orders, ROAS, and more.",
+            title: "Your quarterly ecommerce wrapped",
+            description:
+                "A personalized summary of your store's performance this quarter — revenue, orders, ROAS, and more.",
         },
         yearly: {
-            title: "Your Annual Ecommerce Wrapped",
-            description: "A personalized summary of your store's performance this year — revenue, orders, ROAS, and more.",
+            title: "Your annual ecommerce wrapped",
+            description:
+                "A personalized summary of your store's performance this year — revenue, orders, ROAS, and more.",
         },
     };
 
     const copy = copyByType[latestReportType] || copyByType.monthly;
+    const latestPeriod = getLatestAvailablePeriod();
+    const latestReport =
+        reports.monthly?.find((r) => r.period === latestPeriod) || reports.monthly?.[0];
+    const latestPeriodLabel =
+        latestReport?.periodLabel || getPeriodLabel(latestPeriod) || "Latest month";
+    const savedReportCount = reports.monthly?.length ?? 0;
 
     const fetchReports = () => {
         if (!params.customerId) return;
@@ -80,10 +104,13 @@ export default function DataWrappedPage() {
                     })
                         .then(() => {
                             setUser((prev) => {
-                                const prevObj = prev?.openedWrappedPeriods && !Array.isArray(prev.openedWrappedPeriods)
-                                    ? prev.openedWrappedPeriods
-                                    : {};
-                                const customerPeriods = [...new Set([...(prevObj[params.customerId] || []), ...allPeriods])];
+                                const prevObj =
+                                    prev?.openedWrappedPeriods && !Array.isArray(prev.openedWrappedPeriods)
+                                        ? prev.openedWrappedPeriods
+                                        : {};
+                                const customerPeriods = [
+                                    ...new Set([...(prevObj[params.customerId] || []), ...allPeriods]),
+                                ];
                                 return {
                                     ...prev,
                                     openedWrappedPeriods: { ...prevObj, [params.customerId]: customerPeriods },
@@ -131,105 +158,135 @@ export default function DataWrappedPage() {
     };
 
     return (
-        <div className="w-full">
+        <div id="DataWrappedPage" className="cobalt-perf w-full apex-dw-stack" data-theme="cobalt">
             <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
                 title="Data Wrapped"
                 label={customer?.customerName || ""}
+                subtitle="Monthly performance stories for your store — swipe through full-screen chapters."
                 showAnalyzeWithAi={false}
+                showPdfExport={false}
             />
 
-            <div className="flex flex-col gap-8">
-                {/* Hero - View latest */}
-                <div className="flex flex-col items-center justify-center min-h-[280px] bg-white border border-gray-200 rounded-xl p-8">
-                    <div className="text-center max-w-lg">
-                        <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-[var(--color-primary-searchmind)]/10 mb-6">
-                            <FiGift className="text-4xl text-[var(--color-primary-searchmind)]" />
+            <section className="apex-dw-spotlight" aria-labelledby="dw-spotlight-title">
+                <div className="apex-dw-spotlight__body">
+                    <p className="apex-dw-spotlight__eyebrow">Monthly wrapped</p>
+                    <h2 id="dw-spotlight-title" className="apex-dw-spotlight__title">
+                        {copy.title}
+                    </h2>
+                    <p className="apex-dw-spotlight__desc">{copy.description}</p>
+                    <ul className="apex-dw-spotlight__topics" aria-label="Included in each report">
+                        {WRAPPED_TOPICS.map((topic) => (
+                            <li key={topic} className="apex-dw-spotlight__topic">
+                                {topic}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+
+                <aside className="apex-dw-spotlight__aside">
+                    <div className="apex-dw-spotlight__card">
+                        <div className="apex-dw-spotlight__card-head">
+                            <span className="apex-dw-spotlight__card-label">Latest period</span>
+                            {reportsLoading ? (
+                                <span className="apex-dw-spotlight__card-period is-loading">Loading…</span>
+                            ) : (
+                                <span className="apex-dw-spotlight__card-period">{latestPeriodLabel}</span>
+                            )}
                         </div>
-                        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                            {copy.title}
-                        </h2>
-                        <p className="text-gray-500 mb-8">
-                            {copy.description}
-                        </p>
+
+                        {!reportsLoading && savedReportCount > 0 ? (
+                            <p className="apex-dw-spotlight__card-meta">
+                                <strong>{savedReportCount}</strong> saved report
+                                {savedReportCount === 1 ? "" : "s"}
+                            </p>
+                        ) : null}
+
                         <button
                             type="button"
                             onClick={openLatest}
-                            className="px-6 py-3 rounded-xl font-semibold text-white bg-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind-hover)] transition-colors flex items-center gap-2 mx-auto"
+                            className="apex-perf-btn apex-perf-btn--primary apex-dw-spotlight__cta"
+                            disabled={reportsLoading}
                         >
-                            <FiGift className="text-lg" />
+                            <FiGift aria-hidden />
                             View latest wrapped
                         </button>
+
+                        <p className="apex-dw-spotlight__hint">
+                            Opens full-screen · swipe through 12 chapters
+                        </p>
                     </div>
+                </aside>
+            </section>
+
+            <div className="apex-dw-history">
+                <div className="apex-dw-history__head">
+                    <h3 className="apex-dw-history__title">Historical overview</h3>
+                    <p className="apex-dw-history__subtitle">Open previous wrapped reports</p>
                 </div>
 
-                {/* Historical overview */}
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-200">
-                        <h3 className="text-lg font-semibold text-gray-900">Historical overview</h3>
-                        <p className="text-sm text-gray-500 mt-1">Open previous wrapped reports</p>
+                {reportsLoading ? (
+                    <div className="apex-dw-loader-panel">
+                        <CobaltLoader variant="block" title="Loading reports" />
                     </div>
-
-                    {reportsLoading ? (
-                        <div className="p-8 text-center text-gray-500">Loading...</div>
-                    ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y divide-gray-200">
-                            {/* Monthly */}
-                            <div className="p-6">
-                                <div className="flex items-center gap-2 mb-4">
-                                    <FiCalendar className="text-[var(--color-primary-searchmind)]" />
-                                    <h4 className="font-medium text-gray-900">Monthly</h4>
-                                </div>
-                                {reports.monthly?.length > 0 ? (
-                                    <div className="grid gap-2 sm:grid-cols-1 lg:grid-cols-1">
-                                        {reports.monthly.map((r) => (
-                                            <button
-                                                key={r.period}
-                                                type="button"
-                                                onClick={() => openPeriod(r.period)}
-                                                className="flex items-center justify-between px-4 py-3 rounded-lg border border-gray-200 hover:border-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind)]/5 transition-colors text-left group"
-                                            >
-                                                <span className="font-medium text-gray-900">{r.periodLabel}</span>
-                                                <FiChevronRight className="text-gray-400 group-hover:text-[var(--color-primary-searchmind)] transition-colors" />
-                                            </button>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-sm text-gray-500">No monthly reports yet. View your latest wrapped to create one.</p>
-                                )}
+                ) : (
+                    <div className="apex-dw-history__grid">
+                        <div className="apex-dw-history__col">
+                            <div className="apex-dw-history__col-head">
+                                <FiCalendar aria-hidden />
+                                <h4 className="apex-dw-history__col-title">Monthly</h4>
                             </div>
-
-                            {/* Quarterly - coming later */}
-                            <div className="p-6">
-                                <div className="flex items-center gap-2 mb-4">
-                                    <FiCalendar className="text-gray-300" />
-                                    <h4 className="font-medium text-gray-500">Quarterly</h4>
-                                    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">Coming later</span>
+                            {reports.monthly?.length > 0 ? (
+                                <div className="apex-dw-period-list">
+                                    {reports.monthly.map((r) => (
+                                        <button
+                                            key={r.period}
+                                            type="button"
+                                            onClick={() => openPeriod(r.period)}
+                                            className="apex-dw-period-btn"
+                                        >
+                                            <span>{r.periodLabel}</span>
+                                            <FiChevronRight aria-hidden />
+                                        </button>
+                                    ))}
                                 </div>
-                                <p className="text-sm text-gray-400">Quarterly reports will be available soon.</p>
-                            </div>
-
-                            {/* Yearly - coming later */}
-                            <div className="p-6">
-                                <div className="flex items-center gap-2 mb-4">
-                                    <FiCalendar className="text-gray-300" />
-                                    <h4 className="font-medium text-gray-500">Yearly</h4>
-                                    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">Coming later</span>
-                                </div>
-                                <p className="text-sm text-gray-400">Yearly reports will be available soon.</p>
-                            </div>
+                            ) : (
+                                <p className="apex-dw-empty-note">
+                                    No monthly reports yet. View your latest wrapped to create one.
+                                </p>
+                            )}
                         </div>
-                    )}
-                </div>
+
+                        <div className="apex-dw-history__col">
+                            <div className="apex-dw-history__col-head">
+                                <FiCalendar aria-hidden className="opacity-40" />
+                                <h4 className="apex-dw-history__col-title is-muted">Quarterly</h4>
+                                <span className="apex-dw-badge">Coming later</span>
+                            </div>
+                            <p className="apex-dw-empty-note">Quarterly reports will be available soon.</p>
+                        </div>
+
+                        <div className="apex-dw-history__col">
+                            <div className="apex-dw-history__col-head">
+                                <FiCalendar aria-hidden className="opacity-40" />
+                                <h4 className="apex-dw-history__col-title is-muted">Yearly</h4>
+                                <span className="apex-dw-badge">Coming later</span>
+                            </div>
+                            <p className="apex-dw-empty-note">Yearly reports will be available soon.</p>
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {showWrapped && (
-                <DataWrappedModalMaskScroll
+            {showWrapped ? (
+                <DataWrappedCobaltModal
                     onClose={closeWrapped}
                     customerId={params.customerId}
                     customerName={customer?.customerName}
                     period={modalPeriod ?? getLatestAvailablePeriod()}
                 />
-            )}
+            ) : null}
         </div>
     );
 }

@@ -4,6 +4,7 @@ import DashboardHeading from '@/components/dashboard/DashboardHeading';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useParams, useRouter } from 'next/navigation';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
+import CobaltLoader from '@/components/ui/CobaltLoader';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import GraphCard from '@/components/dashboard/GraphCard';
 import MetricToggleBar from '../daily-overview/MetricToggleBar';
@@ -19,6 +20,7 @@ import MarketsMetricsTable from './MarketsMetricsTable';
 import { aggregateIncludedMarketRows } from './marketsTotalsUtils';
 import { isShopifyMarketsCustomer } from '@/lib/customerPlatformDisplay';
 import { revenueVatDisplayLabelSuffix } from '@/lib/revenueVatDisplay';
+import './markets-overview.css';
 
 const MarketsOverviewPage = () => {
     const params = useParams();
@@ -214,63 +216,64 @@ const MarketsOverviewPage = () => {
                     const v = Number(r?.[chartMetricKey]);
                     return Number.isFinite(v) ? v : 0;
                 }),
-                color: '#406969',
             },
         ];
     }, [chartRows, chartMetricKey, chartMetricOptions]);
 
     const chartOptions = useMemo(
         () => ({
-            chart: { id: 'markets-overview-metric', toolbar: { show: false }, fontFamily: 'Outfit, sans-serif' },
             xaxis: { categories: chartCategories, labels: { rotate: -35 } },
             yaxis: {
                 labels: {
                     formatter: (v) => String(Math.round(Number(v) || 0)),
                 },
             },
-            dataLabels: { enabled: false },
             tooltip: {
                 shared: false,
                 intersect: true,
                 y: { formatter: (v) => String(Math.round(Number(v) || 0)) },
-            },
-            grid: {
-                borderColor: '#e5e7eb',
-                strokeDashArray: 0,
-                xaxis: { lines: { show: false } },
-                yaxis: { lines: { show: true } },
             },
         }),
         [chartCategories]
     );
 
     const chartRemountKey = useMemo(
-        () =>
-            `${chartMetricKey}:${chartCategories.join('\u0001')}`,
+        () => `${chartMetricKey}:${chartCategories.join('\u0001')}`,
         [chartMetricKey, chartCategories]
     );
 
+    const marketCount = rows?.length ?? 0;
+    const includedCount = includedRows.length;
+    const headingSubtitle = `${appliedDateRange.startDate} to ${appliedDateRange.endDate} · Compare ROAS and POAS per Shopify market`;
+
     if (!customer || !marketsEnabled) {
         return (
-            <div className="w-full flex justify-center items-center min-h-[240px]">
-                <p className="text-gray-500 text-sm">Loading…</p>
+            <div className="cobalt-perf w-full" data-theme="cobalt">
+                <div className="apex-markets-loader-panel">
+                    <CobaltLoader variant="block" title="Loading markets overview" />
+                </div>
             </div>
         );
     }
 
     if (featureDisabled) {
         return (
-            <div className="w-full p-8 text-center text-gray-600">
-                Shopify Markets is not enabled for this customer.
+            <div id="MarketsOverviewPage" className="cobalt-perf w-full apex-markets-stack" data-theme="cobalt">
+                <div className="apex-markets-disabled">
+                    Shopify Markets is not enabled for this customer.
+                </div>
             </div>
         );
     }
 
     return (
-        <div id="MarketsOverviewPage" className="w-full">
+        <div id="MarketsOverviewPage" className="cobalt-perf w-full apex-markets-stack" data-theme="cobalt">
             <DashboardHeading
-                title="Markets"
+                variant="cobalt"
+                showRunAudit={false}
+                title="Markets Overview"
                 label={customer.customerName}
+                subtitle={headingSubtitle}
                 customerId={params.customerId}
                 dateRange={appliedDateRange}
                 loading={loading}
@@ -296,6 +299,7 @@ const MarketsOverviewPage = () => {
                 }
                 right={
                     <DateRangePicker
+                        variant="cobalt"
                         onApply={handleDateRangeApply}
                         startDate={tempDateRange.startDate}
                         endDate={tempDateRange.endDate}
@@ -309,16 +313,37 @@ const MarketsOverviewPage = () => {
                 }
             />
 
-            <div className="mt-8 bg-white rounded-xl border border-gray-200 p-6">
-                <div className="mb-5">
-                    <MetricToggleBar
-                        visibleMetrics={visibleMetrics}
-                        onToggle={handleMetricToggle}
-                        metricColumns={metricColumns}
-                    />
-                    <h3 className="text-lg font-semibold">Blended ROAS / POAS by Market</h3>
+            <div className="apex-markets-summary">
+                <span className="apex-markets-summary__chip">
+                    <strong>{marketCount}</strong> markets
+                </span>
+                <span className="apex-markets-summary__chip">
+                    <strong>{includedCount}</strong> in chart
+                </span>
+                {!allMarketsIncluded ? (
+                    <span className="apex-markets-summary__chip">
+                        Totals reflect selection
+                    </span>
+                ) : null}
+            </div>
+
+            <div className="apex-markets-panel">
+                <div className="apex-markets-panel__toolbar">
+                    <div>
+                        <h3 className="apex-markets-panel__title">Blended ROAS / POAS by market</h3>
+                        <p className="apex-markets-panel__subtitle">
+                            Toggle columns or exclude markets with the checkboxes — chart and totals follow your selection.
+                        </p>
+                    </div>
                 </div>
+                <MetricToggleBar
+                    variant="cobalt"
+                    visibleMetrics={visibleMetrics}
+                    onToggle={handleMetricToggle}
+                    metricColumns={metricColumns}
+                />
                 <MarketsMetricsTable
+                    variant="cobalt"
                     rows={rows}
                     storeTotalRow={displayTotalRow}
                     loading={loading}
@@ -330,13 +355,21 @@ const MarketsOverviewPage = () => {
                 />
             </div>
 
-            <div className="mt-8 bg-white rounded-xl border border-gray-200 p-6">
-                <div className="mb-4 flex items-center justify-between gap-4 flex-wrap">
-                    <h3 className="text-lg font-semibold">Market Graph</h3>
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-600">Metric:</span>
+            <div className="apex-markets-panel">
+                <div className="apex-markets-chart-head">
+                    <div>
+                        <h3 className="apex-markets-panel__title">Market comparison</h3>
+                        <p className="apex-markets-panel__subtitle">
+                            Bar chart for included markets only
+                        </p>
+                    </div>
+                    <div className="apex-markets-field">
+                        <label htmlFor="markets-chart-metric" className="apex-markets-field__label">
+                            Chart metric
+                        </label>
                         <select
-                            className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                            id="markets-chart-metric"
+                            className="apex-markets-select"
                             value={chartMetricKey}
                             onChange={(e) => setChartMetricKey(e.target.value)}
                         >
@@ -348,14 +381,22 @@ const MarketsOverviewPage = () => {
                         </select>
                     </div>
                 </div>
-                <GraphCard
-                    key={chartRemountKey}
-                    title={chartMetricOptions.find((o) => o.key === chartMetricKey)?.label || 'Metric'}
-                    chartOptions={chartOptions}
-                    chartSeries={chartSeries}
-                    chartType="bar"
-                    height={360}
-                />
+                {chartRows.length > 0 ? (
+                    <GraphCard
+                        key={chartRemountKey}
+                        variant="cobalt"
+                        title={chartMetricOptions.find((o) => o.key === chartMetricKey)?.label || 'Metric'}
+                        chartOptions={chartOptions}
+                        chartSeries={chartSeries}
+                        chartType="bar"
+                        height={360}
+                        hideChartToggle
+                    />
+                ) : (
+                    <p className="apex-markets-panel__subtitle mb-0">
+                        Include at least one market to render the comparison chart.
+                    </p>
+                )}
             </div>
         </div>
     );

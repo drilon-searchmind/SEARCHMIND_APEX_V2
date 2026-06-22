@@ -19,8 +19,8 @@ export function formatCurrency(value, options = {}) {
  */
 export function getHeatmapStyle(val, maxVal) {
 	if (!maxVal || maxVal === 0) return {};
-	const alpha = 0.15 + 0.85 * (val / maxVal);
-	return { backgroundColor: `rgba(214,205,182,${alpha})` };
+	const alpha = 0.1 + 0.5 * (val / maxVal);
+	return { backgroundColor: `oklch(45% 0.055 165 / ${alpha})` };
 }
 
 /**

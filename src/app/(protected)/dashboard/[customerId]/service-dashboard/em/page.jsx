@@ -5,24 +5,20 @@ import { useParams, useSearchParams } from "next/navigation";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import MetricCard from "@/components/dashboard/MetricCard";
-import Spinner from "@/components/ui/Spinner";
-import { FiMail, FiMousePointer, FiTrendingUp, FiDollarSign, FiSend, FiUserX } from "react-icons/fi";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { useCustomers } from "@/hooks/useCustomers";
-import { isDemoCustomerId } from "@/lib/demoCustomerId";
+import { isDemoCustomerId } from "@/lib/demoCustomer";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import { formatComparisonPeriodDates } from "@/lib/dateRangeComparison";
-
-const METRIC_OPTIONS = [
-    { key: "revenue", label: "Revenue", icon: FiDollarSign },
-    { key: "emails_sent", label: "Emails sent", icon: FiSend },
-    { key: "open_rate", label: "Open rate", icon: FiMail },
-    { key: "click_rate", label: "Click rate", icon: FiMousePointer },
-    { key: "conversions", label: "Conversions", icon: FiTrendingUp },
-    { key: "unsubscribes", label: "Unsubscribes", icon: FiUserX },
-    { key: "clicks", label: "Clicks", icon: FiMousePointer },
-    { key: "opens", label: "Opens", icon: FiMail },
-];
+import PsSortableMetricsTable from "../ps/components/PsSortableMetricsTable";
+import {
+    KPI_ROW1,
+    KPI_ROW2,
+    METRIC_OPTIONS,
+    CAMPAIGN_TABLE_COLUMNS,
+} from "./components/emDashboardConfig";
+import "./em-dashboard.css";
 
 function rowToMetric(row, key) {
     if (key === "revenue") return row?.conversion_value ?? 0;
@@ -51,6 +47,17 @@ function agg(key, data) {
     return data.reduce((s, r) => s + (rowToMetric(r, key) ?? 0), 0);
 }
 
+function formatValue(val, key) {
+    if (val === null || val === undefined) return "—";
+    if (key === "revenue") {
+        return `${Number(val).toLocaleString("da-DK", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} kr.`;
+    }
+    if (key === "open_rate" || key === "click_rate") {
+        return `${(Number(val) * 100).toFixed(1)}%`;
+    }
+    return Number(val).toLocaleString("da-DK", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
 export default function EmailDashboardPage() {
     const params = useParams();
     const searchParams = useSearchParams();
@@ -61,7 +68,6 @@ export default function EmailDashboardPage() {
     const customerId = params?.customerId;
 
     const {
-        tempDateRange: tempRange,
         setTempDateRange: setTempRange,
         appliedDateRange: appliedRange,
         setAppliedDateRange: setAppliedRange,
@@ -96,7 +102,7 @@ export default function EmailDashboardPage() {
             setTempRange({ startDate: rangeStartQ, endDate: rangeEndQ });
             setAppliedRange({ startDate: rangeStartQ, endDate: rangeEndQ });
         }
-    }, [rangeStartQ, rangeEndQ]);
+    }, [rangeStartQ, rangeEndQ, setTempRange, setAppliedRange]);
 
     const hasKlaviyoCredentials =
         !!customer?.CustomerSettings?.klaviyoPrivateApiKey || isDemoCustomerId(customerId);
@@ -117,18 +123,28 @@ export default function EmailDashboardPage() {
             compareEndDate: appliedCompareRange.endDate,
         });
 
+        const isDemo = isDemoCustomerId(String(customerId));
+
         (async () => {
             setLoading(true);
             setError(null);
             let aborted = false;
             try {
-                // 1. Fetch current period only (fast ~5–10s) – show immediately
                 const currentParams = new URLSearchParams({
                     startDate: appliedRange.startDate,
                     endDate: appliedRange.endDate,
                 });
+
+                if (isDemo && !compDates.skip && compDates.startDate && compDates.endDate) {
+                    currentParams.set("prevStartDate", compDates.startDate);
+                    currentParams.set("prevEndDate", compDates.endDate);
+                }
+
                 const res = await fetch(`/api/klaviyo-dashboard/${customerId}?${currentParams}`, { signal });
-                if (signal.aborted) { aborted = true; return; }
+                if (signal.aborted) {
+                    aborted = true;
+                    return;
+                }
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
                     throw new Error(err.error || `Klaviyo API error: ${res.status}`);
@@ -136,12 +152,22 @@ export default function EmailDashboardPage() {
                 const data = await res.json();
                 setMetricsByDate(data.metrics_by_date || []);
                 setTopCampaigns(data.top_campaigns || []);
+
+                if (isDemo) {
+                    setMetricsByDatePrev(data.metrics_by_date_prev || []);
+                    setLoading(false);
+                    return;
+                }
+
+                setMetricsByDatePrev([]);
                 setLoading(false);
 
-                // 2. Fetch previous period in background after 65s (Klaviyo campaign-values-reports: 2/min)
                 if (!compDates.skip && compDates.startDate && compDates.endDate) {
                     await new Promise((r) => setTimeout(r, 65000));
-                    if (signal.aborted) { aborted = true; return; }
+                    if (signal.aborted) {
+                        aborted = true;
+                        return;
+                    }
                     const prevParams = new URLSearchParams({
                         startDate: compDates.startDate,
                         endDate: compDates.endDate,
@@ -151,11 +177,9 @@ export default function EmailDashboardPage() {
                         const dataPrev = await resPrev.json();
                         setMetricsByDatePrev(dataPrev.metrics_by_date || []);
                     }
-                } else {
-                    setMetricsByDatePrev([]);
                 }
             } catch (err) {
-                if (err.name === 'AbortError') {
+                if (err.name === "AbortError") {
                     aborted = true;
                     return;
                 }
@@ -180,55 +204,76 @@ export default function EmailDashboardPage() {
         return val > 0 ? "up" : val < 0 ? "down" : undefined;
     };
 
-    const formatValue = (val, key) => {
-        if (val === null || val === undefined) return "—";
-        if (key === "revenue") return `${Number(val).toLocaleString("da-DK", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} kr.`;
-        if (key === "open_rate" || key === "click_rate") return `${(Number(val) * 100).toFixed(1)}%`;
-        return Number(val).toLocaleString("da-DK", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const buildMetricCard = (opt) => {
+        const current = agg(opt.key, metricsByDate);
+        const prev = metricsByDatePrev.length > 0 ? agg(opt.key, metricsByDatePrev) : null;
+        const change = percentChange(current, prev);
+        const changeAbs = current != null && prev != null ? current - prev : null;
+        let changeAbsoluteStr = null;
+        if (changeAbs != null && opt.key === "revenue") {
+            changeAbsoluteStr = `${changeAbs >= 0 ? "+" : ""}${changeAbs.toLocaleString("da-DK", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} kr.`;
+        } else if (changeAbs != null && (opt.key === "open_rate" || opt.key === "click_rate")) {
+            changeAbsoluteStr = `${changeAbs >= 0 ? "+" : ""}${(changeAbs * 100).toFixed(1)}%`;
+        } else if (changeAbs != null) {
+            changeAbsoluteStr = `${changeAbs >= 0 ? "+" : ""}${changeAbs.toLocaleString("da-DK", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+        }
+
+        const isActive = selectedMetrics.includes(opt.key);
+        const Icon = opt.icon;
+
+        return (
+            <div
+                key={opt.key}
+                className="apex-em-kpi-card"
+                onClick={() =>
+                    setSelectedMetrics((prev) => {
+                        if (prev.includes(opt.key)) {
+                            return prev.length > 1 ? prev.filter((m) => m !== opt.key) : prev;
+                        }
+                        return [...prev, opt.key];
+                    })
+                }
+            >
+                <MetricCard
+                    variant="cobalt"
+                    label={opt.label}
+                    value={formatValue(current, opt.key)}
+                    icon={Icon ? <Icon className="w-4 h-4 shrink-0" /> : null}
+                    isActive={isActive}
+                    change={change !== null ? Math.abs(change).toFixed(1) : undefined}
+                    changeType={changeType(change)}
+                    changePrevValue={prev != null ? formatValue(prev, opt.key) : null}
+                    changeAbsolute={changeAbsoluteStr}
+                    comparisonMethod={comparisonMethod}
+                />
+            </div>
+        );
     };
 
-    const metrics = useMemo(() => {
-        const currentValues = METRIC_OPTIONS.map((opt) => agg(opt.key, metricsByDate));
-        const prevValues = METRIC_OPTIONS.map((opt) => agg(opt.key, metricsByDatePrev));
-        return METRIC_OPTIONS.map((opt, i) => {
-            const current = currentValues[i];
-            const prev = prevValues[i];
-            const change = percentChange(current, prev);
-            const changeAbs = current != null && prev != null ? current - prev : null;
-        let changeAbsoluteStr = null;
-        if (changeAbs != null && opt.key === "revenue") changeAbsoluteStr = `${changeAbs >= 0 ? "+" : ""}${changeAbs.toLocaleString("da-DK", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} kr.`;
-        else if (changeAbs != null && (opt.key === "open_rate" || opt.key === "click_rate")) changeAbsoluteStr = `${changeAbs >= 0 ? "+" : ""}${(changeAbs * 100).toFixed(1)}%`;
-        else if (changeAbs != null) changeAbsoluteStr = `${changeAbs >= 0 ? "+" : ""}${changeAbs.toLocaleString("da-DK", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-        return {
-                label: opt.label,
-                value: formatValue(current, opt.key),
-                change: change !== null ? Math.abs(change).toFixed(1) : undefined,
-                changeType: changeType(change),
-                changePrevValue: prev != null ? formatValue(prev, opt.key) : null,
-                changeAbsolute: changeAbsoluteStr,
-            };
-        });
-    }, [metricsByDate, metricsByDatePrev]);
+    const campaignRows = useMemo(
+        () =>
+            topCampaigns.map((r, i) => ({
+                ...r,
+                id: r.campaign_id || r.campaign_name || i,
+            })),
+        [topCampaigns]
+    );
 
     if (!customerId) return null;
 
     return (
-        <div className="w-full">
+        <div id="EmDashboardPage" className="cobalt-perf w-full" data-theme="cobalt">
             {!hasKlaviyoCredentials && (
-                <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+                <div className="apex-em-alert">
                     Configure your Klaviyo Private API Key in{" "}
-                    <a href={`/dashboard/${customerId}/config`} className="font-semibold underline hover:text-amber-900">
-                        Property Settings → Email (Klaviyo)
-                    </a>{" "}
+                    <a href={`/dashboard/${customerId}/config`}>Property Settings → Email (Klaviyo)</a>{" "}
                     to enable email metrics.
                 </div>
             )}
-            {error && (
-                <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
-                    {error}
-                </div>
-            )}
+
             <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
                 title="Email Dashboard"
                 label={customer ? customer.customerName : ""}
                 customerId={customerId}
@@ -238,91 +283,46 @@ export default function EmailDashboardPage() {
                 dashboardType="em-dashboard"
                 dataSnapshot={{ selectedMetrics, METRIC_OPTIONS }}
                 right={
-                    <DateRangePicker {...dateRangePickerProps} loading={loading} />
+                    <DateRangePicker {...dateRangePickerProps} variant="cobalt" loading={loading} />
                 }
             />
 
-            {loading ? (
-                <div className="flex flex-col items-center justify-center py-16 gap-3">
-                    <Spinner />
-                    <p className="text-sm text-gray-500">Fetching email data…</p>
+            {error ? <div className="apex-em-error">{error}</div> : null}
+
+            {!hasKlaviyoCredentials ? null : loading ? (
+                <div className="apex-perf-loading">
+                    <CobaltLoader
+                        variant="block"
+                        title="Loading email metrics"
+                        request="GET /api/klaviyo-dashboard"
+                    />
                 </div>
             ) : (
-                <>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6 w-full mb-8">
-                        {metrics.map((metric, idx) => {
-                            const Icon = METRIC_OPTIONS[idx]?.icon;
-                            const isActive = selectedMetrics.includes(METRIC_OPTIONS[idx]?.key);
-                            return (
-                                <div
-                                    key={idx}
-                                    onClick={() =>
-                                        setSelectedMetrics((prev) => {
-                                            const metricKey = METRIC_OPTIONS[idx]?.key;
-                                            if (prev.includes(metricKey)) {
-                                                return prev.length > 1 ? prev.filter((m) => m !== metricKey) : prev;
-                                            }
-                                            return [...prev, metricKey];
-                                        })
-                                    }
-                                    style={{ cursor: "pointer" }}
-                                >
-                                    <MetricCard
-                                        label={metric.label}
-                                        value={metric.value ?? "—"}
-                                        icon={Icon ? <Icon size={22} color={isActive ? "#fff" : undefined} /> : null}
-                                        isActive={isActive}
-                                        change={metric.change}
-                                        changeType={metric.changeType}
-                                        changePrevValue={metric.changePrevValue}
-                                        changeAbsolute={metric.changeAbsolute}
-                                        comparisonMethod={comparisonMethod}
-                                    />
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    <div className="bg-white rounded-xl border border-gray-200 p-6">
-                        <h3 className="text-lg font-semibold mb-4">Top Email Campaigns</h3>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full text-xs text-left border-collapse" style={{ fontSize: "12px" }}>
-                                <thead>
-                                    <tr className="bg-gray-50">
-                                        <th className="px-3 py-1.5 font-semibold text-gray-700">Campaign</th>
-                                        <th className="px-3 py-1.5 font-semibold text-gray-700">Opens</th>
-                                        <th className="px-3 py-1.5 font-semibold text-gray-700">Clicks</th>
-                                        <th className="px-3 py-1.5 font-semibold text-gray-700">Open rate</th>
-                                        <th className="px-3 py-1.5 font-semibold text-gray-700">Click rate</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="text-[12px]">
-                                    {topCampaigns.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={5} className="text-center py-8 text-gray-400">
-                                                No email campaign data for selected range.
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        topCampaigns.map((c, i) => (
-                                            <tr key={i} className="border-b border-gray-100">
-                                                <td className="px-3 py-2 font-medium">{c.campaign_name}</td>
-                                                <td className="px-3 py-2">{c.opens?.toLocaleString() ?? "—"}</td>
-                                                <td className="px-3 py-2">{c.clicks?.toLocaleString() ?? "—"}</td>
-                                                <td className="px-3 py-2">
-                                                    {c.open_rate != null ? `${(c.open_rate * 100).toFixed(1)}%` : "—"}
-                                                </td>
-                                                <td className="px-3 py-2">
-                                                    {c.click_rate != null ? `${(c.click_rate * 100).toFixed(1)}%` : "—"}
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                <div className="apex-em-panel">
+                    <section className="apex-em-section">
+                        <h3 className="apex-em-section__label">Revenue & delivery</h3>
+                        <div className="apex-em-kpi-grid apex-em-kpi-grid--4">
+                            {KPI_ROW1.map((opt) => buildMetricCard(opt))}
                         </div>
-                    </div>
-                </>
+                    </section>
+
+                    <section className="apex-em-section">
+                        <h3 className="apex-em-section__label">Engagement & list health</h3>
+                        <div className="apex-em-kpi-grid apex-em-kpi-grid--4">
+                            {KPI_ROW2.map((opt) => buildMetricCard(opt))}
+                        </div>
+                    </section>
+
+                    <PsSortableMetricsTable
+                        variant="cobalt"
+                        cobaltScope="em"
+                        title="Top email campaigns"
+                        subtitle="Sorted by opens — heatmap highlights relative performance within the table."
+                        columns={CAMPAIGN_TABLE_COLUMNS}
+                        rows={campaignRows}
+                        rowKeyField="id"
+                    />
+                </div>
             )}
         </div>
     );

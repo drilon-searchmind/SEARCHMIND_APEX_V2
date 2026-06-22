@@ -74,11 +74,9 @@ export default function LineItemsKanban({
 	const activeCols = LINE_ITEM_STATUSES.filter((s) => s !== "Ended");
 
 	return (
-		<div className="w-full bg-white border border-gray-200 rounded-xl p-6">
-			<h3 className="text-xl font-semibold text-gray-900 mb-4">
-				Campaign types — workflow
-			</h3>
-			<p className="text-sm text-gray-500 mb-6">
+		<div className="apex-cp-panel-card">
+			<h3 className="apex-cp-panel-card__title">Campaign types — workflow</h3>
+			<p className="apex-cp-panel-card__subtitle">
 				Drag cards between columns to change status. Click a card to edit.
 			</p>
 			<DragDropContext onDragEnd={onDragEnd}>
@@ -92,21 +90,17 @@ export default function LineItemsKanban({
 									<div
 										ref={provided.innerRef}
 										{...provided.droppableProps}
-										className="rounded-lg p-4 min-h-[200px] flex flex-col gap-1 border bg-white"
+										className="apex-cp-kanban-col"
 										style={{ borderColor: colStyle.border }}
 									>
-										<div className="mb-2">
-											<div
-												className="font-medium text-gray-900"
-												style={{ color: colStyle.border }}
-											>
-												{status}
-											</div>
+										<div
+											className="apex-cp-kanban-col__title"
+											style={{ color: colStyle.border }}
+										>
+											{status}
 										</div>
 										{activeByStatus[status].length === 0 && (
-											<div className="text-gray-400 py-8 text-center text-sm">
-												None
-											</div>
+											<div className="apex-cp-kanban-empty">None</div>
 										)}
 										{activeByStatus[status].map((item, idx) => {
 											const pal =
@@ -121,74 +115,74 @@ export default function LineItemsKanban({
 															...dragProps
 														} = provided.draggableProps;
 														return (
-														<div
-															ref={provided.innerRef}
-															{...dragProps}
-															{...provided.dragHandleProps}
-															role="button"
-															tabIndex={0}
-															onClick={() => onOpenLineItem?.(item)}
-															onKeyDown={(e) => {
-																if (e.key === "Enter" || e.key === " ")
-																	onOpenLineItem?.(item);
-															}}
-															className={`cursor-grab active:cursor-grabbing rounded-lg p-3 mb-2 flex flex-col gap-1 border border-l-2 transition-shadow ${
-																lineEnded
-																	? "border-[#9a3412] border-l-[#c2410c] bg-[#fff7ed]/70"
-																	: "border-gray-200 bg-gray-50"
-															} ${snapshot.isDragging ? "shadow-lg ring-1 ring-[var(--color-primary-searchmind)]/40" : ""}`}
-															style={{
-																...dragStyle,
-																...(lineEnded
-																	? {}
-																	: { borderLeftColor: pal.border }),
-															}}
-														>
 															<div
-																style={{
-																	backgroundColor:
-																		SERVICE_COLORS[item._serviceName] || "#e5e7eb",
+																ref={provided.innerRef}
+																{...dragProps}
+																{...provided.dragHandleProps}
+																role="button"
+																tabIndex={0}
+																onClick={() => onOpenLineItem?.(item)}
+																onKeyDown={(e) => {
+																	if (e.key === "Enter" || e.key === " ")
+																		onOpenLineItem?.(item);
 																}}
-																className="rounded-lg px-2 py-1"
+																className={`apex-cp-kanban-card ${
+																	lineEnded ? "apex-cp-kanban-card--ended" : ""
+																} ${snapshot.isDragging ? "is-dragging" : ""}`}
+																style={{
+																	...dragStyle,
+																	...(lineEnded
+																		? {}
+																		: { borderLeftColor: pal.border }),
+																}}
 															>
-																<span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-																	{item._serviceName || "—"}
-																</span>
-															</div>
-															<div className="font-bold text-sm text-gray-900">
-																{item.name}
-															</div>
-															{item._parentName && (
-																<div className="text-xs font-medium text-gray-800 truncate">
-																	{item._parentName}
+																<div
+																	style={{
+																		backgroundColor:
+																			SERVICE_COLORS[item._serviceName] ||
+																			"var(--perf-accent)",
+																	}}
+																	className="apex-cp-kanban-service"
+																>
+																	<span>{item._serviceName || "—"}</span>
 																</div>
-															)}
-															<div className="text-xs text-gray-600">
-																{[
-																	item.media,
-																	Array.isArray(item.formats) && item.formats.length
-																		? item.formats.join(", ")
-																		: item.format,
-																]
-																	.filter(Boolean)
-																	.join(" · ")}
-																<div className="mt-0.5 text-gray-500">
-																	{item.alwaysOn
-																		? item.startDate
-																			? `${formatIsoDate(item.startDate)} · Always on`
-																			: "Always on"
-																		: `${formatIsoDate(item.startDate)} – ${formatIsoDate(item.endDate)}`}
+																<div className="font-bold text-sm text-[var(--color-ink)]">
+																	{item.name}
 																</div>
-																{item.budget != null &&
-																	!Number.isNaN(Number(item.budget)) &&
-																	Number(item.budget) > 0 && (
-																		<span className="block text-gray-500">
-																			Budget:{" "}
-																			{Number(item.budget).toLocaleString("da-DK")}
-																		</span>
-																	)}
+																{item._parentName && (
+																	<div className="text-xs font-medium text-[var(--color-ink-2)] truncate">
+																		{item._parentName}
+																	</div>
+																)}
+																<div className="text-xs text-[var(--color-muted)]">
+																	{[
+																		item.media,
+																		Array.isArray(item.formats) &&
+																		item.formats.length
+																			? item.formats.join(", ")
+																			: item.format,
+																	]
+																		.filter(Boolean)
+																		.join(" · ")}
+																	<div className="mt-0.5">
+																		{item.alwaysOn
+																			? item.startDate
+																				? `${formatIsoDate(item.startDate)} · Always on`
+																				: "Always on"
+																			: `${formatIsoDate(item.startDate)} – ${formatIsoDate(item.endDate)}`}
+																	</div>
+																	{item.budget != null &&
+																		!Number.isNaN(Number(item.budget)) &&
+																		Number(item.budget) > 0 && (
+																			<span className="block">
+																				Budget:{" "}
+																				{Number(item.budget).toLocaleString(
+																					"da-DK"
+																				)}
+																			</span>
+																		)}
+																</div>
 															</div>
-														</div>
 														);
 													}}
 												</Draggable>
@@ -201,10 +195,10 @@ export default function LineItemsKanban({
 						);
 					})}
 
-					<div className="bg-gray-50 border border-gray-300 rounded-lg p-4 min-h-[200px] flex flex-col gap-1">
-						<div className="font-medium text-gray-900 mb-2">Ended</div>
+					<div className="apex-cp-kanban-ended-col">
+						<div className="apex-cp-kanban-col__title">Ended</div>
 						{endedItems.length === 0 ? (
-							<div className="text-gray-400 py-8 text-center text-sm">None</div>
+							<div className="apex-cp-kanban-empty">None</div>
 						) : (
 							endedItems.map((item) => (
 								<div
@@ -213,30 +207,30 @@ export default function LineItemsKanban({
 									tabIndex={0}
 									onClick={() => onOpenLineItem?.(item)}
 									onKeyDown={(e) => {
-										if (e.key === "Enter" || e.key === " ") onOpenLineItem?.(item);
+										if (e.key === "Enter" || e.key === " ")
+											onOpenLineItem?.(item);
 									}}
-									className="border border-[#9a3412]/40 border-l-2 border-l-[#c2410c] rounded-lg p-2 mb-1 flex flex-col gap-1 bg-[#fff7ed]/80 cursor-pointer hover:bg-[#fff7ed]"
+									className="apex-cp-kanban-card apex-cp-kanban-card--ended cursor-pointer"
 								>
 									<div
 										style={{
 											backgroundColor:
-												SERVICE_COLORS[item._serviceName] || "#e5e7eb",
+												SERVICE_COLORS[item._serviceName] ||
+												"var(--perf-accent)",
 										}}
-										className="rounded-lg px-2 py-1 opacity-90"
+										className="apex-cp-kanban-service opacity-90"
 									>
-										<span className="text-xs font-semibold text-gray-700">
-											{item._serviceName}
-										</span>
+										<span>{item._serviceName}</span>
 									</div>
-									<div className="font-semibold text-sm text-gray-900 truncate">
+									<div className="font-semibold text-sm text-[var(--color-ink)] truncate">
 										{item.name}
 									</div>
 									{item._parentName && (
-										<div className="text-xs text-gray-700 truncate font-medium">
+										<div className="text-xs text-[var(--color-ink-2)] truncate font-medium">
 											{item._parentName}
 										</div>
 									)}
-									<div className="text-xs text-gray-600">
+									<div className="text-xs text-[var(--color-muted)]">
 										{item.alwaysOn
 											? item.startDate
 												? `${formatIsoDate(item.startDate)} · Always on`
@@ -251,10 +245,12 @@ export default function LineItemsKanban({
 			</DragDropContext>
 
 			{filterDateRange?.startDate && filterDateRange?.endDate && (
-				<div className="mt-6 pt-4 border-t border-gray-200 text-sm text-gray-600">
-					<span className="font-medium text-gray-800">Overview period: </span>
+				<div className="apex-cp-footnote">
+					<span className="font-medium text-[var(--color-ink-2)]">
+						Overview period:{" "}
+					</span>
 					{filterDateRange.startDate} → {filterDateRange.endDate}
-					<span className="text-gray-500">
+					<span className="text-[var(--color-muted)]">
 						{" "}
 						(filters above; ended campaign types still show with their campaign)
 					</span>

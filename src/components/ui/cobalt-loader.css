@@ -1,0 +1,295 @@
+/* Hallmark · theme: Cobalt · reusable inline loader (auth-verify pattern) */
+
+@import "../../../tokens.css";
+
+.apex-loader {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  font-family: var(--font-body);
+  color: var(--color-ink-2);
+  overflow: hidden;
+}
+
+.apex-loader--panel {
+  max-width: 22rem;
+  margin-inline: auto;
+}
+
+.apex-loader--block {
+  max-width: 18rem;
+  margin-inline: auto;
+}
+
+.apex-loader--inline {
+  max-width: 100%;
+}
+
+/* ── Top progress bar ── */
+
+.apex-loader__progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--color-paper-3);
+  border-radius: 1px 1px 0 0;
+  z-index: 1;
+}
+
+.apex-loader__progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--color-accent);
+  animation: apex-loader-progress 2.4s var(--ease-out) infinite;
+}
+
+@keyframes apex-loader-progress {
+  0% { width: 0%; }
+  40% { width: 45%; }
+  75% { width: 78%; }
+  100% { width: 92%; }
+}
+
+/* ── Copy ── */
+
+.apex-loader__copy {
+  padding-top: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.apex-loader--block .apex-loader__copy {
+  margin-bottom: var(--space-xs);
+  text-align: center;
+}
+
+.apex-loader__eyebrow {
+  margin: 0 0 var(--space-2xs);
+  font-family: var(--font-label);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.apex-loader__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-ink);
+}
+
+.apex-loader--panel .apex-loader__title {
+  font-size: var(--text-md);
+}
+
+.apex-loader__subtitle {
+  margin: var(--space-2xs) 0 0;
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+  color: var(--color-muted);
+}
+
+/* ── Steps ── */
+
+.apex-loader__steps {
+  list-style: none;
+  margin: 0 0 var(--space-sm);
+  padding: 0;
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: #fff;
+}
+
+.apex-loader__step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  transition:
+    color 0.35s var(--ease-out),
+    background-color 0.35s var(--ease-out);
+}
+
+.apex-loader__step:last-child {
+  border-bottom: none;
+}
+
+.apex-loader__step.is-active {
+  color: var(--color-ink);
+  background: var(--color-paper-2);
+}
+
+.apex-loader__step.is-done {
+  color: var(--color-ink-2);
+}
+
+.apex-loader__step-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.apex-loader__step-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  border: var(--rule-hair) solid var(--color-rule-2);
+  flex-shrink: 0;
+  transition: border-color var(--dur-short) var(--ease-out), background-color var(--dur-short) var(--ease-out);
+}
+
+.apex-loader__step.is-active .apex-loader__step-dot {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  animation: apex-loader-pulse 1.4s ease-in-out infinite;
+}
+
+.apex-loader__step.is-done .apex-loader__step-dot {
+  border-color: var(--color-accent-light);
+  background: var(--color-accent-light);
+}
+
+.apex-loader__step-check {
+  font-family: var(--font-label);
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--color-accent-light);
+}
+
+@keyframes apex-loader-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* ── Graphite code card ── */
+
+.apex-loader__code-card {
+  border: var(--rule-card) solid var(--color-code-border);
+  border-radius: var(--radius-card);
+  background: var(--color-code-bg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.apex-loader--inline .apex-loader__code-card {
+  border-radius: var(--radius-input);
+}
+
+.apex-loader__code-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: var(--rule-hair) solid var(--color-code-border);
+  background: var(--color-code-bar);
+}
+
+.apex-loader__code-dots {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.apex-loader__code-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.apex-loader__code-dots span:nth-child(1) { background: var(--color-error); }
+.apex-loader__code-dots span:nth-child(2) { background: var(--color-syntax-num); }
+.apex-loader__code-dots span:nth-child(3) { background: var(--color-success); }
+
+.apex-loader__code-filename {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--color-code-ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.apex-loader__code-status {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-syntax-key);
+  animation: apex-loader-status 1.2s ease-in-out infinite;
+}
+
+@keyframes apex-loader-status {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+.apex-loader__code-body {
+  margin: 0;
+  padding: var(--space-sm);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--color-code-ink-dim);
+  overflow-x: auto;
+}
+
+.apex-loader--inline .apex-loader__code-body {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.7rem;
+}
+
+.apex-loader__tok-key { color: var(--color-syntax-key); }
+.apex-loader__tok-str { color: var(--color-syntax-str); }
+.apex-loader__tok-punc { color: var(--color-syntax-punc); }
+
+.apex-loader__shimmer {
+  display: inline-block;
+  width: 2.75rem;
+  height: 0.6rem;
+  vertical-align: middle;
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    oklch(30% 0.03 165) 0%,
+    oklch(40% 0.045 165) 50%,
+    oklch(30% 0.03 165) 100%
+  );
+  background-size: 200% 100%;
+  animation: apex-loader-shimmer 1.4s ease-in-out infinite;
+}
+
+.apex-loader__shimmer--short {
+  width: 1.75rem;
+}
+
+@keyframes apex-loader-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apex-loader__progress-bar,
+  .apex-loader__code-status,
+  .apex-loader__shimmer,
+  .apex-loader__step.is-active .apex-loader__step-dot {
+    animation: none;
+  }
+
+  .apex-loader__progress-bar {
+    width: 65%;
+  }
+}

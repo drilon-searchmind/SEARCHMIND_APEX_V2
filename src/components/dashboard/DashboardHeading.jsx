@@ -39,6 +39,7 @@ import { ANALYZE_WITH_AI_ENABLED } from "@/lib/featureFlags";
 export default function DashboardHeading({
     title,
     label,
+    subtitle,
     right,
     comparisonMethod = "Last Year",
     showAnalyzeWithAi = true,
@@ -50,6 +51,7 @@ export default function DashboardHeading({
     showRight = true,
     showPdfExport = true,
     showRunAudit = true,
+    variant = "default",
     /** @type {ShopifyMarketFilterProps | null} */
     shopifyMarketFilter = null,
     /** @type {AdSpendPlatformFilterProps | null} */
@@ -129,14 +131,23 @@ export default function DashboardHeading({
         }
     };
 
+    const isCobalt = variant === "cobalt";
+
     return (
-        <div className="w-full bg-white border border-gray-200 rounded-xl px-4 py-4 md:px-8 md:py-6 mb-8 flex flex-col gap-4 md:gap-6">
+        <div className={isCobalt ? "apex-perf-heading" : "w-full bg-white border border-gray-200 rounded-xl px-4 py-4 md:px-8 md:py-6 mb-8 flex flex-col gap-4 md:gap-6"}>
             {/* Header and Right Content */}
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-6">
+            <div className={isCobalt ? "apex-perf-heading__row" : "flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-6"}>
                 {/* Title Section */}
                 <div className="flex-1">
-                    {label && <span className="mb-2 inline-block text-xs text-gray-400 bg-gray-50 rounded px-2 py-1">{label}</span>}
-                    <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-0">{title}</h1>
+                    {label && (
+                        <span className={isCobalt ? "apex-perf-heading__label" : "mb-2 inline-block text-xs text-gray-400 bg-gray-50 rounded px-2 py-1"}>
+                            {label}
+                        </span>
+                    )}
+                    <h1 className={isCobalt ? "apex-perf-heading__title" : "text-xl md:text-2xl font-bold text-gray-900 mb-0"}>{title}</h1>
+                    {subtitle && (
+                        <p className={isCobalt ? "apex-perf-heading__subtitle" : "text-sm text-gray-500 mt-1 mb-0"}>{subtitle}</p>
+                    )}
                 </div>
 
                 {/* Right Section - Responsive */}
@@ -148,19 +159,19 @@ export default function DashboardHeading({
                         showPdfExport ||
                         auditEligible)) && (
                     <div
-                        className={`flex flex-col lg:flex-row lg:items-end lg:justify-end gap-3 lg:gap-4 w-full lg:w-auto lg:min-w-0 lg:shrink-0 ${
+                        className={`${isCobalt ? "apex-perf-heading__actions" : "flex flex-col lg:flex-row lg:items-end lg:justify-end gap-3 lg:gap-4 w-full lg:w-auto lg:min-w-0 lg:shrink-0"} ${
                             loading ? "opacity-50 cursor-not-allowed" : ""
                         }`}
                     >
-                        <div className="flex flex-wrap items-center justify-end gap-2">
+                        <div className={isCobalt ? "apex-perf-heading__btn-row" : "flex flex-wrap items-center justify-end gap-2"}>
                             {auditEligible && (
                                 <button
                                     type="button"
                                     onClick={() => setRunAuditOpen(true)}
                                     disabled={loading}
-                                    className={`inline-flex shrink-0 items-center justify-center border border-[var(--color-primary-searchmind)] text-[var(--color-primary-searchmind)] py-2 px-4 text-xs rounded-lg gap-2 transition-colors bg-white shadow-none ${
-                                        loading ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"
-                                    }`}
+                                    className={isCobalt
+                                        ? "apex-perf-btn apex-perf-btn--ghost"
+                                        : `inline-flex shrink-0 items-center justify-center border border-[var(--color-primary-searchmind)] text-[var(--color-primary-searchmind)] py-2 px-4 text-xs rounded-lg gap-2 transition-colors bg-white shadow-none ${loading ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-50"}`}
                                 >
                                     <FiClipboard className="text-base shrink-0" aria-hidden />
                                     Run audit
@@ -171,11 +182,9 @@ export default function DashboardHeading({
                                     type="button"
                                     onClick={handleExportPdf}
                                     disabled={loading || isExportingPdf}
-                                    className={`inline-flex shrink-0 items-center justify-center bg-[var(--color-primary-searchmind)] text-white py-2 px-4 text-xs rounded-lg gap-2 transition-colors shadow-none ${
-                                        loading || isExportingPdf
-                                            ? "opacity-50 cursor-not-allowed"
-                                            : "hover:bg-[var(--color-primary-searchmind-hover)]"
-                                    }`}
+                                    className={isCobalt
+                                        ? "apex-perf-btn apex-perf-btn--primary"
+                                        : `inline-flex shrink-0 items-center justify-center bg-[var(--color-primary-searchmind)] text-white py-2 px-4 text-xs rounded-lg gap-2 transition-colors shadow-none ${loading || isExportingPdf ? "opacity-50 cursor-not-allowed" : "hover:bg-[var(--color-primary-searchmind-hover)]"}`}
                                 >
                                     <FiDownload className="text-base shrink-0" />
                                     {isExportingPdf ? "Exporting…" : "Export to PDF"}

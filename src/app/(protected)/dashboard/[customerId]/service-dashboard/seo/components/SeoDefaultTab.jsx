@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import MetricCard from "@/components/dashboard/MetricCard";
 import GraphCard from "@/components/dashboard/GraphCard";
-import Spinner from "@/components/ui/Spinner";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import SEOKeywordSettings from "@/components/seo/SEOKeywordSettings";
 import {
     formatComparisonPeriodDates,
@@ -202,6 +202,7 @@ export default function SeoDefaultTab({
         return (
             <div
                 key={opt.key}
+                className={chartToggle ? "apex-seo-kpi-card" : undefined}
                 onClick={
                     chartToggle
                         ? () =>
@@ -213,12 +214,12 @@ export default function SeoDefaultTab({
                               })
                         : undefined
                 }
-                style={chartToggle ? { cursor: "pointer" } : undefined}
             >
                 <MetricCard
+                    variant="cobalt"
                     label={opt.label}
                     value={formatKpiValue(opt.key, currentValue, opt)}
-                    icon={Icon ? <Icon size={22} color={isActive ? "#fff" : undefined} /> : null}
+                    icon={Icon ? <Icon className="w-4 h-4 shrink-0" /> : null}
                     isActive={isActive}
                     change={change !== null ? Math.abs(change).toFixed(1) : undefined}
                     changeType={change !== null ? changeTypeForMetric(opt.key, change) : undefined}
@@ -328,7 +329,7 @@ export default function SeoDefaultTab({
 
     if (!siteUrl) {
         return (
-            <div className="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+            <div className="apex-seo-alert">
                 Add a Google Search Console property in Property Settings to load SEO metrics.
             </div>
         );
@@ -336,36 +337,46 @@ export default function SeoDefaultTab({
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center h-64">
-                <Spinner size={48} />
+            <div className="apex-perf-loading">
+                <CobaltLoader variant="block" title="Loading SEO metrics" request="POST /api/seo-dashboard/metrics" />
             </div>
         );
     }
 
     if (error) {
-        return <div className="text-red-500 text-center py-8">{error}</div>;
+        return <div className="apex-seo-error">{error}</div>;
     }
 
     return (
         <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full mb-4">
-                {CHART_TOGGLE_ROW1.map((opt) => buildMetricCard(opt, true))}
+            <div className="apex-seo-section">
+                <h3 className="apex-seo-section__label">Core metrics</h3>
+                <div className="apex-seo-kpi-grid apex-seo-kpi-grid--4">
+                    {CHART_TOGGLE_ROW1.map((opt) => buildMetricCard(opt, true))}
+                </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 w-full mb-4">
-                {CHART_TOGGLE_ROW2.map((opt) => buildMetricCard(opt, true))}
+            <div className="apex-seo-section">
+                <h3 className="apex-seo-section__label">Engagement & traffic mix</h3>
+                <div className="apex-seo-kpi-grid apex-seo-kpi-grid--6">
+                    {CHART_TOGGLE_ROW2.map((opt) => buildMetricCard(opt, true))}
+                </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full mb-8">
-                {DISPLAY_ONLY_METRICS.map((opt) => buildMetricCard(opt, false))}
+            <div className="apex-seo-section">
+                <h3 className="apex-seo-section__label">Efficiency</h3>
+                <div className="apex-seo-kpi-grid apex-seo-kpi-grid--2">
+                    {DISPLAY_ONLY_METRICS.map((opt) => buildMetricCard(opt, false))}
+                </div>
             </div>
 
-            <div className="mb-8">
+            <div className="apex-seo-chart-block">
                 <GraphCard
+                    variant="cobalt"
                     title="Performance over time"
                     chartOptions={chartOptions}
                     chartSeries={chartSeries}
                     hideChartToggle
                 />
-                <p className="text-[11px] text-gray-500 mt-2">
+                <p className="apex-seo-chart-note">
                     Values are normalized to 0–100% of each metric&apos;s maximum for comparable curves.
                     Hover for actual numbers. Click KPI cards above to show or hide metrics (daily series only).
                 </p>

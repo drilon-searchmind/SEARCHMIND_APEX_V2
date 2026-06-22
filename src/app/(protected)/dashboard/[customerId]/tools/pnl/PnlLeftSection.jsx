@@ -1,7 +1,6 @@
 "use client";
 
-import Spinner from "@/components/ui/Spinner";
-import { Tooltip } from "@/components/ui/Tooltip";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import MetricSection from "./MetricSection";
 import { fmt } from "./pnlUtils";
 
@@ -13,7 +12,6 @@ export default function PnlLeftSection({
     staticExpenses,
     days,
     fetchCogs = false,
-    // Current
     grossSales,
     totalSalesDisplay,
     discounts,
@@ -33,18 +31,14 @@ export default function PnlLeftSection({
     db3,
     fixedExpenses,
     result,
-    realizedROAS,
-    breakEvenROAS,
     db1CTSDisplay,
     db2CTSDisplay,
     db3CTSDisplay,
     db1DGDisplay,
     db2DGDisplay,
     db3DGDisplay,
-    // Visibility: only breakdown rows for integrations with meaningful spend
     visibleAdSpendChannels = [],
     primarySalesRevenueLabel = "Net Sales",
-    // Previous
     grossSalesPrev,
     totalSalesDisplayPrev,
     discountsPrev,
@@ -67,17 +61,22 @@ export default function PnlLeftSection({
 }) {
     if (loading) {
         return (
-            <div className="flex justify-center h-64">
-                <Spinner size={40} color="#406969" />
+            <div className="apex-perf-loading">
+                <CobaltLoader
+                    variant="block"
+                    title="Loading P&L"
+                    request="GET /api/merged-sources"
+                />
             </div>
         );
     }
+
     if (error) {
-        return <div className="text-red-500">{error}</div>;
+        return <div className="apex-pnl-error">{error}</div>;
     }
 
     return (
-        <div className="flex-1 flex flex-col gap-4">
+        <div className="apex-pnl-layout__main">
             <MetricSection
                 title="Net turnover (turnover - discount & return)"
                 comparisonLabel={comparisonLabel}
@@ -204,8 +203,8 @@ export default function PnlLeftSection({
                         higherIsBetter: false,
                     },
                     ...visibleAdSpendChannels.map((c) => ({
-                        label: `· ${c.label}`,
-                        labelClassName: "text-xs text-gray-600 pl-2",
+                        label: c.label,
+                        labelClassName: "nested",
                         tooltip: `${c.label} — sum of daily spend in the period.`,
                         prevVal: channelSpendTotalsPrev[c.metricsDataKey] ?? 0,
                         currVal: channelSpendTotals[c.metricsDataKey] ?? 0,
@@ -264,24 +263,6 @@ export default function PnlLeftSection({
                     },
                 ]}
             />
-            <div className="flex gap-4 mt-6">
-                <div className="flex-1 bg-[var(--color-primary-searchmind)] text-white rounded-lg p-4 flex flex-col items-center border border-gray-200 rounded-xl px-6 py-5">
-                    <Tooltip content="Realized ROAS = Net Sales / total paid media spend (all connected ad platforms)">
-                        <span className="flex flex-col items-center">
-                            <div className="text-xs text-gray-500 mb-1">Realized ROAS</div>
-                            <div className="text-3xl font-bold text-white">{realizedROAS.toFixed(2)}</div>
-                        </span>
-                    </Tooltip>
-                </div>
-                <div className="flex-1 bg-[var(--color-primary-searchmind)] rounded-lg p-4 flex flex-col items-center border border-gray-200 rounded-xl px-6 py-5">
-                    <Tooltip content="Break-even ROAS = Total Costs / total paid media spend (all connected ad platforms)">
-                        <span className="flex flex-col items-center">
-                            <div className="text-xs text-gray-500 mb-1">Break-even ROAS</div>
-                            <div className="text-3xl font-bold text-white">{breakEvenROAS.toFixed(2)}</div>
-                        </span>
-                    </Tooltip>
-                </div>
-            </div>
         </div>
     );
 }

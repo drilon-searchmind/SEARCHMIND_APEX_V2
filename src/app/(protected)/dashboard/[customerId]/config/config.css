@@ -1,0 +1,652 @@
+/* Hallmark · theme: Cobalt · page: config */
+
+@import "../performance-dashboard/performance-dashboard.css";
+
+.apex-config-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.apex-config-panel {
+  margin-top: var(--space-md);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.apex-config-tabs {
+  display: flex;
+  width: 100%;
+  min-height: 20rem;
+}
+
+.apex-config-tabs__nav {
+  display: flex;
+  flex-direction: column;
+  min-width: 13rem;
+  width: 13rem;
+  flex-shrink: 0;
+  padding: var(--space-lg) var(--space-md);
+  background: var(--perf-canvas);
+  border-right: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-config-tabs__btn {
+  display: block;
+  width: 100%;
+  margin-bottom: var(--space-2xs);
+  padding: var(--space-sm) var(--space-md);
+  font-family: var(--font-label);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-align: left;
+  color: var(--color-muted);
+  background: transparent;
+  border: var(--rule-hair) solid transparent;
+  border-radius: var(--radius-input);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.apex-config-tabs__btn:hover {
+  background: var(--color-paper-3);
+  color: var(--color-ink);
+}
+
+.apex-config-tabs__btn.is-active {
+  background: var(--color-paper-3);
+  border-color: var(--color-rule);
+  color: var(--color-ink);
+}
+
+.apex-config-tabs__content {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-lg) var(--space-xl);
+  background: var(--perf-raised);
+}
+
+@media (max-width: 767px) {
+  .apex-config-tabs {
+    flex-direction: column;
+  }
+
+  .apex-config-tabs__nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+    min-width: 0;
+    border-right: none;
+    border-bottom: var(--rule-hair) solid var(--color-rule);
+    padding: var(--space-sm);
+  }
+
+  .apex-config-tabs__btn {
+    width: auto;
+    flex: 1 1 auto;
+    min-width: 8rem;
+  }
+
+  .apex-config-tabs__content {
+    padding: var(--space-md);
+  }
+}
+
+.apex-config-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-md);
+}
+
+.apex-config-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.apex-config-form__title {
+  margin: 0 0 var(--space-xs);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.apex-config-form label {
+  display: block;
+  font-family: var(--font-label);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.apex-config-form label .text-red-500,
+.apex-config-form label span.text-red-500 {
+  color: var(--color-error, oklch(55% 0.18 25)) !important;
+}
+
+.apex-config-form input:not([type="checkbox"]),
+.apex-config-form select,
+.apex-config-form textarea,
+.apex-config-form .mt-2.shadow-none {
+  margin-top: var(--space-2xs);
+  min-height: 2.5rem;
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--color-ink);
+  background: #ffffff;
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+  box-shadow: none;
+  outline: none;
+  appearance: none;
+}
+
+.apex-config-form input:not([type="checkbox"]):focus,
+.apex-config-form select:focus,
+.apex-config-form textarea:focus,
+.apex-config-form .mt-2.shadow-none:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+.apex-config-form input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--color-accent);
+  border-radius: 0.2rem;
+}
+
+.apex-config-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.apex-config-checkbox-row label {
+  margin: 0;
+  text-transform: none;
+  font-size: 0.75rem;
+  letter-spacing: normal;
+  color: var(--color-ink-2);
+}
+
+.apex-config-field-hint {
+  margin: var(--space-2xs) 0 0;
+  font-size: 0.65rem;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+.apex-config-field-unit {
+  font-size: 0.75rem;
+  color: var(--color-ink-2);
+  flex-shrink: 0;
+}
+
+.apex-config-field-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.apex-config-section {
+  margin-bottom: var(--space-lg);
+}
+
+.apex-config-section:last-child {
+  margin-bottom: 0;
+}
+
+.apex-config-section__panel {
+  padding: var(--space-lg);
+  background: var(--perf-canvas);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+.apex-config-section__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin: 0 0 var(--space-md);
+  padding-bottom: var(--space-sm);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  font-family: var(--font-label);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.apex-config-section__head svg {
+  color: var(--color-accent);
+}
+
+.apex-config-section__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-md);
+}
+
+@media (min-width: 768px) {
+  .apex-config-section__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.apex-config-section__grid .col-span-full,
+.apex-config-section__grid .apex-config-col-full {
+  grid-column: 1 / -1;
+}
+
+.apex-config-toc {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+.apex-config-toc__label {
+  margin: 0 0 var(--space-sm);
+  font-family: var(--font-label);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.apex-config-toc__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.apex-config-toc__btn {
+  padding: var(--space-2xs) var(--space-sm);
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--color-ink-2);
+  background: var(--perf-canvas);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.apex-config-toc__btn:hover {
+  background: var(--color-paper-3);
+  border-color: var(--color-accent);
+  color: var(--color-ink);
+}
+
+.apex-config-card {
+  padding: var(--space-md);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+.apex-config-card__title {
+  margin: 0 0 var(--space-2xs);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.apex-config-card__subtitle {
+  margin: 0 0 var(--space-sm);
+  font-size: 0.65rem;
+  color: var(--color-muted);
+}
+
+.apex-config-split {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+@media (min-width: 1024px) {
+  .apex-config-split {
+    flex-direction: row;
+  }
+
+  .apex-config-split > * {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.apex-config-line-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.apex-config-line-item {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.apex-config-line-item input {
+  flex: 1;
+  min-width: 0;
+}
+
+.apex-config-line-item input.apex-config-line-item__amount {
+  flex: 0 0 7rem;
+  max-width: 7rem;
+}
+
+.apex-config-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xs);
+  color: var(--color-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-input);
+  cursor: pointer;
+}
+
+.apex-config-icon-btn:hover {
+  color: var(--color-error, oklch(50% 0.15 25));
+  background: var(--perf-canvas);
+}
+
+.apex-config-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-accent-light);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.apex-config-link-btn:hover {
+  color: var(--color-accent);
+}
+
+.apex-config-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-sm);
+  margin-top: var(--space-sm);
+  border-top: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-config-total-row__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-ink-2);
+}
+
+.apex-config-total-row__value {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.apex-config-tab-group {
+  display: inline-flex;
+  width: 100%;
+  max-width: 100%;
+  padding: var(--space-2xs);
+  background: var(--perf-canvas);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+}
+
+@media (min-width: 640px) {
+  .apex-config-tab-group {
+    width: auto;
+  }
+}
+
+.apex-config-tab {
+  flex: 1;
+  padding: var(--space-xs) var(--space-md);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-input) - 2px);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+@media (min-width: 640px) {
+  .apex-config-tab {
+    flex: none;
+  }
+}
+
+.apex-config-tab:hover {
+  color: var(--color-ink);
+}
+
+.apex-config-tab.is-active {
+  background: var(--perf-raised);
+  color: var(--color-ink);
+  box-shadow: 0 1px 2px rgba(33, 59, 52, 0.06);
+}
+
+.apex-config-table-wrap {
+  overflow-x: auto;
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+}
+
+.apex-config-table {
+  width: 100%;
+  min-width: 28rem;
+  border-collapse: collapse;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--color-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.apex-config-table th {
+  padding: var(--space-xs) var(--space-sm);
+  font-family: var(--font-label);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--color-accent-ink);
+  background: var(--color-accent);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  white-space: nowrap;
+}
+
+.apex-config-table td {
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  vertical-align: middle;
+}
+
+.apex-config-table tbody tr:nth-child(even) {
+  background: var(--perf-canvas);
+}
+
+.apex-config-table tbody tr:hover {
+  background: var(--color-paper-3);
+}
+
+.apex-config-table td.is-brand {
+  color: var(--color-ink);
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.apex-config-table input {
+  width: 100%;
+  min-height: 2rem;
+  padding: var(--space-2xs) var(--space-xs);
+  font-size: 0.7rem;
+}
+
+/* Property objectives — full-width table, reduced row height only */
+.apex-config-table--objectives th {
+  padding: 0.2rem var(--space-sm);
+}
+
+.apex-config-table--objectives td {
+  padding: 0.15rem var(--space-sm);
+}
+
+.apex-config-table--objectives td.is-brand {
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.apex-config-table--objectives input {
+  min-height: 1.5rem;
+  padding: 0.1rem var(--space-2xs);
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
+.apex-config-table th.is-center,
+.apex-config-table td.is-center {
+  text-align: center;
+}
+
+.apex-config-hint {
+  padding: var(--space-md);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  border-radius: var(--radius-input);
+  border: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-config-hint--info {
+  color: var(--color-ink-2);
+  background: var(--color-paper-3);
+}
+
+.apex-config-hint--info strong {
+  color: var(--color-ink);
+}
+
+.apex-config-hint code {
+  display: block;
+  margin-top: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.65rem;
+  word-break: break-all;
+  background: #ffffff;
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+}
+
+.apex-config-hint--warn {
+  color: var(--color-ink-2);
+  background: var(--color-paper-3);
+}
+
+.apex-config-empty {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.apex-config-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  background: rgba(33, 59, 52, 0.35);
+}
+
+.apex-config-modal {
+  width: 100%;
+  max-width: 28rem;
+  padding: var(--space-lg);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+  box-shadow: 0 12px 40px rgba(33, 59, 52, 0.12);
+}
+
+.apex-config-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.apex-config-modal__cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xs) var(--space-md);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+  cursor: pointer;
+}
+
+.apex-config-modal__cancel:hover {
+  background: var(--color-paper-3);
+  color: var(--color-ink);
+}
+
+.apex-config-error {
+  font-size: 0.75rem;
+  color: var(--color-error, oklch(50% 0.15 25));
+}
+
+.apex-config-mapping-panel {
+  grid-column: 1 / -1;
+  margin-top: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+}
+
+.apex-config-mapping-panel__title {
+  margin: 0 0 var(--space-2xs);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.apex-config-mapping-panel__subtitle {
+  margin: 0 0 var(--space-md);
+  font-size: 0.65rem;
+  line-height: 1.45;
+  color: var(--color-muted);
+}

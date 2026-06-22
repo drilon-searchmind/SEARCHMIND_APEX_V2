@@ -1,4 +1,11 @@
 import { METRIC_COLUMNS } from './metricConfig';
+import { dailyHeadCellClass, isCobaltDaily } from './dailyTableUi';
+
+const GROUP_CLASS = {
+	sales: 'is-sales',
+	marketing: 'is-marketing',
+	result: 'is-result',
+};
 
 function countVisibleInGroup(metricColumns, visibleMetrics, group) {
 	return metricColumns.filter((m) => m.group === group && visibleMetrics[m.key]).length;
@@ -9,6 +16,7 @@ export default function DailyMetricsTableHeader({
 	visibleMetrics = {},
 	metricColumns = METRIC_COLUMNS,
 }) {
+	const isCobalt = isCobaltDaily(variant);
 	const headerBg = variant === 'lastYear' ? 'bg-gray-100' : 'bg-gray-50';
 
 	const salesCount = countVisibleInGroup(metricColumns, visibleMetrics, 'sales');
@@ -19,6 +27,71 @@ export default function DailyMetricsTableHeader({
 	const showMarketing = marketingCount > 0;
 	const showResult = resultCount > 0;
 	const showGroupRow = showSales || showMarketing || showResult;
+
+	if (isCobalt) {
+		return (
+			<thead>
+				{showGroupRow && (
+					<tr className="apex-daily-table__head-group-row">
+						<th className="apex-daily-table__head-date" rowSpan={2}>
+							Date
+						</th>
+						{showSales && (
+							<th
+								className={`apex-daily-table__head-group ${GROUP_CLASS.sales}`}
+								colSpan={salesCount}
+							>
+								Sales
+							</th>
+						)}
+						{showMarketing && (
+							<th
+								className={`apex-daily-table__head-group ${GROUP_CLASS.marketing}`}
+								colSpan={marketingCount}
+							>
+								Marketing
+							</th>
+						)}
+						{showResult && (
+							<th
+								className={`apex-daily-table__head-group ${GROUP_CLASS.result}`}
+								colSpan={resultCount}
+							>
+								Result
+							</th>
+						)}
+					</tr>
+				)}
+				<tr className="apex-daily-table__head-row">
+					{!showGroupRow && (
+						<th className="apex-daily-table__head-date">Date</th>
+					)}
+					{metricColumns.map((m, idx) => {
+						if (!visibleMetrics[m.key]) return null;
+						const visibleBefore = metricColumns.filter(
+							(p, i) => i < idx && visibleMetrics[p.key]
+						).length;
+						const isFirstVisible = visibleBefore === 0;
+						const prevInGroup = metricColumns
+							.slice(0, idx)
+							.filter((p) => p.group === m.group && visibleMetrics[p.key]);
+						const showBorderL =
+							isFirstVisible ||
+							(prevInGroup.length === 0 &&
+								(m.group === 'marketing' || m.group === 'result'));
+						return (
+							<th
+								key={m.key}
+								className={dailyHeadCellClass(variant, showBorderL)}
+							>
+								{m.label}
+							</th>
+						);
+					})}
+				</tr>
+			</thead>
+		);
+	}
 
 	return (
 		<thead>
@@ -63,8 +136,7 @@ export default function DailyMetricsTableHeader({
 				{metricColumns.map((m, idx) => {
 					if (!visibleMetrics[m.key]) return null;
 					const visibleBefore = metricColumns.filter(
-						(p, i) =>
-							i < idx && visibleMetrics[p.key]
+						(p, i) => i < idx && visibleMetrics[p.key]
 					).length;
 					const isFirstVisible = visibleBefore === 0;
 					const prevInGroup = metricColumns.slice(0, idx).filter(

@@ -6,7 +6,7 @@ import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import MetricCard from "@/components/dashboard/MetricCard";
 import GraphCard from "@/components/dashboard/GraphCard";
-import Spinner from "@/components/ui/Spinner";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { useCustomers } from "@/hooks/useCustomers";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
@@ -30,6 +30,7 @@ import {
     PLACEMENT_TABLE_COLUMNS,
     CAMPAIGN_TABLE_COLUMNS,
 } from "./components/psDashboardConfig";
+import "./ps-dashboard.css";
 
 function formatKpiValue(key, value, opt = {}) {
     if (value === null || value === undefined || Number.isNaN(value)) return "—";
@@ -269,6 +270,7 @@ export default function FacebookPSPage() {
         return (
             <div
                 key={opt.key}
+                className={chartToggle ? "apex-ps-kpi-card" : undefined}
                 onClick={
                     chartToggle
                         ? () =>
@@ -280,12 +282,12 @@ export default function FacebookPSPage() {
                               })
                         : undefined
                 }
-                style={chartToggle ? { cursor: "pointer" } : undefined}
             >
                 <MetricCard
+                    variant="cobalt"
                     label={opt.label}
                     value={formatKpiValue(opt.key, currentValue, opt)}
-                    icon={Icon ? <Icon size={22} color={isActive ? "#fff" : undefined} /> : null}
+                    icon={Icon ? <Icon className="w-4 h-4 shrink-0" /> : null}
                     isActive={isActive}
                     change={change !== null ? Math.abs(change).toFixed(1) : undefined}
                     changeType={changeType(change)}
@@ -303,7 +305,9 @@ export default function FacebookPSPage() {
         const out = {};
         for (const key of selectedMetrics) {
             out[key] = {
-                current: chartCategories.map((date) => getDailyMetricValue(fbMetricsByDate.find((r) => r.date === date), key)),
+                current: chartCategories.map((date) =>
+                    getDailyMetricValue(fbMetricsByDate.find((r) => r.date === date), key)
+                ),
                 prev: chartCategories.map((date) => {
                     const prevDate = resolveDailyComparisonDate({
                         comparisonMethod,
@@ -351,23 +355,14 @@ export default function FacebookPSPage() {
 
     const selectedMetricsCount = selectedMetrics.length;
     const compCount = comparisonMethod !== COMPARISON_METHOD.NONE ? selectedMetricsCount : 0;
-    const strokeWidths = [
-        ...Array(selectedMetricsCount).fill(2),
-        ...Array(compCount).fill(1),
-    ];
-    const strokeDashArrays = [
-        ...Array(selectedMetricsCount).fill(0),
-        ...Array(compCount).fill(5),
-    ];
-    const fillOpacities = [
-        ...Array(selectedMetricsCount).fill(1),
-        ...Array(compCount).fill(0.5),
-    ];
+    const strokeWidths = [...Array(selectedMetricsCount).fill(2), ...Array(compCount).fill(1)];
+    const strokeDashArrays = [...Array(selectedMetricsCount).fill(0), ...Array(compCount).fill(5)];
+    const fillOpacities = [...Array(selectedMetricsCount).fill(1), ...Array(compCount).fill(0.5)];
 
     const chartOptions = useMemo(
         () => ({
             chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "Outfit, sans-serif" },
-            xaxis: { categories: chartCategories },
+            xaxis: { categories: chartCategories, labels: { rotate: -45 } },
             yaxis: {
                 min: 0,
                 max: 100,
@@ -426,7 +421,7 @@ export default function FacebookPSPage() {
                     fontFamily: "Outfit, sans-serif",
                 },
                 plotOptions: { area: { stacking: "normal" } },
-                xaxis: { categories: dates },
+                xaxis: { categories: dates, labels: { rotate: -45 } },
                 yaxis: {
                     labels: {
                         formatter: (v) =>
@@ -463,10 +458,18 @@ export default function FacebookPSPage() {
 
     const row1 = CHART_TOGGLE_METRICS.filter((m) => m.row === 1);
     const row2 = CHART_TOGGLE_METRICS.filter((m) => m.row === 2);
+    const customerMixMetrics = DISPLAY_ONLY_METRICS.filter((m) =>
+        ["new_customer_ratio", "recurring_customer_ratio"].includes(m.key)
+    );
+    const audienceMetrics = DISPLAY_ONLY_METRICS.filter((m) =>
+        ["reach", "frequency", "engagement_rate"].includes(m.key)
+    );
 
     return (
-        <div className="w-full">
+        <div id="PsDashboardPage" className="cobalt-perf w-full" data-theme="cobalt">
             <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
                 title="Paid Social Dashboard"
                 label={customer ? customer.customerName : ""}
                 customerId={params.customerId}
@@ -480,69 +483,105 @@ export default function FacebookPSPage() {
                     placements,
                     selectedMetrics,
                 }}
-                right={<DateRangePicker {...dateRangePickerProps} loading={loading} />}
+                right={
+                    <DateRangePicker {...dateRangePickerProps} variant="cobalt" loading={loading} />
+                }
             />
 
             {loading ? (
-                <div className="text-center py-12">
-                    <Spinner size={40} color="#406969" />
+                <div className="apex-perf-loading">
+                    <CobaltLoader
+                        variant="block"
+                        title="Loading paid social metrics"
+                        request="GET /api/facebook-campaign-insights"
+                    />
                 </div>
             ) : error ? (
-                <div className="text-center text-red-500 py-8">{error}</div>
+                <div className="apex-ps-error">{error}</div>
             ) : (
-                <>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full mb-4">
-                        {row1.map((opt) => buildMetricCard(opt, true))}
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 w-full mb-4">
-                        {row2.map((opt) => buildMetricCard(opt, true))}
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 w-full mb-8">
-                        {DISPLAY_ONLY_METRICS.map((opt) => buildMetricCard(opt, false))}
-                    </div>
+                <div className="apex-ps-panel">
+                    <section className="apex-ps-section">
+                        <h3 className="apex-ps-section__label">Spend & results</h3>
+                        <div className="apex-ps-kpi-grid apex-ps-kpi-grid--4">
+                            {row1.map((opt) => buildMetricCard(opt, true))}
+                        </div>
+                    </section>
 
-                    <div className="mb-8">
+                    <section className="apex-ps-section">
+                        <h3 className="apex-ps-section__label">Efficiency</h3>
+                        <div className="apex-ps-kpi-grid apex-ps-kpi-grid--6">
+                            {row2.map((opt) => buildMetricCard(opt, true))}
+                        </div>
+                    </section>
+
+                    <section className="apex-ps-section">
+                        <h3 className="apex-ps-section__label">Customer mix</h3>
+                        <div className="apex-ps-kpi-grid apex-ps-kpi-grid--2">
+                            {customerMixMetrics.map((opt) => buildMetricCard(opt, false))}
+                        </div>
+                    </section>
+
+                    <section className="apex-ps-section">
+                        <h3 className="apex-ps-section__label">Audience & engagement</h3>
+                        <div className="apex-ps-kpi-grid apex-ps-kpi-grid--3">
+                            {audienceMetrics.map((opt) => buildMetricCard(opt, false))}
+                        </div>
+                    </section>
+
+                    <div className="apex-ps-chart-block">
                         <GraphCard
+                            variant="cobalt"
                             title="Spend over time"
                             chartOptions={chartOptions}
                             chartSeries={chartSeries}
                             hideChartToggle
                         />
-                        <p className="text-[11px] text-gray-500 mt-2">
+                        <p className="apex-ps-chart-note">
                             Values are normalized to 0–100% of each metric&apos;s maximum for comparable curves.
                             Hover for actual numbers. Click KPI cards above to show or hide metrics.
                         </p>
                     </div>
 
-                    {adPerfLoading ? (
-                        <div className="flex justify-center py-8 mb-8">
-                            <Spinner size={32} color="#406969" />
-                        </div>
-                    ) : (
-                        <>
-                            <PsSortableMetricsTable
-                                title="Creative winners"
-                                subtitle="Creatives with strong ROAS — candidates to scale budget or produce variants."
-                                columns={CREATIVE_TABLE_COLUMNS}
-                                rows={winners.map((r, i) => ({ ...r, id: r.ad_id || i }))}
-                                rowKeyField="id"
-                                highlightPositiveNegative
-                            />
-                            <PsSortableMetricsTable
-                                title="Creative losers"
-                                subtitle="Low ROAS creatives — consider pausing or refreshing creative."
-                                columns={CREATIVE_TABLE_COLUMNS}
-                                rows={losers.map((r, i) => ({ ...r, id: r.ad_id || `l-${i}` }))}
-                                rowKeyField="id"
-                                highlightPositiveNegative
-                            />
-                        </>
-                    )}
-                    {adPerfError ? (
-                        <p className="text-xs text-amber-700 mb-6">{adPerfError}</p>
-                    ) : null}
+                    <section className="apex-ps-section">
+                        <h3 className="apex-ps-section__label">Creatives</h3>
+                        {adPerfError ? <div className="apex-ps-alert">{adPerfError}</div> : null}
+                        {adPerfLoading ? (
+                            <div className="apex-ps-inline-loading">
+                                <CobaltLoader
+                                    variant="block"
+                                    title="Loading ad-level performance"
+                                    request="GET /api/facebook-ads-ad-performance"
+                                />
+                            </div>
+                        ) : (
+                            <div className="apex-ps-tables-grid">
+                                <PsSortableMetricsTable
+                                    variant="cobalt"
+                                    cobaltScope="ps"
+                                    title="Creative winners"
+                                    subtitle="Creatives with strong ROAS — candidates to scale budget or produce variants."
+                                    columns={CREATIVE_TABLE_COLUMNS}
+                                    rows={winners.map((r, i) => ({ ...r, id: r.ad_id || i }))}
+                                    rowKeyField="id"
+                                    highlightPositiveNegative
+                                />
+                                <PsSortableMetricsTable
+                                    variant="cobalt"
+                                    cobaltScope="ps"
+                                    title="Creative losers"
+                                    subtitle="Low ROAS creatives — consider pausing or refreshing creative."
+                                    columns={CREATIVE_TABLE_COLUMNS}
+                                    rows={losers.map((r, i) => ({ ...r, id: r.ad_id || `l-${i}` }))}
+                                    rowKeyField="id"
+                                    highlightPositiveNegative
+                                />
+                            </div>
+                        )}
+                    </section>
 
                     <PsSortableMetricsTable
+                        variant="cobalt"
+                        cobaltScope="ps"
                         title="Placement performance"
                         columns={PLACEMENT_TABLE_COLUMNS}
                         rows={placements.map((r, i) => ({
@@ -554,6 +593,8 @@ export default function FacebookPSPage() {
                     />
 
                     <PsSortableMetricsTable
+                        variant="cobalt"
+                        cobaltScope="ps"
                         title="Kampagne performance"
                         columns={CAMPAIGN_TABLE_COLUMNS}
                         rows={campaignsPerformance.map((r, i) => ({
@@ -564,8 +605,9 @@ export default function FacebookPSPage() {
                         highlightPositiveNegative
                     />
 
-                    <div className="mb-8">
+                    <div className="apex-ps-chart-block">
                         <GraphCard
+                            variant="cobalt"
                             title="Prospecting vs Retargeting spend"
                             chartOptions={funnelChart.options}
                             chartSeries={funnelChart.series}
@@ -573,7 +615,7 @@ export default function FacebookPSPage() {
                             hideChartToggle
                         />
                     </div>
-                </>
+                </div>
             )}
         </div>
     );

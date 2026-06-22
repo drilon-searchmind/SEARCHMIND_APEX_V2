@@ -1,47 +1,88 @@
 "use client";
 import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import AuthVerifyingScreen from "@/components/auth/AuthVerifyingScreen";
+import "@/components/auth/auth-verifying.css";
+
+const MIN_VERIFY_MS = 2800;
+const SUCCESS_HOLD_MS = 750;
+const EXIT_MS = 600;
 
 export default function AuthGuard({ children }) {
 	const { status } = useSession();
 	const router = useRouter();
 	const pathname = usePathname();
+	const [showVerify, setShowVerify] = useState(() => status === "loading");
+	const [verifyPhase, setVerifyPhase] = useState("verifying");
+	const startedAt = useRef(null);
+	const timers = useRef([]);
 
+	const clearTimers = () => {
+		timers.current.forEach((id) => window.clearTimeout(id));
+		timers.current = [];
+	};
 
-		useEffect(() => {
-			// If unauthenticated and not already on /login, redirect to /login
-			if (status === "unauthenticated" && pathname !== "/login") {
-				router.push("/login");
-			}
-			// If authenticated and on / or /login, redirect to /home
-			if (status === "authenticated" && (pathname === "/" || pathname === "/login")) {
-				router.push("/home");
-			}
-		}, [status, router, pathname]);
+	const schedule = (fn, delay) => {
+		const id = window.setTimeout(fn, delay);
+		timers.current.push(id);
+	};
 
-	// Show loading spinner only while loading
-	if (status === "loading") {
-		return (
-			<div className="flex items-center justify-center h-screen bg-white">
-				<div className="text-center">
-					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-					<p className="text-gray-600">Verifying authentication...</p>
-				</div>
-			</div>
-		);
+	useEffect(() => {
+		if (status === "unauthenticated" && pathname !== "/login") {
+			router.push("/login");
+		}
+		if (status === "authenticated" && (pathname === "/" || pathname === "/login")) {
+			router.push("/home");
+		}
+	}, [status, router, pathname]);
+
+	useEffect(() => {
+		clearTimers();
+
+		if (status === "loading") {
+			startedAt.current = Date.now();
+			setShowVerify(true);
+			setVerifyPhase("verifying");
+			return undefined;
+		}
+
+		if (startedAt.current === null) {
+			setShowVerify(false);
+			return undefined;
+		}
+
+		const elapsed = Date.now() - startedAt.current;
+		const wait = Math.max(0, MIN_VERIFY_MS - elapsed);
+		const isSuccess = status === "authenticated";
+
+		schedule(() => {
+			setVerifyPhase(isSuccess ? "success" : "exiting");
+		}, wait);
+
+		schedule(() => {
+			setVerifyPhase("exiting");
+		}, wait + (isSuccess ? SUCCESS_HOLD_MS : 0));
+
+		schedule(() => {
+			setShowVerify(false);
+			startedAt.current = null;
+		}, wait + (isSuccess ? SUCCESS_HOLD_MS : 0) + EXIT_MS);
+
+		return clearTimers;
+	}, [status]);
+
+	if (showVerify) {
+		return <AuthVerifyingScreen phase={verifyPhase} />;
 	}
 
-	// If unauthenticated and on /login, allow children (login page)
 	if (status === "unauthenticated" && pathname === "/login") {
 		return children;
 	}
 
-	// If authenticated, allow children
 	if (status === "authenticated") {
-		return children;
+		return <div className="auth-guard-enter">{children}</div>;
 	}
 
-	// Fallback (should not be reached)
 	return null;
 }

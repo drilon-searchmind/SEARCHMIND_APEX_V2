@@ -3,28 +3,20 @@
 import React from "react";
 import { FiX } from "react-icons/fi";
 
-const tableClass = "w-full text-xs border-collapse";
-const thGroup = "px-3 py-2 text-left font-semibold text-gray-900 bg-gray-100 border border-gray-200";
-const th = "px-3 py-2 text-left font-semibold text-gray-700 bg-gray-50 border border-gray-200 whitespace-nowrap";
-const td = "px-3 py-2 text-gray-600 border border-gray-100 align-top leading-relaxed";
-
 function Row({ group, metric, children }) {
     return (
-        <tr className="hover:bg-gray-50/60">
-            <td className={`${td} font-medium text-gray-800 whitespace-nowrap`}>{group}</td>
-            <td className={`${td} text-gray-800 whitespace-nowrap`}>{metric}</td>
-            <td className={td}>{children}</td>
+        <tr>
+            <td className="font-medium whitespace-nowrap">{group}</td>
+            <td className="whitespace-nowrap">{metric}</td>
+            <td className="leading-relaxed">{children}</td>
         </tr>
     );
 }
 
-/**
- * Explains overview table metrics (aligned with Meta insights + customer Apex Radar settings).
- */
 export default function ApexRadarOverviewMetricsInfoModal({ onClose }) {
     return (
         <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/45"
+            className="apex-radar-modal-backdrop"
             role="dialog"
             aria-modal="true"
             aria-labelledby="apex-metrics-info-title"
@@ -32,28 +24,23 @@ export default function ApexRadarOverviewMetricsInfoModal({ onClose }) {
                 if (e.target === e.currentTarget) onClose();
             }}
         >
-            <div className="w-full max-w-4xl max-h-[min(90vh,780px)] rounded-xl border border-gray-200 bg-white overflow-hidden flex flex-col shadow-lg">
-                <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-gray-100 shrink-0">
+            <div className="apex-radar-modal apex-radar-modal--xl">
+                <div className="apex-radar-modal__head">
                     <div>
-                        <h2 id="apex-metrics-info-title" className="text-lg font-semibold text-gray-900">
+                        <h2 id="apex-metrics-info-title" className="apex-radar-modal__title">
                             Overview metrics
                         </h2>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="apex-radar-modal__subtitle">
                             How numbers are computed and what they represent (Facebook / Meta data).
                         </p>
                     </div>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-                        aria-label="Close"
-                    >
+                    <button type="button" onClick={onClose} className="apex-radar-modal__close" aria-label="Close">
                         <FiX className="h-5 w-5" />
                     </button>
                 </div>
-                <div className="px-5 py-4 overflow-y-auto flex-1">
-                    <div className="rounded-lg border border-[var(--color-primary-searchmind)]/20 bg-[var(--color-primary-searchmind)]/5 px-3 py-2.5 mb-4 text-xs text-gray-700">
-                        <p className="font-semibold text-gray-900 mb-1">Date range</p>
+                <div className="apex-radar-modal__body">
+                    <div className="apex-radar-modal-callout mb-4">
+                        <p className="font-semibold text-[var(--color-ink)] mb-1">Date range</p>
                         <p>
                             The overview respects the date picker: <strong>end date</strong> is the reporting as-of day.
                             Rolling windows (2, 7, and 30 days) <strong>end on that date</strong> and only include days
@@ -63,24 +50,18 @@ export default function ApexRadarOverviewMetricsInfoModal({ onClose }) {
                         </p>
                     </div>
 
-                    <div className="overflow-x-auto rounded-lg border border-gray-200">
-                        <table className={tableClass}>
+                    <div className="apex-radar-table-wrap">
+                        <table className="apex-radar-table">
                             <thead>
                                 <tr>
-                                    <th className={th} scope="col">
-                                        Category
-                                    </th>
-                                    <th className={th} scope="col">
-                                        Metric
-                                    </th>
-                                    <th className={th} scope="col">
-                                        Definition
-                                    </th>
+                                    <th>Category</th>
+                                    <th>Metric</th>
+                                    <th>Definition</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <th className={thGroup} colSpan={3} scope="colgroup">
+                                    <th colSpan={3} className="th-group text-left">
                                         Value
                                     </th>
                                 </tr>
@@ -95,15 +76,14 @@ export default function ApexRadarOverviewMetricsInfoModal({ onClose }) {
                                 <Row group="Value" metric="Min. value (7d) / (30d)">
                                     Baseline from roughly a year of <strong>weekly</strong> totals of the same series
                                     (revenue for ROAS, conversions for CPA). Per week:{" "}
-                                    <code className="bg-gray-100 px-1 rounded">log10(weekly total)</code>; then mean and
-                                    sample standard deviation of those logs. Floors:{" "}
-                                    <code className="bg-gray-100 px-1 rounded">10^(mean - 2*std)</code> (7d) and{" "}
-                                    <code className="bg-gray-100 px-1 rounded">10^(mean - std)</code> (30d). Highlighting
-                                    when realized value is below the floor.
+                                    <code>log10(weekly total)</code>; then mean and sample standard deviation of those
+                                    logs. Floors: <code>10^(mean - 2*std)</code> (7d) and{" "}
+                                    <code>10^(mean - std)</code> (30d). Highlighting when realized value is below the
+                                    floor.
                                 </Row>
 
                                 <tr>
-                                    <th className={thGroup} colSpan={3} scope="colgroup">
+                                    <th colSpan={3} className="th-group text-left">
                                         Targets
                                     </th>
                                 </tr>
@@ -120,7 +100,7 @@ export default function ApexRadarOverviewMetricsInfoModal({ onClose }) {
                                 </Row>
 
                                 <tr>
-                                    <th className={thGroup} colSpan={3} scope="colgroup">
+                                    <th colSpan={3} className="th-group text-left">
                                         Budget
                                     </th>
                                 </tr>
@@ -128,8 +108,8 @@ export default function ApexRadarOverviewMetricsInfoModal({ onClose }) {
                                     Monthly target budget from Apex Radar settings.
                                 </Row>
                                 <Row group="Budget" metric="Spend (realized)">
-                                    Sum of spend from the <strong>first day of the calendar month</strong> of the end date
-                                    through the end date.
+                                    Sum of spend from the <strong>first day of the calendar month</strong> of the end
+                                    date through the end date.
                                 </Row>
                                 <Row group="Budget" metric="Spend (yesterday)">
                                     Spend on the overview <strong>end date</strong> (as-of day; default picker is
@@ -137,18 +117,15 @@ export default function ApexRadarOverviewMetricsInfoModal({ onClose }) {
                                 </Row>
                                 <Row group="Budget" metric="Pace">
                                     Realized month-to-date spend ÷ expected linear spend:{" "}
-                                    <code className="bg-gray-100 px-1 rounded">
-                                        (target ÷ days in month) × (day of month - 1)
-                                    </code>
-                                    . Near 1 means close to an even spread through the month.
+                                    <code>(target ÷ days in month) × (day of month - 1)</code>. Near 1 means close to an
+                                    even spread through the month.
                                 </Row>
                                 <Row group="Budget" metric="Type">
-                                    <strong>D</strong> = dynamic budget mode, <strong>S</strong> = static (from
-                                    settings).
+                                    <strong>D</strong> = dynamic budget mode, <strong>S</strong> = static (from settings).
                                 </Row>
 
                                 <tr>
-                                    <th className={thGroup} colSpan={3} scope="colgroup">
+                                    <th colSpan={3} className="th-group text-left">
                                         Ad performance
                                     </th>
                                 </tr>
@@ -163,12 +140,8 @@ export default function ApexRadarOverviewMetricsInfoModal({ onClose }) {
                         </table>
                     </div>
                 </div>
-                <div className="flex items-center justify-end px-5 py-3 border-t border-gray-100 bg-gray-50 shrink-0">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="rounded-lg px-4 py-2 text-sm font-medium text-white bg-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] focus-visible:ring-offset-1"
-                    >
+                <div className="apex-radar-modal__foot">
+                    <button type="button" onClick={onClose} className="apex-perf-btn apex-perf-btn--primary">
                         Close
                     </button>
                 </div>

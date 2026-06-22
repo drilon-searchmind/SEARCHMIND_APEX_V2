@@ -5,7 +5,7 @@ import "@xyflow/react/dist/style.css";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dagre from "dagre";
 import { Handle, Position, ReactFlow, ReactFlowProvider, useReactFlow } from "@xyflow/react";
-import Spinner from "@/components/ui/Spinner";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { MOCK_PI_FUNNEL as MOCK_FUNNEL } from "../lib/mockPerformanceInvestigatorData";
 
 const STEM = "#171717";
@@ -404,7 +404,7 @@ function FunnelFlowCanvas({ funnelData }) {
                     pathOptions: { offset: 0 },
                     interactionWidth: 0,
                 }}
-                className="!bg-transparent !h-full !w-full"
+                className="!h-full !w-full"
             />
         </div>
     );
@@ -419,24 +419,23 @@ export default function PerformanceInvestigatorFunnel({ funnel = null, loading =
 
     if (loading && funnel == null) {
         return (
-            <div className="flex flex-col items-center gap-3 rounded-xl border border-gray-200 bg-white p-12" aria-busy="true">
-                <Spinner size={40} color="#406969" />
-                <p className="text-sm text-gray-500">Loading funnel…</p>
+            <div className="apex-radar-pi-loader-panel">
+                <CobaltLoader variant="block" title="Loading funnel" />
             </div>
         );
     }
 
     return (
-        <div className="w-full max-w-full rounded-xl border border-stone-200 bg-[#f6f5f2] py-4 sm:py-6 px-0 sm:px-2">
+        <div className="apex-radar-funnel-panel">
             <section className="px-4 sm:px-6">
-                <div >
-                    <h3 className="text-lg font-semibold text-gray-900">Performance funnel</h3>
-                    <p className="mt-1.5 max-w-prose text-sm text-gray-600">
-                        {compareHint ? ` ${compareHint}` : ""}
+                <div>
+                    <h3 className="apex-radar-section__title">Performance funnel</h3>
+                    <p className="apex-radar-section__subtitle mt-1">
+                        {compareHint ? compareHint : ""}
                     </p>
                 </div>
 
-                <div className="apex-radar-funnel-flow mt-6 h-[clamp(280px,min(52dvh,560px),720px)] w-full min-h-[260px] max-h-[min(720px,calc(100dvh-180px))] shrink-0 overflow-hidden rounded-lg border border-stone-300/70 bg-[#f3f2ef] [&_.react-flow\_\_attribution]:pointer-events-none [&_.react-flow\_\_attribution]:hidden [&_.react-flow]:box-border [&_.react-flow]:h-full [&_.react-flow]:w-full">
+                <div className="apex-radar-funnel-flow [&_.react-flow__attribution]:pointer-events-none [&_.react-flow__attribution]:hidden [&_.react-flow]:box-border [&_.react-flow]:h-full [&_.react-flow]:w-full">
                     <ReactFlowProvider>
                         <FunnelFlowCanvas funnelData={funnelData} />
                     </ReactFlowProvider>

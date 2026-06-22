@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { FiAlertCircle, FiAlertTriangle, FiSettings } from "react-icons/fi";
-import Spinner from "@/components/ui/Spinner";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { formatApexRadarTeamAssignmentLabel } from "@/lib/apexRadarTeamAssignmentsFormat";
 import {
     APEX_RADAR_CHANNEL_FACEBOOK,
@@ -40,75 +40,63 @@ function fmtPct(n) {
     return `${fmtDecimal(n, 2)}%`;
 }
 
-const thGroup = "px-2 py-2 text-center text-xs font-bold text-gray-800 bg-gray-100 border border-gray-200";
-const thSub = "px-2 py-2 text-left text-[0.65rem] font-semibold text-gray-600 bg-gray-50 border border-gray-200 whitespace-nowrap max-w-[140px]";
-const tdBase = "px-2 py-2 text-xs text-gray-900 border border-gray-100 tabular-nums";
-const tdEntity =
-    "px-3 py-2 text-xs font-medium text-gray-900 border border-gray-100 bg-gray-50/80 sticky left-0 z-30 min-w-[200px] max-w-[240px]";
-const tdTeamMember =
-    "px-3 py-2 text-xs text-gray-800 border border-gray-100 bg-gray-50/80 sticky z-20 left-[200px] min-w-[120px] max-w-[200px] align-top";
-
-const alertBg = "bg-[#fde8e8]";
-
-function Cell({ children, warn }) {
-    return <td className={`${tdBase} ${warn ? alertBg : ""}`}>{children}</td>;
+function Cell({ children, warn, className = "" }) {
+    return (
+        <td className={`td-num${warn ? " td-warn" : ""}${className ? ` ${className}` : ""}`}>
+            {children}
+        </td>
+    );
 }
 
 function TableHead() {
     return (
         <thead>
             <tr>
-                <th
-                    rowSpan={2}
-                    className={`${thGroup} text-left sticky left-0 z-30 bg-gray-200 min-w-[200px]`}
-                >
+                <th rowSpan={2} className="is-sticky-left text-left td-entity">
                     Account
                 </th>
-                <th
-                    rowSpan={2}
-                    className={`${thGroup} text-left sticky left-[200px] z-30 bg-gray-200 min-w-[120px]`}
-                >
+                <th rowSpan={2} className="is-sticky-left-2 text-left">
                     Team members
                 </th>
-                <th colSpan={5} className={thGroup}>
+                <th colSpan={5} className="th-group">
                     Value
                 </th>
-                <th colSpan={4} className={thGroup}>
+                <th colSpan={4} className="th-group">
                     Targets
                 </th>
-                <th colSpan={5} className={thGroup}>
+                <th colSpan={5} className="th-group">
                     Budget
                 </th>
-                <th colSpan={5} className={thGroup}>
+                <th colSpan={5} className="th-group">
                     Ad performance
                 </th>
-                <th colSpan={3} className={thGroup}>
+                <th colSpan={3} className="th-group">
                     Spend day-over-day
                 </th>
             </tr>
             <tr>
-                <th className={thSub}>Conv. (2d)</th>
-                <th className={thSub}>Value (7d)</th>
-                <th className={thSub}>Min. value (7d)</th>
-                <th className={thSub}>Value (30d)</th>
-                <th className={thSub}>Min. value (30d)</th>
-                <th className={thSub}>Type</th>
-                <th className={thSub}>Target</th>
-                <th className={thSub}>Actual (7d)</th>
-                <th className={thSub}>Actual (30d)</th>
-                <th className={thSub}>Target</th>
-                <th className={thSub}>Spend</th>
-                <th className={thSub}>Spend (range end)</th>
-                <th className={thSub}>Pace</th>
-                <th className={thSub}>Type</th>
-                <th className={thSub}># Fatigue</th>
-                <th className={thSub}>CTR (7d)</th>
-                <th className={thSub}>CTR (30d)</th>
-                <th className={thSub}>Freq (7d)</th>
-                <th className={thSub}>Freq (30d)</th>
-                <th className={thSub}>Spend (yest. UTC)</th>
-                <th className={thSub}>Spend (prior UTC)</th>
-                <th className={thSub}>DoD change %</th>
+                <th className="th-sub">Conv. (2d)</th>
+                <th className="th-sub">Value (7d)</th>
+                <th className="th-sub">Min. value (7d)</th>
+                <th className="th-sub">Value (30d)</th>
+                <th className="th-sub">Min. value (30d)</th>
+                <th className="th-sub">Type</th>
+                <th className="th-sub">Target</th>
+                <th className="th-sub">Actual (7d)</th>
+                <th className="th-sub">Actual (30d)</th>
+                <th className="th-sub">Target</th>
+                <th className="th-sub">Spend</th>
+                <th className="th-sub">Spend (range end)</th>
+                <th className="th-sub">Pace</th>
+                <th className="th-sub">Type</th>
+                <th className="th-sub"># Fatigue</th>
+                <th className="th-sub">CTR (7d)</th>
+                <th className="th-sub">CTR (30d)</th>
+                <th className="th-sub">Freq (7d)</th>
+                <th className="th-sub">Freq (30d)</th>
+                <th className="th-sub">Spend (yest. UTC)</th>
+                <th className="th-sub">Spend (prior UTC)</th>
+                <th className="th-sub">DoD change %</th>
             </tr>
         </thead>
     );
@@ -123,7 +111,6 @@ export default function ApexRadarOverviewTable({
     assignableUsers = [],
     loading = false,
     spendDodThresholdPct = APEX_RADAR_SPEND_DOD_WARN_PCT_THRESHOLD,
-    /** Enables account name links to Performance Investigator for Facebook or Google Ads. */
     channel = null,
 }) {
     const showSpinnerOnly = loading && (!rows || rows.length === 0);
@@ -137,33 +124,22 @@ export default function ApexRadarOverviewTable({
 
     if (!loading && !rows?.length) {
         return (
-            <div className="rounded-xl border border-dashed border-gray-200 bg-white p-12 text-center text-sm text-gray-500">
+            <div className="apex-radar-empty apex-radar-empty-panel">
                 No rows match your filters.
             </div>
         );
     }
 
     return (
-        <div className="relative rounded-xl border border-gray-200 bg-white overflow-hidden">
+        <div className="relative apex-radar-table-wrap">
             <div className="overflow-x-auto">
-                <table className="min-w-[1200px] w-full border-collapse text-left">
+                <table className="apex-radar-table min-w-[1200px]">
                     <TableHead />
                     <tbody>
                         {showSpinnerOnly ? (
                             <tr>
-                                <td
-                                    colSpan={COL_COUNT}
-                                    className="border border-gray-100 bg-white align-middle p-0"
-                                >
-                                    <div
-                                        className="flex min-h-[280px] flex-col items-center justify-center gap-3 py-12"
-                                        role="status"
-                                        aria-live="polite"
-                                        aria-busy="true"
-                                    >
-                                        <Spinner size={40} color="#406969" />
-                                        <p className="text-sm text-gray-500">Loading {loadingLabel} metrics…</p>
-                                    </div>
+                                <td colSpan={COL_COUNT} className="p-0">
+                                    <CobaltLoader variant="block" title={`Loading ${loadingLabel} metrics`} />
                                 </td>
                             </tr>
                         ) : (
@@ -185,7 +161,8 @@ export default function ApexRadarOverviewTable({
                                         ? row.apexRadarMeta?.googleError
                                         : row.apexRadarMeta?.facebookError;
                                 const valueIsConversions = row.targets?.targetType === "CPA";
-                                const fmtValueMetric = (n) => (valueIsConversions ? fmtInt(n) : fmtMoney(n));
+                                const fmtValueMetric = (n) =>
+                                    valueIsConversions ? fmtInt(n) : fmtMoney(n);
                                 const dod = row.spendDayOverDay || {};
                                 const dodWarn = meetsSpendDodThreshold(row, spendDodThresholdPct);
                                 const dodTitle =
@@ -200,35 +177,37 @@ export default function ApexRadarOverviewTable({
                                     channel === APEX_RADAR_CHANNEL_GOOGLE_ADS
                                         ? apexRadarPerformanceInvestigatorHref(channel, row.id)
                                         : null;
-                                const nameClass =
-                                    "min-w-0 truncate font-medium text-[var(--color-primary-searchmind)] underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] focus-visible:ring-offset-1 rounded-sm";
+
                                 return (
-                                    <tr key={row.id} className="hover:bg-gray-50/80">
-                                        <td className={`${tdEntity}`} title={row.entity}>
-                                            <div className="flex items-center gap-1.5 min-w-0">
+                                    <tr key={row.id}>
+                                        <td
+                                            className="is-sticky-left td-entity"
+                                            title={row.entity}
+                                        >
+                                            <div className="flex items-center gap-1 min-w-0">
                                                 {platformError ? (
                                                     <span
                                                         className="shrink-0 text-amber-600"
                                                         title={platformError}
                                                         aria-label={`Data source error: ${platformError}`}
                                                     >
-                                                        <FiAlertCircle className="h-4 w-4" aria-hidden />
+                                                        <FiAlertCircle className="h-3.5 w-3.5" aria-hidden />
                                                     </span>
                                                 ) : dodWarn ? (
                                                     <span
-                                                        className="shrink-0 text-red-600"
+                                                        className="shrink-0 text-[var(--color-error,oklch(50%_0.15_25))]"
                                                         title={dodTitle}
                                                         aria-label={`Spend day-over-day change is at or below ${fmtDecimal(spendDodThresholdPct, 1)} percent versus the prior UTC calendar day`}
                                                     >
-                                                        <FiAlertTriangle className="h-4 w-4" aria-hidden />
+                                                        <FiAlertTriangle className="h-3.5 w-3.5" aria-hidden />
                                                     </span>
                                                 ) : (
-                                                    <span className="shrink-0 w-4" aria-hidden />
+                                                    <span className="shrink-0 w-3.5" aria-hidden />
                                                 )}
                                                 <button
                                                     type="button"
                                                     onClick={() => onApexSettingsClick?.(row)}
-                                                    className="shrink-0 rounded-md p-1 text-gray-400 hover:text-[var(--color-primary-searchmind)] hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)]"
+                                                    className="apex-radar-settings-btn"
                                                     aria-label={`Apex Radar settings for ${row.entity}`}
                                                 >
                                                     <FiSettings className="h-3.5 w-3.5" aria-hidden />
@@ -236,7 +215,7 @@ export default function ApexRadarOverviewTable({
                                                 {piHref ? (
                                                     <Link
                                                         href={piHref}
-                                                        className={nameClass}
+                                                        className="apex-radar-link min-w-0 truncate"
                                                         title={`Open Performance Investigator — ${row.entity}`}
                                                         prefetch={false}
                                                     >
@@ -247,38 +226,51 @@ export default function ApexRadarOverviewTable({
                                                 )}
                                             </div>
                                         </td>
-                                        <td className={tdTeamMember} title={teamLabel === "—" ? undefined : teamLabel}>
-                                            <div className="flex flex-row gap-2 items-start justify-between">
+                                        <td
+                                            className="is-sticky-left-2 td-team"
+                                            title={teamLabel === "—" ? undefined : teamLabel}
+                                        >
+                                            <div className="flex flex-row gap-1.5 items-start justify-between">
                                                 <span className="line-clamp-2 leading-snug">{teamLabel}</span>
                                                 <button
                                                     type="button"
                                                     onClick={() => onAssignClick?.(row)}
                                                     aria-label={`Assign team members for ${row.entity}`}
-                                                    className="shrink-0 flex h-5 w-5 items-center justify-center rounded-full border border-gray-200 bg-[var(--color-primary-searchmind)] text-white font-medium leading-none shadow-sm transition hover:bg-[var(--color-primary-searchmind-hover)] hover:border-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-searchmind)] focus-visible:ring-offset-1 text-xs"
+                                                    className="apex-radar-assign-btn"
                                                 >
                                                     +
                                                 </button>
                                             </div>
                                         </td>
-                                        <Cell warn={false}>{fmtInt(row.value?.conversions2d)}</Cell>
-                                        <Cell warn={a.value7dBelowMin}>{fmtValueMetric(row.value?.value7d)}</Cell>
-                                        <Cell warn={false}>{fmtValueMetric(row.value?.minExpectedValue7d)}</Cell>
-                                        <Cell warn={a.value30dBelowMin}>{fmtValueMetric(row.value?.value30d)}</Cell>
-                                        <Cell warn={false}>{fmtValueMetric(row.value?.minExpectedValue30d)}</Cell>
-                                        <Cell warn={false}>{row.targets?.targetType}</Cell>
-                                        <Cell warn={false}>{fmtDecimal(row.targets?.target, 2)}</Cell>
-                                        <Cell warn={a.target7dMiss}>{fmtDecimal(row.targets?.actual7d, 2)}</Cell>
-                                        <Cell warn={a.target30dMiss}>{fmtDecimal(row.targets?.actual30d, 2)}</Cell>
-                                        <Cell warn={false}>{fmtMoney(row.budget?.targetBudget)}</Cell>
-                                        <Cell warn={false}>{fmtMoney(row.budget?.realizedBudget)}</Cell>
-                                        <Cell warn={false}>{fmtMoney(row.budget?.spendYesterday)}</Cell>
-                                        <Cell warn={a.budgetPaceOff}>{fmtDecimal(row.budget?.budgetPace, 2)}</Cell>
-                                        <Cell warn={false}>{row.budget?.budgetType}</Cell>
+                                        <Cell>{fmtInt(row.value?.conversions2d)}</Cell>
+                                        <Cell warn={a.value7dBelowMin}>
+                                            {fmtValueMetric(row.value?.value7d)}
+                                        </Cell>
+                                        <Cell>{fmtValueMetric(row.value?.minExpectedValue7d)}</Cell>
+                                        <Cell warn={a.value30dBelowMin}>
+                                            {fmtValueMetric(row.value?.value30d)}
+                                        </Cell>
+                                        <Cell>{fmtValueMetric(row.value?.minExpectedValue30d)}</Cell>
+                                        <Cell>{row.targets?.targetType}</Cell>
+                                        <Cell>{fmtDecimal(row.targets?.target, 2)}</Cell>
+                                        <Cell warn={a.target7dMiss}>
+                                            {fmtDecimal(row.targets?.actual7d, 2)}
+                                        </Cell>
+                                        <Cell warn={a.target30dMiss}>
+                                            {fmtDecimal(row.targets?.actual30d, 2)}
+                                        </Cell>
+                                        <Cell>{fmtMoney(row.budget?.targetBudget)}</Cell>
+                                        <Cell>{fmtMoney(row.budget?.realizedBudget)}</Cell>
+                                        <Cell>{fmtMoney(row.budget?.spendYesterday)}</Cell>
+                                        <Cell warn={a.budgetPaceOff}>
+                                            {fmtDecimal(row.budget?.budgetPace, 2)}
+                                        </Cell>
+                                        <Cell>{row.budget?.budgetType}</Cell>
                                         <Cell warn={a.highAdFatigue}>{fmtInt(row.ads?.adFatigue)}</Cell>
-                                        <Cell warn={false}>{fmtPct(row.ads?.ctr7d)}</Cell>
-                                        <Cell warn={false}>{fmtPct(row.ads?.ctr30d)}</Cell>
-                                        <Cell warn={false}>{fmtDecimal(row.ads?.freq7d, 2)}</Cell>
-                                        <Cell warn={false}>{fmtDecimal(row.ads?.freq30d, 2)}</Cell>
+                                        <Cell>{fmtPct(row.ads?.ctr7d)}</Cell>
+                                        <Cell>{fmtPct(row.ads?.ctr30d)}</Cell>
+                                        <Cell>{fmtDecimal(row.ads?.freq7d, 2)}</Cell>
+                                        <Cell>{fmtDecimal(row.ads?.freq30d, 2)}</Cell>
                                         <Cell warn={dodWarn}>{fmtMoney(dod.spendYesterday)}</Cell>
                                         <Cell warn={dodWarn}>{fmtMoney(dod.spendDayBeforeYesterday)}</Cell>
                                         <Cell warn={dodWarn}>
@@ -297,16 +289,8 @@ export default function ApexRadarOverviewTable({
                 </table>
             </div>
             {showOverlay ? (
-                <div
-                    className="absolute inset-0 z-40 flex items-center justify-center rounded-xl bg-white/80 backdrop-blur-[1px]"
-                    role="status"
-                    aria-live="polite"
-                    aria-busy="true"
-                >
-                    <div className="flex flex-col items-center gap-3">
-                        <Spinner size={40} color="#406969" />
-                        <p className="text-sm text-gray-600">Updating metrics…</p>
-                    </div>
+                <div className="apex-radar-table-overlay" role="status" aria-live="polite" aria-busy="true">
+                    <CobaltLoader variant="inline" title="Updating metrics" />
                 </div>
             ) : null}
         </div>

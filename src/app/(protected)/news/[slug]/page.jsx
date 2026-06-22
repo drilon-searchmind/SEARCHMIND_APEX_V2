@@ -5,7 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 import { inlineTagStyle } from "@/components/content-tags/tagPresets";
+import "../news.css";
 
 export default function NewsArticlePage() {
     const params = useParams();
@@ -52,18 +54,23 @@ export default function NewsArticlePage() {
     }, [contentTags]);
 
     return (
-        <div className="max-w-3xl mx-auto">
-            <Link href="/news" className="text-sm text-[var(--color-primary-searchmind)] font-semibold mb-6 inline-block">
+        <div id="NewsArticlePage" className="cobalt-perf w-full apex-news-stack apex-news-stack--article" data-theme="cobalt">
+            <Link href="/news" className="apex-news-back">
                 ← Back to news
             </Link>
 
-            {loading && <p className="text-gray-500">Loading…</p>}
-            {error && <p className="text-red-600">{error}</p>}
+            {loading ? (
+                <div className="apex-perf-loading">
+                    <CobaltLoader variant="block" title="Loading article" request={`GET /api/news/${slug}`} />
+                </div>
+            ) : null}
 
-            {post && !loading && (
-                <article className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            {error ? <p className="apex-news-error">{error}</p> : null}
+
+            {post && !loading ? (
+                <article className="apex-news-article">
                     {post.coverImageUrl ? (
-                        <div className="relative w-full h-56 md:h-72 bg-gray-100">
+                        <div className="apex-news-article__cover">
                             <Image
                                 src={post.coverImageUrl}
                                 alt=""
@@ -74,10 +81,10 @@ export default function NewsArticlePage() {
                             />
                         </div>
                     ) : null}
-                    <div className="p-6 md:p-10">
-                        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">{post.title}</h1>
-                        <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-8">
-                            {post.publishedAt && (
+                    <div className="apex-news-article__content">
+                        <h1 className="apex-news-article__title">{post.title}</h1>
+                        <div className="apex-news-article__meta">
+                            {post.publishedAt ? (
                                 <time dateTime={post.publishedAt}>
                                     {new Date(post.publishedAt).toLocaleDateString(undefined, {
                                         year: "numeric",
@@ -85,14 +92,14 @@ export default function NewsArticlePage() {
                                         day: "numeric",
                                     })}
                                 </time>
-                            )}
+                            ) : null}
                             {(post.tags || []).map((s) => {
                                 const meta = tagMeta[s];
                                 const label = meta?.label || s;
                                 return (
                                     <span
                                         key={s}
-                                        className="px-2 py-0.5 rounded-full font-medium text-xs"
+                                        className="apex-news-chip"
                                         style={inlineTagStyle(meta?.color)}
                                     >
                                         {label}
@@ -100,12 +107,12 @@ export default function NewsArticlePage() {
                                 );
                             })}
                         </div>
-                        <div id="newsContent" className="prose prose-sm md:prose-base max-w-none text-gray-800 prose-headings:text-gray-900 prose-a:text-[var(--color-primary-searchmind)]">
+                        <div id="newsContent" className="apex-news-article__body">
                             <ReactMarkdown>{post.content}</ReactMarkdown>
                         </div>
                     </div>
                 </article>
-            )}
+            ) : null}
         </div>
     );
 }

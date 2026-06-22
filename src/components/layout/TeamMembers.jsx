@@ -110,14 +110,14 @@ function MemberFace({ member }) {
                 <Image
                     src={member.avatar}
                     alt={member.username || ""}
-                    width={35}
-                    height={35}
-                    className="rounded-full object-cover"
+                    width={32}
+                    height={32}
+                    className="apex-dash-member-img h-full w-full object-cover"
                     sizes="35px"
                     onError={() => setImgError(true)}
                 />
             ) : (
-                <span className="text-white text-xs font-bold">
+                <span className="text-white text-[10px] font-bold">
                     {(member.username && member.username !== "×"
                         ? member.username.charAt(0)
                         : "×"
@@ -269,13 +269,13 @@ export default function TeamMembers() {
         return (
             <div
                 key={uniqueKey}
-                className="animate-team-member-in relative w-[35px] shrink-0"
+                className="animate-team-member-in relative w-8 shrink-0"
                 style={{ animationDelay: `${idx * 52}ms` }}
                 id={uniqueKey}
                 onMouseEnter={() => setHoveredMemberId(hoverKey)}
             >
                 <div
-                    className="flex h-[35px] w-[35px] items-center justify-center rounded-full border-2 border-white transition-transform duration-150 hover:scale-105"
+                    className="apex-dash-member flex items-center justify-center transition-transform duration-150 hover:scale-105"
                     style={{
                         backgroundColor: serviceInfo.color,
                         transform: `translateX(-${idx * 12}px)`,
@@ -297,7 +297,7 @@ export default function TeamMembers() {
             }}
         >
             <p
-                className="mr-0.5 shrink-0 text-sm text-gray-500"
+                className="apex-dash-team-label mr-0.5 shrink-0 text-sm text-gray-500"
                 onMouseEnter={() => setHoveredMemberId(null)}
             >
                 Team

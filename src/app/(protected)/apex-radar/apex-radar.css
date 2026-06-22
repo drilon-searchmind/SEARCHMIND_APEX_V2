@@ -1,0 +1,837 @@
+/* Hallmark · theme: Cobalt · page: apex-radar */
+
+@import "../dashboard/[customerId]/performance-dashboard/performance-dashboard.css";
+
+.apex-radar-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  --perf-canvas: var(--color-paper-2, #eef2f0);
+  --perf-raised: #ffffff;
+  --perf-band: var(--color-paper-3, #e2e9e6);
+  --perf-accent: var(--color-accent, #213b34);
+}
+
+.apex-radar-panel {
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+.apex-radar-panel--padded {
+  padding: var(--space-md) var(--space-lg);
+}
+
+.apex-radar-section__title {
+  margin: 0 0 var(--space-xs);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.apex-radar-section__subtitle {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--color-muted);
+}
+
+.apex-radar-field-label {
+  display: block;
+  margin-bottom: var(--space-2xs);
+  font-family: var(--font-label);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.apex-radar-field-hint {
+  margin: var(--space-2xs) 0 0;
+  font-size: 0.65rem;
+  color: var(--color-muted);
+}
+
+.apex-radar-form input:not([type="checkbox"]):not([type="radio"]),
+.apex-radar-form select,
+.apex-radar-form textarea {
+  width: 100%;
+  min-height: 2.25rem;
+  padding: var(--space-2xs) var(--space-sm);
+  font-size: 0.72rem;
+  color: var(--color-ink);
+  background: #ffffff;
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+  outline: none;
+}
+
+.apex-radar-form input:focus,
+.apex-radar-form select:focus,
+.apex-radar-form textarea:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+.apex-radar-search-wrap {
+  position: relative;
+}
+
+.apex-radar-search-wrap svg {
+  pointer-events: none;
+  position: absolute;
+  left: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-muted);
+}
+
+.apex-radar-search-wrap input {
+  width: 100%;
+  min-height: 2.25rem;
+  padding: var(--space-2xs) var(--space-sm) var(--space-2xs) 2rem;
+  font-size: 0.72rem;
+  color: var(--color-ink);
+  background: #ffffff;
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+  outline: none;
+}
+
+.apex-radar-search-wrap input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+.apex-radar-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+@media (min-width: 1024px) {
+  .apex-radar-toolbar {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+}
+
+.apex-radar-toolbar__fields {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .apex-radar-toolbar__fields {
+    flex-direction: row;
+    align-items: flex-end;
+  }
+}
+
+.apex-radar-toolbar__field {
+  flex: 1;
+  min-width: 0;
+  max-width: 22rem;
+}
+
+.apex-radar-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  color: var(--color-muted);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.apex-radar-icon-btn:hover {
+  color: var(--color-accent);
+  background: var(--color-paper-3);
+}
+
+.apex-radar-collapse-trigger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-2xs);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-ink-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-input);
+  cursor: pointer;
+}
+
+.apex-radar-collapse-trigger:hover {
+  background: var(--color-paper-3);
+}
+
+.apex-radar-collapse-panel {
+  margin-top: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--perf-canvas);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+}
+
+.apex-radar-segmented {
+  display: inline-flex;
+  padding: 0.15rem;
+  background: var(--perf-canvas);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+}
+
+.apex-radar-segmented__btn {
+  padding: var(--space-2xs) var(--space-sm);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-input) - 2px);
+  cursor: pointer;
+}
+
+.apex-radar-segmented__btn.is-active {
+  color: var(--color-ink);
+  background: var(--perf-raised);
+  box-shadow: 0 1px 2px rgba(33, 59, 52, 0.06);
+}
+
+.apex-radar-alert {
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--color-ink-2);
+  background: var(--color-paper-3);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+}
+
+.apex-radar-empty {
+  padding: var(--space-xl);
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.apex-radar-empty-panel {
+  background: var(--perf-raised, #ffffff);
+  border: var(--rule-hair) dashed var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+.apex-radar-link {
+  font-weight: 600;
+  color: var(--color-accent-light);
+  text-decoration: none;
+}
+
+.apex-radar-link:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+/* Compact tables — shared */
+.apex-radar-table-wrap {
+  overflow-x: auto;
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+.apex-radar-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  color: var(--color-ink-2);
+}
+
+.apex-radar-table th,
+.apex-radar-table td {
+  padding: 0.2rem 0.35rem;
+  border: var(--rule-hair) solid var(--color-rule);
+  vertical-align: middle;
+}
+
+.apex-radar-table th {
+  font-family: var(--font-label);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-accent-ink);
+  background: var(--color-accent);
+  white-space: nowrap;
+}
+
+.apex-radar-table tbody tr:nth-child(even) {
+  background: var(--perf-canvas);
+}
+
+.apex-radar-table tbody tr:hover {
+  background: var(--color-paper-3);
+}
+
+.apex-radar-table .is-sticky-left {
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  background: var(--perf-canvas);
+}
+
+.apex-radar-table .is-sticky-left-2 {
+  position: sticky;
+  left: 200px;
+  z-index: 19;
+  background: var(--perf-canvas);
+}
+
+.apex-radar-table thead .is-sticky-left,
+.apex-radar-table thead .is-sticky-left-2 {
+  z-index: 30;
+  background: var(--color-accent);
+}
+
+.apex-radar-table .th-group {
+  text-align: center;
+  font-size: 0.62rem;
+  background: color-mix(in srgb, var(--color-accent) 82%, var(--color-ink));
+}
+
+.apex-radar-table .th-sub {
+  font-size: 0.55rem;
+  text-align: left;
+  color: var(--color-ink-2);
+  background: var(--perf-canvas);
+  text-transform: none;
+  letter-spacing: normal;
+  max-width: 8.5rem;
+}
+
+.apex-radar-table .td-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.apex-radar-table .td-warn {
+  background: color-mix(in srgb, var(--color-error, oklch(50% 0.15 25)) 12%, var(--perf-raised));
+}
+
+.apex-radar-table .td-entity {
+  min-width: 200px;
+  max-width: 240px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.apex-radar-table .td-team {
+  min-width: 120px;
+  max-width: 200px;
+  vertical-align: top;
+}
+
+.apex-radar-table-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--perf-raised) 88%, transparent);
+  backdrop-filter: blur(1px);
+  border-radius: var(--radius-card);
+}
+
+.apex-radar-assign-btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--color-accent-ink);
+  background: var(--color-accent);
+  border: var(--rule-hair) solid var(--color-accent);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.apex-radar-assign-btn:hover {
+  filter: brightness(1.05);
+}
+
+.apex-radar-settings-btn {
+  flex-shrink: 0;
+  padding: 0.15rem;
+  color: var(--color-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-input);
+  cursor: pointer;
+}
+
+.apex-radar-settings-btn:hover {
+  color: var(--color-accent);
+  background: var(--color-paper-3);
+}
+
+/* PI monthly tables */
+.apex-radar-pi-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--perf-raised, #ffffff);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+.apex-radar-pi-section {
+  padding: var(--space-md);
+  background: var(--perf-raised, #ffffff);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+.apex-radar-pi-section--muted {
+  background: var(--perf-canvas);
+}
+
+.apex-radar-pi-section__title {
+  margin: 0 0 var(--space-md);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.apex-radar-pi-table .pi-th-first {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--color-accent-ink);
+  background: var(--color-ink);
+  vertical-align: middle;
+}
+
+.apex-radar-pi-table .pi-th-group {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--color-accent-ink);
+  border-left: var(--rule-hair) solid color-mix(in srgb, var(--color-accent-ink) 25%, transparent);
+}
+
+.apex-radar-pi-table .pi-th-group--reach {
+  background: color-mix(in srgb, var(--color-accent) 55%, var(--color-ink));
+}
+
+.apex-radar-pi-table .pi-th-group--spend {
+  background: color-mix(in srgb, var(--color-accent) 75%, var(--color-ink));
+}
+
+.apex-radar-pi-table .pi-th-group--conv {
+  background: var(--color-accent);
+}
+
+.apex-radar-pi-table .pi-th-metric {
+  padding: 0.2rem 0.45rem;
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: var(--color-ink-2);
+  background: var(--perf-canvas);
+  border-left: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-radar-pi-table td {
+  padding: 0.18rem 0.45rem;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.apex-radar-pi-table tbody tr:nth-child(even) {
+  background: var(--perf-canvas);
+}
+
+.apex-radar-pi-table tbody tr.pi-footer {
+  background: var(--color-paper-3);
+  font-weight: 600;
+  border-top: 2px solid var(--color-rule);
+}
+
+.apex-radar-pi-compact-note {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.65rem;
+  color: var(--color-muted);
+  background: var(--perf-canvas);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-radar-pi-diff-pos-strong {
+  background: color-mix(in srgb, var(--color-accent) 22%, var(--perf-raised));
+  color: var(--color-ink);
+}
+
+.apex-radar-pi-diff-pos {
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--perf-raised));
+  color: var(--color-ink-2);
+}
+
+.apex-radar-pi-diff-neg-strong {
+  background: color-mix(in srgb, var(--color-error, oklch(50% 0.15 25)) 18%, var(--perf-raised));
+  color: var(--color-ink);
+}
+
+.apex-radar-pi-diff-neg {
+  background: color-mix(in srgb, var(--color-error, oklch(50% 0.15 25)) 10%, var(--perf-raised));
+  color: var(--color-ink-2);
+}
+
+.apex-radar-funnel-panel {
+  width: 100%;
+  padding: var(--space-md) 0;
+  background: var(--perf-canvas, var(--color-paper-2, #eef2f0));
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+.apex-radar-funnel-flow {
+  margin-top: var(--space-md);
+  height: clamp(280px, min(52dvh, 560px), 720px);
+  min-height: 260px;
+  max-height: min(720px, calc(100dvh - 180px));
+  overflow: hidden;
+  background: var(--color-paper-3, #e2e9e6);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+}
+
+.apex-radar-funnel-flow .react-flow,
+.apex-radar-funnel-flow .react-flow__pane,
+.apex-radar-funnel-flow .react-flow__viewport {
+  background: var(--color-paper-3, #e2e9e6) !important;
+}
+
+.apex-radar-pi-loader-panel {
+  padding: var(--space-xl);
+  background: var(--perf-raised, #ffffff);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+/* Modals */
+.apex-radar-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  background: rgba(33, 59, 52, 0.45);
+}
+
+.apex-radar-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: min(90vh, 780px);
+  overflow: hidden;
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+  box-shadow: 0 16px 48px rgba(33, 59, 52, 0.14);
+}
+
+.apex-radar-modal--sm {
+  max-width: 24rem;
+}
+
+.apex-radar-modal--md {
+  max-width: 32rem;
+}
+
+.apex-radar-modal--lg {
+  max-width: 42rem;
+}
+
+.apex-radar-modal--xl {
+  max-width: 56rem;
+}
+
+.apex-radar-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  flex-shrink: 0;
+}
+
+.apex-radar-modal__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.apex-radar-modal__subtitle {
+  margin: var(--space-2xs) 0 0;
+  font-size: 0.68rem;
+  color: var(--color-muted);
+}
+
+.apex-radar-modal__close {
+  flex-shrink: 0;
+  padding: var(--space-2xs);
+  color: var(--color-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-input);
+  cursor: pointer;
+}
+
+.apex-radar-modal__close:hover {
+  color: var(--color-ink);
+  background: var(--color-paper-3);
+}
+
+.apex-radar-modal__body {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-md) var(--space-lg);
+  overflow-y: auto;
+}
+
+.apex-radar-modal__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--perf-canvas);
+  border-top: var(--rule-hair) solid var(--color-rule);
+  flex-shrink: 0;
+}
+
+.apex-radar-modal__foot--between {
+  justify-content: space-between;
+}
+
+.apex-radar-modal-list label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.72rem;
+  color: var(--color-ink-2);
+  border-radius: var(--radius-input);
+  cursor: pointer;
+}
+
+.apex-radar-modal-list label:hover {
+  background: var(--color-paper-3);
+}
+
+.apex-radar-modal-list label.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.apex-radar-modal-list input[type="checkbox"] {
+  margin-top: 0.15rem;
+  accent-color: var(--color-accent);
+}
+
+.apex-radar-modal-callout {
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+  background: var(--color-paper-3);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+}
+
+.apex-radar-modal-callout code {
+  font-size: 0.62rem;
+  padding: 0.1em 0.3em;
+  background: #ffffff;
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: 0.2rem;
+}
+
+.apex-radar-platform-card {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  text-align: left;
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.apex-radar-platform-card:hover {
+  background: var(--color-paper-3);
+  border-color: var(--color-accent);
+}
+
+.apex-radar-platform-card__icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius-input);
+}
+
+.apex-radar-platform-card__title {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.apex-radar-platform-card__desc {
+  display: block;
+  margin-top: var(--space-2xs);
+  font-size: 0.65rem;
+  color: var(--color-muted);
+}
+
+.apex-radar-picker-card {
+  width: 100%;
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: var(--space-xl);
+  text-align: center;
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+/* Sidebar platform switcher (on dashboard graphite shell) */
+.apex-radar-sidebar__platform {
+  flex-shrink: 0;
+  padding-top: var(--space-md);
+  padding-bottom: var(--space-sm);
+  border-top: var(--rule-hair) solid var(--color-code-border);
+}
+
+.apex-radar-sidebar__platform-hint {
+  margin: var(--space-sm) 0 0;
+  font-size: 0.65rem;
+  line-height: 1.45;
+  color: var(--color-code-ink-muted);
+}
+
+.apex-radar-sidebar__switch {
+  display: flex;
+  gap: 0.15rem;
+  padding: 0.15rem;
+  background: oklch(98% 0.006 165 / 0.08);
+  border: var(--rule-hair) solid var(--color-code-border);
+  border-radius: var(--radius-input);
+}
+
+.apex-radar-sidebar__switch a {
+  flex: 1;
+  padding: var(--space-xs);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  color: var(--color-code-ink-muted);
+  border-radius: calc(var(--radius-input) - 2px);
+}
+
+.apex-radar-sidebar__switch a.is-active {
+  color: var(--color-accent-ink);
+  background: var(--color-accent);
+}
+
+.apex-radar-sidebar__switch a:hover:not(.is-active) {
+  color: var(--color-code-ink-body);
+  background: oklch(98% 0.006 165 / 0.12);
+}
+
+.apex-radar-sidebar__switch-compact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  flex-shrink: 0;
+  padding-top: var(--space-sm);
+  padding-bottom: var(--space-sm);
+  border-top: var(--rule-hair) solid var(--color-code-border);
+}
+
+.apex-radar-sidebar__switch-compact a {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-xs);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-decoration: none;
+  color: var(--color-code-ink-muted);
+  border-radius: var(--radius-input);
+}
+
+.apex-radar-sidebar__switch-compact a.is-active {
+  color: var(--color-accent-ink);
+  background: var(--color-accent);
+}
+
+.apex-radar-sidebar__switch-compact a:hover:not(.is-active) {
+  background: oklch(98% 0.006 165 / 0.12);
+  color: var(--color-code-ink-body);
+}
+
+.apex-radar-link-btn {
+  padding: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--color-accent-light);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.apex-radar-link-btn:hover {
+  color: var(--color-accent);
+}
+
+.apex-radar-link-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

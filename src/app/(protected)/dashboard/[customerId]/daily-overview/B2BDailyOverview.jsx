@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import "./daily-overview.css";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import B2BDailyMetricsTable from "./B2BDailyMetricsTable";
@@ -75,12 +76,10 @@ export default function B2BDailyOverview({ customer }) {
             {
                 name: "Sessions",
                 data: (rows || []).map((r) => r.sessions || 0),
-                color: "#406969",
             },
             {
                 name: "Ad Spend",
                 data: (rows || []).map((r) => Math.round(r.totalMarketingSpend || 0)),
-                color: "#D6CDB6",
             },
         ],
         [rows]
@@ -91,7 +90,7 @@ export default function B2BDailyOverview({ customer }) {
             chart: {
                 id: "b2b-daily-trend",
                 toolbar: { show: false },
-                fontFamily: "Outfit, sans-serif",
+                fontFamily: "Inter, sans-serif",
             },
             xaxis: {
                 categories: (rows || []).map((r) => r.date),
@@ -107,12 +106,15 @@ export default function B2BDailyOverview({ customer }) {
     const ga4PropertyId = customer?.CustomerSettings?.ga4PropertyId?.trim?.();
 
     return (
-        <div className="w-full">
+        <div className="cobalt-perf w-full" data-theme="cobalt">
             <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
                 title="Daily"
                 subtitle="B2B daily traffic, engagement & marketing spend"
                 right={
                     <DateRangePicker
+                        variant="cobalt"
                         onApply={handleDateRangeApply}
                         startDate={tempDateRange.startDate}
                         endDate={tempDateRange.endDate}
@@ -124,18 +126,19 @@ export default function B2BDailyOverview({ customer }) {
             />
 
             {!ga4PropertyId && !loading && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-8 text-center mb-8">
-                    <FiGlobe className="mx-auto mb-3 text-3xl text-amber-600" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Connect GA4 to get started</h3>
-                    <p className="text-gray-600 max-w-md mx-auto">
+                <div className="apex-perf-empty mb-8">
+                    <FiGlobe className="mx-auto mb-3 text-3xl text-[var(--color-accent-light)]" />
+                    <h3 className="apex-perf-custom__title mb-2">Connect GA4 to get started</h3>
+                    <p className="text-sm text-[var(--color-muted)] max-w-md mx-auto">
                         Add a GA4 Property ID in Property Configuration to load daily traffic metrics.
                     </p>
                 </div>
             )}
 
-            <div className="mt-8 bg-white rounded-xl border border-gray-200 p-6">
-                <div className="mb-5">
+            <div className="apex-daily-panel">
+                <div className="apex-daily-panel__toolbar">
                     <MetricToggleBar
+                        variant="cobalt"
                         metricColumns={metricColumns}
                         visibleMetrics={visibleMetrics}
                         onToggle={(key) =>
@@ -144,10 +147,11 @@ export default function B2BDailyOverview({ customer }) {
                             )
                         }
                     />
-                    <h3 className="text-lg font-semibold text-gray-900">Daily Metrics</h3>
+                    <h3 className="apex-daily-panel__title">Daily Metrics</h3>
                 </div>
 
                 <B2BDailyMetricsTable
+                    variant="cobalt"
                     rows={rows}
                     rowsPrev={rowsPrev}
                     loading={loading}
@@ -159,6 +163,7 @@ export default function B2BDailyOverview({ customer }) {
                 {rows?.length > 0 && (
                     <div className="mt-8">
                         <GraphCard
+                            variant="cobalt"
                             title="Sessions & Ad Spend"
                             chartOptions={chartOptions}
                             chartSeries={chartSeries}
