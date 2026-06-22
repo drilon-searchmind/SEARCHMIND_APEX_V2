@@ -562,6 +562,79 @@ export function getDemoBingDashboardForRange(startDate, endDate) {
     };
 }
 
+const DEMO_BWM_SITE = "https://demo.example.com/";
+
+function bingWebmasterTrafficRow(date) {
+    const di = dayIndexFrom20250101(date);
+    const h = numHash(`bwm-traffic-${date}`);
+    const impressions = Math.round(
+        (1200 + (h % 400)) * (1 + di * 0.00008) * dateWiggle(date, "bwmi")
+    );
+    const clicks = Math.round(
+        (45 + (h % 20)) * (1 + di * 0.0001) * dateWiggle(date, "bwmc")
+    );
+    return { date, impressions, clicks };
+}
+
+function bingWebmasterAiRow(date) {
+    const h = numHash(`bwm-ai-${date}`);
+    return {
+        date,
+        totalCitations: 8 + (h % 12),
+        avgCitedPages: Number((1.2 + (h % 15) / 10).toFixed(2)),
+    };
+}
+
+/** Bing Webmaster Tools — same response shape as GET /api/bing-webmaster/site-data */
+export function getDemoBingWebmasterForRange(startDate, endDate) {
+    const days = eachDayInclusive(startDate, endDate);
+    const siteUrl = DEMO_BWM_SITE;
+    const traffic = days.map(bingWebmasterTrafficRow);
+    const latestDate = days[days.length - 1] || endDate;
+    const h = numHash(`bwm-crawl-${latestDate}`);
+    const crawlLatest = {
+        date: latestDate,
+        inIndex: 8420 + (h % 500),
+        crawledPages: 1200 + (h % 200),
+        crawlErrors: 3 + (h % 8),
+        inLinks: 15600 + (h % 800),
+        code2xx: 1180 + (h % 180),
+        code4xx: 12 + (h % 10),
+        code5xx: 1 + (h % 3),
+        blockedByRobotsTxt: 4 + (h % 6),
+    };
+    const aiSeriesDaily = days.map(bingWebmasterAiRow);
+    const groundingQueries = [
+        { query: "best outdoor furniture brand", citations: 14 },
+        { query: "sustainable home decor dk", citations: 9 },
+        { query: "demo property shop online", citations: 7 },
+        { query: "compare garden furniture prices", citations: 5 },
+        { query: "eco friendly patio sets", citations: 4 },
+    ];
+    const aiPerformancePortalUrl = `https://www.bing.com/webmasters/aiperformance?siteUrl=${encodeURIComponent(siteUrl)}`;
+    const bingPropertyUrl = `https://www.bing.com/webmasters/home?siteUrl=${encodeURIComponent(siteUrl)}`;
+
+    return {
+        ok: true,
+        siteUrl,
+        dateRange: { startDate, endDate },
+        tokenSource: "demo",
+        sites: [{ url: siteUrl, isVerified: true }],
+        siteInAccount: true,
+        traffic,
+        crawlStats: { latest: crawlLatest, rows: [crawlLatest] },
+        crawlError: null,
+        aiPerformance: {
+            seriesDaily: aiSeriesDaily,
+            groundingQueries,
+            dataAvailable: true,
+            portalUrl: aiPerformancePortalUrl,
+        },
+        aiPerformancePortalUrl,
+        bingPropertyUrl,
+    };
+}
+
 export function getDemoKlaviyoDashboardForRange(startDate, endDate, prevStartDate, prevEndDate) {
     const curDays = eachDayInclusive(startDate, endDate);
     const metrics_by_date = curDays.map((date) => {

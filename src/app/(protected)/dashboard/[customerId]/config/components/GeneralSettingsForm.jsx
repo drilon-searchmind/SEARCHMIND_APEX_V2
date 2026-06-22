@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { pushGTMEvent, GTM_EVENTS } from "@root/lib/gtmFunctions";
-import FormButton from '@/components/form/FormButton';
 import FormInputText from '@/components/form/FormInputText';
 import FormLabel from '@/components/form/FormLabel';
 import ParentCustomerSelect from './ParentCustomerSelect';
@@ -68,8 +67,8 @@ export default function GeneralSettingsForm({ form, onChange, saving, isExternal
 
     return (
         <>
-            <form className="flex flex-col gap-4" onSubmit={e => { e.preventDefault(); }}>
-                <h5 className="text-lg font-semibold text-[var(--color-primary-searchmind)] mb-2">General Settings</h5>
+            <form className="apex-config-form" onSubmit={e => { e.preventDefault(); }}>
+                <h2 className="apex-config-form__title">General Settings</h2>
                 <div>
                     <FormLabel htmlFor="customerName" required>Customer Name</FormLabel>
                     <FormInputText id="customerName" name="customerName" value={form.customerName} onChange={onChange} required />
@@ -88,7 +87,7 @@ export default function GeneralSettingsForm({ form, onChange, saving, isExternal
                 {!isExternalUser && (
                     <div>
                         <FormLabel htmlFor="businessCategory" required>Business Category</FormLabel>
-                        <select id="businessCategory" name="businessCategory" value={form.businessCategory || "ecommerce"} onChange={onChange} className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20">
+                        <select id="businessCategory" name="businessCategory" value={form.businessCategory || "ecommerce"} onChange={onChange}>
                             <option value="ecommerce">Ecommerce (store revenue)</option>
                             <option value="b2b">B2B (GA4 analytics)</option>
                         </select>
@@ -97,7 +96,7 @@ export default function GeneralSettingsForm({ form, onChange, saving, isExternal
                 {!isExternalUser && form.businessCategory !== "b2b" && (
                     <div>
                         <FormLabel htmlFor="customerType" required>Customer Type</FormLabel>
-                        <select id="customerType" name="customerType" value={form.customerType} onChange={onChange} className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20">
+                        <select id="customerType" name="customerType" value={form.customerType} onChange={onChange}>
                             <option value="Shopify">Shopify</option>
                             <option value="WooCommerce">WooCommerce</option>
                             <option value="Magento">Magento</option>
@@ -107,8 +106,8 @@ export default function GeneralSettingsForm({ form, onChange, saving, isExternal
                     </div>
                 )}
                 {!isExternalUser && (
-                    <div className="flex items-center gap-2">
-                        <input id="isArchived" name="isArchived" type="checkbox" checked={form.isArchived} onChange={onChange} className="rounded border-gray-300" />
+                    <div className="apex-config-checkbox-row">
+                        <input id="isArchived" name="isArchived" type="checkbox" checked={form.isArchived} onChange={onChange} />
                         <FormLabel htmlFor="isArchived">Archived</FormLabel>
                     </div>
                 )}
@@ -124,7 +123,6 @@ export default function GeneralSettingsForm({ form, onChange, saving, isExternal
                                 : "excl"
                         }
                         onChange={onChange}
-                        className="mt-2 h-11 w-full rounded-lg border px-4 py-2.5 text-sm text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20"
                     >
                         <option value="excl">Excl. VAT (store default)</option>
                         <option value="incl_shopify">Incl. VAT (from Shopify)</option>
@@ -132,9 +130,9 @@ export default function GeneralSettingsForm({ form, onChange, saving, isExternal
                     </select>
                 </div>
             </form>
-            {showCreateModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center glassmorphism2">
-                    <div className="bg-white rounded-xl shadow-lg w-full max-w-md">
+            {showCreateModal ? (
+                <div className="apex-config-modal-backdrop" data-theme="cobalt">
+                    <div className="apex-config-modal">
                         <FormCreateParentCustomer
                             onCreate={handleModalCreate}
                             onCancel={handleModalCancel}
@@ -142,7 +140,7 @@ export default function GeneralSettingsForm({ form, onChange, saving, isExternal
                         />
                     </div>
                 </div>
-            )}
+            ) : null}
         </>
     );
 }

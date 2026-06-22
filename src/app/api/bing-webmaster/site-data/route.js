@@ -12,6 +12,8 @@ import {
     parseBingDotNetDate,
 } from "@/lib/bingWebmasterApi";
 import { eachDayInRange } from "@/lib/dateRangeUtils";
+import { isDemoCustomerId } from "@/lib/demoCustomer";
+import { getDemoBingWebmasterForRange } from "@/lib/demoAdMetrics";
 
 function normalizeForCompare(url) {
     try {
@@ -53,6 +55,13 @@ export async function GET(req) {
     const endDate = searchParams.get("endDate");
     if (!customerId) {
         return NextResponse.json({ error: "customerId is required" }, { status: 400 });
+    }
+
+    if (isDemoCustomerId(customerId)) {
+        const today = new Date().toISOString().slice(0, 10);
+        const rangeStart = startDate || today;
+        const rangeEnd = endDate || rangeStart;
+        return NextResponse.json(getDemoBingWebmasterForRange(rangeStart, rangeEnd));
     }
 
     await connectToDatabase();

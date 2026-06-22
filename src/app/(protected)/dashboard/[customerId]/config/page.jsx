@@ -1,7 +1,9 @@
 "use client";
 
 import DashboardHeading from '@/components/dashboard/DashboardHeading';
+import CobaltLoader from '@/components/ui/CobaltLoader';
 import ToastProvider, { showToast } from '@/components/ui/ToastProvider';
+import './config.css';
 import { useUser } from '@/contexts/UserContext';
 import { useParams } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
@@ -371,7 +373,20 @@ export default function ConfigPage() {
     };
 
     if (loading) {
-        return <div className="w-full flex justify-center items-center min-h-[300px] text-gray-400">Loading...</div>;
+        return (
+            <div id="ConfigPage" className="cobalt-perf w-full apex-config-stack" data-theme="cobalt">
+                <DashboardHeading
+                    variant="cobalt"
+                    showRunAudit={false}
+                    title="Property Configuration"
+                    label=""
+                    customerId={customerId}
+                />
+                <div className="apex-perf-loading">
+                    <CobaltLoader variant="block" title="Loading property settings" request={`GET /api/customers/${customerId}`} />
+                </div>
+            </div>
+        );
     }
 
     const allTabs = [
@@ -431,22 +446,27 @@ export default function ConfigPage() {
     const effectiveActiveTab = visibleKeys.includes(activeTab) ? activeTab : (visibleKeys[0] ?? 'objectives');
 
     return (
-        <div id='ConfigPage' className="w-full">
+        <div id="ConfigPage" className="cobalt-perf w-full apex-config-stack" data-theme="cobalt">
             <ToastProvider />
-            <DashboardHeading title="Property Configuration" label={form.customerName || ""} />
-            <div className="mt-8">
-                <div className="bg-white border border-gray-200 rounded-xl p-0">
-                    <VerticalTabs tabs={tabs} activeTab={effectiveActiveTab} onTabChange={setActiveTab} />
-                </div>
-                <div className="flex justify-end mt-6">
-                    <button
-                        className="bg-[var(--color-primary-searchmind)] text-white px-6 py-2 rounded-lg font-semibold shadow-sm hover:bg-[var(--color-primary-searchmind-lighter)] transition-colors"
-                        onClick={handleSave}
-                        disabled={saving}
-                    >
-                        {saving ? 'Saving...' : 'Save All'}
-                    </button>
-                </div>
+            <DashboardHeading
+                variant="cobalt"
+                showRunAudit={false}
+                title="Property Configuration"
+                label={form.customerName || ""}
+                customerId={customerId}
+            />
+            <div className="apex-config-panel">
+                <VerticalTabs tabs={tabs} activeTab={effectiveActiveTab} onTabChange={setActiveTab} />
+            </div>
+            <div className="apex-config-actions">
+                <button
+                    type="button"
+                    className="apex-perf-btn apex-perf-btn--primary"
+                    onClick={handleSave}
+                    disabled={saving}
+                >
+                    {saving ? 'Saving...' : 'Save All'}
+                </button>
             </div>
         </div>
     );
