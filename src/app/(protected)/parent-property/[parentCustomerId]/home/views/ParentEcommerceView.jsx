@@ -2,10 +2,11 @@
 
 import React from "react";
 
-export default function ParentEcommerceView({ sharedData }) {
+export default function ParentEcommerceView() {
     return (
-        <div className="flex items-center justify-center min-h-[300px] text-gray-500">
-            <p className="text-lg">Ecommerce — Coming soon</p>
+        <div className="cobalt-perf apex-parent-stub" data-theme="cobalt">
+            <h2 className="apex-parent-stub__title">Ecommerce</h2>
+            <p className="apex-parent-stub__text">Coming soon for group properties.</p>
         </div>
     );
 }

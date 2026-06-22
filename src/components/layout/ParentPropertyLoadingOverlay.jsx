@@ -2,19 +2,15 @@
 
 import React from "react";
 import { FiCheck, FiLoader } from "react-icons/fi";
+import CobaltLoader from "@/components/ui/CobaltLoader";
 
-/**
- * Loading overlay for parent-property view.
- * Shows progressive loading status: parent, each child property, aggregating, complete.
- * Fades out smoothly when done.
- *
- * @param {boolean} visible - Whether to show the overlay
- * @param {string} phase - 'parent' | 'properties' | 'aggregating' | 'complete'
- * @param {string} [parentName] - Parent property name (optional, for display)
- * @param {Array<{ id: string, name: string, status: 'loading' | 'loaded', source?: string, shop?: string }>} [items] - Child properties with loading status
- * @param {boolean} [fading] - True during fade-out animation
- */
-export default function ParentPropertyLoadingOverlay({ visible, phase, parentName, items = [], fading = false }) {
+export default function ParentPropertyLoadingOverlay({
+    visible,
+    phase,
+    parentName,
+    items = [],
+    fading = false,
+}) {
     if (!visible) return null;
 
     const loadedCount = items.filter((i) => i.status === "loaded").length;
@@ -22,74 +18,75 @@ export default function ParentPropertyLoadingOverlay({ visible, phase, parentNam
 
     return (
         <div
-            className={`fixed inset-0 z-50 flex items-center justify-center glassmorphism2 transition-opacity duration-300 ${
-                fading ? "opacity-0" : "opacity-100"
-            }`}
+            className={`apex-parent-overlay cobalt-perf${fading ? " is-fading" : ""}`}
+            data-theme="cobalt"
         >
-            <div className="w-full max-w-md p-6 md:p-8 bg-white border border-gray-200 rounded-xl shadow-xl">
-                <div className="flex flex-col gap-4">
-                    {/* Header */}
-                    <div className="flex items-center gap-2">
-                        {phase === "complete" ? (
-                            <FiCheck className="w-5 h-5 text-green-500 shrink-0" />
-                        ) : (
-                            <FiLoader className="w-5 h-5 animate-spin text-[var(--color-primary-searchmind)] shrink-0" />
-                        )}
-                        <h2 className="text-lg font-semibold text-gray-900">
-                            {phase === "parent" && "Loading parent property..."}
-                            {phase === "properties" && `Fetching data (${loadedCount}/${totalCount})`}
-                            {phase === "aggregating" && "Aggregating data..."}
-                            {phase === "complete" && "Complete"}
-                        </h2>
-                    </div>
-
-                    {/* Phase: parent */}
-                    {phase === "parent" && (
-                        <p className="text-sm text-gray-500">
-                            {parentName ? `Fetching ${parentName}...` : "Fetching parent and child list..."}
-                        </p>
+            <div className="apex-parent-overlay__card">
+                <div className="flex items-center gap-2">
+                    {phase === "complete" ? (
+                        <FiCheck className="w-5 h-5 text-[var(--color-accent)] shrink-0" aria-hidden />
+                    ) : (
+                        <FiLoader className="w-5 h-5 animate-spin text-[var(--color-accent)] shrink-0" aria-hidden />
                     )}
-
-                    {/* Phase: properties - progressive list */}
-                    {(phase === "properties" || phase === "aggregating") && items.length > 0 && (
-                        <ul className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                            {items.map((item) => (
-                                <li key={item.id} className="flex items-center gap-2 text-sm text-gray-700 py-1">
-                                    {item.status === "loading" ? (
-                                        <>
-                                            <FiLoader className="w-4 h-4 animate-spin text-[var(--color-primary-searchmind)] shrink-0" />
-                                            <span className="italic">
-                                                Fetching &quot;{item.name}&quot;
-                                                {item.source ? ` from ${item.source}` : ""}
-                                                {item.shop ? ` (${item.shop})` : ""}...
-                                            </span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <FiCheck className="w-4 h-4 text-green-500 shrink-0" />
-                                            <span className="text-gray-600">
-                                                Loaded: {item.name}
-                                                {item.shop ? (
-                                                    <span className="text-gray-400 ml-1">({item.shop})</span>
-                                                ) : null}
-                                            </span>
-                                        </>
-                                    )}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-
-                    {/* Phase: aggregating */}
-                    {phase === "aggregating" && (
-                        <p className="text-sm text-gray-500">Combining metrics and preparing charts...</p>
-                    )}
-
-                    {/* Phase: complete */}
-                    {phase === "complete" && (
-                        <p className="text-sm text-green-600">All data loaded successfully.</p>
-                    )}
+                    <h2 className="apex-parent-overlay__title">
+                        {phase === "parent" && "Loading parent property"}
+                        {phase === "properties" && `Fetching data (${loadedCount}/${totalCount})`}
+                        {phase === "aggregating" && "Aggregating data"}
+                        {phase === "complete" && "Complete"}
+                    </h2>
                 </div>
+
+                {phase === "parent" ? (
+                    <p className="apex-parent-overlay__text">
+                        {parentName
+                            ? `Fetching ${parentName} and child properties…`
+                            : "Fetching parent and child list…"}
+                    </p>
+                ) : null}
+
+                {(phase === "properties" || phase === "aggregating") && items.length > 0 ? (
+                    <ul className="apex-parent-overlay__list">
+                        {items.map((item) => (
+                            <li
+                                key={item.id}
+                                className={`apex-parent-overlay__item${item.status === "loaded" ? " is-done" : ""}`}
+                            >
+                                {item.status === "loading" ? (
+                                    <>
+                                        <FiLoader className="w-4 h-4 animate-spin shrink-0" aria-hidden />
+                                        <span>
+                                            Fetching &quot;{item.name}&quot;
+                                            {item.source ? ` from ${item.source}` : ""}
+                                            {item.shop ? ` (${item.shop})` : ""}…
+                                        </span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <FiCheck className="w-4 h-4 text-[var(--color-accent)] shrink-0" aria-hidden />
+                                        <span>
+                                            Loaded: {item.name}
+                                            {item.shop ? ` (${item.shop})` : ""}
+                                        </span>
+                                    </>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                ) : null}
+
+                {phase === "aggregating" ? (
+                    <p className="apex-parent-overlay__text">Combining metrics and preparing charts…</p>
+                ) : null}
+
+                {phase === "complete" ? (
+                    <p className="apex-parent-overlay__success">All data loaded successfully.</p>
+                ) : null}
+
+                {phase !== "complete" ? (
+                    <div className="mt-4">
+                        <CobaltLoader variant="inline" title="Streaming group metrics" />
+                    </div>
+                ) : null}
             </div>
         </div>
     );

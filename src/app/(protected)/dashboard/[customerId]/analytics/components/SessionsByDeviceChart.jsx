@@ -1,46 +1,72 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import dynamic from "next/dynamic";
-import { getChartColors } from "@/components/dashboard/chartColors";
+import { getCobaltChartBaseOptions, getCobaltChartTokens } from "@/lib/charts/cobaltChartTheme";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-export default function SessionsByDeviceChart({ title = "Sessions By Device", data = [] }) {
-  const colors = getChartColors();
-  const palette = [colors.primaryLighter || "#406969", "#7ea6a6", "#cfe0e0"]; // Desktop, Mobile, Tablet
+export default function SessionsByDeviceChart({
+    title = "Sessions by device",
+    subtitle = "Share of sessions in the selected period",
+    data = [],
+}) {
+    const labels = data.map((d) => d.label);
+    const series = data.map((d) => d.value);
 
-  const labels = data.map((d) => d.label);
-  const series = data.map((d) => d.value);
+    const options = useMemo(() => {
+        const t = getCobaltChartTokens();
+        const base = getCobaltChartBaseOptions();
+        const palette = [t.ink, t.accentLight, t.neutral];
 
-  const options = {
-    chart: { type: "donut", toolbar: { show: false }, fontFamily: "Outfit, sans-serif" },
-    labels,
-    colors: palette,
-    legend: { position: "bottom", horizontalAlign: "center", fontSize: "12px" },
-    dataLabels: { enabled: true, formatter: (val) => `${val.toFixed(0)}%` },
-    stroke: { width: 0 },
-    plotOptions: {
-      pie: {
-        donut: { size: "70%", labels: { show: false } },
-      },
-    },
-    tooltip: {
-      y: {
-        formatter: (value) => Number(value).toLocaleString("da-DK"),
-      },
-    },
-  };
+        return {
+            ...base,
+            chart: {
+                ...base.chart,
+                type: "donut",
+                toolbar: { show: false },
+            },
+            labels,
+            colors: palette,
+            legend: {
+                ...base.legend,
+                position: "bottom",
+                horizontalAlign: "center",
+            },
+            dataLabels: {
+                enabled: true,
+                formatter: (val) => `${val.toFixed(0)}%`,
+                style: {
+                    fontSize: "10px",
+                    fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+                    fontWeight: 600,
+                },
+            },
+            stroke: { width: 0 },
+            plotOptions: {
+                pie: {
+                    donut: { size: "68%", labels: { show: false } },
+                },
+            },
+            tooltip: {
+                ...base.tooltip,
+                y: {
+                    formatter: (value) => Number(value).toLocaleString("da-DK"),
+                },
+            },
+        };
+    }, [labels]);
 
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <h3 className="text-lg font-semibold mb-2">{title}</h3>
-      <ReactApexChart type="donut" height={320} series={series} options={options} />
-      {labels.length > 0 && (
-        <div className="mt-2 text-center text-xs text-gray-500">
-          {labels.join(" • ")}
+    return (
+        <div className="apex-analytics-panel apex-analytics-chart-panel">
+            <h3 className="apex-analytics-panel__title">{title}</h3>
+            <p className="apex-analytics-panel__subtitle">{subtitle}</p>
+            <ReactApexChart type="donut" height={320} series={series} options={options} />
+            {labels.length > 0 ? (
+                <p className="apex-analytics-panel__subtitle mb-0 text-center">
+                    {labels.join(" · ")}
+                </p>
+            ) : null}
         </div>
-      )}
-    </div>
-  );
+    );
 }

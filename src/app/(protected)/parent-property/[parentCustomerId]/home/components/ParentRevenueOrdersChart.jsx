@@ -1,121 +1,81 @@
 "use client";
 
-import React from 'react';
-import dynamic from 'next/dynamic';
-import GraphCard from '@/components/dashboard/GraphCard';
-
-const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false });
+import React from "react";
+import { ParentHomeGraphCard, ParentHomeChartShell } from "./ParentHomeChartShell";
 
 export default function ParentRevenueOrdersChart({ dailyData, loading, shopifyRevenueField = "net_sales" }) {
-    if (loading) {
-        return (
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-                <div className="flex justify-center items-center h-80">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-primary-searchmind)]"></div>
-                </div>
-            </div>
-        );
-    }
-
-    if (!dailyData || dailyData.length === 0) {
-        const emptyTitle =
-            shopifyRevenueField === "gross_sales"
-                ? "Gross sales & orders over time"
-                : "Revenue & orders over time";
-        return (
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">{emptyTitle}</h3>
-                <div className="flex justify-center items-center h-80 text-gray-400">
-                    No data available for the selected period
-                </div>
-            </div>
-        );
-    }
-
-    const cardTitle =
+    const title =
         shopifyRevenueField === "gross_sales"
-            ? "Gross sales & orders over time"
-            : "Revenue & orders over time";
-    const revenueSeriesLabel =
+            ? "Gross sales & orders"
+            : "Revenue & orders";
+    const subtitle = "Dual-axis daily trend · DKK and order count";
+    const revenueLabel =
         shopifyRevenueField === "gross_sales" ? "Gross sales (DKK)" : "Revenue (DKK)";
-    const yTitle = revenueSeriesLabel;
 
-    // Prepare chart data
-    const categories = dailyData.map(d => d.period);
-    const revenueData = dailyData.map(d => (d.revenue || 0).toFixed(2));
-    const ordersData = dailyData.map(d => d.orders || 0);
+    if (loading || !dailyData?.length) {
+        return (
+            <ParentHomeChartShell
+                title={title}
+                subtitle={subtitle}
+                loading={loading}
+                empty={!loading && !dailyData?.length}
+            />
+        );
+    }
 
+    const categories = dailyData.map((d) => d.period);
     const chartSeries = [
-        { name: revenueSeriesLabel, data: revenueData },
-        { name: 'Orders', data: ordersData }
+        { name: revenueLabel, data: dailyData.map((d) => Number((d.revenue || 0).toFixed(0))) },
+        { name: "Orders", data: dailyData.map((d) => d.orders || 0) },
     ];
 
     const chartOptions = {
-        chart: {
-            id: 'parent-revenue-orders',
-            toolbar: { show: false },
-            fontFamily: 'Outfit, sans-serif',
-            zoom: { enabled: false }
-        },
-        stroke: { curve: 'smooth', width: 2 },
-        colors: ['#C6ED62', '#406969'],
-        fill: {
-            type: 'gradient',
-            gradient: {
-                shade: 'light',
-                type: 'vertical',
-                shadeIntensity: 0.4,
-                inverseColors: false,
-                opacityFrom: 0.45,
-                opacityTo: 0.10,
-                stops: [5, 80, 100]
-            }
-        },
+        chart: { id: "parent-home-revenue-orders" },
+        stroke: { width: [2.5, 2], curve: "smooth" },
         xaxis: {
-            type: 'category',
             categories,
-            labels: {
-                rotate: -45,
-                style: { colors: '#406969' }
-            },
-            axisTicks: { show: true },
-            axisBorder: { show: true }
+            labels: { rotate: -35, hideOverlappingLabels: true },
         },
         yaxis: [
             {
-                title: { text: yTitle, style: { color: '#C6ED62' } },
+                seriesName: revenueLabel,
+                title: { text: "DKK" },
                 labels: {
-                    style: { colors: '#1E2B2B' },
-                    formatter: (val) => val !== undefined ? Number(val).toLocaleString() : val
-                }
+                    formatter: (val) =>
+                        val != null ? Number(val).toLocaleString("da-DK") : val,
+                },
             },
             {
+                seriesName: "Orders",
                 opposite: true,
-                title: { text: 'Orders', style: { color: '#406969' } },
+                title: { text: "Orders" },
                 labels: {
-                    style: { colors: '#1E2B2B' },
-                    formatter: (val) => val !== undefined ? Number(val).toLocaleString() : val
-                }
-            }
+                    formatter: (val) =>
+                        val != null ? Number(val).toLocaleString("da-DK") : val,
+                },
+            },
         ],
-        legend: {
-            position: 'top',
-            labels: { colors: '#1E2B2B' }
-        },
+        legend: { show: true, position: "top", horizontalAlign: "left" },
         tooltip: {
             shared: true,
             intersect: false,
-            theme: 'light',
             y: {
-                formatter: (val, { seriesIndex }) => {
-                    if (seriesIndex === 0) return `${Number(val).toLocaleString()} kr`;
-                    return Number(val).toLocaleString();
-                }
-            }
+                formatter: (val, { seriesIndex }) =>
+                    seriesIndex === 0
+                        ? `${Number(val).toLocaleString("da-DK")} kr`
+                        : Number(val).toLocaleString("da-DK"),
+            },
         },
-        dataLabels: { enabled: false },
-        grid: { borderColor: '#e5e7eb', strokeDashArray: 0 }
     };
 
-    return <GraphCard title={cardTitle} chartOptions={chartOptions} chartSeries={chartSeries} chartType="area" height={380} />;
+    return (
+        <ParentHomeGraphCard
+            title={title}
+            subtitle={subtitle}
+            chartOptions={chartOptions}
+            chartSeries={chartSeries}
+            chartType="line"
+            height={340}
+        />
+    );
 }

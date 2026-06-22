@@ -1,0 +1,194 @@
+/* Hallmark · theme: Cobalt · page: markets-overview */
+
+@import "../performance-dashboard/performance-dashboard.css";
+@import "../daily-overview/daily-overview.css";
+
+.apex-markets-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.apex-markets-panel {
+  padding: var(--space-md) var(--space-lg);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .apex-markets-panel {
+    padding: var(--space-lg) var(--space-xl);
+  }
+}
+
+.apex-markets-panel__toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+@media (min-width: 768px) {
+  .apex-markets-panel__toolbar {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-md);
+  }
+}
+
+.apex-markets-panel__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-md);
+  color: var(--color-ink);
+}
+
+.apex-markets-panel__subtitle {
+  margin: var(--space-2xs) 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+.apex-markets-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.apex-markets-summary__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: 0.2rem 0.5rem;
+  font-family: var(--font-label);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-ink-2);
+  background: var(--perf-canvas);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: 999px;
+}
+
+.apex-markets-summary__chip strong {
+  color: var(--color-ink);
+  font-weight: 700;
+}
+
+.apex-markets-chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.apex-markets-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 12rem;
+}
+
+.apex-markets-field__label {
+  font-family: var(--font-label);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.apex-markets-select {
+  min-height: 2.25rem;
+  padding: var(--space-2xs) var(--space-sm);
+  font-size: 0.72rem;
+  color: var(--color-ink);
+  background: #ffffff;
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+  outline: none;
+}
+
+.apex-markets-select:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+.apex-markets-table__head-include,
+.apex-markets-table__cell-include {
+  width: 2.25rem;
+  min-width: 2.25rem;
+  max-width: 2.25rem;
+  padding: var(--space-xs) var(--space-2xs);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.apex-markets-table__head-include {
+  background: var(--perf-accent);
+  color: var(--color-accent-ink);
+  border-right: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-markets-table__head-market {
+  padding: var(--space-xs) var(--space-sm);
+  font-family: var(--font-label);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  text-align: left;
+  vertical-align: middle;
+  color: var(--color-accent-ink);
+  background: var(--perf-accent);
+  border-right: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-markets-table__cell-market {
+  padding: var(--space-xs) var(--space-sm);
+  font-weight: 600;
+  color: var(--color-ink);
+  white-space: nowrap;
+}
+
+.apex-markets-table__row.is-excluded {
+  opacity: 0.45;
+}
+
+.apex-markets-table__row.is-special {
+  font-weight: 600;
+}
+
+.apex-markets-checkbox {
+  width: 0.9rem;
+  height: 0.9rem;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.apex-markets-empty,
+.apex-markets-disabled {
+  padding: var(--space-xl);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  background: var(--perf-raised);
+  border: var(--rule-hair) dashed var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+.apex-markets-loader-panel {
+  padding: var(--space-xl);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+}

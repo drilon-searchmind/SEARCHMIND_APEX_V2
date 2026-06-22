@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import FormButton from "@/components/form/FormButton";
 import { FiX } from "react-icons/fi";
 
 export default function ParentPropertyGroupSettingsModal({ onClose, draft, onApply }) {
@@ -15,86 +14,83 @@ export default function ParentPropertyGroupSettingsModal({ onClose, draft, onApp
     };
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-            <div
-                role="dialog"
-                aria-labelledby="parent-group-settings-title"
-                className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-md overflow-hidden"
-            >
-                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-                    <h2 id="parent-group-settings-title" className="text-base font-semibold text-gray-900">
-                        Group view settings
-                    </h2>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-                        aria-label="Close"
-                    >
-                        <FiX className="w-5 h-5" />
-                    </button>
-                </div>
+        <div className="apex-perf-modal-scrim cobalt-perf" data-theme="cobalt">
+            <div className="apex-perf-modal" role="dialog" aria-labelledby="parent-group-settings-title">
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="apex-perf-modal__close"
+                    aria-label="Close"
+                >
+                    <FiX className="text-xl" />
+                </button>
+                <h2 id="parent-group-settings-title" className="apex-perf-modal__title">
+                    Group view settings
+                </h2>
+                <p className="apex-perf-modal__lede">
+                    Choose revenue basis and primary efficiency metric for the group dashboard.
+                </p>
 
-                <form onSubmit={handleSubmit} className="px-5 py-5 space-y-6">
-                    <div>
-                        <p className="text-sm font-medium text-gray-800 mb-2">Shopify revenue basis</p>
+                <form onSubmit={handleSubmit}>
+                    <div className="mb-5">
+                        <p className="apex-perf-modal__field-label mb-2">Shopify revenue basis</p>
                         <div className="flex flex-col gap-2">
-                            <label className="flex items-center gap-2 cursor-pointer text-sm">
+                            <label className="flex items-center gap-2 cursor-pointer text-sm text-[var(--color-ink-2)]">
                                 <input
                                     type="radio"
                                     name="revenueBasis"
                                     checked={rev === "net_sales"}
                                     onChange={() => setRev("net_sales")}
-                                    className="rounded-full border-gray-300 text-[var(--color-primary-searchmind)] focus:ring-[var(--color-primary-searchmind)]"
+                                    className="apex-parent-checkbox rounded-full"
                                 />
                                 <span>Net sales</span>
                             </label>
-                            <label className="flex items-center gap-2 cursor-pointer text-sm">
+                            <label className="flex items-center gap-2 cursor-pointer text-sm text-[var(--color-ink-2)]">
                                 <input
                                     type="radio"
                                     name="revenueBasis"
                                     checked={rev === "gross_sales"}
                                     onChange={() => setRev("gross_sales")}
-                                    className="rounded-full border-gray-300 text-[var(--color-primary-searchmind)] focus:ring-[var(--color-primary-searchmind)]"
+                                    className="apex-parent-checkbox rounded-full"
                                 />
                                 <span>Gross sales</span>
                             </label>
                         </div>
                     </div>
 
-                    <div>
-                        <p className="text-sm font-medium text-gray-800 mb-2">Primary efficiency metric</p>
+                    <div className="mb-5">
+                        <p className="apex-perf-modal__field-label mb-2">Primary efficiency metric</p>
                         <div className="flex flex-col gap-2">
-                            <label className="flex items-center gap-2 cursor-pointer text-sm">
+                            <label className="flex items-center gap-2 cursor-pointer text-sm text-[var(--color-ink-2)]">
                                 <input
                                     type="radio"
                                     name="groupMetric"
                                     checked={metric === "ROAS/POAS"}
                                     onChange={() => setMetric("ROAS/POAS")}
-                                    className="rounded-full border-gray-300 text-[var(--color-primary-searchmind)] focus:ring-[var(--color-primary-searchmind)]"
+                                    className="apex-parent-checkbox rounded-full"
                                 />
                                 <span>ROAS</span>
                             </label>
-                            <label className="flex items-center gap-2 cursor-pointer text-sm">
+                            <label className="flex items-center gap-2 cursor-pointer text-sm text-[var(--color-ink-2)]">
                                 <input
                                     type="radio"
                                     name="groupMetric"
                                     checked={metric === "Spendshare"}
                                     onChange={() => setMetric("Spendshare")}
-                                    className="rounded-full border-gray-300 text-[var(--color-primary-searchmind)] focus:ring-[var(--color-primary-searchmind)]"
+                                    className="apex-parent-checkbox rounded-full"
                                 />
                                 <span>Spendshare</span>
                             </label>
                         </div>
                     </div>
 
-                    <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-                        <FormButton type="button" borderType="outline" buttonSize="small" onClick={onClose}>
+                    <div className="apex-perf-modal__actions">
+                        <button type="button" onClick={onClose} className="apex-perf-btn">
                             Cancel
-                        </FormButton>
-                        <FormButton type="submit" borderType="" buttonSize="small">
+                        </button>
+                        <button type="submit" className="apex-perf-btn apex-perf-btn--primary">
                             Apply
-                        </FormButton>
+                        </button>
                     </div>
                 </form>
             </div>

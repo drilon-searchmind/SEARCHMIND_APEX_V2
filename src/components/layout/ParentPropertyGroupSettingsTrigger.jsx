@@ -26,7 +26,7 @@ export default function ParentPropertyGroupSettingsTrigger() {
                     setOpen(true);
                 }}
                 title="Group view settings"
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-600 hover:border-gray-400 hover:text-[var(--color-primary-searchmind)] transition-colors"
+                className="apex-parent-icon-btn"
                 aria-label="Group view settings"
             >
                 <FiSettings className="w-4 h-4" />

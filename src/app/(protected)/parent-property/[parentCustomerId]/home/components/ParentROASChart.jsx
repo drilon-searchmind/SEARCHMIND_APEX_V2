@@ -1,124 +1,96 @@
 "use client";
 
-import React from 'react';
-import GraphCard from '@/components/dashboard/GraphCard';
-import { parentTotalSpendFromDailyRow } from '@/lib/parentPropertyAdSpend';
+import React from "react";
+import { parentTotalSpendFromDailyRow } from "@/lib/parentPropertyAdSpend";
+import { ParentHomeGraphCard, ParentHomeChartShell } from "./ParentHomeChartShell";
 
-export default function ParentROASChart({ dailyData, loading, metricPreference = 'ROAS/POAS' }) {
-    if (loading) {
+export default function ParentROASChart({ dailyData, loading, metricPreference = "ROAS/POAS" }) {
+    const isSpendshare = metricPreference === "Spendshare";
+    const title = isSpendshare ? "Spendshare" : "Blended ROAS";
+    const subtitle = isSpendshare
+        ? "Ad spend as share of revenue (%)"
+        : "Revenue divided by total ad spend";
+
+    if (loading || !dailyData?.length) {
         return (
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-                <div className="flex justify-center items-center h-80">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-primary-searchmind)]"></div>
-                </div>
-            </div>
+            <ParentHomeChartShell
+                title={title}
+                subtitle={subtitle}
+                loading={loading}
+                empty={!loading && !dailyData?.length}
+            />
         );
     }
 
-    if (!dailyData || dailyData.length === 0) {
-        return (
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    {metricPreference === 'Spendshare' ? 'Spendshare' : 'ROAS'} Over Time
-                </h3>
-                <div className="flex justify-center items-center h-80 text-gray-400">
-                    No data available for the selected period
-                </div>
-            </div>
-        );
-    }
+    const categories = dailyData.map((d) => d.period);
+    const metricData = dailyData.map((d) => {
+        const totalSpend = parentTotalSpendFromDailyRow(d);
+        const revenue = d.revenue || 0;
+        if (isSpendshare) {
+            return revenue > 0 ? Number(((totalSpend / revenue) * 100).toFixed(2)) : 0;
+        }
+        return totalSpend > 0 ? Number((revenue / totalSpend).toFixed(2)) : 0;
+    });
 
-    // Prepare chart data based on metric preference
-    const categories = dailyData.map(d => d.period);
-    let metricData, metricName, yAxisTitle;
-
-    if (metricPreference === 'Spendshare') {
-        metricData = dailyData.map(d => {
-            const totalSpend = parentTotalSpendFromDailyRow(d);
-            const revenue = d.revenue || 0;
-            return revenue > 0 ? ((totalSpend / revenue) * 100).toFixed(2) : 0;
-        });
-        metricName = 'Spendshare (%)';
-        yAxisTitle = 'Spendshare (%)';
-    } else {
-        metricData = dailyData.map(d => {
-            const totalSpend = parentTotalSpendFromDailyRow(d);
-            const revenue = d.revenue || 0;
-            return totalSpend > 0 ? (revenue / totalSpend).toFixed(2) : 0;
-        });
-        metricName = 'ROAS';
-        yAxisTitle = 'ROAS';
-    }
-
-    const chartSeries = [
-        { name: metricName, data: metricData }
-    ];
-
+    const chartSeries = [{ name: title, data: metricData }];
     const chartOptions = {
-        chart: {
-            id: 'parent-roas',
-            toolbar: { show: false },
-            fontFamily: 'Outfit, sans-serif',
-            zoom: { enabled: false }
-        },
-        stroke: { curve: 'smooth', width: 2 },
-        colors: ['#213834'],
-        fill: {
-            type: 'gradient',
-            gradient: {
-                shade: 'light',
-                type: 'vertical',
-                shadeIntensity: 0.4,
-                inverseColors: false,
-                opacityFrom: 0.45,
-                opacityTo: 0.10,
-                stops: [5, 80, 100]
-            }
+        chart: { id: "parent-home-roas" },
+        stroke: { width: 2.5, curve: "smooth" },
+        markers: {
+            size: 0,
+            hover: { size: 5 },
         },
         xaxis: {
-            type: 'category',
             categories,
-            labels: {
-                rotate: -45,
-                style: { colors: '#406969' }
-            },
-            axisTicks: { show: true },
-            axisBorder: { show: true }
+            labels: { rotate: -35, hideOverlappingLabels: true },
         },
         yaxis: {
-            title: { text: yAxisTitle, style: { color: '#1E2B2B' } },
+            title: { text: isSpendshare ? "%" : "ROAS" },
             labels: {
-                style: { colors: '#1E2B2B' },
-                formatter: (val) => {
-                    if (metricPreference === 'Spendshare') {
-                        return `${Number(val).toFixed(2)}%`;
-                    }
-                    return Number(val).toFixed(2);
-                }
-            }
-        },
-        legend: {
-            position: 'top',
-            labels: { colors: '#1E2B2B' }
+                formatter: (val) =>
+                    isSpendshare
+                        ? `${Number(val).toFixed(1)}%`
+                        : Number(val).toFixed(2),
+            },
         },
         tooltip: {
-            shared: true,
-            intersect: false,
-            theme: 'light',
             y: {
-                formatter: (val) => {
-                    if (metricPreference === 'Spendshare') {
-                        return `${Number(val).toFixed(2)}%`;
-                    }
-                    return Number(val).toFixed(2);
-                }
-            }
+                formatter: (val) =>
+                    isSpendshare
+                        ? `${Number(val).toFixed(2)}%`
+                        : Number(val).toFixed(2),
+            },
         },
-        dataLabels: { enabled: false },
-        grid: { borderColor: '#e5e7eb', strokeDashArray: 0 }
+        annotations: !isSpendshare
+            ? {
+                  yaxis: [
+                      {
+                          y: 1,
+                          borderColor: "var(--color-rule-2)",
+                          strokeDashArray: 4,
+                          label: {
+                              text: "Break-even",
+                              style: {
+                                  fontSize: "10px",
+                                  fontFamily: "JetBrains Mono, monospace",
+                                  color: "var(--color-muted)",
+                                  background: "var(--perf-canvas)",
+                              },
+                          },
+                      },
+                  ],
+              }
+            : undefined,
     };
 
-    const title = metricPreference === 'Spendshare' ? 'Spendshare Over Time' : 'ROAS Over Time';
-
-    return <GraphCard title={title} chartOptions={chartOptions} chartSeries={chartSeries} chartType="area" height={380} />;
+    return (
+        <ParentHomeGraphCard
+            title={title}
+            subtitle={subtitle}
+            chartOptions={chartOptions}
+            chartSeries={chartSeries}
+            chartType="line"
+            height={300}
+        />
+    );
 }

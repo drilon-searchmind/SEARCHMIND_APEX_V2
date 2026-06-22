@@ -2,10 +2,11 @@
 
 import React from "react";
 
-export default function ParentPnlView({ sharedData }) {
+export default function ParentPnlView() {
     return (
-        <div className="flex items-center justify-center min-h-[300px] text-gray-500">
-            <p className="text-lg">P&L — Coming soon</p>
+        <div className="cobalt-perf apex-parent-stub" data-theme="cobalt">
+            <h2 className="apex-parent-stub__title">P&amp;L</h2>
+            <p className="apex-parent-stub__text">Coming soon for group properties.</p>
         </div>
     );
 }
