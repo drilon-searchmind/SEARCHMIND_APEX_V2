@@ -572,13 +572,19 @@
   position: absolute;
   right: 0;
   top: calc(100% + 0.375rem);
-  width: min(16rem, calc(100vw - 2rem));
+  width: min(calc(100vw - 2rem), 100%);
   padding: var(--space-sm);
   background: var(--color-paper);
   border: var(--rule-hair) solid var(--color-rule);
   border-radius: var(--radius-card);
   box-shadow: 0 4px 20px oklch(27.5% 0.038 165 / 0.08);
   z-index: 50;
+}
+
+@media (min-width: 768px) {
+  .apex-dash-topbar__menu {
+    width: min(350px, calc(100vw - 2rem));
+  }
 }
 
 .apex-dash-topbar__menu-head {
@@ -635,7 +641,6 @@
 
 .apex-dash-topbar__menu-list a,
 .apex-dash-topbar__menu-list button,
-.apex-dash-topbar__menu-radar-link,
 .apex-dash-topbar__menu-signout {
   display: flex;
   align-items: center;
@@ -657,10 +662,31 @@
 
 .apex-dash-topbar__menu-list a:hover,
 .apex-dash-topbar__menu-list button:hover,
-.apex-dash-topbar__menu-radar-link:hover,
 .apex-dash-topbar__menu-signout:hover {
   background: var(--color-paper-2);
   color: var(--color-ink);
+}
+
+.apex-dash-topbar__menu-list a.apex-dash-topbar__menu-radar-link {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
+.apex-dash-topbar__menu-list a.apex-dash-topbar__menu-radar-link:hover {
+  background: var(--color-accent-hover);
+  color: var(--color-accent-ink);
+}
+
+.apex-dash-topbar__menu-list a.apex-dash-topbar__menu-radar-link .apex-dash__icon-box--menu {
+  background: color-mix(in srgb, var(--color-accent-ink) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-accent-ink) 22%, transparent);
+  color: var(--color-accent-ink);
+}
+
+.apex-dash-topbar__menu-list a.apex-dash-topbar__menu-radar-link .apex-dash-nav__badge {
+  border-color: color-mix(in srgb, var(--color-accent-ink) 28%, transparent);
+  color: var(--color-accent-ink);
+  background: color-mix(in srgb, var(--color-accent-ink) 10%, transparent);
 }
 
 .apex-dash-topbar__menu-signout {

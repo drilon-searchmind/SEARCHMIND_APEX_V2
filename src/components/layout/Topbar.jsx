@@ -528,13 +528,13 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                                 />
                                             </span>
                                             <div className="apex-dash-topbar__menu-user-meta">
-                                                <div className="apex-dash-topbar__menu-user-row">
+                                                <div className="apex-dash-topbar__menu-user-row relative">
                                                     <p className="apex-dash-topbar__menu-user-name">{user?.name}</p>
                                                     {user?.isAdmin && (
-                                                        <span className="apex-dash-nav__badge">Admin</span>
+                                                        <span className="apex-dash-nav__badge absolute top-0 right-0">Admin</span>
                                                     )}
                                                     {user?.isExternal && (
-                                                        <span className="apex-dash-nav__badge">External</span>
+                                                        <span className="apex-dash-nav__badge absolute top-0 right-0">External</span>
                                                     )}
                                                 </div>
                                                 <p className="apex-dash-topbar__menu-user-email">{user?.email}</p>
