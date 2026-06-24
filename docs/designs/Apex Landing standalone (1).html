@@ -1,0 +1,2420 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>// GENERATED from dc-runtime/src/*.ts — do not edit. Rebuild with `cd dc-runtime && bun run build`.
+"use strict";
+(() => {
+  var __defProp = Object.defineProperty;
+  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+
+  // src/react.ts
+  function getReact() {
+    const R = window.React;
+    if (!R) throw new Error("dc-runtime: window.React is not available yet");
+    return R;
+  }
+  function getReactDOM() {
+    const RD = window.ReactDOM;
+    if (!RD) throw new Error("dc-runtime: window.ReactDOM is not available yet");
+    return RD;
+  }
+  var h = ((...args) => getReact().createElement(
+    ...args
+  ));
+
+  // src/parse.ts
+  function parseDcDocument(doc) {
+    const dc = doc.querySelector("x-dc");
+    if (!dc) return null;
+    const scriptEl = doc.querySelector("script[data-dc-script]");
+    const { props, preview } = parseDataProps(
+      scriptEl?.getAttribute("data-props") ?? null
+    );
+    return {
+      template: dc.innerHTML,
+      js: scriptEl ? scriptEl.textContent || "" : "",
+      props,
+      preview
+    };
+  }
+  function parseDcText(src) {
+    const openMatch = /<x-dc(?:\s[^>]*)?>/.exec(src);
+    if (!openMatch) return null;
+    const close = src.lastIndexOf("</x-dc>");
+    if (close === -1 || close < openMatch.index) return null;
+    const template = src.slice(openMatch.index + openMatch[0].length, close);
+    const doc = new DOMParser().parseFromString(src, "text/html");
+    const scriptEl = doc.querySelector("script[data-dc-script]");
+    const { props, preview } = parseDataProps(
+      scriptEl?.getAttribute("data-props") ?? null
+    );
+    return {
+      template,
+      js: scriptEl ? scriptEl.textContent || "" : "",
+      props,
+      preview
+    };
+  }
+  function parseDataProps(raw) {
+    if (!raw) return { props: null, preview: null };
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return { props: null, preview: null };
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { props: null, preview: null };
+    }
+    const obj = parsed;
+    const preview = obj.$preview && typeof obj.$preview === "object" ? obj.$preview : null;
+    const rest = {};
+    for (const k of Object.keys(obj)) {
+      if (k[0] !== "$") rest[k] = obj[k];
+    }
+    return { props: Object.keys(rest).length ? rest : null, preview };
+  }
+  function dcNameFromPath(pathname) {
+    let p = pathname || "";
+    try {
+      p = decodeURIComponent(p);
+    } catch {
+    }
+    const base = p.split("/").pop() || "Root";
+    return base.replace(/\.dc\.html$/, "").replace(/\.html?$/, "") || "Root";
+  }
+
+  // src/boot.ts
+  var BASE_CSS = `
+    .sc-placeholder{background:rgba(255,255,255,.3);border:1px solid rgba(0,0,0,.5);
+      border-radius:2px;box-sizing:border-box;overflow:hidden}
+    @keyframes sc-shine{0%{background-position:100% 50%}100%{background-position:0% 50%}}
+    html.sc-dc-streaming .sc-placeholder,
+    html.sc-dc-streaming .sc-interp.sc-missing{position:relative;
+      background:color-mix(in srgb,currentColor 5%,transparent);
+      border-color:transparent}
+    html.sc-dc-streaming .sc-placeholder::before,
+    html.sc-dc-streaming .sc-interp.sc-missing::before{content:'';
+      position:absolute;inset:0;pointer-events:none;
+      background:linear-gradient(90deg,rgba(217,119,87,0) 25%,rgba(247,225,211,.95) 37%,rgba(217,119,87,0) 63%);
+      background-size:400% 100%;animation:sc-shine 1.4s ease infinite}
+    html.sc-dc-streaming .sc-placeholder:nth-child(n+9 of .sc-placeholder)::before,
+    html.sc-dc-streaming .sc-interp.sc-missing:nth-child(n+9 of .sc-interp.sc-missing)::before{animation:none;
+      background:color-mix(in srgb,currentColor 8%,transparent)}
+    .sc-placeholder-error{padding:4px 8px;font:11px/1.4 ui-monospace,monospace;
+      color:rgba(0,0,0,.7);word-break:break-word}
+    .sc-interp.sc-missing{display:inline-block;width:2em;height:1em;overflow:hidden;
+      vertical-align:text-bottom;background:rgba(255,255,255,.3);border:1px solid rgba(0,0,0,.5);
+      border-radius:2px;box-sizing:border-box;color:transparent;
+      user-select:none}
+    .sc-interp.sc-unresolved{font-family:ui-monospace,monospace;font-size:.85em;
+      color:rgba(0,0,0,.5);background:rgba(0,0,0,.05);border-radius:3px;
+      padding:0 3px}
+    .sc-host.sc-has-error{position:relative}
+    .sc-logic-error{position:absolute;top:8px;left:8px;z-index:2147483647;max-width:60ch;
+      padding:6px 10px;background:#b00020;color:#fff;font:12px/1.4 ui-monospace,monospace;
+      border-radius:4px;white-space:pre-wrap;pointer-events:none}
+    /* Mirrors PRINT_BASELINE_CSS in apps/web deck-stage-export.ts \u2014 keep both
+       in sync until dc-runtime regains a build step. */
+    @media print {
+      @page { margin: 0.5cm; }
+      section, article, figure, table { break-inside: avoid; }
+      *, *::before, *::after {
+        print-color-adjust: exact; -webkit-print-color-adjust: exact;
+        backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+        animation-delay: -99s !important; animation-duration: .001s !important;
+        animation-iteration-count: 1 !important; animation-fill-mode: both !important;
+        animation-play-state: running !important; transition-duration: 0s !important;
+      }
+    }
+  `;
+  var FULL_PAGE_CSS = "html,body{height:100%;margin:0}#dc-root,#dc-root>.sc-host{height:100%}";
+  function rootNameForDocument(doc, loc) {
+    let bootPath = loc.pathname || "";
+    if (!/\.dc\.html?$/i.test(safeDecode(bootPath))) {
+      try {
+        bootPath = new URL(doc.baseURI || "/").pathname;
+      } catch {
+      }
+    }
+    return dcNameFromPath(bootPath);
+  }
+  function safeDecode(s) {
+    try {
+      return decodeURIComponent(s);
+    } catch {
+      return s;
+    }
+  }
+  function boot(runtime, doc = document) {
+    const parsed = parseDcDocument(doc);
+    if (!parsed) return null;
+    const React = getReact();
+    const rootName = rootNameForDocument(doc, location);
+    runtime.markFetched(rootName);
+    runtime.adoptParsed(rootName, parsed);
+    fetch(location.href).then((res) => res.ok ? res.text() : "").then((t) => {
+      const raw = t ? parseDcText(t) : null;
+      if (raw?.template) runtime.updateHtml(rootName, raw.template);
+    }).catch(() => {
+    });
+    const dc = doc.querySelector("x-dc");
+    const hostEl = doc.createElement("div");
+    hostEl.id = "dc-root";
+    dc.replaceWith(hostEl);
+    if (!parsed.preview) {
+      const s = doc.createElement("style");
+      s.textContent = FULL_PAGE_CSS;
+      doc.head.appendChild(s);
+    }
+    const Root = runtime.getDC(rootName);
+    const entry = runtime.registry.get(rootName);
+    function StandaloneRoot() {
+      const [, setTick] = React.useState(0);
+      React.useEffect(() => {
+        const sub = () => setTick((n) => n + 1);
+        entry.subs.add(sub);
+        return () => {
+          entry.subs.delete(sub);
+        };
+      }, []);
+      return h(Root, entry.propOverrides || null);
+    }
+    const ReactDOM = getReactDOM();
+    if (ReactDOM.createRoot)
+      ReactDOM.createRoot(hostEl).render(h(StandaloneRoot));
+    else ReactDOM.render(h(StandaloneRoot), hostEl);
+    return rootName;
+  }
+
+  // src/expr.ts
+  var IDENT_RE = /^[A-Za-z_$][A-Za-z0-9_$]*/;
+  var NUMBER_RE = /^-?\d+(\.\d+)?$/;
+  function resolve(vals, src) {
+    const expr = String(src).trim();
+    if (!expr) return void 0;
+    if (expr[0] === "(" && expr[expr.length - 1] === ")" && parensWrapWhole(expr)) {
+      return resolve(vals, expr.slice(1, -1));
+    }
+    const eq = findTopLevelEquality(expr);
+    if (eq) {
+      const lv = resolve(vals, expr.slice(0, eq.index));
+      const rv = resolve(vals, expr.slice(eq.index + eq.op.length));
+      switch (eq.op) {
+        case "===":
+          return lv === rv;
+        case "!==":
+          return lv !== rv;
+        case "==":
+          return lv == rv;
+        default:
+          return lv != rv;
+      }
+    }
+    if (expr[0] === "!") return !resolve(vals, expr.slice(1));
+    if (expr === "true") return true;
+    if (expr === "false") return false;
+    if (expr === "null") return null;
+    if (expr === "undefined") return void 0;
+    if (NUMBER_RE.test(expr)) return Number(expr);
+    if (expr.length >= 2 && (expr[0] === '"' || expr[0] === "'") && expr[expr.length - 1] === expr[0]) {
+      return expr.slice(1, -1);
+    }
+    return resolvePath(vals, expr);
+  }
+  function parensWrapWhole(expr) {
+    let depth = 0;
+    for (let i = 0; i < expr.length - 1; i++) {
+      if (expr[i] === "(") depth++;
+      else if (expr[i] === ")") {
+        depth--;
+        if (depth === 0) return false;
+      }
+    }
+    return true;
+  }
+  function findTopLevelEquality(expr) {
+    let depth = 0;
+    for (let i = 0; i < expr.length; i++) {
+      const c = expr[i];
+      if (c === "[" || c === "(") depth++;
+      else if (c === "]" || c === ")") depth--;
+      else if (depth === 0 && (c === "=" || c === "!") && expr[i + 1] === "=") {
+        if (i > 0 && (expr[i - 1] === "=" || expr[i - 1] === "!")) continue;
+        if (!expr.slice(0, i).trim()) continue;
+        const op = expr[i + 2] === "=" ? c + "==" : c + "=";
+        return { index: i, op };
+      }
+    }
+    return null;
+  }
+  function resolvePath(vals, expr) {
+    const head = expr.match(IDENT_RE);
+    if (!head) return void 0;
+    let cur = vals == null ? void 0 : vals[head[0]];
+    let i = head[0].length;
+    while (i < expr.length) {
+      if (expr[i] === ".") {
+        const m = expr.slice(i + 1).match(IDENT_RE) || expr.slice(i + 1).match(/^\d+/);
+        if (!m) return void 0;
+        cur = cur == null ? void 0 : cur[m[0]];
+        i += 1 + m[0].length;
+      } else if (expr[i] === "[") {
+        let depth = 1;
+        let j = i + 1;
+        while (j < expr.length && depth > 0) {
+          if (expr[j] === "[") depth++;
+          else if (expr[j] === "]") {
+            depth--;
+            if (depth === 0) break;
+          }
+          j++;
+        }
+        if (depth !== 0) return void 0;
+        const key = resolve(vals, expr.slice(i + 1, j));
+        cur = cur == null ? void 0 : cur[key];
+        i = j + 1;
+      } else {
+        return void 0;
+      }
+    }
+    return cur;
+  }
+
+  // src/encode.ts
+  var CAMEL_ATTR = "sc-camel-";
+  var RAW_WRAP = {
+    select: "sc-raw-select",
+    table: "sc-raw-table",
+    tbody: "sc-raw-tbody",
+    thead: "sc-raw-thead",
+    tfoot: "sc-raw-tfoot",
+    tr: "sc-raw-tr",
+    td: "sc-raw-td",
+    th: "sc-raw-th",
+    caption: "sc-raw-caption"
+  };
+  var RAW_UNWRAP = Object.fromEntries(
+    Object.entries(RAW_WRAP).map(([k, v]) => [v, k])
+  );
+  var EVENT_MAP = {
+    onclick: "onClick",
+    onchange: "onChange",
+    oninput: "onInput",
+    onsubmit: "onSubmit",
+    onkeydown: "onKeyDown",
+    onkeyup: "onKeyUp",
+    onkeypress: "onKeyPress",
+    onmousedown: "onMouseDown",
+    onmouseup: "onMouseUp",
+    onmouseenter: "onMouseEnter",
+    onmouseleave: "onMouseLeave",
+    onfocus: "onFocus",
+    onblur: "onBlur",
+    ondoubleclick: "onDoubleClick",
+    oncontextmenu: "onContextMenu"
+  };
+  var ATTRS = `(?:[^>"']|"[^"]*"|'[^']*')*`;
+  var IMPORT_SELF_CLOSE_RE = new RegExp(
+    "<(x-import|dc-import)(" + ATTRS + ")/>",
+    "gi"
+  );
+  var CAMEL_ATTR_RE = /(\s)([a-z]+[A-Z][A-Za-z0-9]*)(\s*=)/g;
+  function encodeCase(html) {
+    html = html.replace(
+      IMPORT_SELF_CLOSE_RE,
+      (_, t, a) => "<" + t + a + "></" + t + ">"
+    );
+    html = html.replace(/<helmet(\s|>)/gi, "<sc-helmet$1");
+    html = html.replace(/<\/helmet\s*>/gi, "</sc-helmet>");
+    html = html.replace(
+      CAMEL_ATTR_RE,
+      (_, sp, name, eq) => sp + CAMEL_ATTR + name.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase()) + eq
+    );
+    for (const [real, alias] of Object.entries(RAW_WRAP)) {
+      html = html.replace(
+        new RegExp("(</?)" + real + "(?=[\\s>])", "gi"),
+        "$1" + alias
+      );
+    }
+    return html;
+  }
+  function kebabToCamel(s) {
+    return s.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+  }
+  function cssToObj(css) {
+    const o = {};
+    for (const decl of css.split(";")) {
+      const i = decl.indexOf(":");
+      if (i < 0) continue;
+      const prop = decl.slice(0, i).trim();
+      o[prop.startsWith("--") ? prop : kebabToCamel(prop)] = decl.slice(i + 1).trim();
+    }
+    return o;
+  }
+  function compileAttr(raw) {
+    const whole = raw.match(/^\s*\{\{([\s\S]+?)\}\}\s*$/);
+    if (whole) {
+      const path = whole[1];
+      return (vals) => resolve(vals, path);
+    }
+    if (raw.includes("{{")) {
+      const parts = raw.split(/\{\{([\s\S]+?)\}\}/g);
+      return (vals) => parts.map((s, i) => i & 1 ? resolve(vals, s) ?? "" : s).join("");
+    }
+    return () => raw;
+  }
+
+  // src/compile.ts
+  function collectProps(node, isComponent, host) {
+    const propGetters = [];
+    const pseudoClasses = [];
+    let hintSize = null;
+    for (const { name, value } of [...node.attributes]) {
+      if (name === "sc-name" || name === "data-dc-tpl") continue;
+      let key = name;
+      if (key.startsWith(CAMEL_ATTR))
+        key = kebabToCamel(key.slice(CAMEL_ATTR.length));
+      if (key === "hint-size") {
+        hintSize = value;
+        continue;
+      }
+      if (key.startsWith("style-")) {
+        pseudoClasses.push(host.pseudoClass(key.slice(6), value));
+        continue;
+      }
+      if (isComponent) {
+        if (key.includes("-")) key = kebabToCamel(key);
+      } else {
+        if (key === "class") key = "className";
+        else if (key === "for") key = "htmlFor";
+        else if (key.startsWith("on"))
+          key = EVENT_MAP[key] || "on" + key[2].toUpperCase() + key.slice(3);
+      }
+      propGetters.push([key, compileAttr(value)]);
+    }
+    return { propGetters, pseudoClasses, hintSize };
+  }
+  var HOST_STYLE_PROPS = /* @__PURE__ */ new Set([
+    "position",
+    "left",
+    "right",
+    "top",
+    "bottom",
+    "inset",
+    "width",
+    "height",
+    "z-index",
+    "transform"
+  ]);
+  function hostPositionStyle(style) {
+    const all = typeof style === "string" ? cssToObj(style) : style != null && typeof style === "object" ? style : null;
+    if (!all) return void 0;
+    const out = {};
+    for (const [k, v] of Object.entries(all)) {
+      const kebab = k.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase());
+      if (HOST_STYLE_PROPS.has(kebab)) out[k] = v;
+    }
+    return Object.keys(out).length ? out : void 0;
+  }
+  function compileTemplate(html, host) {
+    const tpl = document.createElement("template");
+    //! nosemgrep: direct-inner-html-assignment
+    tpl.innerHTML = encodeCase(html);
+    let tplN = 0;
+    (function stamp(node) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        node.setAttribute("data-dc-tpl", String(tplN++));
+      }
+      for (const c of node.childNodes) stamp(c);
+    })(tpl.content);
+    const builders = walkChildren(tpl.content, host);
+    const render = ((vals, ctx) => builders.map((b, i) => b(vals || {}, ctx, i)));
+    render.__annotated = tpl.innerHTML;
+    return render;
+  }
+  function walkChildren(node, host) {
+    return [...node.childNodes].map((c) => walk(c, host)).filter((b) => b != null);
+  }
+  function walk(node, host) {
+    if (node.nodeType === Node.TEXT_NODE) return walkText(node);
+    if (node.nodeType !== Node.ELEMENT_NODE) return null;
+    const el = node;
+    const tag = el.tagName.toLowerCase();
+    if (tag === "sc-for") return walkFor(el, host);
+    if (tag === "sc-if") return walkIf(el, host);
+    if (tag === "x-import") return walkXImport(el, host);
+    if (tag === "sc-helmet") return host.helmet(el);
+    if (tag === "dc-import") return walkComponent(el, host);
+    return walkElement(el, host);
+  }
+  var warnedHoles = /* @__PURE__ */ new Set();
+  function warnUnresolved(ctx, what) {
+    const key = (ctx?.__name || "?") + "\0" + what;
+    if (warnedHoles.has(key)) return;
+    warnedHoles.add(key);
+    console.warn("[dc-runtime] " + (ctx?.__name || "template") + ": " + what);
+  }
+  function walkText(node) {
+    const txt = node.nodeValue ?? "";
+    if (!txt.includes("{{")) {
+      if (!txt.trim() && !txt.includes(" ")) return null;
+      return () => txt;
+    }
+    const parts = txt.split(/\{\{([\s\S]+?)\}\}/g);
+    return (vals, ctx, key) => h(
+      getReact().Fragment,
+      { key },
+      ...parts.map((p, i) => {
+        if (!(i & 1)) return p;
+        const v = resolve(vals, p);
+        if (v === void 0) {
+          if (!ctx?.__streamingNow) {
+            if (document.body?.hasAttribute("data-dc-editor-on")) {
+              return h(
+                "span",
+                { key: i, className: "sc-interp sc-unresolved" },
+                "{{ " + p.trim() + " }}"
+              );
+            }
+            warnUnresolved(
+              ctx,
+              "{{ " + p.trim() + " }} never resolved \u2014 rendered as empty"
+            );
+            return null;
+          }
+          return h(
+            "span",
+            { key: i, className: "sc-interp sc-missing" },
+            p.trim()
+          );
+        }
+        if (getReact().isValidElement(v) || Array.isArray(v)) {
+          return h(getReact().Fragment, { key: i }, v);
+        }
+        if (v === null || typeof v === "boolean") return null;
+        return h("span", { key: i, className: "sc-interp" }, String(v));
+      })
+    );
+  }
+  function walkFor(el, host) {
+    const listGet = compileAttr(el.getAttribute("list") || "");
+    const asName = el.getAttribute("as") || "item";
+    const hintN = parseInt(el.getAttribute("hint-placeholder-count") || "0", 10);
+    const kids = walkChildren(el, host);
+    const listSrc = el.getAttribute("list") || "";
+    return (vals, ctx, key) => {
+      let list = listGet(vals);
+      if (!Array.isArray(list)) {
+        if (!ctx?.__streamingNow) {
+          if (list !== void 0 && list !== null) {
+            warnUnresolved(
+              ctx,
+              'sc-for list="' + listSrc + '" is not an array (' + typeof list + ")"
+            );
+          }
+          list = [];
+        } else {
+          list = hintN > 0 ? Array(hintN).fill(void 0) : [];
+        }
+      }
+      return h(
+        getReact().Fragment,
+        { key },
+        list.map((item, i) => {
+          const sub = { ...vals, [asName]: item, $index: i };
+          return h(
+            getReact().Fragment,
+            { key: i },
+            kids.map((b, j) => b(sub, ctx, j))
+          );
+        })
+      );
+    };
+  }
+  function walkIf(el, host) {
+    const valGet = compileAttr(el.getAttribute("value") || "");
+    const hintRaw = el.getAttribute("hint-placeholder-val");
+    const hintGet = hintRaw != null ? compileAttr(hintRaw) : null;
+    const kids = walkChildren(el, host);
+    return (vals, ctx, key) => {
+      let v = valGet(vals);
+      if (v === void 0 && hintGet && ctx?.__streamingNow) v = hintGet(vals);
+      return v ? h(
+        getReact().Fragment,
+        { key },
+        kids.map((b, j) => b(vals, ctx, j))
+      ) : null;
+    };
+  }
+  function walkComponent(el, host) {
+    const name = el.getAttribute("name") || el.getAttribute("component") || "";
+    el.removeAttribute("name");
+    el.removeAttribute("component");
+    const tplId = el.getAttribute("data-dc-tpl");
+    const styleRaw = el.getAttribute("style");
+    el.removeAttribute("style");
+    const styleGet = styleRaw != null ? compileAttr(styleRaw) : null;
+    const { propGetters, hintSize } = collectProps(el, true, host);
+    const kids = walkChildren(el, host);
+    return (vals, ctx, key) => {
+      const props = {
+        key,
+        __hintSize: hintSize,
+        __tplId: tplId,
+        __hostStyle: styleGet ? hostPositionStyle(styleGet(vals)) : void 0
+      };
+      for (const [k, g] of propGetters) props[k] = g(vals);
+      if (kids.length) props.children = kids.map((b, j) => b(vals, ctx, j));
+      return h(host.component(name), props);
+    };
+  }
+  function walkXImport(el, host) {
+    const globalNameGet = compileAttr(
+      el.getAttribute("component-from-global-scope") || ""
+    );
+    const exportNameGet = compileAttr(
+      el.getAttribute("component") || el.getAttribute("name") || ""
+    );
+    const url = el.getAttribute("from") || el.getAttribute("src") || el.getAttribute("import") || "";
+    const kind = /\.(jsx|tsx)(\?|#|$)/i.test(url) ? "jsx" : "js";
+    const tplId = el.getAttribute("data-dc-tpl");
+    const styleRaw = el.getAttribute("style");
+    el.removeAttribute("style");
+    const styleGet = styleRaw != null ? compileAttr(styleRaw) : null;
+    const wrap = tplId != null || styleGet != null;
+    const { propGetters, hintSize } = collectProps(el, true, host);
+    const hasContent = el.children.length > 0 || !!(el.textContent || "").trim();
+    const kids = hasContent ? walkChildren(el, host) : [];
+    const urlBindable = url.includes("{{");
+    if (url && !urlBindable) host.loadExternal(kind, url);
+    const evalName = (g, vals) => {
+      const v = g(vals);
+      const s = v == null ? "" : String(v);
+      return s.includes("{{") ? "" : s;
+    };
+    return (vals, ctx, key) => {
+      const globalName = evalName(globalNameGet, vals);
+      const name = globalName || evalName(exportNameGet, vals);
+      const C = !name || urlBindable ? null : globalName ? host.resolveExternalGlobal(url, globalName) : host.resolveExternal(url, name);
+      const hostStyle = styleGet ? hostPositionStyle(styleGet(vals)) : void 0;
+      const wrapper = wrap ? {
+        key,
+        className: "sc-host-x",
+        "data-dc-tpl": tplId,
+        style: hostStyle || { display: "contents" }
+      } : null;
+      if (!C) {
+        const error = urlBindable ? "x-import `from` cannot contain {{ \u2026 }} \u2014 module URLs are resolved at parse time; use a literal URL" : host.resolveExternalError(url, name);
+        const ph = host.placeholder({
+          key: wrapper ? void 0 : key,
+          name,
+          hintSize,
+          error
+        });
+        return wrapper ? h("div", wrapper, ph) : ph;
+      }
+      const props = wrapper ? {} : { key };
+      let unresolvedHole = false;
+      for (const [k, g] of propGetters) {
+        if (k === "component" || k === "componentFromGlobalScope" || k === "name" || k === "from" || k === "src" || k === "import") {
+          continue;
+        }
+        const v = g(vals);
+        if (v === void 0) unresolvedHole = true;
+        props[k] = v;
+      }
+      if (unresolvedHole && ctx?.__htmlStreamingNow) {
+        const ph = host.placeholder({
+          key: wrapper ? void 0 : key,
+          name,
+          hintSize,
+          error: null
+        });
+        return wrapper ? h("div", wrapper, ph) : ph;
+      }
+      if (kids.length) props.children = kids.map((b, j) => b(vals, ctx, j));
+      return wrapper ? h("div", wrapper, h(C, props)) : h(C, props);
+    };
+  }
+  function walkElement(el, host) {
+    const realTag = RAW_UNWRAP[el.localName] || el.localName;
+    const tplId = el.getAttribute("data-dc-tpl");
+    const { propGetters, pseudoClasses } = collectProps(el, false, host);
+    const kids = walkChildren(el, host);
+    return (vals, ctx, key) => {
+      const props = { key, "data-dc-tpl": tplId };
+      for (const [k, g] of propGetters) {
+        let v = g(vals);
+        if (k === "style" && typeof v === "string") v = cssToObj(v);
+        if ((k === "value" || k === "checked") && v === void 0) {
+          v = k === "checked" ? false : "";
+        }
+        props[k] = v;
+      }
+      if (pseudoClasses.length) {
+        props.className = [props.className, ...pseudoClasses].filter(Boolean).join(" ");
+      }
+      return h(realTag, props, ...kids.map((b, j) => b(vals, ctx, j)));
+    };
+  }
+
+  // src/logic.ts
+  var StreamableLogic = class {
+    constructor(props) {
+      __publicField(this, "props");
+      __publicField(this, "state", {});
+      /** Back-pointer to the wrapper component, installed after construction. */
+      __publicField(this, "__host");
+      this.props = props || {};
+    }
+    setState(update, cb) {
+      this.__host && this.__host.__setLogicState(update, cb);
+    }
+    forceUpdate() {
+      this.__host && this.__host.forceUpdate();
+    }
+    componentDidMount() {
+    }
+    componentDidUpdate(_prevProps) {
+    }
+    componentWillUnmount() {
+    }
+    /** The flat object the template renders against (merged over props). */
+    renderVals() {
+      return {};
+    }
+  };
+  function evalDcLogic(src) {
+    //! nosemgrep: eval-and-function-constructor
+    const fn = new Function(
+      "DCLogic",
+      "StreamableLogic",
+      "React",
+      src + '\n;return (typeof Component!=="undefined"&&Component)||undefined;'
+    );
+    return fn(StreamableLogic, StreamableLogic, getReact());
+  }
+
+  // src/component.ts
+  function shallowEqual(a, b) {
+    if (!b) return false;
+    const ak = Object.keys(a).filter((k) => k !== "children");
+    const bk = Object.keys(b).filter((k) => k !== "children");
+    if (ak.length !== bk.length) return false;
+    for (const k of ak) if (a[k] !== b[k]) return false;
+    return true;
+  }
+  function Placeholder({
+    name,
+    hintSize,
+    streaming,
+    error
+  }) {
+    const [w, hgt] = (hintSize || "100%,60px").split(",");
+    return h(
+      "div",
+      {
+        className: "sc-placeholder" + (streaming ? " sc-streaming" : ""),
+        style: { width: w.trim(), height: hgt && hgt.trim() },
+        title: name
+      },
+      error ? h(
+        "div",
+        { className: "sc-placeholder-error" },
+        (name ? name + ": " : "") + error
+      ) : null
+    );
+  }
+  function hintToMin(hint) {
+    if (!hint) return void 0;
+    const [w, hgt] = hint.split(",");
+    return { minWidth: w.trim(), minHeight: hgt && hgt.trim() };
+  }
+  function createComponentFactory(registry, ensureFetched) {
+    const React = getReact();
+    const AncestorContext = React.createContext([]);
+    class StreamableComponent extends React.Component {
+      constructor(props) {
+        super(props);
+        __publicField(this, "__name");
+        __publicField(this, "__sub");
+        __publicField(this, "__needsDidMount", false);
+        /** Snapshot of the registry's streaming flags taken at render time —
+         *  builders read it off the RenderCtx (this) to pick placeholder vs
+         *  render-nothing for unresolved values. */
+        __publicField(this, "__streamingNow", false);
+        __publicField(this, "__htmlStreamingNow", false);
+        /** When a construct throws, remember the (class, registry.ver, props)
+         *  triple so render-time reconcile doesn't re-attempt it on every parent
+         *  re-render. A registry bump (new class, template, external module
+         *  resolving via bumpAll) changes `ver` and breaks the memo so an
+         *  env-dependent constructor can self-heal. */
+        __publicField(this, "__failedLogic", null);
+        __publicField(this, "__failedUserProps", null);
+        __publicField(this, "__failedVer", -1);
+        /** Per-instance constructor error — kept here (not on the registry entry)
+         *  so one instance's successful construct can't hide a sibling's failure,
+         *  and a construct can never wipe an eval error `updateJs` recorded on
+         *  `r.logicError`. */
+        __publicField(this, "__ctorError", null);
+        __publicField(this, "logic");
+        this.__name = props.__name;
+        this.state = { __v: 0, __err: null };
+        this.__sub = () => {
+          if (this.state.__err) this.setState({ __err: null });
+          this.forceUpdate();
+        };
+        this.__makeLogic(registry.get(this.__name).Logic, null);
+        ensureFetched(this.__name);
+      }
+      /** Error-boundary hook: a render crash anywhere in this DC's subtree
+       *  (its own template, an x-import'd component, a child DC without its
+       *  own deeper boundary) lands here instead of unmounting the page. */
+      static getDerivedStateFromError(e) {
+        return { __err: e instanceof Error && e.message ? e.message : String(e) };
+      }
+      componentDidCatch(e, info) {
+        console.error(
+          "[dc-runtime] render error in <" + this.__name + ">:",
+          e,
+          info?.componentStack || ""
+        );
+      }
+      /** Instantiate the logic class (or the no-op base) and adopt `prevState`
+       *  over its initial state — used both at mount and on hot-swap. */
+      __makeLogic(Logic, prevState) {
+        const L = Logic || StreamableLogic;
+        try {
+          this.logic = new L(this.__userProps());
+          this.__failedLogic = null;
+          this.__failedUserProps = null;
+          this.__ctorError = null;
+        } catch (e) {
+          console.error(e);
+          this.__failedLogic = Logic;
+          this.__failedUserProps = this.__userProps();
+          this.__failedVer = registry.get(this.__name).ver;
+          this.__ctorError = this.__name + ": " + (e instanceof Error && e.message ? e.message : String(e));
+          this.logic = new StreamableLogic(
+            this.__userProps()
+          );
+        }
+        this.logic.__host = this;
+        if (prevState)
+          this.logic.state = { ...this.logic.state || {}, ...prevState };
+      }
+      /** The props the author's logic + template see — internal __-prefixed
+       *  wiring stripped. */
+      __userProps() {
+        const { __name, __hintSize, __tplId, __hostStyle, ...rest } = this.props;
+        return rest;
+      }
+      __setLogicState(update, cb) {
+        const prev = this.logic.state;
+        const patch = typeof update === "function" ? update(prev) : update;
+        this.logic.state = { ...prev, ...patch };
+        this.setState((s) => ({ __v: s.__v + 1 }), cb);
+      }
+      /** Swap the logic instance when the registry's Logic class changed
+       *  (streaming completion, hot reload). State carries over; didMount
+       *  re-fires after the swap commits so refs exist. */
+      __reconcileLogic() {
+        const r = registry.get(this.__name);
+        const Next = r.Logic;
+        const Cur = this.logic.constructor;
+        if (Next === Cur || !Next && Cur === StreamableLogic || Next === this.__failedLogic && r.ver === this.__failedVer && shallowEqual(this.__userProps(), this.__failedUserProps)) {
+          return;
+        }
+        if (!this.__needsDidMount) {
+          try {
+            this.logic.componentWillUnmount();
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        this.__makeLogic(Next, this.logic.state);
+        this.__needsDidMount = true;
+      }
+      componentDidMount() {
+        registry.get(this.__name).subs.add(this.__sub);
+        try {
+          this.logic.componentDidMount();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      componentDidUpdate(prevProps) {
+        this.logic.props = this.__userProps();
+        if (this.__needsDidMount) {
+          if (this.state.__err || !registry.get(this.__name).tpl) return;
+          this.__needsDidMount = false;
+          try {
+            this.logic.componentDidMount();
+          } catch (e) {
+            console.error(e);
+          }
+        } else {
+          try {
+            this.logic.componentDidUpdate(prevProps);
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+      componentWillUnmount() {
+        registry.get(this.__name).subs.delete(this.__sub);
+        if (!this.__needsDidMount) {
+          try {
+            this.logic.componentWillUnmount();
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+      render() {
+        const r = registry.get(this.__name);
+        const cls = "sc-host" + (r.htmlStreaming ? " sc-streaming-html" : "") + (r.jsStreaming ? " sc-streaming-js" : "");
+        const hintStyle = r.htmlStreaming ? hintToMin(this.props.__hintSize) : void 0;
+        const hostStyle = this.props.__hostStyle || hintStyle ? { ...hintStyle || {}, ...this.props.__hostStyle || {} } : void 0;
+        const hostBase = {
+          className: cls,
+          style: hostStyle,
+          "data-sc-name": this.__name,
+          "data-dc-tpl": this.props.__tplId
+        };
+        const chain = Array.isArray(this.context) ? this.context : [];
+        if (chain.includes(this.__name)) {
+          const cycle = [
+            ...chain.slice(chain.indexOf(this.__name)),
+            this.__name
+          ].join(" \u2192 ");
+          return h(
+            "div",
+            { ...hostBase, className: cls + " sc-has-error" },
+            h(Placeholder, {
+              name: this.__name,
+              hintSize: this.props.__hintSize,
+              error: "circular import: " + cycle
+            })
+          );
+        }
+        if (this.state.__err) {
+          return h(
+            "div",
+            { ...hostBase, className: cls + " sc-has-error" },
+            h(
+              "div",
+              { className: "sc-logic-error" },
+              this.__name + ": " + this.state.__err
+            ),
+            h(Placeholder, {
+              name: this.__name,
+              hintSize: this.props.__hintSize,
+              error: this.state.__err
+            })
+          );
+        }
+        this.__reconcileLogic();
+        if (!r.tpl) {
+          return h(
+            "div",
+            hostBase,
+            h(Placeholder, { name: this.__name, hintSize: this.props.__hintSize })
+          );
+        }
+        const userProps = this.__userProps();
+        this.logic.props = userProps;
+        let vals = userProps;
+        let renderErr = r.logicError || this.__ctorError;
+        try {
+          vals = { ...userProps, ...this.logic.renderVals() || {} };
+        } catch (e) {
+          console.error(e);
+          renderErr = this.__name + ".renderVals(): " + (e instanceof Error && e.message ? e.message : String(e));
+        }
+        this.__streamingNow = !!(r.htmlStreaming || r.jsStreaming);
+        this.__htmlStreamingNow = !!r.htmlStreaming;
+        return h(
+          "div",
+          { ...hostBase, className: cls + (renderErr ? " sc-has-error" : "") },
+          renderErr && h("div", { className: "sc-logic-error" }, renderErr),
+          h(
+            AncestorContext.Provider,
+            { value: [...chain, this.__name] },
+            r.tpl(vals, this)
+          )
+        );
+      }
+    }
+    __publicField(StreamableComponent, "contextType", AncestorContext);
+    const named = /* @__PURE__ */ new Map();
+    function getDC(name) {
+      const hit = named.get(name);
+      if (hit) return hit;
+      function Dispatcher(p) {
+        const [, setTick] = React.useState(0);
+        React.useEffect(() => {
+          const sub = () => setTick((n) => n + 1);
+          registry.get(name).subs.add(sub);
+          return () => {
+            registry.get(name).subs.delete(sub);
+          };
+        }, []);
+        ensureFetched(name);
+        return h(StreamableComponent, { ...p, __name: name });
+      }
+      Dispatcher.displayName = name;
+      named.set(name, Dispatcher);
+      return Dispatcher;
+    }
+    return {
+      getDC,
+      StreamableComponent
+    };
+  }
+
+  // src/external.ts
+  var isCustomElementName = (n) => !n.includes(".") && n.includes("-");
+  function isRenderableType(g) {
+    if (typeof g === "function") return !isElementClass(g);
+    return typeof g === "object" && g !== null && typeof g.$typeof === "symbol";
+  }
+  function resolveDottedPath(root, name) {
+    let cur = root;
+    for (const seg of name.split(".")) {
+      if (cur == null) return void 0;
+      cur = cur[seg];
+    }
+    return cur;
+  }
+  var BABEL_URL = "https://unpkg.com/@babel/standalone@7.26.4/babel.min.js";
+  var GLOBAL_POLL_INTERVAL_MS = 50;
+  var GLOBAL_POLL_TIMEOUT_MS = 3e4;
+  function createExternalModules(onResolved) {
+    const cache = /* @__PURE__ */ new Map();
+    let babelLoading = null;
+    const reportedMissing = /* @__PURE__ */ new Map();
+    const polling = /* @__PURE__ */ new Set();
+    function ensureBabel() {
+      if (window.Babel) return Promise.resolve();
+      if (babelLoading) return babelLoading;
+      babelLoading = new Promise((res, rej) => {
+        const s = document.createElement("script");
+        s.src = BABEL_URL;
+        s.crossOrigin = "anonymous";
+        s.onload = () => res();
+        s.onerror = rej;
+        document.head.appendChild(s);
+      });
+      return babelLoading;
+    }
+    function load(kind, url) {
+      if (cache.has(url)) return;
+      cache.set(url, null);
+      console.info("[dc-runtime] x-import: loading", url, "(" + kind + ")");
+      const ready = kind === "jsx" ? ensureBabel() : Promise.resolve();
+      ready.then(() => fetch(url)).then((r) => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.text();
+      }).then((src) => {
+        const code = kind === "jsx" ? window.Babel.transform(src, {
+          filename: url,
+          presets: ["react", "typescript"]
+        }).code : src;
+        const module = { exports: {} };
+        const before = new Set(Object.keys(window));
+        //! nosemgrep: eval-and-function-constructor
+        new Function("React", "module", "exports", "require", code)(
+          getReact(),
+          module,
+          module.exports,
+          () => ({})
+        );
+        const globals = {};
+        for (const k of Object.keys(window)) {
+          if (!before.has(k) && typeof window[k] === "function") {
+            globals[k] = window[k];
+          }
+        }
+        cache.set(url, { mod: module.exports, globals });
+        console.info(
+          "[dc-runtime] x-import: loaded",
+          url,
+          "\u2014 exports:",
+          Object.keys(module.exports),
+          "window globals:",
+          Object.keys(globals)
+        );
+        onResolved();
+      }).catch((e) => {
+        cache.set(url, {
+          mod: {},
+          globals: {},
+          error: "failed to load: " + (e instanceof Error && e.message ? e.message : String(e))
+        });
+        console.error(
+          "[dc-runtime] x-import: FAILED to load",
+          url,
+          "(" + kind + ")",
+          e
+        );
+        onResolved();
+      });
+    }
+    function resolve2(url, name) {
+      const entry = cache.get(url);
+      if (!entry) return null;
+      const { mod, globals } = entry;
+      const C = mod && mod[name] || globals && globals[name] || typeof window !== "undefined" && window[name] || mod && mod.default;
+      if (typeof C === "function") return C;
+      const key = url + "\0" + name;
+      if (!reportedMissing.has(key)) {
+        reportedMissing.set(
+          key,
+          entry.error || 'no export named "' + name + '" (has: ' + Object.keys(mod).join(", ") + ")"
+        );
+        console.error(
+          "[dc-runtime] x-import: module",
+          url,
+          "loaded but has no component named",
+          JSON.stringify(name),
+          "\u2014 available exports:",
+          Object.keys(mod),
+          "window globals:",
+          Object.keys(globals),
+          ". The module must `module.exports = {" + name + "}` or set `window." + name + "`."
+        );
+      }
+      return null;
+    }
+    function waitForGlobal(name) {
+      if (polling.has(name)) return;
+      polling.add(name);
+      const started = Date.now();
+      const isCE = isCustomElementName(name);
+      const tick = () => {
+        const found = isCE ? customElements.get(name) : isRenderableType(resolveDottedPath(window, name));
+        if (found) {
+          polling.delete(name);
+          onResolved();
+          return;
+        }
+        if (Date.now() - started >= GLOBAL_POLL_TIMEOUT_MS) {
+          console.warn(
+            "[dc-runtime] x-import: global",
+            JSON.stringify(name),
+            "never appeared on window after " + GLOBAL_POLL_TIMEOUT_MS + "ms"
+          );
+          return;
+        }
+        setTimeout(tick, GLOBAL_POLL_INTERVAL_MS);
+      };
+      setTimeout(tick, GLOBAL_POLL_INTERVAL_MS);
+    }
+    function resolveGlobal(url, name) {
+      const isCE = isCustomElementName(name);
+      if (!url) {
+        if (isCE) {
+          if (customElements.get(name)) return name;
+          waitForGlobal(name);
+          return null;
+        }
+        const g2 = resolveDottedPath(window, name);
+        if (isRenderableType(g2)) return g2;
+        waitForGlobal(name);
+        return null;
+      }
+      const entry = cache.get(url);
+      if (!entry) return null;
+      if (isCE && customElements.get(name)) return name;
+      const g = entry.globals[name] ?? resolveDottedPath(window, name);
+      if (isRenderableType(g)) return g;
+      if (name.includes(".")) return null;
+      const key = url + "\0global\0" + name;
+      if (!reportedMissing.has(key)) {
+        reportedMissing.set(key, null);
+        if (isCE && !customElements.get(name)) {
+          console.warn(
+            "[dc-runtime] x-import:",
+            url,
+            "loaded but no custom element",
+            JSON.stringify(name),
+            "is registered and window." + name + " is not a function \u2014 rendering <" + name + "> as an unknown element."
+          );
+        }
+      }
+      return name;
+    }
+    function getError(url, name) {
+      const entry = cache.get(url);
+      if (entry?.error) return entry.error;
+      return reportedMissing.get(url + "\0" + name) || null;
+    }
+    return { load, resolve: resolve2, resolveGlobal, getError };
+  }
+  function isElementClass(g) {
+    try {
+      return typeof g === "function" && typeof HTMLElement !== "undefined" && g.prototype instanceof HTMLElement;
+    } catch {
+      return false;
+    }
+  }
+
+  // src/helmet.ts
+  function createHelmetManager(doc, isStreaming) {
+    const mounted = /* @__PURE__ */ new Set();
+    const live = /* @__PURE__ */ new Map();
+    function compile(node) {
+      const raw = [...node.children];
+      const helmetClosed = node.nextSibling != null || node.parentNode?.nextSibling != null;
+      return (_vals, ctx) => {
+        const name = ctx && ctx.__name || "";
+        const streaming = !!(name && isStreaming(name));
+        for (let i = 0; i < raw.length; i++) {
+          const child = raw[i];
+          const tag = child.tagName;
+          const mayBePartial = streaming && !helmetClosed && i === raw.length - 1;
+          if (tag === "SCRIPT") {
+            if (mayBePartial) continue;
+            const key = "SCRIPT|" + (child.getAttribute("src") || child.textContent || "");
+            if (mounted.has(key)) continue;
+            mounted.add(key);
+            const el = doc.createElement("script");
+            for (const { name: an, value } of [...child.attributes])
+              el.setAttribute(an, value);
+            if (child.textContent) el.textContent = child.textContent;
+            doc.head.appendChild(el);
+          } else if (tag === "LINK" || tag === "META") {
+            if (mayBePartial) continue;
+            const key = tag + "|" + (child.getAttribute("href") || child.getAttribute("src") || child.outerHTML);
+            if (mounted.has(key)) continue;
+            mounted.add(key);
+            doc.head.appendChild(child.cloneNode(true));
+          } else {
+            const key = name + "|" + i;
+            let el = live.get(key);
+            if (!el || el.tagName !== tag) {
+              if (el) el.remove();
+              el = doc.createElement(tag.toLowerCase());
+              live.set(key, el);
+              doc.head.appendChild(el);
+            }
+            for (const { name: an, value } of [...child.attributes]) {
+              if (el.getAttribute(an) !== value) el.setAttribute(an, value);
+            }
+            if (el.textContent !== child.textContent)
+              el.textContent = child.textContent;
+          }
+        }
+        return null;
+      };
+    }
+    return { compile };
+  }
+
+  // src/pseudo.ts
+  function createPseudoSheet(doc) {
+    let el = null;
+    const cache = /* @__PURE__ */ new Map();
+    let n = 0;
+    return (pseudo, css) => {
+      const k = pseudo + "|" + css;
+      const hit = cache.get(k);
+      if (hit) return hit;
+      if (!el) {
+        el = doc.createElement("style");
+        doc.head.appendChild(el);
+      }
+      const cls = "scp" + (n++).toString(36);
+      const sel = pseudo === "before" || pseudo === "after" ? "." + cls + "::" + pseudo : "." + cls + ":" + pseudo;
+      el.sheet.insertRule(sel + "{" + css + "}", el.sheet.cssRules.length);
+      cache.set(k, cls);
+      return cls;
+    };
+  }
+
+  // src/registry.ts
+  function createRegistry() {
+    const entries = /* @__PURE__ */ Object.create(null);
+    function get(name) {
+      return entries[name] || (entries[name] = {
+        html: "",
+        tpl: null,
+        Logic: null,
+        jsStreaming: false,
+        htmlStreaming: false,
+        ver: 0,
+        subs: /* @__PURE__ */ new Set(),
+        fetched: false
+      });
+    }
+    function bump(name) {
+      const r = get(name);
+      r.ver++;
+      for (const fn of r.subs) fn();
+    }
+    return {
+      entries,
+      get,
+      bump,
+      bumpAll() {
+        for (const n in entries) bump(n);
+      }
+    };
+  }
+
+  // src/runtime.ts
+  var COMPONENT_DIR = ".";
+  function createRuntime(doc = document) {
+    const registry = createRegistry();
+    const pseudoClass = createPseudoSheet(doc);
+    const helmet = createHelmetManager(
+      doc,
+      (name) => registry.get(name).htmlStreaming
+    );
+    const external = createExternalModules(() => registry.bumpAll());
+    const factory = createComponentFactory(registry, ensureFetched);
+    const host = {
+      component: (name) => factory.getDC(name),
+      placeholder: (props) => h(Placeholder, props),
+      helmet: (node) => helmet.compile(node),
+      loadExternal: (kind, url) => external.load(kind, url),
+      resolveExternal: (url, name) => external.resolve(url, name),
+      resolveExternalGlobal: (url, name) => external.resolveGlobal(url, name),
+      resolveExternalError: (url, name) => external.getError(url, name),
+      pseudoClass
+    };
+    function ensureFetched(name) {
+      const r = registry.get(name);
+      if (r.fetched) return;
+      r.fetched = true;
+      const url = COMPONENT_DIR + "/" + encodeURIComponent(name) + ".dc.html";
+      fetch(url).then((res) => {
+        if (!res.ok) {
+          console.error(
+            "[dc-runtime] sibling fetch for <" + name + "/> failed:",
+            url,
+            "returned",
+            res.status,
+            "\u2014 the reference renders as an empty placeholder."
+          );
+          return "";
+        }
+        return res.text();
+      }).then((t) => {
+        if (!t) return;
+        const parsed = parseDcText(t);
+        if (!parsed) {
+          console.error(
+            "[dc-runtime] sibling fetch for <" + name + "/>:",
+            url,
+            "has no <x-dc> block \u2014 not a Design Component."
+          );
+          return;
+        }
+        if (parsed.props) r.propsMeta = parsed.props;
+        if (parsed.preview) r.preview = parsed.preview;
+        if (parsed.template && !r.html) updateHtml(name, parsed.template);
+        if (parsed.js && !r.Logic) updateJs(name, parsed.js);
+      }).catch(
+        (e) => console.error(
+          "[dc-runtime] sibling fetch for <" + name + "/> threw:",
+          url,
+          e
+        )
+      );
+    }
+    function updateHtml(name, html) {
+      const r = registry.get(name);
+      r.html = html;
+      try {
+        r.tpl = compileTemplate(html, host);
+      } catch (e) {
+        console.error("[dc-runtime] template compile FAILED for", name, e);
+      }
+      registry.bump(name);
+    }
+    function updateJs(name, src) {
+      const r = registry.get(name);
+      const seq = r.jsSeq = (r.jsSeq || 0) + 1;
+      try {
+        const Cls = evalDcLogic(src);
+        if (r.jsSeq !== seq) return;
+        if (typeof Cls !== "function") {
+          r.logicError = name + ".dc.html: <script data-dc-script> must define `class Component extends DCLogic`";
+        } else {
+          r.logicError = null;
+          r.Logic = Cls;
+        }
+      } catch (e) {
+        if (r.jsSeq !== seq) return;
+        console.error(
+          "[dc-runtime] logic class eval FAILED for",
+          name,
+          "\u2014 the template renders with props only.",
+          e
+        );
+        r.logicError = name + ": " + (e instanceof Error && e.message ? e.message : String(e));
+      }
+      registry.bump(name);
+    }
+    function setStreaming(name, kind, on) {
+      const r = registry.get(name);
+      if (kind === "html") r.htmlStreaming = !!on;
+      else r.jsStreaming = !!on;
+      let any = false;
+      for (const n in registry.entries) {
+        const e = registry.entries[n];
+        if (e && (e.htmlStreaming || e.jsStreaming)) {
+          any = true;
+          break;
+        }
+      }
+      doc.documentElement.classList.toggle("sc-dc-streaming", any);
+      registry.bump(name);
+    }
+    function dcUpdate(name, kind, content, streaming) {
+      if (streaming) registry.get(name).fetched = true;
+      if (kind === "html") {
+        setStreaming(name, "html", !!streaming);
+        updateHtml(name, content);
+      } else if (kind === "js") {
+        setStreaming(name, "js", !!streaming);
+        if (!streaming) updateJs(name, content);
+      } else if (kind === "props") {
+        const { props, preview } = parseDataProps(content);
+        const r = registry.get(name);
+        r.propsMeta = props ?? void 0;
+        r.preview = preview;
+        registry.bump(name);
+      }
+    }
+    function setProps(name, overrides) {
+      registry.get(name).propOverrides = overrides && typeof overrides === "object" ? { ...overrides } : null;
+      registry.bump(name);
+    }
+    function adoptParsed(name, parsed) {
+      if (!parsed) return;
+      const r = registry.get(name);
+      if (parsed.props) r.propsMeta = parsed.props;
+      if (parsed.preview) r.preview = parsed.preview;
+      if (parsed.template) updateHtml(name, parsed.template);
+      if (parsed.js) updateJs(name, parsed.js);
+    }
+    return {
+      registry,
+      getDC: factory.getDC,
+      updateHtml,
+      updateJs,
+      dcUpdate,
+      setProps,
+      adoptParsed,
+      markFetched: (name) => {
+        registry.get(name).fetched = true;
+      },
+      annotatedTemplate: (name) => {
+        const r = registry.get(name);
+        return r.tpl && r.tpl.__annotated || null;
+      },
+      templateSource: (name) => registry.get(name).html || null,
+      StreamableLogic
+    };
+  }
+
+  // src/index.ts
+  var REACT_URL = "https://unpkg.com/react@18.3.1/umd/react.production.min.js";
+  var REACT_SRI = "sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z";
+  var REACT_DOM_URL = "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js";
+  var REACT_DOM_SRI = "sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1";
+  function hideRawTemplate() {
+    const s = document.createElement("style");
+    s.textContent = "x-dc{display:none!important}";
+    document.head.appendChild(s);
+  }
+  function loadScript(src, integrity) {
+    return new Promise((resolve2, reject) => {
+      //! nosemgrep: create-script-element
+      const s = document.createElement("script");
+      s.src = src;
+      s.integrity = integrity;
+      s.crossOrigin = "anonymous";
+      s.async = false;
+      s.onload = () => resolve2();
+      s.onerror = () => reject(new Error(`failed to load ${src}`));
+      document.head.appendChild(s);
+    });
+  }
+  function loadReactUmd() {
+    const w = window;
+    if (w.React && w.ReactDOM) return Promise.resolve();
+    return Promise.all([
+      loadScript(REACT_URL, REACT_SRI),
+      loadScript(REACT_DOM_URL, REACT_DOM_SRI)
+    ]).then(() => void 0);
+  }
+  function init() {
+    const runtime = createRuntime(document);
+    let rootName = "Root";
+    const baseCss = document.createElement("style");
+    baseCss.textContent = BASE_CSS;
+    document.head.prepend(baseCss);
+    const notifyHost = () => {
+      if (window.parent === window) return;
+      const r = runtime.registry.entries[rootName];
+      try {
+        window.parent.postMessage(
+          {
+            type: "__dc_booted",
+            rootName,
+            propsMeta: r && r.propsMeta || null,
+            preview: r && r.preview || null
+          },
+          "*"
+        );
+      } catch {
+      }
+    };
+    const api = {
+      __dcUpdate: (name, kind, content, streaming) => {
+        runtime.dcUpdate(name, kind, content, streaming);
+        if (name === rootName && !streaming && kind === "props") notifyHost();
+      },
+      __dcSetProps: (name, overrides) => runtime.setProps(name, overrides),
+      /** Name of the component currently mounted as the page root — DC tools
+       *  push their template-stream here when targeting "the open page". */
+      __dcRootName: () => rootName,
+      /** Editor bridge — the encoded, `data-dc-tpl`-annotated template source.
+       *  The host editor parses this into its own template DOM so it can map a
+       *  rendered node (carrying the same `data-dc-tpl`) back to the source
+       *  node that emitted it. Returns the encoded form (`<sc-comp>`,
+       *  `sc-camel-*` attrs); the editor decodes on serialize. */
+      __dcAnnotatedTemplate: (name) => runtime.annotatedTemplate(name),
+      /** Editor bridge — the *original* (decoded) template source. */
+      __dcTemplateSource: (name) => runtime.templateSource(name),
+      __dcBoot: () => {
+        rootName = boot(runtime, document) ?? rootName;
+        notifyHost();
+      },
+      __dcRegistry: runtime.registry.entries,
+      getDC: (name) => runtime.getDC(name),
+      // `DCLogic` is the documented base class name; `StreamableLogic` is the
+      // implementation alias kept for any project that already references it.
+      DCLogic: runtime.StreamableLogic,
+      StreamableLogic: runtime.StreamableLogic
+    };
+    Object.assign(window, api);
+    if (document.readyState !== "loading") api.__dcBoot();
+    else document.addEventListener("DOMContentLoaded", () => api.__dcBoot());
+  }
+  hideRawTemplate();
+  loadReactUmd().then(init).catch((err) => {
+    console.error("[dc] failed to load React or boot:", err);
+    throw err;
+  });
+})();
+</script>
+<script src="https://js-eu1.hsforms.net/forms/embed/v2.js" defer></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: #fefbf2; }
+  ::selection { background: #c6ed62; color: #1a2525; }
+  @keyframes apexFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  @keyframes apexPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.88); } }
+  @keyframes apexSweep { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  @keyframes apexArrowNudge { 0%,100% { transform: translateX(0); } 50% { transform: translateX(5px); } }
+  @keyframes apexRing { 0% { transform: scale(0.7); opacity: 0.5; } 70%,100% { transform: scale(2.15); opacity: 0; } }
+  @keyframes apexDot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.7); } }
+  @media (max-width: 860px) {
+    .apex-hero-grid { grid-template-columns: 1fr !important; }
+    .apex-two { grid-template-columns: 1fr !important; }
+    .apex-nav-links { display: none !important; }
+    .apex-h1 { font-size: 44px !important; }
+    .apex-radar-grid { grid-template-columns: 1fr !important; }
+  }
+</style>
+</helmet>
+<main data-screen-label="Apex Landing" style="font-family: 'Schibsted Grotesk', sans-serif; background: #fefbf2; color: #1e2b2b; -webkit-font-smoothing: antialiased; overflow-x: hidden;">
+
+  <!-- TOP ACTIONS -->
+  <div style="max-width: 1200px; margin: 0 auto; padding: 24px 32px 0; display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+    <div style="display: flex; align-items: center; gap: 9px;">
+      <svg width="20" height="27" viewBox="0 0 80 108" fill="#1e2b2b" xmlns="http://www.w3.org/2000/svg">
+        <path d="M73.0207 27.0116C72.923 27.0085 72.8223 27.0054 72.7246 27.0054H60.1507C56.8027 26.7987 54.0652 24.3064 53.4517 21.0491V7.35361C53.4517 7.03282 53.4304 6.71819 53.3907 6.40973C52.9329 2.79462 49.8779 0 46.1759 0H33.9927C29.9733 0 26.7169 3.29123 26.7169 7.35361V19.6672C26.7169 23.5754 23.6985 26.771 19.8867 27.0054H7.31582C7.21511 27.0054 7.11745 27.0085 7.01979 27.0116C3.13774 27.172 0.0400391 30.3984 0.0400391 34.359V46.6726C0.0400391 50.735 3.29644 54.0262 7.31582 54.0262H19.4991C23.2011 54.0262 26.2561 51.2316 26.7138 47.6165C26.7535 47.308 26.7749 46.9934 26.7749 46.6726V32.9771C27.3883 29.7229 30.1228 27.2275 33.4738 27.0208H46.4933C50.3021 27.2552 53.3205 30.4509 53.3235 34.359V46.6171C53.3235 50.6795 56.5799 53.9707 60.5993 53.9707H72.7246C76.744 53.9707 80.0004 50.6795 80.0004 46.6171V34.3621C80.0004 30.4015 76.9027 27.172 73.0207 27.0147V27.0116Z"/>
+        <path d="M72.9806 80.9852C72.883 80.9821 72.7822 80.979 72.6846 80.979H60.1107C56.7627 80.7724 54.0251 78.28 53.4117 75.0227V61.3272C53.4117 61.0065 53.3903 60.6918 53.3507 60.3834C52.8929 56.7683 49.8379 53.9736 46.1359 53.9736H33.9526C29.9333 53.9736 26.6769 57.2649 26.6769 61.3272V73.6408C26.6769 77.549 23.6585 80.7446 19.8467 80.979H7.27578C7.17507 80.979 7.07741 80.9821 6.97975 80.9852C3.0977 81.1425 0 84.369 0 88.3326V100.646C0 104.709 3.2564 108 7.27578 108H19.4591C23.161 108 26.216 105.205 26.6738 101.59C26.7135 101.282 26.7348 100.967 26.7348 100.646V86.9508C27.3483 83.6935 30.0859 81.2011 33.4338 80.9945H46.4533C50.2621 81.2289 53.2805 84.4245 53.2835 88.3326V100.591C53.2835 104.653 56.5399 107.944 60.5593 107.944H72.6846C76.704 107.944 79.9604 104.653 79.9604 100.591V88.3357C79.9604 84.3751 76.8627 81.1456 72.9806 80.9883V80.9852Z"/>
+      </svg>
+      <span style="font-size: 16px; font-weight: 700; letter-spacing: -0.3px; color: #1e2b2b;">Apex</span>
+      <span style="font-size: 11px; color: #a19986; font-weight: 500;">by Searchmind</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <a href="#" style="font-size: 15px; font-weight: 500; color: #1e2b2b; text-decoration: none;">Log ind</a>
+      <button onClick="{{ openCheckout }}" style="font-family: inherit; background: #c6ed62; color: #1a2525; border: none; border-radius: 999px; padding: 11px 20px; font-size: 14px; font-weight: 600; cursor: pointer;" style-hover="background:#bfe84f;">Start gratis</button>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <section style="max-width: 1200px; margin: 0 auto; padding: 80px 32px 56px;">
+    <div class="apex-hero-grid" style="display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center;">
+      <div>
+        <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(198,237,98,0.22); border: 1px solid rgba(106,143,77,0.35); color: #2f4a35; border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 600; letter-spacing: 0.2px; white-space: nowrap;">
+          <span style="width: 7px; height: 7px; border-radius: 50%; background: #6a8f4d;"></span>
+          Ét dashboard. Al din data.
+        </div>
+        <h1 class="apex-h1" style="font-size: 62px; line-height: 1.02; font-weight: 600; letter-spacing: -1.5px; margin: 22px 0 0;">Saml al din<br>marketingdata —<br>og udnyt den målrettet</h1>
+        <p style="font-size: 19px; line-height: 1.55; color: #4a5650; max-width: 480px; margin: 24px 0 0;">Apex konsoliderer data på tværs af alle dine kanaler i ét levende dashboard — fra daglige tal og P&amp;L til SEO, PPC og e-commerce. Sat op på minutter, ikke uger.</p>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 34px;">
+          <button onClick="{{ openCheckout }}" style="font-family: inherit; background: #1a2525; color: #fefbf2; border: none; border-radius: 999px; padding: 17px 30px; font-size: 16px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 10px;" style-hover="background:#0f1818;">
+            Start 30 dages gratis prøve
+            <span style="font-size: 18px;">→</span>
+          </button>
+          <a href="#rapporter" style="text-decoration: none; color: #1a2525; border: 1px solid rgba(26,37,37,0.35); border-radius: 999px; padding: 16px 28px; font-size: 16px; font-weight: 600;" style-hover="background:rgba(26,37,37,0.04);">Se hvordan det virker</a>
+        </div>
+        <div style="display: flex; align-items: center; gap: 18px; margin-top: 26px; font-size: 14px; color: #6f7a73;">
+          <span style="display: inline-flex; align-items: center; gap: 7px;"><span style="color:#6a8f4d; font-size: 16px;">✓</span> Ingen binding</span>
+          <span style="display: inline-flex; align-items: center; gap: 7px;"><span style="color:#6a8f4d; font-size: 16px;">✓</span> Hurtig opsætning</span>
+          <span style="display: inline-flex; align-items: center; gap: 7px;"><span style="color:#6a8f4d; font-size: 16px;">✓</span> Live data</span>
+        </div>
+      </div>
+
+      <!-- DASHBOARD MOCK -->
+      <div style="position: relative;">
+        <div style="position: absolute; inset: -30px -20px -30px -10px; background: radial-gradient(120% 100% at 70% 0%, rgba(198,237,98,0.30), transparent 60%); filter: blur(8px); z-index: 0;"></div>
+        <div style="position: relative; z-index: 1; border-radius: 18px; overflow: hidden; border: 1px solid rgba(26,37,37,0.12); box-shadow: 0 30px 70px -30px rgba(33,59,52,0.45), 0 8px 24px -12px rgba(33,59,52,0.25); background: #fefbf2; display: grid; grid-template-columns: 62px 1fr; animation: apexFloat 7s ease-in-out infinite;">
+          <!-- mini sidebar -->
+          <div style="background: #1a2525; padding: 14px 0; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+            <div style="width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;">
+              <svg width="15" height="20" viewBox="0 0 80 108" fill="#c6ed62" xmlns="http://www.w3.org/2000/svg">
+                <path d="M73.0207 27.0116C72.923 27.0085 72.8223 27.0054 72.7246 27.0054H60.1507C56.8027 26.7987 54.0652 24.3064 53.4517 21.0491V7.35361C53.4517 7.03282 53.4304 6.71819 53.3907 6.40973C52.9329 2.79462 49.8779 0 46.1759 0H33.9927C29.9733 0 26.7169 3.29123 26.7169 7.35361V19.6672C26.7169 23.5754 23.6985 26.771 19.8867 27.0054H7.31582C7.21511 27.0054 7.11745 27.0085 7.01979 27.0116C3.13774 27.172 0.0400391 30.3984 0.0400391 34.359V46.6726C0.0400391 50.735 3.29644 54.0262 7.31582 54.0262H19.4991C23.2011 54.0262 26.2561 51.2316 26.7138 47.6165C26.7535 47.308 26.7749 46.9934 26.7749 46.6726V32.9771C27.3883 29.7229 30.1228 27.2275 33.4738 27.0208H46.4933C50.3021 27.2552 53.3205 30.4509 53.3235 34.359V46.6171C53.3235 50.6795 56.5799 53.9707 60.5993 53.9707H72.7246C76.744 53.9707 80.0004 50.6795 80.0004 46.6171V34.3621C80.0004 30.4015 76.9027 27.172 73.0207 27.0147V27.0116Z"/>
+                <path d="M72.9806 80.9852C72.883 80.9821 72.7822 80.979 72.6846 80.979H60.1107C56.7627 80.7724 54.0251 78.28 53.4117 75.0227V61.3272C53.4117 61.0065 53.3903 60.6918 53.3507 60.3834C52.8929 56.7683 49.8379 53.9736 46.1359 53.9736H33.9526C29.9333 53.9736 26.6769 57.2649 26.6769 61.3272V73.6408C26.6769 77.549 23.6585 80.7446 19.8467 80.979H7.27578C7.17507 80.979 7.07741 80.9821 6.97975 80.9852C3.0977 81.1425 0 84.369 0 88.3326V100.646C0 104.709 3.2564 108 7.27578 108H19.4591C23.161 108 26.216 105.205 26.6738 101.59C26.7135 101.282 26.7348 100.967 26.7348 100.646V86.9508C27.3483 83.6935 30.0859 81.2011 33.4338 80.9945H46.4533C50.2621 81.2289 53.2805 84.4245 53.2835 88.3326V100.591C53.2835 104.653 56.5399 107.944 60.5593 107.944H72.6846C76.704 107.944 79.9604 104.653 79.9604 100.591V88.3357C79.9604 84.3751 76.8627 81.1456 72.9806 80.9883V80.9852Z"/>
+              </svg>
+            </div>
+            <div style="width: 30px; height: 30px; border-radius: 9px; background: #c6ed62;"></div>
+            <sc-for list="{{ navDots }}" as="d" hint-placeholder-count="5">
+              <div style="width: 30px; height: 8px; border-radius: 4px; background: rgba(254,251,242,0.16);"></div>
+            </sc-for>
+          </div>
+          <!-- main -->
+          <div style="padding: 16px 16px 18px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <div style="font-size: 9px; color: #a19986; background: rgba(161,153,134,0.14); display: inline-block; padding: 2px 7px; border-radius: 5px;">Nordic Sports DK</div>
+                <div style="font-size: 16px; font-weight: 700; margin-top: 6px; letter-spacing: -0.3px;">Performance Dashboard</div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <div style="font-size: 9px; font-weight: 600; background: #1a2525; color: #fefbf2; padding: 6px 9px; border-radius: 7px;">Export</div>
+                <div style="font-size: 9px; font-weight: 600; border: 1px solid rgba(26,37,37,0.2); padding: 6px 9px; border-radius: 7px;">Run audit</div>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 14px;">
+              <sc-for list="{{ metricCards }}" as="m" hint-placeholder-count="4">
+                <div style="border: 1px solid rgba(26,37,37,0.1); border-radius: 11px; padding: 11px 12px; background: #fff;">
+                  <div style="font-size: 8px; letter-spacing: 0.4px; color: #a19986; font-weight: 600;">{{ m.label }}</div>
+                  <div style="display: flex; align-items: baseline; justify-content: space-between; margin-top: 6px;">
+                    <div style="font-size: 17px; font-weight: 700; letter-spacing: -0.4px;">{{ m.val }}</div>
+                    <div style="font-size: 9px; font-weight: 700; color: #2f6b3e; background: rgba(106,143,77,0.16); padding: 2px 6px; border-radius: 5px;">↗ {{ m.delta }}</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="border: 1px solid rgba(26,37,37,0.1); border-radius: 11px; padding: 12px; margin-top: 9px; background: #fff;">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="font-size: 10px; font-weight: 700;">Net Revenue</div>
+                <div style="font-size: 9px; color: #a19986;">seneste 11 dage</div>
+              </div>
+              <div style="display: flex; align-items: flex-end; gap: 5px; height: 56px; margin-top: 10px;">
+                <sc-for list="{{ bars }}" as="b" hint-placeholder-count="11">
+                  <div style="flex: 1; border-radius: 3px 3px 0 0; background: {{ b.color }}; height: {{ b.h }};"></div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- floating tracking-score chip -->
+        <div style="position: absolute; z-index: 2; right: -14px; bottom: 36px; background: #fff; border: 1px solid rgba(26,37,37,0.12); border-radius: 14px; padding: 12px 14px; box-shadow: 0 16px 40px -18px rgba(33,59,52,0.4); display: flex; align-items: center; gap: 11px;">
+          <div style="position: relative; width: 38px; height: 38px;">
+            <div style="position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#6a8f4d 0% 92%, rgba(26,37,37,0.1) 92% 100%);"></div>
+            <div style="position: absolute; inset: 5px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">92</div>
+          </div>
+          <div style="line-height: 1.2;">
+            <div style="font-size: 12px; font-weight: 700;">Tracking Score</div>
+            <div style="font-size: 10px; color: #6a8f4d; font-weight: 600;">Alt kører</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTEGRATIONS STRIP -->
+  <section style="border-top: 1px solid rgba(26,37,37,0.07); border-bottom: 1px solid rgba(26,37,37,0.07); background: rgba(234,227,209,0.35);">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 28px 32px;">
+      <h3 style="font-size: 13px; color: #8a8270; font-weight: 600; letter-spacing: 0.3px; text-align: center; margin: 0 0 18px;">Henter data direkte fra de platforme du allerede bruger</h3>
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px 28px; justify-content: center;">
+        <sc-for list="{{ integrations }}" as="i" hint-placeholder-count="15">
+          <span style="display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: #3a443e; white-space: nowrap;">
+            {{ i.logo }}
+            {{ i.name }}
+          </span>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section id="funktioner" style="max-width: 1200px; margin: 0 auto; padding: 96px 32px 40px;">
+    <div style="text-align: center; max-width: 640px; margin: 0 auto;">
+      <div style="font-size: 14px; font-weight: 700; color: #6a8f4d; letter-spacing: 0.6px; text-transform: uppercase;">Kom hurtigt i gang</div>
+      <h2 style="font-size: 42px; line-height: 1.08; font-weight: 600; letter-spacing: -1px; margin: 14px 0 0;">Forbind. Konsolidér. Forstå.</h2>
+      <p style="font-size: 18px; color: #4a5650; line-height: 1.55; margin: 16px 0 0;">Ingen integrationsprojekter, ingen udviklere, ingen regneark. Du forbinder dine konti, og Apex tager sig af resten.</p>
+    </div>
+    <div class="apex-two" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 52px;">
+      <sc-for list="{{ steps }}" as="s" hint-placeholder-count="3">
+        <div style="background: #fff; border: 1px solid rgba(26,37,37,0.1); border-radius: 18px; padding: 30px 28px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="font-size: 14px; font-weight: 700; color: #1a2525; background: #c6ed62; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">{{ s.n }}</div>
+            <div style="height: 1px; flex: 1; background: rgba(26,37,37,0.1);"></div>
+          </div>
+          <div style="font-size: 21px; font-weight: 700; letter-spacing: -0.4px; margin-top: 22px;">{{ s.t }}</div>
+          <p style="font-size: 15px; line-height: 1.55; color: #5a655e; margin: 10px 0 0;">{{ s.d }}</p>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- DEFAULT REPORTS -->
+  <section id="rapporter" style="max-width: 1200px; margin: 0 auto; padding: 64px 32px 40px;">
+    <div style="display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+      <div>
+        <div style="font-size: 14px; font-weight: 700; color: #6a8f4d; letter-spacing: 0.6px; text-transform: uppercase;">Inkluderet fra dag ét</div>
+        <h2 style="font-size: 38px; line-height: 1.1; font-weight: 600; letter-spacing: -0.8px; margin: 12px 0 0;">Rapporter der bare virker</h2>
+      </div>
+      <div style="max-width: 360px;">
+        <p style="font-size: 16px; color: #5a655e; line-height: 1.5; margin: 0;">Fem kernerapporter klar med det samme — bygget til e-commerce og performance marketing.</p>
+        <div style="display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 13px; font-weight: 700; color: #6a8f4d;">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: #6a8f4d; animation: apexDot 1.6s ease-in-out infinite;"></span>
+          Klik på en rapport for et live-eksempel
+        </div>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-top: 36px;" class="apex-reports-grid">
+      <sc-for list="{{ reports }}" as="r" hint-placeholder-count="5">
+        <div onClick="{{ r.open }}" style="background: #1a2525; color: #fefbf2; border-radius: 16px; padding: 22px 20px; min-height: 212px; display: flex; flex-direction: column; cursor: pointer; transition: transform .2s ease, box-shadow .2s ease;" style-hover="transform:translateY(-5px); box-shadow:0 18px 40px -20px rgba(33,59,52,0.6);">
+          <div style="position: relative; width: 38px; height: 38px;">
+            <div style="position: absolute; inset: 0; border-radius: 11px; border: 2px solid #c6ed62; animation: apexRing 2.8s ease-out infinite;"></div>
+            <div style="position: relative; width: 38px; height: 38px; border-radius: 11px; background: rgba(198,237,98,0.16); display: flex; align-items: center; justify-content: center;">
+              <svg width="20" height="20" viewBox="0 0 24 24"><rect x="4" y="12" width="3.4" height="7" rx="1.4" fill="#c6ed62"/><rect x="10.3" y="8" width="3.4" height="11" rx="1.4" fill="#c6ed62"/><rect x="16.6" y="5" width="3.4" height="14" rx="1.4" fill="#c6ed62"/></svg>
+            </div>
+          </div>
+          <div style="font-size: 18px; font-weight: 700; margin-top: 18px;">{{ r.name }}</div>
+          <p style="font-size: 13.5px; line-height: 1.5; color: rgba(254,251,242,0.66); margin: 8px 0 0; flex: 1;">{{ r.desc }}</p>
+          <div style="margin-top: 16px;">
+            <div style="display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: #1a2525; background: #c6ed62; padding: 9px 16px; border-radius: 999px; white-space: nowrap;">Åbn preview <span style="display: inline-block; animation: apexArrowNudge 1.8s ease-in-out infinite;">→</span></div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- SERVICE DASHBOARDS -->
+  <section style="max-width: 1200px; margin: 0 auto; padding: 48px 32px 40px;">
+    <div style="background: rgba(234,227,209,0.4); border: 1px solid rgba(26,37,37,0.08); border-radius: 24px; padding: 44px 40px;">
+      <div style="display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+        <h2 style="font-size: 32px; line-height: 1.12; font-weight: 600; letter-spacing: -0.6px; margin: 0;">Service-dashboards for hver kanal</h2>
+        <p style="font-size: 15px; color: #6f7a73; max-width: 380px; line-height: 1.5; margin: 0;">Dyk ned i den enkelte kanal — eller se det hele samlet. Flere kanaler kommer hele tiden til.</p>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 30px;" class="apex-svc-grid">
+        <sc-for list="{{ services }}" as="s" hint-placeholder-count="11">
+          <div style="background: #fff; border: 1px solid rgba(26,37,37,0.1); border-radius: 13px; padding: 16px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+            <span style="display: inline-flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600;">
+              {{ s.logo }}
+              {{ s.name }}
+            </span>
+            <span style="font-size: 9px; font-weight: 700; letter-spacing: 0.4px; padding: 3px 7px; border-radius: 5px; color: {{ s.badgeColor }}; background: {{ s.badgeBg }};">{{ s.badge }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <!-- APEX RADAR -->
+  <section id="radar" style="background: #213b34; color: #fefbf2; margin-top: 56px;">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 88px 32px;">
+      <div class="apex-radar-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center;">
+        <div>
+          <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(198,237,98,0.16); color: #c6ed62; border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 700; letter-spacing: 0.4px;">APEX RADAR</div>
+          <h2 style="font-size: 44px; line-height: 1.06; font-weight: 600; letter-spacing: -1px; margin: 20px 0 0;">Hold øje med Meta &amp; Google Ads — automatisk.</h2>
+          <p style="font-size: 18px; line-height: 1.6; color: rgba(254,251,242,0.72); margin: 18px 0 0; max-width: 460px;">Performance-rapportering, dybdegående analyse og løbende overvågning af dine vigtigste annoncekanaler. Apex Radar fanger udsving før de bliver dyre.</p>
+          <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 28px;">
+            <sc-for list="{{ radarPoints }}" as="p" hint-placeholder-count="3">
+              <div style="display: flex; align-items: flex-start; gap: 12px;">
+                <div style="width: 22px; height: 22px; border-radius: 7px; background: #c6ed62; color: #1a2525; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; margin-top: 2px;">✓</div>
+                <div style="font-size: 16px; line-height: 1.5; color: rgba(254,251,242,0.88);">{{ p }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="position: relative; display: flex; align-items: center; justify-content: center; min-height: 340px;">
+          <div style="position: absolute; width: 300px; height: 300px; border-radius: 50%; border: 1px solid rgba(198,237,98,0.22);"></div>
+          <div style="position: absolute; width: 210px; height: 210px; border-radius: 50%; border: 1px solid rgba(198,237,98,0.28);"></div>
+          <div style="position: absolute; width: 120px; height: 120px; border-radius: 50%; border: 1px solid rgba(198,237,98,0.35);"></div>
+          <div style="position: absolute; width: 300px; height: 300px; border-radius: 50%; overflow: hidden;">
+            <div style="position: absolute; inset: 0; background: conic-gradient(from 0deg, rgba(198,237,98,0.55), transparent 30%); animation: apexSweep 4s linear infinite;"></div>
+          </div>
+          <div style="position: absolute; top: 64px; left: 96px; width: 12px; height: 12px; border-radius: 50%; background: #c6ed62; animation: apexPulse 2.4s ease-in-out infinite;"></div>
+          <div style="position: absolute; bottom: 86px; right: 84px; width: 10px; height: 10px; border-radius: 50%; background: #ee6251; animation: apexPulse 2s ease-in-out infinite .4s;"></div>
+          <div style="position: absolute; top: 132px; right: 70px; width: 8px; height: 8px; border-radius: 50%; background: #c6ed62; animation: apexPulse 2.8s ease-in-out infinite .8s;"></div>
+          <div style="position: relative; z-index: 2; width: 56px; height: 56px; border-radius: 16px; background: rgba(254,251,242,0.06); border: 1px solid rgba(198,237,98,0.4); display: flex; align-items: center; justify-content: center;"><div style="width: 16px; height: 16px; border-radius: 50%; background: #c6ed62;"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRACKING SCORE + AI AUDIT -->
+  <section style="max-width: 1200px; margin: 0 auto; padding: 80px 32px 40px;">
+    <div class="apex-two" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+      <!-- Tracking score -->
+      <div style="background: #fff; border: 1px solid rgba(26,37,37,0.1); border-radius: 22px; padding: 36px 34px; display: flex; flex-direction: column;">
+        <div style="font-size: 13px; font-weight: 700; color: #6a8f4d; letter-spacing: 0.5px; text-transform: uppercase;">Tracking Score</div>
+        <h3 style="font-size: 27px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.12; margin: 12px 0 0;">Få besked hvis din tracking går ned</h3>
+        <p style="font-size: 15.5px; line-height: 1.55; color: #5a655e; margin: 12px 0 0;">Apex pinger løbende dine sporings-opsætninger og giver dig én score for, hvor pålidelig din data er. Falder den, ved du det med det samme.</p>
+        <div style="display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 150px; background: rgba(106,143,77,0.1); border: 1px solid rgba(106,143,77,0.3); border-radius: 14px; padding: 16px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="font-size: 22px; font-weight: 800; color: #2f6b3e;">94</div>
+              <div style="font-size: 13px; font-weight: 600; color: #2f6b3e;">Sund tracking</div>
+            </div>
+            <div style="height: 6px; border-radius: 3px; background: rgba(106,143,77,0.25); margin-top: 12px; overflow: hidden;"><div style="width: 94%; height: 100%; background: #6a8f4d;"></div></div>
+          </div>
+          <div style="flex: 1; min-width: 150px; background: rgba(238,98,81,0.08); border: 1px solid rgba(238,98,81,0.32); border-radius: 14px; padding: 16px;">
+            <div style="display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 700; color: #c63f2f;"><span style="font-size: 15px;">⚠</span> Server-side tag svarer ikke</div>
+            <div style="font-size: 12.5px; color: #b15244; margin-top: 8px; line-height: 1.45;">Opdaget kl. 04:12 · Apex har sendt en alert til dit team.</div>
+          </div>
+        </div>
+      </div>
+      <!-- AI audit -->
+      <div style="background: #1a2525; color: #fefbf2; border-radius: 22px; padding: 36px 34px; display: flex; flex-direction: column; position: relative; overflow: hidden;">
+        <div style="position: absolute; top: -40px; right: -40px; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, rgba(198,237,98,0.25), transparent 70%);"></div>
+        <div style="font-size: 13px; font-weight: 700; color: #c6ed62; letter-spacing: 0.5px; text-transform: uppercase;">AI Audit</div>
+        <h3 style="font-size: 27px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.12; margin: 12px 0 0;">Indsigter genereret på dine egne tal</h3>
+        <p style="font-size: 15.5px; line-height: 1.55; color: rgba(254,251,242,0.7); margin: 12px 0 0;">Indsæt din favorit LLM API KEY og kør en AI-audit og få konkrete anbefalinger baseret på dine Apex-tal — ikke generiske råd. Find lækager, spild og muligheder på sekunder.</p>
+        <div style="background: rgba(254,251,242,0.05); border: 1px solid rgba(254,251,242,0.12); border-radius: 14px; padding: 16px 18px; margin-top: 24px;">
+          <div style="display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: rgba(254,251,242,0.6);"><span style="width: 8px; height: 8px; border-radius: 50%; background: #c6ed62; animation: apexPulse 1.6s ease-in-out infinite;"></span> Apex analyserer 11 dages data…</div>
+          <div style="font-size: 14.5px; line-height: 1.55; margin-top: 12px; color: rgba(254,251,242,0.92);">«Din POAS på Google Ads er faldet 18% på 4 dage. Skift budget mod kampagner med ROAS &gt; 25 for at beskytte din bundlinje.»</div>
+        </div>
+        <button onClick="{{ openCheckout }}" style="font-family: inherit; margin-top: 22px; align-self: flex-start; background: #c6ed62; color: #1a2525; border: none; border-radius: 999px; padding: 13px 24px; font-size: 15px; font-weight: 700; cursor: pointer;" style-hover="background:#bfe84f;">Kør din første audit →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section id="kontakt" style="max-width: 1200px; margin: 0 auto; padding: 72px 32px 96px;">
+    <div style="background: #1a2525; color: #fefbf2; border-radius: 28px; padding: 52px 48px; position: relative; overflow: hidden;">
+      <div style="position: absolute; top: -80px; right: -60px; width: 300px; height: 300px; border-radius: 50%; background: radial-gradient(circle, rgba(198,237,98,0.18), transparent 70%);"></div>
+      <div class="apex-two" style="display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; position: relative; z-index: 1;">
+        <div>
+          <div style="font-size: 14px; font-weight: 700; color: #c6ed62; letter-spacing: 0.6px; text-transform: uppercase;">Kom i gang</div>
+          <h2 style="font-size: 40px; line-height: 1.06; font-weight: 600; letter-spacing: -1px; margin: 14px 0 0;">Start din 30 dages<br>gratis prøve</h2>
+          <p style="font-size: 17px; color: rgba(254,251,242,0.72); line-height: 1.55; margin: 16px 0 0; max-width: 400px;">Udfyld formularen, så kontakter vores team dig og sætter din Apex-konto op — fuld adgang fra dag ét.</p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 28px;">
+            <sc-for list="{{ planFeatures }}" as="f" hint-placeholder-count="8">
+              <div style="display: flex; align-items: flex-start; gap: 9px; font-size: 14px; color: rgba(254,251,242,0.88);">
+                <span style="color: #c6ed62; font-weight: 800; flex-shrink: 0;">✓</span> {{ f }}
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <!-- HUBSPOT FORM -->
+        <div style="background: #fefbf2; color: #1e2b2b; border-radius: 18px; padding: 30px 30px 26px;">
+          <div id="hs-inline-form"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section style="max-width: 760px; margin: 0 auto; padding: 0 32px 96px;">
+    <h2 style="font-size: 34px; font-weight: 600; letter-spacing: -0.6px; text-align: center; margin: 0 0 36px;">Ofte stillede spørgsmål</h2>
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <sc-for list="{{ faqItems }}" as="f" hint-placeholder-count="6">
+        <div style="background: #fff; border: 1px solid rgba(26,37,37,0.1); border-radius: 16px; overflow: hidden;">
+          <button onClick="{{ f.toggle }}" style="font-family: inherit; width: 100%; text-align: left; background: none; border: none; cursor: pointer; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 17px; font-weight: 600; color: #1e2b2b;">
+            {{ f.q }}
+            <span style="font-size: 22px; color: #6a8f4d; transition: transform .25s ease; transform: {{ f.rotate }};">+</span>
+          </button>
+          <div style="overflow: hidden; transition: max-height .3s ease, opacity .3s ease; max-height: {{ f.maxH }}; opacity: {{ f.opacity }};">
+            <p style="font-size: 15.5px; line-height: 1.6; color: #5a655e; margin: 0; padding: 0 24px 22px;">{{ f.a }}</p>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+
+
+  <!-- REPORT PREVIEW MODAL -->
+  <div style="{{ reportModalStyle }}">
+    <div onClick="{{ closeReport }}" style="position: absolute; inset: 0; background: rgba(15,24,24,0.55); backdrop-filter: blur(3px);"></div>
+    <div style="position: relative; z-index: 2; width: min(860px, 95vw); max-height: 90vh; overflow: auto; background: #fefbf2; border-radius: 22px; box-shadow: 0 40px 90px -30px rgba(0,0,0,0.5);">
+      <div style="background: #1a2525; color: #fefbf2; padding: 30px 34px; position: relative;">
+        <button onClick="{{ closeReport }}" style="font-family: inherit; position: absolute; top: 22px; right: 22px; background: rgba(254,251,242,0.08); border: none; width: 32px; height: 32px; border-radius: 50%; font-size: 20px; color: rgba(254,251,242,0.7); cursor: pointer; line-height: 1;">×</button>
+        <div style="font-size: 12px; font-weight: 700; color: #c6ed62; letter-spacing: 0.5px; text-transform: uppercase;">Rapport-eksempel</div>
+        <div style="font-size: 28px; font-weight: 700; letter-spacing: -0.5px; margin-top: 8px;">{{ rTitle }}</div>
+        <p style="font-size: 14.5px; line-height: 1.55; color: rgba(254,251,242,0.72); margin: 10px 0 0; max-width: 580px;">{{ rLong }}</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 26px; margin-top: 22px;">
+          <sc-for list="{{ rMetrics }}" as="m" hint-placeholder-count="4">
+            <div style="flex: none;">
+              <div style="font-size: 11px; color: rgba(254,251,242,0.55); letter-spacing: 0.3px; text-transform: uppercase; white-space: nowrap; line-height: 1.3;">{{ m.label }}</div>
+              <div style="font-size: 19px; font-weight: 700; margin-top: 5px; white-space: nowrap;">{{ m.val }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="padding: 26px 30px 32px;">
+
+        <!-- OVERVIEW GRAPHIC -->
+        <div style="{{ gOverview }}">
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+            <sc-for list="{{ ovCards }}" as="c" hint-placeholder-count="4">
+              <div style="border: 1px solid rgba(26,37,37,0.1); border-radius: 13px; padding: 13px; background: #fff; display: flex; flex-direction: column;">
+                <div style="font-size: 8.5px; letter-spacing: 0.3px; color: #a19986; font-weight: 700; line-height: 1.35; min-height: 22px;">{{ c.label }}</div>
+                <div style="font-size: 18px; font-weight: 800; letter-spacing: -0.5px; margin-top: 6px;">{{ c.val }}</div>
+                <div style="display: flex; align-items: center; gap: 6px; margin-top: 5px;">
+                  <span style="font-size: 9.5px; font-weight: 700; color: {{ c.deltaColor }}; background: {{ c.deltaBg }}; padding: 1px 6px; border-radius: 5px;">{{ c.delta }}</span>
+                  <span style="font-size: 9px; color: #a19986;">{{ c.sub }}</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 7px; margin-top: 12px; padding-top: 11px; border-top: 1px solid rgba(26,37,37,0.07);">
+                  <sc-for list="{{ c.rows }}" as="r" hint-placeholder-count="3">
+                    <div style="display: flex; justify-content: space-between; gap: 8px; font-size: 11px;">
+                      <span style="color: #5a655e;">{{ r.k }}</span>
+                      <span style="font-weight: 600; font-variant-numeric: tabular-nums;">{{ r.v }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px;">
+            <sc-for list="{{ metricTabs }}" as="t" hint-placeholder-count="13">
+              <span style="font-size: 10.5px; font-weight: 600; padding: 5px 11px; border-radius: 999px; border: 1px solid {{ t.border }}; background: {{ t.bg }}; color: {{ t.color }};">{{ t.name }}</span>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- DAILY GRAPHIC -->
+        <div style="{{ gDaily }}">
+          <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px;">
+            <sc-for list="{{ dailyTabs }}" as="t" hint-placeholder-count="8">
+              <span style="font-size: 10.5px; font-weight: 600; padding: 5px 11px; border-radius: 8px; background: #1a2525; color: #fefbf2;">{{ t }}</span>
+            </sc-for>
+          </div>
+          <div style="border: 1px solid rgba(26,37,37,0.1); border-radius: 14px; overflow: hidden; background: #fff;">
+            <div style="display: grid; grid-template-columns: 1.25fr 0.65fr 1fr 0.85fr 0.6fr 0.95fr 0.7fr 0.7fr 0.95fr;">
+              <div style="background: #1a2525;"></div>
+              <div style="background: #213b34; grid-column: 2 / 6; padding: 7px 8px; text-align: center; font-size: 10px; font-weight: 800; letter-spacing: 0.4px; color: #fefbf2;">SALES</div>
+              <div style="background: #2f4a42; grid-column: 6 / 8; padding: 7px 8px; text-align: center; font-size: 10px; font-weight: 800; letter-spacing: 0.4px; color: #fefbf2;">MARKETING</div>
+              <div style="background: #4a6b5e; grid-column: 8 / 10; padding: 7px 8px; text-align: center; font-size: 10px; font-weight: 800; letter-spacing: 0.4px; color: #fefbf2;">RESULT</div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1.25fr 0.65fr 1fr 0.85fr 0.6fr 0.95fr 0.7fr 0.7fr 0.95fr; background: #1a2525; color: rgba(254,251,242,0.85); font-size: 9.5px; font-weight: 700;">
+              <div style="padding: 8px 12px;">Date</div>
+              <div style="padding: 8px 6px;">Orders</div>
+              <div style="padding: 8px 6px;">Net Rev.</div>
+              <div style="padding: 8px 6px;">COGS</div>
+              <div style="padding: 8px 6px;">AOV</div>
+              <div style="padding: 8px 6px;">Google Ads</div>
+              <div style="padding: 8px 6px;">ROAS</div>
+              <div style="padding: 8px 6px;">POAS</div>
+              <div style="padding: 8px 6px;">Net Profit</div>
+            </div>
+            <sc-for list="{{ dailyGrouped }}" as="d" hint-placeholder-count="8">
+              <div style="display: grid; grid-template-columns: 1.25fr 0.65fr 1fr 0.85fr 0.6fr 0.95fr 0.7fr 0.7fr 0.95fr; font-size: 10.5px; border-top: 1px solid rgba(26,37,37,0.06);">
+                <div style="padding: 7px 12px; color: #5a655e;">{{ d.date }}</div>
+                <div style="padding: 7px 6px; background: rgba(213,205,182,0.28);">{{ d.orders }}</div>
+                <div style="padding: 7px 6px; background: rgba(213,205,182,0.28);">{{ d.rev }}</div>
+                <div style="padding: 7px 6px; background: rgba(213,205,182,0.28);">{{ d.cogs }}</div>
+                <div style="padding: 7px 6px; background: rgba(213,205,182,0.28);">{{ d.aov }}</div>
+                <div style="padding: 7px 6px;">{{ d.gads }}</div>
+                <div style="padding: 7px 6px;">{{ d.roas }}</div>
+                <div style="padding: 7px 6px;">{{ d.poas }}</div>
+                <div style="padding: 7px 6px; font-weight: 600;">{{ d.np }}</div>
+              </div>
+            </sc-for>
+            <div style="display: grid; grid-template-columns: 1.25fr 0.65fr 1fr 0.85fr 0.6fr 0.95fr 0.7fr 0.7fr 0.95fr; font-size: 10.5px; border-top: 2px solid rgba(26,37,37,0.15); font-weight: 800; background: rgba(198,237,98,0.16);">
+              <div style="padding: 9px 12px;">Total</div>
+              <div style="padding: 9px 6px;">2.648</div>
+              <div style="padding: 9px 6px;">1.749.945</div>
+              <div style="padding: 9px 6px;">509.965</div>
+              <div style="padding: 9px 6px;">569</div>
+              <div style="padding: 9px 6px;">73.135</div>
+              <div style="padding: 9px 6px;">23,41</div>
+              <div style="padding: 9px 6px;">14,86</div>
+              <div style="padding: 9px 6px;">892.081</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PACE GRAPHIC -->
+        <div style="{{ gPace }}">
+          <div class="apex-two" style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px;">
+            <div style="border: 1px solid rgba(26,37,37,0.1); border-radius: 14px; padding: 18px 18px 14px; background: #fff;">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="font-size: 14px; font-weight: 700;">Cost vs Budget</div>
+                <div style="display: flex; gap: 14px; font-size: 11px; color: #5a655e;">
+                  <span style="display: inline-flex; align-items: center; gap: 5px;"><span style="width: 9px; height: 9px; border-radius: 50%; background: #1a2525;"></span>Cost</span>
+                  <span style="display: inline-flex; align-items: center; gap: 5px;"><span style="width: 9px; height: 9px; border-radius: 50%; background: #c6ed62;"></span>Budget</span>
+                </div>
+              </div>
+              <svg viewBox="0 0 320 150" width="100%" height="160" preserveAspectRatio="none" style="margin-top: 14px; display: block;">
+                <line x1="0" y1="20" x2="320" y2="20" stroke="rgba(26,37,37,0.07)" stroke-width="1"/>
+                <line x1="0" y1="60" x2="320" y2="60" stroke="rgba(26,37,37,0.07)" stroke-width="1"/>
+                <line x1="0" y1="100" x2="320" y2="100" stroke="rgba(26,37,37,0.07)" stroke-width="1"/>
+                <line x1="0" y1="140" x2="320" y2="140" stroke="rgba(26,37,37,0.12)" stroke-width="1"/>
+                <polyline points="0,138 19,112 38,106 57,92 76,86 95,72 114,58 133,56 152,48 171,44 190,40 209,36 228,33 247,30 266,27 285,23 304,20 320,18" fill="none" stroke="#1a2525" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+                <polyline points="0,140 320,135" fill="none" stroke="#c6ed62" stroke-width="2.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div style="border: 1px solid rgba(26,37,37,0.1); border-radius: 14px; padding: 18px; background: #fff; display: flex; flex-direction: column;">
+              <div style="font-size: 14px; font-weight: 700;">Spend Pace</div>
+              <div style="position: relative; width: 160px; height: 92px; margin: 12px auto 6px;">
+                <svg viewBox="0 0 200 110" width="160" height="88" style="display: block;">
+                  <path d="M12 100 A 88 88 0 0 1 188 100" fill="none" stroke="rgba(26,37,37,0.1)" stroke-width="14" stroke-linecap="round"/>
+                  <path d="M12 100 A 88 88 0 0 1 188 100" fill="none" stroke="#4a6b5e" stroke-width="14" stroke-linecap="round" stroke-dasharray="{{ paceDash }}"/>
+                </svg>
+                <div style="position: absolute; left: 0; right: 0; bottom: 0; text-align: center; font-size: 27px; font-weight: 800; letter-spacing: -1px;">{{ pacePct }}</div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 7px; margin-top: 8px;">
+                <sc-for list="{{ paceDetails }}" as="p" hint-placeholder-count="6">
+                  <div style="display: flex; justify-content: space-between; gap: 10px; font-size: 11px;">
+                    <span style="color: #5a655e;">{{ p.k }}</span><span style="font-weight: 700; font-variant-numeric: tabular-nums;">{{ p.v }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- P&L GRAPHIC -->
+        <div style="{{ gPnl }}">
+          <div class="apex-two" style="display: grid; grid-template-columns: 1.55fr 1fr; gap: 14px;">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div style="border: 1px solid rgba(26,37,37,0.1); border-radius: 14px; overflow: hidden; background: #fff;">
+                <div style="padding: 13px 16px 4px;">
+                  <div style="font-size: 13px; font-weight: 700;">Net turnover</div>
+                  <div style="font-size: 10px; color: #a19986;">turnover − discount &amp; return</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 0.55fr; padding: 4px 16px 7px; font-size: 8.5px; font-weight: 700; letter-spacing: 0.3px; color: #a19986;">
+                  <div></div><div style="text-align: right;">YEAR OVER YEAR</div><div style="text-align: right;">CURRENT PERIOD</div><div></div>
+                </div>
+                <sc-for list="{{ pnlNet }}" as="r" hint-placeholder-count="6">
+                  <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 0.55fr; align-items: center; padding: 8px 16px; border-top: 1px solid rgba(26,37,37,0.06); background: {{ r.bg }};">
+                    <span style="font-size: 12px; font-weight: {{ r.weight }};">{{ r.label }}</span>
+                    <span style="font-size: 11px; text-align: right; color: #8a8270; font-variant-numeric: tabular-nums;">{{ r.yoy }}</span>
+                    <span style="font-size: 11px; text-align: right; font-weight: {{ r.weight }}; font-variant-numeric: tabular-nums;">{{ r.cur }}</span>
+                    <span style="font-size: 9px; text-align: right; font-weight: 700; color: {{ r.deltaColor }};">{{ r.delta }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="border: 1px solid rgba(26,37,37,0.1); border-radius: 14px; overflow: hidden; background: #fff;">
+                <div style="padding: 13px 16px 6px;">
+                  <div style="font-size: 13px; font-weight: 700;">DB1</div>
+                  <div style="font-size: 10px; color: #a19986;">turnover − cost of goods sold</div>
+                </div>
+                <sc-for list="{{ pnlDb1 }}" as="r" hint-placeholder-count="2">
+                  <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 0.55fr; align-items: center; padding: 8px 16px; border-top: 1px solid rgba(26,37,37,0.06); background: {{ r.bg }};">
+                    <span style="font-size: 12px; font-weight: {{ r.weight }};">{{ r.label }}</span>
+                    <span style="font-size: 11px; text-align: right; color: #8a8270; font-variant-numeric: tabular-nums;">{{ r.yoy }}</span>
+                    <span style="font-size: 11px; text-align: right; font-weight: {{ r.weight }}; font-variant-numeric: tabular-nums;">{{ r.cur }}</span>
+                    <span style="font-size: 9px; text-align: right; font-weight: 700; color: {{ r.deltaColor }};">{{ r.delta }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <sc-for list="{{ dbGauges }}" as="g" hint-placeholder-count="2">
+                <div style="border: 1px solid rgba(26,37,37,0.1); border-radius: 14px; padding: 14px 16px 16px; background: #fff; display: flex; flex-direction: column; align-items: center;">
+                  <div style="font-size: 12px; font-weight: 700; color: #5a655e;">{{ g.label }}</div>
+                  <div style="position: relative; width: 150px; height: 86px; margin: 6px 0 2px;">
+                    <svg viewBox="0 0 200 110" width="150" height="83" style="display: block;">
+                      <path d="M12 100 A 88 88 0 0 1 188 100" fill="none" stroke="rgba(26,37,37,0.1)" stroke-width="14" stroke-linecap="round"/>
+                      <path d="M12 100 A 88 88 0 0 1 188 100" fill="none" stroke="{{ g.color }}" stroke-width="14" stroke-linecap="round" stroke-dasharray="{{ g.dash }}"/>
+                    </svg>
+                    <div style="position: absolute; left: 0; right: 0; bottom: 0; text-align: center; font-size: 24px; font-weight: 800; letter-spacing: -1px;">{{ g.pct }}</div>
+                  </div>
+                  <div style="font-size: 10px; color: #a19986; margin-top: 4px;">{{ g.total }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <!-- ECOMMERCE GRAPHIC -->
+        <div style="{{ gEcom }}">
+          <div style="display: flex; gap: 22px; border-bottom: 1px solid rgba(26,37,37,0.1); margin-bottom: 14px;">
+            <span style="font-size: 12.5px; font-weight: 700; padding-bottom: 8px; border-bottom: 2px solid #1a2525;">Product Performance</span>
+            <span style="font-size: 12.5px; font-weight: 600; color: #a19986; padding-bottom: 8px;">Customer Performance</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div style="border: 1px solid rgba(26,37,37,0.1); border-radius: 13px; padding: 14px 16px; background: #fff; display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <div style="font-size: 11px; color: #a19986; font-weight: 600;">Inventory Stock</div>
+                <div style="font-size: 22px; font-weight: 800; letter-spacing: -0.5px; margin-top: 4px;">77.595</div>
+              </div>
+              <div style="width: 34px; height: 34px; border-radius: 9px; background: rgba(33,59,52,0.08); display: flex; align-items: center; justify-content: center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4a6b5e" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M21 16V8l-9-5-9 5v8l9 5 9-5z"/><path d="M3.3 7L12 12l8.7-5M12 22V12"/></svg>
+              </div>
+            </div>
+            <div style="border: 1px solid rgba(26,37,37,0.1); border-radius: 13px; padding: 14px 16px; background: #fff; display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <div style="font-size: 11px; color: #a19986; font-weight: 600;">Inventory Value</div>
+                <div style="font-size: 22px; font-weight: 800; letter-spacing: -0.5px; margin-top: 4px;">1.758.549 <span style="font-size: 13px; color: #a19986;">kr.</span></div>
+              </div>
+              <div style="width: 34px; height: 34px; border-radius: 9px; background: rgba(33,59,52,0.08); display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 800; color: #4a6b5e;">$</div>
+            </div>
+          </div>
+          <div style="border: 1px solid rgba(26,37,37,0.1); border-radius: 14px; overflow: hidden; background: #fff; margin-top: 12px;">
+            <div style="display: grid; grid-template-columns: 2fr 0.8fr 0.6fr 0.7fr 1fr 0.85fr; background: rgba(234,227,209,0.4); font-size: 9px; font-weight: 700; letter-spacing: 0.3px; color: #5a655e;">
+              <div style="padding: 9px 14px;">PRODUCT</div>
+              <div style="padding: 9px 6px; text-align: right;">AVG. PRICE</div>
+              <div style="padding: 9px 6px; text-align: right;">UNITS</div>
+              <div style="padding: 9px 6px; text-align: right;">ORDERS</div>
+              <div style="padding: 9px 6px; text-align: right;">REVENUE</div>
+              <div style="padding: 9px 14px 9px 6px; text-align: right;">STOCK</div>
+            </div>
+            <sc-for list="{{ ecomProds }}" as="p" hint-placeholder-count="4">
+              <div style="display: grid; grid-template-columns: 2fr 0.8fr 0.6fr 0.7fr 1fr 0.85fr; align-items: center; border-top: 1px solid rgba(26,37,37,0.06); font-size: 11px;">
+                <div style="padding: 10px 14px;">
+                  <div style="font-weight: 600;">{{ p.name }}</div>
+                  <div style="font-size: 9.5px; color: #a19986;">{{ p.sub }}</div>
+                </div>
+                <div style="padding: 10px 6px; text-align: right; color: #5a655e; font-variant-numeric: tabular-nums;">{{ p.price }}</div>
+                <div style="padding: 10px 6px; text-align: right; color: #5a655e; font-variant-numeric: tabular-nums;">{{ p.units }}</div>
+                <div style="padding: 10px 6px; text-align: right; color: #5a655e; font-variant-numeric: tabular-nums;">{{ p.orders }}</div>
+                <div style="padding: 10px 6px; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums;">{{ p.rev }}</div>
+                <div style="padding: 10px 14px 10px 6px; text-align: right; color: #5a655e; font-variant-numeric: tabular-nums;">{{ p.stock }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- HUBSPOT FORM MODAL -->
+  <div style="{{ overlayStyle }}">
+    <div onClick="{{ closeCheckout }}" style="position: absolute; inset: 0; background: rgba(15,24,24,0.55); backdrop-filter: blur(3px);"></div>
+    <div style="position: relative; z-index: 2; width: min(480px, 94vw); max-height: 92vh; overflow: auto; background: #fefbf2; border-radius: 22px; box-shadow: 0 40px 90px -30px rgba(0,0,0,0.5);">
+      <div style="background: #1a2525; color: #fefbf2; padding: 26px 30px 24px; position: relative;">
+        <button onClick="{{ closeCheckout }}" style="font-family: inherit; position: absolute; top: 18px; right: 18px; background: rgba(254,251,242,0.08); border: none; width: 30px; height: 30px; border-radius: 50%; font-size: 19px; color: rgba(254,251,242,0.7); cursor: pointer; line-height: 1;">×</button>
+        <div style="display: flex; align-items: center; gap: 9px;">
+          <svg width="17" height="23" viewBox="0 0 80 108" fill="#c6ed62" xmlns="http://www.w3.org/2000/svg">
+            <path d="M73.0207 27.0116C72.923 27.0085 72.8223 27.0054 72.7246 27.0054H60.1507C56.8027 26.7987 54.0652 24.3064 53.4517 21.0491V7.35361C53.4517 7.03282 53.4304 6.71819 53.3907 6.40973C52.9329 2.79462 49.8779 0 46.1759 0H33.9927C29.9733 0 26.7169 3.29123 26.7169 7.35361V19.6672C26.7169 23.5754 23.6985 26.771 19.8867 27.0054H7.31582C7.21511 27.0054 7.11745 27.0085 7.01979 27.0116C3.13774 27.172 0.0400391 30.3984 0.0400391 34.359V46.6726C0.0400391 50.735 3.29644 54.0262 7.31582 54.0262H19.4991C23.2011 54.0262 26.2561 51.2316 26.7138 47.6165C26.7535 47.308 26.7749 46.9934 26.7749 46.6726V32.9771C27.3883 29.7229 30.1228 27.2275 33.4738 27.0208H46.4933C50.3021 27.2552 53.3205 30.4509 53.3235 34.359V46.6171C53.3235 50.6795 56.5799 53.9707 60.5993 53.9707H72.7246C76.744 53.9707 80.0004 50.6795 80.0004 46.6171V34.3621C80.0004 30.4015 76.9027 27.172 73.0207 27.0147V27.0116Z"/>
+            <path d="M72.9806 80.9852C72.883 80.9821 72.7822 80.979 72.6846 80.979H60.1107C56.7627 80.7724 54.0251 78.28 53.4117 75.0227V61.3272C53.4117 61.0065 53.3903 60.6918 53.3507 60.3834C52.8929 56.7683 49.8379 53.9736 46.1359 53.9736H33.9526C29.9333 53.9736 26.6769 57.2649 26.6769 61.3272V73.6408C26.6769 77.549 23.6585 80.7446 19.8467 80.979H7.27578C7.17507 80.979 7.07741 80.9821 6.97975 80.9852C3.0977 81.1425 0 84.369 0 88.3326V100.646C0 104.709 3.2564 108 7.27578 108H19.4591C23.161 108 26.216 105.205 26.6738 101.59C26.7135 101.282 26.7348 100.967 26.7348 100.646V86.9508C27.3483 83.6935 30.0859 81.2011 33.4338 80.9945H46.4533C50.2621 81.2289 53.2805 84.4245 53.2835 88.3326V100.591C53.2835 104.653 56.5399 107.944 60.5593 107.944H72.6846C76.704 107.944 79.9604 104.653 79.9604 100.591V88.3357C79.9604 84.3751 76.8627 81.1456 72.9806 80.9883V80.9852Z"/>
+          </svg>
+          <div style="font-size: 15px; font-weight: 700;">Apex by Searchmind</div>
+        </div>
+        <div style="font-size: 21px; font-weight: 700; letter-spacing: -0.3px; margin-top: 16px;">Start din 30 dages gratis prøve</div>
+        <p style="font-size: 14px; color: rgba(254,251,242,0.68); line-height: 1.5; margin: 8px 0 0;">Udfyld formularen, så kontakter vi dig og sætter din konto op.</p>
+      </div>
+      <div style="padding: 26px 30px 26px;">
+        <div id="hs-checkout-form"></div>
+        <button onClick="{{ closeCheckout }}" style="font-family: inherit; display: block; margin: 24px auto 4px; background: #c6ed62; color: #1a2525; border: none; border-radius: 999px; padding: 14px 30px; font-size: 15px; font-weight: 700; cursor: pointer;">Luk</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<template id="__bundler_thumbnail" data-bg-color="#1a2525">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#1a2525"/>
+    <rect x="470" y="320" width="260" height="260" rx="64" fill="#213b34"/>
+    <circle cx="600" cy="450" r="78" fill="#c6ed62"/>
+    <text x="600" y="660" font-family="Schibsted Grotesk, sans-serif" font-size="72" font-weight="700" fill="#fefbf2" text-anchor="middle">Apex</text>
+  </svg>
+</template></x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1200}}">
+class Component extends DCLogic {
+  state = { openFaq: 0, checkout: false, done: false, activeReport: null, inlineDone: false };
+
+  componentDidMount() {
+    document.addEventListener('keydown', this._esc = (e) => {
+      if (e.key === 'Escape') this.setState({ checkout: false, activeReport: null });
+    });
+  }
+  componentWillUnmount() { document.removeEventListener('keydown', this._esc); }
+
+  renderVals() {
+    const lime = '#c6ed62', teal = '#213b34', sand = '#c5a75c', coral = '#ee6251', purple = '#953995', green = '#6a8f4d';
+
+    const svg = (s) => React.createElement('span', { style: { display: 'inline-flex', width: '22px', height: '22px', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }, dangerouslySetInnerHTML: { __html: s } });
+    const __logos = {"ahrefs":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAAvCAYAAAC/vqlHAAAACXBIWXMAAA7EAAAOxAGVKw4bAAACfElEQVRoge2aTW7TQBSAv5dUYocssUfuBZB7gSo5AeQCiFwAiQ1qNk2ChGyyScsFgrgBXKARJ8gNYnEC72iE4seibhUQEI89z4Q03yZZzM/7FM97M+MIFdGYDsJV1f5eUY5lQFqmacs4lJ3jILzvHIT3nYPwvnMQ3neOqnaUAXONOfYZzM8TsLQYtrIwQNntXBU0sRn33j3SB+F9594J10pavtGYsPga/qVZLcyFNSakTcCaiDYPWfMI4TFCgBKAveQmXoV1RMADIpQeLZ4AERCQAwJ3nwDqc+byeBEurnuG3ArKth7/jlrCOiEiZwp0/IRjT2VhnfCSnEufwTRBpbKkCef/oyxUEC5Kx9h/KM3g/gsLM4M4GsNpDetbIuwSVLrxmQIvLCZxS1pt+jXmSoE5yldgSYsMIWVN9rtjpia7IKycOtbYDOU9K6YyInPqaYSbsBA5tE5RupaXBFUoLbyxsS+HMJSz3ZIFtywdOo38jc9O7RvC6jyc7cqa/RUz4Tqd9Z1NhoYdvPHQhDFqt7mxEg514pTR0QmRJlwB50YxAZY3HsoQ6G1tFtMB+uQ8N4tlg/LCORlth5GVZ5qwRBgjLOQ1C7grbyHCKdCl4bN0eeHvpE7CN4QoM9TuTYIrpddwUWbmdqE0g1vSUr4YxdEYbsIrptSssU7ozbr3iZOwjIrTTxMobyiR5V1xrsMyYIjtWs5Q+sU83qm28bimZ/G4ASktujLgg8HYQEVhGZHJgBPgwlskORdcc3Jbr62o9w+AM15pzCUwRCpt+DNyPnLETM7+KDrfOsqqfCL19lKk2EF1aPGUnBAhBIKNJhmQISxYkyJ8YsWi6WPkD1FdpMWV2VMYAAAAAElFTkSuQmCC","bing":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAAvCAYAAAC/vqlHAAAACXBIWXMAAAsTAAALEwEAmpwYAAAGAGlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgNS42LWMxNDUgNzkuMTYzNDk5LCAyMDE4LzA4LzEzLTE2OjQwOjIyICAgICAgICAiPiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIgeG1sbnM6cGhvdG9zaG9wPSJodHRwOi8vbnMuYWRvYmUuY29tL3Bob3Rvc2hvcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RFdnQ9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZUV2ZW50IyIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgQ0MgMjAxOSAoTWFjaW50b3NoKSIgeG1wOkNyZWF0ZURhdGU9IjIwMjAtMDQtMDZUMTI6MjQ6MzArMDM6MDAiIHhtcDpNb2RpZnlEYXRlPSIyMDIwLTA1LTA1VDE2OjA2OjQ4KzAzOjAwIiB4bXA6TWV0YWRhdGFEYXRlPSIyMDIwLTA1LTA1VDE2OjA2OjQ4KzAzOjAwIiBkYzpmb3JtYXQ9ImltYWdlL3BuZyIgcGhvdG9zaG9wOkNvbG9yTW9kZT0iMyIgcGhvdG9zaG9wOklDQ1Byb2ZpbGU9InNSR0IgSUVDNjE5NjYtMi4xIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOjAwYTAyMDIyLTEwYjItNGU4ZS04NzdjLTI3MTU3NGExN2I3ZSIgeG1wTU06RG9jdW1lbnRJRD0iYWRvYmU6ZG9jaWQ6cGhvdG9zaG9wOmZkZWU2OTMxLWYwYWItNWI0OC1hMTc0LTcyOThiODYzZjJmMCIgeG1wTU06T3JpZ2luYWxEb2N1bWVudElEPSJ4bXAuZGlkOjYxNjMxZjZhLTJjODEtNGZjOC05OGI4LTM5MzNjMzFkYWFlYyI+IDx4bXBNTTpIaXN0b3J5PiA8cmRmOlNlcT4gPHJkZjpsaSBzdEV2dDphY3Rpb249ImNyZWF0ZWQiIHN0RXZ0Omluc3RhbmNlSUQ9InhtcC5paWQ6NjE2MzFmNmEtMmM4MS00ZmM4LTk4YjgtMzkzM2MzMWRhYWVjIiBzdEV2dDp3aGVuPSIyMDIwLTA0LTA2VDEyOjI0OjMwKzAzOjAwIiBzdEV2dDpzb2Z0d2FyZUFnZW50PSJBZG9iZSBQaG90b3Nob3AgQ0MgMjAxOSAoTWFjaW50b3NoKSIvPiA8cmRmOmxpIHN0RXZ0OmFjdGlvbj0ic2F2ZWQiIHN0RXZ0Omluc3RhbmNlSUQ9InhtcC5paWQ6MDBhMDIwMjItMTBiMi00ZThlLTg3N2MtMjcxNTc0YTE3YjdlIiBzdEV2dDp3aGVuPSIyMDIwLTA1LTA1VDE2OjA2OjQ4KzAzOjAwIiBzdEV2dDpzb2Z0d2FyZUFnZW50PSJBZG9iZSBQaG90b3Nob3AgQ0MgMjAxOSAoTWFjaW50b3NoKSIgc3RFdnQ6Y2hhbmdlZD0iLyIvPiA8L3JkZjpTZXE+IDwveG1wTU06SGlzdG9yeT4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz54BHxaAAABjklEQVRo3u3aP0vDQBjH8e/lktp/VPEfakEpOukkDi5u4uIivgM3F2dnB3ffg4sIvoC+BB27CE6OCgpaatP0mtw5iZO21BuEPL814S6fuydHeIhyzpGnhMNu6ByuelsR122j62uUj8/JNrdpvd3QvD+ha2IK2h/qbM+pn64F5CwCFrCABSxgAQtYwAIWsIAFLGABCzgHGdricd22t8ncxzsu7kCaAo7MGpI0pjcAa/8JWNdX/YHjDnpxBUplUAHFcJKZcoNS1PPa0/otamjX8rbpr62ZDaBYhcYGTE3zbp54/miRZoYg8CdenztQY4OTxHgDW0AriAohgQpwboC1PXDpKMU2cnRYU2OX9OVT5O1BrIVqBDuziuWiJUge0e07yAx43GGWjsYv6cp1219JG8d8TXOxVWV/oU/h5QoeTsHE4PMd3u2Ov8Nx4vH47DteJxT9ryFtD8wr9L1W9N9OaULlbzYLlVB9D6ki0GUIPe+wfHgIWMACFrCABSxgAQtYwAIWsIAFLOBcReXtb9pPnM58l/BgPeAAAAAASUVORK5CYII=","ga4":"data:image/png;base64,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","google-ads":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAAvCAYAAAC/vqlHAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAhOAAAITgBRZYxYAAABPZJREFUeJzt2mtMW2Ucx/GNteAEvBJ1KjozGTrmJQJzhJlJWkYZUKDEOYlGp3NzmfMyX6gxZrL4wkXXUyDrLiEy2QXb0gGWiUI7NEs0ZoZtUEYGiCO7GETiDca4+fh7oFVkpZzLH84bn+T7tuf/yXNOT0/bOXP+X/TrvVKrJq/ouzWZlqaD6RavN11o6Vlt8V7IsDQ3ZBc2btu0p2qR2jOSrXXWuljgnHpz26DO3MECZRBau3KLTqxfv/tomNrzKlqZhU2xqcLZi1NBJ6Y3t4+Yik7sVXtm2etZqzvaIJw5LQY7sTXF32w6Wbl8rtrzS15ZhadKpGJ5aUJrD9APqj2/pOV1xcfgjWnKa1ZEpWobRK9hjybM7TTWKcDy+tAytS2iFsBry8s3KMH68+qFjnlqe4KuIY82AuDGkkNvUIB5T6ttCrqA3YxGK2zPU4Gb9TvbQ9V2BVyARqF+xJpd8VRg3g61bQEXoDs5lnfZfS17ovhbKnAvuldt338WkDFowA/mfXzodf7piQpdprbxnzV8TBMK4FcTsbzf6m5gW/baKU/tDLWtYwu4NDQ4GcxrOJLBUoU2KvBx1W9TvtvQj4GwvAH3Ney1feWUu5yvKhiot6bC+jtbs5SlW1qowBfQApWw2usB+mU6MK+wrIByl7ergdUAsk8Mltf9xe0su7CRCtyDYmcZrElEl8WCeZ8c3kK5y85Zw+KNKgSAGilYXr87nG3Y7aJEPz4rYAxvRFekgnluZxZ/wKcCf41unmFsqBaDd8nBjn/knM/eL7VQ7vLWGQZrtsrF+jtfu5AZhDNUYP4F4a0zhb0PnVMK5n2w/0PKXS6YKXAZBZbXdnTJLgzaTgQeQo9QYx9CfUTgHtzHb8SQLxLucjUZduiYdh6GrCXCjqK3+evqhI4IDNpCiE4iAWPAZ3DvZZ143Kv5fCErdj3APvrsYWZ1LWX1tdHsp/oINiQe7BlxayP9r40hV/lOSQqwF92kDNug0XTXh3s5MtWRwRJspqsyVhjYgZpY9qc7bDrsCMqcfAwMWUW4yxsVgRtq73wl3bE6IHRy+U4d68V9NgjYOeoJvep5FkPeT7jL5/Tm9ntkYR+zZ8ettBt7xGD9PedMYTgjAmH/QHdNdSwMuo1wl/dLxiY4TBoAyqVg/e3CtR0AbA12PAx5i278WZcCfAVJ+70Zg+ejQTngFHsWu1gfORF7CbehqOmOya8/wl0u1Zs7NFLAn8rB+jtYs3jibegFMcfk77CogQjMn5nFf7WLoTuVgF+uXOEHnx7xaOeLPS6GXEm4y7lSwANKwE9W6Dl2COWJPui/aBcReLMUcL8S8FPOMfABXLuS/7OBQePRzwTgl6SAW5WAX61MHgZW9s8jGLaAAGyQAi5RAn6naplFLtYHvg2dV4DtQtFSwCvQ7zLBnYm2vOuUgH3oLAVgac/ICXZTSKLNJMjAjiLxbxZBwW0hGFzOXycu6eR8C4KHhQVJ9pwmieAj2N1wCvA4euxzdpcE7K9orewDvlmVFInP1E4R0BG0I7HcRP5jl+96rkZ/TYM9paP4I0yuIy1C58jcmGzP/n65LafPj8Qpzx615fbiLPgy2Z5jTLDlaQl8AZfvy4J16DjqRvwvUcO+HT2J3pV1Ggdb26sTQvMqVt0NaBzAccAuyaowzOoPWylC51zAolAMWozu0As/iP/MjPU3Ow+XqMM46SAAAAAASUVORK5CYII=","instagram":"data:image/png;base64,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","klaviyo":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAAvCAYAAAC/vqlHAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAFHSURBVHgB7ZrRjcIwEETnroIrIeng6AA6SQl0AJRABSkBUQEt0EHcAXQAXgIIRd4QS/nZWT9pkFD8wTCbtWMHKBSo+Ilq4AgxfIMfdp4Mh6j6F35YyYcXw3v0Cbu4h0PUIuoqXzwkvMPT7IsbsdrUP2Dlx+eqi6o8GW6gYMnEVJ00s6xdusZzGhrC2KWlKwftIlvCAX26KmwJr74NYDL8Xj5+w0rnHVMHZc5lNdwgA0vGUmqRiRVjKXXIKGXBetM6YmKj+sRKmildkJmwdcOiAzKxZE7TEhlYMqapi/rDBFhWWlXUZupgCwnOVtpsT0tn9DuUKmxPS/9R27EBjDsesiUrKYfURcYdD+nW7dgAKw0pV+uUWeajFintGoNTB+ajFrW0rZToLHNzOT0kpMJg2WmlNGcpbU/veDyWnS7f4mnghysKBS7uZc9huLfH8asAAAAASUVORK5CYII=","magento":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAAvCAYAAAC/vqlHAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAEdklEQVRogdWaW2tUVxTHfxMGCSHIEEIoQ5BhGESGYKdpjPEeow3Gh4riiw8+973P/QZ+BPG1hUp9EK29PYh4wxt4aQppvTCKF6xB0tbWkrr6sPboND1nZq999vHyh03CnrPW3uv8z15r7bV3gRwh0MOr5oMXwIuC/n23INAj8JnAEwHxbI8EPhX/F/T2QGCzwE8GY1vtR4GxvOaVy5t0DM0AQwHiw8D+d4plgYrAuQB2W+2cwIo85pbXW9wLVDLIl4HpPFiOrlCgD3gfKGVQUwZ2AQNRJtWGPBieAkaB3gw6isBKYDLGhNoR1WBRI2eIs/6GgLWS7cX9D7EZHkHZ7Y+gqwRsBBoRdL1ENINFP8NJsjmrpagCkzGdV0yG3wO2uL+xMAB8GFNnTINHiR87i+gnvT2WwigGi663GdSzxkYF2OTCXWbEYngCzX+jelSHIrCKSM4rs8ECy1Bjq9mnk4o6sD1GiIrBcBVYSw5ZURsG3Bi1rIoyGexC0UY0/lrQBOaNMnVgPGuIysrwIPAB9rDxOXDEKDMMbEDz7DcDgZ0Cl41bvycCI649MMpeFNiRZc7BDAssR9943Sj6DTDn2g9G2Row5sYOQpZPuoaGCovnXAAOAouufQX8bZAvAVuxv+SXCDLYhaJxNLuyYBa4VHhVmTwNnDfqGEVZLhrlgHCGWw7E6qy+4L+MLrg+C0qooxw2ygHhBtexs3sDOIZ+yi0sAqeAe0ZdmwnMvMwGi4aiDdgzq8PAw/Yiu/u/CXxp1FUB1khAshPC8Co02bA6q++AvxJ+e4a+jKTf0lAE1hOwWTEZ7JxVHXtm9TXwS9IRiuu7A5w16mwA660hyspwFQ0LlorkU9QxLXR55hA2lkvAOozOy9tgx24D/ZwtmAVmCx3ibUENPQ9cMuoeB1ZaQpSF4dByy2Hgocdz88C3Rt1l4CMM+bXF4BowjS3g30HDzjOPZ38HTjoZX7R2a96lJS+DnWMYRT20BceAez7nvQWNyXNOxoIa0PB1Xr4Ml9GK5DLDRJ4Cx7Hte+eBE9icVx96LFPxebirwc5ZjWA/9riFsrvY9UmHNpZPGceaAKo+zstnPQ4Du7FnNTXggCjTSVgAjhfg6JL++6ijmzaM1Q9sAy44+XAITAjcDjznfS7wZ0r7TeCMJBzLiJZyrhvHuisw1a0E1PFHl6tOEbgzQZdDb0rrR5fKngS5JloosKCMeuyOSVG3NTyEFtiD9p4e6Ac+Sej/FY3Jtwy6etCY3PGaRarBrgbcIMcLJm78msDq9k7nvJrYM68xNL9OPaXoxPAg6qzyOE1ox3KSWW4C32MLUb1o+LTdPhAoit6x+CPDxRRLu7mUZTePhsAJo65HztEmkpnGcB/6eUQ5wPLAIPBxQv8cmohYde3DEkZF19XN18SuCPwjcDUlRO0Q+Nmo77GkFAfSGO4h/7WbNF7SVYlraAHBgtTsrpDUKRo/V2Mv1IWilVKeTdpoiO6GJvB3RleAa0l78ESD2wZ6rdf/Ou2qLHPppOdfkUlA9Q8ExuIAAAAASUVORK5CYII=","meta":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAAvCAYAAAC/vqlHAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAQmSURBVHgB3ZpLctNAEIb/lpIiVPFwdgY24gSEE+CcgHACkhMEFoQUmzgbKsWGcANzAswJcE5AjqANJLuY2JUHLk3TI8tFXiONxiPb8G0Sa8bW/OqZ7p4eESokanLt7Ky3QkxPAI4YvESgGgM13U5AV67HDOrK9X1i3lPB/P7hzu0YFUHwjBZ5fnK8ykTP5WMDbnRkZJ8Pd+614BlvglNrnvTXifjVyIIeiMHUQjD32ZfVvQh+8La/DqimR6FXiWWk2z4sPpbg1KqnvS9wn7plaYHmt8extrPg+uZpBB58k38jTBax9vyyq+gADjx6018iHnzH5MVqIn3vR+/6S3CgtIW1WBWobxWuVyt0SAvCYPnH+zv7Jb9nzxSnsYnS03sOZfAtljgmxleJ2WIlikeXA8WSnHAk5pBkBRLPKTL8gkzv39ppPoUl1oLrG70tnS3BCyyWCdYkzHSKetY3f3XB2DL+EmhJ+jQPd+43YYGV00qnMnETHiDwPkjJNLzbgS+YtmydmJVg8Yof4QXJm0m9ONxZjOGZJFFWYywUXN/sNWQdrcAHRNtViM1o6LEWdSq2MPNLeECHkSo2A5dg3irqkuu0sjC0Cj+j2SvqMdpOXnKOTM9gTyNqHtXi5mLX1KHASw8a8AQTchOE+kb/5flpbxdpQuOe4p+fBKvyZ9fUnjulJUY+hzf+xtmrRK+OauK5/ey2KH8jU7SGG5gAZwtzOqRE8EL+EjAK1jnz5PJlXwmNTkRQq28eRaZ2o+Ak5KluDsYhoNCYhORMaX9PfdIoNs/M/1Jw3tjL7Zbs0BXH+Ppls5dO24hbN7YwVnz6Ev+CHcqr2Uaic1Pbg7fHftLaDOOUJoUupoyOzy7WzRu7UTAHNHXBWXwuDYXm5WMUHCZBqVpRFZBSboIpiU1tRsHzg0E8PPuZIuSWff14v2g0llFwvLvYlfUzVStL+eYJykI3O78R+V6aZEvH1ECZ+8mGQ2pM0dXrYRC2TSVVncYmYXLdG3N5C5Pir3ntBWEp6MhdCzfVF0mrI0zXBp8oFcMwY5JQ1qrUpeABDlQ7rz13t5QXH2cRXSAsKiEVl3gkkcA/gtS3PxX1KRQ8zJqkjjzzcGyT4VmVaQOm15h1pCJq081K8M8P97Qj6GBWIbRs83f741JK1qaeiNyIXm6JlXU11oK195MYu4YZQy+3MsX9Ugfi6dQmtn6alSNjyZabNaXfAEhP6WZBtIzB9sTwIk6vPExbNDG/dhGrcRKsGYqm5UnGaMmkuvqeBx/u78IRZ8GaNPWUs1555JVnYxIh2rduq8fjniuPXdPKPOTqw43jtiL+mPN6ghvpdo+2DzwdoHsr4mXesq3PaGWNrY99ppwJ9fqmACqoWo52WMPjjrAxPJDTb9IWnAiS9gWkv7u3sJC08448x+EPLk6hC3XjjvgAAAAASUVORK5CYII=","pinterest":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAAvCAYAAAC/vqlHAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA3hpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuNi1jMTM4IDc5LjE1OTgyNCwgMjAxNi8wOS8xNC0wMTowOTowMSAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtcE1NOk9yaWdpbmFsRG9jdW1lbnRJRD0ieG1wLmRpZDo4ZGU2MjYzMy0xOWRjLTQwNjEtYWM4Mi00MmJmYzEzYmQzNGIiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6ODBDQkU4OUEwMEM3MTFFNzg0MzBDMEI1M0NFMjU4OTEiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6ODBDQkU4OTkwMEM3MTFFNzg0MzBDMEI1M0NFMjU4OTEiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENDIDIwMTcgKE1hY2ludG9zaCkiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDpkNmFiNTJhZi0xMGE3LTRlMDQtODA1Yy05MGUwZTM0MGQ0ZTYiIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5kaWQ6OGRlNjI2MzMtMTlkYy00MDYxLWFjODItNDJiZmMxM2JkMzRiIi8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+gccXggAABBNJREFUeNrcWsuN2zAQ1QbbgFpgLrlLDQSwSpBLsEuwS7BKsEuwShCB3HKy7rmsWtA5J4cMhoHAJTkfSskiBIjFAqI5jzPz5kO+PJ/PYusxqi+l+bMzszWzMrOEOcMczdRm9tX0Y95SlpetABuQCkDuPJCx4YPXBvz04QEboBbgAbSZO3ozbwa4/nCADVCrxQtodO1hAZ8N8DH3hz6tBNYCfWwEtoDffcA+/07DQEb3DYHGtL2XkpsYMJDSYKYq/v6wZNZISE0EGMA+ENbdelgN11zQbMBgxg+BZl24mRYhyI0SQle1CGFUTdcc834VnOydAdaCvBFjar840BZCW4WsUSBPs4mGgSVPxJPvDMhbJvsfINRhGrd7nVcFDH77RkwWjmuliLDvnaDtmhKnOSZ9JXwTPWkv1VQe+VhBR7O299eBK9Rm/YCEvwvFtEkahnRxkICFDOxETDWjrkAkywZLQ6mZFua3OgL2AEJS82oL5mrW3QOatpawz5QTB7wwxVQ8PEYI7ip03TaURoKPdqkUFOTN0jCWNt78kAOaPWXy1Qlc6Z3reDGcJW8u4Nk/cTjhS4S9LanUYBGTxJXAtPUmgIEoKsR3/dM+BOKmJSKb8NvvRyClBtGUM9EyUkDERhVZQ9LwDgn6feCADv65hQgN3IBS2FeRDC42yhRJYoBbBPAYEK4M+FwqDGGjjLhS6vudFHBF6EH5YcX/RiNhSFopzRK5McApgeaA/yrCN1zAM0Pz6O/mtHiyamECIaYAi/fOApxiQ8I31LbQtKIroIAnpsnrgCZUghBRsBGXUFK5McBYudV6oUYHNmsj5kzR8Ci0jlEKuEfYMKSlIyGhoLZxbsLooaWANSK8grzZ17KOJScM/51CpR6UmwoB3IsAg/9gZn0JVChqsfnE1JAbZ2EJOKZCIYWlsfTvd2HuKhsv3MQ2x0xeh7ofcLBtjrxrAHagByjc7wTy6BDC2SfaOMWmgBlJviOxHbY5FPJ7z9xdqdmErMIcZkvRLtYOpjbxuoJ/f5T0fzDZHkgoFXMdUV2JciYHp007MEFb/60DPlhwrkeAG+6EMGa1i3YtOanlmalhHQlHA9Z3cuQHfa2BGLNJ8pH70tbvjAAdo1c1RgArYPWb3w8DhndM3DJy5o56WU4x6a9mfhOY9udAc+8tAGJahCklqITeuU6uhr97/1t2xRriUwCsiqzJuV+eCsZFGtWHfwayL6wBN2aUg5wo0HDvsET1sLvvSZRhemPA7l6Y/QJA3ABYgNZY6sgoB6nsX0vfcGW94rHmBLGvQ3LlXbHO8wjLxk3OVewqz5ag71wnUtDTSlo958q61Uu8PywN9fI1A2i35ku812LlERBOAcn8n28tI1r3H5oqj3E3BbkcvwQYAFkbAR6jfnzjAAAAAElFTkSuQmCC","reddit":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAAvCAYAAAC/vqlHAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAFiklEQVRogdWaPXATRxTHfyuZNPZMRBO5IrJNbcvpAgUS2AxVLFPHX+loCMyQlNimzDBjkyJJZ8dOjRwqx/LER2YgXSSREowPGuQKMVGaGLwp9hTJ5m5373RiyH/mxta91e7+9T727dsVdBEyR4oTFIBRBKeALIekEKT+ayRwkbjAIwQ7JKiITdxuzUnE3aFHchqYBHIRu3EQrPAP94RDPb7ZxUhY5kjxAVc55PoRDXYGF8EKCdbi0noshOU4V5Esxkj0OFwE82KLtU476oiwvESGN6wQ3XTDwiHJXCfajkxYjpMFikAmah8R4ZIkH5V0JMJynCySnS6asAl1IC9KVMJ+MTTh94BsE5FIhyLs+ewO796Mg1AnyWgY87Ym7K2vZeIke3EW+j6EJ1V45ByVDefg4gw0XkFxGfbdoF5cDhi1Xa/tCV9kCck12/ZWuPsS/q5DOqM+Vx3Yrap3U/OtdrU9mB4M7kewLLa4bjOkFWHPlPds2lpjKAvf/aGINOpwOqu0OnxOyfraQoSUcOUTeKpxV0lebOOYhu2xmpxaa+NFfwZqbstUq456AKYWjmoYlNZ1EMyDmXDC1ECOkaMbicVwTpmvHzbuqB+jiZ9u6Xy4iZw3Vy1sNPylRZvwGByBhz/7y/56CdMDMJI7agUmWGhZ68Nd8d0mtiTcyL8dnTvFASd1EVtv0m+6lCOPeN3uhk6UzOhhVic2+fBMfDNpw2BWkTUFoigQTOjEeh+WZDveQPam4GxBkUx/rJafvpR6/31ZLUm7XuKxW7H312BkdcJAOt5uqBx52OGcWlqa5muLqgOlVdj6MfLQHDAgHP90M5jwBQokKGo7TmfgxopaUxt1lQLWnkUjehy1PfjqPJyZgMtegld1YH3RbAUJJsQv3PMTBRMe4xqCpcBO0xm4vdNKC98Vansq69L7/5woseon0AWtk9qBzxTePVmA/oGWxoMgGQgS2aWWfhjSxgaFqgOP7sPQiPqBbNqemTD3nT5lO8u3EJ2wyY+2VuH2XOuzX37cxPoirC+0/r+yBJOaBK/xyn6exxBs0sKQYRWX4YWmyfEoW1z2bydli6x6Ab8HpJygxize0U4NeBkkCCZ8aNhQN+rw9Xn7bKmh6a7Xslr0Yk+NabKuJE+DRMGET1jUivbdYCJT8yAEINTfqQX/dkLA9M32F1C46t92t2qXmBzyPEgU6MNiE1eOUTcW6/af+b8fycHaUxWM0hn9ujx5HQZHFZmzBXuN+6OuK+zpg5aggmkvvFshMOVOZ1TdygbGREXCn/fN/Ui9Zeo3DxJN9PBQWjXOIBZI4OGGuV1CX53RE37tn60cQTOlDMLiZS+aG4jXXLUkBaF4x85/E/ymF2vgbaQd4yDri/AkYJ/x0QDMDMHtL+BBUblAo66efVet1wuTqsLRXtZpx+My/GBRlBRsmGrUxs2fHCOHYMc4WF8KvvkVTo++LdtahdKaR/bYEtmbUplV0IbjcVktRTZ7Z4vKpV2ZdpwdbAt5Uwvw+U1vSfLBvqs02ZdSjy4fv7tsp1kAiSO2yZua2RG21XIT6YzS2PiMN0LIKsKDoqpUhikBJRmwOXKxP3m4wBKJkCcPzfX3089UxaM/46/5fVeRqzoqJQ1f+lkWpRhPHiCms6Vez4z7vS5qrgpendW2unO2BF7Z9jXl9+CotInQh+PGk4d2iE1cBHlkvDdrIkHNYTLsTYD/5w0ASR0R7QZAKA03IUpU6GEUuneBTAM3KlmISBg8806SxyYTiwsSh2R0shDfPa1ZYJ5uXYVQ/roottEk7XaI7yaeiuBzCKaJi7gi+i2vWYrrCmK37loWUJvkXLROcBAUOWDtvb1r6Qd5iQwHZElwDnXmk6Fd+yra1pFUEDwHyhywETfJdvwL7kTqc8d7Xg0AAAAASUVORK5CYII=","shopify":"data:image/png;base64,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","snapchat":"data:image/png;base64,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","tiktok":"data:image/png;base64,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","woocommerce":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAAvCAYAAAC/vqlHAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAGHklEQVRoge1ZXWhTZxh+TkwPqaeDZBeJxQpNhus6Gpnxpu2F2KqwZWPWCQNbEGVzu5kDYRdTZHabG16MBfZzo9tgF2mvdHXMbmAbywZtdmEqprTTYVIwoyZs5DD64SHRnF2kJznfz0n8SY0rea5yznnP9z3P+/e9pwUaaKCBBhpooIF6QTJ+/DAw7NRyuXclYKsuSc56kqolCrr+vU2Wp/aPDS8CK4LDweMvQLJdlnR9zQhlsGiHvvf18U+vSqMDw+2F/N3ZNSzWgCrJTVvtyOdPSjrWulgAcOq53FG7rmPHau/UMdCLjj29yFxL4MqZceSJttpbWkA6YAfQbly6/V64/V6QjIrkRKwmWygeJwKHgwAA764AcssaYmfHa7L2Q8BpNxPbefqN0hOSziITTz7yDv7Bfupa2eAS2jUpDrh8rcgTDdnE0gPvo3icUNwukEwWJK1a2pUEu/0+6kFbd+cjC1Y8Tnh3Bah7cyMRzqb76D64/d7SPZJWkZyMIR6mbUXY2N2JbW+/DMVdbkMkrSI+EhFmqb1slKWJWESCJap4XEhOiMmxTsxcSyJ7sxw9xePES1++gybFwa3dNdiPjd2d+OXI15Ycuob6uQwqc3sNcosD18emqWc24wfJ0IJd3lbLjYBiqrr9XijuIjnXM7z9c3t6qOvE5CxFaufpNzmxFAdfq1AQUOwHVs8MBA4HqcwBzILTKtU9FY/TkowoVZ3tGzgbp492QmpmvvTbP9hPpSFQzACSoevv2YFeIQ//EC02TzSkZha491k7m/mCbRYunzjKrFiRLZvOqehCyaHC2g5HMHnsW/x46DOoJh6y4kBbdye3P1uzPx/5Cr+dCiP6+TnK1ulrpRxGC755f4J9AsGeLXTqsCRTMwtlwjvp97M3lxA3NbPExCz1nOXBRi0+Eil15kw8STVbWXGgxdSPaMHJ29RCTh+dpgDv3bIt7Um2ptVk2ZmbemhnsJ2bzTRzA3X6Wrnost2YDZy53Cqm9NOCCLPeNcOz0iBkxUGRyhGtREJWHFRt54iGVHSBWodtoPJ6kyMZTul4guORqzDJUYLVxBLVuNioWUXXwMaVyLHNSjV5vNIzA4rb+kh0eemsUxO3ORu5Que3sTcqNS42umxk2nqeL01MZqQrDDDLTDRFhM2cmlqsn5U4M+Vk7ty8YIvGxUY3RzTEzlykFpNXxLJZoD7gqNjG1Dh71FQD63CzUzjB7DjpXum+XHRn5kHSKhKX6IbhH+KHkEo1Jbc0c/fcW5gJbc46Q1jnencFqDJky7S6YL9XWLtGZ71xYZqzZz1sbkJsQ2Inoa6hfq4Lm7OOrdlqR5b5OAQEgnNE49J021tByiYxESudezmicU5iJyPz1wtJq9z6BknRKBmvcmR5dwegeIoOYp0FAIlJOgPtECB9LUENF2YBJK1y52Y8HKE+Lc0QpXPiUoyKRNdgPzr28COk6Iw1Bgu36Qh89bv3kCca9/71sWnuU5GLcHHRRSF5AEiaosuSECG/zAu+cWGaa0SieTkaOsfdAyD8MhM5i80OwFIwf5gbi7ApUo1cntzh7uWIht8+DlfsvtHQeUsnZuLJit/KJK1i8tg3wj8lrdu3efswT1KDb3eAOw9jZ8etI7myODtT/3vrbyQnZzl7LbuMVHQeTYoDckszZMWBPNHwzx+3EA2dx1/MGc8iE09CTSyh2fUU5JZmrJPtIGkV1y9MIxo6By27LHxPWMMAkJqeR8dAb+laVE8s5kYi2NTTyU1TViBpFb+Hzt+XrZBjdIEbfqpBmNLGYmZcOXPxvhb89RSdqqJJqp5Yt2/z9oMA/3dpkikeHzlyB/FwpGqKGcgTDanoPHQdWLryJ+ZGIijk79aY9kPjqhQOnvhQgv5BvZk8DuiQPrLlZHsIwGK9yTwGLK6X7SHbobFhVSrc68MaFi1J0pRUuNe3d2xYlcwPRl85saNQQN9jIQH9AEz/9WCg6pC+qMU+Nhsu7//p1FR53zpiNHj8oA7pJATCJZvUZyZaK9RVsAGRcEnC1P6Ln9Q8254IwQZY4asR5SdKsAFDuCRhcTWi/MRiNHj84OiL77fXm0cD/yf8B0/xvd5yk2ivAAAAAElFTkSuQmCC","youtube":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAAvCAYAAAC/vqlHAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAIISURBVHgB7Zr/cYIwFIBfev5fO0HjBMUNdII6AiPoBNgNcALcwOsEuIF2guAE0AnS94CctmcV0fww+N09o4DiZxISzAN44DcMWiAB+lAFwQ928SOHc7iM7My2QgWryov4VxilRlgEGG9QyQX1Lg5uQdJZXW4xdlSi2LrRu1F0giEw5J2HwAjPyUZ3JNQ0oi7JqpgqT1bLciwE+M0AZbOn+kUE/lPWshIOwH/e6YHJasjJoRu8UA13oXYVnIQ5dIega8IGaphzcIhXEn4GnQgc3pPEHXG8SqdaZzmKPJcyimzPuFIS3hgRVgghZRjaEt6QsDAqrFitpOTctLCwJ6xIEpPipbDekzTBXDPP3RA2KO6WsEJjM2eltU7kFR8/HOK/U1u4JU/gIus13q4Pbi5boqUZX9OHRyOt34eEc50naATNwqZTraKHwsKqcBxL2e8bkZVWJx5pKmUQmBL9JWx+Lq25n56ITQ9arM+0osDTLBYAcVw9t0NBwjvQzXIJMJvZFFV890A343E1rrpBThOPDHTijiyx0y/sFuVSi4b5m7Nk3Vt5YPsVdN+hrIBC3S19gv+UXbeb68OsatIz8JcPdqzbYk3PLc1xdcb85E+BB4TSnyyeyV+/JnlaHPa5Whz2CWmukNUlXZRoxPmCE3la12biHWbkEfzI4RwuIzuzTT1vlYn3wHd+AMJyy7BsaDlnAAAAAElFTkSuQmCC"};
+    const img = (src) => {
+      const key = src.replace('logos/', '').replace('.png', '');
+      return React.createElement('img', { src: __logos[key] || src, alt: key, style: { width: '22px', height: '22px', objectFit: 'contain', display: 'block', flexShrink: 0 } });
+    };
+    // Authentic react-icons path data — Simple Icons (Si*, 24×24) for brands, Font Awesome 6 (Fa*) for concept icons.
+    const si = (d, color) => `<svg width="20" height="20" viewBox="0 0 24 24" fill="${color}" xmlns="http://www.w3.org/2000/svg"><path d="${d}"/></svg>`;
+    const fa = (d, color, vb) => `<svg width="19" height="19" viewBox="0 0 ${vb || 512} 512" fill="${color}" xmlns="http://www.w3.org/2000/svg"><path d="${d}"/></svg>`;
+    const diBing = `<svg width="20" height="20" viewBox="0 0 32 32" fill="#008373" xmlns="http://www.w3.org/2000/svg"><path d="M13.706 10.918l2.269 4.919 3.352 1.516-12.092 6.361 4.954-4.416v-12.591l-5.102-1.563v18.726l5.071 3.555 12.754-7.597v-5.476z"/></svg>`;
+    const L = {
+      meta: fa('M640 317.9c0 91.3-39.4 148.5-110.3 148.5-62.6 0-95.8-34.6-156.9-136.6l-31.4-52.6c-8.3-12.5-14.5-24.2-21.2-35-20.1 33.8-47.1 83-47.1 83-67 116.6-104.6 141.2-156.9 141.2-72.8 0-116.2-57.3-116.2-145.9 0-143 79.8-278.1 183.9-278.1 50.2 0 93.8 24.7 144.8 89.5 37.1-50.1 78.1-89.5 130.6-89.5 99.1 0 180.7 125.7 180.7 275.5zM287.4 192.2c-42.9-62.1-70.9-80.5-104.4-80.5-61.9 0-113.8 106.1-113.8 210 0 48.5 18.5 75.7 49.6 75.7 30.2 0 49-19 103.2-103.8 0 0 24.7-39.1 65.4-101.4zM531.2 397.4c32.2 0 46.9-27.5 46.9-74.9 0-124.2-54.3-225.4-123.2-225.4-33.2 0-61.1 25.9-94.9 78 9.4 13.8 19.1 29 29.3 45.4l37.5 62.4c58.7 94.1 73.5 114.5 104.4 114.5z', '#0866FF', 640),
+      googleAds: fa('M500 261.8C500 403.3 403.1 504 260 504 122.8 504 12 393.2 12 256S122.8 8 260 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9c-88.3-85.2-252.5-21.2-252.5 118.2 0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9l-140.8 0 0-85.3 236.1 0c2.3 12.7 3.9 24.9 3.9 41.4z', '#4285F4'),
+      shopify: fa('M388.5 104.1c-.2-1.1-.7-2.1-1.5-2.8s-1.8-1.2-2.9-1.2c-2 0-37.2-.8-37.2-.8s-21.6-20.8-29.6-28.8l0 432.7 125.7-31.2s-54-365.5-54.4-367.9zM288.9 70.5c-1.9-6.1-4.3-11.9-7.2-17.6-10.4-20-26-30.9-44.4-30.9-1.3 0-2.7 .1-4 .4-.4-.8-1.2-1.2-1.6-2-8-8.8-18.4-12.8-30.8-12.4-24 .8-48 18-67.2 48.8-13.6 21.6-24 48.8-26.8 70.1-27.6 8.4-46.8 14.4-47.2 14.8-14 4.4-14.4 4.8-16 18-1.2 10-38 291.8-38 291.8l302.6 52.5 0-438.3c-1.5 .1-2.9 .2-4.4 .4 0 0-5.6 1.6-14.8 4.4zM233.6 87.7c-16 4.8-33.6 10.4-50.8 15.6 4.8-18.8 14.4-37.6 25.6-50 4.4-4.4 10.4-9.6 17.2-12.8 6.8 14.4 8.4 34 8 47.2zM200.8 24.4c5-.2 10 1.1 14.4 3.6-6.4 3.2-12.8 8.4-18.8 14.4-15.2 16.4-26.8 42-31.6 66.5-14.4 4.4-28.8 8.8-42 12.8 8.8-38.4 41.2-96.4 78-97.2zM154.4 244.6c1.6 25.6 69.2 31.2 73.2 91.7 2.8 47.6-25.2 80.1-65.6 82.5-48.8 3.2-75.6-25.6-75.6-25.6l10.4-44s26.8 20.4 48.4 18.8c14-.8 19.2-12.4 18.8-20.4-2-33.6-57.2-31.6-60.8-86.9-3.2-46.4 27.2-93.3 94.5-97.7 26-1.6 39.2 4.8 39.2 4.8l-15.2 57.6s-17.2-8-37.6-6.4c-29.6 2-30 20.8-29.6 25.6zM249.6 82.9c0-12-1.6-29.2-7.2-43.6 18.4 3.6 27.2 24 31.2 36.4-7.2 2-15.2 4.4-24 7.2z', '#95BF47', 448),
+      klaviyo: si('M11.476 7.4l8.523-5.054C18.21.93 16.013.13 13.61.013c-2.401 0-4.6.917-6.387 2.333zm.952 1.667 9.49 5.63a11.86 11.86 0 0 0 .096-1.504c0-2.654-.87-5.106-2.34-7.084zm-1.904 0L1.034 13.19A11.86 11.86 0 0 1 .938 11.686c0-2.654.87-5.106 2.34-7.084zm.952 1.667 8.523 5.054c-1.789 1.416-3.986 2.333-6.387 2.333-2.403 0-4.6-.917-6.387-2.333zm0 3.333a2.286 2.286 0 1 0 0 4.572 2.286 2.286 0 0 0 0-4.572z', '#1A2525'),
+      ga4: si('M22.84 2.9982v17.9987c.0086 1.6473-1.3197 2.9897-2.967 2.9984a2.9808 2.9808 0 01-.3677-.0208c-1.528-.226-2.6477-1.5558-2.6105-3.1V3.1204c-.0369-1.5458 1.0856-2.8762 2.6157-3.1 1.6361-.1915 3.1178.9796 3.3093 2.6158.014.1201.0208.241.0202.3619zM4.1326 18.0548c-1.6417 0-2.9726 1.331-2.9726 2.9726C1.16 22.6691 2.4909 24 4.1326 24s2.9726-1.3309 2.9726-2.9726-1.331-2.9726-2.9726-2.9726zm7.8728-9.0098c-.0171 0-.0342 0-.0513.0003-1.6495.0904-2.9293 1.474-2.891 3.1256v7.9846c0 2.167.9535 3.4825 2.3505 3.763 1.6118.3266 3.1832-.7152 3.5098-2.327.04-.1974.06-.3983.0593-.5998v-8.9585c.003-1.6474-1.33-2.9852-2.9773-2.9882z', '#E37400'),
+      pinterest: fa('M504 256c0 137-111 248-248 248-25.6 0-50.2-3.9-73.4-11.1 10.1-16.5 25.2-43.5 30.8-65 3-11.6 15.4-59 15.4-59 8.1 15.4 31.7 28.5 56.8 28.5 74.8 0 128.7-68.8 128.7-154.3 0-81.9-66.9-143.2-152.9-143.2-107 0-163.9 71.8-163.9 150.1 0 36.4 19.4 81.7 50.3 96.1 4.7 2.2 7.2 1.2 8.3-3.3 .8-3.4 5-20.3 6.9-28.1 .6-2.5 .3-4.7-1.7-7.1-10.1-12.5-18.3-35.3-18.3-56.6 0-54.7 41.4-107.6 112-107.6 60.9 0 103.6 41.5 103.6 100.9 0 67.1-33.9 113.6-78 113.6-24.3 0-42.6-20.1-36.7-44.8 7-29.5 20.5-61.3 20.5-82.6 0-19-10.2-34.9-31.4-34.9-24.9 0-44.9 25.7-44.9 60.2 0 22 7.4 36.8 7.4 36.8s-24.5 103.8-29 123.2C161.5 437.2 163.5 467.4 165.6 487 73.4 450.9 8 361.1 8 256 8 119 119 8 256 8S504 119 504 256z', '#E60023'),
+      snapchat: `<svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="6" fill="#FFFC00"/><path d="M12.166 4.119c.408.001 2.6.114 3.626 2.41.34.762.262 2.04.199 3.106l-.003.06c-.007.131-.015.255-.02.378.055.03.143.062.275.062.193-.01.43-.083.674-.207a.526.526 0 0 1 .244-.061c.092 0 .183.018.262.05l.005.002c.207.073.34.219.343.376.001.197-.18.366-.539.508-.044.017-.097.034-.157.052-.213.067-.535.169-.622.375-.045.107-.027.249.052.422l.002.007c.027.062.677 1.51 2.085 1.742a.24.24 0 0 1 .202.247.34.34 0 0 1-.027.114c-.114.266-.589.46-1.451.593-.028.038-.056.171-.075.259a4.4 4.4 0 0 1-.078.328c-.023.082-.082.123-.18.123h-.015c-.07 0-.17-.013-.296-.039a3.06 3.06 0 0 0-.628-.067c-.135 0-.275.012-.417.036-.272.045-.504.207-.772.394-.39.272-.832.581-1.504.581-.029 0-.057-.001-.085-.003l-.062.002c-.672 0-1.113-.309-1.503-.581-.269-.187-.5-.349-.773-.394a2.51 2.51 0 0 0-.417-.036c-.245 0-.439.038-.628.067-.126.026-.226.039-.296.039h-.015c-.098 0-.157-.041-.18-.123a4.4 4.4 0 0 1-.078-.328c-.019-.088-.047-.221-.075-.259-.862-.133-1.337-.327-1.451-.593a.34.34 0 0 1-.027-.114.24.24 0 0 1 .202-.247c1.408-.232 2.058-1.68 2.085-1.742l.002-.007c.079-.173.097-.315.052-.422-.087-.206-.409-.308-.622-.375-.06-.018-.113-.035-.157-.052-.491-.194-.556-.41-.531-.554.034-.196.291-.328.503-.328a.4.4 0 0 1 .169.034c.262.123.497.187.698.187.139 0 .23-.031.286-.061-.005-.118-.013-.243-.02-.375l-.003-.06c-.063-1.067-.141-2.345.199-3.107 1.022-2.292 3.222-2.408 3.623-2.408z" fill="#fff"/></svg>`,
+      reddit: fa('M373 138.6c-25.2 0-46.3-17.5-51.9-41-30.6 4.3-54.2 30.7-54.2 62.4l0 .2c47.4 1.8 90.6 15.1 124.9 36.3 12.6-9.7 28.4-15.5 45.5-15.5 41.3 0 74.7 33.4 74.7 74.7 0 29.8-17.4 55.5-42.7 67.5-2.4 86.8-97 156.6-213.2 156.6S45.5 410.1 43 323.4c-25.4-11.9-43-37.7-43-67.7 0-41.3 33.4-74.7 74.7-74.7 17.2 0 33 5.8 45.7 15.6 34-21.1 76.8-34.4 123.7-36.4l0-.3c0-44.3 33.7-80.9 76.8-85.5 4.9-24.2 26.3-42.4 52.1-42.4 29.4 0 53.3 23.9 53.3 53.3s-23.9 53.3-53.3 53.3zM157.5 255.3c-20.9 0-38.9 20.8-40.2 47.9s17.1 38.1 38 38.1 36.6-9.8 37.8-36.9-14.7-49.1-35.7-49.1l.1 0zM395 303.1c-1.2-27.1-19.2-47.9-40.2-47.9s-36.9 22-35.7 49.1 16.9 36.9 37.8 36.9 39.3-11 38-38.1l.1 0zm-60.1 70.8c1.5-3.6-1-7.7-4.9-8.1-23-2.3-47.9-3.6-73.8-3.6s-50.8 1.3-73.8 3.6c-3.9 .4-6.4 4.5-4.9 8.1 12.9 30.8 43.3 52.4 78.7 52.4s65.8-21.6 78.7-52.4z', '#FF4500'),
+      microsoft: diBing,
+      tiktok: fa('M448.5 209.9c-44 .1-87-13.6-122.8-39.2l0 178.7c0 33.1-10.1 65.4-29 92.6s-45.6 48-76.6 59.6-64.8 13.5-96.9 5.3-60.9-25.9-82.7-50.8-35.3-56-39-88.9 2.9-66.1 18.6-95.2 40-52.7 69.6-67.7 62.9-20.5 95.7-16l0 89.9c-15-4.7-31.1-4.6-46 .4s-27.9 14.6-37 27.3-14 28.1-13.9 43.9 5.2 31 14.5 43.7 22.4 22.1 37.4 26.9 31.1 4.8 46-.1 28-14.4 37.2-27.1 14.2-28.1 14.2-43.8l0-349.4 88 0c-.1 7.4 .6 14.9 1.9 22.2 3.1 16.3 9.4 31.9 18.7 45.7s21.3 25.6 35.2 34.6c19.9 13.1 43.2 20.1 67 20.1l0 87.4z', '#1A2525', 448),
+      seo: fa('M64 64c0-17.7-14.3-32-32-32S0 46.3 0 64V400c0 44.2 35.8 80 80 80H480c17.7 0 32-14.3 32-32s-14.3-32-32-32H80c-8.8 0-16-7.2-16-16V64zm406.6 86.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L320 210.7l-57.4-57.4c-12.5-12.5-32.8-12.5-45.3 0l-112 112c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L240 221.3l57.4 57.4c12.5 12.5 32.8 12.5 45.3 0l128-128z', '#6a8f4d'),
+      ppc: fa('M480 32c0-12.9-7.8-24.6-19.8-29.6s-25.7-2.2-34.9 6.9L381.7 53c-48 48-113.1 75-181 75H192 160 64c-35.3 0-64 28.7-64 64v96c0 35.3 28.7 64 64 64l0 128c0 17.7 14.3 32 32 32h64c17.7 0 32-14.3 32-32V416l8.7 0c67.9 0 133 27 181 75l43.6 43.6c9.2 9.2 22.9 11.9 34.9 6.9s19.8-16.6 19.8-29.6V32zM448 75.4V436.6C385.1 380.7 304 348.8 216.7 348l-8.7 0V160l8.7 0C304 159.2 385.1 127.3 448 75.4z', '#6a8f4d'),
+      social: fa('M313.4 32.9c26 5.2 42.9 30.5 37.7 56.5l-2.3 11.4c-5.3 26.7-15.1 52.1-28.8 75.2H464c26.5 0 48 21.5 48 48c0 18.5-10.5 34.6-25.9 42.6C497 275.4 504 288.9 504 304c0 23.4-16.8 42.9-38.9 47.1c4.4 7.3 6.9 15.8 6.9 24.9c0 21.3-13.9 39.4-33.1 45.6c.7 3.3 1.1 6.8 1.1 10.4c0 26.5-21.5 48-48 48H294.5c-19 0-37.5-5.6-53.3-16.1l-38.5-25.7C176 420.4 160 390.4 160 358.3V320 272 247.1c0-29.2 13.3-56.7 36-75l7.4-5.9c26.5-21.2 44.6-51 51.2-84.2l2.3-11.4c5.2-26 30.5-42.9 56.5-37.7zM32 192H96c17.7 0 32 14.3 32 32V448c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32V224c0-17.7 14.3-32 32-32z', '#6a8f4d'),
+      email: fa('M48 64C21.5 64 0 85.5 0 112c0 15.1 7.1 29.3 19.2 38.4L236.8 313.6c11.4 8.5 27 8.5 38.4 0L492.8 150.4c12.1-9.1 19.2-23.3 19.2-38.4c0-26.5-21.5-48-48-48H48zM0 176V384c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V176L294.4 339.2c-22.8 17.1-54 17.1-76.8 0L0 176z', '#953995'),
+      sos: fa('M304 240V16.6c0-9 7-16.6 16-16.6C443.7 0 544 100.3 544 224c0 9-7.6 16-16.6 16H304zM32 272C32 150.7 122.1 50.3 239 34.3c9.2-1.3 17 6.1 17 15.4V288L412.5 444.5c6.7 6.7 6.2 17.7-1.5 23.1C371.8 495.6 323.8 512 272 512C139.5 512 32 404.6 32 272zm526.4 16c9.3 0 16.6 7.8 15.4 17-7.7 55.9-34.6 105.6-73.9 142.3-6 5.6-15.4 5.2-21.2-.6L320 288H558.4z', '#3a5226', 576),
+      calendar: fa('M128 0c17.7 0 32 14.3 32 32l0 32 192 0 0-32c0-17.7 14.3-32 32-32s32 14.3 32 32l0 32 48 0c26.5 0 48 21.5 48 48l0 48L0 160l0-48C0 85.5 21.5 64 48 64l80 0 0-32c0-17.7 14.3-32 32-32zM0 192l448 0 0 272c0 26.5-21.5 48-48 48L48 512c-26.5 0-48-21.5-48-48L0 192zm310.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 370.7l-38.6-38.6c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l64 64c12.5 12.5 32.8 12.5 45.3 0l96-96z', '#a19986', 448),
+      bing: diBing,
+    };
+
+    const navDots = [1,2,3,4,5];
+
+    const metricCards = [
+      { label: 'TOTAL SALES EXCL. VAT', val: '1.340.236 kr.', delta: '862%' },
+      { label: 'GROSS PROFIT', val: '866.014 kr.', delta: '746%' },
+      { label: 'BLENDED ROAS', val: '23,41', delta: '12,40' },
+      { label: 'NET PROFIT', val: '810.543 kr.', delta: '798%' },
+    ];
+
+    const barH = [62, 48, 80, 40, 70, 55, 95, 30, 26, 22, 16];
+    const bars = barH.map((h, i) => ({ h: h + '%', color: i === 6 ? '#c6ed62' : 'rgba(33,59,52,0.78)' }));
+
+    const integrations = [
+      { name: 'Meta', logo: img('logos/meta.png') }, { name: 'Google Ads', logo: img('logos/google-ads.png') },
+      { name: 'Shopify', logo: img('logos/shopify.png') }, { name: 'Klaviyo', logo: img('logos/klaviyo.png') },
+      { name: 'GA4', logo: img('logos/ga4.png') }, { name: 'Pinterest', logo: img('logos/pinterest.png') },
+      { name: 'Snapchat', logo: img('logos/snapchat.png') }, { name: 'Reddit', logo: img('logos/reddit.png') },
+      { name: 'Microsoft Ads', logo: img('logos/bing.png') }, { name: 'TikTok', logo: img('logos/tiktok.png') },
+      { name: 'Magento 2', logo: img('logos/magento.png') }, { name: 'Ahrefs', logo: img('logos/ahrefs.png') },
+      { name: 'Instagram', logo: img('logos/instagram.png') }, { name: 'WooCommerce', logo: img('logos/woocommerce.png') },
+      { name: 'YouTube', logo: img('logos/youtube.png') },
+    ];
+
+    const steps = [
+      { n: '01', t: 'Forbind dine platforme', d: 'Giv Apex adgang i vores opsætningsflow — Meta, Google Ads, Shopify, Klaviyo, GA4 og flere. Ingen udviklere.' },
+      { n: '02', t: 'Apex samler din data', d: 'Vi konsoliderer alt på tværs af kanaler og markeder, automatisk hver dag. Du behøver ikke røre et regneark.' },
+      { n: '03', t: 'Få det fulde overblik', d: 'Live dashboards, P&L og AI-audits klar fra dag ét — i ét sandt overblik over hele forretningen.' },
+    ];
+
+    const reportData = [
+      { id: 'overview', name: 'Overview', desc: 'Samlet performance på tværs af salg, marketing og bundlinje.',
+        long: 'Hele forretningen på én skærm — fra bruttosalg og rabatter til ad spend og nettoresultat. Skift mellem standard- og custom-visning og bor ned i hver enkelt post.',
+        metrics: [{ label: 'Total Sales', val: '1.475.181 kr.' }, { label: 'Gross Profit', val: '965.217 kr.' }, { label: 'Net Profit', val: '892.081 kr.' }, { label: 'Ordrer', val: '2.648' }] },
+      { id: 'daily', name: 'Daily', desc: 'Dagligt overblik over dine vigtigste metrics.',
+        long: 'Dag-for-dag udvikling i ordrer, omsætning, ad spend og resultat — med total, sidste års periode og index, så du straks ser om du er på rette kurs.',
+        metrics: [{ label: 'Ordrer (18d)', val: '2.648' }, { label: 'Net Revenue', val: '1.749.945 kr.' }, { label: 'Ø ROAS', val: '23,41' }, { label: 'Net Profit', val: '892.081 kr.' }] },
+      { id: 'pace', name: 'Pace Report', desc: 'Er du foran eller bagud i forhold til dine mål?',
+        long: 'Pace Report holder dine faktiske tal op mod månedens mål og fremskriver, hvor du lander — så du kan justere budget og indsats før måneden er slut.',
+        metrics: [{ label: 'Spend pace', val: '86%' }, { label: 'Actual spend', val: '73.135 kr.' }, { label: 'Budget', val: '85.000 kr.' }] },
+      { id: 'pnl', name: 'P&L', desc: 'Profit & loss — fra bruttosalg til nettoresultat.',
+        long: 'En komplet resultatopgørelse der trækker rabatter, returneringer, COGS og ad spend fra bruttosalget — så du ser den reelle bundlinje, ikke kun toplinjen.',
+        metrics: [{ label: 'Bruttosalg', val: '3.888.422 kr.' }, { label: 'Total sales excl. VAT', val: '1.475.181 kr.' }, { label: 'Total DB1', val: '965.217 kr.' }] },
+      { id: 'ecom', name: 'Ecommerce', desc: 'Product- og customer performance, samlet ét sted.',
+        long: 'Se dine bedst sælgende produkter, marginer og kundeadfærd — split på nye vs. tilbagevendende kunder — og find ud af hvad der reelt driver væksten.',
+        metrics: [{ label: 'Inventory stock', val: '77.595' }, { label: 'Inventory value', val: '1.758.549 kr.' }, { label: 'Ø kurv', val: '569 kr.' }] },
+    ];
+    const reports = reportData.map(r => ({ ...r, open: () => this.setState({ activeReport: r.id }) }));
+    const active = reportData.find(r => r.id === this.state.activeReport);
+    const reportModalStyle = {
+      position: 'fixed', inset: 0, zIndex: 100,
+      display: this.state.activeReport ? 'flex' : 'none',
+      alignItems: 'center', justifyContent: 'center', padding: '16px',
+    };
+    const gStyle = (id) => ({ display: this.state.activeReport === id ? 'block' : 'none' });
+
+    const upBg = 'rgba(106,143,77,0.16)', upC = '#2f6b3e', dnBg = 'rgba(238,98,81,0.14)', dnC = '#c63f2f';
+
+    const ovCards = [
+      { label: 'TOTAL SALES EXCL. VAT', val: '1.475.181 kr.', sub: '2.648 ordrer', delta: '↗ 74%', deltaColor: upC, deltaBg: upBg,
+        rows: [{ k: 'Gross Sales', v: '3.888.422 kr.' }, { k: 'Total Discounts', v: '−2.138.477 kr.' }, { k: 'Revenue after disc.', v: '1.749.945 kr.' }] },
+      { label: 'GROSS PROFIT EXCL. VAT', val: '965.217 kr.', sub: '65,43 % af salg', delta: '↗ 46%', deltaColor: upC, deltaBg: upBg,
+        rows: [{ k: 'COGS', v: '509.965 kr.' }, { k: 'Pick & Pack', v: '174.763 kr.' }, { k: 'Shipping Cost', v: '100.000 kr.' }] },
+      { label: 'GROSS PROFIT − AD SPEND', val: '892.081 kr.', sub: '60,47 % af salg', delta: '↘ 6%', deltaColor: dnC, deltaBg: dnBg,
+        rows: [{ k: 'Google Ads spend', v: '73.135 kr.' }, { k: 'Total Ad Spend', v: '73.135 kr.' }, { k: '% af salg', v: '4,96 %' }] },
+      { label: 'NET PROFIT', val: '750.000 kr.', sub: '50,8 % af salg', delta: '↗ 40%', deltaColor: upC, deltaBg: upBg,
+        rows: [{ k: 'Fixed Expenses', v: '142.081 kr.' }, { k: 'EBIT', v: '750.000 kr.' }, { k: 'EBIT %', v: '50,8 %' }] },
+    ];
+    const metricTabs = ['Net Revenue','Orders','Net AOV','Gross Sales','Refunds','Gross Profit','Marketing Spend','COGS','Fixed Expenses','Net Profit','Blended ROAS','Blended POAS','EBIT%']
+      .map((name, i) => ({ name, bg: i === 0 ? '#1a2525' : 'transparent', color: i === 0 ? '#fefbf2' : '#3a443e', border: i === 0 ? '#1a2525' : 'rgba(26,37,37,0.18)' }));
+
+    const dailyTabs = ['Orders', 'Net Revenue', 'COGS', 'AOV', 'Google Ads Cost', 'Blended ROAS', 'Blended POAS', 'Net Profit'];
+    const dailyGrouped = [
+      { date: '2026-06-01', orders: '359', rev: '231.669', cogs: '85.208', aov: '645', gads: '6.311', roas: '36,71', poas: '23,21', np: '140.150' },
+      { date: '2026-06-02', orders: '311', rev: '195.726', cogs: '72.686', aov: '629', gads: '6.083', roas: '32,17', poas: '20,23', np: '116.956' },
+      { date: '2026-06-03', orders: '242', rev: '129.247', cogs: '44.813', aov: '534', gads: '5.613', roas: '23,03', poas: '15,04', np: '78.821' },
+      { date: '2026-06-04', orders: '182', rev: '103.360', cogs: '38.767', aov: '568', gads: '5.059', roas: '20,43', poas: '12,77', np: '59.535' },
+      { date: '2026-06-05', orders: '263', rev: '151.887', cogs: '54.117', aov: '578', gads: '6.910', roas: '21,98', poas: '14,15', np: '90.860' },
+      { date: '2026-06-06', orders: '237', rev: '152.729', cogs: '56.029', aov: '644', gads: '4.691', roas: '32,56', poas: '20,61', np: '92.009' },
+      { date: '2026-06-07', orders: '429', rev: '270.846', cogs: '101.913', aov: '631', gads: '8.682', roas: '31,20', poas: '19,46', np: '160.251' },
+      { date: '2026-06-08', orders: '87', rev: '23.723', cogs: '8.101', aov: '273', gads: '2.802', roas: '8,47', poas: '5,58', np: '12.821' },
+    ];
+
+    const HALF = Math.PI * 88;
+    const gaugeDash = (p) => `${(p * HALF).toFixed(1)} 1000`;
+    const paceDash = gaugeDash(0.86);
+    const pacePct = '86%';
+    const paceDetails = [
+      { k: 'Pace', v: '81.300 kr.' },
+      { k: 'Budget', v: '85.000 kr.' },
+      { k: 'Actual Spend to Date', v: '73.135 kr.' },
+      { k: 'Ideal Spend to Date', v: '76.500 kr.' },
+      { k: 'Suggested Daily Adj.', v: '−188 kr.' },
+      { k: 'Total Days', v: '18' },
+    ];
+
+    const pnlRow = (label, yoy, cur, delta, up, strong) => ({
+      label, yoy, cur, delta, weight: strong ? '800' : '400',
+      bg: strong ? 'rgba(198,237,98,0.16)' : '#fff', deltaColor: up ? upC : dnC,
+    });
+    const pnlNet = [
+      pnlRow('Gross sales', '1.440.708 kr.', '3.888.422 kr.', '↗ +170%', true),
+      pnlRow('Discounts', '−554.463 kr.', '−2.138.477 kr.', '↗ +286%', false),
+      pnlRow('Refunds', '−51.444 kr.', '−329.173 kr.', '↗ +540%', false),
+      pnlRow('Delivery Fees', '12.802 kr.', '41.718 kr.', '↗ +226%', true),
+      pnlRow('Taxes', '208.994 kr.', '367.564 kr.', '↗ +76%', true),
+      pnlRow('Total sales excl. VAT', '849.563 kr.', '1.475.181 kr.', '↗ +74%', true, true),
+    ];
+    const pnlDb1 = [
+      pnlRow('COGS', '190.310 kr.', '509.965 kr.', '↗ +168%', false),
+      pnlRow('Total, DB1', '659.252 kr.', '965.217 kr.', '↗ +46%', true, true),
+    ];
+    const dbGauges = [
+      { label: 'DB1', pct: '65%', dash: gaugeDash(0.65), color: '#4a6b5e', total: 'Total DB1: 965.217 kr.' },
+      { label: 'DB2', pct: '65%', dash: gaugeDash(0.65), color: '#c6ed62', total: 'Total DB2: 965.217 kr.' },
+    ];
+
+    const ecomProds = [
+      { name: 'Performance Running Shoe — Black', sub: 'Nordic Sports DK', price: '899 kr', units: '412', orders: '398', rev: '357.588 kr', stock: '4.210' },
+      { name: 'Training Shorts — Navy', sub: 'Nordic Sports DK', price: '349 kr', units: '836', orders: '821', rev: '286.429 kr', stock: '8.540' },
+      { name: 'Compression Tee — White', sub: 'Nordic Sports DK', price: '279 kr', units: '694', orders: '671', rev: '187.249 kr', stock: '3.870' },
+      { name: 'Sport Water Bottle 750ml', sub: 'Nordic Sports DK', price: '199 kr', units: '521', orders: '509', rev: '101.291 kr', stock: '12.340' },
+    ];
+
+    const betaBg = 'rgba(161,153,134,0.16)', betaC = '#8a8270';
+    const wipBg = 'rgba(238,98,81,0.14)', wipC = '#c63f2f';
+    const newBg = 'rgba(198,237,98,0.4)', newC = '#3a5226';
+    const services = [
+      { name: 'SEO', badge: 'BETA', logo: svg(L.seo), badgeBg: betaBg, badgeColor: betaC },
+      { name: 'PPC', badge: 'BETA', logo: svg(L.ppc), badgeBg: betaBg, badgeColor: betaC },
+      { name: 'Paid Social', badge: 'BETA', logo: svg(L.social), badgeBg: betaBg, badgeColor: betaC },
+      { name: 'Pinterest', badge: 'BETA', logo: img('logos/pinterest.png'), badgeBg: betaBg, badgeColor: betaC },
+      { name: 'Snapchat', badge: 'BETA', logo: img('logos/snapchat.png'), badgeBg: betaBg, badgeColor: betaC },
+      { name: 'Reddit', badge: 'BETA', logo: img('logos/reddit.png'), badgeBg: betaBg, badgeColor: betaC },
+      { name: 'Bing Ads', badge: 'BETA', logo: img('logos/bing.png'), badgeBg: betaBg, badgeColor: betaC },
+      { name: 'Klaviyo', badge: 'BETA', logo: img('logos/klaviyo.png'), badgeBg: betaBg, badgeColor: betaC },
+      { name: 'Share of Search', badge: 'NEW', logo: svg(L.sos), badgeBg: newBg, badgeColor: newC },
+      { name: 'Campaign Planner', badge: 'WIP', logo: svg(L.calendar), badgeBg: wipBg, badgeColor: wipC },
+      { name: 'Bing Webmaster', badge: 'WIP', logo: svg(L.bing), badgeBg: wipBg, badgeColor: wipC },
+    ];
+
+    const radarPoints = [
+      'Performance-rapportering på kampagne-, annoncegruppe- og annonceniveau.',
+      'Automatisk overvågning der fanger udsving i ROAS, spend og konvertering.',
+      'Anomali-alerts direkte til dit team — før små problemer bliver dyre.',
+    ];
+
+    const planFeatures = [
+      'Alle kernerapporter', 'Service-dashboards', 'Apex Radar', 'Tracking Score',
+      'AI-audits', 'Ubegrænsede markeder', 'Team & deling', 'Eksport til PDF',
+    ];
+
+    const faqs = [
+      { q: 'Hvor lang tid tager opsætningen?', a: 'Typisk under 10 minutter. Du forbinder dine konti via vores opsætningsflow, og Apex begynder at hente og konsolidere din data automatisk. Ingen udviklere eller integrationsprojekter.' },
+      { q: 'Hvordan kommer jeg i gang?', a: 'Udfyld formularen, så starter opsætningsflowet, når du har givet adgang til de ønskede kanaler, bliver din Apex-konto sat op. Du har fuld adgang i hele prøveperioden.' },
+      { q: 'Hvilke platforme kan jeg forbinde?', a: 'Blandt andet Meta, Google Ads, Shopify, Klaviyo, GA4, Pinterest, Snapchat, Reddit og Microsoft/Bing Ads. Vi tilføjer løbende flere kanaler.' },
+      { q: 'Hvad er Apex Radar?', a: 'Apex Radar er performance-rapportering, dybdegående analyse og løbende overvågning af dine Meta- og Google Ads-konti — med automatiske alerts når noget skiller sig ud.' },
+      { q: 'Hvad er Tracking Score?', a: 'En løbende audit der overvåger dine sporings-opsætninger og samler dem til én score. Hvis din tracking går ned, får du og dit team besked med det samme.' },
+      { q: 'Kan jeg dele dashboards med mit team?', a: 'Ja. Inviter kolleger, arbejd sammen og del rapporter via link eller eksportér til PDF — alt sammen inkluderet i abonnementet.' },
+    ];
+    const faqItems = faqs.map((f, i) => {
+      const open = this.state.openFaq === i;
+      return {
+        q: f.q, a: f.a, open,
+        toggle: () => this.setState(s => ({ openFaq: s.openFaq === i ? -1 : i })),
+        maxH: open ? '220px' : '0px',
+        opacity: open ? 1 : 0,
+        rotate: open ? 'rotate(45deg)' : 'rotate(0deg)',
+      };
+    });
+
+    const overlayStyle = {
+      position: 'fixed', inset: 0, zIndex: 100,
+      display: this.state.checkout ? 'flex' : 'none',
+      alignItems: 'center', justifyContent: 'center', padding: '16px',
+    };
+    const formStyle = { display: this.state.done ? 'none' : 'block' };
+    const successStyle = { display: this.state.done ? 'block' : 'none' };
+    const inlineFormStyle = { display: this.state.inlineDone ? 'none' : 'block' };
+    const inlineDoneStyle = { display: this.state.inlineDone ? 'block' : 'none' };
+
+    return {
+      navDots, metricCards, bars, integrations, steps, reports, services,
+      radarPoints, planFeatures, faqItems,
+      overlayStyle, formStyle, successStyle, inlineFormStyle, inlineDoneStyle,
+      submitInline: (e) => { e.preventDefault(); this.setState({ inlineDone: true }); },
+      reportModalStyle, ovCards, metricTabs, dailyTabs, dailyGrouped, paceDash, pacePct, paceDetails, pnlNet, pnlDb1, dbGauges, ecomProds,
+      rTitle: active && active.name, rLong: active && active.long, rMetrics: active && active.metrics,
+      gOverview: gStyle('overview'), gDaily: gStyle('daily'), gPace: gStyle('pace'), gPnl: gStyle('pnl'), gEcom: gStyle('ecom'),
+      closeReport: () => this.setState({ activeReport: null }),
+      openCheckout: () => this.setState({ checkout: true, done: false }),
+      closeCheckout: () => this.setState({ checkout: false }),
+      submitCheckout: (e) => { e.preventDefault(); this.setState({ done: true }); },
+    };
+  }
+}
+</script>
+<script>
+(function initHubSpotForms() {
+  var cfg = { region: 'eu1', portalId: '144135289', formId: '6b8920e2-dd5d-4cce-98e1-a60945380c3d' };
+  var checkoutDone = false;
+
+  function initInline() {
+    if (!window.hbspt) { setTimeout(initInline, 150); return; }
+    var el = document.getElementById('hs-inline-form');
+    if (el && !el.firstChild) hbspt.forms.create(Object.assign({}, cfg, { target: '#hs-inline-form' }));
+  }
+
+  function initCheckout() {
+    if (checkoutDone || !window.hbspt) return;
+    var el = document.getElementById('hs-checkout-form');
+    if (!el || !el.firstChild) {
+      checkoutDone = true;
+      hbspt.forms.create(Object.assign({}, cfg, { target: '#hs-checkout-form' }));
+    }
+  }
+
+  function setup() {
+    setTimeout(initInline, 300);
+    // Watch for checkout modal becoming visible (DCLogic toggles display via style attr)
+    new MutationObserver(function() {
+      var el = document.getElementById('hs-checkout-form');
+      if (el && el.offsetParent !== null) initCheckout();
+    }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['style'] });
+  }
+
+  document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', setup)
+    : setup();
+})();
+</script>
+</body>
+</html>

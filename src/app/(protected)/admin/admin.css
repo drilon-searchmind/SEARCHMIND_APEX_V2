@@ -984,3 +984,111 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+.apex-admin-badge--info {
+  background: var(--color-paper-3);
+  color: var(--color-accent);
+}
+
+.apex-admin-table-detail-row td {
+  background: var(--perf-canvas);
+  padding-top: 0;
+}
+
+.apex-admin-detail-grid {
+  display: grid;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0 var(--space-md);
+}
+
+@media (min-width: 768px) {
+  .apex-admin-detail-grid {
+    grid-template-columns: 1fr 1.4fr;
+  }
+}
+
+.apex-admin-detail__title {
+  margin: 0 0 var(--space-xs);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+}
+
+.apex-admin-dl {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+}
+
+.apex-admin-dl dt {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-transform: uppercase;
+}
+
+.apex-admin-dl dd {
+  margin: 0 0 var(--space-xs);
+  font-size: 0.78rem;
+}
+
+.apex-admin-dl--compact {
+  margin-top: var(--space-xs);
+}
+
+.apex-admin-channel-list {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.apex-admin-channel-card {
+  padding: var(--space-sm);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+  background: var(--perf-raised);
+}
+
+.apex-admin-channel-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.apex-admin-detail-actions {
+  display: grid;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-sm);
+}
+
+.apex-admin-notes-field {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.apex-admin-notes-field span {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.apex-admin-notes-field textarea {
+  width: 100%;
+  min-height: 4.5rem;
+  padding: var(--space-xs) var(--space-sm);
+  font: inherit;
+  font-size: 0.78rem;
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+  background: var(--perf-raised);
+  color: var(--color-ink);
+  resize: vertical;
+}
+
+.apex-admin-detail__notes {
+  grid-column: 1 / -1;
+}
+

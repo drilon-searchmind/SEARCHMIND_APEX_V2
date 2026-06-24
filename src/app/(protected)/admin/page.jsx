@@ -40,6 +40,22 @@ export default function AdminPage() {
                 </div>
             ),
         },
+        {
+            key: "onboarding-requests",
+            label: "Onboarding Requests",
+            content: (
+                <div className="apex-admin-tab">
+                    <h2 className="apex-admin-section__title">Onboarding Requests</h2>
+                    <p className="apex-admin-section__subtitle">
+                        Review HubSpot signups and channel verification data from the public Apex
+                        onboarding flow.
+                    </p>
+                    <Link href="/admin/onboarding-requests" className="apex-perf-btn apex-perf-btn--primary w-fit">
+                        Open onboarding requests
+                    </Link>
+                </div>
+            ),
+        },
     ];
 
     return (

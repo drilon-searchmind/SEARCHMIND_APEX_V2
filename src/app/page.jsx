@@ -1,7 +1,7 @@
 "use client";
 
-import AuthVerifyingScreen from "@/components/auth/AuthVerifyingScreen";
+import LandingPage from "@/components/landing/LandingPage";
 
 export default function Home() {
-	return <AuthVerifyingScreen />;
+	return <LandingPage />;
 }

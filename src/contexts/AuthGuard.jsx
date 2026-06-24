@@ -28,17 +28,29 @@ export default function AuthGuard({ children }) {
 		timers.current.push(id);
 	};
 
+	const isLanding = pathname === "/";
+	const isLogin = pathname === "/login";
+	const isPreview = pathname?.startsWith("/preview/");
+	const isOnboarding = pathname?.startsWith("/onboarding/");
+	const isPublicRoute = isLanding || isLogin || isPreview || isOnboarding;
+
 	useEffect(() => {
-		if (status === "unauthenticated" && pathname !== "/login") {
+		if (status === "unauthenticated" && !isPublicRoute) {
 			router.push("/login");
 		}
-		if (status === "authenticated" && (pathname === "/" || pathname === "/login")) {
+		if (status === "authenticated" && (isLanding || isLogin)) {
 			router.push("/home");
 		}
-	}, [status, router, pathname]);
+	}, [status, router, pathname, isLanding, isLogin, isPublicRoute]);
 
 	useEffect(() => {
 		clearTimers();
+
+		if ((isLanding || isPreview || isOnboarding) && status !== "authenticated") {
+			setShowVerify(false);
+			startedAt.current = null;
+			return undefined;
+		}
 
 		if (status === "loading") {
 			startedAt.current = Date.now();
@@ -70,13 +82,25 @@ export default function AuthGuard({ children }) {
 		}, wait + (isSuccess ? SUCCESS_HOLD_MS : 0) + EXIT_MS);
 
 		return clearTimers;
-	}, [status]);
+	}, [status, isLanding, isPreview, isOnboarding]);
+
+	if (isPreview || isOnboarding) {
+		return children;
+	}
+
+	if (isLanding && status !== "authenticated") {
+		return children;
+	}
+
+	if (isLanding && status === "authenticated") {
+		return null;
+	}
 
 	if (showVerify) {
 		return <AuthVerifyingScreen phase={verifyPhase} />;
 	}
 
-	if (status === "unauthenticated" && pathname === "/login") {
+	if (status === "unauthenticated" && isLogin) {
 		return children;
 	}
 

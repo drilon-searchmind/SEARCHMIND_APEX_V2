@@ -1,0 +1,29 @@
+@import "../../../tokens.css";
+
+.apex-preview {
+	min-height: 100vh;
+	font-family: var(--font-body);
+	color: var(--color-ink-2);
+	background: var(--color-paper-2);
+	-webkit-font-smoothing: antialiased;
+}
+
+.apex-preview *,
+.apex-preview *::before,
+.apex-preview *::after {
+	box-sizing: border-box;
+}
+
+.apex-preview__main {
+	width: 100%;
+	max-width: 100%;
+	padding: var(--space-lg);
+}
+
+.apex-preview--embed .apex-preview__main {
+	padding: var(--space-sm) var(--space-md) var(--space-md);
+}
+
+.apex-preview--embed .cobalt-perf {
+	width: 100%;
+}

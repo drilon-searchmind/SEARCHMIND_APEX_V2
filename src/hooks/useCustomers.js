@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useCustomersOverride } from '@/contexts/CustomersOverrideContext';
 
 export function useCustomers(refreshKey = 0) {
+    const override = useCustomersOverride();
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -107,8 +109,13 @@ export function useCustomers(refreshKey = 0) {
     };
 
     useEffect(() => {
+        if (override) return undefined;
         fetchCustomers();
-    }, [refreshKey, fetchCustomers]);
+    }, [refreshKey, fetchCustomers, override]);
+
+    if (override) {
+        return override;
+    }
 
     return {
         customers,

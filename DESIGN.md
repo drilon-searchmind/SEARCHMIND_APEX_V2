@@ -120,6 +120,7 @@ component CSS must reference tokens by name — never inline hex except in
 ## Implemented pages
 
 - Login · `src/app/(auth)/login/`
+- Public landing · `src/app/page.jsx` · `src/components/landing/`
 - Home · `src/app/(protected)/home/`
 
 ## Notes
