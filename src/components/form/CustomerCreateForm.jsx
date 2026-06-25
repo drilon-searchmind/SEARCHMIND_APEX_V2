@@ -281,7 +281,7 @@ export default function CustomerCreateForm({
                             name="danDomain.shopHost"
                             value={(form.CustomerSettings.danDomain && form.CustomerSettings.danDomain.shopHost) || ""}
                             onChange={handleChange}
-                            placeholder="e.g. shop99999.mywebshop.io"
+                            placeholder="e.g. shop99999.mywebshop.io (not webshop.dandomain.dk admin URL)"
                         />
                     </div>
                     <div>

@@ -383,7 +383,7 @@ export default function CustomerSettingsForm({
                         label="Shop host"
                         value={form.danDomain?.shopHost || ""}
                         onChange={onChange}
-                        placeholder="e.g. shop99999.mywebshop.io"
+                        placeholder="e.g. shop99999.mywebshop.io (not webshop.dandomain.dk admin URL)"
                     />
                     <FormField
                         id="danDomain.clientId"

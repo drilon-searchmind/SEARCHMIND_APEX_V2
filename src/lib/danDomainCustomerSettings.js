@@ -34,5 +34,19 @@ export function normalizeDanDomainShopHost(value) {
     if (!s) return "";
     s = s.replace(/^https?:\/\//i, "");
     s = s.split("/")[0].trim();
-    return s.replace(/\/+$/, "");
+    s = s.replace(/\/+$/, "");
+
+    // Admin panel URL, e.g. shop83576.webshop.dandomain.dk → shop83576.mywebshop.io
+    const dandomainAdmin = /^shop(\d+)\.webshop\.dandomain\.dk$/i.exec(s);
+    if (dandomainAdmin) {
+        return `shop${dandomainAdmin[1]}.mywebshop.io`;
+    }
+
+    // Common typo: shop83576.myshop.io → shop83576.mywebshop.io
+    const myshopTypo = /^shop(\d+)\.myshop\.io$/i.exec(s);
+    if (myshopTypo) {
+        return `shop${myshopTypo[1]}.mywebshop.io`;
+    }
+
+    return s;
 }
