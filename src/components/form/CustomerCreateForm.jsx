@@ -6,6 +6,7 @@ import FormButton from "@/components/form/FormButton";
 import { defaultSnapchatSettings } from "@/lib/snapchatCustomerSettings";
 import { defaultRedditSettings } from "@/lib/redditCustomerSettings";
 import { defaultDanDomainSettings } from "@/lib/danDomainCustomerSettings";
+import { defaultDanDomainOriginalSettings } from "@/lib/danDomainOriginalCustomerSettings";
 import {
     getDefaultCustomerCreateFormState,
     customerCreateFormCustomerSettingsKeys,
@@ -41,6 +42,21 @@ export default function CustomerCreateForm({
                     danDomain: {
                         ...defaultDanDomainSettings(),
                         ...prev.CustomerSettings.danDomain,
+                        [field]: type === "checkbox" ? checked : value,
+                    },
+                },
+            }));
+            return;
+        }
+        if (typeof name === "string" && name.startsWith("danDomainOriginal.")) {
+            const field = name.slice("danDomainOriginal.".length);
+            setForm((prev) => ({
+                ...prev,
+                CustomerSettings: {
+                    ...prev.CustomerSettings,
+                    danDomainOriginal: {
+                        ...defaultDanDomainOriginalSettings(),
+                        ...prev.CustomerSettings.danDomainOriginal,
                         [field]: type === "checkbox" ? checked : value,
                     },
                 },
@@ -165,6 +181,7 @@ export default function CustomerCreateForm({
                     <option value="WooCommerce">WooCommerce</option>
                     <option value="Magento">Magento</option>
                     <option value="DanDomain">DanDomain (HostedShop)</option>
+                    <option value="DanDomainOriginal">DanDomain Original (WEBAPI)</option>
                     <option value="Other">Other</option>
                 </select>
             </div>
@@ -297,6 +314,32 @@ export default function CustomerCreateForm({
                             value={(form.CustomerSettings.danDomain && form.CustomerSettings.danDomain.accessToken) || ""}
                             onChange={handleChange}
                             placeholder="HostedShop API access_token"
+                        />
+                    </div>
+                </>
+            )}
+
+            {form.businessCategory !== "b2b" && form.customerType === "DanDomainOriginal" && (
+                <>
+                    <div>
+                        <FormLabel htmlFor="danDomainOriginal.shopAdminUrl">Shop admin URL</FormLabel>
+                        <FormInputText
+                            id="danDomainOriginal.shopAdminUrl"
+                            name="danDomainOriginal.shopAdminUrl"
+                            value={(form.CustomerSettings.danDomainOriginal && form.CustomerSettings.danDomainOriginal.shopAdminUrl) || ""}
+                            onChange={handleChange}
+                            placeholder="e.g. https://ajengros.dk"
+                        />
+                    </div>
+                    <div>
+                        <FormLabel htmlFor="danDomainOriginal.apiKey">WEBAPI key</FormLabel>
+                        <FormInputText
+                            id="danDomainOriginal.apiKey"
+                            name="danDomainOriginal.apiKey"
+                            type="password"
+                            value={(form.CustomerSettings.danDomainOriginal && form.CustomerSettings.danDomainOriginal.apiKey) || ""}
+                            onChange={handleChange}
+                            placeholder="OrderService API key from DanDomain admin"
                         />
                     </div>
                 </>

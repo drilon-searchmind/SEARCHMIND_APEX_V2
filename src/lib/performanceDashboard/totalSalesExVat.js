@@ -37,7 +37,7 @@ export function computeTotalSalesExVat({
         return Math.max(0, net + shipping);
     }
 
-    if (type === "DanDomain") {
+    if (type === "DanDomain" || type === "DanDomainOriginal") {
         if (net > 0) return net + shipping;
         if (total > tax) return total - tax;
         return Math.max(0, gross - tax);

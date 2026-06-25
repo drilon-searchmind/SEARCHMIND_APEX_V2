@@ -21,6 +21,8 @@ import { fetchWooCommerceOrders } from './wooCommerceApi';
 import { fetchMagentoPerformanceDaily } from './magentoPerformanceDashboardApi';
 import { fetchDanDomainPerformanceDaily } from './danDomainApi';
 import { normalizeDanDomainSettings } from './danDomainCustomerSettings';
+import { fetchDanDomainOriginalPerformanceDaily } from './danDomainOriginalApi';
+import { normalizeDanDomainOriginalSettings } from './danDomainOriginalCustomerSettings';
 import { fetchFacebookAdsInsights } from './facebookApi';
 import { adCampaignFilterActive, normalizeCampaignNameKeywords } from './adCampaignFilterUtils';
 import { fetchGoogleAdsMetrics } from './googleAdsApi';
@@ -31,7 +33,7 @@ import { isAdSpendPlatformConfigured } from './customerServiceIntegrations';
 import { AD_SPEND_CHANNELS } from './mergeAdSpendDaily';
 
 /**
- * Fetches and merges revenue (Shopify/WooCommerce/Magento/DanDomain), Facebook, Google, and optional Pinterest, Snapchat, Microsoft, Reddit adspend for a customer.
+ * Fetches and merges revenue (Shopify/WooCommerce/Magento/DanDomain/DanDomainOriginal), Facebook, Google, and optional Pinterest, Snapchat, Microsoft, Reddit adspend for a customer.
  * @param {object} settings - Customer settings object containing all required credentials and customerType.
  * @param {string} startDate - Start date (YYYY-MM-DD)
  * @param {string} endDate - End date (YYYY-MM-DD)
@@ -300,6 +302,57 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 const fetchCogs = settings.fetchCogsFromStore === true;
 
                 shopifyDaily = danDomainData.map((row) => {
+                    const baseData = {
+                        period: row.period,
+                        gross_sales: (parseFloat(row.gross_sales) || 0) * conversionRate,
+                        discounts: (parseFloat(row.discounts) || 0) * conversionRate,
+                        returns: (parseFloat(row.returns) || 0) * conversionRate,
+                        net_sales: (parseFloat(row.net_sales) || 0) * conversionRate,
+                        shipping_charges: (parseFloat(row.shipping_charges) || 0) * conversionRate,
+                        duties: (parseFloat(row.duties) || 0) * conversionRate,
+                        additional_fees: (parseFloat(row.additional_fees) || 0) * conversionRate,
+                        taxes: (parseFloat(row.taxes) || 0) * conversionRate,
+                        total_sales: (parseFloat(row.total_sales) || 0) * conversionRate,
+                        custom_1: (parseFloat(row.custom_1) || 0) * conversionRate,
+                        orders: parseInt(row.orders) || 0,
+                    };
+                    if (fetchCogs && row.cost_of_goods_sold !== undefined) {
+                        baseData.cost_of_goods_sold =
+                            (parseFloat(row.cost_of_goods_sold) || 0) * conversionRate;
+                    }
+                    return baseData;
+                }).sort((a, b) => a.period.localeCompare(b.period));
+            }
+        } else if (customerType === 'DanDomainOriginal') {
+            const cfg = normalizeDanDomainOriginalSettings(settings);
+            const hasCreds = cfg.shopAdminUrl && cfg.apiKey;
+
+            if (hasCreds) {
+                console.log('::: FETCHING DANDOMAIN ORIGINAL / WEBAPI DATA :::');
+                console.log(
+                    'Customer:',
+                    settings.customerName || 'Unknown',
+                    '- Date range:',
+                    { startDate, endDate }
+                );
+
+                const danDomainOriginalData = await fetchDanDomainOriginalPerformanceDaily(
+                    settings,
+                    startDate,
+                    endDate
+                );
+
+                console.log(
+                    '::: DANDOMAIN ORIGINAL RESULT :::',
+                    danDomainOriginalData.length,
+                    'days with data'
+                );
+
+                const fromCode = settings?.customerStoreValutaCode || 'DKK';
+                const conversionRate = conversionRateToDkk(fromCode, currencyData);
+                const fetchCogs = settings.fetchCogsFromStore === true;
+
+                shopifyDaily = danDomainOriginalData.map((row) => {
                     const baseData = {
                         period: row.period,
                         gross_sales: (parseFloat(row.gross_sales) || 0) * conversionRate,

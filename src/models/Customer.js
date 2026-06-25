@@ -24,7 +24,7 @@ const CustomerSchema = new mongoose.Schema({
     },
     customerType: {
         type: String,
-        enum: ["Shopify", "WooCommerce", "Magento", "Other", "DanDomain"],
+        enum: ["Shopify", "WooCommerce", "Magento", "Other", "DanDomain", "DanDomainOriginal"],
         default: "Shopify"
     },
     /** Ecommerce (store revenue) vs B2B (GA4 as primary dashboard data source). */
@@ -237,6 +237,11 @@ const CustomerSchema = new mongoose.Schema({
             clientId: { type: String, default: "" },
             clientSecret: { type: String, default: "" },
             accessToken: { type: String, default: "" },
+        },
+        /** DanDomain legacy WEBAPI — shop admin URL + OrderService API key. */
+        danDomainOriginal: {
+            shopAdminUrl: { type: String, default: "" },
+            apiKey: { type: String, default: "" },
         },
         klaviyoPrivateApiKey: {
             type: String,

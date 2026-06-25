@@ -81,7 +81,9 @@ export async function GET(request, { params }) {
         const shopRef =
             settings.customerType === 'DanDomain'
                 ? settings.danDomain?.shopHost || 'N/A'
-                : settings.customerType === 'Magento'
+                : settings.customerType === 'DanDomainOriginal'
+                  ? settings.danDomainOriginal?.shopAdminUrl || 'N/A'
+                  : settings.customerType === 'Magento'
                   ? settings.magentoBaseUrl || 'N/A'
                   : settings.customerType === 'WooCommerce'
                     ? settings.wooCommerceApiUrl || 'N/A'

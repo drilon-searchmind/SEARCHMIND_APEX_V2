@@ -150,7 +150,9 @@ export default function CustomerSettingsForm({
                 ? { id: "store-platform", label: "Magento" }
                 : customerType === "DanDomain"
                   ? { id: "store-platform", label: "DanDomain (HostedShop)" }
-                  : null;
+                  : customerType === "DanDomainOriginal"
+                    ? { id: "store-platform", label: "DanDomain Original (WEBAPI)" }
+                    : null;
 
     const tocItems = [
         { id: "general", label: "General" },
@@ -408,6 +410,29 @@ export default function CustomerSettingsForm({
                         onChange={onChange}
                         type="password"
                         placeholder="Optional if client id + secret are set (OAuth)"
+                    />
+                </SettingsSection>
+            )}
+
+            {/* DanDomain Original (legacy WEBAPI) */}
+            {customerType === "DanDomainOriginal" && (
+                <SettingsSection title="DanDomain Original (WEBAPI)" icon={FiGlobe} sectionId="store-platform">
+                    <FormField
+                        id="danDomainOriginal.shopAdminUrl"
+                        name="danDomainOriginal.shopAdminUrl"
+                        label="Shop admin URL"
+                        value={form.danDomainOriginal?.shopAdminUrl || ""}
+                        onChange={onChange}
+                        placeholder="e.g. https://ajengros.dk"
+                    />
+                    <FormField
+                        id="danDomainOriginal.apiKey"
+                        name="danDomainOriginal.apiKey"
+                        label="WEBAPI key"
+                        value={form.danDomainOriginal?.apiKey || ""}
+                        onChange={onChange}
+                        type="password"
+                        placeholder="OrderService API key from DanDomain admin"
                     />
                 </SettingsSection>
             )}

@@ -15,6 +15,7 @@ import PropertyObjectives from './components/PropertyObjectives';
 import { defaultSnapchatSettings, normalizeSnapchatSettings } from '@/lib/snapchatCustomerSettings';
 import { defaultRedditSettings, normalizeRedditSettings } from '@/lib/redditCustomerSettings';
 import { defaultDanDomainSettings, normalizeDanDomainSettings } from '@/lib/danDomainCustomerSettings';
+import { defaultDanDomainOriginalSettings, normalizeDanDomainOriginalSettings } from '@/lib/danDomainOriginalCustomerSettings';
 import { pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
 import { prepareCustomerStaticExpensesForSave } from '@/lib/customerStaticExpensesUtils';
 import { normalizeGoogleAdsMarketMapping } from '@/lib/googleAdsMarketMapping';
@@ -64,6 +65,7 @@ export default function ConfigPage() {
         snapchat: defaultSnapchatSettings(),
         reddit: defaultRedditSettings(),
         danDomain: defaultDanDomainSettings(),
+        danDomainOriginal: defaultDanDomainOriginalSettings(),
         bingAdsCustomerId: "",
         bingAdsAccountId: "",
         googleSearchConsoleProperty: "",
@@ -106,6 +108,7 @@ export default function ConfigPage() {
                     snapchat: normalizeSnapchatSettings(data.CustomerSettings || {}),
                     reddit: normalizeRedditSettings(data.CustomerSettings || {}),
                     danDomain: normalizeDanDomainSettings(data.CustomerSettings || {}),
+                    danDomainOriginal: normalizeDanDomainOriginalSettings(data.CustomerSettings || {}),
                     googleAdsMarketMapping: normalizeGoogleAdsMarketMapping(
                         data.CustomerSettings?.googleAdsMarketMapping
                     ),
@@ -148,6 +151,16 @@ export default function ConfigPage() {
                 danDomain: {
                     ...defaultDanDomainSettings(),
                     ...prev.danDomain,
+                    [field]: type === 'checkbox' ? checked : value,
+                },
+            }));
+        } else if (typeof name === 'string' && name.startsWith('danDomainOriginal.')) {
+            const field = name.slice('danDomainOriginal.'.length);
+            setForm((prev) => ({
+                ...prev,
+                danDomainOriginal: {
+                    ...defaultDanDomainOriginalSettings(),
+                    ...prev.danDomainOriginal,
                     [field]: type === 'checkbox' ? checked : value,
                 },
             }));
@@ -245,6 +258,7 @@ export default function ConfigPage() {
                 snapchat,
                 reddit,
                 danDomain,
+                danDomainOriginal,
                 bingAdsCustomerId,
                 bingAdsAccountId,
                 googleSearchConsoleProperty,
@@ -307,6 +321,10 @@ export default function ConfigPage() {
                                 ...defaultDanDomainSettings(),
                                 ...danDomain,
                             },
+                            danDomainOriginal: {
+                                ...defaultDanDomainOriginalSettings(),
+                                ...danDomainOriginal,
+                            },
                             bingAdsCustomerId,
                             bingAdsAccountId,
                             googleAdsCountryFilter,
@@ -344,6 +362,7 @@ export default function ConfigPage() {
                 snapchat: normalizeSnapchatSettings(saved.CustomerSettings || {}),
                 reddit: normalizeRedditSettings(saved.CustomerSettings || {}),
                 danDomain: normalizeDanDomainSettings(saved.CustomerSettings || {}),
+                danDomainOriginal: normalizeDanDomainOriginalSettings(saved.CustomerSettings || {}),
                 googleAdsMarketMapping: normalizeGoogleAdsMarketMapping(
                     saved.CustomerSettings?.googleAdsMarketMapping
                 ),

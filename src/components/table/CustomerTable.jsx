@@ -37,6 +37,7 @@ function PlatformIcon({ type }) {
     if (type === "WooCommerce") return <SiWordpress className={iconClass} aria-hidden />;
     if (type === "Magento") return <SiMagento className={iconClass} aria-hidden />;
     if (type === "DanDomain") return <FiGlobe className={iconClass} aria-hidden />;
+    if (type === "DanDomainOriginal") return <FiGlobe className={iconClass} aria-hidden />;
     return <FiServer className={iconClass} aria-hidden />;
 }
 

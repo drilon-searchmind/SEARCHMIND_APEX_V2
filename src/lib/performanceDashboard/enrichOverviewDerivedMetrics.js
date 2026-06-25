@@ -68,6 +68,8 @@ function buildTotalSalesExVatCalc(metricsData, customerType, customerSettings = 
         popOverContent = `${salesLabel}\n= WooCommerce sales total (excl. VAT) for the period\n= ${fmtNum(exVat)}`;
     } else if (type === "DanDomain") {
         popOverContent = `${salesLabel}\n= HostedShop order totals (excl. VAT) for the period\n= ${fmtNum(exVat)}`;
+    } else if (type === "DanDomainOriginal") {
+        popOverContent = `${salesLabel}\n= DanDomain WEBAPI order totals (excl. VAT) for the period\n= ${fmtNum(exVat)}`;
     } else {
         popOverContent = `${salesLabel}\n= total_sales − ${vatLabel}\n= ${fmtNum(totalSales)} − ${fmtNum(tax)}\n= ${fmtNum(exVat)}`;
     }
@@ -193,7 +195,8 @@ function computeProductSales({
     if (
         customerType === "Magento" ||
         customerType === "WooCommerce" ||
-        customerType === "DanDomain"
+        customerType === "DanDomain" ||
+        customerType === "DanDomainOriginal"
     ) {
         return Math.max(fromComponents, Math.max(0, netSales));
     }

@@ -101,6 +101,7 @@ export default function GeneralSettingsForm({ form, onChange, saving, isExternal
                             <option value="WooCommerce">WooCommerce</option>
                             <option value="Magento">Magento</option>
                             <option value="DanDomain">DanDomain (HostedShop)</option>
+                            <option value="DanDomainOriginal">DanDomain Original (WEBAPI)</option>
                             <option value="Other">Other</option>
                         </select>
                     </div>

@@ -1,6 +1,7 @@
 import { defaultSnapchatSettings } from "@/lib/snapchatCustomerSettings";
 import { defaultRedditSettings } from "@/lib/redditCustomerSettings";
 import { defaultDanDomainSettings } from "@/lib/danDomainCustomerSettings";
+import { defaultDanDomainOriginalSettings } from "@/lib/danDomainOriginalCustomerSettings";
 
 /** Single source of truth for the create-customer form shape (admin + copy flow). */
 export function getDefaultCustomerCreateFormState() {
@@ -34,6 +35,7 @@ export function getDefaultCustomerCreateFormState() {
             magentoConsumerSecret: "",
             magentoAccessTokenSecret: "",
             danDomain: defaultDanDomainSettings(),
+            danDomainOriginal: defaultDanDomainOriginalSettings(),
             facebookAdAccountId: "",
             googleAdsCustomerId: "",
             pinterestAdAccountId: "",
@@ -63,7 +65,7 @@ function str(v) {
     return String(v);
 }
 
-const CUSTOMER_TYPES = new Set(["Shopify", "WooCommerce", "Magento", "DanDomain", "Other"]);
+const CUSTOMER_TYPES = new Set(["Shopify", "WooCommerce", "Magento", "DanDomain", "DanDomainOriginal", "Other"]);
 const BUSINESS_CATEGORIES = new Set(["ecommerce", "b2b"]);
 
 /**
@@ -80,6 +82,10 @@ export function buildCustomerCreateFormStateFromCustomer(customer) {
     const snap = typeof cs.snapchat === "object" && cs.snapchat !== null ? cs.snapchat : {};
     const red = typeof cs.reddit === "object" && cs.reddit !== null ? cs.reddit : {};
     const dan = typeof cs.danDomain === "object" && cs.danDomain !== null ? cs.danDomain : {};
+    const danOrig =
+        typeof cs.danDomainOriginal === "object" && cs.danDomainOriginal !== null
+            ? cs.danDomainOriginal
+            : {};
 
     const origName = str(customer.customerName).trim();
 
@@ -96,6 +102,11 @@ export function buildCustomerCreateFormStateFromCustomer(customer) {
     const danDomainMerged = { ...defaultDanDomainSettings() };
     for (const k of Object.keys(danDomainMerged)) {
         danDomainMerged[k] = str(dan[k]);
+    }
+
+    const danDomainOriginalMerged = { ...defaultDanDomainOriginalSettings() };
+    for (const k of Object.keys(danDomainOriginalMerged)) {
+        danDomainOriginalMerged[k] = str(danOrig[k]);
     }
 
     return {
@@ -127,6 +138,7 @@ export function buildCustomerCreateFormStateFromCustomer(customer) {
             snapchat: snapMerged,
             reddit: redditMerged,
             danDomain: danDomainMerged,
+            danDomainOriginal: danDomainOriginalMerged,
             customerClickupID: str(cs.customerClickupID),
             customerMetaIDExclude: str(cs.customerMetaIDExclude),
             changeCurrency: cs.changeCurrency !== false,
