@@ -11,6 +11,12 @@ import {
 import { getDemoPayload, isDemoCustomerId } from "@/lib/demoCustomer";
 import { numHash } from "@/lib/demoAdMetrics";
 import { computeBrandKeywordMetrics } from "@/lib/seoDashboardUtils";
+import {
+    filterGscQueryRows,
+    filterAndAggregateGscPagesFromQueryPage,
+    hasActiveKeywordGroupFilters,
+    queryMatchesKeywordGroupFilters,
+} from "@/lib/seoKeywordFilters";
 
 export { TOP3_ORGANIC_CTR };
 
@@ -340,30 +346,48 @@ export async function buildSeoInsightsBundle({
     gscDateQuery,
     supplemental,
     brandTerms,
+    filterConfig,
 }) {
     if (customerId && isDemoCustomerId(customerId)) {
         return buildDemoInsightsBundle();
     }
 
-    const economics = economicsFromSupplemental(gscKeywords, supplemental);
+    const groupFiltersActive = hasActiveKeywordGroupFilters(filterConfig);
+    const filteredKeywords = groupFiltersActive
+        ? filterGscQueryRows(gscKeywords, filterConfig)
+        : gscKeywords;
+    const filteredKeywordsPrev = groupFiltersActive
+        ? filterGscQueryRows(gscKeywordsPrev, filterConfig)
+        : gscKeywordsPrev;
+    const filteredQueryPage = groupFiltersActive
+        ? (gscQueryPage || []).filter((row) =>
+              queryMatchesKeywordGroupFilters(row.keys?.[0], filterConfig)
+          )
+        : gscQueryPage;
+    const filteredPages = groupFiltersActive
+        ? filterAndAggregateGscPagesFromQueryPage(gscQueryPage, filterConfig)
+        : gscPages;
+    const filteredPagesPrev = gscPagesPrev;
+
+    const economics = economicsFromSupplemental(filteredKeywords, supplemental);
     const volumeByKeyword = await fetchAhrefsVolumeByKeyword(siteUrl, endDate);
 
-    const volumePotential = buildVolumePotentialRows(gscKeywords, volumeByKeyword, economics);
+    const volumePotential = buildVolumePotentialRows(filteredKeywords, volumeByKeyword, economics);
 
     const keywordOverview = buildKeywordOverviewRows(
-        gscKeywords,
-        gscKeywordsPrev,
+        filteredKeywords,
+        filteredKeywordsPrev,
         volumeByKeyword,
         economics
     );
 
-    const topLandingPages = buildTopLandingPagesRows(gscPages, gscPagesPrev, economics);
+    const topLandingPages = buildTopLandingPagesRows(filteredPages, filteredPagesPrev, economics);
 
-    const cannibalization = buildCannibalizationRows(gscQueryPage);
+    const cannibalization = buildCannibalizationRows(filteredQueryPage);
 
     const brandClicksDaily = buildBrandClicksDaily(gscDateQuery, brandTerms);
 
-    const brandMetrics = computeBrandKeywordMetrics(gscKeywords, brandTerms);
+    const brandMetrics = computeBrandKeywordMetrics(filteredKeywords, brandTerms);
 
     return {
         volumePotential,

@@ -312,20 +312,186 @@
 
 .apex-seo-keywords {
   margin-top: var(--space-xl);
-  padding: var(--space-md) var(--space-lg);
+  margin-bottom: 0;
+  padding: 0;
   background: var(--perf-raised);
   border: var(--rule-hair) solid var(--color-rule);
   border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.apex-seo-keywords__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
 }
 
 @media (min-width: 768px) {
-  .apex-seo-keywords {
+  .apex-seo-keywords__toggle {
     padding: var(--space-lg) var(--space-xl);
   }
 }
 
+.apex-seo-keywords__toggle:hover {
+  background: var(--perf-canvas);
+}
+
+.apex-seo-keywords__toggle-icon {
+  flex-shrink: 0;
+  color: var(--color-muted);
+  transition: transform var(--dur-micro) var(--ease-out);
+}
+
+.apex-seo-keywords__toggle-icon.is-open {
+  transform: rotate(180deg);
+}
+
+.apex-seo-keywords__body {
+  padding: 0 var(--space-lg) var(--space-lg);
+}
+
+@media (min-width: 768px) {
+  .apex-seo-keywords__body {
+    padding: 0 var(--space-xl) var(--space-xl);
+  }
+}
+
 .apex-seo-keywords__head {
-  margin-bottom: var(--space-md);
+  margin-bottom: 0;
+}
+
+.apex-seo-keywords__enable-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-seo-keywords__enable-label {
+  font-size: var(--text-xs);
+  color: var(--color-ink-2);
+}
+
+.apex-seo-keywords__enable-label.is-off {
+  color: var(--color-muted);
+}
+
+.apex-seo-keywords__switch {
+  position: relative;
+  width: 2.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  background: var(--color-rule);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color var(--dur-micro) var(--ease-out);
+}
+
+.apex-seo-keywords__switch.is-on {
+  background: var(--perf-accent);
+}
+
+.apex-seo-keywords__switch::after {
+  content: "";
+  position: absolute;
+  top: 0.125rem;
+  left: 0.125rem;
+  width: 1rem;
+  height: 1rem;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform var(--dur-micro) var(--ease-out);
+}
+
+.apex-seo-keywords__switch.is-on::after {
+  transform: translateX(1rem);
+}
+
+.apex-seo-keywords__group.is-disabled {
+  opacity: 0.72;
+}
+
+.apex-seo-keywords__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: var(--space-2xs);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.apex-seo-keywords__status.is-active {
+  color: oklch(45% 0.12 145);
+}
+
+.apex-seo-keywords__status.is-inactive {
+  color: var(--color-muted);
+}
+
+.apex-seo-filter-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+  margin-top: var(--space-xs);
+  padding-bottom: var(--space-sm);
+}
+
+.apex-seo-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-accent-ink);
+  background: var(--perf-accent);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: 999px;
+}
+
+.apex-seo-filter-badge.is-brand {
+  background: oklch(95% 0.04 145);
+  color: oklch(35% 0.08 145);
+}
+
+.apex-seo-filter-badge.is-exact {
+  background: oklch(95% 0.04 250);
+  color: oklch(35% 0.08 250);
+}
+
+.apex-seo-filter-badge.is-partial {
+  background: oklch(96% 0.03 85);
+  color: oklch(38% 0.08 85);
+}
+
+.apex-seo-table-panel__filters {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .apex-seo-table-panel__head {
+    align-items: flex-start;
+  }
+
+  .apex-seo-table-panel__head-main {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 .apex-seo-keywords__title {

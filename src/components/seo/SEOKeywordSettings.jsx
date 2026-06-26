@@ -1,14 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { FiPlus, FiTrash2, FiEdit2, FiCheck, FiX } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiEdit2, FiCheck, FiX, FiChevronDown } from 'react-icons/fi';
 import { showToast } from '@/components/ui/ToastProvider';
 
 export default function SEOKeywordSettings({ customerId, onKeywordsUpdate }) {
     // Brand Keywords State
     const [brandKeywords, setBrandKeywords] = useState('');
     const [brandKeywordsSaved, setBrandKeywordsSaved] = useState('');
+    const [brandIsActive, setBrandIsActive] = useState(false);
     const [brandLoading, setBrandLoading] = useState(false);
+    const [expanded, setExpanded] = useState(false);
 
     // Exact Keyword Groups State
     const [exactGroups, setExactGroups] = useState([]);
@@ -36,10 +38,11 @@ export default function SEOKeywordSettings({ customerId, onKeywordsUpdate }) {
         try {
             const res = await fetch(`/api/seo-keywords/brand/${customerId}`);
             const data = await res.json();
-            if (data.success && data.data.keywords) {
-                const keywords = data.data.keywords.join(', ');
+            if (data.success && data.data) {
+                const keywords = Array.isArray(data.data.keywords) ? data.data.keywords.join(', ') : '';
                 setBrandKeywords(keywords);
                 setBrandKeywordsSaved(keywords);
+                setBrandIsActive(data.data.isActive === true);
             }
         } catch (error) {
             console.error('Error fetching brand keywords:', error);
@@ -90,6 +93,7 @@ export default function SEOKeywordSettings({ customerId, onKeywordsUpdate }) {
             if (data.success) {
                 setBrandKeywords('');
                 setBrandKeywordsSaved('');
+                setBrandIsActive(false);
                 showToast({ message: 'Brand keywords deleted successfully!', type: 'success', position: 'top-center' });
                 if (onKeywordsUpdate) onKeywordsUpdate();
             }
@@ -101,6 +105,85 @@ export default function SEOKeywordSettings({ customerId, onKeywordsUpdate }) {
             setBrandLoading(false);
         }
     };
+
+    const toggleBrandActive = async () => {
+        if (!brandKeywordsSaved) return;
+        setBrandLoading(true);
+        try {
+            const res = await fetch(`/api/seo-keywords/brand/${customerId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isActive: !brandIsActive }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setBrandIsActive(data.data.isActive === true);
+                showToast({
+                    message: data.data.isActive ? 'Brand filter enabled' : 'Brand filter disabled',
+                    type: 'success',
+                    position: 'top-center',
+                });
+                if (onKeywordsUpdate) onKeywordsUpdate();
+            }
+        } catch (error) {
+            console.error('Error toggling brand keywords:', error);
+            showToast({ message: 'Error updating brand filter', type: 'error', position: 'top-center' });
+        } finally {
+            setBrandLoading(false);
+        }
+    };
+
+    const toggleExactGroupActive = async (groupId, currentActive) => {
+        setExactLoading(true);
+        try {
+            const res = await fetch(`/api/seo-keywords/exact/${customerId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ groupId, isActive: !currentActive }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setExactGroups(exactGroups.map((g) => (g._id === groupId ? data.data : g)));
+                if (onKeywordsUpdate) onKeywordsUpdate();
+            }
+        } catch (error) {
+            console.error('Error toggling exact group:', error);
+        } finally {
+            setExactLoading(false);
+        }
+    };
+
+    const togglePartialGroupActive = async (groupId, currentActive) => {
+        setPartialLoading(true);
+        try {
+            const res = await fetch(`/api/seo-keywords/partial/${customerId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ groupId, isActive: !currentActive }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setPartialGroups(partialGroups.map((g) => (g._id === groupId ? data.data : g)));
+                if (onKeywordsUpdate) onKeywordsUpdate();
+            }
+        } catch (error) {
+            console.error('Error toggling partial group:', error);
+        } finally {
+            setPartialLoading(false);
+        }
+    };
+
+    const renderEnableSwitch = (enabled, onToggle, disabled = false) => (
+        <button
+            type="button"
+            className={`apex-seo-keywords__switch${enabled ? ' is-on' : ''}`}
+            onClick={onToggle}
+            disabled={disabled}
+            role="switch"
+            aria-checked={enabled}
+            aria-label={enabled ? 'Disable filter' : 'Enable filter'}
+        />
+    );
 
     // Exact Keyword Groups Functions
     const fetchExactGroups = async () => {
@@ -305,11 +388,26 @@ export default function SEOKeywordSettings({ customerId, onKeywordsUpdate }) {
 
     return (
         <section className="apex-seo-keywords">
-            <div className="apex-seo-keywords__head">
-                <h3 className="apex-seo-keywords__title">SEO Keyword Settings</h3>
-                <p className="apex-seo-keywords__subtitle">Configure brand and keyword group filters for SEO reporting</p>
-            </div>
+            <button
+                type="button"
+                className="apex-seo-keywords__toggle"
+                onClick={() => setExpanded((value) => !value)}
+                aria-expanded={expanded}
+            >
+                <div className="apex-seo-keywords__head">
+                    <h3 className="apex-seo-keywords__title">SEO Keyword Settings</h3>
+                    <p className="apex-seo-keywords__subtitle">
+                        Create keyword filters here — enable each one before it affects the dashboard.
+                    </p>
+                </div>
+                <FiChevronDown
+                    className={`apex-seo-keywords__toggle-icon${expanded ? ' is-open' : ''}`}
+                    aria-hidden
+                />
+            </button>
 
+            {expanded ? (
+            <div className="apex-seo-keywords__body">
             <div className="apex-seo-keywords__grid">
                 {/* Brand Keywords Section */}
                 <div className="apex-seo-keywords__card">
@@ -348,6 +446,15 @@ export default function SEOKeywordSettings({ customerId, onKeywordsUpdate }) {
                                 </button>
                             ) : null}
                         </div>
+
+                        {brandKeywordsSaved ? (
+                            <div className="apex-seo-keywords__enable-row">
+                                <span className={`apex-seo-keywords__enable-label${brandIsActive ? '' : ' is-off'}`}>
+                                    {brandIsActive ? 'Filter enabled' : 'Filter disabled — enable to apply'}
+                                </span>
+                                {renderEnableSwitch(brandIsActive, toggleBrandActive, brandLoading)}
+                            </div>
+                        ) : null}
                     </div>
                 </div>
 
@@ -390,7 +497,10 @@ export default function SEOKeywordSettings({ customerId, onKeywordsUpdate }) {
                             <p className="apex-seo-empty">No exact keyword groups yet</p>
                         ) : (
                             exactGroups.map((group) => (
-                                <div key={group._id} className="apex-seo-keywords__group">
+                                <div
+                                    key={group._id}
+                                    className={`apex-seo-keywords__group${group.isActive ? '' : ' is-disabled'}`}
+                                >
                                     {editingExactGroup === group._id ? (
                                         <div className="space-y-2">
                                             <input
@@ -430,8 +540,18 @@ export default function SEOKeywordSettings({ customerId, onKeywordsUpdate }) {
                                     ) : (
                                         <>
                                             <div className="flex items-start justify-between gap-2 mb-2">
-                                                <h5 className="apex-seo-keywords__group-name">{group.name}</h5>
-                                                <div className="flex gap-1">
+                                                <div>
+                                                    <h5 className="apex-seo-keywords__group-name">{group.name}</h5>
+                                                    <span className={`apex-seo-keywords__status${group.isActive ? ' is-active' : ' is-inactive'}`}>
+                                                        {group.isActive ? 'Enabled' : 'Disabled'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    {renderEnableSwitch(
+                                                        group.isActive === true,
+                                                        () => toggleExactGroupActive(group._id, group.isActive === true),
+                                                        exactLoading
+                                                    )}
                                                     <button
                                                         type="button"
                                                         onClick={() => setEditingExactGroup(group._id)}
@@ -505,7 +625,10 @@ export default function SEOKeywordSettings({ customerId, onKeywordsUpdate }) {
                             <p className="apex-seo-empty">No partial keyword groups yet</p>
                         ) : (
                             partialGroups.map((group) => (
-                                <div key={group._id} className="apex-seo-keywords__group">
+                                <div
+                                    key={group._id}
+                                    className={`apex-seo-keywords__group${group.isActive ? '' : ' is-disabled'}`}
+                                >
                                     {editingPartialGroup === group._id ? (
                                         <div className="space-y-2">
                                             <input
@@ -545,8 +668,18 @@ export default function SEOKeywordSettings({ customerId, onKeywordsUpdate }) {
                                     ) : (
                                         <>
                                             <div className="flex items-start justify-between gap-2 mb-2">
-                                                <h5 className="apex-seo-keywords__group-name">{group.name}</h5>
-                                                <div className="flex gap-1">
+                                                <div>
+                                                    <h5 className="apex-seo-keywords__group-name">{group.name}</h5>
+                                                    <span className={`apex-seo-keywords__status${group.isActive ? ' is-active' : ' is-inactive'}`}>
+                                                        {group.isActive ? 'Enabled' : 'Disabled'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    {renderEnableSwitch(
+                                                        group.isActive === true,
+                                                        () => togglePartialGroupActive(group._id, group.isActive === true),
+                                                        partialLoading
+                                                    )}
                                                     <button
                                                         type="button"
                                                         onClick={() => setEditingPartialGroup(group._id)}
@@ -581,6 +714,8 @@ export default function SEOKeywordSettings({ customerId, onKeywordsUpdate }) {
                     </div>
                 </div>
             </div>
+            </div>
+            ) : null}
         </section>
     );
 }

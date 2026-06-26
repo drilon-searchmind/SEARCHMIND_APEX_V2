@@ -27,7 +27,7 @@ const SEOPartialKeywordGroupSchema = new mongoose.Schema({
     },
     isActive: { 
         type: Boolean, 
-        default: true 
+        default: false 
     }
 });
 

@@ -5,6 +5,7 @@ import CobaltLoader from "@/components/ui/CobaltLoader";
 import GraphCard from "@/components/dashboard/GraphCard";
 import { formatComparisonPeriodDates, COMPARISON_METHOD } from "@/lib/dateRangeComparison";
 import SeoInsightsTable from "./SeoInsightsTable";
+import SeoAppliedFilterBadges from "@/components/seo/SeoAppliedFilterBadges";
 
 const VOLUME_COLUMNS = [
     { key: "keyword", label: "Keyword", align: "left" },
@@ -93,6 +94,7 @@ export default function SeoInsightsTab({
     endDate,
     appliedCompareRange,
     comparisonMethod,
+    keywordSettingsVersion = 0,
 }) {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -160,6 +162,7 @@ export default function SeoInsightsTab({
         appliedCompareRange?.startDate,
         appliedCompareRange?.endDate,
         comparisonMethod,
+        keywordSettingsVersion,
     ]);
 
     const brandChart = useMemo(() => {
@@ -222,9 +225,14 @@ export default function SeoInsightsTab({
                 columns={VOLUME_COLUMNS}
                 rows={data.volumePotential || []}
                 pageSize={10}
+                filterSectionId="volume-potential"
+                appliedFilters={data.appliedFilters || []}
             />
 
             <div className="apex-seo-chart-block mb-6">
+                <div className="mb-3">
+                    <SeoAppliedFilterBadges sectionId="brand-chart" appliedFilters={data.appliedFilters || []} />
+                </div>
                 <GraphCard
                     variant="cobalt"
                     title="Branded vs non-branded clicks"
@@ -240,6 +248,8 @@ export default function SeoInsightsTab({
                 columns={LANDING_COLUMNS}
                 rows={data.topLandingPages || []}
                 pageSize={10}
+                filterSectionId="top-landing-pages"
+                appliedFilters={data.appliedFilters || []}
             />
 
             <SeoInsightsTable
@@ -247,6 +257,8 @@ export default function SeoInsightsTab({
                 columns={KEYWORD_COLUMNS}
                 rows={data.keywordOverview || []}
                 pageSize={10}
+                filterSectionId="keyword-overview"
+                appliedFilters={data.appliedFilters || []}
             />
 
             <SeoInsightsTable
@@ -257,6 +269,8 @@ export default function SeoInsightsTab({
                 pageSize={10}
                 expandable
                 expandField="urls"
+                filterSectionId="cannibalization"
+                appliedFilters={data.appliedFilters || []}
             />
         </div>
     );

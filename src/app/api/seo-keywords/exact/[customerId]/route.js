@@ -52,7 +52,8 @@ export async function POST(request, { params }) {
         const group = await SEOExactKeywordGroup.create({
             name,
             keywords: keywords.map(k => k.toLowerCase().trim()).filter(k => k),
-            customer: customerId
+            customer: customerId,
+            isActive: false,
         });
 
         return NextResponse.json({ success: true, data: group });

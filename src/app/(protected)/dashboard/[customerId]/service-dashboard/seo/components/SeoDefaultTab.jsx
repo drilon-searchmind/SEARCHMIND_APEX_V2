@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo, useCallback } from "react";
 import MetricCard from "@/components/dashboard/MetricCard";
 import GraphCard from "@/components/dashboard/GraphCard";
 import CobaltLoader from "@/components/ui/CobaltLoader";
-import SEOKeywordSettings from "@/components/seo/SEOKeywordSettings";
+import SeoAppliedFilterBadges from "@/components/seo/SeoAppliedFilterBadges";
 import {
     formatComparisonPeriodDates,
     resolveDailyComparisonDate,
@@ -61,6 +61,7 @@ export default function SeoDefaultTab({
     comparisonMethod,
     comparisonLabel,
     onLoadingChange,
+    keywordSettingsVersion = 0,
 }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -71,6 +72,7 @@ export default function SeoDefaultTab({
     const [supplementalPrev, setSupplementalPrev] = useState(null);
     const [selectedMetrics, setSelectedMetrics] = useState(["clicks"]);
     const [brandKeywords, setBrandKeywords] = useState([]);
+    const [appliedFilters, setAppliedFilters] = useState([]);
 
     useEffect(() => {
         onLoadingChange?.(loading);
@@ -85,7 +87,11 @@ export default function SeoDefaultTab({
         try {
             const brandRes = await fetch(`/api/seo-keywords/brand/${customerId}`);
             const brandData = await brandRes.json();
-            setBrandKeywords(brandData.success && brandData.data?.keywords ? brandData.data.keywords : []);
+            setBrandKeywords(
+                brandData.success && brandData.data?.isActive && brandData.data?.keywords
+                    ? brandData.data.keywords
+                    : []
+            );
         } catch {
             setBrandKeywords([]);
         }
@@ -93,7 +99,7 @@ export default function SeoDefaultTab({
 
     useEffect(() => {
         if (active) fetchBrandKeywords();
-    }, [active, fetchBrandKeywords]);
+    }, [active, fetchBrandKeywords, keywordSettingsVersion]);
 
     const fetchSeoMetrics = useCallback(
         async (startDate, endDate) => {
@@ -133,6 +139,7 @@ export default function SeoDefaultTab({
                 setMetrics(current.metrics?.rows || []);
                 setKeywords(current.keywords?.rows || []);
                 setSupplemental(current.supplemental || null);
+                setAppliedFilters(current.appliedFilters || []);
 
                 if (!compDates.skip && compDates.startDate && compDates.endDate) {
                     const prev = await fetchSeoMetrics(compDates.startDate, compDates.endDate);
@@ -168,6 +175,7 @@ export default function SeoDefaultTab({
         appliedCompareRange,
         comparisonMethod,
         fetchSeoMetrics,
+        keywordSettingsVersion,
     ]);
 
     const summary = useMemo(
@@ -350,7 +358,10 @@ export default function SeoDefaultTab({
     return (
         <>
             <div className="apex-seo-section">
-                <h3 className="apex-seo-section__label">Core metrics</h3>
+                <div className="flex flex-col gap-1">
+                    <h3 className="apex-seo-section__label">Core metrics</h3>
+                    <SeoAppliedFilterBadges sectionId="default-kpis" appliedFilters={appliedFilters} />
+                </div>
                 <div className="apex-seo-kpi-grid apex-seo-kpi-grid--4">
                     {CHART_TOGGLE_ROW1.map((opt) => buildMetricCard(opt, true))}
                 </div>
@@ -369,6 +380,9 @@ export default function SeoDefaultTab({
             </div>
 
             <div className="apex-seo-chart-block">
+                <div className="mb-3">
+                    <SeoAppliedFilterBadges sectionId="default-chart" appliedFilters={appliedFilters} />
+                </div>
                 <GraphCard
                     variant="cobalt"
                     title="Performance over time"
@@ -381,8 +395,6 @@ export default function SeoDefaultTab({
                     Hover for actual numbers. Click KPI cards above to show or hide metrics (daily series only).
                 </p>
             </div>
-
-            <SEOKeywordSettings customerId={customerId} onKeywordsUpdate={fetchBrandKeywords} />
         </>
     );
 }

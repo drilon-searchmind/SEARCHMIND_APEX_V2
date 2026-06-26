@@ -26,7 +26,7 @@ export async function GET(request, { params }) {
 
         return NextResponse.json({ 
             success: true, 
-            data: brandKeywords || { keywords: [] } 
+            data: brandKeywords || { keywords: [], isActive: false } 
         });
     } catch (error) {
         console.error('Error fetching brand keywords:', error);
@@ -46,20 +46,23 @@ export async function POST(request, { params }) {
         const resolvedParams = await params;
         const { customerId } = resolvedParams;
         const body = await request.json();
-        const { keywords } = body;
+        const { keywords, isActive } = body;
 
         if (!Array.isArray(keywords)) {
             return NextResponse.json({ error: 'Keywords must be an array' }, { status: 400 });
         }
 
+        const update = {
+            keywords: keywords.map(k => k.toLowerCase().trim()).filter(k => k),
+            updatedAt: Date.now(),
+        };
+        if (isActive !== undefined) update.isActive = Boolean(isActive);
+
         // Upsert (update or create)
         const brandKeywords = await SEOBrandKeyword.findOneAndUpdate(
             { customer: customerId },
-            { 
-                keywords: keywords.map(k => k.toLowerCase().trim()).filter(k => k),
-                updatedAt: Date.now() 
-            },
-            { upsert: true, new: true, runValidators: true }
+            update,
+            { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
         );
 
         return NextResponse.json({ success: true, data: brandKeywords });
@@ -86,6 +89,41 @@ export async function DELETE(request, { params }) {
         return NextResponse.json({ success: true, message: 'Brand keywords deleted' });
     } catch (error) {
         console.error('Error deleting brand keywords:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+// PATCH - Toggle brand keyword filter without changing keyword list
+export async function PATCH(request, { params }) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        await connectToDatabase();
+        const resolvedParams = await params;
+        const { customerId } = resolvedParams;
+        const body = await request.json();
+        const { isActive } = body;
+
+        if (isActive === undefined) {
+            return NextResponse.json({ error: 'isActive is required' }, { status: 400 });
+        }
+
+        const brandKeywords = await SEOBrandKeyword.findOneAndUpdate(
+            { customer: customerId },
+            { isActive: Boolean(isActive), updatedAt: Date.now() },
+            { new: true, runValidators: true }
+        );
+
+        if (!brandKeywords) {
+            return NextResponse.json({ error: 'Brand keywords not found — save keywords first' }, { status: 404 });
+        }
+
+        return NextResponse.json({ success: true, data: brandKeywords });
+    } catch (error) {
+        console.error('Error toggling brand keywords:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { FiChevronDown, FiChevronLeft, FiChevronRight, FiChevronUp } from "react-icons/fi";
+import SeoAppliedFilterBadges from "@/components/seo/SeoAppliedFilterBadges";
 
 const fmtNum = (n, digits = 0) =>
     typeof n === "number" && !Number.isNaN(n)
@@ -139,6 +140,8 @@ export default function SeoInsightsTable({
     pageSize = 10,
     expandable = false,
     expandField = "urls",
+    filterSectionId,
+    appliedFilters = [],
 }) {
     const [page, setPage] = useState(1);
     const [sortKey, setSortKey] = useState(columns.find((c) => c.align !== "left")?.key || columns[0]?.key);
@@ -176,8 +179,18 @@ export default function SeoInsightsTable({
     return (
         <section className="apex-seo-table-panel">
             <div className="apex-seo-table-panel__head">
-                <h3 className="apex-seo-table-panel__title">{title}</h3>
-                {subtitle ? <p className="apex-seo-table-panel__subtitle">{subtitle}</p> : null}
+                <div className="apex-seo-table-panel__head-main">
+                    <h3 className="apex-seo-table-panel__title">{title}</h3>
+                    {subtitle ? <p className="apex-seo-table-panel__subtitle">{subtitle}</p> : null}
+                    {filterSectionId ? (
+                        <div className="apex-seo-table-panel__filters">
+                            <SeoAppliedFilterBadges
+                                sectionId={filterSectionId}
+                                appliedFilters={appliedFilters}
+                            />
+                        </div>
+                    ) : null}
+                </div>
             </div>
 
             <div className="apex-seo-table-wrap">

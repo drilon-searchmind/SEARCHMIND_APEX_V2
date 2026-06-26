@@ -20,7 +20,11 @@ const SEOBrandKeywordSchema = new mongoose.Schema({
     updatedAt: { 
         type: Date, 
         default: Date.now 
-    }
+    },
+    isActive: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 SEOBrandKeywordSchema.pre('save', function(next) {

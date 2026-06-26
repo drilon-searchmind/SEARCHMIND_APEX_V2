@@ -3,23 +3,12 @@ import { getSearchConsoleClient } from "@/lib/searchConsoleClient";
 import { isDemoCustomerId } from "@/lib/demoCustomer";
 import { fetchSeoDashboardSupplemental } from "@/lib/seoDashboardBundle";
 import { buildSeoInsightsBundle } from "@/lib/seoInsightsBundle";
-import dbConnect from "@root/lib/mongodb";
-import SEOBrandKeyword from "@/models/SEOBrandKeyword";
+import { loadSeoKeywordFilterConfigForCustomer } from "@/lib/seoKeywordSettingsLoader";
+import { getEnabledBrandTerms } from "@/lib/seoKeywordFilters";
 
 async function gscQuery(searchconsole, siteUrl, body) {
     const { data } = await searchconsole.searchanalytics.query({ siteUrl, requestBody: body });
     return data?.rows || [];
-}
-
-async function loadBrandTerms(customerId) {
-    if (!customerId) return [];
-    try {
-        await dbConnect();
-        const doc = await SEOBrandKeyword.findOne({ customer: customerId }).lean();
-        return Array.isArray(doc?.keywords) ? doc.keywords : [];
-    } catch {
-        return [];
-    }
 }
 
 export async function POST(req) {
@@ -38,7 +27,8 @@ export async function POST(req) {
             return NextResponse.json({ error: "Missing startDate or endDate" }, { status: 400 });
         }
 
-        const brandTerms = await loadBrandTerms(customerId);
+        const { config, appliedFilters } = await loadSeoKeywordFilterConfigForCustomer(customerId);
+        const brandTerms = getEnabledBrandTerms(config);
         const hasCompare = compareStartDate && compareEndDate;
 
         if (customerId && isDemoCustomerId(customerId)) {
@@ -48,8 +38,9 @@ export async function POST(req) {
                 startDate,
                 endDate,
                 brandTerms,
+                filterConfig: config,
             });
-            return NextResponse.json(data);
+            return NextResponse.json({ ...data, appliedFilters });
         }
 
         if (!siteUrl) {
@@ -134,9 +125,10 @@ export async function POST(req) {
             gscDateQuery,
             supplemental,
             brandTerms,
+            filterConfig: config,
         });
 
-        return NextResponse.json(data);
+        return NextResponse.json({ ...data, appliedFilters });
     } catch (error) {
         const message = error?.message || "Internal server error";
         return NextResponse.json({ error: message }, { status: 500 });

@@ -6,6 +6,13 @@ import {
     buildDemoSeoSupplemental,
     fetchSeoDashboardSupplemental,
 } from '@/lib/seoDashboardBundle';
+import { loadSeoKeywordFilterConfigForCustomer } from '@/lib/seoKeywordSettingsLoader';
+import {
+    filterGscQueryRows,
+    aggregateGscQueryRowsToDaily,
+    hasActiveKeywordGroupFilters,
+    queryMatchesKeywordGroupFilters,
+} from '@/lib/seoKeywordFilters';
 
 function gscClicksFromRows(rows) {
     return (rows || []).reduce((s, r) => s + (r.clicks || 0), 0);
@@ -28,6 +35,7 @@ function buildDemoSeoMetricsForRange(startDate, endDate) {
         keywords: template.keywords || { rows: [] },
         urls: template.urls || { rows: [] },
         supplemental: buildDemoSeoSupplemental(startDate, endDate),
+        appliedFilters: [],
     };
 }
 
@@ -42,6 +50,9 @@ export async function POST(req) {
             return NextResponse.json({ error: 'Missing siteUrl, startDate or endDate' }, { status: 400 });
         }
         const searchconsole = await getSearchConsoleClient();
+        const { config, appliedFilters } = await loadSeoKeywordFilterConfigForCustomer(customerId);
+        const groupFiltersActive = hasActiveKeywordGroupFilters(config);
+
         const query = {
             siteUrl,
             requestBody: {
@@ -51,7 +62,6 @@ export async function POST(req) {
                 rowLimit: 1000,
             },
         };
-        const { data } = await searchconsole.searchanalytics.query(query);
         const queryKeywords = {
             siteUrl,
             requestBody: {
@@ -62,7 +72,6 @@ export async function POST(req) {
                 orderBy: [{ field: 'clicks', desc: true }],
             },
         };
-        const { data: keywordData } = await searchconsole.searchanalytics.query(queryKeywords);
         const queryUrls = {
             siteUrl,
             requestBody: {
@@ -73,9 +82,45 @@ export async function POST(req) {
                 orderBy: [{ field: 'clicks', desc: true }],
             },
         };
-        const { data: urlData } = await searchconsole.searchanalytics.query(queryUrls);
 
-        const gscClicks = gscClicksFromRows(data?.rows);
+        const fetches = [
+            searchconsole.searchanalytics.query(query),
+            searchconsole.searchanalytics.query(queryKeywords),
+            searchconsole.searchanalytics.query(queryUrls),
+        ];
+
+        if (groupFiltersActive) {
+            fetches.push(
+                searchconsole.searchanalytics.query({
+                    siteUrl,
+                    requestBody: {
+                        startDate,
+                        endDate,
+                        dimensions: ['date', 'query'],
+                        rowLimit: 25000,
+                    },
+                })
+            );
+        }
+
+        const results = await Promise.all(fetches);
+        const { data } = results[0];
+        const { data: keywordData } = results[1];
+        const { data: urlData } = results[2];
+        const dateQueryData = groupFiltersActive ? results[3]?.data : null;
+
+        let metricsRows = data?.rows || [];
+        let keywordRows = keywordData?.rows || [];
+
+        if (groupFiltersActive) {
+            keywordRows = filterGscQueryRows(keywordRows, config);
+            const dateQueryFiltered = (dateQueryData?.rows || []).filter((row) =>
+                queryMatchesKeywordGroupFilters(row.keys?.[1], config)
+            );
+            metricsRows = aggregateGscQueryRowsToDaily(dateQueryFiltered);
+        }
+
+        const gscClicks = gscClicksFromRows(metricsRows);
         const supplemental = await fetchSeoDashboardSupplemental({
             customerId,
             siteUrl,
@@ -85,10 +130,11 @@ export async function POST(req) {
         });
 
         return NextResponse.json({
-            metrics: data,
-            keywords: keywordData,
+            metrics: { rows: metricsRows },
+            keywords: { rows: keywordRows },
             urls: urlData,
             supplemental,
+            appliedFilters,
         });
     } catch (error) {
         let errorDetails = { message: error.message };

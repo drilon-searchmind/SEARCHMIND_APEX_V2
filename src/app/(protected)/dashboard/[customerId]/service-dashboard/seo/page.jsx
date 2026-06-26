@@ -9,6 +9,7 @@ import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import SeoDefaultTab from "./components/SeoDefaultTab";
 import SeoInsightsTab from "./components/SeoInsightsTab";
+import SEOKeywordSettings from "@/components/seo/SEOKeywordSettings";
 import "./seo-dashboard.css";
 
 const TABS = [
@@ -35,6 +36,7 @@ export default function SEODashboardPage() {
     const [activeTab, setActiveTabState] = useState(() => normalizeTab(tabFromUrl));
     const [siteUrl, setSiteUrl] = useState("");
     const [defaultLoading, setDefaultLoading] = useState(false);
+    const [keywordSettingsVersion, setKeywordSettingsVersion] = useState(0);
 
     const {
         setTempDateRange: setTempRange,
@@ -148,6 +150,7 @@ export default function SEODashboardPage() {
                         comparisonMethod={comparisonMethod}
                         comparisonLabel={comparisonLabel}
                         onLoadingChange={handleDefaultLoadingChange}
+                        keywordSettingsVersion={keywordSettingsVersion}
                     />
                 )}
 
@@ -159,8 +162,14 @@ export default function SEODashboardPage() {
                         endDate={appliedRange.endDate}
                         appliedCompareRange={appliedCompareRange}
                         comparisonMethod={comparisonMethod}
+                        keywordSettingsVersion={keywordSettingsVersion}
                     />
                 )}
+
+                <SEOKeywordSettings
+                    customerId={customerId}
+                    onKeywordsUpdate={() => setKeywordSettingsVersion((value) => value + 1)}
+                />
             </div>
         </div>
     );
