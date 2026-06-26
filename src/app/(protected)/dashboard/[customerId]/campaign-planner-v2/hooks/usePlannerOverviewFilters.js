@@ -2,16 +2,16 @@
 
 import { useCallback, useMemo, useState } from "react";
 
-/** Default filter window: first through last day of the current month (local calendar). */
+/** Default filter window: full calendar year (local). */
+export function getFullYearDateRange(year = new Date().getFullYear()) {
+  return {
+    startDate: `${year}-01-01`,
+    endDate: `${year}-12-31`,
+  };
+}
+
 function defaultDateRange() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const pad = (n) => String(n).padStart(2, "0");
-  const startDate = `${y}-${pad(m + 1)}-01`;
-  const lastDay = new Date(y, m + 1, 0).getDate();
-  const endDate = `${y}-${pad(m + 1)}-${pad(lastDay)}`;
-  return { startDate, endDate };
+  return getFullYearDateRange();
 }
 
 export function getDefaultOverviewFilters() {
@@ -26,7 +26,7 @@ export function getDefaultOverviewFilters() {
   };
 }
 
-function parentOverlapsDateRange(parent, rangeStartStr, rangeEndStr) {
+export function parentOverlapsDateRange(parent, rangeStartStr, rangeEndStr) {
   const campaignStart = parent.startDate ? new Date(parent.startDate) : null;
   if (!campaignStart) return true;
   const rangeStart = new Date(rangeStartStr);
@@ -39,6 +39,90 @@ function parentOverlapsDateRange(parent, rangeStartStr, rangeEndStr) {
   effectiveEnd.setHours(23, 59, 59, 999);
   campaignStart.setHours(0, 0, 0, 0);
   return campaignStart <= rangeEnd && effectiveEnd >= rangeStart;
+}
+
+/** @returns {string} */
+export function formatParentScheduleLabel(parent) {
+  if (parent.alwaysOn) return "Always on";
+  const start = parent.startDate ? String(parent.startDate).slice(0, 10) : "—";
+  const end = parent.endDate ? String(parent.endDate).slice(0, 10) : "—";
+  return `${start} → ${end}`;
+}
+
+/** Smallest date range that includes every campaign schedule (always-on extends to year end). */
+export function getDateRangeCoveringCampaigns(parentList, year = new Date().getFullYear()) {
+  if (!parentList?.length) return getFullYearDateRange(year);
+
+  let minStart = null;
+  let maxEnd = null;
+
+  for (const p of parentList) {
+    if (p.startDate) {
+      const s = String(p.startDate).slice(0, 10);
+      if (!minStart || s < minStart) minStart = s;
+    }
+    if (p.alwaysOn) {
+      const yEnd = `${year}-12-31`;
+      if (!maxEnd || yEnd > maxEnd) maxEnd = yEnd;
+    } else if (p.endDate) {
+      const e = String(p.endDate).slice(0, 10);
+      if (!maxEnd || e > maxEnd) maxEnd = e;
+    }
+  }
+
+  return {
+    startDate: minStart || `${year}-01-01`,
+    endDate: maxEnd || `${year}-12-31`,
+  };
+}
+
+function passesNonDateFilters(parent, filters) {
+  const q = filters.search.trim().toLowerCase();
+  const countryQ = filters.countryQuery.trim().toLowerCase();
+
+  if (q) {
+    const hay = [
+      parent.campaignName,
+      parent.brief,
+      parent.furtherBrief,
+      parent.materialLink,
+      parent.landingPageLink,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    if (!hay.includes(q)) return false;
+  }
+
+  if (filters.service) {
+    if (!(parent.services || []).includes(filters.service)) return false;
+  }
+
+  if (filters.responsible && parent.responsible !== filters.responsible) {
+    return false;
+  }
+
+  if (countryQ) {
+    if (!(parent.countryCode || "").toLowerCase().includes(countryQ)) {
+      return false;
+    }
+  }
+
+  if (filters.hasMaterialLink === "yes" && !(parent.materialLink || "").trim()) {
+    return false;
+  }
+  if (filters.hasMaterialLink === "no" && (parent.materialLink || "").trim()) {
+    return false;
+  }
+
+  if (filters.hasLandingPage === "yes" && !(parent.landingPageLink || "").trim()) {
+    return false;
+  }
+  if (filters.hasLandingPage === "no" && (parent.landingPageLink || "").trim()) {
+    return false;
+  }
+
+  return true;
 }
 
 /** Stable ordering: dated campaigns by start date (newest first), then name. */
@@ -87,25 +171,23 @@ export default function usePlannerOverviewFilters(parents) {
     setFilters(getDefaultOverviewFilters());
   }, []);
 
+  const setFullYearPeriod = useCallback(() => {
+    setFilters((prev) => ({
+      ...prev,
+      dateRange: getFullYearDateRange(),
+    }));
+  }, []);
+
+  const expandPeriodToIncludeAllCampaigns = useCallback(() => {
+    setFilters((prev) => ({
+      ...prev,
+      dateRange: getDateRangeCoveringCampaigns(parents),
+    }));
+  }, [parents]);
+
   const filteredParents = useMemo(() => {
-    const q = filters.search.trim().toLowerCase();
-    const countryQ = filters.countryQuery.trim().toLowerCase();
-
     let list = parents.filter((p) => {
-      if (q) {
-        const hay = [
-          p.campaignName,
-          p.brief,
-          p.furtherBrief,
-          p.materialLink,
-          p.landingPageLink,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-
+      if (!passesNonDateFilters(p, filters)) return false;
       if (
         !parentOverlapsDateRange(
           p,
@@ -115,35 +197,6 @@ export default function usePlannerOverviewFilters(parents) {
       ) {
         return false;
       }
-
-      if (filters.service) {
-        if (!(p.services || []).includes(filters.service)) return false;
-      }
-
-      if (filters.responsible && p.responsible !== filters.responsible) {
-        return false;
-      }
-
-      if (countryQ) {
-        if (!(p.countryCode || "").toLowerCase().includes(countryQ)) {
-          return false;
-        }
-      }
-
-      if (filters.hasMaterialLink === "yes" && !(p.materialLink || "").trim()) {
-        return false;
-      }
-      if (filters.hasMaterialLink === "no" && (p.materialLink || "").trim()) {
-        return false;
-      }
-
-      if (filters.hasLandingPage === "yes" && !(p.landingPageLink || "").trim()) {
-        return false;
-      }
-      if (filters.hasLandingPage === "no" && (p.landingPageLink || "").trim()) {
-        return false;
-      }
-
       return true;
     });
 
@@ -151,17 +204,39 @@ export default function usePlannerOverviewFilters(parents) {
     return list;
   }, [parents, filters]);
 
+  const filterVisibility = useMemo(() => {
+    const { startDate, endDate } = filters.dateRange;
+    const matchingExceptDate = parents.filter((p) => passesNonDateFilters(p, filters));
+    const hiddenByDateRange = matchingExceptDate.filter(
+      (p) => !parentOverlapsDateRange(p, startDate, endDate)
+    );
+    const hiddenByOtherFilters = parents.length - matchingExceptDate.length;
+
+    return {
+      hiddenByDateRangeCount: hiddenByDateRange.length,
+      hiddenByOtherFiltersCount: hiddenByOtherFilters,
+      hiddenByDateRangeCampaigns: hiddenByDateRange.map((p) => ({
+        id: p.id,
+        name: p.campaignName || "Untitled campaign",
+        schedule: formatParentScheduleLabel(p),
+      })),
+    };
+  }, [parents, filters]);
+
   const activeFilterCount = useMemo(
     () => countActiveFilters(filters),
     [filters]
   );
 
-   return {
+  return {
     filters,
     setFilters,
     updateFilter,
     resetFilters,
+    setFullYearPeriod,
+    expandPeriodToIncludeAllCampaigns,
     filteredParents,
     activeFilterCount,
+    filterVisibility,
   };
 }

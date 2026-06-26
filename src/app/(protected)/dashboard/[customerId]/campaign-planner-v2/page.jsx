@@ -47,8 +47,11 @@ function CampaignPlannerV2Page() {
 		filters,
 		updateFilter,
 		resetFilters,
+		setFullYearPeriod,
+		expandPeriodToIncludeAllCampaigns,
 		filteredParents,
 		activeFilterCount,
+		filterVisibility,
 	} = usePlannerOverviewFilters(parents);
 
 	const filteredParentIds = useMemo(
@@ -192,9 +195,12 @@ function CampaignPlannerV2Page() {
 						filters={filters}
 						updateFilter={updateFilter}
 						resetFilters={resetFilters}
+						setFullYearPeriod={setFullYearPeriod}
+						expandPeriodToIncludeAllCampaigns={expandPeriodToIncludeAllCampaigns}
 						activeFilterCount={activeFilterCount}
 						totalCount={parents.length}
 						filteredCount={filteredParents.length}
+						filterVisibility={filterVisibility}
 					/>
 
 					<section>
@@ -202,6 +208,9 @@ function CampaignPlannerV2Page() {
 						<CampaignOverview
 							parents={filteredParents}
 							storedParentCount={parents.length}
+							filterVisibility={filterVisibility}
+							onExpandPeriod={expandPeriodToIncludeAllCampaigns}
+							onResetPeriod={setFullYearPeriod}
 							services={services}
 							lineItems={lineItems}
 							customerId={customerId}

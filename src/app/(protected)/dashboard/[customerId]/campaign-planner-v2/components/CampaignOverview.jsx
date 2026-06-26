@@ -98,6 +98,9 @@ function SectionRule({ title }) {
 export default function CampaignOverview({
 	parents = [],
 	storedParentCount,
+	filterVisibility,
+	onExpandPeriod,
+	onResetPeriod,
 	services = [],
 	lineItems = [],
 	customerId,
@@ -610,13 +613,73 @@ export default function CampaignOverview({
 	if (parents.length === 0) {
 		const filteredOut =
 			typeof storedParentCount === "number" && storedParentCount > 0;
+		const hiddenByDate = filterVisibility?.hiddenByDateRangeCount ?? 0;
+		const hiddenByOther = filterVisibility?.hiddenByOtherFiltersCount ?? 0;
+		const hiddenCampaigns = filterVisibility?.hiddenByDateRangeCampaigns ?? [];
+		const onlyHiddenByPeriod =
+			filteredOut && hiddenByDate > 0 && hiddenByOther === 0;
+
 		return (
-			<div className="apex-cp-empty">
+			<div
+				className={`apex-cp-empty${onlyHiddenByPeriod ? " apex-cp-empty--period" : ""}`}
+			>
 				{filteredOut ? (
-					<>
-						<strong>No campaigns match your filters.</strong>
-						Reset filters or broaden the period to see campaigns again.
-					</>
+					onlyHiddenByPeriod ? (
+						<>
+							<strong>
+								{hiddenByDate === 1
+									? "1 campaign is outside the selected period"
+									: `${hiddenByDate} campaigns are outside the selected period`}
+							</strong>
+							<p className="apex-cp-empty__lead">
+								Your account has {storedParentCount} campaign
+								{storedParentCount === 1 ? "" : "s"}, but none overlap the
+								current dates. Expand the period to view them here.
+							</p>
+							{hiddenCampaigns.length > 0 ? (
+								<ul className="apex-cp-empty__hidden-list">
+									{hiddenCampaigns.slice(0, 5).map((c) => (
+										<li key={c.id}>
+											<span>{c.name}</span>
+											<span className="apex-cp-empty__schedule">{c.schedule}</span>
+										</li>
+									))}
+								</ul>
+							) : null}
+							<div className="apex-cp-empty__actions">
+								{onExpandPeriod ? (
+									<button
+										type="button"
+										className="apex-cp-btn apex-cp-btn--primary"
+										onClick={onExpandPeriod}
+									>
+										Include all campaign dates
+									</button>
+								) : null}
+								{onResetPeriod ? (
+									<button
+										type="button"
+										className="apex-cp-btn"
+										onClick={onResetPeriod}
+									>
+										Reset to full year
+									</button>
+								) : null}
+							</div>
+						</>
+					) : (
+						<>
+							<strong>No campaigns match your filters.</strong>
+							{hiddenByDate > 0 ? (
+								<p className="apex-cp-empty__lead">
+									{hiddenByDate} also hidden because they fall outside the selected
+									period — try widening the dates above.
+								</p>
+							) : (
+								"Reset filters or broaden the period to see campaigns again."
+							)}
+						</>
+					)
 				) : (
 					"No campaigns yet. Create one using the button above."
 				)}

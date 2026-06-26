@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { FiChevronDown, FiChevronUp, FiFilter, FiRotateCcw } from "react-icons/fi";
+import { FiAlertCircle, FiChevronDown, FiChevronUp, FiFilter, FiRotateCcw } from "react-icons/fi";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
@@ -11,15 +11,25 @@ export default function CampaignOverviewFilters({
 	filters,
 	updateFilter,
 	resetFilters,
+	setFullYearPeriod,
+	expandPeriodToIncludeAllCampaigns,
 	activeFilterCount,
 	totalCount,
 	filteredCount,
+	filterVisibility,
 }) {
 	const [advancedOpen, setAdvancedOpen] = useState(false);
 
 	const setDateRange = (patch) => {
 		updateFilter("dateRange", { ...filters.dateRange, ...patch });
 	};
+
+	const { startDate, endDate } = filters.dateRange;
+	const hiddenByDate = filterVisibility?.hiddenByDateRangeCount ?? 0;
+	const hiddenByOther = filterVisibility?.hiddenByOtherFiltersCount ?? 0;
+	const hiddenCampaigns = filterVisibility?.hiddenByDateRangeCampaigns ?? [];
+	const allHiddenByPeriod =
+		totalCount > 0 && filteredCount === 0 && hiddenByDate > 0 && hiddenByOther === 0;
 
 	return (
 		<div className="apex-cp-filters">
@@ -45,8 +55,8 @@ export default function CampaignOverviewFilters({
 									usePortal
 									triggerClassName="h-11 px-4 py-0 text-sm inline-flex items-center justify-center"
 									onApply={() => {}}
-									startDate={filters.dateRange.startDate}
-									endDate={filters.dateRange.endDate}
+									startDate={startDate}
+									endDate={endDate}
 									onStartDateChange={(v) =>
 										setDateRange({ startDate: v })
 									}
@@ -54,6 +64,14 @@ export default function CampaignOverviewFilters({
 										setDateRange({ endDate: v })
 									}
 								/>
+								<button
+									type="button"
+									className="apex-cp-btn apex-cp-btn--ghost"
+									onClick={setFullYearPeriod}
+									title="Set period to full calendar year"
+								>
+									Full year
+								</button>
 							</div>
 						</div>
 					</div>
@@ -87,9 +105,77 @@ export default function CampaignOverviewFilters({
 				</div>
 			</div>
 
-			<p className="apex-cp-filters__meta">
-				Showing <strong>{filteredCount}</strong> of <strong>{totalCount}</strong> campaigns
-			</p>
+			<div className="apex-cp-filters__meta-wrap">
+				<p className="apex-cp-filters__meta">
+					Showing <strong>{filteredCount}</strong> of <strong>{totalCount}</strong>{" "}
+					campaign{totalCount === 1 ? "" : "s"}
+					{startDate && endDate ? (
+						<>
+							{" "}
+							· period <strong>{startDate}</strong> → <strong>{endDate}</strong>
+						</>
+					) : null}
+				</p>
+				{hiddenByOther > 0 ? (
+					<p className="apex-cp-filters__meta apex-cp-filters__meta--sub">
+						<strong>{hiddenByOther}</strong> hidden by search or advanced filters
+					</p>
+				) : null}
+			</div>
+
+			{hiddenByDate > 0 ? (
+				<div
+					className={`apex-cp-filters__hidden-banner${allHiddenByPeriod ? " is-emphasis" : ""}`}
+					role="status"
+				>
+					<div className="apex-cp-filters__hidden-banner-icon" aria-hidden>
+						<FiAlertCircle />
+					</div>
+					<div className="apex-cp-filters__hidden-banner-body">
+						<p className="apex-cp-filters__hidden-banner-title">
+							{hiddenByDate === 1
+							 ? "1 campaign is outside the selected period"
+							 : `${hiddenByDate} campaigns are outside the selected period`}
+						</p>
+						<p className="apex-cp-filters__hidden-banner-text">
+							{allHiddenByPeriod
+								? "Nothing matches your current dates — widen the period to see them again."
+								: "These campaigns run on other dates and are hidden from the overview, workflow, and schedule below."}
+						</p>
+						{hiddenCampaigns.length > 0 ? (
+							<ul className="apex-cp-filters__hidden-list">
+								{hiddenCampaigns.slice(0, 4).map((c) => (
+									<li key={c.id}>
+										<span className="apex-cp-filters__hidden-name">{c.name}</span>
+										<span className="apex-cp-filters__hidden-schedule">{c.schedule}</span>
+									</li>
+								))}
+								{hiddenCampaigns.length > 4 ? (
+									<li className="apex-cp-filters__hidden-more">
+										+ {hiddenCampaigns.length - 4} more
+									</li>
+								) : null}
+							</ul>
+						) : null}
+						<div className="apex-cp-filters__hidden-actions">
+							<button
+								type="button"
+								className="apex-cp-btn apex-cp-btn--primary"
+								onClick={expandPeriodToIncludeAllCampaigns}
+							>
+								Include all campaign dates
+							</button>
+							<button
+								type="button"
+								className="apex-cp-btn"
+								onClick={setFullYearPeriod}
+							>
+								Reset to full year
+							</button>
+						</div>
+					</div>
+				</div>
+			) : null}
 
 			{advancedOpen && (
 				<div className="apex-cp-filters__advanced">
