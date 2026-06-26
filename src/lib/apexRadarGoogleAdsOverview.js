@@ -108,6 +108,13 @@ function placeholderRowNoGoogleAdsCustomer(customer, startDate, endDate) {
             pctChangeFromPrior: null,
             warnDrop: false,
         },
+        conversionTracking: {
+            asOfDate: dod.calendarYesterday,
+            consecutiveZeroConversionDays: 0,
+            streakStartDate: null,
+            streakEndDate: null,
+            hadSpendInStreak: false,
+        },
         apexRadarMeta: {
             channel: APEX_RADAR_CHANNEL_GOOGLE_ADS,
             skipReason: "no_google_ads_customer_id",

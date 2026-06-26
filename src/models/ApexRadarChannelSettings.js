@@ -25,6 +25,10 @@ const ApexRadarChannelSettingsSchema = new mongoose.Schema(
             enum: ["STATIC", "DYNAMIC"],
             default: "DYNAMIC",
         },
+        trackingAlertsEnabled: {
+            type: Boolean,
+            default: true,
+        },
         updatedAt: {
             type: Date,
             default: Date.now,

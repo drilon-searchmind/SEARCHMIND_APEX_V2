@@ -438,9 +438,58 @@ export function meetsSpendDodThreshold(row, thresholdPct = APEX_RADAR_SPEND_DOD_
 }
 
 /**
- * Percent change from prior UTC day to yesterday: ((yesterday − prior) / prior) × 100.
- * Warn when pctChangeFromPrior is below {@link APEX_RADAR_SPEND_DOD_WARN_PCT_THRESHOLD} (more than a 90% drop by default).
+ * Consecutive UTC calendar days ending at `calendarYesterday` with zero conversions.
+ * Only counts days present in `dailyRows`; breaks on the first day with conversions.
+ * `hadSpendInStreak` is true when at least one day in the streak had spend > 0.
  */
+export function computeConversionTrackingFromDaily(dailyRows, maxLookback = 14) {
+    const { calendarYesterday } = getUtcCalendarSpendDodRange();
+    const byDate = new Map();
+    for (const d of dailyRows || []) {
+        if (d.date_start) byDate.set(d.date_start, d);
+    }
+
+    let streak = 0;
+    let streakStartDate = null;
+    let hadSpendInStreak = false;
+
+    for (let i = 0; i < maxLookback; i++) {
+        const date = addDaysIso(calendarYesterday, -i);
+        const row = byDate.get(date);
+        if (!row) break;
+
+        const conv = purchaseConversionsFromActions(row.actions);
+        if (conv > 0) break;
+
+        const spend = parseFloat(row.spend || 0);
+        if (spend > 0) hadSpendInStreak = true;
+        streak++;
+        streakStartDate = date;
+    }
+
+    return {
+        asOfDate: calendarYesterday,
+        consecutiveZeroConversionDays: streak,
+        streakStartDate,
+        streakEndDate: streak > 0 ? calendarYesterday : null,
+        hadSpendInStreak,
+    };
+}
+
+/** Default: alert when this many consecutive UTC days (ending yesterday) have zero conversions. */
+export const APEX_RADAR_CONVERSION_ZERO_DAYS_THRESHOLD = 2;
+
+/**
+ * Prior-day spend alert: meaningful spend on day-before-yesterday, zero spend yesterday (UTC).
+ */
+export function meetsPriorDaySpendStoppedAlert(row, minPriorSpend = 1) {
+    const dod = row?.spendDayOverDay || {};
+    const prior = dod.spendDayBeforeYesterday;
+    const yest = dod.spendYesterday;
+    if (prior == null || prior < minPriorSpend) return false;
+    return yest == null || yest <= 0;
+}
+
 export function computeSpendDayOverDayFromDaily(dailyRows) {
     const { calendarYesterday: y, calendarDayBeforeYesterday: d2 } = getUtcCalendarSpendDodRange();
     const rowY = (dailyRows || []).find((d) => d.date_start === y);
@@ -667,7 +716,8 @@ export function rollOverviewWindows(
         overviewOpts
     );
     const spendDayOverDay = computeSpendDayOverDayFromDaily(daily);
-    return { ...row, spendDayOverDay };
+    const conversionTracking = computeConversionTrackingFromDaily(daily);
+    return { ...row, spendDayOverDay, conversionTracking };
 }
 
 function rollCustomerWindows(customer, startDate, endDate, daily, weeklyPeriodRows = null) {

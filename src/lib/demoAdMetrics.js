@@ -7,6 +7,7 @@ import { getFacebookApexRadarSettings, getGoogleApexRadarSettings } from "@/lib/
 import {
     buildOverviewRowFromRollups,
     computeDateWindows,
+    computeConversionTrackingFromDaily,
     computeLog10WeeklyFloors,
     computeSpendDayOverDayFromDaily,
     getUtcCalendarSpendDodRange,
@@ -873,9 +874,11 @@ export function buildDemoApexRadarGoogleAdsOverviewRow(customer, startDate, endD
         }
     );
     const spendDayOverDay = computeSpendDayOverDayFromDaily(daily);
+    const conversionTracking = computeConversionTrackingFromDaily(daily);
     return {
         ...row,
         spendDayOverDay,
+        conversionTracking,
         ads: { ...row.ads, adFatigue: null },
         apexRadarMeta: { channel: APEX_RADAR_CHANNEL_GOOGLE_ADS, demo: true },
     };

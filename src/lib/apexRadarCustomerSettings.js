@@ -34,6 +34,7 @@ export function getGoogleApexRadarSettings(customer) {
             targetMetricType: "ROAS",
             targetValue: null,
             budgetMode: "DYNAMIC",
+            trackingAlertsEnabled: true,
         };
     }
     const tb = g.targetBudget;
@@ -43,6 +44,7 @@ export function getGoogleApexRadarSettings(customer) {
         targetMetricType: g.targetMetricType === "CPA" ? "CPA" : "ROAS",
         targetValue: tv != null && tv !== "" && !Number.isNaN(Number(tv)) ? Number(tv) : null,
         budgetMode: g.budgetMode === "STATIC" ? "STATIC" : "DYNAMIC",
+        trackingAlertsEnabled: g.trackingAlertsEnabled !== false,
     };
 }
 

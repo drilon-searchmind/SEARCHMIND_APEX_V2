@@ -6,12 +6,13 @@ import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import CobaltLoader from "@/components/ui/CobaltLoader";
 import { getApexRadarLast30DaysRange } from "@/lib/apexRadarDateRange";
 import ApexRadarOverviewTable from "../components/ApexRadarOverviewTable";
+import ApexRadarGoogleAlertsPanel from "../components/ApexRadarGoogleAlertsPanel";
 import ApexRadarAssignUsersModal from "../components/ApexRadarAssignUsersModal";
 import ApexRadarFacebookSettingsModal from "../components/ApexRadarFacebookSettingsModal";
 import ApexRadarGoogleSettingsModal from "../components/ApexRadarGoogleSettingsModal";
 import ApexRadarCustomerTeamResyncModal from "../components/ApexRadarCustomerTeamResyncModal";
 import ApexRadarOverviewMetricsInfoModal from "../components/ApexRadarOverviewMetricsInfoModal";
-import { buildCustomerOverviewRow } from "../lib/mockOverviewData";
+import { buildCustomerOverviewRow, formatTeamMemberShort } from "../lib/mockOverviewData";
 import {
     APEX_RADAR_CHANNEL_FACEBOOK,
     APEX_RADAR_CHANNEL_GOOGLE_ADS,
@@ -22,9 +23,11 @@ import { useInternalUsers } from "@/hooks/useInternalUsers";
 import { useApexRadarAssignments } from "../hooks/useApexRadarAssignments";
 import { getEffectiveApexRadarAssignmentUserIds } from "@/lib/apexRadarPaidSocialAssignments";
 import {
+    APEX_RADAR_CONVERSION_ZERO_DAYS_THRESHOLD,
     APEX_RADAR_SPEND_DOD_WARN_PCT_THRESHOLD,
     meetsSpendDodThreshold,
 } from "@/lib/apexRadarFacebookOverview";
+import { collectGoogleAdsMonitorAlerts } from "@/lib/apexRadarGoogleAdsMonitor";
 
 function normName(s) {
     return String(s || "")
@@ -58,6 +61,9 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
     /** Client-only DoD % threshold (session only; default matches server). */
     const [spendDodThresholdDraft, setSpendDodThresholdDraft] = useState("-90");
     const [dodVisibilityFilter, setDodVisibilityFilter] = useState("all");
+    const [conversionZeroDaysThreshold, setConversionZeroDaysThreshold] = useState(
+        String(APEX_RADAR_CONVERSION_ZERO_DAYS_THRESHOLD)
+    );
 
     const { assignmentDetailMap, assignmentsLoading, setAssignmentsForAccount, refetchAssignments } =
         useApexRadarAssignments(channel);
@@ -201,19 +207,70 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
             });
         }
 
-        if (dodVisibilityFilter === "alerts") {
-            list = list.filter((r) => meetsSpendDodThreshold(r, spendDodThresholdPct));
-        }
-
         return list;
     })();
 
-    /** Empty table body while overview is loading (first fetch); avoids placeholder dashes under the spinner. */
     const tableRowsForDisplay = useMemo(() => {
         if (!supportsOverviewTable) return [];
         if (overviewLoading && overviewRows == null && !overviewError) return [];
-        return filteredRows;
-    }, [supportsOverviewTable, overviewLoading, overviewRows, overviewError, filteredRows]);
+        let list = filteredRows;
+        if (dodVisibilityFilter === "alerts") {
+            list = list.filter((r) => meetsSpendDodThreshold(r, spendDodThresholdPct));
+        }
+        return list;
+    }, [
+        supportsOverviewTable,
+        overviewLoading,
+        overviewRows,
+        overviewError,
+        filteredRows,
+        dodVisibilityFilter,
+        spendDodThresholdPct,
+    ]);
+
+    const googleMonitorAlerts = useMemo(() => {
+        if (!isGoogleAds || overviewLoading && overviewRows == null) return [];
+        const parsedThreshold = Number.parseInt(String(conversionZeroDaysThreshold), 10);
+        const conversionDays =
+            parsedThreshold === 1 || parsedThreshold === 2
+                ? parsedThreshold
+                : APEX_RADAR_CONVERSION_ZERO_DAYS_THRESHOLD;
+
+        return collectGoogleAdsMonitorAlerts(filteredRows, {
+            spendDodThresholdPct,
+            conversionZeroDaysThreshold: conversionDays,
+            getTeamMemberNames: (row) => {
+                const detail = assignmentDetailMap[row.id] || {
+                    userIds: [],
+                    paidSocialExcludedUserIds: [],
+                };
+                const cust = customersById[row.id] || null;
+                const effective = getEffectiveApexRadarAssignmentUserIds(
+                    detail,
+                    cust,
+                    internalUsers,
+                    channel
+                );
+                return effective
+                    .map((uid) => {
+                        const u = internalUsers.find((x) => String(x.id) === String(uid));
+                        return formatTeamMemberShort(u?.name || "");
+                    })
+                    .filter(Boolean);
+            },
+        });
+    }, [
+        isGoogleAds,
+        overviewLoading,
+        overviewRows,
+        filteredRows,
+        spendDodThresholdPct,
+        conversionZeroDaysThreshold,
+        assignmentDetailMap,
+        customersById,
+        internalUsers,
+        channel,
+    ]);
 
     return (
         <div id="ApexRadarOverviewPage" className="w-full max-w-[1920px] mx-auto apex-radar-stack">
@@ -373,6 +430,42 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                                                 Show every account or only those at or below the threshold above.
                                             </p>
                                         </div>
+                                        {isGoogleAds ? (
+                                            <div className="min-w-0 shrink-0 sm:min-w-[220px]">
+                                                <span
+                                                    className="apex-radar-field-label"
+                                                    id="apex-radar-conversion-threshold-label"
+                                                >
+                                                    Conversion alert threshold
+                                                </span>
+                                                <div
+                                                    role="group"
+                                                    aria-labelledby="apex-radar-conversion-threshold-label"
+                                                    className="apex-radar-segmented"
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setConversionZeroDaysThreshold("1")}
+                                                        aria-pressed={conversionZeroDaysThreshold === "1"}
+                                                        className={`apex-radar-segmented__btn${conversionZeroDaysThreshold === "1" ? " is-active" : ""}`}
+                                                    >
+                                                        1 day
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setConversionZeroDaysThreshold("2")}
+                                                        aria-pressed={conversionZeroDaysThreshold === "2"}
+                                                        className={`apex-radar-segmented__btn${conversionZeroDaysThreshold === "2" ? " is-active" : ""}`}
+                                                    >
+                                                        2 days
+                                                    </button>
+                                                </div>
+                                                <p className="apex-radar-field-hint">
+                                                    Alert when consecutive UTC days without conversions reach this
+                                                    count (while spend is active). Disable per account in settings.
+                                                </p>
+                                            </div>
+                                        ) : null}
                                     </div>
                                 </div>
                             ) : null}
@@ -400,6 +493,13 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                             onApexSettingsClick={(row) => setApexSettingsRow(row)}
                         />
                     )}
+
+                    {isGoogleAds && !customersLoading ? (
+                        <ApexRadarGoogleAlertsPanel
+                            alerts={googleMonitorAlerts}
+                            loading={overviewLoading && overviewRows == null && !overviewError}
+                        />
+                    ) : null}
 
                     {apexSettingsRow ? (
                         isGoogleAds ? (
