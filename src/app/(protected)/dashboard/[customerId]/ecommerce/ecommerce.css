@@ -437,7 +437,7 @@
   white-space: nowrap;
 }
 
-.apex-ecom-table__sold-out:not(.is-muted-value):not(.is-pending):not(.is-slow):not(.is-healthy)
+.apex-ecom-table__sold-out:not(.is-muted-value):not(.is-pending):not(.is-critical):not(.is-warn)
   .apex-ecom-table__sold-out-pill {
   padding: 0;
   font-weight: 500;
@@ -450,16 +450,16 @@
   border: var(--rule-hair) solid var(--color-rule);
 }
 
-.apex-ecom-table__sold-out.is-slow .apex-ecom-table__sold-out-pill {
+.apex-ecom-table__sold-out.is-critical .apex-ecom-table__sold-out-pill {
+  color: oklch(42% 0.16 25);
+  background: oklch(97% 0.03 25);
+  border: var(--rule-hair) solid oklch(88% 0.1 25);
+}
+
+.apex-ecom-table__sold-out.is-warn .apex-ecom-table__sold-out-pill {
   color: oklch(45% 0.12 75);
   background: oklch(97% 0.03 95);
   border: var(--rule-hair) solid oklch(88% 0.08 95);
-}
-
-.apex-ecom-table__sold-out.is-healthy .apex-ecom-table__sold-out-pill {
-  color: var(--color-accent-light);
-  background: color-mix(in srgb, var(--color-accent) 10%, white);
-  border: var(--rule-hair) solid color-mix(in srgb, var(--color-accent) 25%, var(--color-rule));
 }
 
 .apex-ecom-table__sold-out.is-pending .apex-ecom-table__sold-out-pill {

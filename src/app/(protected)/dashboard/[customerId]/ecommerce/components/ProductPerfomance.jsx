@@ -122,8 +122,9 @@ export default function ProductPerfomance({ products = [], loading = false, inve
     const soldOutCellClass = (p) => {
         if (inventoryLoading && p.inventoryStock == null) return 'is-pending';
         if (p.soldOutLabel === 'No sales (60d)') return 'is-muted-value';
-        if (p.avgDaysToSoldOut != null && p.avgDaysToSoldOut >= 180) return 'is-slow';
-        if (p.avgDaysToSoldOut != null && p.avgDaysToSoldOut <= 30) return 'is-healthy';
+        if (p.avgDaysToSoldOut == null) return '';
+        if (p.avgDaysToSoldOut < 15) return 'is-critical';
+        if (p.avgDaysToSoldOut <= 30) return 'is-warn';
         return '';
     };
 

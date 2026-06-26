@@ -12,6 +12,10 @@ import { useBusinessCategory } from '@/hooks/useBusinessCategory';
 import { useShopifyMarketsFilter } from '@/hooks/useShopifyMarketsFilter';
 import { useAdSpendPlatformsFilter } from '@/hooks/useAdSpendPlatformsFilter';
 import { pushDashboardDateRangeApplied, pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
+import {
+    adSpendChannelsForShopifyMarketsFilterUi,
+    adSpendChannelsForSpendTotals,
+} from '@/lib/mergeAdSpendDaily';
 import { formatAvgDaysToSoldOutDisplay } from '@/lib/shopifyProductsApi';
 import './ecommerce.css';
 
