@@ -804,9 +804,11 @@ export function buildDemoApexRadarFacebookOverviewRow(customer, startDate, endDa
         win30: w.win30,
     });
     const spendDayOverDay = computeSpendDayOverDayFromDaily(daily);
+    const conversionTracking = computeConversionTrackingFromDaily(daily);
     return {
         ...row,
         spendDayOverDay,
+        conversionTracking,
         ads: { ...row.ads, adFatigue: null },
         apexRadarMeta: { channel: "facebook", demo: true },
     };

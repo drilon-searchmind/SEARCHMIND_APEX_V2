@@ -6,7 +6,7 @@ import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import CobaltLoader from "@/components/ui/CobaltLoader";
 import { getApexRadarLast30DaysRange } from "@/lib/apexRadarDateRange";
 import ApexRadarOverviewTable from "../components/ApexRadarOverviewTable";
-import ApexRadarGoogleAlertsPanel from "../components/ApexRadarGoogleAlertsPanel";
+import ApexRadarAlertsPanel from "../components/ApexRadarAlertsPanel";
 import ApexRadarAssignUsersModal from "../components/ApexRadarAssignUsersModal";
 import ApexRadarFacebookSettingsModal from "../components/ApexRadarFacebookSettingsModal";
 import ApexRadarGoogleSettingsModal from "../components/ApexRadarGoogleSettingsModal";
@@ -28,6 +28,7 @@ import {
     meetsSpendDodThreshold,
 } from "@/lib/apexRadarFacebookOverview";
 import { collectGoogleAdsMonitorAlerts } from "@/lib/apexRadarGoogleAdsMonitor";
+import { collectFacebookMonitorAlerts } from "@/lib/apexRadarFacebookMonitor";
 
 function normName(s) {
     return String(s || "")
@@ -40,6 +41,8 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
     const { internalUsers, loading: internalUsersLoading } = useInternalUsers();
     const meta = APEX_RADAR_CHANNEL_META[channel];
     const isGoogleAds = channel === APEX_RADAR_CHANNEL_GOOGLE_ADS;
+    const isFacebook = channel === APEX_RADAR_CHANNEL_FACEBOOK;
+    const supportsMonitorAlerts = isGoogleAds || isFacebook;
     const supportsOverviewTable =
         channel === APEX_RADAR_CHANNEL_FACEBOOK || channel === APEX_RADAR_CHANNEL_GOOGLE_ADS;
 
@@ -228,15 +231,15 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
         spendDodThresholdPct,
     ]);
 
-    const googleMonitorAlerts = useMemo(() => {
-        if (!isGoogleAds || overviewLoading && overviewRows == null) return [];
+    const monitorAlerts = useMemo(() => {
+        if (!supportsMonitorAlerts || (overviewLoading && overviewRows == null)) return [];
         const parsedThreshold = Number.parseInt(String(conversionZeroDaysThreshold), 10);
         const conversionDays =
             parsedThreshold === 1 || parsedThreshold === 2
                 ? parsedThreshold
                 : APEX_RADAR_CONVERSION_ZERO_DAYS_THRESHOLD;
 
-        return collectGoogleAdsMonitorAlerts(filteredRows, {
+        const alertOpts = {
             spendDodThresholdPct,
             conversionZeroDaysThreshold: conversionDays,
             getTeamMemberNames: (row) => {
@@ -258,9 +261,19 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                     })
                     .filter(Boolean);
             },
-        });
+        };
+
+        if (isGoogleAds) {
+            return collectGoogleAdsMonitorAlerts(filteredRows, alertOpts);
+        }
+        if (isFacebook) {
+            return collectFacebookMonitorAlerts(filteredRows, alertOpts);
+        }
+        return [];
     }, [
+        supportsMonitorAlerts,
         isGoogleAds,
+        isFacebook,
         overviewLoading,
         overviewRows,
         filteredRows,
@@ -430,7 +443,7 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                                                 Show every account or only those at or below the threshold above.
                                             </p>
                                         </div>
-                                        {isGoogleAds ? (
+                                        {supportsMonitorAlerts ? (
                                             <div className="min-w-0 shrink-0 sm:min-w-[220px]">
                                                 <span
                                                     className="apex-radar-field-label"
@@ -494,10 +507,11 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                         />
                     )}
 
-                    {isGoogleAds && !customersLoading ? (
-                        <ApexRadarGoogleAlertsPanel
-                            alerts={googleMonitorAlerts}
+                    {supportsMonitorAlerts && !customersLoading ? (
+                        <ApexRadarAlertsPanel
+                            alerts={monitorAlerts}
                             loading={overviewLoading && overviewRows == null && !overviewError}
+                            platformLabel={meta?.label || "Apex Radar"}
                         />
                     ) : null}
 

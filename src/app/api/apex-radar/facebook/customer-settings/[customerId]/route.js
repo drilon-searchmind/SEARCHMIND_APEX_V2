@@ -45,6 +45,8 @@ export async function PATCH(request, { params }) {
     const budgetMode = body.budgetMode === "STATIC" ? "STATIC" : "DYNAMIC";
     const targetBudget = parseOptionalNumber(body.targetBudget);
     const targetValue = parseOptionalNumber(body.targetValue);
+    const trackingAlertsEnabled =
+        body.trackingAlertsEnabled === undefined ? undefined : Boolean(body.trackingAlertsEnabled);
 
     if (body.targetBudget !== null && body.targetBudget !== undefined && body.targetBudget !== "" && targetBudget === null) {
         return NextResponse.json({ error: "Invalid targetBudget" }, { status: 400 });
@@ -61,17 +63,20 @@ export async function PATCH(request, { params }) {
         }
 
         const cid = new mongoose.Types.ObjectId(String(customerId));
+        const update = {
+            targetBudget,
+            targetMetricType,
+            targetValue,
+            budgetMode,
+            updatedAt: new Date(),
+        };
+        if (trackingAlertsEnabled !== undefined) {
+            update.trackingAlertsEnabled = trackingAlertsEnabled;
+        }
+
         const saved = await ApexRadarChannelSettings.findOneAndUpdate(
             { channel: APEX_RADAR_CHANNEL_FACEBOOK, customerId: cid },
-            {
-                $set: {
-                    targetBudget,
-                    targetMetricType,
-                    targetValue,
-                    budgetMode,
-                    updatedAt: new Date(),
-                },
-            },
+            { $set: update },
             { upsert: true, new: true, runValidators: true }
         ).lean();
 
@@ -80,6 +85,7 @@ export async function PATCH(request, { params }) {
             targetMetricType: saved.targetMetricType === "CPA" ? "CPA" : "ROAS",
             targetValue: saved.targetValue ?? null,
             budgetMode: saved.budgetMode === "STATIC" ? "STATIC" : "DYNAMIC",
+            trackingAlertsEnabled: saved.trackingAlertsEnabled !== false,
         };
 
         return NextResponse.json({

@@ -12,7 +12,7 @@ import { useBusinessCategory } from '@/hooks/useBusinessCategory';
 import { useShopifyMarketsFilter } from '@/hooks/useShopifyMarketsFilter';
 import { useAdSpendPlatformsFilter } from '@/hooks/useAdSpendPlatformsFilter';
 import { pushDashboardDateRangeApplied, pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
-import { adSpendChannelsForSpendTotals, adSpendChannelsForShopifyMarketsFilterUi } from '@/lib/mergeAdSpendDaily';
+import { formatAvgDaysToSoldOutDisplay } from '@/lib/shopifyProductsApi';
 import './ecommerce.css';
 
 const TABS = [
@@ -163,11 +163,21 @@ export default function EcommercePage() {
                             if (!cancelled && invRes.ok) {
                                 const { inventory } = await invRes.json();
                                 setProducts(prev =>
-                                    prev.map(p => ({
-                                        ...p,
-                                        inventoryStock: inventory[p.productId]?.inventoryStock ?? p.inventoryStock ?? null,
-                                        inventoryValue: inventory[p.productId]?.inventoryValue ?? p.inventoryValue ?? null,
-                                    }))
+                                    prev.map(p => {
+                                        const inventoryStock =
+                                            inventory[p.productId]?.inventoryStock ?? p.inventoryStock ?? null;
+                                        const inventoryValue =
+                                            inventory[p.productId]?.inventoryValue ?? p.inventoryValue ?? null;
+                                        return {
+                                            ...p,
+                                            inventoryStock,
+                                            inventoryValue,
+                                            avgDaysToSoldOut: formatAvgDaysToSoldOutDisplay(
+                                                inventoryStock,
+                                                p.unitsSold60d
+                                            ).days,
+                                        };
+                                    })
                                 );
                             }
                         } catch {

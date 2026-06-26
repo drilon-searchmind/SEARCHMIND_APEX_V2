@@ -2,6 +2,105 @@ import { getCurrencyConversionTable, conversionRateToDkk } from './currencyConve
 import { combineShopifyOrderSearchQuery } from './shopifyQlFilters';
 import { shopifyAdminGraphqlPost } from './shopifyAdminClient';
 
+/** Rolling window for "avg. days to sold out" velocity (calendar days, ending yesterday UTC). */
+export const SHOPIFY_PRODUCT_SOLD_OUT_LOOKBACK_DAYS = 60;
+
+/**
+ * @param {number|null|undefined} inventoryStock
+ * @param {number|null|undefined} unitsSoldInLookback
+ * @param {number} [lookbackDays=60]
+ * @returns {number|null}
+ */
+export function computeAvgDaysToSoldOut(
+    inventoryStock,
+    unitsSoldInLookback,
+    lookbackDays = SHOPIFY_PRODUCT_SOLD_OUT_LOOKBACK_DAYS
+) {
+    if (inventoryStock == null || Number.isNaN(Number(inventoryStock))) return null;
+    const stock = Number(inventoryStock);
+    const sold = Number(unitsSoldInLookback);
+    if (!Number.isFinite(sold) || sold <= 0 || !Number.isFinite(lookbackDays) || lookbackDays <= 0) {
+        return null;
+    }
+    const avgUnitsPerDay = sold / lookbackDays;
+    if (avgUnitsPerDay <= 0) return null;
+    return stock / avgUnitsPerDay;
+}
+
+/**
+ * Human-readable sold-out cell from 60-day velocity only (never the date-picker range).
+ * @returns {{ days: number|null, label: string, title: string }}
+ */
+export function formatAvgDaysToSoldOutDisplay(
+    inventoryStock,
+    unitsSold60d,
+    lookbackDays = SHOPIFY_PRODUCT_SOLD_OUT_LOOKBACK_DAYS
+) {
+    if (inventoryStock == null || Number.isNaN(Number(inventoryStock))) {
+        return {
+            days: null,
+            label: '—',
+            title: 'Inventory stock is not available yet.',
+        };
+    }
+
+    const stock = Number(inventoryStock);
+    const sold60 = Number(unitsSold60d);
+    if (!Number.isFinite(sold60) || sold60 <= 0) {
+        return {
+            days: null,
+            label: 'No sales (60d)',
+            title:
+                `No units sold in the last ${lookbackDays} days (fixed window, independent of the date picker). ` +
+                'Units Sold in the table follows your selected date range.',
+        };
+    }
+
+    const days = computeAvgDaysToSoldOut(stock, sold60, lookbackDays);
+    if (days == null || !Number.isFinite(days)) {
+        return { days: null, label: '—', title: 'Could not calculate days to sold out.' };
+    }
+
+    const avgPerDay = sold60 / lookbackDays;
+    const rounded = days >= 100 ? Math.round(days) : Math.round(days * 10) / 10;
+    return {
+        days,
+        label: `${rounded.toLocaleString()} days`,
+        title:
+            `${stock.toLocaleString()} in stock ÷ (${sold60.toLocaleString()} sold in ${lookbackDays}d ÷ ${lookbackDays} days) ` +
+            `= ${stock.toLocaleString()} ÷ ${avgPerDay.toFixed(2)}/day ≈ ${rounded.toLocaleString()} days`,
+    };
+}
+
+/** @returns {{ startDate: string, endDate: string }} */
+export function getRollingProductSoldOutRange(
+    lookbackDays = SHOPIFY_PRODUCT_SOLD_OUT_LOOKBACK_DAYS
+) {
+    const end = new Date();
+    end.setUTCDate(end.getUTCDate() - 1);
+    const start = new Date(end);
+    start.setUTCDate(start.getUTCDate() - (lookbackDays - 1));
+    return {
+        startDate: start.toISOString().slice(0, 10),
+        endDate: end.toISOString().slice(0, 10),
+    };
+}
+
+/**
+ * Merge multiple order chunk maps into units-sold totals per product.
+ * @param {Map<string, object>[]} chunkMaps
+ * @returns {Map<string, number>}
+ */
+function mergeChunkUnitsSold(chunkMaps) {
+    const out = new Map();
+    for (const chunkMap of chunkMaps) {
+        for (const [key, item] of chunkMap) {
+            out.set(key, (out.get(key) || 0) + (Number(item.unitsSold) || 0));
+        }
+    }
+    return out;
+}
+
 /**
  * Fetch inventory stock and value for a list of Shopify product IDs.
  * @param {string} shopUrl - Shopify shop hostname
@@ -324,19 +423,40 @@ export async function fetchShopifyProductMetrics(settings, startDate, endDate, o
 
         // Fetch order data for the date range (products that sold)
         const chunks = getDateChunks(startDate, endDate, 6);
-        const chunkResults = await Promise.all(
-            chunks.map(({ start: chunkStart, end: chunkEnd }) =>
-                fetchOrdersChunk(
-                    shopUrl,
-                    accessToken,
-                    chunkStart,
-                    chunkEnd,
-                    conversionRate,
-                    hasBillingFilter ? billingFilter : { include: [], exclude: [] },
-                    settings
+        const rolling60 = getRollingProductSoldOutRange();
+        const chunks60 = getDateChunks(rolling60.startDate, rolling60.endDate, 3);
+        const billingArg = hasBillingFilter ? billingFilter : { include: [], exclude: [] };
+
+        const [chunkResults, chunkResults60] = await Promise.all([
+            Promise.all(
+                chunks.map(({ start: chunkStart, end: chunkEnd }) =>
+                    fetchOrdersChunk(
+                        shopUrl,
+                        accessToken,
+                        chunkStart,
+                        chunkEnd,
+                        conversionRate,
+                        billingArg,
+                        settings
+                    )
                 )
-            )
-        );
+            ),
+            Promise.all(
+                chunks60.map(({ start: chunkStart, end: chunkEnd }) =>
+                    fetchOrdersChunk(
+                        shopUrl,
+                        accessToken,
+                        chunkStart,
+                        chunkEnd,
+                        conversionRate,
+                        billingArg,
+                        settings
+                    )
+                )
+            ),
+        ]);
+
+        const unitsSold60dByProduct = mergeChunkUnitsSold(chunkResults60);
 
         // Merge order metrics into all products
         for (const chunkMap of chunkResults) {
@@ -358,26 +478,39 @@ export async function fetchShopifyProductMetrics(settings, startDate, endDate, o
             }
         }
 
-        let result = Array.from(allProductsMap.values()).map(p => ({
-            ...p,
-            avgPrice: p.unitsSold > 0 ? p.totalRevenue / p.unitsSold : 0,
-        })).sort((a, b) => b.totalRevenue - a.totalRevenue);
+        let result = Array.from(allProductsMap.values()).map(p => {
+            const unitsSold60d = unitsSold60dByProduct.get(p.productId) ?? 0;
+            const inventoryStock = null;
+            const inventoryValue = null;
+            return {
+                ...p,
+                avgPrice: p.unitsSold > 0 ? p.totalRevenue / p.unitsSold : 0,
+                unitsSold60d,
+                avgDaysToSoldOut: computeAvgDaysToSoldOut(inventoryStock, unitsSold60d),
+            };
+        }).sort((a, b) => b.totalRevenue - a.totalRevenue);
 
         if (!fast) {
             const productIds = result
                 .map(p => p.productId)
                 .filter(id => id && typeof id === 'string' && id.includes('Product'));
             const inventoryByProduct = await fetchProductInventory(shopUrl, accessToken, productIds, conversionRate);
-            result = result.map(p => ({
-                ...p,
-                inventoryStock: inventoryByProduct[p.productId]?.inventoryStock ?? null,
-                inventoryValue: inventoryByProduct[p.productId]?.inventoryValue ?? null,
-            }));
+            result = result.map(p => {
+                const inventoryStock = inventoryByProduct[p.productId]?.inventoryStock ?? null;
+                const inventoryValue = inventoryByProduct[p.productId]?.inventoryValue ?? null;
+                return {
+                    ...p,
+                    inventoryStock,
+                    inventoryValue,
+                    avgDaysToSoldOut: computeAvgDaysToSoldOut(inventoryStock, p.unitsSold60d),
+                };
+            });
         } else {
             result = result.map(p => ({
                 ...p,
                 inventoryStock: null,
                 inventoryValue: null,
+                avgDaysToSoldOut: null,
             }));
         }
 

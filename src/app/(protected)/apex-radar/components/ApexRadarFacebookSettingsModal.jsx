@@ -16,6 +16,7 @@ export default function ApexRadarFacebookSettingsModal({ row, onClose, onSaved }
         initial.targetValue != null ? String(initial.targetValue) : ""
     );
     const [budgetMode, setBudgetMode] = useState(initial.budgetMode);
+    const [trackingAlertsEnabled, setTrackingAlertsEnabled] = useState(initial.trackingAlertsEnabled);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
 
@@ -28,6 +29,7 @@ export default function ApexRadarFacebookSettingsModal({ row, onClose, onSaved }
         setTargetMetricType(v.targetMetricType);
         setTargetValue(v.targetValue != null ? String(v.targetValue) : "");
         setBudgetMode(v.budgetMode);
+        setTrackingAlertsEnabled(v.trackingAlertsEnabled);
         setError(null);
     }, [row]);
 
@@ -46,6 +48,7 @@ export default function ApexRadarFacebookSettingsModal({ row, onClose, onSaved }
                     targetMetricType,
                     targetValue: targetValue.trim() === "" ? null : Number(targetValue),
                     budgetMode,
+                    trackingAlertsEnabled,
                 }),
             });
             const data = await res.json().catch(() => ({}));
@@ -134,6 +137,26 @@ export default function ApexRadarFacebookSettingsModal({ row, onClose, onSaved }
                                     <option value="DYNAMIC">Dynamisk</option>
                                     <option value="STATIC">Statisk</option>
                                 </select>
+                            </div>
+                            <div className="flex items-start gap-2 pt-1">
+                                <input
+                                    id="apex-fb-tracking-alerts"
+                                    type="checkbox"
+                                    checked={trackingAlertsEnabled}
+                                    onChange={(e) => setTrackingAlertsEnabled(e.target.checked)}
+                                    className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-accent)]"
+                                />
+                                <div>
+                                    <label
+                                        htmlFor="apex-fb-tracking-alerts"
+                                        className="apex-radar-field-label !mb-0 normal-case !text-[0.72rem]"
+                                    >
+                                        Conversion tracking alerts
+                                    </label>
+                                    <p className="apex-radar-field-hint !mt-1">
+                                        Turn off for accounts with unreliable conversion tracking.
+                                    </p>
+                                </div>
                             </div>
                             {error ? (
                                 <p className="text-sm text-[var(--color-error,oklch(50%_0.15_25))]">{error}</p>

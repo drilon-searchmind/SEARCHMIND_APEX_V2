@@ -5,6 +5,10 @@ import Image from 'next/image';
 import CobaltLoader from '@/components/ui/CobaltLoader';
 import MetricCard from '@/components/dashboard/MetricCard';
 import { FiPackage, FiDollarSign } from 'react-icons/fi';
+import {
+    formatAvgDaysToSoldOutDisplay,
+    SHOPIFY_PRODUCT_SOLD_OUT_LOOKBACK_DAYS,
+} from '@/lib/shopifyProductsApi';
 
 export default function ProductPerfomance({ products = [], loading = false, inventoryLoading = false }) {
     const [query, setQuery] = useState('');
@@ -15,9 +19,25 @@ export default function ProductPerfomance({ products = [], loading = false, inve
     const formatCurrencyNoDecimals = (v) => (v === undefined ? '—' : `${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 })} kr`);
     const formatNumber = (n) => (n === undefined ? '—' : Number(n).toLocaleString());
 
+    const enrichedProducts = useMemo(
+        () =>
+            products.map((p) => {
+                const unitsSold60d = Number(p.unitsSold60d) || 0;
+                const soldOut = formatAvgDaysToSoldOutDisplay(p.inventoryStock, unitsSold60d);
+                return {
+                    ...p,
+                    unitsSold60d,
+                    avgDaysToSoldOut: soldOut.days,
+                    soldOutLabel: soldOut.label,
+                    soldOutTitle: soldOut.title,
+                };
+            }),
+        [products]
+    );
+
     const filteredProducts = useMemo(() => {
         const q = query.trim().toLowerCase();
-        let list = products.slice();
+        let list = enrichedProducts.slice();
         if (q) {
             list = list.filter(p => (
                 (p.title || '').toLowerCase().includes(q) ||
@@ -40,7 +60,7 @@ export default function ProductPerfomance({ products = [], loading = false, inve
         };
         list.sort((a, b) => (sortDir === 'asc' ? comparator(a, b) : -comparator(a, b)));
         return list;
-    }, [products, query, sortKey, sortDir]);
+    }, [enrichedProducts, query, sortKey, sortDir]);
 
     const summary = useMemo(() => {
         const totalRevenue = filteredProducts.reduce((s, p) => s + (Number(p.totalRevenue) || 0), 0);
@@ -75,52 +95,86 @@ export default function ProductPerfomance({ products = [], loading = false, inve
 
     const sortIndicator = (key) => sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
 
-    const columns = [
-        { key: 'productType', label: 'Category', sortable: true },
-        { key: 'avgPrice', label: 'Avg. Price', sortable: true, numeric: true },
-        { key: 'unitsSold', label: 'Units Sold', sortable: true, numeric: true },
-        { key: 'ordersCount', label: 'Orders', sortable: true, numeric: true },
-        { key: 'totalRevenue', label: 'Revenue', sortable: true, numeric: true },
-        { key: 'inventoryStock', label: 'Inventory Stock', sortable: true, numeric: true },
-        { key: 'inventoryValue', label: 'Inventory Value', sortable: true, numeric: true },
+    const columns = {
+        sales: [
+            { key: 'avgPrice', label: 'Avg. price', sortable: true, numeric: true },
+            { key: 'unitsSold', label: 'Units sold', sortable: true, numeric: true },
+            { key: 'ordersCount', label: 'Orders', sortable: true, numeric: true },
+            { key: 'totalRevenue', label: 'Revenue', sortable: true, numeric: true },
+        ],
+        velocity: [
+            { key: 'unitsSold60d', label: 'Units (60d)', sortable: true, numeric: true },
+            { key: 'avgDaysToSoldOut', label: 'Days to sold out', sortable: true, numeric: true },
+        ],
+        inventory: [
+            { key: 'inventoryStock', label: 'Stock', sortable: true, numeric: true },
+            { key: 'inventoryValue', label: 'Value', sortable: true, numeric: true },
+        ],
+    };
+
+    const allSortColumns = [
+        { key: 'productType', label: 'Category' },
+        ...columns.sales,
+        ...columns.velocity,
+        ...columns.inventory,
     ];
+
+    const soldOutCellClass = (p) => {
+        if (inventoryLoading && p.inventoryStock == null) return 'is-pending';
+        if (p.soldOutLabel === 'No sales (60d)') return 'is-muted-value';
+        if (p.avgDaysToSoldOut != null && p.avgDaysToSoldOut >= 180) return 'is-slow';
+        if (p.avgDaysToSoldOut != null && p.avgDaysToSoldOut <= 30) return 'is-healthy';
+        return '';
+    };
 
     return (
         <section className="apex-ecom-panel">
             <div className="apex-ecom-panel__head">
                 <div>
                     <h2 className="apex-ecom-panel__title">Product Performance</h2>
-                    <p className="apex-ecom-panel__subtitle">Top products by revenue for the selected period</p>
+                    <p className="apex-ecom-panel__subtitle">
+                        Units sold and revenue follow your selected date range. Avg. days to sold out always
+                        uses the last {SHOPIFY_PRODUCT_SOLD_OUT_LOOKBACK_DAYS} days of sales velocity and current
+                        inventory stock.
+                    </p>
                 </div>
             </div>
 
             <div className="apex-ecom-panel__toolbar">
-                <input
-                    type="search"
-                    placeholder="Search products, vendor, category…"
-                    value={query}
-                    onChange={e => setQuery(e.target.value)}
-                    className="apex-ecom-search"
-                />
+                <div className="apex-ecom-panel__toolbar-start">
+                    <input
+                        type="search"
+                        placeholder="Search products, vendor, category…"
+                        value={query}
+                        onChange={e => setQuery(e.target.value)}
+                        className="apex-ecom-search"
+                        aria-label="Search products"
+                    />
+                    {!loading && filteredProducts.length > 0 ? (
+                        <span className="apex-ecom-result-count">
+                            {filteredProducts.length.toLocaleString()} product
+                            {filteredProducts.length === 1 ? '' : 's'}
+                        </span>
+                    ) : null}
+                </div>
                 <div className="apex-ecom-sort">
                     <span className="apex-ecom-sort__label">Sort by</span>
                     <select
                         value={sortKey}
                         onChange={e => { setSortKey(e.target.value); setSortDir('desc'); }}
                         className="apex-ecom-select"
+                        aria-label="Sort products by"
                     >
-                        <option value="productType">Category</option>
-                        <option value="avgPrice">Avg. Price</option>
-                        <option value="unitsSold">Units Sold</option>
-                        <option value="ordersCount">Orders</option>
-                        <option value="totalRevenue">Revenue</option>
-                        <option value="inventoryStock">Inventory Stock</option>
-                        <option value="inventoryValue">Inventory Value</option>
+                        {allSortColumns.map((col) => (
+                            <option key={col.key} value={col.key}>
+                                {col.label}
+                            </option>
+                        ))}
                     </select>
                     <button
                         type="button"
                         onClick={() => setSortDir(prev => prev === 'asc' ? 'desc' : 'asc')}
-                        className="apex-perf-btn"
+                        className="apex-perf-btn apex-ecom-sort__dir"
                         aria-label="Toggle sort direction"
                     >
                         {sortDir === 'asc' ? '↑ Asc' : '↓ Desc'}
@@ -179,16 +233,53 @@ export default function ProductPerfomance({ products = [], loading = false, inve
                         />
                     </div>
 
-                    <div className="apex-ecom-table-wrap">
+                    <div className="apex-ecom-table-wrap apex-ecom-table-wrap--products">
                         <table className="apex-ecom-table">
                             <thead>
-                                <tr>
-                                    <th>Product</th>
-                                    {columns.map(col => (
+                                <tr className="apex-ecom-table__group-row">
+                                    <th rowSpan={2} className="is-sticky-product th-product">
+                                        Product
+                                    </th>
+                                    <th rowSpan={2} className="is-sortable" onClick={() => toggleSort('productType')} aria-sort={sortKey === 'productType' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                                        Category{sortIndicator('productType')}
+                                    </th>
+                                    <th colSpan={columns.sales.length} className="th-group th-group--sales">
+                                        Sales · date range
+                                    </th>
+                                    <th colSpan={columns.velocity.length} className="th-group th-group--velocity">
+                                        Velocity · 60 days
+                                    </th>
+                                    <th colSpan={columns.inventory.length} className="th-group th-group--inventory">
+                                        Inventory
+                                    </th>
+                                </tr>
+                                <tr className="apex-ecom-table__subhead-row">
+                                    {columns.sales.map((col) => (
                                         <th
                                             key={col.key}
-                                            className={`${col.numeric ? 'is-num' : ''} is-sortable`}
+                                            className="th-sub is-num is-sortable"
                                             onClick={() => toggleSort(col.key)}
+                                            aria-sort={sortKey === col.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                                        >
+                                            {col.label}{sortIndicator(col.key)}
+                                        </th>
+                                    ))}
+                                    {columns.velocity.map((col) => (
+                                        <th
+                                            key={col.key}
+                                            className="th-sub is-num is-sortable"
+                                            onClick={() => toggleSort(col.key)}
+                                            aria-sort={sortKey === col.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                                        >
+                                            {col.label}{sortIndicator(col.key)}
+                                        </th>
+                                    ))}
+                                    {columns.inventory.map((col) => (
+                                        <th
+                                            key={col.key}
+                                            className="th-sub is-num is-sortable"
+                                            onClick={() => toggleSort(col.key)}
+                                            aria-sort={sortKey === col.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
                                         >
                                             {col.label}{sortIndicator(col.key)}
                                         </th>
@@ -198,27 +289,46 @@ export default function ProductPerfomance({ products = [], loading = false, inve
                             <tbody>
                                 {filteredProducts.map((p, i) => (
                                     <tr key={p.productId || i}>
-                                        <td>
+                                        <td className="is-sticky-product td-product">
                                             <div className="apex-ecom-table__product">
                                                 <div className="apex-ecom-table__thumb">
                                                     {p.image ? (
-                                                        <Image src={p.image} alt={p.title} fill sizes="44px" className="object-cover" />
+                                                        <Image src={p.image} alt="" fill sizes="44px" className="object-cover" />
                                                     ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">—</div>
+                                                        <div className="apex-ecom-table__thumb-fallback" aria-hidden>
+                                                            <FiPackage />
+                                                        </div>
                                                     )}
                                                 </div>
-                                                <div>
-                                                    <div className="apex-ecom-table__name">{p.title}</div>
-                                                    <div className="apex-ecom-table__vendor">{p.vendor}</div>
+                                                <div className="min-w-0">
+                                                    <div className="apex-ecom-table__name" title={p.title}>{p.title}</div>
+                                                    {p.vendor ? (
+                                                        <div className="apex-ecom-table__vendor">{p.vendor}</div>
+                                                    ) : null}
                                                 </div>
                                             </div>
                                         </td>
-                                        <td>{p.productType || '—'}</td>
+                                        <td className="td-category">{p.productType || '—'}</td>
                                         <td className="is-num">{formatCurrency(p.avgPrice)}</td>
                                         <td className="is-num">{formatNumber(p.unitsSold)}</td>
                                         <td className="is-num">{formatNumber(p.ordersCount)}</td>
-                                        <td className="is-num">{formatCurrencyNoDecimals(p.totalRevenue)}</td>
-                                        <td className="is-num">
+                                        <td className="is-num is-emphasis">{formatCurrencyNoDecimals(p.totalRevenue)}</td>
+                                        <td className="is-num td-group-start">{formatNumber(p.unitsSold60d)}</td>
+                                        <td className={`is-num apex-ecom-table__sold-out ${soldOutCellClass(p)}`}>
+                                            <span
+                                                className="apex-ecom-table__sold-out-pill"
+                                                title={
+                                                    inventoryLoading && p.inventoryStock == null
+                                                        ? 'Loading inventory…'
+                                                        : p.soldOutTitle
+                                                }
+                                            >
+                                                {inventoryLoading && p.inventoryStock == null
+                                                    ? '…'
+                                                    : p.soldOutLabel}
+                                            </span>
+                                        </td>
+                                        <td className="is-num td-group-start">
                                             {inventoryLoading && p.inventoryStock == null
                                                 ? '…'
                                                 : (p.inventoryStock != null ? formatNumber(p.inventoryStock) : '—')}
@@ -233,8 +343,12 @@ export default function ProductPerfomance({ products = [], loading = false, inve
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <td colSpan={6} className="is-muted">Total</td>
-                                    <td className="is-num">
+                                    <td colSpan={6} className="is-muted is-sticky-product">
+                                        Total · filtered
+                                    </td>
+                                    <td className="is-num td-group-start">—</td>
+                                    <td className="is-num">—</td>
+                                    <td className="is-num td-group-start">
                                         {inventoryPending
                                             ? '…'
                                             : inventoryStockTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}

@@ -437,12 +437,21 @@ export function meetsSpendDodThreshold(row, thresholdPct = APEX_RADAR_SPEND_DOD_
     return p <= thresholdPct;
 }
 
+/** Default: alert when this many consecutive spending days (ending yesterday) have zero conversions. */
+export const APEX_RADAR_CONVERSION_ZERO_DAYS_THRESHOLD = 2;
+
+/** Max calendar days to walk back when measuring a zero-conversion streak (avoids "exactly N" cap artifacts). */
+export const APEX_RADAR_CONVERSION_TRACKING_MAX_LOOKBACK = 7;
+
 /**
- * Consecutive UTC calendar days ending at `calendarYesterday` with zero conversions.
- * Only counts days present in `dailyRows`; breaks on the first day with conversions.
- * `hadSpendInStreak` is true when at least one day in the streak had spend > 0.
+ * Consecutive UTC calendar days ending at `calendarYesterday` where spend > 0 and conversions = 0.
+ * Zero-spend days break the streak (paused account ≠ live tracking gap).
+ * Missing data breaks the streak.
  */
-export function computeConversionTrackingFromDaily(dailyRows, maxLookback = 14) {
+export function computeConversionTrackingFromDaily(
+    dailyRows,
+    maxLookback = APEX_RADAR_CONVERSION_TRACKING_MAX_LOOKBACK
+) {
     const { calendarYesterday } = getUtcCalendarSpendDodRange();
     const byDate = new Map();
     for (const d of dailyRows || []) {
@@ -451,33 +460,44 @@ export function computeConversionTrackingFromDaily(dailyRows, maxLookback = 14) 
 
     let streak = 0;
     let streakStartDate = null;
-    let hadSpendInStreak = false;
+    let streakEndDate = null;
 
     for (let i = 0; i < maxLookback; i++) {
         const date = addDaysIso(calendarYesterday, -i);
         const row = byDate.get(date);
         if (!row) break;
 
+        const spend = parseFloat(row.spend || 0);
+        if (spend <= 0) break;
+
         const conv = purchaseConversionsFromActions(row.actions);
         if (conv > 0) break;
 
-        const spend = parseFloat(row.spend || 0);
-        if (spend > 0) hadSpendInStreak = true;
         streak++;
         streakStartDate = date;
+        if (i === 0) streakEndDate = date;
+    }
+
+    let streakCapped = false;
+    if (streak >= maxLookback) {
+        const probeDate = addDaysIso(calendarYesterday, -maxLookback);
+        const probeRow = byDate.get(probeDate);
+        if (probeRow) {
+            const probeSpend = parseFloat(probeRow.spend || 0);
+            const probeConv = purchaseConversionsFromActions(probeRow.actions);
+            if (probeSpend > 0 && probeConv <= 0) streakCapped = true;
+        }
     }
 
     return {
         asOfDate: calendarYesterday,
         consecutiveZeroConversionDays: streak,
         streakStartDate,
-        streakEndDate: streak > 0 ? calendarYesterday : null,
-        hadSpendInStreak,
+        streakEndDate: streak > 0 ? streakEndDate || calendarYesterday : null,
+        hadSpendInStreak: streak > 0,
+        streakCapped,
     };
 }
-
-/** Default: alert when this many consecutive UTC days (ending yesterday) have zero conversions. */
-export const APEX_RADAR_CONVERSION_ZERO_DAYS_THRESHOLD = 2;
 
 /**
  * Prior-day spend alert: meaningful spend on day-before-yesterday, zero spend yesterday (UTC).
@@ -768,6 +788,14 @@ function placeholderRowNoAdAccount(customer, startDate, endDate) {
             spendDayBeforeYesterday: null,
             pctChangeFromPrior: null,
             warnDrop: false,
+        },
+        conversionTracking: {
+            asOfDate: dod.calendarYesterday,
+            consecutiveZeroConversionDays: 0,
+            streakStartDate: null,
+            streakEndDate: null,
+            hadSpendInStreak: false,
+            streakCapped: false,
         },
         apexRadarMeta: {
             channel: "facebook",

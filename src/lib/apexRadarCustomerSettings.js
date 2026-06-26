@@ -14,6 +14,7 @@ export function getFacebookApexRadarSettings(customer) {
             targetMetricType: "ROAS",
             targetValue: null,
             budgetMode: "DYNAMIC",
+            trackingAlertsEnabled: true,
         };
     }
     const tb = fb.targetBudget;
@@ -23,6 +24,7 @@ export function getFacebookApexRadarSettings(customer) {
         targetMetricType: fb.targetMetricType === "CPA" ? "CPA" : "ROAS",
         targetValue: tv != null && tv !== "" && !Number.isNaN(Number(tv)) ? Number(tv) : null,
         budgetMode: fb.budgetMode === "STATIC" ? "STATIC" : "DYNAMIC",
+        trackingAlertsEnabled: fb.trackingAlertsEnabled !== false,
     };
 }
 

@@ -114,6 +114,7 @@ function placeholderRowNoGoogleAdsCustomer(customer, startDate, endDate) {
             streakStartDate: null,
             streakEndDate: null,
             hadSpendInStreak: false,
+            streakCapped: false,
         },
         apexRadarMeta: {
             channel: APEX_RADAR_CHANNEL_GOOGLE_ADS,

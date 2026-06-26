@@ -31,6 +31,7 @@ export function mergeFacebookChannelSettingsIntoCustomers(customers, docs) {
                     targetMetricType: doc.targetMetricType === "CPA" ? "CPA" : "ROAS",
                     targetValue: doc.targetValue ?? null,
                     budgetMode: doc.budgetMode === "STATIC" ? "STATIC" : "DYNAMIC",
+                    trackingAlertsEnabled: doc.trackingAlertsEnabled !== false,
                 },
             },
         };
