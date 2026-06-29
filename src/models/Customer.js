@@ -278,6 +278,10 @@ const CustomerSchema = new mongoose.Schema({
             type: Number,
             default: 0,
         },
+        returnsCostPercentage: {
+            type: Number,
+            default: 0,
+        },
         marketingBureauCost: {
             type: Number,
             default: 0,

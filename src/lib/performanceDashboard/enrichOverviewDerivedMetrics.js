@@ -257,7 +257,7 @@ function buildDerivedSnapshot(
     const transactionFee = Number(derived.transactionFee) || Number(md.transaction_fee) || 0;
     const grossProfit = Number(derived.grossProfit) || Number(md.gross_profit) || 0;
     const cost = Number(md.cost) || 0;
-    const returnsCost = 0;
+    const returnsCost = Number(md.returns_cost) || 0;
     const totalOrderCosts = totalCogs + shippingCost + pickPack + transactionFee + returnsCost;
     const grossProfitMinusAdSpend = grossProfit - cost;
 

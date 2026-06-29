@@ -3,12 +3,12 @@ import { combineShopifyOrderSearchQuery } from './shopifyQlFilters';
 import { shopifyAdminGraphqlPost } from './shopifyAdminClient';
 
 /** Rolling window for "avg. days to sold out" velocity (calendar days, ending yesterday UTC). */
-export const SHOPIFY_PRODUCT_SOLD_OUT_LOOKBACK_DAYS = 60;
+export const SHOPIFY_PRODUCT_SOLD_OUT_LOOKBACK_DAYS = 90;
 
 /**
  * @param {number|null|undefined} inventoryStock
  * @param {number|null|undefined} unitsSoldInLookback
- * @param {number} [lookbackDays=60]
+ * @param {number} [lookbackDays=90]
  * @returns {number|null}
  */
 export function computeAvgDaysToSoldOut(
@@ -28,7 +28,7 @@ export function computeAvgDaysToSoldOut(
 }
 
 /**
- * Human-readable sold-out cell from 60-day velocity only (never the date-picker range).
+ * Human-readable sold-out cell from fixed rolling velocity only (never the date-picker range).
  * @returns {{ days: number|null, label: string, title: string }}
  */
 export function formatAvgDaysToSoldOutDisplay(
@@ -49,7 +49,7 @@ export function formatAvgDaysToSoldOutDisplay(
     if (!Number.isFinite(sold60) || sold60 <= 0) {
         return {
             days: null,
-            label: 'No sales (60d)',
+            label: `No sales (${lookbackDays}d)`,
             title:
                 `No units sold in the last ${lookbackDays} days (fixed window, independent of the date picker). ` +
                 'Units Sold in the table follows your selected date range.',

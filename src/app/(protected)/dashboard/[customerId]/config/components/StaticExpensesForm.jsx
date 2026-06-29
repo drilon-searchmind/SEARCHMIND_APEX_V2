@@ -194,6 +194,27 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
                         </div>
                         <p className="apex-config-field-hint">0.1 = 10%</p>
                     </div>
+
+                    <div>
+                        <FormLabel htmlFor="returnsCostPercentage">Returns handling cost %</FormLabel>
+                        <div className="apex-config-field-row">
+                            <FormInputText
+                                id="returnsCostPercentage"
+                                name="returnsCostPercentage"
+                                type="number"
+                                value={form.CustomerStaticExpenses.returnsCostPercentage}
+                                onChange={onChange}
+                                data-group="CustomerStaticExpenses"
+                                min="0"
+                                max="1"
+                                step="0.01"
+                            />
+                            <span className="apex-config-field-unit">%</span>
+                        </div>
+                        <p className="apex-config-field-hint">
+                            0.1 = 10% of return value (handling cost on returns in the period)
+                        </p>
+                    </div>
                 </div>
 
                 <div className="apex-config-card">

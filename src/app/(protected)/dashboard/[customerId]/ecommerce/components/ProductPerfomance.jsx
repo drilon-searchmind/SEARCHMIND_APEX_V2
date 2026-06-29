@@ -103,7 +103,7 @@ export default function ProductPerfomance({ products = [], loading = false, inve
             { key: 'totalRevenue', label: 'Revenue', sortable: true, numeric: true },
         ],
         velocity: [
-            { key: 'unitsSold60d', label: 'Units (60d)', sortable: true, numeric: true },
+            { key: 'unitsSold60d', label: `Units (${SHOPIFY_PRODUCT_SOLD_OUT_LOOKBACK_DAYS}d)`, sortable: true, numeric: true },
             { key: 'avgDaysToSoldOut', label: 'Days to sold out', sortable: true, numeric: true },
         ],
         inventory: [
@@ -121,7 +121,7 @@ export default function ProductPerfomance({ products = [], loading = false, inve
 
     const soldOutCellClass = (p) => {
         if (inventoryLoading && p.inventoryStock == null) return 'is-pending';
-        if (p.soldOutLabel === 'No sales (60d)') return 'is-muted-value';
+        if (p.soldOutLabel === `No sales (${SHOPIFY_PRODUCT_SOLD_OUT_LOOKBACK_DAYS}d)`) return 'is-muted-value';
         if (p.avgDaysToSoldOut == null) return '';
         if (p.avgDaysToSoldOut < 15) return 'is-critical';
         if (p.avgDaysToSoldOut <= 30) return 'is-warn';
@@ -248,7 +248,7 @@ export default function ProductPerfomance({ products = [], loading = false, inve
                                         Sales · date range
                                     </th>
                                     <th colSpan={columns.velocity.length} className="th-group th-group--velocity">
-                                        Velocity · 60 days
+                                        Velocity · {SHOPIFY_PRODUCT_SOLD_OUT_LOOKBACK_DAYS} days
                                     </th>
                                     <th colSpan={columns.inventory.length} className="th-group th-group--inventory">
                                         Inventory

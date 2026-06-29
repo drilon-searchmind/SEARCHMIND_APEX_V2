@@ -109,6 +109,7 @@ export function buildBaseMetricsData({
     const shippingCostPerOrder = staticExpenses.shippingCostPerOrder ?? 0;
     const pickNPackCostPerOrder = staticExpenses.pickNPackCostPerOrder ?? 0;
     const transactionCostPct = staticExpenses.transactionCostPercentage ?? 0.015;
+    const returnsCostPct = staticExpenses.returnsCostPercentage ?? 0;
 
     const totalSalesExVat = totalSalesExVatFromPeriodTotals(
         curr,
@@ -134,6 +135,16 @@ export function buildBaseMetricsData({
     const pickPackCostPrev = pickNPackCostPerOrder * prev.orders;
     const transactionFee = curr.netRevenue * transactionCostPct;
     const transactionFeePrev = prev.netRevenue * transactionCostPct;
+    const { returnDeduction: returnDeductionCurr } = shopifyDeductionMagnitudes(
+        curr.discounts,
+        curr.returns
+    );
+    const { returnDeduction: returnDeductionPrev } = shopifyDeductionMagnitudes(
+        prev.discounts,
+        prev.returns
+    );
+    const returnsCost = returnDeductionCurr * returnsCostPct;
+    const returnsCostPrev = returnDeductionPrev * returnsCostPct;
     const variableCosts = shippingCost + pickPackCost;
     const variableCostsPrev = shippingCostPrev + pickPackCostPrev;
     const allCosts =
@@ -186,6 +197,7 @@ export function buildBaseMetricsData({
         variable_costs: variableCosts,
         shipping_cost: shippingCost,
         pick_pack: pickPackCost,
+        returns_cost: returnsCost,
         ...channelTotals,
     };
 
@@ -219,6 +231,7 @@ export function buildBaseMetricsData({
         variable_costs: variableCostsPrev,
         shipping_cost: shippingCostPrev,
         pick_pack: pickPackCostPrev,
+        returns_cost: returnsCostPrev,
         ...channelTotalsPrev,
     };
 
@@ -234,6 +247,8 @@ export function buildBaseMetricsData({
             pickPackCostPrev,
             transactionFee,
             transactionFeePrev,
+            returnsCost,
+            returnsCostPrev,
             variableCosts,
             variableCostsPrev,
             allCosts,
@@ -249,7 +264,14 @@ export function buildBaseMetricsData({
             poas,
             poasPrev,
         },
-        _meta: { daysInRange, prevDaysInRange, transactionCostPct, shippingCostPerOrder, pickNPackCostPerOrder },
+        _meta: {
+            daysInRange,
+            prevDaysInRange,
+            transactionCostPct,
+            shippingCostPerOrder,
+            pickNPackCostPerOrder,
+            returnsCostPct,
+        },
     };
 }
 

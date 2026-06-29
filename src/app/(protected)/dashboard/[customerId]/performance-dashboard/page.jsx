@@ -18,6 +18,7 @@ import CobaltLoader from "@/components/ui/CobaltLoader";
 import Custom from "./components/Custom";
 import ReturnsOverrideModal from "./components/ReturnsOverrideModal";
 import CogsSettingsModal from "./components/CogsSettingsModal";
+import VariableCostSettingsModal from "./components/VariableCostSettingsModal";
 import FixedExpensesSettingsModal from "./components/FixedExpensesSettingsModal";
 import CalculationWalkthroughModal from "./components/CalculationWalkthroughModal";
 import {
@@ -182,6 +183,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
     const [replacementByKey, setReplacementByKey] = useState({});
     const [returnsOverrideModalOpen, setReturnsOverrideModalOpen] = useState(false);
     const [cogsSettingsModalOpen, setCogsSettingsModalOpen] = useState(false);
+    const [variableCostModalField, setVariableCostModalField] = useState(null);
     const [fixedExpensesModalOpen, setFixedExpensesModalOpen] = useState(false);
     const [settingsSaving, setSettingsSaving] = useState(false);
     const [mergedDataRefreshKey, setMergedDataRefreshKey] = useState(0);
@@ -421,6 +423,25 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
                 },
             });
             setCogsSettingsModalOpen(false);
+            refreshDashboardData();
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setSettingsSaving(false);
+        }
+    };
+
+    const handleVariableCostSettingsSave = async (fieldKey, value) => {
+        if (!params?.customerId || !customer || !fieldKey) return;
+        setSettingsSaving(true);
+        try {
+            await updateCustomer(params.customerId, {
+                CustomerStaticExpenses: {
+                    ...(customer.CustomerStaticExpenses || {}),
+                    [fieldKey]: value,
+                },
+            });
+            setVariableCostModalField(null);
             refreshDashboardData();
         } catch (err) {
             console.error(err);
@@ -1273,6 +1294,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
                     onToggleMetric={toggleMetricSelection}
                     onReturnsOverrideClick={() => setReturnsOverrideModalOpen(true)}
                     onCogsSettingsClick={() => setCogsSettingsModalOpen(true)}
+                    onVariableCostSettingsClick={(fieldKey) => setVariableCostModalField(fieldKey)}
                     onFixedExpensesSettingsClick={() => setFixedExpensesModalOpen(true)}
                 />
             </div>
@@ -1383,6 +1405,18 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
                     customer?.CustomerStaticExpenses?.cogsPercentage ?? 0
                 }
                 onSave={handleCogsSettingsSave}
+                saving={settingsSaving}
+            />
+            <VariableCostSettingsModal
+                open={Boolean(variableCostModalField)}
+                fieldKey={variableCostModalField}
+                onClose={() => setVariableCostModalField(null)}
+                initialValue={
+                    variableCostModalField
+                        ? customer?.CustomerStaticExpenses?.[variableCostModalField] ?? 0
+                        : 0
+                }
+                onSave={handleVariableCostSettingsSave}
                 saving={settingsSaving}
             />
             <FixedExpensesSettingsModal

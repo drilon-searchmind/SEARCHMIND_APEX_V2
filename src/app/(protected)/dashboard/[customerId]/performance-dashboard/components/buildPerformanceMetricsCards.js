@@ -148,6 +148,9 @@ export function buildPerformanceMetricsCards({
     const transactionCostPct = staticExp.transactionCostPercentage ?? 0.015;
     const shippingCostPerOrder = staticExp.shippingCostPerOrder ?? 0;
     const pickNPackCostPerOrder = staticExp.pickNPackCostPerOrder ?? 0;
+    const returnsCostPct = staticExp.returnsCostPercentage ?? 0;
+    const returnsCost = Number(metricsData.returns_cost) || 0;
+    const returnsCostPrev = Number(metricsDataPrev.returns_cost) || 0;
     const fixedExpensesMonthly = getMonthlyFixedExpensesTotal(staticExp);
 
     const cac = merged.CACTotalSales ?? null;
@@ -386,6 +389,7 @@ export function buildPerformanceMetricsCards({
             changePrevValue: fmtCur(shippingCostPrev),
             popOverContent: `Shipping Cost = Shipping per order × Orders\n= ${fmt(shippingCostPerOrder)} × ${orders}\n= ${fmt(shippingCost)}`,
             calcValueLabels: `Shipping per order: ${fmt(shippingCostPerOrder)}\nOrders: ${orders}`,
+            variableCostSettingsHighlight: shippingCostPerOrder > 0,
         },
         {
             key: "pick_pack",
@@ -398,6 +402,7 @@ export function buildPerformanceMetricsCards({
             changePrevValue: fmtCur(pickPackCostPrev),
             popOverContent: `Pick & Pack = Pick & pack per order × Orders\n= ${fmt(pickNPackCostPerOrder)} × ${orders}\n= ${fmt(pickPackCost)}`,
             calcValueLabels: `Pick & pack per order: ${fmt(pickNPackCostPerOrder)}\nOrders: ${orders}`,
+            variableCostSettingsHighlight: pickNPackCostPerOrder > 0,
         },
         {
             key: "total_expenses",
@@ -511,6 +516,7 @@ export function buildPerformanceMetricsCards({
             changePrevValue: fmtCur(transactionFeePrev),
             popOverContent: `Transaction Fee = Net Revenue × ${(transactionCostPct * 100).toFixed(2)}%\n= ${fmt(netRevenue)} × ${(transactionCostPct * 100).toFixed(2)}%\n= ${fmt(transactionFee)}`,
             calcValueLabels: `Net Revenue: ${fmt(netRevenue)}\nTransaction %: ${(transactionCostPct * 100).toFixed(2)}%`,
+            variableCostSettingsHighlight: transactionCostPct > 0,
         },
         {
             key: "tax",
@@ -587,6 +593,20 @@ export function buildPerformanceMetricsCards({
         customerType,
         { fetchCogs, cogsPercentage, customerSettings }
     );
+    metricsWithDerived = metricsWithDerived.map((m) => {
+        if (m.key !== "returns_cost") return m;
+        const { returnDeduction } = shopifyDeductionMagnitudes(discounts, returns);
+        return {
+            ...m,
+            popOverContent:
+                returnsCostPct > 0 && returnDeduction > 0
+                    ? `Returns cost = Returns × ${(returnsCostPct * 100).toFixed(2)}%\n= ${fmt(returnDeduction)} × ${(returnsCostPct * 100).toFixed(2)}%\n= ${fmt(returnsCost)}`
+                    : returnsCostPct > 0
+                      ? `Returns cost = Returns × ${(returnsCostPct * 100).toFixed(2)}% (no returns in period)`
+                      : null,
+            variableCostSettingsHighlight: returnsCostPct > 0,
+        };
+    });
 
     const withReplacements = metricsWithDerived.map((m) => {
         const rep = getReplacementForDisplayKey(m.key, replacementByKey);

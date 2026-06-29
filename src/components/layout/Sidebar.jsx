@@ -23,7 +23,6 @@ import {
 } from "react-icons/fi";
 import Image from "next/image";
 import { useParams, usePathname } from "next/navigation";
-import { useUser } from "@/contexts/UserContext";
 import { useCustomers } from "@/hooks/useCustomers";
 import { getServiceDashboardConfigWarnings } from "@/lib/customerServiceIntegrations";
 import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
@@ -120,7 +119,6 @@ const Sidebar = ({ showLinks = true }) => {
     const [isSmallScreen, setIsSmallScreen] = useState(false);
 
     const params = useParams();
-    const user = useUser();
     const { customers } = useCustomers();
     const pathname = usePathname();
     const activeCustomerId = params?.customerId;
@@ -376,20 +374,6 @@ const Sidebar = ({ showLinks = true }) => {
                                                 subLabel={"WIP"}
                                                 configWarning={false}
                                             />
-                                            <NavItem
-                                                href={`/dashboard/${activeCustomerId}/config`}
-                                                label="Config"
-                                                pathname={pathname}
-                                                isSmallScreen={isSmallScreen}
-                                            />
-                                            {user?.isAdmin && (
-                                                <NavItem
-                                                    href={`/dashboard/${activeCustomerId}/test-page`}
-                                                    label="Test Page"
-                                                    pathname={pathname}
-                                                    isSmallScreen={isSmallScreen}
-                                                />
-                                            )}
                                         </ul>
                                     )}
                                 </li>

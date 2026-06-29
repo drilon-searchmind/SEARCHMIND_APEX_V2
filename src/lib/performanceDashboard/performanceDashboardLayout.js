@@ -154,8 +154,16 @@ export function buildStandardOverviewSections({
                     nested: true,
                     valueType: "pct",
                 },
-                { key: "pick_pack", label: "Pick & Pack" },
-                { key: "shipping_cost", label: "Shipping Cost" },
+                {
+                    key: "pick_pack",
+                    label: "Pick & Pack",
+                    variableCostSettings: "pickNPackCostPerOrder",
+                },
+                {
+                    key: "shipping_cost",
+                    label: "Shipping Cost",
+                    variableCostSettings: "shippingCostPerOrder",
+                },
                 {
                     key: "shipping_cost_pct_total_sales",
                     metricKey: "shipping_cost_pct_total_sales",
@@ -163,8 +171,16 @@ export function buildStandardOverviewSections({
                     nested: true,
                     valueType: "pct",
                 },
-                { key: "transaction_fee", label: "Payment" },
-                { key: "returns_cost", label: "Returns cost" },
+                {
+                    key: "transaction_fee",
+                    label: "Payment",
+                    variableCostSettings: "transactionCostPercentage",
+                },
+                {
+                    key: "returns_cost",
+                    label: "Returns cost",
+                    variableCostSettings: "returnsCostPercentage",
+                },
                 { key: "total_order_costs", label: "Total Order Costs" },
             ],
         },

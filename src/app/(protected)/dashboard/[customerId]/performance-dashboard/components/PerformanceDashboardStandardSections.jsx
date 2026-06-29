@@ -116,6 +116,7 @@ export default function PerformanceDashboardStandardSections({
     onToggleMetric,
     onReturnsOverrideClick,
     onCogsSettingsClick,
+    onVariableCostSettingsClick,
     onFixedExpensesSettingsClick,
     onGa4ConversionSettingsClick,
     variant = "default",
@@ -328,10 +329,11 @@ export default function PerformanceDashboardStandardSections({
                             : `pr-4 py-2.5 flex items-center justify-between gap-2 ${plClass}`;
 
                         const settingsBtnClass = isCobalt
-                            ? `apex-perf-icon-btn${metric.returnsOverrideActive || metric.cogsSettingsHighlight || metric.fixedExpensesSettingsActive || metric.ga4ConversionSettingsActive ? " is-active" : ""}`
+                            ? `apex-perf-icon-btn${metric.returnsOverrideActive || metric.cogsSettingsHighlight || metric.variableCostSettingsHighlight || metric.fixedExpensesSettingsActive || metric.ga4ConversionSettingsActive ? " is-active" : ""}`
                             : `p-1 rounded-md transition-colors shrink-0 ${
                                   metric.returnsOverrideActive ||
                                   metric.cogsSettingsHighlight ||
+                                  metric.variableCostSettingsHighlight ||
                                   metric.fixedExpensesSettingsActive
                                       ? "text-purple-600 bg-purple-50"
                                       : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
@@ -415,6 +417,22 @@ export default function PerformanceDashboardStandardSections({
                                                     className={settingsBtnClass}
                                                     aria-label="COGS settings"
                                                     title="COGS source & %"
+                                                >
+                                                    <FiSettings className="text-sm" />
+                                                </button>
+                                            )}
+                                            {row.variableCostSettings && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onVariableCostSettingsClick?.(
+                                                            row.variableCostSettings
+                                                        );
+                                                    }}
+                                                    className={settingsBtnClass}
+                                                    aria-label={`${label} settings`}
+                                                    title={`Edit ${label} settings`}
                                                 >
                                                     <FiSettings className="text-sm" />
                                                 </button>

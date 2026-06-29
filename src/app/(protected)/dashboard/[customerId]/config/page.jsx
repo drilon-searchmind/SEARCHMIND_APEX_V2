@@ -77,6 +77,7 @@ export default function ConfigPage() {
             shippingCostPerOrder: 0,
             pickNPackCostPerOrder: 0,
             transactionCostPercentage: 0,
+            returnsCostPercentage: 0,
             marketingBureauCost: 0,
             marketingBureauCostLineItems: [],
             marketingToolingCost: 0,
