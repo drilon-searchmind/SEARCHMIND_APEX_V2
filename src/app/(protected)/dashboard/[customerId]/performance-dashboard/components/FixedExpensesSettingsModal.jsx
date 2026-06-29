@@ -24,9 +24,9 @@ function LineItemsSection({ field, label, items, onChange, disabled }) {
         const next = items.map((item, i) =>
             i === index
                 ? {
-                      ...item,
-                      [key]: key === "amount" ? parseFloat(value) || 0 : value,
-                  }
+                    ...item,
+                    [key]: key === "amount" ? parseFloat(value) || 0 : value,
+                }
                 : item
         );
         onChange(field, next);
@@ -62,25 +62,27 @@ function LineItemsSection({ field, label, items, onChange, disabled }) {
             ) : (
                 <div className="space-y-2">
                     {items.map((item, index) => (
-                        <div key={index} className="flex gap-2 items-center">
-                            <input
-                                type="text"
-                                placeholder="Item name"
-                                value={item.name || ""}
-                                onChange={(e) => updateItem(index, "name", e.target.value)}
-                                disabled={disabled}
-                                className="apex-perf-modal__input flex-1"
-                            />
-                            <input
-                                type="number"
-                                placeholder="Amount"
-                                min={0}
-                                step={0.01}
-                                value={item.amount ?? 0}
-                                onChange={(e) => updateItem(index, "amount", e.target.value)}
-                                disabled={disabled}
-                                className="apex-perf-modal__input w-28"
-                            />
+                        <div key={index} className="flex gap-2 items-end">
+                            <div>
+                                <input
+                                    type="text"
+                                    placeholder="Item name"
+                                    value={item.name || ""}
+                                    onChange={(e) => updateItem(index, "name", e.target.value)}
+                                    disabled={disabled}
+                                    className="apex-perf-modal__input flex-1"
+                                />
+                                <input
+                                    type="number"
+                                    placeholder="Amount"
+                                    min={0}
+                                    step={0.01}
+                                    value={item.amount ?? 0}
+                                    onChange={(e) => updateItem(index, "amount", e.target.value)}
+                                    disabled={disabled}
+                                    className="apex-perf-modal__input w-28"
+                                />
+                            </div>
                             <button
                                 type="button"
                                 onClick={() => removeItem(index)}
