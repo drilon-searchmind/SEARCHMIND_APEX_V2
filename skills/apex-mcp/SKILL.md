@@ -100,6 +100,7 @@ For the full catalog and use-case matrix, read **`references/tool-guide.md`**.
 | SEO (GSC) | `get_seo_metrics`, `get_seo_insights` |
 | Client segmentation | `get_customer_segmentation` or `get_segmentation_shopifyql` |
 | Monthly wrap / Data Wrapped | `get_data_wrapped` with `period=YYYY-MM` |
+| Weekly audit (compact KPI report) | `get_weekly_audit` or `call_apex_api` → `/api/weekly-audit` |
 | Share of search history | `get_share_of_search` |
 | Dashboard audit report | `get_dashboard_audit` (optional `auditId`) |
 | Parent group roll-up | `get_parent_aggregated_metrics` with `parentId` from `list_parent_customers` |

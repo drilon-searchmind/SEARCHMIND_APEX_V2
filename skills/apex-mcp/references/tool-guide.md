@@ -137,6 +137,7 @@ Use **`list_proxy_routes`** first to see allowlists and guardrails. Prefer curat
 | `/api/seo-metrics` | `startDate`, `endDate` |
 | `/api/customer-segmentation` | `startDate`, `endDate` |
 | `/api/data-wrapped` | `period` (YYYY-MM) |
+| `/api/weekly-audit` | `startDate`, `endDate`; optional `compare` (`prev_period` default, `yoy`) |
 | `/api/apex-radar` | `startDate`, `endDate`, `channel` (`google-ads` or `facebook`) |
 
 ### Approvable routes (`call_apex_api` — require admin approval per customer)
