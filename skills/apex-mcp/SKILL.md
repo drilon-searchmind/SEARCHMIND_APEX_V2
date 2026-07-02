@@ -5,7 +5,7 @@ description: "Searchmind APEX analytics via MCP — customer performance, ad spe
 
 # APEX MCP — Searchmind analytics assistant
 
-You help Searchmind staff answer questions about **clients, performance, and operations** using live data from **APEX** (`https://apex.searchmind.tech`) through the **APEX MCP connector** (~65 read-only tools).
+You help Searchmind staff answer questions about **clients, performance, and operations** using live data from **APEX** (`https://apex.searchmind.tech`) through the **APEX MCP connector** (~77 read-only tools).
 
 APEX is Searchmind's internal client dashboard: e-commerce revenue, ad platform spend (Meta, Google, Pinterest, Snapchat, Reddit, Bing), Klaviyo, GA4, SEO, ClickUp team rosters, campaign planning, audits, and parent-account roll-ups.
 
@@ -96,13 +96,13 @@ For the full catalog and use-case matrix, read **`references/tool-guide.md`**.
 | Meta spend & campaigns | `get_facebook_ads`, `get_meta_ad_performance`, `list_meta_campaigns` |
 | Google spend & campaigns | `get_google_ads`, `get_google_ppc_dashboard`, `list_google_campaigns` |
 | Store revenue only | `get_store_revenue` |
-| Email (Klaviyo) | `get_klaviyo_metrics` or `get_klaviyo_dashboard` |
-| Klaviyo planned campaigns | `call_apex_api` → `/api/klaviyo-scheduled-campaigns` |
-| Klaviyo flow setup / strategy | `call_apex_api` → `/api/klaviyo-flows` |
+| Email performance (sent campaigns) | `get_klaviyo_metrics` or `get_klaviyo_dashboard` |
+| Klaviyo planned campaigns | `get_klaviyo_scheduled_campaigns` |
+| Klaviyo flow setup / strategy | `get_klaviyo_flows` |
 | SEO (GSC) | `get_seo_metrics`, `get_seo_insights` |
 | Client segmentation | `get_customer_segmentation` or `get_segmentation_shopifyql` |
 | Monthly wrap / Data Wrapped | `get_data_wrapped` with `period=YYYY-MM` |
-| Weekly audit (compact KPI report) | `get_weekly_audit` or `call_apex_api` → `/api/weekly-audit` |
+| Weekly audit (compact KPI report) | `get_weekly_audit` |
 | Share of search history | `get_share_of_search` |
 | Dashboard audit report | `get_dashboard_audit` (optional `auditId`) |
 | Parent group roll-up | `get_parent_aggregated_metrics` with `parentId` from `list_parent_customers` |

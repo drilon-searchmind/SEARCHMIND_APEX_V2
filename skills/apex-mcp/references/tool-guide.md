@@ -1,6 +1,6 @@
 # APEX MCP tool guide
 
-Complete reference for the ~70 read-only APEX MCP tools (v0.7.0). All customer-scoped tools need **`customerId`** (MongoDB id from `list_customers`).
+Complete reference for the ~77 read-only APEX MCP tools (v0.7.2). All customer-scoped tools need **`customerId`** (MongoDB id from `list_customers`).
 
 ## Core tools
 
@@ -25,7 +25,7 @@ Requires `customerId`, `startDate`, `endDate` unless noted.
 | `get_snapchat_ads` | Snapchat metrics |
 | `get_reddit_ads` | Reddit metrics |
 | `get_bing_ads` | Microsoft Advertising metrics |
-| `get_klaviyo_metrics` | Klaviyo summary metrics |
+| `get_klaviyo_metrics` | Klaviyo sent-campaign performance (opens, clicks, conversions) |
 | `get_store_revenue` | E-commerce revenue only (no ad spend) |
 | `get_ga4_metrics` | GA4 sessions/users by day |
 | `get_seo_metrics` | GSC clicks/impressions + top keywords |
@@ -35,6 +35,9 @@ Requires `customerId`, `startDate`, `endDate` unless noted.
 | `get_google_ad_performance` | Ad-level Google performance |
 | `get_google_ppc_dashboard` | Full Google PPC dashboard payload |
 | `get_klaviyo_dashboard` | Full Klaviyo EM dashboard (+ optional `prevStartDate`, `prevEndDate`) |
+| `get_klaviyo_scheduled_campaigns` | Planned Klaviyo email campaigns (scheduled, draft, preparing) — optional `daysAhead`, `includeDrafts` |
+| `get_klaviyo_flows` | Klaviyo flow setup (triggers, delays, email steps) — optional `includeActions`, `status`, `maxFlows` |
+| `get_weekly_audit` | Compact weekly audit JSON — `startDate`, `endDate`; optional `compare` (`prev_period` default, `yoy`) |
 | `get_pinterest_dashboard` | Full Pinterest dashboard |
 | `get_snapchat_dashboard` | Full Snapchat dashboard |
 | `get_reddit_dashboard` | Full Reddit dashboard |
@@ -99,7 +102,10 @@ Requires `customerId`, `startDate`, `endDate` unless noted.
 | Daily overview with market filters | `get_merged_sources_filtered` |
 | Meta deep dive | `get_meta_ad_performance` or `get_facebook_ads` |
 | Google deep dive | `get_google_ppc_dashboard` or `get_google_ads` |
-| Email performance | `get_klaviyo_dashboard` |
+| Email performance (sent campaigns) | `get_klaviyo_dashboard` or `get_klaviyo_metrics` |
+| Klaviyo planned campaign calendar | `get_klaviyo_scheduled_campaigns` |
+| Klaviyo flow / automation setup | `get_klaviyo_flows` |
+| Weekly audit report | `get_weekly_audit` |
 | SEO deep dive | `get_seo_insights` |
 | Shopify products | `get_shopify_products` |
 | Client config / objectives | `get_customer` |
