@@ -920,3 +920,123 @@ export function getDemoFacebookAdsAdPerformanceForRange(since, until) {
     });
     return { ads, currency: "DKK", adPerformanceNote: null };
 }
+
+export function getDemoKlaviyoScheduledCampaigns(daysAhead = 60) {
+    const now = new Date();
+    const campaigns = [
+        {
+            id: "demo-camp-1",
+            name: "Summer sale — VIP early access",
+            status: "Scheduled",
+            scheduledAt: new Date(now.getTime() + 3 * 86400000).toISOString(),
+            archived: false,
+            audiences: { included: ["VIP segment"], excluded: [] },
+            sendStrategy: "static",
+            messages: [{ id: "m1", label: "Email 1", subject: "Early access: summer sale", previewText: "Shop before everyone else", channel: "email" }],
+        },
+        {
+            id: "demo-camp-2",
+            name: "Newsletter — Uge 28",
+            status: "Draft",
+            scheduledAt: null,
+            archived: false,
+            audiences: { included: ["Newsletter"], excluded: ["Unengaged 90d"] },
+            sendStrategy: "static",
+            messages: [{ id: "m2", label: "Draft", subject: "Nyheder fra Demo Store", previewText: null, channel: "email" }],
+        },
+        {
+            id: "demo-camp-3",
+            name: "Back in stock — Bestseller",
+            status: "Scheduled",
+            scheduledAt: new Date(now.getTime() + 10 * 86400000).toISOString(),
+            archived: false,
+            audiences: { included: ["Waitlist"], excluded: [] },
+            sendStrategy: "static",
+            messages: [{ id: "m3", label: "Email 1", subject: "Den er tilbage på lager", previewText: "Begrænset antal", channel: "email" }],
+        },
+    ];
+    return {
+        readOnly: true,
+        daysAhead,
+        includeDrafts: true,
+        generatedAt: new Date().toISOString(),
+        truncated: false,
+        summary: {
+            total: campaigns.length,
+            scheduled: 2,
+            draft: 1,
+            preparing: 0,
+            byWeek: [{ weekStart: now.toISOString().slice(0, 10), count: 2 }],
+        },
+        campaigns,
+    };
+}
+
+export function getDemoKlaviyoFlowsOverview() {
+    const flows = [
+        {
+            id: "demo-flow-1",
+            name: "Welcome Series",
+            status: "live",
+            triggerType: "Added to List",
+            archived: false,
+            updated: "2026-05-01T10:00:00Z",
+            created: "2025-01-15T09:00:00Z",
+            stepCount: 4,
+            emailStepCount: 3,
+            steps: [
+                { id: "a1", type: "trigger", status: "live", messages: [] },
+                { id: "a2", type: "send_email", status: "live", messages: [{ id: "fm1", name: "Welcome #1", subject: "Velkommen!", channel: "email" }] },
+                { id: "a3", type: "delay", status: "live", delay: { unit: "days", value: 2, delayUntilTime: null, delayUntilWeekdays: null }, messages: [] },
+                { id: "a4", type: "send_email", status: "live", messages: [{ id: "fm2", name: "Welcome #2", subject: "Sådan kommer du i gang", channel: "email" }] },
+            ],
+        },
+        {
+            id: "demo-flow-2",
+            name: "Abandoned Cart",
+            status: "live",
+            triggerType: "Metric",
+            archived: false,
+            updated: "2026-06-10T14:00:00Z",
+            created: "2024-11-01T09:00:00Z",
+            stepCount: 3,
+            emailStepCount: 2,
+            steps: [
+                { id: "b1", type: "trigger", status: "live", messages: [] },
+                { id: "b2", type: "delay", status: "live", delay: { unit: "hours", value: 4, delayUntilTime: null, delayUntilWeekdays: null }, messages: [] },
+                { id: "b3", type: "send_email", status: "live", messages: [{ id: "fm3", name: "Cart reminder", subject: "Du glemte noget i kurven", channel: "email" }] },
+            ],
+        },
+        {
+            id: "demo-flow-3",
+            name: "Post-purchase cross-sell",
+            status: "draft",
+            triggerType: "Placed Order",
+            archived: false,
+            updated: "2026-06-20T11:00:00Z",
+            created: "2026-06-01T09:00:00Z",
+            stepCount: 2,
+            emailStepCount: 1,
+            steps: [
+                { id: "c1", type: "trigger", status: "draft", messages: [] },
+                { id: "c2", type: "send_email", status: "draft", messages: [{ id: "fm4", name: "Cross-sell", subject: "Passer godt sammen med dit køb", channel: "email" }] },
+            ],
+        },
+    ];
+    return {
+        readOnly: true,
+        includeActions: true,
+        maxFlows: 80,
+        statusFilter: null,
+        generatedAt: new Date().toISOString(),
+        truncated: false,
+        summary: {
+            total: flows.length,
+            live: 2,
+            draft: 1,
+            manual: 0,
+            totalEmailSteps: flows.reduce((s, f) => s + f.emailStepCount, 0),
+        },
+        flows,
+    };
+}

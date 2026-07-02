@@ -138,6 +138,8 @@ Use **`list_proxy_routes`** first to see allowlists and guardrails. Prefer curat
 | `/api/customer-segmentation` | `startDate`, `endDate` |
 | `/api/data-wrapped` | `period` (YYYY-MM) |
 | `/api/weekly-audit` | `startDate`, `endDate`; optional `compare` (`prev_period` default, `yoy`) |
+| `/api/klaviyo-scheduled-campaigns` | optional `daysAhead` (default 60), `includeDrafts` (default true) |
+| `/api/klaviyo-flows` | optional `includeActions` (default true), `status` (`live`/`draft`/`manual`), `maxFlows` (default 80) |
 | `/api/apex-radar` | `startDate`, `endDate`, `channel` (`google-ads` or `facebook`) |
 
 ### Approvable routes (`call_apex_api` — require admin approval per customer)

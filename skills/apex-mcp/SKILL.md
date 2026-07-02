@@ -97,6 +97,8 @@ For the full catalog and use-case matrix, read **`references/tool-guide.md`**.
 | Google spend & campaigns | `get_google_ads`, `get_google_ppc_dashboard`, `list_google_campaigns` |
 | Store revenue only | `get_store_revenue` |
 | Email (Klaviyo) | `get_klaviyo_metrics` or `get_klaviyo_dashboard` |
+| Klaviyo planned campaigns | `call_apex_api` → `/api/klaviyo-scheduled-campaigns` |
+| Klaviyo flow setup / strategy | `call_apex_api` → `/api/klaviyo-flows` |
 | SEO (GSC) | `get_seo_metrics`, `get_seo_insights` |
 | Client segmentation | `get_customer_segmentation` or `get_segmentation_shopifyql` |
 | Monthly wrap / Data Wrapped | `get_data_wrapped` with `period=YYYY-MM` |
