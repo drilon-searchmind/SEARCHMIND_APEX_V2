@@ -28,6 +28,7 @@ import {
     meetsSpendDodThreshold,
 } from "@/lib/apexRadarFacebookOverview";
 import { collectGoogleAdsMonitorAlerts } from "@/lib/apexRadarGoogleAdsMonitor";
+import { enrichMonitorAlertsWithAssigneeUserIds } from "@/lib/apexRadarAlertAssignees";
 import { collectFacebookMonitorAlerts } from "@/lib/apexRadarFacebookMonitor";
 
 function normName(s) {
@@ -264,10 +265,16 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
         };
 
         if (isGoogleAds) {
-            return collectGoogleAdsMonitorAlerts(filteredRows, alertOpts);
+            return enrichMonitorAlertsWithAssigneeUserIds(
+                collectGoogleAdsMonitorAlerts(filteredRows, alertOpts),
+                { assignmentDetailMap, customersById, internalUsers, channel }
+            );
         }
         if (isFacebook) {
-            return collectFacebookMonitorAlerts(filteredRows, alertOpts);
+            return enrichMonitorAlertsWithAssigneeUserIds(
+                collectFacebookMonitorAlerts(filteredRows, alertOpts),
+                { assignmentDetailMap, customersById, internalUsers, channel }
+            );
         }
         return [];
     }, [
@@ -512,6 +519,7 @@ export default function ApexRadarOverviewClient({ channel, customerId = null }) 
                             alerts={monitorAlerts}
                             loading={overviewLoading && overviewRows == null && !overviewError}
                             platformLabel={meta?.label || "Apex Radar"}
+                            channel={channel}
                         />
                     ) : null}
 

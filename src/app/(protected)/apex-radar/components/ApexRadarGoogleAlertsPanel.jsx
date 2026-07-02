@@ -8,6 +8,7 @@ export default function ApexRadarGoogleAlertsPanel(props) {
         <ApexRadarAlertsPanel
             {...props}
             platformLabel={props.platformLabel ?? "Google Ads"}
+            channel={props.channel ?? "google-ads"}
         />
     );
 }

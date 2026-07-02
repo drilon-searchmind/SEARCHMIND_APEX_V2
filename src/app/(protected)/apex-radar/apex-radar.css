@@ -850,6 +850,58 @@
   border-bottom: var(--rule-hair) solid var(--color-rule);
 }
 
+.apex-radar-alerts-panel__actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.apex-radar-alerts-panel__slack-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 1.75rem;
+  padding: 0 0.65rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--color-ink-2);
+  background: var(--perf-canvas);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+  cursor: pointer;
+  transition: background-color var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out);
+}
+
+.apex-radar-alerts-panel__slack-btn:hover:not(:disabled) {
+  background: var(--color-paper-2);
+  border-color: var(--color-rule-2);
+  color: var(--color-ink);
+}
+
+.apex-radar-alerts-panel__slack-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.apex-radar-alerts-panel__feedback {
+  padding: var(--space-sm) var(--space-lg);
+  font-size: 0.72rem;
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-radar-alerts-panel__feedback.is-success {
+  color: var(--color-ink-2);
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--perf-raised));
+}
+
+.apex-radar-alerts-panel__feedback.is-error {
+  color: var(--color-syntax-num, #b91c1c);
+  background: color-mix(in srgb, var(--color-error, oklch(50% 0.15 25)) 8%, var(--perf-raised));
+}
+
 .apex-radar-alerts-panel__count {
   display: inline-flex;
   flex-shrink: 0;

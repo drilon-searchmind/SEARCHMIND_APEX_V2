@@ -6,6 +6,23 @@ export const APEX_RADAR_CHANNEL_GOOGLE_ADS = "google-ads";
 
 export const APEX_RADAR_CHANNELS = [APEX_RADAR_CHANNEL_FACEBOOK, APEX_RADAR_CHANNEL_GOOGLE_ADS];
 
+/** Default Slack warnings channel for PPC / Google Ads. */
+export const APEX_RADAR_SLACK_DEFAULT_WARNINGS_CHANNEL = "apex-radar-workspace";
+
+/** Default Slack warnings channel for Meta PS. */
+export const APEX_RADAR_SLACK_PS_WARNINGS_CHANNEL = "apex-radar-workspace-ps";
+
+/**
+ * Client-safe Slack channel name for UI labels (env overrides apply server-side only).
+ * @param {string} [channel]
+ */
+export function getApexRadarSlackWarningsChannelForDisplay(channel) {
+    if (String(channel || "") === APEX_RADAR_CHANNEL_FACEBOOK) {
+        return APEX_RADAR_SLACK_PS_WARNINGS_CHANNEL;
+    }
+    return APEX_RADAR_SLACK_DEFAULT_WARNINGS_CHANNEL;
+}
+
 export const APEX_RADAR_CHANNEL_META = {
     [APEX_RADAR_CHANNEL_FACEBOOK]: {
         label: "Facebook (PS)",

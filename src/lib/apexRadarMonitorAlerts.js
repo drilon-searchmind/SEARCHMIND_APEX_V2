@@ -16,6 +16,13 @@ export const APEX_RADAR_MONITOR_ALERT_TYPES = {
     CONVERSION_TRACKING: "conversion_tracking",
 };
 
+/** Short labels shown in Active warnings UI and Slack. */
+export const APEX_RADAR_ALERT_TYPE_LABELS = {
+    [APEX_RADAR_MONITOR_ALERT_TYPES.SPEND_DOD]: "Spend DoD",
+    [APEX_RADAR_MONITOR_ALERT_TYPES.SPEND_STOPPED]: "Spend stopped",
+    [APEX_RADAR_MONITOR_ALERT_TYPES.CONVERSION_TRACKING]: "Tracking",
+};
+
 function fmtMoney(n) {
     if (n == null || Number.isNaN(n)) return "—";
     return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(n);
