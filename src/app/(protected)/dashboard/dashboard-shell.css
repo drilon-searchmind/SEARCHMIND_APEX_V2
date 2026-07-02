@@ -247,25 +247,6 @@
   padding-left: calc(var(--space-sm) - 1px);
 }
 
-.apex-dash-nav__item.is-highlighted .apex-dash-nav__link {
-  background: oklch(98% 0.006 165 / 0.09);
-  border-color: oklch(98% 0.006 165 / 0.06);
-  color: var(--color-code-ink-light);
-}
-
-.apex-dash-nav__item.is-highlighted .apex-dash-nav__link:hover {
-  background: oklch(98% 0.006 165 / 0.14);
-}
-
-.apex-dash-nav__item.is-highlighted.is-active .apex-dash-nav__link {
-  background: oklch(98% 0.006 165 / 0.18);
-  border-color: oklch(82% 0.13 155 / 0.35);
-}
-
-.apex-dash-nav__item.is-highlighted .apex-dash-nav__link-main svg {
-  opacity: 0.9;
-}
-
 .apex-dash-nav__link-main svg {
   width: 1rem;
   height: 1rem;

@@ -69,12 +69,12 @@ const getIconForRoute = (href) => {
 const CONFIG_WARNING_TITLE =
     "Integration not configured for this customer (check Config or set a valid ID — not empty, 0, or 1)";
 
-const NavItem = ({ href, label, pathname, subLabel, isSmallScreen, configWarning, highlighted }) => {
+const NavItem = ({ href, label, pathname, subLabel, isSmallScreen, configWarning }) => {
     const isActive = pathname === href;
     const icon = getIconForRoute(href);
 
     return (
-        <li className={`apex-dash-nav__item${isActive ? " is-active" : ""}${isSmallScreen ? " is-collapsed" : ""}${highlighted ? " is-highlighted" : ""}`}>
+        <li className={`apex-dash-nav__item${isActive ? " is-active" : ""}${isSmallScreen ? " is-collapsed" : ""}`}>
             <Link href={href} className="apex-dash-nav__link">
                 {isSmallScreen ? (
                     <>
@@ -379,7 +379,6 @@ const Sidebar = ({ showLinks = true }) => {
                                                 label="Config"
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
-                                                highlighted
                                             />
                                         </ul>
                                     )}
