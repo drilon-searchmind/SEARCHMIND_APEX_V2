@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useMemo, useCallback } from "react"
 import Image from "next/image";
 import { FaMoon, FaSun } from "react-icons/fa";
 import { FiBell } from "react-icons/fi";
-import { FiChevronDown, FiHome, FiUser, FiSettings, FiSliders, FiBarChart2, FiLogOut, FiBookOpen, FiShare2, FiGift, FiFileText } from "react-icons/fi";
+import { FiChevronDown, FiHome, FiUser, FiSettings, FiBarChart2, FiLogOut, FiBookOpen, FiShare2, FiGift, FiFileText } from "react-icons/fi";
 import { useUser } from "@/contexts/UserContext";
 import { signOut } from "next-auth/react";
 import { useCustomers } from "@/hooks/useCustomers";
@@ -160,8 +160,6 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
     // accessibleCustomers used by property search
 
     const apexRadarPath = parseApexRadarPath(pathname);
-    const configCustomerId = activeCustomerId || apexRadarPath.customerId || null;
-    const configHref = configCustomerId ? `/dashboard/${configCustomerId}/config` : null;
 
     const customerSearchExtraItems = useMemo(() => {
         if (!apexRadarPath.isApexRadar) return [];
@@ -588,14 +586,6 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                                 </Link>
                                             </li>
                                         )}
-                                        {configHref ? (
-                                            <li>
-                                                <Link href={configHref} onClick={() => setMenuOpen(false)}>
-                                                    <span className="apex-dash__icon-box apex-dash__icon-box--menu"><FiSliders aria-hidden /></span>
-                                                    Config
-                                                </Link>
-                                            </li>
-                                        ) : null}
                                         {canAccessApexRadar(user) && (
                                             <li>
                                                 <Link href="/apex-radar" onClick={() => setMenuOpen(false)} className="apex-dash-topbar__menu-radar-link">
@@ -765,11 +755,6 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                     <FiSettings aria-hidden /> <span>Admin</span>
                                 </Link>
                             )}
-                            {configHref ? (
-                                <Link href={configHref} onClick={() => setMobileMenuOpen(false)} className="apex-dash-topbar__mobile-link">
-                                    <FiSliders aria-hidden /> <span>Config</span>
-                                </Link>
-                            ) : null}
                             {canAccessApexRadar(user) && (
                                 <Link href="/apex-radar" onClick={() => setMobileMenuOpen(false)} className="apex-dash-topbar__mobile-link">
                                     <LuRadar aria-hidden /> <span>Apex Radar</span>
