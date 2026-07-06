@@ -15,7 +15,8 @@
     "sync:customer-teams": "node scripts/sync-customer-teams-from-clickup.mjs",
     "clickup:fetch-customers": "node scripts/clickup/fetchClickupCustomers.js",
     "clickup:compare-customers": "node scripts/clickup/compareClickupCustomers.js",
-    "clickup:enrich-missing": "node scripts/clickup/enrichMissingCustomers.js"
+    "clickup:enrich-missing": "node scripts/clickup/enrichMissingCustomers.js",
+    "apex-radar:cron": "node scripts/run-apex-radar-slack-cron.mjs"
   },
   "dependencies": {
     "@googleapis/searchconsole": "^6.0.1",
