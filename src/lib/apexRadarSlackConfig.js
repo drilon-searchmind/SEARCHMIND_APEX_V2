@@ -8,17 +8,13 @@ import {
 } from "@/lib/apexRadarChannels";
 
 /**
- * Resolve Slack channel name for Apex Radar warnings / DM summaries.
- * PS defaults to #apex-radar-workspace-ps; PPC (Google Ads) uses #apex-radar-workspace.
- * @param {string} [channel] — `facebook` (PS) or `google-ads`
+ * Resolve Slack channel name for Apex Radar DM delivery summaries.
+ * Meta PS → #apex-radar-workspace-ps only. Google Ads → #apex-radar-workspace only.
+ * @param {string} channel — `facebook` (PS) or `google-ads` (required)
  */
 export function getApexRadarSlackWarningsChannel(channel) {
-    const ppcChannel =
-        process.env.SLACK_APEX_RADAR_GOOGLE_ADS_WARNINGS_CHANNEL ||
-        process.env.SLACK_APEX_RADAR_WARNINGS_CHANNEL ||
-        APEX_RADAR_SLACK_DEFAULT_WARNINGS_CHANNEL;
-
     const ch = String(channel || "").trim();
+
     if (ch === APEX_RADAR_CHANNEL_FACEBOOK) {
         return (
             process.env.SLACK_APEX_RADAR_PS_WARNINGS_CHANNEL ||
@@ -26,10 +22,18 @@ export function getApexRadarSlackWarningsChannel(channel) {
             APEX_RADAR_SLACK_PS_WARNINGS_CHANNEL
         ).trim();
     }
+
     if (ch === APEX_RADAR_CHANNEL_GOOGLE_ADS) {
-        return ppcChannel.trim();
+        return (
+            process.env.SLACK_APEX_RADAR_GOOGLE_ADS_WARNINGS_CHANNEL ||
+            process.env.SLACK_APEX_RADAR_WARNINGS_CHANNEL ||
+            APEX_RADAR_SLACK_DEFAULT_WARNINGS_CHANNEL
+        ).trim();
     }
-    return ppcChannel.trim();
+
+    throw new Error(
+        `Slack channel requires a valid Apex Radar platform (facebook or google-ads), got: ${channel || "(missing)"}`
+    );
 }
 
 /**

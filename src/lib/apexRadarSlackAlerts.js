@@ -90,7 +90,8 @@ function formatAlertSummaryLine(alert) {
 }
 
 /**
- * Delivery summary posted to #apex-radar-workspace after DM batch.
+ * Delivery summary posted to the platform workspace channel after DM batch
+ * (PS → #apex-radar-workspace-ps, Google Ads → #apex-radar-workspace).
  * @param {{
  *   platformLabel: string,
  *   sentAt: Date,

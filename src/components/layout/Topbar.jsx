@@ -75,6 +75,17 @@ function parseUnreadCount(raw) {
     return Math.min(Math.floor(n), 99999);
 }
 
+function getParentCustomerId(customer) {
+    const raw = customer?.parentCustomer;
+    if (raw == null || raw === "") return null;
+    if (typeof raw === "object") {
+        const id = raw._id ?? raw.$oid;
+        return id != null && String(id).trim() ? String(id).trim() : null;
+    }
+    const id = String(raw).trim();
+    return id || null;
+}
+
 const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true, isParentProperty = false }) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const [bellMenuOpen, setBellMenuOpen] = useState(false);
@@ -171,6 +182,11 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
         if (apexRadarPath.isApexRadar && !apexRadarPath.customerId) return "All";
         return activeCustomer?.customerName ?? null;
     }, [apexRadarPath.isApexRadar, apexRadarPath.customerId, activeCustomer?.customerName]);
+
+    const parentCustomerId = useMemo(
+        () => getParentCustomerId(activeCustomer),
+        [activeCustomer]
+    );
 
     const buildPropertyHref = useCallback(
         (customerId) => {
@@ -429,9 +445,32 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                         {showPropertySection && (
                             <>
                                 <div className="apex-dash-topbar__actions">
-                                    <Link href={`/parent-property/${activeCustomer?.parentCustomer || ""}/home`}>
-                                        <span className="apex-dash-topbar__btn">Group View</span>
-                                    </Link>
+                                    {parentCustomerId ? (
+                                        <Link
+                                            href={`/parent-property/${parentCustomerId}/home`}
+                                            className="apex-dash-topbar__btn"
+                                        >
+                                            Market Overview
+                                        </Link>
+                                    ) : (
+                                        <span
+                                            className="apex-dash-topbar__market-overview-wrap"
+                                            tabIndex={0}
+                                        >
+                                            <span
+                                                className="apex-dash-topbar__btn is-disabled"
+                                                aria-disabled="true"
+                                            >
+                                                Market Overview
+                                            </span>
+                                            <span
+                                                className="apex-dash-topbar__market-popover"
+                                                role="tooltip"
+                                            >
+                                                No other markets added
+                                            </span>
+                                        </span>
+                                    )}
 
                                     {!user?.isExternal && (
                                         <button
@@ -664,14 +703,29 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                         {showPropertySection && (
                             <div className="apex-dash-topbar__mobile-section">
                                 <p className="apex-dash-topbar__mobile-label">Property</p>
-                                <Link
-                                    href={`/parent-property/${activeCustomer?.parentCustomer || ""}/home`}
-                                    onClick={() => setMobileMenuOpen(false)}
-                                    className="apex-dash-topbar__mobile-link"
-                                >
-                                    <FiHome aria-hidden />
-                                    <span>View Group Property</span>
-                                </Link>
+                                {parentCustomerId ? (
+                                    <Link
+                                        href={`/parent-property/${parentCustomerId}/home`}
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className="apex-dash-topbar__mobile-link"
+                                    >
+                                        <FiHome aria-hidden />
+                                        <span>Market Overview</span>
+                                    </Link>
+                                ) : (
+                                    <div className="apex-dash-topbar__mobile-market-wrap">
+                                        <span
+                                            className="apex-dash-topbar__mobile-link is-disabled"
+                                            aria-disabled="true"
+                                        >
+                                            <FiHome aria-hidden />
+                                            <span>Market Overview</span>
+                                        </span>
+                                        <p className="apex-dash-topbar__mobile-market-hint">
+                                            No other markets added
+                                        </p>
+                                    </div>
+                                )}
                                         {activeCustomerId && (() => {
                                             const lastMonthPeriod = getLastMonthPeriod();
                                             const opened = getOpenedPeriodsForCustomer(user?.openedWrappedPeriods, activeCustomerId);

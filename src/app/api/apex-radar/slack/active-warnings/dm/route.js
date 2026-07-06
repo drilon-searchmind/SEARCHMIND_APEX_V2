@@ -37,13 +37,18 @@ export async function POST(request) {
     const channel =
         typeof body.channel === "string" && isValidApexRadarChannel(body.channel)
             ? body.channel
-            : undefined;
+            : null;
+
+    if (!channel) {
+        return NextResponse.json(
+            { error: "channel is required (facebook or google-ads)" },
+            { status: 400 }
+        );
+    }
 
     const platformLabel = resolveApexRadarSlackPlatformLabel(channel, body.platformLabel);
 
-    const alertsWithAssignees = channel
-        ? await enrichAlertsWithServerAssignees(alerts, channel)
-        : alerts;
+    const alertsWithAssignees = await enrichAlertsWithServerAssignees(alerts, channel);
 
     const assigneeIds = [
         ...new Set(

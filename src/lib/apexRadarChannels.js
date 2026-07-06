@@ -20,6 +20,9 @@ export function getApexRadarSlackWarningsChannelForDisplay(channel) {
     if (String(channel || "") === APEX_RADAR_CHANNEL_FACEBOOK) {
         return APEX_RADAR_SLACK_PS_WARNINGS_CHANNEL;
     }
+    if (String(channel || "") === APEX_RADAR_CHANNEL_GOOGLE_ADS) {
+        return APEX_RADAR_SLACK_DEFAULT_WARNINGS_CHANNEL;
+    }
     return APEX_RADAR_SLACK_DEFAULT_WARNINGS_CHANNEL;
 }
 
