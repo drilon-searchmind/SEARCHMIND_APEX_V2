@@ -26,7 +26,7 @@ export async function enrichAlertsWithServerAssignees(alerts, channel) {
     const [assignmentDocs, customerDocs, userDocs] = await Promise.all([
         ApexRadarAccountAssignment.find({ channel, customerId: { $in: customerIds } }).lean(),
         Customer.find({ _id: { $in: customerIds } })
-            .select("customerName customerTeam")
+            .select("customerName customerTeam CustomerSettings")
             .lean(),
         User.find({ isExternal: { $ne: true }, isArchived: { $ne: true } })
             .select("name clickupId")
@@ -57,10 +57,28 @@ export async function enrichAlertsWithServerAssignees(alerts, channel) {
         clickupId: (user.clickupId && String(user.clickupId).trim()) || "",
     }));
 
-    return enrichMonitorAlertsWithAssigneeUserIds(alerts, {
-        assignmentDetailMap,
-        customersById,
-        internalUsers,
-        channel,
+    return enrichMonitorAlertsWithAssigneeUserIds(
+        mergeIntegrationIdsIntoAlerts(alerts, customersById),
+        {
+            assignmentDetailMap,
+            customersById,
+            internalUsers,
+            channel,
+        }
+    );
+}
+
+function mergeIntegrationIdsIntoAlerts(alerts, customersById) {
+    return (alerts || []).map((alert) => {
+        const customer = customersById?.[String(alert.customerId || "")];
+        if (!customer) return alert;
+        const settings = customer.CustomerSettings || {};
+        return {
+            ...alert,
+            facebookAdAccountId:
+                String(alert.facebookAdAccountId || settings.facebookAdAccountId || "").trim(),
+            googleAdsCustomerId:
+                String(alert.googleAdsCustomerId || settings.googleAdsCustomerId || "").trim(),
+        };
     });
 }

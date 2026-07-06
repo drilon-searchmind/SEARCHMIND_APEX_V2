@@ -82,6 +82,8 @@ function placeholderRowNoGoogleAdsCustomer(customer, startDate, endDate) {
         id,
         customerId: id,
         entity: customer.customerName || "Unnamed customer",
+        facebookAdAccountId: (customer.CustomerSettings?.facebookAdAccountId || "").trim(),
+        googleAdsCustomerId: (customer.CustomerSettings?.googleAdsCustomerId || "").trim(),
         value: {
             conversions2d: null,
             value7d: null,

@@ -37,6 +37,22 @@ function fmtPct(n, digits = 1) {
     }).format(n)}%`;
 }
 
+function integrationIdsFromRow(row) {
+    return {
+        facebookAdAccountId: String(row.facebookAdAccountId || "").trim(),
+        googleAdsCustomerId: String(row.googleAdsCustomerId || "").trim(),
+    };
+}
+
+function alertCommonFields(row, teamMemberNames) {
+    return {
+        customerId: String(row.id ?? row.customerId ?? ""),
+        customerName: row.entity || "Unnamed customer",
+        teamMemberNames,
+        ...integrationIdsFromRow(row),
+    };
+}
+
 /**
  * @param {object} row — overview row
  * @param {object} [opts]
@@ -54,21 +70,19 @@ export function buildApexRadarMonitorAlerts(row, opts = {}) {
     const conversionZeroDaysThreshold =
         opts.conversionZeroDaysThreshold ?? APEX_RADAR_CONVERSION_ZERO_DAYS_THRESHOLD;
     const teamMemberNames = opts.teamMemberNames || [];
-    const customerId = String(row.id ?? row.customerId ?? "");
-    const customerName = row.entity || "Unnamed customer";
+    const common = alertCommonFields(row, teamMemberNames);
     const dod = row.spendDayOverDay || {};
     const tracking = row.conversionTracking || {};
     const channelSettings = opts.getChannelSettings ? opts.getChannelSettings(row) : {};
     const alerts = [];
+    const { customerId } = common;
 
     if (meetsSpendDodThreshold(row, spendDodThresholdPct)) {
         alerts.push({
             id: `${customerId}-${channelKey}-${APEX_RADAR_MONITOR_ALERT_TYPES.SPEND_DOD}`,
             type: APEX_RADAR_MONITOR_ALERT_TYPES.SPEND_DOD,
             severity: "warning",
-            customerId,
-            customerName,
-            teamMemberNames,
+            ...common,
             title: "Day-over-day spend drop",
             message: `Spend fell ${fmtPct(dod.pctChangeFromPrior)} from ${dod.calendarDayBeforeYesterday} to ${dod.calendarYesterday} (${fmtMoney(dod.spendDayBeforeYesterday)} → ${fmtMoney(dod.spendYesterday)}). Threshold: ${fmtPct(spendDodThresholdPct, 0)} or lower.`,
         });
@@ -79,9 +93,7 @@ export function buildApexRadarMonitorAlerts(row, opts = {}) {
             id: `${customerId}-${channelKey}-${APEX_RADAR_MONITOR_ALERT_TYPES.SPEND_STOPPED}`,
             type: APEX_RADAR_MONITOR_ALERT_TYPES.SPEND_STOPPED,
             severity: "warning",
-            customerId,
-            customerName,
-            teamMemberNames,
+            ...common,
             title: "Spend stopped after prior day",
             message: `No spend on ${dod.calendarYesterday} (UTC) after ${fmtMoney(dod.spendDayBeforeYesterday)} on ${dod.calendarDayBeforeYesterday}.`,
         });
@@ -109,9 +121,7 @@ export function buildApexRadarMonitorAlerts(row, opts = {}) {
                 id: `${customerId}-${channelKey}-${APEX_RADAR_MONITOR_ALERT_TYPES.CONVERSION_TRACKING}`,
                 type: APEX_RADAR_MONITOR_ALERT_TYPES.CONVERSION_TRACKING,
                 severity: "critical",
-                customerId,
-                customerName,
-                teamMemberNames,
+                ...common,
                 title: "Conversion tracking",
                 message: `No conversions for ${streakPhrase} (${range}, UTC) while ads were active. Alert threshold: ${conversionZeroDaysThreshold} ${conversionZeroDaysThreshold === 1 ? "day" : "days"}.`,
             });

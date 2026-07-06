@@ -240,7 +240,7 @@ async function loadSlackUsersByAssigneeIds(assigneeIds) {
  * }} [options]
  */
 export async function runApexRadarSlackCronForChannel(channel, options = {}) {
-    const sendChannel = options.sendChannel !== false;
+    const sendChannel = options.sendChannel === true;
     const sendDm = options.sendDm !== false;
     const dateRange = options.dateRange || getApexRadarLast30DaysRange();
     const thresholds = {

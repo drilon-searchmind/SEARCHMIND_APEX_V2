@@ -2,7 +2,6 @@
 
 import React, { useCallback, useState } from "react";
 import { FiAlertCircle, FiAlertTriangle, FiBell, FiSend, FiUsers } from "react-icons/fi";
-import { SiSlack } from "react-icons/si";
 import CobaltLoader from "@/components/ui/CobaltLoader";
 import { APEX_RADAR_ALERT_TYPE_LABELS, APEX_RADAR_MONITOR_ALERT_TYPES } from "@/lib/apexRadarMonitorAlerts";
 import {
@@ -26,41 +25,11 @@ export default function ApexRadarAlertsPanel({
 }) {
     const count = alerts.length;
     const slackChannelLabel = `#${String(slackChannelName || APEX_RADAR_SLACK_DEFAULT_WARNINGS_CHANNEL).replace(/^#/, "")}`;
-    const [slackSending, setSlackSending] = useState(null);
+    const [slackSending, setSlackSending] = useState(false);
     const [slackFeedback, setSlackFeedback] = useState(null);
 
-    const handleSendToSlack = useCallback(async () => {
-        setSlackSending("channel");
-        setSlackFeedback(null);
-        try {
-            const res = await fetch("/api/apex-radar/slack/active-warnings", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ alerts, platformLabel, channel }),
-            });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                throw new Error(data.error || "Failed to send to Slack");
-            }
-            const channelLabel = data.channelName
-                ? `#${data.channelName}`
-                : "Slack";
-            setSlackFeedback({
-                type: "success",
-                message: `Sent to ${channelLabel}.`,
-            });
-        } catch (err) {
-            setSlackFeedback({
-                type: "error",
-                message: err?.message || "Could not send to Slack.",
-            });
-        } finally {
-            setSlackSending(null);
-        }
-    }, [alerts, platformLabel, channel, slackChannelLabel]);
-
     const handleSendDm = useCallback(async () => {
-        setSlackSending("dm");
+        setSlackSending(true);
         setSlackFeedback(null);
         try {
             const res = await fetch("/api/apex-radar/slack/active-warnings/dm", {
@@ -96,7 +65,7 @@ export default function ApexRadarAlertsPanel({
                 message: err?.message || "Could not send Slack DMs.",
             });
         } finally {
-            setSlackSending(null);
+            setSlackSending(false);
         }
     }, [alerts, platformLabel, channel, slackChannelLabel]);
 
@@ -113,9 +82,10 @@ export default function ApexRadarAlertsPanel({
                             Active warnings
                         </h2>
                         <p className="apex-radar-section__subtitle">
-                            {platformLabel} monitor alerts for the filtered accounts below. Send to{" "}
-                            <span className="font-medium text-[var(--color-ink-2)]">{slackChannelLabel}</span>{" "}
-                            or DM assigned team members.
+                            {platformLabel} monitor alerts for the filtered accounts below.{" "}
+                            <span className="font-medium text-[var(--color-ink-2)]">DM Users</span> sends
+                            warnings to assignees and posts a delivery summary to{" "}
+                            <span className="font-medium text-[var(--color-ink-2)]">{slackChannelLabel}</span>.
                         </p>
                     </div>
                 </div>
@@ -123,30 +93,16 @@ export default function ApexRadarAlertsPanel({
                     <button
                         type="button"
                         className="apex-radar-alerts-panel__slack-btn"
-                        onClick={handleSendToSlack}
-                        disabled={loading || slackSending != null}
-                        title={`Post current warnings to ${slackChannelLabel}`}
-                    >
-                        {slackSending === "channel" ? (
-                            <FiSend className="h-3.5 w-3.5 animate-pulse" aria-hidden />
-                        ) : (
-                            <SiSlack className="h-3.5 w-3.5" aria-hidden />
-                        )}
-                        {slackSending === "channel" ? "Sending…" : "Send to Slack"}
-                    </button>
-                    <button
-                        type="button"
-                        className="apex-radar-alerts-panel__slack-btn"
                         onClick={handleSendDm}
-                        disabled={loading || slackSending != null}
-                        title="Send current warnings as DMs to assigned team members"
+                        disabled={loading || slackSending}
+                        title="Send warnings as DMs to assigned team members and post delivery summary to Slack"
                     >
-                        {slackSending === "dm" ? (
+                        {slackSending ? (
                             <FiSend className="h-3.5 w-3.5 animate-pulse" aria-hidden />
                         ) : (
                             <FiUsers className="h-3.5 w-3.5" aria-hidden />
                         )}
-                        {slackSending === "dm" ? "Sending…" : "DM Users"}
+                        {slackSending ? "Sending…" : "DM Users"}
                     </button>
                     <span
                         className={`apex-radar-alerts-panel__count${count ? " has-alerts" : ""}`}

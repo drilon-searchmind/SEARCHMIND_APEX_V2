@@ -6,6 +6,18 @@ function severityEmoji(severity) {
     return ":large_blue_circle:";
 }
 
+/** Customer name with optional FB / Google Ads account ids for Slack. */
+export function formatApexRadarAlertCustomerLabel(alert) {
+    const name = alert?.customerName || "Unnamed customer";
+    const idParts = [];
+    const fb = String(alert?.facebookAdAccountId || "").trim();
+    const gads = String(alert?.googleAdsCustomerId || "").trim();
+    if (fb) idParts.push(`FB \`${fb}\``);
+    if (gads) idParts.push(`GAds \`${gads}\``);
+    if (!idParts.length) return `*${name}*`;
+    return `*${name}* · ${idParts.join(" · ")}`;
+}
+
 /**
  * Build Slack message payload mirroring the Active warnings panel (customer, type, title, message, team).
  * @param {{ alerts: object[], platformLabel: string }} input
@@ -60,7 +72,7 @@ export function formatApexRadarActiveWarningsSlackMessage({ alerts = [], platfor
             text: {
                 type: "mrkdwn",
                 text: [
-                    `${severityEmoji(alert.severity)} *${alert.customerName}* · \`${typeLabel}\``,
+                    `${severityEmoji(alert.severity)} ${formatApexRadarAlertCustomerLabel(alert)} · \`${typeLabel}\``,
                     `*${alert.title}*`,
                     alert.message,
                     `*Team:* ${team}`,
@@ -74,7 +86,7 @@ export function formatApexRadarActiveWarningsSlackMessage({ alerts = [], platfor
 
 function formatAlertSummaryLine(alert) {
     const typeLabel = APEX_RADAR_ALERT_TYPE_LABELS[alert.type] || alert.title || "Alert";
-    return `• *${alert.customerName}* · ${typeLabel} — ${alert.title}`;
+    return `• ${formatApexRadarAlertCustomerLabel(alert)} · ${typeLabel} — ${alert.title}`;
 }
 
 /**

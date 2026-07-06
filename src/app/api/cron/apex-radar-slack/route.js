@@ -24,10 +24,9 @@ function parseOptionsFromRequest(request, body = {}) {
         searchParams.get("channel") ??
         "all";
 
-    const sendChannel = parseBoolParam(
-        body.sendChannel ?? searchParams.get("sendChannel"),
-        !parseBoolParam(body.skipChannel ?? searchParams.get("skipChannel"), false)
-    );
+    const sendChannel =
+        parseBoolParam(body.sendChannel ?? searchParams.get("sendChannel"), false) &&
+        !parseBoolParam(body.skipChannel ?? searchParams.get("skipChannel"), false);
 
     const sendDm = parseBoolParam(
         body.sendDm ?? searchParams.get("sendDm"),

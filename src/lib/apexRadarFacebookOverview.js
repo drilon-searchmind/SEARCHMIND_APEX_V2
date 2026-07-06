@@ -367,6 +367,8 @@ export function buildOverviewRowFromRollups(customer, startDate, endDate, roll, 
         id,
         customerId: id,
         entity: customer.customerName || "Unnamed customer",
+        facebookAdAccountId: (customer.CustomerSettings?.facebookAdAccountId || "").trim(),
+        googleAdsCustomerId: (customer.CustomerSettings?.googleAdsCustomerId || "").trim(),
         value: {
             conversions2d: r2.conversions || null,
             value7d: display7,
@@ -763,6 +765,8 @@ function placeholderRowNoAdAccount(customer, startDate, endDate) {
         id,
         customerId: id,
         entity: customer.customerName || "Unnamed customer",
+        facebookAdAccountId: (customer.CustomerSettings?.facebookAdAccountId || "").trim(),
+        googleAdsCustomerId: (customer.CustomerSettings?.googleAdsCustomerId || "").trim(),
         value: {
             conversions2d: null,
             value7d: null,
