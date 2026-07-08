@@ -150,7 +150,7 @@ export function conversionsFromPixelDay(dayRow, eventNames) {
 
 /** Config anchor for Meta section in customer config. */
 export function customerMetaConfigUrl(customerId) {
-    return `/dashboard/${encodeURIComponent(String(customerId))}/config#meta`;
+    return `/dashboard/${encodeURIComponent(String(customerId))}/config#config-meta`;
 }
 
 export function isFacebookPermissionDeniedError(err) {

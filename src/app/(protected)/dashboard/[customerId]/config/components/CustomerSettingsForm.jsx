@@ -100,6 +100,20 @@ function FormCheckbox({ id, name, label, checked, onChange }) {
 import GoogleAdsMarketMappingSection from "./GoogleAdsMarketMappingSection";
 import { parseGoogleAdsCustomerIds } from "@/lib/googleAdsCustomerIdUtils";
 
+/** DOM ids for config sections — avoid `#google-ads` etc. (ad blockers hide those). */
+const CONFIG_SECTION = {
+    general: "config-general",
+    storePlatform: "config-store-platform",
+    meta: "config-meta",
+    googleAds: "config-google-ads",
+    pinterestAds: "config-pinterest-ads",
+    snapchatAds: "config-snapchat-ads",
+    redditAds: "config-reddit-ads",
+    microsoftAds: "config-microsoft-ads",
+    seo: "config-seo",
+    email: "config-email",
+};
+
 function Ga4SetupHint() {
     const [serviceAccountEmail, setServiceAccountEmail] = useState("");
 
@@ -143,28 +157,28 @@ export default function CustomerSettingsForm({
     const shopifyMarketsOn = customerType === "Shopify" && form.shopifyMarketsEnabled === true;
     const storeSection =
         customerType === "Shopify"
-            ? { id: "store-platform", label: "Shopify" }
+            ? { id: CONFIG_SECTION.storePlatform, label: "Shopify" }
             : customerType === "WooCommerce"
-              ? { id: "store-platform", label: "WooCommerce" }
+              ? { id: CONFIG_SECTION.storePlatform, label: "WooCommerce" }
               : customerType === "Magento"
-                ? { id: "store-platform", label: "Magento" }
+                ? { id: CONFIG_SECTION.storePlatform, label: "Magento" }
                 : customerType === "DanDomain"
-                  ? { id: "store-platform", label: "DanDomain (HostedShop)" }
+                  ? { id: CONFIG_SECTION.storePlatform, label: "DanDomain (HostedShop)" }
                   : customerType === "DanDomainOriginal"
-                    ? { id: "store-platform", label: "DanDomain Original (WEBAPI)" }
+                    ? { id: CONFIG_SECTION.storePlatform, label: "DanDomain Original (WEBAPI)" }
                     : null;
 
     const tocItems = [
-        { id: "general", label: "General" },
+        { id: CONFIG_SECTION.general, label: "General" },
         ...(storeSection ? [storeSection] : []),
-        { id: "meta", label: "Meta" },
-        { id: "google-ads", label: "Google Ads" },
-        { id: "pinterest-ads", label: "Pinterest Ads" },
-        { id: "snapchat-ads", label: "Snapchat Ads" },
-        { id: "reddit-ads", label: "Reddit Ads" },
-        { id: "microsoft-ads", label: "Microsoft Ads" },
-        { id: "seo", label: "SEO" },
-        { id: "email", label: "Email" },
+        { id: CONFIG_SECTION.meta, label: "Meta" },
+        { id: CONFIG_SECTION.googleAds, label: "Google Ads" },
+        { id: CONFIG_SECTION.pinterestAds, label: "Pinterest Ads" },
+        { id: CONFIG_SECTION.snapchatAds, label: "Snapchat Ads" },
+        { id: CONFIG_SECTION.redditAds, label: "Reddit Ads" },
+        { id: CONFIG_SECTION.microsoftAds, label: "Microsoft Ads" },
+        { id: CONFIG_SECTION.seo, label: "SEO" },
+        { id: CONFIG_SECTION.email, label: "Email" },
     ];
 
     return (
@@ -172,7 +186,7 @@ export default function CustomerSettingsForm({
             <TableOfContents items={tocItems} />
 
             {/* General */}
-            <SettingsSection title="General" icon={FiSettings} sectionId="general">
+            <SettingsSection title="General" icon={FiSettings} sectionId={CONFIG_SECTION.general}>
                 <FormSelect
                     id="metricPreference"
                     name="metricPreference"
@@ -228,7 +242,7 @@ export default function CustomerSettingsForm({
 
             {/* Shopify */}
             {customerType === "Shopify" && (
-                <SettingsSection title="Shopify" icon={FiShoppingBag} sectionId="store-platform">
+                <SettingsSection title="Shopify" icon={FiShoppingBag} sectionId={CONFIG_SECTION.storePlatform}>
                     <FormField
                         id="shopifyUrl"
                         name="shopifyUrl"
@@ -289,7 +303,7 @@ export default function CustomerSettingsForm({
 
             {/* WooCommerce */}
             {customerType === "WooCommerce" && (
-                <SettingsSection title="WooCommerce" icon={FiPackage} sectionId="store-platform">
+                <SettingsSection title="WooCommerce" icon={FiPackage} sectionId={CONFIG_SECTION.storePlatform}>
                     <FormField
                         id="wooCommerceApiKey"
                         name="wooCommerceApiKey"
@@ -318,7 +332,7 @@ export default function CustomerSettingsForm({
 
             {/* Magento */}
             {customerType === "Magento" && (
-                <SettingsSection title="Magento" icon={FiDatabase} sectionId="store-platform">
+                <SettingsSection title="Magento" icon={FiDatabase} sectionId={CONFIG_SECTION.storePlatform}>
                     <FormField
                         id="magentoBaseUrl"
                         name="magentoBaseUrl"
@@ -376,7 +390,7 @@ export default function CustomerSettingsForm({
 
             {/* DanDomain (HostedShop) */}
             {customerType === "DanDomain" && (
-                <SettingsSection title="DanDomain (HostedShop)" icon={FiGlobe} sectionId="store-platform">
+                <SettingsSection title="DanDomain (HostedShop)" icon={FiGlobe} sectionId={CONFIG_SECTION.storePlatform}>
                     <FormField
                         id="danDomain.shopHost"
                         name="danDomain.shopHost"
@@ -416,7 +430,7 @@ export default function CustomerSettingsForm({
 
             {/* DanDomain Original (legacy WEBAPI) */}
             {customerType === "DanDomainOriginal" && (
-                <SettingsSection title="DanDomain Original (WEBAPI)" icon={FiGlobe} sectionId="store-platform">
+                <SettingsSection title="DanDomain Original (WEBAPI)" icon={FiGlobe} sectionId={CONFIG_SECTION.storePlatform}>
                     <FormField
                         id="danDomainOriginal.shopAdminUrl"
                         name="danDomainOriginal.shopAdminUrl"
@@ -438,7 +452,7 @@ export default function CustomerSettingsForm({
             )}
 
             {/* Meta */}
-            <SettingsSection title="Meta" icon={FiFacebook} sectionId="meta">
+            <SettingsSection title="Meta" icon={FiFacebook} sectionId={CONFIG_SECTION.meta}>
                 <FormField
                     id="facebookAdAccountId"
                     name="facebookAdAccountId"
@@ -474,7 +488,7 @@ export default function CustomerSettingsForm({
             </SettingsSection>
 
             {/* Google Ads */}
-            <SettingsSection title="Google Ads" icon={FiTrendingUp} sectionId="google-ads">
+            <SettingsSection title="Google Ads" icon={FiTrendingUp} sectionId={CONFIG_SECTION.googleAds}>
                 <FormField
                     id="googleAdsCustomerId"
                     name="googleAdsCustomerId"
@@ -511,7 +525,7 @@ export default function CustomerSettingsForm({
             </SettingsSection>
 
             {/* Pinterest Ads */}
-            <SettingsSection title="Pinterest Ads" icon={FiImage} sectionId="pinterest-ads">
+            <SettingsSection title="Pinterest Ads" icon={FiImage} sectionId={CONFIG_SECTION.pinterestAds}>
                 <FormField
                     id="pinterestAdAccountId"
                     name="pinterestAdAccountId"
@@ -522,7 +536,7 @@ export default function CustomerSettingsForm({
                 />
             </SettingsSection>
 
-            <SettingsSection title="Snapchat Ads" icon={FiZap} sectionId="snapchat-ads">
+            <SettingsSection title="Snapchat Ads" icon={FiZap} sectionId={CONFIG_SECTION.snapchatAds}>
                 <FormField
                     id="snapchat-clientId"
                     name="snapchat.clientId"
@@ -585,7 +599,7 @@ export default function CustomerSettingsForm({
                 />
             </SettingsSection>
 
-            <SettingsSection title="Reddit Ads" icon={FiMessageCircle} sectionId="reddit-ads">
+            <SettingsSection title="Reddit Ads" icon={FiMessageCircle} sectionId={CONFIG_SECTION.redditAds}>
                 <FormField
                     id="reddit-appId"
                     name="reddit.appId"
@@ -639,7 +653,7 @@ export default function CustomerSettingsForm({
             </SettingsSection>
 
             {/* Microsoft Advertising (Bing Ads) */}
-            <SettingsSection title="Microsoft Advertising (Bing Ads)" icon={FiLayers} sectionId="microsoft-ads">
+            <SettingsSection title="Microsoft Advertising (Bing Ads)" icon={FiLayers} sectionId={CONFIG_SECTION.microsoftAds}>
                 <FormField
                     id="bingAdsCustomerId"
                     name="bingAdsCustomerId"
@@ -659,7 +673,7 @@ export default function CustomerSettingsForm({
             </SettingsSection>
 
             {/* SEO */}
-            <SettingsSection title="SEO" icon={FiSearch} sectionId="seo">
+            <SettingsSection title="SEO" icon={FiSearch} sectionId={CONFIG_SECTION.seo}>
                 <FormField
                     id="googleSearchConsoleProperty"
                     name="googleSearchConsoleProperty"
@@ -688,7 +702,7 @@ export default function CustomerSettingsForm({
             </SettingsSection>
 
             {/* Email (Klaviyo) */}
-            <SettingsSection title="Email (Klaviyo)" icon={FiMail} sectionId="email">
+            <SettingsSection title="Email (Klaviyo)" icon={FiMail} sectionId={CONFIG_SECTION.email}>
                 <FormField
                     id="klaviyoPrivateApiKey"
                     name="klaviyoPrivateApiKey"
