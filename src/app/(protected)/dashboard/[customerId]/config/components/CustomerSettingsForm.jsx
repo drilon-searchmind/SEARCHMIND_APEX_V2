@@ -438,7 +438,7 @@ export default function CustomerSettingsForm({
             )}
 
             {/* Meta */}
-            <SettingsSection title="Meta" icon={FiFacebook}>
+            <SettingsSection title="Meta" icon={FiFacebook} sectionId="meta">
                 <FormField
                     id="facebookAdAccountId"
                     name="facebookAdAccountId"
@@ -446,6 +446,14 @@ export default function CustomerSettingsForm({
                     value={form.facebookAdAccountId}
                     onChange={onChange}
                     placeholder="e.g. act_123456789"
+                />
+                <FormField
+                    id="facebookPixelId"
+                    name="facebookPixelId"
+                    label="Facebook Pixel ID (optional)"
+                    value={form.facebookPixelId}
+                    onChange={onChange}
+                    placeholder="Auto-detected from ad account if empty — e.g. 1868342543457309"
                 />
                 <FormField
                     id="customerMetaID"

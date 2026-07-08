@@ -29,6 +29,11 @@ const ApexRadarChannelSettingsSchema = new mongoose.Schema(
             type: Boolean,
             default: true,
         },
+        /** Meta PS only: custom action_type values to count as conversions; empty/null = default purchases. */
+        trackingConversionActionTypes: {
+            type: [String],
+            default: undefined,
+        },
         updatedAt: {
             type: Date,
             default: Date.now,

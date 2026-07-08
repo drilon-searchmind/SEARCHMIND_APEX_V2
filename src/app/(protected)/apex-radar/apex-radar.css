@@ -667,6 +667,15 @@
   accent-color: var(--color-accent);
 }
 
+.apex-radar-modal-list label.is-selected,
+.apex-radar-modal-list--selected label {
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+
+.apex-radar-modal-list--selected {
+  margin-bottom: 0;
+}
+
 .apex-radar-modal-callout {
   padding: var(--space-sm) var(--space-md);
   font-size: 0.68rem;

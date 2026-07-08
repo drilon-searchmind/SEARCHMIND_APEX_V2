@@ -57,6 +57,7 @@ export default function ConfigPage() {
         magentoAccessTokenSecret: "",
         magentoStoreCode: "",
         facebookAdAccountId: "",
+        facebookPixelId: "",
         googleAdsCustomerId: "",
         googleAdsCountryFilter: "",
         googleAdsCountryExclude: "",
@@ -253,6 +254,7 @@ export default function ConfigPage() {
                 magentoAccessTokenSecret,
                 magentoStoreCode,
                 facebookAdAccountId,
+                facebookPixelId,
                 googleAdsCustomerId,
                 googleAdsMarketMapping,
                 pinterestAdAccountId,
@@ -305,6 +307,7 @@ export default function ConfigPage() {
                             magentoAccessTokenSecret,
                             magentoStoreCode,
                             facebookAdAccountId,
+                            facebookPixelId,
                             googleAdsCustomerId,
                             googleAdsMarketMapping: normalizeGoogleAdsMarketMapping(
                                 googleAdsMarketMapping

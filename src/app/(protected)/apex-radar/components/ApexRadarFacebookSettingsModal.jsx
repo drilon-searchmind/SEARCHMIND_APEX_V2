@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { FiX } from "react-icons/fi";
+import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { FiSearch, FiX } from "react-icons/fi";
 import { getFacebookApexRadarSettings } from "@/lib/apexRadarCustomerSettings";
+import { formatActionTypeLabel } from "@/lib/apexRadarFacebookConversionEvents";
 import { isDemoCustomerId } from "@/lib/demoCustomer";
 
 export default function ApexRadarFacebookSettingsModal({ row, onClose, onSaved }) {
@@ -17,10 +19,25 @@ export default function ApexRadarFacebookSettingsModal({ row, onClose, onSaved }
     );
     const [budgetMode, setBudgetMode] = useState(initial.budgetMode);
     const [trackingAlertsEnabled, setTrackingAlertsEnabled] = useState(initial.trackingAlertsEnabled);
+    const [selectedActionTypes, setSelectedActionTypes] = useState(
+        () => new Set(initial.trackingConversionActionTypes || [])
+    );
+    const [events, setEvents] = useState([]);
+    const [eventsLoading, setEventsLoading] = useState(false);
+    const [eventsError, setEventsError] = useState(null);
+    const [lookbackDays, setLookbackDays] = useState(90);
+    const [eventSearch, setEventSearch] = useState("");
+    const [missingAdAccount, setMissingAdAccount] = useState(false);
+    const [missingPixel, setMissingPixel] = useState(false);
+    const [pixelStatsPermissionDenied, setPixelStatsPermissionDenied] = useState(false);
+    const [eventsHint, setEventsHint] = useState(null);
+    const [pixelName, setPixelName] = useState(null);
+    const [configUrl, setConfigUrl] = useState(null);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
 
     const isDemo = row?.id && isDemoCustomerId(row.id);
+    const usesDefaultPurchases = selectedActionTypes.size === 0;
 
     useEffect(() => {
         if (!row) return;
@@ -30,16 +47,104 @@ export default function ApexRadarFacebookSettingsModal({ row, onClose, onSaved }
         setTargetValue(v.targetValue != null ? String(v.targetValue) : "");
         setBudgetMode(v.budgetMode);
         setTrackingAlertsEnabled(v.trackingAlertsEnabled);
+        setSelectedActionTypes(new Set(v.trackingConversionActionTypes || []));
+        setEventSearch("");
+        setMissingAdAccount(false);
+        setMissingPixel(false);
+        setPixelStatsPermissionDenied(false);
+        setEventsHint(null);
+        setPixelName(null);
+        setConfigUrl(null);
         setError(null);
+        setEventsError(null);
     }, [row]);
 
+    useEffect(() => {
+        if (!row?.id) return;
+        let cancelled = false;
+        setEventsLoading(true);
+        setEventsError(null);
+        fetch(`/api/apex-radar/facebook/conversion-events/${row.id}`)
+            .then(async (res) => {
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || "Could not load events");
+                return data;
+            })
+            .then((data) => {
+                if (cancelled) return;
+                setEvents(Array.isArray(data.events) ? data.events : []);
+                setLookbackDays(data.lookbackDays || 90);
+                setMissingAdAccount(Boolean(data.missingAdAccount));
+                setMissingPixel(Boolean(data.missingPixel));
+                setPixelStatsPermissionDenied(Boolean(data.pixelStatsPermissionDenied));
+                setEventsHint(data.hint || null);
+                setPixelName(data.pixelName || null);
+                setConfigUrl(data.configUrl || null);
+            })
+            .catch((e) => {
+                if (cancelled) return;
+                setEvents([]);
+                setEventsError(e?.message || "Failed to load events");
+            })
+            .finally(() => {
+                if (!cancelled) setEventsLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [row?.id]);
+
+    const eventByType = useMemo(() => new Map(events.map((e) => [e.actionType, e])), [events]);
+
+    const sortedEvents = useMemo(() => {
+        return [...events].sort((a, b) => b.count - a.count || a.actionType.localeCompare(b.actionType));
+    }, [events]);
+
+    const filteredEvents = useMemo(() => {
+        const q = eventSearch.trim().toLowerCase();
+        if (!q) return sortedEvents;
+        return sortedEvents.filter((ev) => {
+            const label = (ev.label || formatActionTypeLabel(ev.actionType)).toLowerCase();
+            return label.includes(q) || ev.actionType.toLowerCase().includes(q);
+        });
+    }, [sortedEvents, eventSearch]);
+
+    const selectedEventsList = useMemo(() => {
+        return [...selectedActionTypes].map((actionType) => {
+            const ev = eventByType.get(actionType);
+            return (
+                ev || {
+                    actionType,
+                    count: 0,
+                    label: formatActionTypeLabel(actionType),
+                    savedOnly: true,
+                }
+            );
+        });
+    }, [selectedActionTypes, eventByType]);
+
     if (!row) return null;
+
+    const toggleActionType = (actionType) => {
+        setSelectedActionTypes((prev) => {
+            const next = new Set(prev);
+            if (next.has(actionType)) next.delete(actionType);
+            else next.add(actionType);
+            return next;
+        });
+    };
+
+    const handleUseDefaultPurchases = () => {
+        setSelectedActionTypes(new Set());
+    };
 
     const handleSave = async () => {
         if (isDemo) return;
         setSaving(true);
         setError(null);
         try {
+            const trackingConversionActionTypes =
+                selectedActionTypes.size > 0 ? [...selectedActionTypes] : null;
             const res = await fetch(`/api/apex-radar/facebook/customer-settings/${row.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
@@ -49,6 +154,7 @@ export default function ApexRadarFacebookSettingsModal({ row, onClose, onSaved }
                     targetValue: targetValue.trim() === "" ? null : Number(targetValue),
                     budgetMode,
                     trackingAlertsEnabled,
+                    trackingConversionActionTypes,
                 }),
             });
             const data = await res.json().catch(() => ({}));
@@ -64,9 +170,34 @@ export default function ApexRadarFacebookSettingsModal({ row, onClose, onSaved }
         }
     };
 
+    const renderEventRow = (ev) => {
+        const checked = selectedActionTypes.has(ev.actionType);
+        const label = ev.label || formatActionTypeLabel(ev.actionType);
+        return (
+            <li key={ev.actionType}>
+                <label className={checked ? "is-selected" : undefined}>
+                    <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleActionType(ev.actionType)}
+                    />
+                    <span className="flex-1 min-w-0">
+                        <span className="block">{label}</span>
+                        <span className="block text-[0.62rem] text-[var(--color-muted)] font-mono truncate">
+                            {ev.actionType}
+                        </span>
+                    </span>
+                    <span className="shrink-0 text-[0.65rem] tabular-nums text-[var(--color-muted)]">
+                        {ev.count > 0 ? ev.count : "0"} / {lookbackDays}d
+                    </span>
+                </label>
+            </li>
+        );
+    };
+
     return (
         <div className="apex-radar-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="apex-fb-settings-title">
-            <div className="apex-radar-modal apex-radar-modal--md">
+            <div className="apex-radar-modal apex-radar-modal--lg">
                 <div className="apex-radar-modal__head">
                     <div>
                         <h2 id="apex-fb-settings-title" className="apex-radar-modal__title">
@@ -154,10 +285,105 @@ export default function ApexRadarFacebookSettingsModal({ row, onClose, onSaved }
                                         Conversion tracking alerts
                                     </label>
                                     <p className="apex-radar-field-hint !mt-1">
-                                        Turn off for accounts with unreliable conversion tracking.
+                                        Turn off to only monitor spend (no conversion streak alerts).
                                     </p>
                                 </div>
                             </div>
+
+                            <div className="pt-2 border-t border-[var(--color-rule)]">
+                                <div className="flex items-baseline justify-between gap-2 mb-2">
+                                    <h3 className="apex-radar-field-label mb-0">Conversion events</h3>
+                                    <button
+                                        type="button"
+                                        onClick={handleUseDefaultPurchases}
+                                        className="apex-radar-link-btn text-[0.65rem]"
+                                    >
+                                        Use default (purchases)
+                                    </button>
+                                </div>
+                                <p className="apex-radar-section__subtitle mb-3">
+                                    Events from the Meta pixel (last {lookbackDays} days).
+                                    {pixelName ? ` Pixel: ${pixelName}.` : ""}
+                                    {usesDefaultPurchases
+                                        ? " Using default purchase events."
+                                        : ` ${selectedActionTypes.size} selected.`}
+                                </p>
+
+                                {eventsLoading ? (
+                                    <p className="apex-radar-section__subtitle py-2">Loading pixel events…</p>
+                                ) : eventsError ? (
+                                    <p className="text-sm text-[var(--color-error,oklch(50%_0.15_25))]">{eventsError}</p>
+                                ) : missingAdAccount ? (
+                                    <p className="apex-radar-modal-callout">
+                                        Missing Facebook ad account.{" "}
+                                        {configUrl ? (
+                                            <Link href={configUrl} className="apex-radar-link-btn inline">
+                                                Add in customer config →
+                                            </Link>
+                                        ) : null}
+                                    </p>
+                                ) : missingPixel ? (
+                                    <p className="apex-radar-modal-callout">
+                                        No pixel found for this ad account.{" "}
+                                        {configUrl ? (
+                                            <Link href={configUrl} className="apex-radar-link-btn inline">
+                                                Set pixel ID in customer config →
+                                            </Link>
+                                        ) : null}
+                                    </p>
+                                ) : (
+                                    <>
+                                        {pixelStatsPermissionDenied && eventsHint ? (
+                                            <p className="apex-radar-modal-callout mb-3">{eventsHint}</p>
+                                        ) : null}
+
+                                        {selectedEventsList.length > 0 ? (
+                                            <div className="mb-4">
+                                                <p className="apex-radar-field-label mb-2">
+                                                    Selected ({selectedEventsList.length})
+                                                </p>
+                                                <ul className="apex-radar-modal-list apex-radar-modal-list--selected">
+                                                    {selectedEventsList.map((ev) => renderEventRow(ev))}
+                                                </ul>
+                                            </div>
+                                        ) : null}
+
+                                        {sortedEvents.length > 0 ? (
+                                            <>
+                                                <div className="apex-radar-search-wrap mb-3">
+                                                    <FiSearch className="h-4 w-4" aria-hidden />
+                                                    <input
+                                                        id="apex-fb-event-search"
+                                                        type="search"
+                                                        value={eventSearch}
+                                                        onChange={(e) => setEventSearch(e.target.value)}
+                                                        placeholder="Search pixel events…"
+                                                        autoComplete="off"
+                                                    />
+                                                </div>
+                                                <p className="apex-radar-field-label mb-2">
+                                                    All pixel events ({filteredEvents.length}
+                                                    {eventSearch.trim() ? ` of ${sortedEvents.length}` : ""})
+                                                </p>
+                                                {filteredEvents.length === 0 ? (
+                                                    <p className="apex-radar-empty py-2">
+                                                        No events match &ldquo;{eventSearch.trim()}&rdquo;.
+                                                    </p>
+                                                ) : (
+                                                    <ul className="apex-radar-modal-list max-h-[20rem] overflow-y-auto">
+                                                        {filteredEvents.map((ev) => renderEventRow(ev))}
+                                                    </ul>
+                                                )}
+                                            </>
+                                        ) : pixelStatsPermissionDenied ? null : (
+                                            <p className="apex-radar-empty py-2">
+                                                No active pixel events in the last {lookbackDays} days.
+                                            </p>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+
                             {error ? (
                                 <p className="text-sm text-[var(--color-error,oklch(50%_0.15_25))]">{error}</p>
                             ) : null}

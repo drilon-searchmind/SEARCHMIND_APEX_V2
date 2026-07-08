@@ -782,14 +782,19 @@ export function buildDemoApexRadarFacebookOverviewRow(customer, startDate, endDa
     const fetchSinceDemo = minIso(w.fetchSince, dod.calendarDayBeforeYesterday);
     const fetchUntilDemo = maxIso(endDate, dod.calendarYesterday);
     const daily = syntheticMetaDailyForDemo(id, fetchSinceDemo, fetchUntilDemo);
-    const r2 = rollupDaily(daily, w.win2.from, w.win2.to);
-    const r7 = rollupDaily(daily, w.win7.from, w.win7.to);
-    const r30 = rollupDaily(daily, w.win30.from, w.win30.to);
-    const rMonthToDate = rollupDaily(daily, w.monthStart, endDate);
+    const apex = getFacebookApexRadarSettings(customer);
+    const conversionActionTypes = apex.trackingConversionActionTypes;
+    const r2 = rollupDaily(daily, w.win2.from, w.win2.to, conversionActionTypes);
+    const r7 = rollupDaily(daily, w.win7.from, w.win7.to, conversionActionTypes);
+    const r30 = rollupDaily(daily, w.win30.from, w.win30.to, conversionActionTypes);
+    const rMonthToDate = rollupDaily(daily, w.monthStart, endDate, conversionActionTypes);
     const endRow = daily.find((d) => d.date_start === endDate);
     const spendOnEndDate = endRow != null ? parseFloat(endRow.spend || 0) : 0;
-    const apex = getFacebookApexRadarSettings(customer);
-    const { minExpected7d, minExpected30d } = computeLog10WeeklyFloors(daily, apex.targetMetricType);
+    const { minExpected7d, minExpected30d } = computeLog10WeeklyFloors(
+        daily,
+        apex.targetMetricType,
+        conversionActionTypes
+    );
 
     const row = buildOverviewRowFromRollups(customer, startDate, endDate, {
         r2,
@@ -804,7 +809,7 @@ export function buildDemoApexRadarFacebookOverviewRow(customer, startDate, endDa
         win30: w.win30,
     });
     const spendDayOverDay = computeSpendDayOverDayFromDaily(daily);
-    const conversionTracking = computeConversionTrackingFromDaily(daily);
+    const conversionTracking = computeConversionTrackingFromDaily(daily, undefined, conversionActionTypes);
     return {
         ...row,
         spendDayOverDay,

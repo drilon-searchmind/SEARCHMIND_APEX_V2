@@ -12,6 +12,10 @@ import {
     displayValueMetricFromRollup,
     getFacebookApexRadarSettings,
 } from "@/lib/apexRadarCustomerSettings";
+import {
+    conversionsFromActions,
+    normalizeTrackingConversionActionTypes,
+} from "@/lib/apexRadarFacebookConversionEvents";
 
 const GRAPH_VERSION = "v21.0";
 const BATCH_SIZE = 50;
@@ -48,16 +52,6 @@ function getActionValue(actions, actionType) {
     if (!actions) return 0;
     const action = actions.find((a) => a.action_type === actionType);
     return parseFloat(action?.value || 0);
-}
-
-function purchaseConversionsFromActions(actions) {
-    if (!actions) return 0;
-    // Same priority as PS ad performance: first non-zero among Meta purchase action types.
-    return (
-        getActionValue(actions, "purchase") ||
-        getActionValue(actions, "omni_purchase") ||
-        getActionValue(actions, "offsite_conversion.fb_pixel_purchase")
-    );
 }
 
 function purchaseValueFromActionValues(actionValues) {
@@ -219,7 +213,7 @@ export function normalizeDailyInsightRows(rawRows, { useBreakdown, exclude }) {
     return rows;
 }
 
-export function rollupDaily(dailyRows, fromDate, toDate) {
+export function rollupDaily(dailyRows, fromDate, toDate, conversionActionTypes = null) {
     const days = dailyRows.filter((d) => d.date_start >= fromDate && d.date_start <= toDate);
     let spend = 0;
     let impressions = 0;
@@ -232,7 +226,7 @@ export function rollupDaily(dailyRows, fromDate, toDate) {
         spend += parseFloat(d.spend || 0);
         impressions += parseFloat(d.impressions || 0);
         clicks += parseFloat(d.clicks || 0);
-        conversions += purchaseConversionsFromActions(d.actions);
+        conversions += conversionsFromActions(d.actions, conversionActionTypes);
         value += purchaseValueFromActionValues(d.action_values);
         const f = parseFloat(d.frequency || 0);
         const impr = parseFloat(d.impressions || 0);
@@ -277,10 +271,10 @@ function sampleStdDev(values) {
  * @param {Array<object>} dailyRows — normalized insight rows with date_start, actions, action_values
  * @param {"ROAS"|"CPA"} targetMetricType
  */
-export function computeLog10WeeklyFloors(dailyRows, targetMetricType) {
+export function computeLog10WeeklyFloors(dailyRows, targetMetricType, conversionActionTypes = null) {
     const byWeek = new Map();
     for (const row of dailyRows || []) {
-        const conv = purchaseConversionsFromActions(row.actions);
+        const conv = conversionsFromActions(row.actions, conversionActionTypes);
         const val = purchaseValueFromActionValues(row.action_values);
         const add = targetMetricType === "CPA" ? conv : val;
         if (!Number.isFinite(add)) continue;
@@ -306,10 +300,10 @@ export function computeLog10WeeklyFloors(dailyRows, targetMetricType) {
  * Min-expected floors from API rows that are already one aggregate per period (e.g. time_increment=7).
  * Each row must have merged `actions` / `action_values` like normalized daily rows.
  */
-export function computeLog10FloorsFromPeriodRows(periodRows, targetMetricType) {
+export function computeLog10FloorsFromPeriodRows(periodRows, targetMetricType, conversionActionTypes = null) {
     const totals = [];
     for (const row of periodRows || []) {
-        const conv = purchaseConversionsFromActions(row.actions);
+        const conv = conversionsFromActions(row.actions, conversionActionTypes);
         const val = purchaseValueFromActionValues(row.action_values);
         const v = targetMetricType === "CPA" ? conv : val;
         if (Number.isFinite(v) && v > 0) totals.push(v);
@@ -452,7 +446,8 @@ export const APEX_RADAR_CONVERSION_TRACKING_MAX_LOOKBACK = 7;
  */
 export function computeConversionTrackingFromDaily(
     dailyRows,
-    maxLookback = APEX_RADAR_CONVERSION_TRACKING_MAX_LOOKBACK
+    maxLookback = APEX_RADAR_CONVERSION_TRACKING_MAX_LOOKBACK,
+    conversionActionTypes = null
 ) {
     const { calendarYesterday } = getUtcCalendarSpendDodRange();
     const byDate = new Map();
@@ -472,7 +467,7 @@ export function computeConversionTrackingFromDaily(
         const spend = parseFloat(row.spend || 0);
         if (spend <= 0) break;
 
-        const conv = purchaseConversionsFromActions(row.actions);
+        const conv = conversionsFromActions(row.actions, conversionActionTypes);
         if (conv > 0) break;
 
         streak++;
@@ -486,7 +481,7 @@ export function computeConversionTrackingFromDaily(
         const probeRow = byDate.get(probeDate);
         if (probeRow) {
             const probeSpend = parseFloat(probeRow.spend || 0);
-            const probeConv = purchaseConversionsFromActions(probeRow.actions);
+            const probeConv = conversionsFromActions(probeRow.actions, conversionActionTypes);
             if (probeSpend > 0 && probeConv <= 0) streakCapped = true;
         }
     }
@@ -565,7 +560,7 @@ async function postFacebookBatch(accessToken, batchItems) {
     return json;
 }
 
-async function fetchAccountInsightsDailyPaginated(accessToken, relativePathAndQuery) {
+export async function fetchAccountInsightsDailyPaginated(accessToken, relativePathAndQuery) {
     const sep = relativePathAndQuery.includes("?") ? "&" : "?";
     let url = `https://graph.facebook.com/${GRAPH_VERSION}/${relativePathAndQuery}${sep}access_token=${encodeURIComponent(accessToken)}`;
     const all = [];
@@ -696,11 +691,15 @@ export function rollOverviewWindows(
     const dodRef = getUtcCalendarSpendDodRange();
     const effFetchUntil = maxIso(w.fetchUntil, dodRef.calendarYesterday);
     const effFetchSince = minIso(w.fetchSince, dodRef.calendarDayBeforeYesterday);
-    const r2 = rollupDaily(daily, w.win2.from, w.win2.to);
-    const r7 = rollupDaily(daily, w.win7.from, w.win7.to);
-    const r30 = rollupDaily(daily, w.win30.from, w.win30.to);
+    const apex = getApex(customer);
+    const conversionActionTypes = normalizeTrackingConversionActionTypes(
+        apex.trackingConversionActionTypes
+    );
+    const r2 = rollupDaily(daily, w.win2.from, w.win2.to, conversionActionTypes);
+    const r7 = rollupDaily(daily, w.win7.from, w.win7.to, conversionActionTypes);
+    const r30 = rollupDaily(daily, w.win30.from, w.win30.to, conversionActionTypes);
 
-    const rMonthToDate = rollupDaily(daily, w.monthStart, endDate);
+    const rMonthToDate = rollupDaily(daily, w.monthStart, endDate, conversionActionTypes);
 
     const endRow = daily.find((d) => d.date_start === endDate);
     const spendOnEndDate =
@@ -710,13 +709,20 @@ export function rollOverviewWindows(
               ? 0
               : null;
 
-    const apex = getApex(customer);
     let minExpected7d;
     let minExpected30d;
     if (weeklyPeriodRows && weeklyPeriodRows.length > 0) {
-        ({ minExpected7d, minExpected30d } = computeLog10FloorsFromPeriodRows(weeklyPeriodRows, apex.targetMetricType));
+        ({ minExpected7d, minExpected30d } = computeLog10FloorsFromPeriodRows(
+            weeklyPeriodRows,
+            apex.targetMetricType,
+            conversionActionTypes
+        ));
     } else {
-        ({ minExpected7d, minExpected30d } = computeLog10WeeklyFloors(daily, apex.targetMetricType));
+        ({ minExpected7d, minExpected30d } = computeLog10WeeklyFloors(
+            daily,
+            apex.targetMetricType,
+            conversionActionTypes
+        ));
     }
 
     const row = buildOverviewRowFromRollups(
@@ -738,7 +744,11 @@ export function rollOverviewWindows(
         overviewOpts
     );
     const spendDayOverDay = computeSpendDayOverDayFromDaily(daily);
-    const conversionTracking = computeConversionTrackingFromDaily(daily);
+    const conversionTracking = computeConversionTrackingFromDaily(
+        daily,
+        APEX_RADAR_CONVERSION_TRACKING_MAX_LOOKBACK,
+        conversionActionTypes
+    );
     return { ...row, spendDayOverDay, conversionTracking };
 }
 

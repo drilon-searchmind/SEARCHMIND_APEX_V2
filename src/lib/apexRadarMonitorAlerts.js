@@ -9,6 +9,7 @@ import {
     meetsPriorDaySpendStoppedAlert,
     meetsSpendDodThreshold,
 } from "@/lib/apexRadarFacebookOverview";
+import { getTrackingConversionLabel } from "@/lib/apexRadarFacebookConversionEvents";
 
 export const APEX_RADAR_MONITOR_ALERT_TYPES = {
     SPEND_DOD: "spend_dod",
@@ -117,13 +118,14 @@ export function buildApexRadarMonitorAlerts(row, opts = {}) {
             const streakPhrase = tracking.streakCapped
                 ? `at least ${streak} consecutive spending ${dayLabel}`
                 : `${streak} consecutive spending ${dayLabel}`;
+            const eventLabel = getTrackingConversionLabel(channelSettings.trackingConversionActionTypes);
             alerts.push({
                 id: `${customerId}-${channelKey}-${APEX_RADAR_MONITOR_ALERT_TYPES.CONVERSION_TRACKING}`,
                 type: APEX_RADAR_MONITOR_ALERT_TYPES.CONVERSION_TRACKING,
                 severity: "critical",
                 ...common,
                 title: "Conversion tracking",
-                message: `No conversions for ${streakPhrase} (${range}, UTC) while ads were active. Alert threshold: ${conversionZeroDaysThreshold} ${conversionZeroDaysThreshold === 1 ? "day" : "days"}.`,
+                message: `No ${eventLabel} for ${streakPhrase} (${range}, UTC) while ads were active. Alert threshold: ${conversionZeroDaysThreshold} ${conversionZeroDaysThreshold === 1 ? "day" : "days"}.`,
             });
         }
     }

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { FiChevronDown, FiChevronUp, FiBarChart, FiSearch, FiDollarSign } from "react-icons/fi";
+import { FiChevronDown, FiChevronUp, FiBarChart, FiSearch, FiDollarSign, FiTool } from "react-icons/fi";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { LuRadar } from "react-icons/lu";
@@ -14,6 +14,8 @@ import {
     apexRadarPerformanceInvestigatorHref,
     parseApexRadarPath,
 } from "@/lib/apexRadarChannels";
+import { APEX_RADAR_DEV_TOOLS_HREF } from "@/lib/apexRadarDevToolsAccess";
+import { useApexRadarDevToolsAccess } from "@/app/(protected)/apex-radar/hooks/useApexRadarDevToolsAccess";
 import ApexRadarPerformanceInvestigatorCustomerModal from "@/components/apex-radar/ApexRadarPerformanceInvestigatorCustomerModal";
 
 const ApexNavLink = ({ href, label, icon: Icon, isSmallScreen, isActive }) => {
@@ -115,9 +117,11 @@ export default function ApexRadarSidebar() {
     const [performanceInvestigatorModalOpen, setPerformanceInvestigatorModalOpen] = useState(false);
     const pathname = usePathname();
     const { channel, customerId } = parseApexRadarPath(pathname);
+    const { allowed: devToolsAllowed } = useApexRadarDevToolsAccess();
 
     const overviewHref = channel ? apexRadarOverviewHref(channel, customerId) : "/apex-radar";
     const overviewActive = pathname === overviewHref;
+    const devToolsActive = pathname === APEX_RADAR_DEV_TOOLS_HREF || pathname.startsWith(`${APEX_RADAR_DEV_TOOLS_HREF}/`);
     const performanceInvestigatorHref =
         channel && customerId ? apexRadarPerformanceInvestigatorHref(channel, customerId) : null;
     const performanceInvestigatorActive = pathname.includes("/performance-investigator");
@@ -219,6 +223,15 @@ export default function ApexRadarSidebar() {
                                         icon={FiDollarSign}
                                         isSmallScreen={isSmallScreen}
                                     />
+                                    {devToolsAllowed ? (
+                                        <ApexNavLink
+                                            href={APEX_RADAR_DEV_TOOLS_HREF}
+                                            label="Dev Tools"
+                                            icon={FiTool}
+                                            isSmallScreen={isSmallScreen}
+                                            isActive={devToolsActive}
+                                        />
+                                    ) : null}
                                 </ul>
                             )}
                         </li>

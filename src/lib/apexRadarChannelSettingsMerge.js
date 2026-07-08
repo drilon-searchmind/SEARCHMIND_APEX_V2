@@ -32,6 +32,9 @@ export function mergeFacebookChannelSettingsIntoCustomers(customers, docs) {
                     targetValue: doc.targetValue ?? null,
                     budgetMode: doc.budgetMode === "STATIC" ? "STATIC" : "DYNAMIC",
                     trackingAlertsEnabled: doc.trackingAlertsEnabled !== false,
+                    trackingConversionActionTypes: Array.isArray(doc.trackingConversionActionTypes)
+                        ? doc.trackingConversionActionTypes.filter(Boolean)
+                        : null,
                 },
             },
         };

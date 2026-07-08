@@ -4,6 +4,8 @@
  * Fallback: embedded `Customer.customerApexRadarSettings.{facebook|google}` when no channel doc exists.
  */
 
+import { normalizeTrackingConversionActionTypes } from "@/lib/apexRadarFacebookConversionEvents";
+
 /** @typedef {{ spend: number, conversions: number, value: number, roas: number|null, ctrPct: number|null, freq: number|null }} RollupSlice */
 
 export function getFacebookApexRadarSettings(customer) {
@@ -15,6 +17,7 @@ export function getFacebookApexRadarSettings(customer) {
             targetValue: null,
             budgetMode: "DYNAMIC",
             trackingAlertsEnabled: true,
+            trackingConversionActionTypes: null,
         };
     }
     const tb = fb.targetBudget;
@@ -25,6 +28,9 @@ export function getFacebookApexRadarSettings(customer) {
         targetValue: tv != null && tv !== "" && !Number.isNaN(Number(tv)) ? Number(tv) : null,
         budgetMode: fb.budgetMode === "STATIC" ? "STATIC" : "DYNAMIC",
         trackingAlertsEnabled: fb.trackingAlertsEnabled !== false,
+        trackingConversionActionTypes: normalizeTrackingConversionActionTypes(
+            fb.trackingConversionActionTypes
+        ),
     };
 }
 

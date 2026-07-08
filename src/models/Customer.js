@@ -116,6 +116,11 @@ const CustomerSchema = new mongoose.Schema({
             type: String,
             default: ""
         },
+        /** Meta Pixel ID for Apex Radar conversion event selection (digits only). */
+        facebookPixelId: {
+            type: String,
+            default: ""
+        },
         googleAdsCustomerId: {
             type: String,
             default: ""

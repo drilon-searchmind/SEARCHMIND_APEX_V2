@@ -14,6 +14,14 @@ function parseOptionalNumber(v) {
     return Number.isFinite(n) ? n : null;
 }
 
+function parseTrackingConversionActionTypes(raw) {
+    if (raw === undefined) return undefined;
+    if (raw === null) return null;
+    if (!Array.isArray(raw)) return { error: "trackingConversionActionTypes must be an array" };
+    const filtered = [...new Set(raw.map((s) => String(s).trim()).filter(Boolean))];
+    return filtered.length ? filtered : null;
+}
+
 /**
  * PATCH /api/apex-radar/facebook/customer-settings/[customerId]
  * Body: { targetBudget?, targetMetricType?: 'ROAS'|'CPA', targetValue?, budgetMode?: 'STATIC'|'DYNAMIC' }
@@ -47,6 +55,10 @@ export async function PATCH(request, { params }) {
     const targetValue = parseOptionalNumber(body.targetValue);
     const trackingAlertsEnabled =
         body.trackingAlertsEnabled === undefined ? undefined : Boolean(body.trackingAlertsEnabled);
+    const parsedConversionTypes = parseTrackingConversionActionTypes(body.trackingConversionActionTypes);
+    if (parsedConversionTypes && typeof parsedConversionTypes === "object" && parsedConversionTypes.error) {
+        return NextResponse.json({ error: parsedConversionTypes.error }, { status: 400 });
+    }
 
     if (body.targetBudget !== null && body.targetBudget !== undefined && body.targetBudget !== "" && targetBudget === null) {
         return NextResponse.json({ error: "Invalid targetBudget" }, { status: 400 });
@@ -73,6 +85,9 @@ export async function PATCH(request, { params }) {
         if (trackingAlertsEnabled !== undefined) {
             update.trackingAlertsEnabled = trackingAlertsEnabled;
         }
+        if (parsedConversionTypes !== undefined) {
+            update.trackingConversionActionTypes = parsedConversionTypes;
+        }
 
         const saved = await ApexRadarChannelSettings.findOneAndUpdate(
             { channel: APEX_RADAR_CHANNEL_FACEBOOK, customerId: cid },
@@ -86,6 +101,9 @@ export async function PATCH(request, { params }) {
             targetValue: saved.targetValue ?? null,
             budgetMode: saved.budgetMode === "STATIC" ? "STATIC" : "DYNAMIC",
             trackingAlertsEnabled: saved.trackingAlertsEnabled !== false,
+            trackingConversionActionTypes: Array.isArray(saved.trackingConversionActionTypes)
+                ? saved.trackingConversionActionTypes.filter(Boolean)
+                : null,
         };
 
         return NextResponse.json({

@@ -49,7 +49,7 @@ export default function DashboardHeading({
     dashboardType = 'other',
     loading = false,
     showRight = true,
-    showPdfExport = true,
+    showPdfExport = false,
     showRunAudit = true,
     variant = "default",
     /** @type {ShopifyMarketFilterProps | null} */
