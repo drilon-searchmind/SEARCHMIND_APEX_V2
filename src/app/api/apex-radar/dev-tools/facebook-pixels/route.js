@@ -6,7 +6,7 @@ import { fetchAllTokenAccessiblePixels } from "@/lib/apexRadarFacebookTokenPixel
 
 /**
  * GET /api/apex-radar/dev-tools/facebook-pixels
- * Lists all Meta pixels reachable by FACEBOOK_APP_TOKEN (localhost dev tools only).
+ * Lists Meta pixels via FACEBOOK_APP_TOKEN for each unique facebookAdAccountId in customer config (localhost dev tools only).
  */
 export async function GET(request) {
     const session = await getServerSession(authOptions);
@@ -23,10 +23,12 @@ export async function GET(request) {
     }
 
     try {
-        const { adAccounts, pixels, errors } = await fetchAllTokenAccessiblePixels(token);
+        const { adAccounts, customerCount, pixels, errors, source } = await fetchAllTokenAccessiblePixels(token);
         return NextResponse.json({
             tokenConfigured: true,
+            source,
             adAccountCount: adAccounts.length,
+            customerCount,
             uniquePixelCount: pixels.length,
             adAccounts,
             pixels,

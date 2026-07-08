@@ -66,9 +66,8 @@ export default function ApexRadarDevToolsClient() {
                 p.id,
                 p.name,
                 ...(p.adAccounts || []).map((a) => `${a.id} ${a.name}`),
+                ...(p.customers || []).map((c) => c.customerName),
                 ...(p.sources || []),
-                p.owner_business?.name,
-                p.owner_business?.id,
             ]
                 .filter(Boolean)
                 .join(" ")
@@ -96,9 +95,10 @@ export default function ApexRadarDevToolsClient() {
             <section className="apex-radar-section">
                 <h2 className="apex-radar-section__title">FACEBOOK_APP_TOKEN pixels</h2>
                 <p className="apex-radar-section__subtitle">
-                    Lists every pixel the app token can reach via Graph API (
-                    <code className="text-xs">me/adaccounts → adspixels</code>, business owned/client pixels, and{" "}
-                    <code className="text-xs">me/adspixels</code>). Does not use customer Mongo config.
+                    Loads unique <code className="text-xs">facebookAdAccountId</code> values from customer config in
+                    Mongo, then calls <code className="text-xs">act_&#123;id&#125;/adspixels</code> for each with{" "}
+                    <code className="text-xs">FACEBOOK_APP_TOKEN</code>. No{" "}
+                    <code className="text-xs">me/adaccounts</code> or Business Manager listing required.
                 </p>
 
                 <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:items-end">
@@ -132,10 +132,14 @@ export default function ApexRadarDevToolsClient() {
 
                 {tokenPixelsResult ? (
                     <div className="mt-4 space-y-4">
-                        <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                        <dl className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-sm">
                             <div>
                                 <dt className="text-gray-500 text-xs">Ad accounts</dt>
                                 <dd>{tokenPixelsResult.adAccountCount}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-gray-500 text-xs">Customers</dt>
+                                <dd>{tokenPixelsResult.customerCount ?? "—"}</dd>
                             </div>
                             <div>
                                 <dt className="text-gray-500 text-xs">Unique pixels</dt>
@@ -173,7 +177,7 @@ export default function ApexRadarDevToolsClient() {
                                         <th className="px-3 py-2 font-semibold">Pixel</th>
                                         <th className="px-3 py-2 font-semibold">Last fired</th>
                                         <th className="px-3 py-2 font-semibold">Ad accounts</th>
-                                        <th className="px-3 py-2 font-semibold">Sources</th>
+                                        <th className="px-3 py-2 font-semibold">Customers</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
@@ -189,11 +193,6 @@ export default function ApexRadarDevToolsClient() {
                                                 <td className="px-3 py-2">
                                                     <div className="font-medium">{pixel.name}</div>
                                                     <div className="font-mono text-xs text-gray-500">{pixel.id}</div>
-                                                    {pixel.owner_business?.name ? (
-                                                        <div className="text-xs text-gray-500 mt-1">
-                                                            BM: {pixel.owner_business.name}
-                                                        </div>
-                                                    ) : null}
                                                 </td>
                                                 <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
                                                     {pixel.last_fired_time
@@ -216,8 +215,23 @@ export default function ApexRadarDevToolsClient() {
                                                         <span className="text-gray-400">—</span>
                                                     )}
                                                 </td>
-                                                <td className="px-3 py-2 text-xs text-gray-600">
-                                                    {(pixel.sources || []).join(", ")}
+                                                <td className="px-3 py-2 text-xs">
+                                                    {pixel.customers?.length ? (
+                                                        <ul className="space-y-1">
+                                                            {pixel.customers.map((c) => (
+                                                                <li key={`${pixel.id}-${c._id}`}>
+                                                                    <Link
+                                                                        href={customerMetaConfigUrl(c._id)}
+                                                                        className="text-[var(--color-accent-light)] hover:underline"
+                                                                    >
+                                                                        {c.customerName}
+                                                                    </Link>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    ) : (
+                                                        <span className="text-gray-400">—</span>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))
@@ -230,9 +244,9 @@ export default function ApexRadarDevToolsClient() {
             </section>
 
             <section className="apex-radar-section mt-6">
-                <h2 className="apex-radar-section__title">Meta pixel probe</h2>
+                <h2 className="apex-radar-section__title">Meta conversion-events probe</h2>
                 <p className="apex-radar-section__subtitle">
-                    Test pixel stats / conversion-events for a customer (same API as the Facebook settings modal).
+                    Test the conversion-events API for a customer (ad account insights, same as the Facebook settings modal).
                 </p>
 
                 <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:items-end">
@@ -280,22 +294,12 @@ export default function ApexRadarDevToolsClient() {
                     </pre>
                 ) : null}
 
-                {pixelProbeResult ? (
+                        {pixelProbeResult ? (
                     <div className="mt-4 space-y-3">
-                        {pixelProbeResult.pixelStatsPermissionDenied ? (
-                            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                                Permission denied on pixel stats. Grant BM access to{" "}
-                                <code className="text-xs">{pixelProbeResult.pixelId || "pixel"}</code>.
-                            </div>
-                        ) : null}
                         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                             <div>
-                                <dt className="text-gray-500 text-xs">Pixel ID</dt>
-                                <dd className="font-mono text-xs">{pixelProbeResult.pixelId || "—"}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-gray-500 text-xs">Pixel name</dt>
-                                <dd>{pixelProbeResult.pixelName || "—"}</dd>
+                                <dt className="text-gray-500 text-xs">Source</dt>
+                                <dd className="font-mono text-xs">{pixelProbeResult.eventSource || "—"}</dd>
                             </div>
                             <div>
                                 <dt className="text-gray-500 text-xs">Ad account</dt>
@@ -304,6 +308,10 @@ export default function ApexRadarDevToolsClient() {
                             <div>
                                 <dt className="text-gray-500 text-xs">Events found</dt>
                                 <dd>{pixelProbeResult.events?.length ?? 0}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-gray-500 text-xs">Lookback</dt>
+                                <dd>{pixelProbeResult.lookbackDays ?? 90} days</dd>
                             </div>
                         </dl>
                         <pre className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs overflow-auto max-h-96">

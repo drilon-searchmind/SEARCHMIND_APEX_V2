@@ -7,40 +7,35 @@ import ApexRadarChannelSettings from "@/models/ApexRadarChannelSettings";
 import { APEX_RADAR_CHANNEL_FACEBOOK } from "@/lib/apexRadarChannels";
 import { mergeFacebookChannelSettingsIntoCustomers } from "@/lib/apexRadarChannelSettingsMerge";
 import { getFacebookApexRadarSettings } from "@/lib/apexRadarCustomerSettings";
-import { addDaysIso } from "@/lib/apexRadarFacebookOverview";
+import { parseMetaIdFilter } from "@/lib/facebookApi";
 import {
-    DEFAULT_FB_PURCHASE_ACTION_TYPES,
-    formatActionTypeLabel,
+    addDaysIso,
+    buildAccountInsightsRelativeUrl,
+    fetchAccountInsightsDailyPaginated,
+    normalizeDailyInsightRows,
+} from "@/lib/apexRadarFacebookOverview";
+import {
+    aggregateConversionRelevantAccountEvents,
     mergeConversionEventOptions,
 } from "@/lib/apexRadarFacebookConversionEvents";
-import {
-    aggregatePixelEventCounts,
-    customerMetaConfigUrl,
-    fetchAdAccountPixels,
-    fetchFacebookPixelStats,
-    isFacebookPermissionDeniedError,
-    normalizeFacebookPixelId,
-    pixelCountsToEventOptions,
-    resolveFacebookPixelId,
-} from "@/lib/apexRadarFacebookPixelStats";
+import { customerMetaConfigUrl, fetchAdAccountPixels } from "@/lib/apexRadarFacebookPixelStats";
 import { isDemoCustomerId } from "@/lib/demoCustomer";
 
 const LOOKBACK_DAYS = 90;
 
-function demoPixelEvents() {
+function demoAccountEvents() {
     return [
-        { actionType: "Contact", count: 184, label: "Contact" },
-        { actionType: "Subscribe", count: 303, label: "Subscribe" },
-        { actionType: "AddToCart", count: 288, label: "Add to cart" },
-        { actionType: "ViewContent", count: 45900, label: "View Content" },
-        { actionType: "PageView", count: 255500, label: "Page View" },
-        { actionType: "FindLocation", count: 22, label: "Find Location" },
+        { actionType: "offsite_conversion.fb_pixel_contact", count: 184, label: "Pixel contact", source: "ad_account" },
+        { actionType: "offsite_conversion.fb_pixel_subscribe", count: 303, label: "Pixel subscribe", source: "ad_account" },
+        { actionType: "offsite_conversion.fb_pixel_add_to_cart", count: 288, label: "Pixel add to cart", source: "ad_account" },
+        { actionType: "offsite_conversion.fb_pixel_view_content", count: 6544, label: "Pixel view content", source: "ad_account" },
+        { actionType: "offsite_conversion.fb_pixel_custom", count: 276, label: "Pixel custom", source: "ad_account" },
     ];
 }
 
 /**
  * GET /api/apex-radar/facebook/conversion-events/[customerId]
- * Lists Meta Pixel events (last 90 days) from pixel stats only — same source as Events Manager.
+ * Lists ad-attributed conversion events from ad account insights (last 90 days).
  */
 export async function GET(_request, { params }) {
     const session = await getServerSession(authOptions);
@@ -77,10 +72,11 @@ export async function GET(_request, { params }) {
         const apex = getFacebookApexRadarSettings(customer);
 
         if (isDemoCustomerId(customerId)) {
-            const events = mergeConversionEventOptions(demoPixelEvents(), apex.trackingConversionActionTypes);
+            const events = mergeConversionEventOptions(demoAccountEvents(), apex.trackingConversionActionTypes);
             return NextResponse.json({
                 customerId: String(customerId),
                 lookbackDays: LOOKBACK_DAYS,
+                eventSource: "ad_account_insights",
                 savedActionTypes: apex.trackingConversionActionTypes,
                 events,
                 configUrl,
@@ -93,6 +89,7 @@ export async function GET(_request, { params }) {
             return NextResponse.json({
                 customerId: String(customerId),
                 lookbackDays: LOOKBACK_DAYS,
+                eventSource: "ad_account_insights",
                 missingAdAccount: true,
                 configUrl,
                 savedActionTypes: apex.trackingConversionActionTypes,
@@ -102,6 +99,8 @@ export async function GET(_request, { params }) {
 
         const until = addDaysIso(new Date().toISOString().slice(0, 10), -1);
         const since = addDaysIso(until, -(LOOKBACK_DAYS - 1));
+        const metaInclude = settings.customerMetaID || "";
+        const metaExclude = settings.customerMetaIDExclude || "";
 
         let availablePixels = [];
         try {
@@ -110,73 +109,36 @@ export async function GET(_request, { params }) {
             console.warn("[conversion-events] adspixels:", e.message);
         }
 
-        const configuredPixelId = normalizeFacebookPixelId(settings.facebookPixelId);
-        const pixelId = resolveFacebookPixelId(configuredPixelId, availablePixels);
-        const pixelMeta = availablePixels.find((p) => normalizeFacebookPixelId(p.id) === pixelId);
+        const relativeUrl = buildAccountInsightsRelativeUrl(
+            adAccountId,
+            since,
+            until,
+            metaInclude,
+            metaExclude
+        );
+        const rawRows = await fetchAccountInsightsDailyPaginated(token, relativeUrl);
+        const { effectiveInclude, exclude } = parseMetaIdFilter(metaInclude, metaExclude);
+        const useBreakdown = exclude.length > 0 && effectiveInclude.length === 0;
+        const dailyRows = normalizeDailyInsightRows(rawRows, { useBreakdown, exclude });
 
-        if (!pixelId) {
-            return NextResponse.json({
-                customerId: String(customerId),
-                lookbackDays: LOOKBACK_DAYS,
-                missingPixel: true,
-                configUrl,
-                savedActionTypes: apex.trackingConversionActionTypes,
-                events: mergeConversionEventOptions([], apex.trackingConversionActionTypes),
-                availablePixels: availablePixels.map((p) => ({
-                    id: String(p.id),
-                    name: p.name || "",
-                    lastFiredTime: p.last_fired_time || null,
-                })),
-            });
-        }
+        const activeEvents = aggregateConversionRelevantAccountEvents(dailyRows);
+        const events = mergeConversionEventOptions(activeEvents, apex.trackingConversionActionTypes);
 
-        try {
-            const stats = await fetchFacebookPixelStats(token, pixelId, {
-                aggregation: "event_total_counts",
-                startIso: since,
-                endIso: until,
-            });
-            const counts = aggregatePixelEventCounts(stats);
-            const activeEvents = pixelCountsToEventOptions(counts, formatActionTypeLabel);
-            const events = mergeConversionEventOptions(activeEvents, apex.trackingConversionActionTypes);
-
-            return NextResponse.json({
-                customerId: String(customerId),
-                lookbackDays: LOOKBACK_DAYS,
-                pixelId,
-                pixelName: pixelMeta?.name || null,
-                dateRange: { since, until },
-                savedActionTypes: apex.trackingConversionActionTypes,
-                events,
-                configUrl,
-                availablePixels: availablePixels.map((p) => ({
-                    id: String(p.id),
-                    name: p.name || "",
-                    lastFiredTime: p.last_fired_time || null,
-                })),
-            });
-        } catch (e) {
-            if (isFacebookPermissionDeniedError(e)) {
-                return NextResponse.json({
-                    customerId: String(customerId),
-                    lookbackDays: LOOKBACK_DAYS,
-                    pixelId,
-                    pixelName: pixelMeta?.name || null,
-                    pixelStatsPermissionDenied: true,
-                    configUrl,
-                    savedActionTypes: apex.trackingConversionActionTypes,
-                    events: mergeConversionEventOptions([], apex.trackingConversionActionTypes),
-                    availablePixels: availablePixels.map((p) => ({
-                        id: String(p.id),
-                        name: p.name || "",
-                        lastFiredTime: p.last_fired_time || null,
-                    })),
-                    hint:
-                        "Could not read pixel event stats for this dataset. Grant the Apex Facebook token access to this pixel in Business Manager, or set the correct pixel ID under Meta in customer config.",
-                });
-            }
-            throw e;
-        }
+        return NextResponse.json({
+            customerId: String(customerId),
+            lookbackDays: LOOKBACK_DAYS,
+            eventSource: "ad_account_insights",
+            adAccountId: adAccountId.replace(/^act_/, ""),
+            dateRange: { since, until },
+            savedActionTypes: apex.trackingConversionActionTypes,
+            events,
+            configUrl,
+            availablePixels: availablePixels.map((p) => ({
+                id: String(p.id),
+                name: p.name || "",
+                lastFiredTime: p.last_fired_time || null,
+            })),
+        });
     } catch (e) {
         console.error("[apex-radar/facebook/conversion-events GET]", e);
         return NextResponse.json({ error: e.message || "Failed to load conversion events" }, { status: 500 });

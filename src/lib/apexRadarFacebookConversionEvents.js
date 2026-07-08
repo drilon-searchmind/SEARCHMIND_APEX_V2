@@ -27,9 +27,106 @@ const ACTION_TYPE_LABELS = {
     subscribe: "Subscribe",
     "offsite_conversion.fb_pixel_subscribe": "Pixel subscribe",
     add_to_cart: "Add to cart",
+    "offsite_conversion.fb_pixel_add_to_cart": "Pixel add to cart",
     initiate_checkout: "Initiate checkout",
+    "offsite_conversion.fb_pixel_initiate_checkout": "Pixel initiate checkout",
     add_payment_info: "Add payment info",
+    "offsite_conversion.fb_pixel_add_payment_info": "Pixel add payment info",
+    view_content: "View content",
+    "offsite_conversion.fb_pixel_view_content": "Pixel view content",
+    "offsite_conversion.fb_pixel_custom": "Pixel custom",
 };
+
+/** Ad-account insight action types that are engagement/metrics noise, not conversion pickers. */
+const ACCOUNT_ACTION_EXCLUDE = new Set([
+    "page_engagement",
+    "post_engagement",
+    "video_view",
+    "link_click",
+    "landing_page_view",
+    "omni_landing_page_view",
+    "post_interaction_gross",
+    "post_reaction",
+    "comment",
+    "like",
+    "photo_view",
+    "post",
+    "rsvp",
+    "checkin",
+]);
+
+/** When a fb_pixel variant exists, hide duplicate omni/onsite/generic action types in the picker. */
+const ACCOUNT_ACTION_DEDUPE_GROUPS = [
+    [
+        "offsite_conversion.fb_pixel_view_content",
+        "view_content",
+        "omni_view_content",
+        "onsite_web_view_content",
+        "onsite_web_app_view_content",
+    ],
+    ["offsite_conversion.fb_pixel_add_to_cart", "add_to_cart", "omni_add_to_cart"],
+    ["offsite_conversion.fb_pixel_purchase", "purchase", "omni_purchase"],
+    ["offsite_conversion.fb_pixel_lead", "lead"],
+    ["offsite_conversion.fb_pixel_contact", "contact"],
+    ["offsite_conversion.fb_pixel_subscribe", "subscribe"],
+    ["offsite_conversion.fb_pixel_complete_registration", "complete_registration"],
+    ["offsite_conversion.fb_pixel_initiate_checkout", "initiate_checkout"],
+    ["offsite_conversion.fb_pixel_add_payment_info", "add_payment_info"],
+];
+
+/** @param {string} actionType */
+export function isConversionRelevantAccountActionType(actionType) {
+    const t = String(actionType || "").trim();
+    if (!t || ACCOUNT_ACTION_EXCLUDE.has(t)) return false;
+    if (t.startsWith("offsite_content_view_")) return false;
+    if (t.startsWith("offsite_conversion.")) return true;
+    if (t.startsWith("onsite_conversion.")) return true;
+    if (t.startsWith("onsite_web")) return false;
+    if (ACTION_TYPE_LABELS[t]) return true;
+    if (t.startsWith("omni_") && t !== "omni_landing_page_view") return true;
+    return false;
+}
+
+/**
+ * @param {Array<{ actionType: string, count: number, label: string }>} events
+ */
+export function filterConversionRelevantAccountEvents(events) {
+    return (events || [])
+        .filter((e) => isConversionRelevantAccountActionType(e.actionType))
+        .map((e) => ({ ...e, source: "ad_account" }));
+}
+
+/**
+ * Prefer fb_pixel insight action types over duplicate omni/onsite rows with the same meaning.
+ * @param {Array<{ actionType: string, count: number, label: string }>} events
+ */
+export function dedupeAccountActionEvents(events) {
+    const byType = new Map((events || []).map((e) => [e.actionType, e]));
+    const toDrop = new Set();
+
+    for (const group of ACCOUNT_ACTION_DEDUPE_GROUPS) {
+        const winner = group.find((t) => {
+            const row = byType.get(t);
+            return row && row.count > 0;
+        });
+        if (!winner) continue;
+        for (const t of group) {
+            if (t !== winner) toDrop.add(t);
+        }
+    }
+
+    return (events || []).filter((e) => !toDrop.has(e.actionType));
+}
+
+/**
+ * @param {Array<{ actions?: object[] }>} dailyRows
+ * @returns {Array<{ actionType: string, count: number, label: string, source?: string }>}
+ */
+export function aggregateConversionRelevantAccountEvents(dailyRows) {
+    const aggregated = aggregateActionTypesFromDailyRows(dailyRows);
+    const filtered = filterConversionRelevantAccountEvents(aggregated);
+    return dedupeAccountActionEvents(filtered);
+}
 
 export function getActionValue(actions, actionType) {
     if (!actions) return 0;

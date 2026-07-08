@@ -28,10 +28,6 @@ export default function ApexRadarFacebookSettingsModal({ row, onClose, onSaved }
     const [lookbackDays, setLookbackDays] = useState(90);
     const [eventSearch, setEventSearch] = useState("");
     const [missingAdAccount, setMissingAdAccount] = useState(false);
-    const [missingPixel, setMissingPixel] = useState(false);
-    const [pixelStatsPermissionDenied, setPixelStatsPermissionDenied] = useState(false);
-    const [eventsHint, setEventsHint] = useState(null);
-    const [pixelName, setPixelName] = useState(null);
     const [configUrl, setConfigUrl] = useState(null);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
@@ -50,10 +46,6 @@ export default function ApexRadarFacebookSettingsModal({ row, onClose, onSaved }
         setSelectedActionTypes(new Set(v.trackingConversionActionTypes || []));
         setEventSearch("");
         setMissingAdAccount(false);
-        setMissingPixel(false);
-        setPixelStatsPermissionDenied(false);
-        setEventsHint(null);
-        setPixelName(null);
         setConfigUrl(null);
         setError(null);
         setEventsError(null);
@@ -75,10 +67,6 @@ export default function ApexRadarFacebookSettingsModal({ row, onClose, onSaved }
                 setEvents(Array.isArray(data.events) ? data.events : []);
                 setLookbackDays(data.lookbackDays || 90);
                 setMissingAdAccount(Boolean(data.missingAdAccount));
-                setMissingPixel(Boolean(data.missingPixel));
-                setPixelStatsPermissionDenied(Boolean(data.pixelStatsPermissionDenied));
-                setEventsHint(data.hint || null);
-                setPixelName(data.pixelName || null);
                 setConfigUrl(data.configUrl || null);
             })
             .catch((e) => {
@@ -302,15 +290,16 @@ export default function ApexRadarFacebookSettingsModal({ row, onClose, onSaved }
                                     </button>
                                 </div>
                                 <p className="apex-radar-section__subtitle mb-3">
-                                    Events from the Meta pixel (last {lookbackDays} days).
-                                    {pixelName ? ` Pixel: ${pixelName}.` : ""}
+                                    Ad-attributed events from the Meta ad account (last {lookbackDays} days). Only
+                                    events with ad-attributed volume in insights are listed — not full Events Manager
+                                    totals.
                                     {usesDefaultPurchases
                                         ? " Using default purchase events."
                                         : ` ${selectedActionTypes.size} selected.`}
                                 </p>
 
                                 {eventsLoading ? (
-                                    <p className="apex-radar-section__subtitle py-2">Loading pixel events…</p>
+                                    <p className="apex-radar-section__subtitle py-2">Loading ad account events…</p>
                                 ) : eventsError ? (
                                     <p className="text-sm text-[var(--color-error,oklch(50%_0.15_25))]">{eventsError}</p>
                                 ) : missingAdAccount ? (
@@ -322,21 +311,8 @@ export default function ApexRadarFacebookSettingsModal({ row, onClose, onSaved }
                                             </Link>
                                         ) : null}
                                     </p>
-                                ) : missingPixel ? (
-                                    <p className="apex-radar-modal-callout">
-                                        No pixel found for this ad account.{" "}
-                                        {configUrl ? (
-                                            <Link href={configUrl} className="apex-radar-link-btn inline">
-                                                Set pixel ID in customer config →
-                                            </Link>
-                                        ) : null}
-                                    </p>
                                 ) : (
                                     <>
-                                        {pixelStatsPermissionDenied && eventsHint ? (
-                                            <p className="apex-radar-modal-callout mb-3">{eventsHint}</p>
-                                        ) : null}
-
                                         {selectedEventsList.length > 0 ? (
                                             <div className="mb-4">
                                                 <p className="apex-radar-field-label mb-2">
@@ -357,12 +333,12 @@ export default function ApexRadarFacebookSettingsModal({ row, onClose, onSaved }
                                                         type="search"
                                                         value={eventSearch}
                                                         onChange={(e) => setEventSearch(e.target.value)}
-                                                        placeholder="Search pixel events…"
+                                                        placeholder="Search ad account events…"
                                                         autoComplete="off"
                                                     />
                                                 </div>
                                                 <p className="apex-radar-field-label mb-2">
-                                                    All pixel events ({filteredEvents.length}
+                                                    All events ({filteredEvents.length}
                                                     {eventSearch.trim() ? ` of ${sortedEvents.length}` : ""})
                                                 </p>
                                                 {filteredEvents.length === 0 ? (
@@ -375,9 +351,9 @@ export default function ApexRadarFacebookSettingsModal({ row, onClose, onSaved }
                                                     </ul>
                                                 )}
                                             </>
-                                        ) : pixelStatsPermissionDenied ? null : (
+                                        ) : (
                                             <p className="apex-radar-empty py-2">
-                                                No active pixel events in the last {lookbackDays} days.
+                                                No ad-attributed conversion events in the last {lookbackDays} days.
                                             </p>
                                         )}
                                     </>
