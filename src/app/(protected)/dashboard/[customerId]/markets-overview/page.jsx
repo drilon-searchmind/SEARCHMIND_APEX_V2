@@ -248,7 +248,7 @@ const MarketsOverviewPage = () => {
 
     if (!customer || !marketsEnabled) {
         return (
-            <div className="cobalt-perf w-full" data-theme="cobalt">
+            <div className="apex-perf w-full">
                 <div className="apex-markets-loader-panel">
                     <CobaltLoader variant="block" title="Loading markets overview" />
                 </div>
@@ -258,7 +258,7 @@ const MarketsOverviewPage = () => {
 
     if (featureDisabled) {
         return (
-            <div id="MarketsOverviewPage" className="cobalt-perf w-full apex-markets-stack" data-theme="cobalt">
+            <div id="MarketsOverviewPage" className="apex-perf w-full apex-markets-stack">
                 <div className="apex-markets-disabled">
                     Shopify Markets is not enabled for this customer.
                 </div>
@@ -267,7 +267,7 @@ const MarketsOverviewPage = () => {
     }
 
     return (
-        <div id="MarketsOverviewPage" className="cobalt-perf w-full apex-markets-stack" data-theme="cobalt">
+        <div id="MarketsOverviewPage" className="apex-perf w-full apex-markets-stack">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

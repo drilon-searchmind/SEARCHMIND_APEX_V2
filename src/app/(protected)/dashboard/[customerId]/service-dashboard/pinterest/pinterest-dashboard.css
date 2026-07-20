@@ -1,6 +1,7 @@
-/* Hallmark · theme: Cobalt · page: pinterest-dashboard */
+/* Apex · page: pinterest-dashboard · theme: minimal (DESIGN.md) */
 
 @import "../../performance-dashboard/performance-dashboard.css";
+@import "../service-dashboard-minimal.css";
 
 .apex-pin-panel {
   margin-top: var(--space-md);

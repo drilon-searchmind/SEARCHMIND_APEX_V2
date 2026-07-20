@@ -124,7 +124,7 @@ export default function GuidesPage() {
     };
 
     return (
-        <div id="GuidesPage" className="cobalt-perf w-full apex-guides-stack" data-theme="cobalt">
+        <div id="GuidesPage" className="apex-perf w-full apex-guides-stack">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

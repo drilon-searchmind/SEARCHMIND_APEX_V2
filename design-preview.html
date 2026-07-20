@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Apex — design preview (v2)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #131313;
+    --ink-muted: #6b6b6b;
+    --canvas: #fafaf9;
+    --card: #ffffff;
+    --hairline: #e7e5e2;
+    --hairline-strong: #d8d5d0;
+    --sidebar: #101010;
+    --dark-green: #1e2928;
+    --lime: #c6ed62;
+    --ok: #6a8f4d;
+    --bad: #ee6251;
+    --shadow-low: rgba(0, 0, 0, 0.06) 0px 2px 8px 0px;
+    --shadow-mid: rgba(0, 0, 0, 0.1) 0px 4px 12px 0px;
+    --radius-card: 20px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  }
+
+  body {
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ---------- sidebar ---------- */
+
+  .sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    background: var(--sidebar);
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .logo {
+    color: #fff;
+    font-weight: 600;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+    padding: 0 8px;
+  }
+
+  .logo span { color: rgba(255,255,255,0.4); font-weight: 500; }
+
+  .nav { display: flex; flex-direction: column; gap: 2px; }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.5);
+    border-left: 2px solid transparent;
+  }
+
+  .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .nav-item.active {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.06);
+    border-left: 2px solid var(--lime);
+  }
+
+  /* ---------- main ---------- */
+
+  main {
+    flex: 1;
+    min-width: 0;
+    padding: 32px 40px 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .demo-badge {
+    width: fit-content;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    padding: 4px 12px;
+    border-radius: 8px;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .topbar h1 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+
+  .topbar .meta {
+    margin-top: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-muted);
+  }
+
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+
+  .range-chip {
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 100px;
+    background: var(--card);
+    border: 1px solid var(--hairline);
+  }
+
+  .avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  /* ---------- cards / kpi ---------- */
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-low);
+    padding: 24px;
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+  }
+
+  @media (max-width: 1000px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 620px) { .kpi-grid { grid-template-columns: 1fr; } }
+
+  .kpi-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .icon-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--hairline-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink);
+  }
+
+  .icon-circle svg { width: 15px; height: 15px; }
+
+  .kpi-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    margin: 16px 0 4px;
+  }
+
+  .kpi-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  .delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 10px;
+  }
+
+  .delta.up { color: var(--ok); }
+  .delta.down { color: var(--bad); }
+
+  /* ---------- content row ---------- */
+
+  .content-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  @media (max-width: 900px) { .content-row { grid-template-columns: 1fr; } }
+
+  .card-header {
+    margin-bottom: 18px;
+  }
+
+  .card-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .card-header .sub {
+    font-size: 13px;
+    color: var(--ink-muted);
+    font-weight: 500;
+    margin-top: 2px;
+  }
+
+  .health-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .health-row:last-of-type { border-bottom: none; }
+
+  .health-left { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }
+
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.ok { background: var(--ok); }
+  .dot.warn { background: #c5a75c; }
+  .dot.bad { background: var(--bad); }
+
+  .health-count { font-size: 13px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+
+  /* ---------- table ---------- */
+
+  .table-card { padding: 0; overflow: hidden; }
+  .table-head { padding: 24px 24px 0; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+
+  th {
+    text-align: left;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    padding: 0 24px 10px;
+    border-bottom: 1px solid var(--hairline);
+    text-transform: none;
+  }
+
+  td {
+    padding: 13px 24px;
+    font-size: 14.5px;
+    font-weight: 500;
+    box-shadow: inset 0 -1px 0 0 transparent, inset 0 1px 0 0 transparent;
+  }
+
+  tr.row { cursor: pointer; transition: background-color 120ms ease; }
+  tr.row:hover td { background-color: #f4f3f1; }
+  tr.row.selected td { background-color: #f0efec; }
+
+  tr.row.sel-first td { box-shadow: inset 0 2px 0 0 var(--ink); }
+  tr.row.sel-last td { box-shadow: inset 0 -2px 0 0 var(--ink); }
+  tr.row.selected td:first-child { box-shadow: inset 2px 0 0 0 var(--ink); }
+  tr.row.selected td:last-child { box-shadow: inset -2px 0 0 0 var(--ink); }
+  tr.row.sel-first td:first-child { box-shadow: inset 2px 0 0 0 var(--ink), inset 0 2px 0 0 var(--ink); }
+  tr.row.sel-first td:last-child { box-shadow: inset -2px 0 0 0 var(--ink), inset 0 2px 0 0 var(--ink); }
+  tr.row.sel-last td:first-child { box-shadow: inset 2px 0 0 0 var(--ink), inset 0 -2px 0 0 var(--ink); }
+  tr.row.sel-last td:last-child { box-shadow: inset -2px 0 0 0 var(--ink), inset 0 -2px 0 0 var(--ink); }
+
+  .t-name { color: var(--ink); }
+  .t-muted { color: var(--ink-muted); }
+  .t-num { font-variant-numeric: tabular-nums; }
+
+  /* heatmap cell — the one sanctioned color fill on a surface */
+  .heat {
+    border-radius: 8px;
+    padding: 3px 10px;
+    display: inline-block;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .foot-note {
+    font-size: 12px;
+    color: var(--ink-muted);
+    padding: 14px 24px 20px;
+  }
+
+  .sparkline { flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="logo">Searchmind <span>Apex</span></div>
+    <nav class="nav" id="nav"></nav>
+  </aside>
+
+  <main>
+    <span class="demo-badge">Design preview · mock data, ikke live tal</span>
+
+    <div class="topbar">
+      <div>
+        <h1>Overview</h1>
+        <div class="meta">Apex design preview — DESIGN.md v4 (minimal / sort-hvid)</div>
+      </div>
+      <div class="topbar-right">
+        <span class="range-chip">Sidste 30 dage</span>
+        <span class="avatar">SM</span>
+      </div>
+    </div>
+
+    <section class="kpi-grid" id="kpiGrid"></section>
+
+    <section class="content-row">
+      <div class="card">
+        <div class="card-header">
+          <h2>Pace Report</h2>
+          <div class="sub">Forbrug vs. budget, indekseret over perioden</div>
+        </div>
+        <svg width="100%" height="170" viewBox="0 0 560 170" preserveAspectRatio="none">
+          <polyline points="0,140 60,118 120,100 180,86 240,78 300,74 360,70 420,66 480,63 560,58"
+            fill="none" stroke="#131313" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          <polyline points="0,140 60,118 120,100 180,86 240,78 300,74 360,70 420,66 480,63 560,58"
+            fill="none" stroke="var(--lime)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            stroke-dasharray="0 480 80" />
+        </svg>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2>Health</h2></div>
+        <div class="health-row">
+          <span class="health-left"><span class="dot ok"></span>Sund</span>
+          <span class="health-count">4 kunder</span>
+        </div>
+        <div class="health-row">
+          <span class="health-left"><span class="dot warn"></span>Advarsel</span>
+          <span class="health-count">1 kunde</span>
+        </div>
+        <div class="health-row">
+          <span class="health-left"><span class="dot bad"></span>Kritisk</span>
+          <span class="health-count">1 kunde</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card table-card">
+      <div class="table-head">
+        <h2 style="margin:0;font-size:18px;font-weight:600;">Kunder</h2>
+        <div class="sub">Klik for at vælge en række, shift+klik for at vælge et interval</div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Kunde</th>
+            <th>Forbrug</th>
+            <th>ROAS</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+      <div class="foot-note">Mock data — ikke forbundet til APEX MCP eller andre live kilder.</div>
+    </section>
+  </main>
+
+<script>
+  const ICONS = {
+    coin: 'M12 21c4.4 0 8-1.6 8-3.5V6.5C20 4.6 16.4 3 12 3S4 4.6 4 6.5v11C4 19.4 7.6 21 12 21ZM4 6.5C4 8.4 7.6 10 12 10s8-1.6 8-3.5M4 12c0 1.9 3.6 3.5 8 3.5s8-1.6 8-3.5',
+    trend: 'm4 16 5-5 4 3 7-8M14 6h6v6',
+    target: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10ZM12 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z',
+    pie: 'M12 3v9l7.5 4.3A9 9 0 1 0 12 3Z',
+    home: 'M3 10.5 12 3l9 7.5M5 9.5V20h5v-6h4v6h5V9.5',
+    users: 'M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3 20c0-3.3 2.7-5.5 5.5-5.5S14 16.7 14 20M16.5 11a2.7 2.7 0 1 0 0-5.4M18 20c0-2.6-1.6-4.5-3.5-5.2',
+    activity: 'M4 18V9M10 18V4M16 18v-6M20 18v-3',
+    briefcase: 'M4 8h16v10H4zM8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2',
+    file: 'M6 3h8l4 4v14H6zM14 3v4h4',
+    settings: 'M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7ZM12 2v2.2M12 19.8V22M4.2 4.2l1.5 1.5M18.3 18.3l1.5 1.5M2 12h2.2M19.8 12H22M4.2 19.8l1.5-1.5M18.3 5.7l1.5-1.5',
+  };
+
+  function svgIcon(name) {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${ICONS[name]}"/></svg>`;
+  }
+
+  const NAV_ITEMS = [
+    { key: 'home', label: 'Overview', active: true },
+    { key: 'users', label: 'Clients' },
+    { key: 'activity', label: 'Pace Report' },
+    { key: 'briefcase', label: 'Campaigns' },
+    { key: 'file', label: 'Reports' },
+    { key: 'settings', label: 'Settings' },
+  ];
+
+  document.getElementById('nav').innerHTML = NAV_ITEMS.map(item => `
+    <div class="nav-item ${item.active ? 'active' : ''}">
+      ${svgIcon(item.key)}
+      ${item.label}
+    </div>
+  `).join('');
+
+  const KPIS = [
+    { label: 'Spend (30d)', value: '342.800 kr', delta: '+8.2%', up: true, icon: 'coin', spark: [4,6,5,8,7,10,9,12,11,14] },
+    { label: 'Revenue (30d)', value: '1.14M kr', delta: '+14.6%', up: true, icon: 'trend', spark: [10,9,12,11,15,14,17,16,19,20] },
+    { label: 'ROAS', value: '3.3x', delta: '+0.4x', up: true, icon: 'target', spark: [2,3,2.5,4,3.5,5,4.5,6,5.5,6.5] },
+    { label: 'Pace vs. budget', value: '91%', delta: '-4pt', up: false, icon: 'pie', spark: [14,13,12,12.5,11,10.5,10,9,9.5,8] },
+  ];
+
+  function sparklineSvg(points, color) {
+    const w = 88, h = 30;
+    const max = Math.max(...points), min = Math.min(...points), range = (max - min) || 1;
+    const step = w / (points.length - 1);
+    const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${(i * step).toFixed(1)},${(h - ((p - min) / range) * h).toFixed(1)}`).join(' ');
+    return `<svg class="sparkline" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  }
+
+  document.getElementById('kpiGrid').innerHTML = KPIS.map(k => `
+    <div class="card">
+      <div class="kpi-top">
+        <span class="icon-circle">${svgIcon(k.icon)}</span>
+        ${sparklineSvg(k.spark, k.up ? 'var(--lime)' : 'var(--bad)')}
+      </div>
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="delta ${k.up ? 'up' : 'down'}">${k.up ? '↑' : '↓'} ${k.delta}</div>
+    </div>
+  `).join('');
+
+  const ROWS = [
+    { name: 'Nordisk Interiør', spend: '48.200 kr', roas: 4.1, status: 'ok' },
+    { name: 'Pompdelux DK', spend: '112.400 kr', roas: 3.8, status: 'ok' },
+    { name: 'Vendo Living', spend: '22.900 kr', roas: 2.2, status: 'warn' },
+    { name: 'Kaffehuset A/S', spend: '9.600 kr', roas: 1.1, status: 'bad' },
+    { name: 'Studio Marlow', spend: '61.300 kr', roas: 3.5, status: 'ok' },
+    { name: 'Greenhouse Foods', spend: '17.100 kr', roas: 1.8, status: 'warn' },
+  ];
+
+  const STATUS_LABEL = { ok: 'Sund', warn: 'Advarsel', bad: 'Kritisk' };
+  const STATUS_DOT = { ok: 'ok', warn: 'warn', bad: 'bad' };
+
+  function heatColor(roas) {
+    // heatmap: the one sanctioned color fill on a surface — scaled by distance from a 2.5x midpoint
+    if (roas >= 2.5) {
+      const t = Math.min((roas - 2.5) / 2, 1); // 0..1 up to ~4.5x
+      const alpha = 0.10 + t * 0.18;
+      return `rgba(106, 143, 77, ${alpha.toFixed(2)})`; // ok green
+    }
+    const t = Math.min((2.5 - roas) / 1.5, 1);
+    const alpha = 0.10 + t * 0.18;
+    return `rgba(238, 98, 81, ${alpha.toFixed(2)})`; // bad coral
+  }
+
+  const tbody = document.getElementById('tableBody');
+  let selected = new Set();
+  let lastIndex = null;
+
+  function render() {
+    tbody.innerHTML = ROWS.map((row, i) => {
+      const isSelected = selected.has(i);
+      const isFirst = isSelected && !selected.has(i - 1);
+      const isLast = isSelected && !selected.has(i + 1);
+      const cls = ['row', isSelected ? 'selected' : '', isFirst ? 'sel-first' : '', isLast ? 'sel-last' : ''].filter(Boolean).join(' ');
+      return `
+        <tr class="${cls}" data-index="${i}">
+          <td class="t-name">${row.name}</td>
+          <td class="t-num">${row.spend}</td>
+          <td><span class="heat" style="background:${heatColor(row.roas)}">${row.roas.toFixed(1)}x</span></td>
+          <td><span class="dot ${STATUS_DOT[row.status]}" style="display:inline-block;margin-right:6px;vertical-align:middle;"></span><span class="t-muted">${STATUS_LABEL[row.status]}</span></td>
+        </tr>
+      `;
+    }).join('');
+
+    tbody.querySelectorAll('tr.row').forEach(tr => {
+      tr.addEventListener('click', (e) => {
+        const index = Number(tr.dataset.index);
+        if (e.shiftKey && lastIndex !== null) {
+          const [start, end] = [lastIndex, index].sort((a, b) => a - b);
+          for (let i = start; i <= end; i++) selected.add(i);
+        } else {
+          if (selected.has(index)) selected.delete(index);
+          else selected.add(index);
+          lastIndex = index;
+        }
+        render();
+      });
+    });
+  }
+
+  render();
+</script>
+</body>
+</html>

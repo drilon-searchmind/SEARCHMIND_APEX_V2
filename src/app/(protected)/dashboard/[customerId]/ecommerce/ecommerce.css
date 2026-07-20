@@ -1,18 +1,19 @@
-/* Hallmark · theme: Cobalt · page: ecommerce */
+/* Apex · page: ecommerce · theme: minimal (DESIGN.md) */
 
 @import "../performance-dashboard/performance-dashboard.css";
 
-/* ── Tabs ── */
+/* ── Tabs (segmented control) ── */
 
 .apex-ecom-tabs {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
-  gap: var(--space-xs);
-  padding: var(--space-xs);
+  gap: var(--space-2xs);
+  padding: var(--space-2xs);
   margin-top: var(--space-md);
-  background: var(--perf-raised);
-  border: var(--rule-hair) solid var(--color-rule);
-  border-radius: var(--radius-card);
+  background: var(--color-paper-2);
+  border: none;
+  border-radius: var(--radius-pill);
+  box-shadow: none;
 }
 
 .apex-ecom-tabs__btn {
@@ -22,48 +23,41 @@
   gap: var(--space-xs);
   flex: 1;
   min-width: 10rem;
-  min-height: 2.5rem;
+  min-height: 2.25rem;
   padding: var(--space-xs) var(--space-md);
   font-family: var(--font-body);
   font-size: var(--text-xs);
   font-weight: 500;
   color: var(--color-muted);
   background: transparent;
-  border: var(--rule-hair) solid transparent;
-  border-radius: var(--radius-input);
+  border: none;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   transition:
     background-color var(--dur-micro) var(--ease-out),
     color var(--dur-micro) var(--ease-out),
-    border-color var(--dur-micro) var(--ease-out);
+    box-shadow var(--dur-micro) var(--ease-out);
 }
 
 .apex-ecom-tabs__btn:hover:not(.is-active) {
   color: var(--color-ink);
-  background: var(--perf-canvas);
-  border-color: var(--color-rule);
 }
 
 .apex-ecom-tabs__btn.is-active {
-  color: var(--color-accent-ink);
-  background: var(--perf-accent);
-  border-color: var(--perf-accent);
+  color: var(--color-ink);
+  background: var(--perf-raised);
+  box-shadow: var(--shadow-card);
 }
 
 /* ── Panels ── */
 
 .apex-ecom-panel {
   margin-top: var(--space-md);
-  padding: var(--space-md) var(--space-lg);
+  padding: var(--apex-space-card);
   background: var(--perf-raised);
-  border: var(--rule-hair) solid var(--color-rule);
+  border: none;
   border-radius: var(--radius-card);
-}
-
-@media (min-width: 768px) {
-  .apex-ecom-panel {
-    padding: var(--space-lg) var(--space-xl);
-  }
+  box-shadow: var(--shadow-card);
 }
 
 .apex-ecom-panel__head {
@@ -87,6 +81,7 @@
 .apex-ecom-panel__subtitle {
   margin: 0;
   font-size: var(--text-xs);
+  line-height: 1.5;
   color: var(--color-muted);
 }
 
@@ -110,16 +105,16 @@
 
 .apex-ecom-result-count {
   flex-shrink: 0;
-  padding: 0.2rem 0.55rem;
-  font-family: var(--font-label);
-  font-size: 0.58rem;
-  font-weight: 600;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  padding: var(--space-2xs) var(--space-sm);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--color-muted);
-  background: var(--perf-canvas);
-  border: var(--rule-hair) solid var(--color-rule);
-  border-radius: 999px;
+  background: var(--color-paper-2);
+  border: none;
+  border-radius: var(--radius-pill);
 }
 
 .apex-ecom-sort__dir {
@@ -141,7 +136,8 @@
 
 .apex-ecom-search:focus {
   outline: none;
-  border-color: var(--color-accent);
+  border-color: var(--color-ink);
+  box-shadow: 0 0 0 2px oklch(27.5% 0.038 165 / 0.1);
 }
 
 .apex-ecom-sort {
@@ -152,11 +148,11 @@
 }
 
 .apex-ecom-sort__label {
-  font-family: var(--font-label);
-  font-size: 0.62rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   font-weight: 500;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--color-muted);
 }
 
@@ -175,7 +171,7 @@
 .apex-ecom-summary {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-sm);
+  gap: var(--apex-space-grid);
   margin-bottom: var(--space-md);
 }
 
@@ -187,25 +183,25 @@
 
 .apex-ecom-summary__item {
   padding: var(--space-sm) var(--space-md);
-  background: var(--perf-canvas);
-  border: var(--rule-hair) solid var(--color-rule);
+  background: var(--color-paper-2);
+  border: none;
   border-radius: var(--radius-input);
 }
 
 .apex-ecom-summary__label {
   display: block;
   margin-bottom: var(--space-2xs);
-  font-family: var(--font-label);
-  font-size: 0.58rem;
-  font-weight: 600;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--color-muted);
 }
 
 .apex-ecom-summary__value {
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 700;
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
   color: var(--color-ink);
@@ -217,9 +213,9 @@
   overflow: auto;
   max-height: 50rem;
   background: var(--perf-raised);
-  border: var(--rule-hair) solid var(--color-rule);
+  border: none;
   border-radius: var(--radius-card);
-  box-shadow: 0 1px 2px oklch(25% 0.02 165 / 0.04);
+  box-shadow: var(--shadow-card);
 }
 
 .apex-ecom-table-wrap--products {
@@ -231,7 +227,7 @@
   min-width: 58rem;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 0.72rem;
+  font-size: 0.8125rem;
   line-height: 1.35;
   color: var(--color-ink-2);
   font-variant-numeric: tabular-nums;
@@ -246,69 +242,61 @@
 .apex-ecom-table th,
 .apex-ecom-table td {
   padding: var(--space-xs) var(--space-sm);
-  border-right: var(--rule-hair) solid var(--color-rule);
+  border-right: none;
   border-bottom: var(--rule-hair) solid var(--color-rule);
   vertical-align: middle;
 }
 
-.apex-ecom-table th:first-child,
-.apex-ecom-table td:first-child {
-  border-left: var(--rule-hair) solid var(--color-rule);
-}
-
-.apex-ecom-table thead tr:first-child th {
-  border-top: var(--rule-hair) solid var(--color-rule);
-}
-
 .apex-ecom-table th {
-  font-family: var(--font-label);
-  font-size: 0.58rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   text-align: left;
-  color: var(--color-accent-ink);
-  background: var(--perf-accent);
+  color: var(--color-muted);
+  background: transparent;
   white-space: nowrap;
+  border-bottom: var(--rule-hair) solid var(--color-rule);
 }
 
 .apex-ecom-table .th-group {
   text-align: center;
-  font-size: 0.55rem;
-  letter-spacing: 0.06em;
-  background: color-mix(in srgb, var(--color-accent) 88%, var(--color-ink));
-  border-bottom: var(--rule-hair) solid color-mix(in srgb, var(--color-accent-ink) 18%, transparent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-ink-2);
+  background: var(--color-paper-2);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
 }
 
-.apex-ecom-table .th-group--velocity {
-  background: color-mix(in srgb, var(--color-accent) 78%, oklch(55% 0.08 250));
-}
-
-.apex-ecom-table .th-group--inventory {
-  background: color-mix(in srgb, var(--color-accent) 78%, oklch(45% 0.06 145));
+.apex-ecom-table .th-group--velocity,
+.apex-ecom-table .th-group--inventory,
+.apex-ecom-table .th-group--sales {
+  background: var(--color-paper-2);
 }
 
 .apex-ecom-table .th-sub {
-  font-size: 0.55rem;
-  font-weight: 600;
+  font-size: 0.8125rem;
+  font-weight: 500;
   text-transform: none;
-  letter-spacing: normal;
-  color: var(--color-ink-2);
-  background: var(--perf-canvas);
+  letter-spacing: 0;
+  color: var(--color-muted);
+  background: transparent;
 }
 
 .apex-ecom-table th.is-sortable {
   cursor: pointer;
   user-select: none;
-  transition: background-color var(--dur-micro) var(--ease-out);
+  transition: color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out);
 }
 
 .apex-ecom-table th.is-sortable:hover {
-  background: var(--color-accent-hover);
+  color: var(--color-ink);
+  background: var(--color-paper-2);
 }
 
 .apex-ecom-table .th-sub.is-sortable:hover {
-  background: var(--color-paper-3);
+  background: var(--color-paper-2);
 }
 
 .apex-ecom-table th.is-num,
@@ -326,7 +314,7 @@
   min-width: 6rem;
   max-width: 9rem;
   color: var(--color-muted);
-  font-size: 0.68rem;
+  font-size: 0.8125rem;
 }
 
 .apex-ecom-table .is-sticky-product {
@@ -339,32 +327,28 @@
 
 .apex-ecom-table thead .is-sticky-product {
   z-index: 5;
-  background: var(--perf-accent);
-  box-shadow: 2px 0 0 color-mix(in srgb, var(--color-accent-ink) 12%, transparent);
+  background: var(--perf-raised);
+  box-shadow: 2px 0 0 var(--color-rule);
 }
 
 .apex-ecom-table tfoot .is-sticky-product {
   z-index: 3;
-  background: var(--color-graphite);
-  box-shadow: 2px 0 0 var(--color-code-border);
-}
-
-.apex-ecom-table tbody tr:nth-child(even) .is-sticky-product {
-  background: var(--perf-canvas);
+  background: var(--color-paper-2);
+  box-shadow: 2px 0 0 var(--color-rule);
 }
 
 .apex-ecom-table tbody tr:hover .is-sticky-product {
-  background: var(--color-paper-3);
+  background: var(--color-paper-2);
 }
 
 .apex-ecom-table .td-group-start {
-  border-left: var(--rule-hair) solid color-mix(in srgb, var(--color-accent) 35%, var(--color-rule));
+  border-left: var(--rule-hair) solid var(--color-rule-2);
 }
 
 .apex-ecom-table thead .td-group-start,
 .apex-ecom-table .th-group--velocity,
 .apex-ecom-table .th-group--inventory {
-  border-left: var(--rule-hair) solid color-mix(in srgb, var(--color-accent-ink) 14%, transparent);
+  border-left: var(--rule-hair) solid var(--color-rule-2);
 }
 
 .apex-ecom-table td.is-emphasis {
@@ -372,12 +356,8 @@
   color: var(--color-ink);
 }
 
-.apex-ecom-table tbody tr:nth-child(even) {
-  background: var(--perf-canvas);
-}
-
 .apex-ecom-table tbody tr:hover {
-  background: var(--color-paper-3);
+  background: var(--color-paper-2);
 }
 
 .apex-ecom-table__product {
@@ -393,8 +373,8 @@
   height: 2.5rem;
   flex-shrink: 0;
   overflow: hidden;
-  background: var(--perf-canvas);
-  border: var(--rule-hair) solid var(--color-rule);
+  background: var(--color-paper-2);
+  border: var(--rule-hair) solid var(--color-rule-2);
   border-radius: var(--radius-input);
 }
 
@@ -411,7 +391,7 @@
 .apex-ecom-table__name {
   overflow: hidden;
   font-weight: 600;
-  font-size: 0.72rem;
+  font-size: 0.8125rem;
   line-height: 1.3;
   color: var(--color-ink);
   text-overflow: ellipsis;
@@ -420,7 +400,7 @@
 
 .apex-ecom-table__vendor {
   overflow: hidden;
-  font-size: 0.62rem;
+  font-size: var(--text-xs);
   color: var(--color-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -430,10 +410,10 @@
   display: inline-block;
   max-width: 100%;
   padding: 0.12rem 0.4rem;
-  font-size: 0.65rem;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: 500;
   line-height: 1.3;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   white-space: nowrap;
 }
 
@@ -446,20 +426,20 @@
 
 .apex-ecom-table__sold-out.is-muted-value .apex-ecom-table__sold-out-pill {
   color: var(--color-muted);
-  background: var(--perf-canvas);
-  border: var(--rule-hair) solid var(--color-rule);
+  background: var(--color-paper-2);
+  border: var(--rule-hair) solid var(--color-rule-2);
 }
 
 .apex-ecom-table__sold-out.is-critical .apex-ecom-table__sold-out-pill {
-  color: oklch(42% 0.16 25);
-  background: oklch(97% 0.03 25);
-  border: var(--rule-hair) solid oklch(88% 0.1 25);
+  color: var(--color-error, #ee6251);
+  background: oklch(97% 0.02 25);
+  border: var(--rule-hair) solid oklch(88% 0.06 25);
 }
 
 .apex-ecom-table__sold-out.is-warn .apex-ecom-table__sold-out-pill {
-  color: oklch(45% 0.12 75);
-  background: oklch(97% 0.03 95);
-  border: var(--rule-hair) solid oklch(88% 0.08 95);
+  color: var(--apex-warn, #c5a75c);
+  background: oklch(97% 0.02 95);
+  border: var(--rule-hair) solid oklch(88% 0.06 95);
 }
 
 .apex-ecom-table__sold-out.is-pending .apex-ecom-table__sold-out-pill {
@@ -472,18 +452,20 @@
   z-index: 2;
   padding: var(--space-sm);
   font-weight: 600;
-  font-size: 0.68rem;
-  color: var(--color-code-ink-body);
-  background: var(--color-graphite);
-  border-top: var(--rule-hair) solid var(--color-code-border);
+  font-size: var(--text-xs);
+  color: var(--color-ink);
+  background: var(--color-paper-2);
+  border-top: var(--rule-hair) solid var(--color-rule);
+  border-bottom: none;
 }
 
 .apex-ecom-table tfoot td.is-muted {
-  color: var(--color-code-ink-muted);
+  color: var(--color-muted);
   text-align: right;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-label);
-  font-size: 0.58rem;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--text-xs);
+  font-weight: 500;
 }
 
 /* ── Customer metrics ── */
@@ -494,18 +476,18 @@
 
 .apex-ecom-metric-group__label {
   margin: 0 0 var(--space-sm);
-  font-family: var(--font-label);
-  font-size: 0.62rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--color-muted);
 }
 
 .apex-ecom-metrics {
   display: grid;
   grid-template-columns: 1fr;
-  gap: var(--space-sm);
+  gap: var(--apex-space-grid);
 }
 
 @media (min-width: 640px) {
@@ -522,12 +504,12 @@
 .apex-ecom-calc {
   margin-top: calc(var(--space-2xs) * -1);
   padding: var(--space-sm);
-  font-family: var(--font-mono, "JetBrains Mono", ui-monospace, monospace);
-  font-size: 0.62rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   line-height: 1.45;
   color: var(--color-muted);
-  background: var(--perf-canvas);
-  border: var(--rule-hair) solid var(--color-rule);
+  background: var(--color-paper-2);
+  border: none;
   border-top: none;
   border-radius: 0 0 var(--radius-input) var(--radius-input);
 }
@@ -557,24 +539,24 @@
 
 .apex-ecom-calc__result strong {
   font-weight: 600;
-  color: var(--color-accent-light);
+  color: var(--color-ink);
 }
 
 .apex-ecom-channels {
   grid-column: 1 / -1;
   padding: var(--space-md);
-  background: var(--perf-canvas);
-  border: var(--rule-hair) solid var(--color-rule);
+  background: var(--color-paper-2);
+  border: none;
   border-radius: var(--radius-input);
 }
 
 .apex-ecom-channels__title {
   margin: 0 0 var(--space-sm);
-  font-family: var(--font-label);
-  font-size: 0.62rem;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--color-muted);
 }
 
@@ -599,12 +581,13 @@
 .apex-ecom-channel {
   padding: var(--space-xs) var(--space-sm);
   background: var(--perf-raised);
-  border: var(--rule-hair) solid var(--color-rule);
+  border: none;
   border-radius: var(--radius-input);
+  box-shadow: var(--shadow-card);
 }
 
 .apex-ecom-channel__label {
-  font-size: 0.58rem;
+  font-size: var(--text-xs);
   line-height: 1.3;
   color: var(--color-muted);
 }
@@ -628,10 +611,11 @@
 .apex-ecom-error {
   padding: var(--space-md) var(--space-lg);
   font-size: var(--text-sm);
-  color: var(--color-error, oklch(50% 0.15 25));
-  background: oklch(97% 0.02 25);
-  border: var(--rule-hair) solid oklch(90% 0.06 25);
+  color: var(--color-error);
+  background: var(--perf-raised);
+  border: none;
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 .apex-ecom-alert {
@@ -641,9 +625,9 @@
   gap: var(--space-xs);
   padding: var(--space-sm) var(--space-md);
   font-size: var(--text-xs);
-  color: oklch(45% 0.12 75);
-  background: oklch(97% 0.03 95);
-  border: var(--rule-hair) solid oklch(88% 0.08 95);
+  color: var(--apex-warn, #c5a75c);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule-2);
   border-radius: var(--radius-input);
 }
 
@@ -656,10 +640,10 @@
   margin-top: var(--space-md);
   margin-bottom: var(--space-md);
   padding: var(--space-sm) var(--space-md);
-  background: oklch(98% 0.006 165 / 0.92);
-  border: var(--rule-hair) solid var(--color-rule);
+  background: var(--perf-raised);
+  border: none;
   border-radius: var(--radius-card);
-  backdrop-filter: blur(6px);
+  box-shadow: var(--shadow-card);
 }
 
 .apex-ecom-loading-banner__text {
@@ -669,5 +653,10 @@
 }
 
 .apex-ecom-chart-block {
+  margin-bottom: var(--space-md);
+}
+
+.apex-ecom-panel .grid {
+  gap: var(--apex-space-grid);
   margin-bottom: var(--space-md);
 }

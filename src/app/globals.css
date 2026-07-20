@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100;200;300;400;500;600;700;800;900&display=swap');
+@import "../styles/acid-grotesk.css";
 @import "tailwindcss";
 
 :root {
@@ -19,10 +20,11 @@
 	--color-dark-natural: #D6CDB6;
 	--color-light-green: #6A8F4D;
 	--color-green: #213834;
-	--color-black: #131313;
+  --color-black: #131313;
+  --color-coral: #EE6251;
 
-	/* Font family */
-	--font-family: 'Outfit', sans-serif;
+  /* Font family */
+  --font-family: 'AcidGrotesk', 'Outfit', sans-serif;
 }
 
 html, body {

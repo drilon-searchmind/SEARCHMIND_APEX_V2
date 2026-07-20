@@ -1,12 +1,12 @@
 /**
- * Cobalt chart styling for performance dashboard graphs.
- * Reads theme tokens from [data-theme="cobalt"] when available.
+ * Dashboard chart styling (minimal / Apex design).
+ * File name retained for imports; reads tokens from `.apex-perf` when available.
  */
 
 function readToken(name, fallback) {
     if (typeof window === "undefined") return fallback;
     const root =
-        document.querySelector('[data-theme="cobalt"]') ||
+        document.querySelector(".apex-perf") ||
         document.querySelector(".cobalt-perf") ||
         document.documentElement;
     const value = getComputedStyle(root).getPropertyValue(name).trim();
@@ -15,14 +15,14 @@ function readToken(name, fallback) {
 
 export function getCobaltChartTokens() {
     return {
-        ink: readToken("--color-ink", "#213b34"),
-        ink2: readToken("--color-ink-2", "#2d4a42"),
-        muted: readToken("--color-muted", "#7a9489"),
-        neutral: readToken("--color-neutral", "#5c756a"),
-        accentLight: readToken("--color-accent-light", "#3d6b5e"),
-        rule: readToken("--color-rule", "#d4ddd9"),
-        rule2: readToken("--color-rule-2", "#a8bdb6"),
-        paper2: readToken("--color-paper-2", "#eef2f0"),
+        ink: readToken("--color-ink", "#131313"),
+        ink2: readToken("--color-ink-2", "#3a3a3a"),
+        muted: readToken("--color-muted", "#6b6b6b"),
+        neutral: readToken("--color-muted", "#6b6b6b"),
+        accentLight: readToken("--apex-lime", "#c6ed62"),
+        rule: readToken("--color-rule", "#e7e5e2"),
+        rule2: readToken("--color-rule-2", "#d8d5d0"),
+        paper2: readToken("--color-paper-2", "#f4f3f1"),
     };
 }
 
@@ -38,7 +38,7 @@ export function getCobaltChartBaseOptions() {
     return {
         chart: {
             background: "transparent",
-            fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+            fontFamily: "AcidGrotesk, ui-sans-serif, system-ui, sans-serif",
             foreColor: t.muted,
             animations: {
                 enabled: true,
@@ -48,10 +48,10 @@ export function getCobaltChartBaseOptions() {
         },
         grid: {
             borderColor: t.rule,
-            strokeDashArray: 3,
+            strokeDashArray: 0,
             xaxis: { lines: { show: false } },
             yaxis: { lines: { show: true } },
-            padding: { left: 4, right: 12, top: 0, bottom: 0 },
+            padding: { left: 8, right: 16, top: 8, bottom: 0 },
         },
         xaxis: {
             axisBorder: { show: true, color: t.rule, height: 1, offsetX: 0, offsetY: 0 },
@@ -63,8 +63,8 @@ export function getCobaltChartBaseOptions() {
             labels: {
                 style: {
                     colors: t.muted,
-                    fontSize: "10px",
-                    fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+                    fontSize: "11px",
+                    fontFamily: "AcidGrotesk, ui-sans-serif, system-ui, sans-serif",
                     fontWeight: 500,
                 },
             },
@@ -73,8 +73,8 @@ export function getCobaltChartBaseOptions() {
             labels: {
                 style: {
                     colors: t.muted,
-                    fontSize: "10px",
-                    fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+                    fontSize: "11px",
+                    fontFamily: "AcidGrotesk, ui-sans-serif, system-ui, sans-serif",
                     fontWeight: 500,
                 },
             },
@@ -86,31 +86,31 @@ export function getCobaltChartBaseOptions() {
         markers: {
             size: 0,
             strokeWidth: 0,
-            hover: { size: 5, sizeOffset: 2 },
+            hover: { size: 4, sizeOffset: 2 },
         },
         legend: {
             show: true,
             position: "top",
             horizontalAlign: "left",
-            offsetY: -4,
-            fontSize: "10px",
-            fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+            offsetY: 0,
+            fontSize: "12px",
+            fontFamily: "AcidGrotesk, ui-sans-serif, system-ui, sans-serif",
             fontWeight: 500,
             labels: { colors: t.ink2 },
             markers: {
-                width: 10,
+                width: 12,
                 height: 3,
-                radius: 1,
+                radius: 2,
                 offsetX: -3,
                 strokeWidth: 0,
             },
-            itemMargin: { horizontal: 14, vertical: 4 },
+            itemMargin: { horizontal: 16, vertical: 6 },
         },
         tooltip: {
             theme: "light",
             style: {
                 fontSize: "12px",
-                fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+                fontFamily: "AcidGrotesk, ui-sans-serif, system-ui, sans-serif",
             },
             x: { show: true },
         },
@@ -124,11 +124,11 @@ export function getCobaltChartBaseOptions() {
     };
 }
 
-/** Apply Cobalt palette + current/comparison stroke styling to series. */
+/** Apply minimal palette + current/comparison stroke styling to series. */
 export function applyCobaltSeriesStyle(series, options) {
     const t = getCobaltChartTokens();
-    const currentColors = [t.ink, t.accentLight, t.neutral, t.ink2];
-    const comparisonColors = [t.rule2, t.muted, t.rule, t.muted];
+    const currentColors = [t.ink, t.accentLight, t.ink2, t.neutral];
+    const comparisonColors = [t.muted, t.rule2, "#b8b5b0", t.muted];
 
     let metricIndex = 0;
     const colors = [];
@@ -143,8 +143,8 @@ export function applyCobaltSeriesStyle(series, options) {
             const color = comparisonColors[metricIndex % comparisonColors.length];
             colors.push(color);
             strokeWidths.push(1.5);
-            dashArrays.push(6);
-            fillOpacities.push(0.25);
+            dashArrays.push(5);
+            fillOpacities.push(0.35);
             return { ...s, color };
         }
 

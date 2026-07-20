@@ -41,6 +41,191 @@ function PlatformIcon({ type }) {
     return <FiServer className={iconClass} aria-hidden />;
 }
 
+function HomeAsideAccordionItem({ id, title, count, isOpen, onToggle, children, scrollable = false }) {
+    const panelId = `apex-home-aside-${id}`;
+
+    return (
+        <div className={`apex-home__accordion-item${isOpen ? " is-open" : ""}`}>
+            <button
+                type="button"
+                className="apex-home__accordion-trigger"
+                aria-expanded={isOpen}
+                aria-controls={panelId}
+                onClick={onToggle}
+            >
+                <span className="apex-home__accordion-title">{title}</span>
+                {count != null && (
+                    <span className="apex-home__accordion-count">{count}</span>
+                )}
+                <span className="apex-home__accordion-chevron" aria-hidden>
+                    {isOpen ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
+                </span>
+            </button>
+            <div
+                id={panelId}
+                className={`apex-home__accordion-panel${scrollable ? " apex-home__accordion-panel--scroll" : ""}`}
+                hidden={!isOpen}
+            >
+                {children}
+            </div>
+        </div>
+    );
+}
+
+function HomeAsidePanel({
+    user,
+    showLatestNews,
+    favoriteCustomers,
+    newsPosts,
+    newsLoading,
+    onLogout,
+}) {
+    const [asideOpen, setAsideOpen] = useState({
+        favorites: true,
+        navigate: false,
+        news: false,
+    });
+
+    const toggleAsideSection = (key) => {
+        setAsideOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    return (
+        <aside className="apex-home__aside" aria-label="Shortcuts and updates">
+            <div className="apex-home__aside-card">
+                <div className="apex-home__aside-hero">
+                    <p className="apex-home__panel-eyebrow">Apex · Marketing ops</p>
+                    <p className="apex-home__panel-display">Shortcuts & updates</p>
+                    <p className="apex-home__panel-copy">
+                        Pinned properties, team links, and the latest from Searchmind.
+                    </p>
+                </div>
+
+                <div className="apex-home__accordion">
+                    <HomeAsideAccordionItem
+                        id="favorites"
+                        title="Favorites"
+                        count={favoriteCustomers.length || null}
+                        isOpen={asideOpen.favorites}
+                        onToggle={() => toggleAsideSection("favorites")}
+                        scrollable
+                    >
+                        {favoriteCustomers.length === 0 ? (
+                            <p className="apex-home__aside-empty apex-home__aside-empty--compact">
+                                Pin properties with the star in the list.
+                            </p>
+                        ) : (
+                            <ul className="apex-home__rail apex-home__rail--compact">
+                                {favoriteCustomers.map((customer) => (
+                                    <li key={customer._id}>
+                                        <Link
+                                            href={`/dashboard/${customer._id}/performance-dashboard`}
+                                            className="apex-home__rail-link"
+                                        >
+                                            <span
+                                                className="apex-home__rail-icon apex-home__rail-icon--star apex-home__rail-icon--compact"
+                                                aria-hidden
+                                            >
+                                                <FiStar className="w-3 h-3 apex-home__rail-star" />
+                                            </span>
+                                            <span className="apex-home__rail-text">
+                                                {customer.customerName}
+                                            </span>
+                                            <FiArrowRight className="apex-home__rail-arrow" aria-hidden />
+                                        </Link>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </HomeAsideAccordionItem>
+
+                    {!user?.isExternal && (
+                        <HomeAsideAccordionItem
+                            id="navigate"
+                            title="Navigate"
+                            isOpen={asideOpen.navigate}
+                            onToggle={() => toggleAsideSection("navigate")}
+                        >
+                            <ul className="apex-home__rail">
+                                <RailLink href="/profile" icon={FiUser}>
+                                    My account
+                                </RailLink>
+                                <RailLink href="/lib/guides" icon={FiBookOpen}>
+                                    Guides
+                                </RailLink>
+                                <RailLink href="/news" icon={FiFileText}>
+                                    News
+                                </RailLink>
+                                <RailLink href="/notifications" icon={FiBell}>
+                                    Notifications
+                                </RailLink>
+                                <RailLink href="/our-tools" icon={RiToolsFill}>
+                                    Our tools
+                                </RailLink>
+                                {canAccessApexRadar(user) && (
+                                    <RailLink href="/apex-radar" icon={LuRadar} badge="WIP">
+                                        Apex Radar
+                                    </RailLink>
+                                )}
+                            </ul>
+                            <button
+                                type="button"
+                                onClick={onLogout}
+                                className="apex-home__rail-logout"
+                            >
+                                <FiLogOut aria-hidden />
+                                Log out
+                            </button>
+                        </HomeAsideAccordionItem>
+                    )}
+
+                    {showLatestNews && (
+                        <HomeAsideAccordionItem
+                            id="news"
+                            title="Latest news"
+                            count={newsLoading ? null : newsPosts.length || null}
+                            isOpen={asideOpen.news}
+                            onToggle={() => toggleAsideSection("news")}
+                        >
+                            {newsLoading ? (
+                                <p className="apex-home__aside-empty">Loading…</p>
+                            ) : newsPosts.length === 0 ? (
+                                <p className="apex-home__aside-empty">No posts yet.</p>
+                            ) : (
+                                <ul className="apex-home__news-rail">
+                                    {newsPosts.map((post) => (
+                                        <li key={post.slug || post._id}>
+                                            <Link href={`/news/${post.slug}`} className="apex-home__news-card">
+                                                {post.publishedAt && (
+                                                    <time
+                                                        dateTime={post.publishedAt}
+                                                        className="apex-home__news-card-date"
+                                                    >
+                                                        {new Date(post.publishedAt).toLocaleDateString(undefined, {
+                                                            year: "numeric",
+                                                            month: "short",
+                                                            day: "numeric",
+                                                        })}
+                                                    </time>
+                                                )}
+                                                <span className="apex-home__news-card-title">{post.title}</span>
+                                                <FiArrowRight className="apex-home__news-card-arrow" aria-hidden />
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                            <Link href="/news" className="apex-home__aside-more">
+                                All news →
+                            </Link>
+                        </HomeAsideAccordionItem>
+                    )}
+                </div>
+            </div>
+        </aside>
+    );
+}
+
 function RailLink({ href, icon: Icon, children, badge }) {
     return (
         <li>
@@ -133,50 +318,30 @@ function HomeLoading() {
                     </main>
 
                     <aside className="apex-home__aside" aria-hidden>
-                        <div className="apex-home__aside-hero">
-                            <p className="apex-home__panel-eyebrow">Apex · Marketing ops</p>
-                            <p className="apex-home__panel-display">Shortcuts & updates</p>
-                            <p className="apex-home__panel-copy">
-                                Pinned properties, team links, and the latest from Searchmind.
-                            </p>
-                        </div>
-
-                        <div className="apex-home__code-card">
-                            <div className="apex-home__code-bar">
-                                <div className="apex-home__code-dots" aria-hidden>
-                                    <span />
-                                    <span />
-                                    <span />
-                                </div>
-                                <span className="apex-home__code-filename">GET /api/customers</span>
-                                <span className="apex-home__code-status apex-home__code-status--pulse">
-                                    ···
-                                </span>
+                        <div className="apex-home__aside-card">
+                            <div className="apex-home__aside-hero">
+                                <p className="apex-home__panel-eyebrow">Apex · Marketing ops</p>
+                                <p className="apex-home__panel-display">Shortcuts & updates</p>
+                                <p className="apex-home__panel-copy">
+                                    Pinned properties, team links, and the latest from Searchmind.
+                                </p>
                             </div>
-                            <pre className="apex-home__code-body">
-                                <code>{`{
-  `}</code>
-                                <span className="apex-home__tok-key">&quot;status&quot;</span>
-                                <code>{`: `}</code>
-                                <span className="apex-home__skeleton-code-val" />
-                                <code>{`,`}</code>
-                                {"\n  "}
-                                <span className="apex-home__tok-key">&quot;customers&quot;</span>
-                                <code>{`: `}</code>
-                                <span className="apex-home__skeleton-code-val apex-home__skeleton-code-val--wide" />
-                                <code>{`,`}</code>
-                                {"\n  "}
-                                <span className="apex-home__tok-key">&quot;channels&quot;</span>
-                                <code>{`: [`}</code>
-                                <span className="apex-home__skeleton-code-val apex-home__skeleton-code-val--medium" />
-                                <code>{`]}`}</code>
-                            </pre>
-                        </div>
-
-                        <div className="apex-home__skeleton-rail">
-                            <div className="apex-home__skeleton-line apex-home__skeleton-line--rail" />
-                            <div className="apex-home__skeleton-line apex-home__skeleton-line--rail" />
-                            <div className="apex-home__skeleton-line apex-home__skeleton-line--rail" />
+                            <div className="apex-home__accordion">
+                                <div className="apex-home__accordion-item is-open">
+                                    <div className="apex-home__accordion-trigger apex-home__accordion-trigger--skeleton" />
+                                    <div className="apex-home__skeleton-rail">
+                                        <div className="apex-home__skeleton-line apex-home__skeleton-line--rail" />
+                                        <div className="apex-home__skeleton-line apex-home__skeleton-line--rail" />
+                                        <div className="apex-home__skeleton-line apex-home__skeleton-line--rail" />
+                                    </div>
+                                </div>
+                                <div className="apex-home__accordion-item">
+                                    <div className="apex-home__accordion-trigger apex-home__accordion-trigger--skeleton" />
+                                </div>
+                                <div className="apex-home__accordion-item">
+                                    <div className="apex-home__accordion-trigger apex-home__accordion-trigger--skeleton" />
+                                </div>
+                            </div>
                         </div>
                     </aside>
                 </div>
@@ -552,13 +717,24 @@ export default function CustomerTable({ showLatestNews = true }) {
 
             <div className="apex-home">
                 {showCreate ? (
-                    <div className="apex-home__panel">
-                        <p className="apex-home__eyebrow">Admin</p>
-                        <h1 className="apex-home__headline" style={{ marginBottom: "var(--space-lg)" }}>
-                            Create new property
-                        </h1>
-                        <CustomerCreateForm onSuccess={handleCreated} />
-                    </div>
+                    <>
+                        <div className="apex-home__intro">
+                            <p className="apex-home__eyebrow">Admin</p>
+                            <h1 className="apex-home__headline">Create new property</h1>
+                            <p className="apex-home__lede">
+                                Add a customer and connect their platforms. Ad account IDs can be filled in now or later in config.
+                            </p>
+                        </div>
+                        <div className="apex-home__create">
+                            <div className="apex-home__panel apex-home__panel--create">
+                                <CustomerCreateForm
+                                    variant="apex-home"
+                                    hideHeading
+                                    onSuccess={handleCreated}
+                                />
+                            </div>
+                        </div>
+                    </>
                 ) : (
                     <div className="apex-home__layout">
                         <main className="apex-home__index">
@@ -702,133 +878,14 @@ export default function CustomerTable({ showLatestNews = true }) {
                             )}
                         </main>
 
-                        <aside className="apex-home__aside" aria-label="Shortcuts and updates">
-                            <div className="apex-home__aside-hero">
-                                <p className="apex-home__panel-eyebrow">Apex · Marketing ops</p>
-                                <p className="apex-home__panel-display">Shortcuts & updates</p>
-                                <p className="apex-home__panel-copy">
-                                    Pinned properties, team links, and the latest from Searchmind.
-                                </p>
-                            </div>
-
-                            <div className="apex-home__aside-block apex-home__aside-block--favorites">
-                                <h2 className="apex-home__aside-label apex-home__aside-label--compact">Favorites</h2>
-                                {favoriteCustomers.length === 0 ? (
-                                    <p className="apex-home__aside-empty apex-home__aside-empty--compact">
-                                        Pin properties with the star in the list.
-                                    </p>
-                                ) : (
-                                    <ul className="apex-home__rail apex-home__rail--compact">
-                                        {favoriteCustomers.map((customer) => (
-                                            <li key={customer._id}>
-                                                <Link
-                                                    href={`/dashboard/${customer._id}/performance-dashboard`}
-                                                    className="apex-home__rail-link"
-                                                >
-                                                    <span
-                                                        className="apex-home__rail-icon apex-home__rail-icon--star apex-home__rail-icon--compact"
-                                                        aria-hidden
-                                                    >
-                                                        <FiStar className="w-3 h-3 apex-home__rail-star" />
-                                                    </span>
-                                                    <span className="apex-home__rail-text">
-                                                        {customer.customerName}
-                                                    </span>
-                                                    <FiArrowRight
-                                                        className="apex-home__rail-arrow"
-                                                        aria-hidden
-                                                    />
-                                                </Link>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </div>
-
-                            {!user?.isExternal && (
-                                <div className="apex-home__aside-block">
-                                    <h2 className="apex-home__aside-label">Navigate</h2>
-                                    <ul className="apex-home__rail">
-                                        <RailLink href="/profile" icon={FiUser}>
-                                            My account
-                                        </RailLink>
-                                        <RailLink href="/lib/guides" icon={FiBookOpen}>
-                                            Guides
-                                        </RailLink>
-                                        <RailLink href="/news" icon={FiFileText}>
-                                            News
-                                        </RailLink>
-                                        <RailLink href="/notifications" icon={FiBell}>
-                                            Notifications
-                                        </RailLink>
-                                        <RailLink href="/our-tools" icon={RiToolsFill}>
-                                            Our tools
-                                        </RailLink>
-                                        {canAccessApexRadar(user) && (
-                                            <RailLink href="/apex-radar" icon={LuRadar} badge="WIP">
-                                                Apex Radar
-                                            </RailLink>
-                                        )}
-                                    </ul>
-                                    <button
-                                        type="button"
-                                        onClick={handleLogout}
-                                        className="apex-home__rail-logout"
-                                    >
-                                        <FiLogOut aria-hidden />
-                                        Log out
-                                    </button>
-                                </div>
-                            )}
-
-                            {showLatestNews && (
-                                <div className="apex-home__aside-block">
-                                    <h2 className="apex-home__aside-label">Latest news</h2>
-                                    {newsLoading ? (
-                                        <p className="apex-home__aside-empty">Loading…</p>
-                                    ) : newsPosts.length === 0 ? (
-                                        <p className="apex-home__aside-empty">No posts yet.</p>
-                                    ) : (
-                                        <ul className="apex-home__news-rail">
-                                            {newsPosts.map((post) => (
-                                                <li key={post.slug || post._id}>
-                                                    <Link
-                                                        href={`/news/${post.slug}`}
-                                                        className="apex-home__news-card"
-                                                    >
-                                                        {post.publishedAt && (
-                                                            <time
-                                                                dateTime={post.publishedAt}
-                                                                className="apex-home__news-card-date"
-                                                            >
-                                                                {new Date(post.publishedAt).toLocaleDateString(
-                                                                    undefined,
-                                                                    {
-                                                                        year: "numeric",
-                                                                        month: "short",
-                                                                        day: "numeric",
-                                                                    }
-                                                                )}
-                                                            </time>
-                                                        )}
-                                                        <span className="apex-home__news-card-title">
-                                                            {post.title}
-                                                        </span>
-                                                        <FiArrowRight
-                                                            className="apex-home__news-card-arrow"
-                                                            aria-hidden
-                                                        />
-                                                    </Link>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    )}
-                                    <Link href="/news" className="apex-home__aside-more">
-                                        All news →
-                                    </Link>
-                                </div>
-                            )}
-                        </aside>
+                        <HomeAsidePanel
+                            user={user}
+                            showLatestNews={showLatestNews}
+                            favoriteCustomers={favoriteCustomers}
+                            newsPosts={newsPosts}
+                            newsLoading={newsLoading}
+                            onLogout={handleLogout}
+                        />
                     </div>
                 )}
             </div>
@@ -932,8 +989,9 @@ export default function CustomerTable({ showLatestNews = true }) {
                         </p>
                         <CustomerCreateForm
                             key={String(customerToCopy._id)}
+                            variant="apex-home"
+                            hideHeading
                             initialValues={buildCustomerCreateFormStateFromCustomer(customerToCopy)}
-                            heading="Create New Customer"
                             submitLabel="Create Customer"
                             submittingLabel="Creating..."
                             onSuccess={() => {

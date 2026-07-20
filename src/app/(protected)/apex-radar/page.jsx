@@ -39,7 +39,7 @@ export default function ApexRadarPlatformPickerPage() {
                 <button
                     type="button"
                     onClick={() => setModalOpen(true)}
-                    className="mt-6 text-xs font-semibold text-[var(--color-accent-light)] hover:underline"
+                    className="mt-6 text-xs font-semibold text-[var(--color-ink)] underline underline-offset-2 hover:text-[var(--color-ink-2)]"
                 >
                     Open platform picker again
                 </button>

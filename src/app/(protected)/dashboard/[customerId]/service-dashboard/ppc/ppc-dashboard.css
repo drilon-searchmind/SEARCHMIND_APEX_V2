@@ -1,6 +1,7 @@
-/* Hallmark · theme: Cobalt · page: ppc-dashboard */
+/* Apex · page: ppc-dashboard · theme: minimal (DESIGN.md) */
 
 @import "../../performance-dashboard/performance-dashboard.css";
+@import "../service-dashboard-minimal.css";
 
 .apex-ppc-panel {
   margin-top: var(--space-md);

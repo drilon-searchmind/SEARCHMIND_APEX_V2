@@ -1,0 +1,35 @@
+/* Apex · minimal dashboard design tokens (DESIGN.md) */
+
+:root {
+  --apex-ink: #131313;
+  --apex-ink-muted: #6b6b6b;
+  --apex-canvas: #fafaf9;
+  --apex-card: #ffffff;
+  --apex-hairline: #e7e5e2;
+  --apex-hairline-strong: #d8d5d0;
+  --apex-sidebar: #101010;
+  --apex-dark-green: #1e2928;
+  --apex-lime: #c6ed62;
+  --apex-ok: #6a8f4d;
+  --apex-bad: #ee6251;
+  --apex-warn: #c5a75c;
+  --apex-shadow-low: rgba(0, 0, 0, 0.06) 0px 2px 8px 0px;
+  --apex-shadow-mid: rgba(0, 0, 0, 0.1) 0px 4px 12px 0px;
+  --apex-shadow-high: rgba(0, 0, 0, 0.15) 0px 4px 16px 0px;
+  --apex-radius-card: 20px;
+  --apex-radius-input: 14px;
+  --apex-radius-pill: 100px;
+  --apex-radius-tag: 8px;
+  --apex-font: "AcidGrotesk", "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --apex-space-xs: 0.5rem;
+  --apex-space-sm: 0.75rem;
+  --apex-space-md: 1rem;
+  --apex-space-lg: 1.5rem;
+  --apex-space-xl: 2.5rem;
+  --apex-space-2xl: 3.5rem;
+  --apex-space-3xl: 5rem;
+  --apex-space-card: 2rem;
+  --apex-space-grid: 1.75rem;
+  --apex-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --apex-dur: 120ms;
+}

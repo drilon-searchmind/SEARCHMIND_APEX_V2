@@ -19,7 +19,7 @@ export default function ApexRadarDevToolsPage() {
 
     if (!checked) {
         return (
-            <div className="cobalt-perf flex min-h-[40vh] items-center justify-center" data-theme="cobalt">
+            <div className="apex-perf flex min-h-[40vh] items-center justify-center">
                 <CobaltLoader variant="block" title="Checking access" />
             </div>
         );

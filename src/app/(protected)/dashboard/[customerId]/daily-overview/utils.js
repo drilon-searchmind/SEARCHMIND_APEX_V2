@@ -14,13 +14,38 @@ export function formatCurrency(value, options = {}) {
 	});
 }
 
+const HEATMAP_NATURAL_FALLBACK = { r: 214, g: 205, b: 182 };
+
+function parseHexColor(hex) {
+	const normalized = hex.replace("#", "").trim();
+	if (normalized.length !== 6) return null;
+	const n = Number.parseInt(normalized, 16);
+	if (Number.isNaN(n)) return null;
+	return {
+		r: (n >> 16) & 255,
+		g: (n >> 8) & 255,
+		b: n & 255,
+	};
+}
+
+function getDarkNaturalRgb() {
+	if (typeof window === "undefined") return HEATMAP_NATURAL_FALLBACK;
+	const token = getComputedStyle(document.documentElement)
+		.getPropertyValue("--color-dark-natural")
+		.trim();
+	return parseHexColor(token) || HEATMAP_NATURAL_FALLBACK;
+}
+
 /**
- * Get heatmap background style for a cell value
+ * Get heatmap background style for a cell value.
+ * Scales from 10% opacity at the low end to full #D6CDB6 at the max.
  */
 export function getHeatmapStyle(val, maxVal) {
-	if (!maxVal || maxVal === 0) return {};
-	const alpha = 0.1 + 0.5 * (val / maxVal);
-	return { backgroundColor: `oklch(45% 0.055 165 / ${alpha})` };
+	if (!maxVal || maxVal === 0 || val == null) return {};
+	const ratio = Math.min(1, Math.max(0, val / maxVal));
+	const alpha = 0.1 + ratio * 0.9;
+	const { r, g, b } = getDarkNaturalRgb();
+	return { backgroundColor: `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(2)})` };
 }
 
 /**

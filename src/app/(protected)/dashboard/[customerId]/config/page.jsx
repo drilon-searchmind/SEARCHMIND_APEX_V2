@@ -397,7 +397,7 @@ export default function ConfigPage() {
 
     if (loading) {
         return (
-            <div id="ConfigPage" className="cobalt-perf w-full apex-config-stack" data-theme="cobalt">
+            <div id="ConfigPage" className="apex-perf w-full apex-config-stack">
                 <DashboardHeading
                     variant="cobalt"
                     showRunAudit={false}
@@ -469,7 +469,7 @@ export default function ConfigPage() {
     const effectiveActiveTab = visibleKeys.includes(activeTab) ? activeTab : (visibleKeys[0] ?? 'objectives');
 
     return (
-        <div id="ConfigPage" className="cobalt-perf w-full apex-config-stack" data-theme="cobalt">
+        <div id="ConfigPage" className="apex-perf w-full apex-config-stack">
             <ToastProvider />
             <DashboardHeading
                 variant="cobalt"

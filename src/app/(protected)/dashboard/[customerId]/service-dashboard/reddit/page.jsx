@@ -360,7 +360,7 @@ export default function RedditAdsServiceDashboardPage() {
     );
 
     return (
-        <div id="RedditDashboardPage" className="cobalt-perf w-full" data-theme="cobalt">
+        <div id="RedditDashboardPage" className="apex-perf w-full">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

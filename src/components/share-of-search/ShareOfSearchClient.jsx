@@ -41,32 +41,32 @@ const MONTH_OF_YEAR = {
     DECEMBER: 12,
 };
 
-const CHART_COLORS = ["#213b34", "#3d6b5e", "#5c756a", "#7a9489", "#2d4a42", "#a8bdb6", "#60a5fa"];
+const CHART_COLORS = ["#131313", "#525252", "#858585", "#a3a3a3", "#c6ed62", "#3a3a3a", "#6b6b6b"];
 
 const COUNTRY_SELECT_STYLES = {
     control: (base, state) => ({
         ...base,
         minHeight: 40,
-        borderRadius: 6,
-        borderColor: state.isFocused ? "#213b34" : "#a8bdb6",
-        boxShadow: state.isFocused ? "0 0 0 1px #213b34" : "none",
+        borderRadius: 14,
+        borderColor: state.isFocused ? "#131313" : "#d8d5d0",
+        boxShadow: state.isFocused ? "0 0 0 1px #131313" : "none",
         fontSize: "0.875rem",
         backgroundColor: "#ffffff",
-        "&:hover": { borderColor: "#d4ddd9" },
+        "&:hover": { borderColor: "#131313" },
     }),
     menu: (base) => ({ ...base, zIndex: 50, backgroundColor: "#ffffff" }),
     option: (base, state) => ({
         ...base,
         fontSize: "0.875rem",
         backgroundColor: state.isSelected
-            ? "#213b34"
+            ? "#131313"
             : state.isFocused
-              ? "#e2e9e6"
+              ? "#f4f3f1"
               : "#ffffff",
-        color: state.isSelected ? "#f4f7f6" : "#213b34",
+        color: state.isSelected ? "#ffffff" : "#131313",
     }),
-    singleValue: (base) => ({ ...base, color: "#213b34" }),
-    input: (base) => ({ ...base, color: "#213b34" }),
+    singleValue: (base) => ({ ...base, color: "#131313" }),
+    input: (base) => ({ ...base, color: "#131313" }),
 };
 
 function parseMonthKey(m) {
@@ -520,7 +520,7 @@ export default function ShareOfSearchClient() {
     ]);
 
     return (
-        <div id="ShareOfSearchPage" className="cobalt-perf w-full apex-sos-stack" data-theme="cobalt">
+        <div id="ShareOfSearchPage" className="apex-perf w-full apex-sos-stack">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

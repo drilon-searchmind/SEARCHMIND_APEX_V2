@@ -320,7 +320,7 @@ export default function CampaignOverview({
 																style={{
 																	flex: amt,
 																	backgroundColor:
-																		SERVICE_COLORS[s.serviceName] || "#94a3b8",
+																		SERVICE_COLORS[s.serviceName] || "#d8d5d0",
 																}}
 																title={`${s.serviceName}: ${formatBudgetAmount(amt, currency)}`}
 															/>
@@ -335,7 +335,7 @@ export default function CampaignOverview({
 															className="w-2 h-2 rounded-sm shrink-0"
 															style={{
 																backgroundColor:
-																	SERVICE_COLORS[s.serviceName] || "#94a3b8",
+																	SERVICE_COLORS[s.serviceName] || "#d8d5d0",
 															}}
 														/>
 														{s.serviceName}
@@ -367,8 +367,8 @@ export default function CampaignOverview({
 										className="apex-cp-service-card__head"
 										style={{
 											backgroundColor: groundedStyle
-												? "#ffedd5"
-												: SERVICE_COLORS[svc.serviceName] || "#e5e7eb",
+												? "#eeede9"
+												: SERVICE_COLORS[svc.serviceName] || "#f4f3f1",
 										}}
 									>
 										<span className="font-semibold text-sm text-[var(--color-ink)]">
@@ -514,7 +514,7 @@ export default function CampaignOverview({
 																						style={{
 																							backgroundColor: lineStPal.bg,
 																							borderColor: lineStPal.border,
-																							color: "#0f172a",
+																							color: "var(--color-ink)",
 																						}}
 																					>
 																						{LINE_ITEM_STATUSES.map((s) => (

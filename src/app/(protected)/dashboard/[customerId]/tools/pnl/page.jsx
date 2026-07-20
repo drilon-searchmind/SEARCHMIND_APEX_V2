@@ -83,7 +83,7 @@ export default function PNLPage() {
     );
 
     return (
-        <div id="PnlPage" className="cobalt-perf w-full" data-theme="cobalt">
+        <div id="PnlPage" className="apex-perf w-full">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

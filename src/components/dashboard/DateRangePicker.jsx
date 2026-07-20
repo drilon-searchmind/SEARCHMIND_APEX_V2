@@ -112,10 +112,10 @@ const MONTH_PRESETS = [
     },
 ];
 
-function PresetList({ title, presets, activeId, onSelect, disabled }) {
+function PresetList({ title, presets, activeId, onSelect, disabled, isApex = false }) {
     return (
         <div className="p-3 min-w-0">
-            <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-2 px-2">
+            <div className={`mb-2 px-2 ${isApex ? "text-xs font-medium text-[var(--color-muted)]" : "text-[11px] uppercase tracking-wider text-gray-500"}`}>
                 {title}
             </div>
             <ul className="space-y-0.5">
@@ -135,7 +135,7 @@ function PresetList({ title, presets, activeId, onSelect, disabled }) {
                             >
                                 <span>{preset.label}</span>
                                 {active ? (
-                                    <FiCheck className="h-3.5 w-3.5 shrink-0 text-[var(--color-primary-searchmind)]" aria-hidden />
+                                    <FiCheck className={`h-3.5 w-3.5 shrink-0 ${isApex ? "text-[var(--color-ink)]" : "text-[var(--color-primary-searchmind)]"}`} aria-hidden />
                                 ) : (
                                     <span className="w-3.5 shrink-0" aria-hidden />
                                 )}
@@ -200,7 +200,7 @@ export default function DateRangePicker({
     triggerClassName = "",
     variant = "default",
 }) {
-    const isCobalt = variant === "cobalt";
+    const isApex = variant === "cobalt" || variant === "apex";
     const [isOpen, setIsOpen] = useState(false);
     const [portalStyle, setPortalStyle] = useState({ top: 0, right: 0 });
     const [rangePresetId, setRangePresetId] = useState("mtd");
@@ -394,7 +394,9 @@ export default function DateRangePicker({
                 type="button"
                 onClick={handleApply}
                 disabled={!canApply}
-                className="text-xs px-4 py-2 rounded-lg text-white bg-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind-lighter)] disabled:opacity-50 disabled:cursor-not-allowed"
+                className={isApex
+                    ? "apex-perf-btn apex-perf-btn--primary text-xs !min-h-[2rem] px-4"
+                    : "text-xs px-4 py-2 rounded-lg text-white bg-[var(--color-primary-searchmind)] hover:bg-[var(--color-primary-searchmind-lighter)] disabled:opacity-50 disabled:cursor-not-allowed"}
             >
                 Apply
             </button>
@@ -411,6 +413,7 @@ export default function DateRangePicker({
                         activeId={rangePresetId}
                         onSelect={applyRangePreset}
                         disabled={loading}
+                        isApex={isApex}
                     />
                     {rangePresetId === "custom" ? (
                         <InlineRangeCalendar
@@ -429,6 +432,7 @@ export default function DateRangePicker({
                         activeId={comparePresetId}
                         onSelect={applyComparePreset}
                         disabled={loading}
+                        isApex={isApex}
                     />
                     {comparePresetId === "custom" ? (
                         <InlineRangeCalendar
@@ -472,6 +476,7 @@ export default function DateRangePicker({
                 activeId={rangePresetId}
                 onSelect={applyRangePreset}
                 disabled={loading}
+                isApex={isApex}
             />
             {rangePresetId === "custom" ? (
                 <InlineRangeCalendar
@@ -583,7 +588,7 @@ export default function DateRangePicker({
         createPortal(
             <div
                 ref={portalContentRef}
-                className={`fixed z-[10000] overflow-hidden ${monthOnly ? "datepicker-monthly" : ""} ${isCobalt ? "apex-perf-date-panel" : "bg-white border border-gray-200 rounded-lg shadow-lg"}`}
+                className={`fixed z-[10000] overflow-hidden ${monthOnly ? "datepicker-monthly" : ""} ${isApex ? "apex-perf-date-panel" : "bg-white border border-gray-200 rounded-lg shadow-lg"}`}
                 style={{ top: portalStyle.top, right: portalStyle.right }}
             >
                 {dropdownInner}
@@ -600,7 +605,7 @@ export default function DateRangePicker({
                     type="button"
                     onClick={() => !loading && setIsOpen((o) => !o)}
                     disabled={loading}
-                    className={isCobalt
+                    className={isApex
                         ? `apex-perf-date-trigger text-nowrap text-center w-full min-w-[50px] disabled:opacity-50 disabled:cursor-not-allowed${triggerClassName ? ` ${triggerClassName}` : ""}`
                         : `text-nowrap text-center border border-gray-200 rounded-lg px-3 py-2 text-xs w-full min-w-[50px] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:opacity-50 disabled:cursor-not-allowed${triggerClassName ? ` ${triggerClassName}` : ""}`}
                 >
@@ -609,7 +614,7 @@ export default function DateRangePicker({
 
                 {isOpen && !usePortal && (
                     <div
-                        className={`absolute right-0 top-full mt-1 z-[100] overflow-hidden ${monthOnly ? "datepicker-monthly" : ""} ${isCobalt ? "apex-perf-date-panel" : "bg-white border border-gray-200 rounded-lg shadow-lg"}`}
+                        className={`absolute right-0 top-full mt-1 z-[100] overflow-hidden ${monthOnly ? "datepicker-monthly" : ""} ${isApex ? "apex-perf-date-panel" : "bg-white border border-gray-200 rounded-lg shadow-lg"}`}
                     >
                         {dropdownInner}
                     </div>

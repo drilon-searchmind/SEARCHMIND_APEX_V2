@@ -100,7 +100,7 @@ export default function SEODashboardPage() {
     const headingLoading = activeTab === "default" && defaultLoading;
 
     return (
-        <div id="SeoDashboardPage" className="cobalt-perf w-full" data-theme="cobalt">
+        <div id="SeoDashboardPage" className="apex-perf w-full">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

@@ -2,7 +2,6 @@
 
 import React from "react";
 import { FiCheck, FiLoader } from "react-icons/fi";
-import CobaltLoader from "@/components/ui/CobaltLoader";
 
 export default function ParentPropertyLoadingOverlay({
     visible,
@@ -18,15 +17,14 @@ export default function ParentPropertyLoadingOverlay({
 
     return (
         <div
-            className={`apex-parent-overlay cobalt-perf${fading ? " is-fading" : ""}`}
-            data-theme="cobalt"
+            className={`apex-parent-overlay apex-perf${fading ? " is-fading" : ""}`}
         >
             <div className="apex-parent-overlay__card">
                 <div className="flex items-center gap-2">
                     {phase === "complete" ? (
-                        <FiCheck className="w-5 h-5 text-[var(--color-accent)] shrink-0" aria-hidden />
+                        <FiCheck className="w-5 h-5 text-[var(--color-ink)] shrink-0" aria-hidden />
                     ) : (
-                        <FiLoader className="w-5 h-5 animate-spin text-[var(--color-accent)] shrink-0" aria-hidden />
+                        <FiLoader className="w-5 h-5 animate-spin text-[var(--color-ink)] shrink-0" aria-hidden />
                     )}
                     <h2 className="apex-parent-overlay__title">
                         {phase === "parent" && "Loading parent property"}
@@ -53,7 +51,7 @@ export default function ParentPropertyLoadingOverlay({
                             >
                                 {item.status === "loading" ? (
                                     <>
-                                        <FiLoader className="w-4 h-4 animate-spin shrink-0" aria-hidden />
+                                        <FiLoader className="w-4 h-4 animate-spin shrink-0 text-[var(--color-ink)]" aria-hidden />
                                         <span>
                                             Fetching &quot;{item.name}&quot;
                                             {item.source ? ` from ${item.source}` : ""}
@@ -62,7 +60,7 @@ export default function ParentPropertyLoadingOverlay({
                                     </>
                                 ) : (
                                     <>
-                                        <FiCheck className="w-4 h-4 text-[var(--color-accent)] shrink-0" aria-hidden />
+                                        <FiCheck className="w-4 h-4 text-[var(--color-muted)] shrink-0" aria-hidden />
                                         <span>
                                             Loaded: {item.name}
                                             {item.shop ? ` (${item.shop})` : ""}
@@ -80,12 +78,6 @@ export default function ParentPropertyLoadingOverlay({
 
                 {phase === "complete" ? (
                     <p className="apex-parent-overlay__success">All data loaded successfully.</p>
-                ) : null}
-
-                {phase !== "complete" ? (
-                    <div className="mt-4">
-                        <CobaltLoader variant="inline" title="Streaming group metrics" />
-                    </div>
                 ) : null}
             </div>
         </div>

@@ -1,6 +1,7 @@
-/* Hallmark · theme: Cobalt · page: snapchat-dashboard */
+/* Apex · page: snapchat-dashboard · theme: minimal (DESIGN.md) */
 
 @import "../../performance-dashboard/performance-dashboard.css";
+@import "../service-dashboard-minimal.css";
 
 .apex-sc-panel {
   margin-top: var(--space-md);

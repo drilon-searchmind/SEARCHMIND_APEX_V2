@@ -413,7 +413,7 @@ export default function ParentOverviewView({ sharedData }) {
     };
 
     return (
-        <div id="ParentOverviewView" className="cobalt-perf w-full apex-parent-stack" data-theme="cobalt">
+        <div id="ParentOverviewView" className="apex-perf w-full apex-parent-stack">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}
@@ -550,7 +550,7 @@ export default function ParentOverviewView({ sharedData }) {
                                                             .map((l) => l.trim())
                                                             .filter((l) => l && l.startsWith("=") && /\d/.test(l))
                                                             .map((line, i) => (
-                                                                <span key={i} className={i === 0 ? "font-bold text-[var(--color-primary-searchmind)]" : ""}>
+                                                                <span key={i} className={i === 0 ? "font-bold text-[var(--color-ink)]" : ""}>
                                                                     {line}
                                                                 </span>
                                                             ))}

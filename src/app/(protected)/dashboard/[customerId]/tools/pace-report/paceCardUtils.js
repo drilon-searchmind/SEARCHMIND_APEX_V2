@@ -30,7 +30,7 @@ export function getPaceRadialChartOptions(progressPercent) {
 						offsetY: 12,
 						fontSize: '28px',
 						fontWeight: 700,
-						fontFamily: 'Space Grotesk, ui-sans-serif, sans-serif',
+						fontFamily: 'AcidGrotesk, ui-sans-serif, system-ui, sans-serif',
 						color: t.ink,
 						formatter: (val) => `${val}%`,
 					},

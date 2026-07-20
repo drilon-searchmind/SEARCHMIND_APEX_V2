@@ -1,6 +1,7 @@
-/* Hallmark · theme: Cobalt · page: em-dashboard */
+/* Apex · page: em-dashboard · theme: minimal (DESIGN.md) */
 
 @import "../../performance-dashboard/performance-dashboard.css";
+@import "../service-dashboard-minimal.css";
 
 .apex-em-panel {
   margin-top: var(--space-md);

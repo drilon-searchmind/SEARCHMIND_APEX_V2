@@ -124,7 +124,7 @@ export default function ApexRadarAssignUsersModal({
                                             />
                                             <span className="flex-1 min-w-0">{u.name}</span>
                                             {isPs ? (
-                                                <span className="shrink-0 text-[0.65rem] font-semibold uppercase tracking-wide text-[var(--color-accent)]">
+                                                <span className="shrink-0 text-[0.65rem] font-medium text-[var(--color-muted)]">
                                                     PS roster
                                                 </span>
                                             ) : !hasCu ? (

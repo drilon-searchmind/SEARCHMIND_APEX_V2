@@ -4,11 +4,11 @@ import React, { useEffect, useState } from "react";
 import Image from "next/image";
 
 export const TEAM_SERVICE_CONFIG = {
-    "51ed563e-4a2c-489b-9506-be385c49a354": { label: "SEO", color: "#213b34" },
-    "bee4b7c5-c9d0-4808-8a4f-b00ee6df311e": { label: "PPC", color: "#2d4a42" },
-    "2df85265-d5eb-4e86-a111-5d55623851fa": { label: "PS", color: "#3d6b5e" },
-    "55b3e92d-5972-4246-8160-73d7ba04401a": { label: "EM", color: "#5c756a" },
-    "28b06356-6f19-4633-bfa4-416c150a562c": { label: "Client Lead", color: "#7a9489" },
+    "51ed563e-4a2c-489b-9506-be385c49a354": { label: "SEO", color: "#131313" },
+    "bee4b7c5-c9d0-4808-8a4f-b00ee6df311e": { label: "PPC", color: "#3a3a3a" },
+    "2df85265-d5eb-4e86-a111-5d55623851fa": { label: "PS", color: "#525252" },
+    "55b3e92d-5972-4246-8160-73d7ba04401a": { label: "EM", color: "#6b6b6b" },
+    "28b06356-6f19-4633-bfa4-416c150a562c": { label: "Client Lead", color: "#858585" },
 };
 
 export function TeamSlideContent({ customerId, compact = false, variant = "default", active = true }) {
@@ -86,7 +86,7 @@ export function TeamSlideContent({ customerId, compact = false, variant = "defau
                     {displayMembers.map((member, idx) => {
                         const serviceInfo = TEAM_SERVICE_CONFIG[member.service] || {
                             label: member.service || "Team",
-                            color: "#3d6b5e",
+                            color: "#525252",
                         };
                         return (
                             <div

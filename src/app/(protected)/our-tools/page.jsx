@@ -393,7 +393,7 @@ export default function OurToolsPage() {
     };
 
     return (
-        <div id="OurToolsPage" className="cobalt-perf w-full apex-tools-stack" data-theme="cobalt">
+        <div id="OurToolsPage" className="apex-perf w-full apex-tools-stack">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

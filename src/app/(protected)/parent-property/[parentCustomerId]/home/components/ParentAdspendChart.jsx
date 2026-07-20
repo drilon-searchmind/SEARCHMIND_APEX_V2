@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import { parentDailySpendKey } from "@/lib/parentPropertyAdSpend";
 import { ParentHomeGraphCard, ParentHomeChartShell } from "./ParentHomeChartShell";
 
-const CHANNEL_COLORS = ["#213b34", "#3d6b5e", "#5c756a", "#7a9489", "#a8bdb6"];
+const CHANNEL_COLORS = ["#131313", "#525252", "#858585", "#a3a3a3", "#c6ed62"];
 
 export default function ParentAdspendChart({ dailyData, loading, visibleAdSpendChannels = [] }) {
     const channels = useMemo(() => {

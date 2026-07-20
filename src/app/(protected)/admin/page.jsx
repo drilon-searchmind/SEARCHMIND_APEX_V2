@@ -59,7 +59,7 @@ export default function AdminPage() {
     ];
 
     return (
-        <div id="AdminPage" className="cobalt-perf w-full apex-admin-stack" data-theme="cobalt">
+        <div id="AdminPage" className="apex-perf w-full apex-admin-stack">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

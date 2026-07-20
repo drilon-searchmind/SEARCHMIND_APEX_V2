@@ -165,7 +165,7 @@ function CampaignPlannerV2Page() {
 		lineModal?.service?.serviceName || lineModal?.lineItem?._serviceName || "";
 
 	return (
-		<div id="CampaignPlannerV2Page" className="cobalt-perf w-full" data-theme="cobalt">
+		<div id="CampaignPlannerV2Page" className="apex-perf w-full">
 			<DashboardHeading
 				variant="cobalt"
 				showRunAudit={false}
@@ -289,7 +289,7 @@ export default function CampaignPlannerV2PageWithSuspense() {
 	return (
 		<Suspense
 			fallback={
-				<div className="cobalt-perf w-full apex-perf-loading" data-theme="cobalt">
+				<div className="apex-perf w-full apex-perf-loading">
 					<CobaltLoader variant="block" title="Loading campaign planner" />
 				</div>
 			}

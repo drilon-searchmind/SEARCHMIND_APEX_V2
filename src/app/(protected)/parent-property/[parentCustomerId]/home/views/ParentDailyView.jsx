@@ -139,7 +139,7 @@ export default function ParentDailyView({ sharedData }) {
     );
 
     return (
-        <div id="ParentDailyView" className="cobalt-perf w-full apex-parent-stack" data-theme="cobalt">
+        <div id="ParentDailyView" className="apex-perf w-full apex-parent-stack">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

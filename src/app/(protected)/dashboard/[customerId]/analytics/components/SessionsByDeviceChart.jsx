@@ -38,7 +38,7 @@ export default function SessionsByDeviceChart({
                 formatter: (val) => `${val.toFixed(0)}%`,
                 style: {
                     fontSize: "10px",
-                    fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+                    fontFamily: "AcidGrotesk, ui-sans-serif, system-ui, sans-serif",
                     fontWeight: 600,
                 },
             },

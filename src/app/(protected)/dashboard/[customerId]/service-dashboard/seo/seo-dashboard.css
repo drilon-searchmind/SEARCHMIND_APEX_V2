@@ -1,6 +1,7 @@
-/* Hallmark · theme: Cobalt · page: seo-dashboard */
+/* Apex · page: seo-dashboard · theme: minimal (DESIGN.md) */
 
 @import "../../performance-dashboard/performance-dashboard.css";
+@import "../service-dashboard-minimal.css";
 
 /* ── Tabs ── */
 

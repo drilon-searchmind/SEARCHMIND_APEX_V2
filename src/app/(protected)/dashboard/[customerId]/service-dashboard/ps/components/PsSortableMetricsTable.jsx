@@ -42,7 +42,8 @@ function heatAlpha(value, max, invert = false, isCobalt = false) {
     const t = Math.min(1, Math.max(0, value / max));
     const alpha = 0.15 + 0.85 * (invert ? 1 - t : t);
     if (isCobalt) {
-        return { backgroundColor: `oklch(93% 0.04 165 / ${0.2 + alpha * 0.45})` };
+        const opacity = 0.1 + alpha * 0.9;
+        return { backgroundColor: `color-mix(in srgb, var(--color-dark-natural, #D6CDB6) ${Math.round(opacity * 100)}%, transparent)` };
     }
     return { backgroundColor: `rgba(214,205,182,${alpha})` };
 }

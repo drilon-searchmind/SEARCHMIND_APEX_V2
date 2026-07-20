@@ -1,6 +1,7 @@
-/* Hallmark · theme: Cobalt · reusable inline loader (auth-verify pattern) */
+/* Apex · reusable inline loader · minimal default (DESIGN.md) */
 
 @import "../../../tokens.css";
+@import "../dashboard/shared-dashboard-minimal.css";
 
 .apex-loader {
   position: relative;
@@ -43,7 +44,7 @@
 .apex-loader__progress-bar {
   height: 100%;
   width: 0%;
-  background: var(--color-accent);
+  background: var(--color-ink, #131313);
   animation: apex-loader-progress 2.4s var(--ease-out) infinite;
 }
 
@@ -264,9 +265,9 @@
   border-radius: 3px;
   background: linear-gradient(
     90deg,
-    oklch(30% 0.03 165) 0%,
-    oklch(40% 0.045 165) 50%,
-    oklch(30% 0.03 165) 100%
+    oklch(88% 0 0) 0%,
+    oklch(94% 0 0) 50%,
+    oklch(88% 0 0) 100%
   );
   background-size: 200% 100%;
   animation: apex-loader-shimmer 1.4s ease-in-out infinite;

@@ -1,15 +1,15 @@
 /** Aligns with calendar / kanban campaign-type status colors */
 
 export const LINE_ITEM_STATUS_STYLES = {
-	"Pending Searchmind": { bg: "#fde68a", border: "#d97706" },
-	"Pending Customer Approval": { bg: "#fed7aa", border: "#ea580c" },
-	Approved: { bg: "#bfdbfe", border: "#2563eb" },
-	Live: { bg: "#bbf7d0", border: "#16a34a" },
-	Ended: { bg: "#e5e7eb", border: "#64748b" },
+	"Pending Searchmind": { bg: "#f4f3f1", border: "#a3a3a3" },
+	"Pending Customer Approval": { bg: "#fafaf9", border: "#c6ed62" },
+	Approved: { bg: "#eeede9", border: "#525252" },
+	Live: { bg: "#c6ed62", border: "#131313" },
+	Ended: { bg: "#eeede9", border: "#6b6b6b" },
 };
 
 export function defaultLineItemStatusStyle() {
-	return { bg: "#e2e8f0", border: "#64748b" };
+	return { bg: "#f4f3f1", border: "#d8d5d0" };
 }
 
 /** Normalize legacy "Pending" from stored data */

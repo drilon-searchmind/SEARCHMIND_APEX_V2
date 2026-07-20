@@ -698,7 +698,7 @@ export default function LineItemModal({
 	if (!open) return null;
 
 	return (
-		<div className="apex-cp-modal-backdrop" data-theme="cobalt">
+		<div className="apex-cp-modal-backdrop">
 			<div className="apex-cp-modal max-w-6xl">
 				<button
 					type="button"
@@ -791,7 +791,7 @@ export default function LineItemModal({
 									<label
 										key={m}
 										className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm cursor-pointer ${form.selectedChannels.includes(m)
-												? "border-[var(--color-primary-searchmind)] bg-[var(--color-primary-searchmind)]/10"
+												? "border-[var(--color-ink)] bg-[var(--color-paper-2)]"
 												: "border-gray-200 bg-white"
 											}`}
 									>
@@ -1147,11 +1147,11 @@ export default function LineItemModal({
 									onChange={
 										!isCreate && !editing ? handleStatusChange : handleChange
 									}
-									className="mt-2 h-11 w-full max-w-md rounded-lg border-2 px-4 py-2.5 text-sm font-semibold border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-searchmind)]/40"
+									className="mt-2 h-11 w-full max-w-md rounded-lg border-2 px-4 py-2.5 text-sm font-semibold border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-ink)]/15"
 									style={{
 										backgroundColor: st.bg,
 										borderColor: st.border,
-										color: "#0f172a",
+										color: "var(--color-ink)",
 									}}
 								>
 									{LINE_ITEM_STATUSES.map((s) => (
@@ -1178,7 +1178,7 @@ export default function LineItemModal({
 										href={form.approvalLink}
 										target="_blank"
 										rel="noopener noreferrer"
-										className="text-[var(--color-primary-searchmind)] hover:underline break-all"
+										className="text-[var(--color-ink)] hover:underline break-all"
 									>
 										{form.approvalLink}
 									</a>
@@ -1209,7 +1209,7 @@ export default function LineItemModal({
 							)}
 							{commentsLoading ? (
 								<div className="flex justify-center py-6">
-									<Spinner size={28} color="#406969" />
+									<Spinner size={28} color="#131313" />
 								</div>
 							) : (
 								<ul className="space-y-3 max-h-52 overflow-y-auto mb-3">
@@ -1332,7 +1332,7 @@ export default function LineItemModal({
 																		type="button"
 																		onClick={saveEditedComment}
 																		disabled={commentPosting}
-																		className="px-3 py-1.5 rounded-lg bg-[var(--color-primary-searchmind)] text-white text-xs font-medium disabled:opacity-50"
+																		className="px-3 py-1.5 rounded-lg bg-[var(--color-ink)] text-white text-xs font-medium disabled:opacity-50"
 																	>
 																		Save
 																	</button>

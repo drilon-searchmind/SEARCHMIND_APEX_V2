@@ -879,17 +879,16 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
         const formatChartValue = (v) => (typeof v === 'number' && !isNaN(v) ? v.toLocaleString('da-DK', { maximumFractionDigits: 2, minimumFractionDigits: 0 }) : v);
         const isCurrentSeries = (s) => s.name && s.name.includes('(Current)');
         const options = {
-            chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, sans-serif' },
-            xaxis: { categories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
-            yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' }, formatter: formatChartValue } },
+            chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'AcidGrotesk, ui-sans-serif, system-ui, sans-serif' },
+            xaxis: { categories, labels: { style: { colors: '#6b6b6b' } }, axisTicks: { show: true }, axisBorder: { show: true, color: '#e7e5e2' } },
+            yaxis: { labels: { style: { colors: '#6b6b6b' }, formatter: formatChartValue } },
             tooltip: { theme: 'light', y: { formatter: formatChartValue } },
-            colors: [chartColors.primaryLighter || '#406969', chartColors.lime || '#C6ED62', '#94a3b8', '#cbd5e1', chartColors.green || '#213834', '#f1f5f9'],
-            stroke: { width: series.map((s) => isCurrentSeries(s) ? 2 : 1), curve: 'smooth', dashArray: series.map((s) => isCurrentSeries(s) ? 0 : 5) },
-            fill: { type: 'solid', opacity: series.map((s) => isCurrentSeries(s) ? 1 : 0.5) },
-            grid: { borderColor: '#e5e7eb', strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
+            colors: ['#131313', '#c6ed62', '#3a3a3a', '#6b6b6b'],
+            stroke: { width: series.map((s) => isCurrentSeries(s) ? 2.5 : 1.5), curve: 'smooth', dashArray: series.map((s) => isCurrentSeries(s) ? 0 : 5) },
+            fill: { type: 'solid', opacity: series.map((s) => isCurrentSeries(s) ? 1 : 0.35) },
+            grid: { borderColor: '#e7e5e2', strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
             dataLabels: { enabled: false },
-            tooltip: { theme: 'light' },
-            legend: { show: true, position: 'top', labels: { colors: chartColors.primary || '#1E2B2B' } },
+            legend: { show: true, position: 'top', labels: { colors: '#131313' } },
         };
 
         return { series, options };
@@ -1169,7 +1168,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
     };
 
     return (
-        <div className="cobalt-perf w-full" data-theme="cobalt">
+        <div className="apex-perf w-full">
             {/* Top Card */}
             <DashboardHeading
                 variant="cobalt"
@@ -1322,21 +1321,6 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
             {/* Single Toggleable Graph Section - Standard view only */}
             {viewMode === 'standard' && (
             <div className="w-full mb-8">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                        {METRIC_OPTIONS.map(opt => (
-                            <button
-                                key={opt.key}
-                                type="button"
-                                className={`apex-perf-chip${selectedMetrics.includes(opt.key) ? ' is-active' : ''}`}
-                                onClick={() => setSelectedMetrics(prev => prev.includes(opt.key) ? (prev.length > 1 ? prev.filter(k => k !== opt.key) : prev) : [...prev, opt.key])}
-                            >
-                                {opt.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
                 {loading ? (
                     <div className="apex-perf-loading h-64">
                         <CobaltLoader
@@ -1346,7 +1330,13 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
                         />
                     </div>
                 ) : (
-                    <GraphCard variant="cobalt" title={selectedMetrics.length === 1 ? `${METRIC_OPTIONS.find(o=>o.key===selectedMetrics[0])?.label} Over Time` : 'Performance Metrics Over Time'} chartOptions={combinedOptions} chartSeries={combinedSeries} />
+                    <GraphCard
+                        variant="cobalt"
+                        hideChartToggle
+                        title={selectedMetrics.length === 1 ? `${METRIC_OPTIONS.find(o=>o.key===selectedMetrics[0])?.label} Over Time` : 'Performance Metrics Over Time'}
+                        chartOptions={combinedOptions}
+                        chartSeries={combinedSeries}
+                    />
                 )}
 
                 {!loading && !error && overviewKpiMetrics.length > 0 && (

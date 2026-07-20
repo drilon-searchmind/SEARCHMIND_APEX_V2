@@ -403,7 +403,7 @@ export default function B2BPerformanceDashboard({ customer: customerProp }) {
     };
 
     return (
-        <div className="cobalt-perf w-full" data-theme="cobalt">
+        <div className="apex-perf w-full">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}
@@ -502,19 +502,6 @@ export default function B2BPerformanceDashboard({ customer: customerProp }) {
                             </div>
 
                             <div className="w-full mb-8">
-                                <div className="flex flex-wrap items-center gap-2 mb-4">
-                                    {B2B_CHART_METRIC_OPTIONS.map((opt) => (
-                                        <button
-                                            key={opt.key}
-                                            type="button"
-                                            className={`apex-perf-chip${selectedMetrics.includes(opt.key) ? " is-active" : ""}`}
-                                            onClick={() => toggleMetricSelection(opt.key)}
-                                        >
-                                            {opt.label}
-                                        </button>
-                                    ))}
-                                </div>
-
                                 {loading ? (
                                     <div className="apex-perf-loading h-64">
                                         <CobaltLoader
@@ -526,6 +513,7 @@ export default function B2BPerformanceDashboard({ customer: customerProp }) {
                                 ) : (
                                     <GraphCard
                                         variant="cobalt"
+                                        hideChartToggle
                                         title={
                                             selectedMetrics.length === 1
                                                 ? `${

@@ -1,0 +1,225 @@
+/* Apex · shared minimal overrides · standalone pages (DESIGN.md) */
+
+/* Elevated cards — no borders */
+.apex-perf .apex-profile-card,
+.apex-perf .apex-news-toolbar,
+.apex-perf .apex-news-card,
+.apex-perf .apex-news-article,
+.apex-perf .apex-notifications-summary,
+.apex-perf .apex-notifications-panel,
+.apex-perf .apex-notifications-empty,
+.apex-perf .apex-tools-toolbar,
+.apex-perf .apex-tools-card,
+.apex-perf .apex-tools-row,
+.apex-perf .apex-tools-empty,
+.apex-perf .apex-guides-shell,
+.apex-perf .apex-guides-section,
+.apex-perf .apex-admin-panel,
+.apex-perf .apex-admin-table-wrap,
+.apex-perf .apex-admin-form--panel,
+.apex-perf .apex-admin-inline-panel {
+  border: none;
+  box-shadow: var(--shadow-card);
+}
+
+/* Form labels — sentence case */
+.apex-perf .apex-profile-form label,
+.apex-perf .apex-tools-form label,
+.apex-perf .apex-admin-form label,
+.apex-perf .apex-news-view__label,
+.apex-perf .apex-news-tags__label,
+.apex-perf .apex-tools-view__label,
+.apex-perf .apex-tools-tags__label,
+.apex-perf .apex-guides-toc__label,
+.apex-perf .apex-notifications-section__title,
+.apex-perf .apex-admin-column-picker__group-label,
+.apex-perf .apex-admin-audit__list-label,
+.apex-perf .apex-admin-detail__title,
+.apex-perf .apex-admin-dl dt {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Focus rings — black */
+.apex-perf .apex-profile-form input:focus,
+.apex-perf .apex-profile-form select:focus,
+.apex-perf .apex-profile-form textarea:focus,
+.apex-perf .apex-news-search input:focus,
+.apex-perf .apex-tools-search input:focus,
+.apex-perf .apex-tools-form input:focus,
+.apex-perf .apex-tools-form select:focus,
+.apex-perf .apex-tools-form textarea:focus,
+.apex-perf .apex-admin-form input:focus,
+.apex-perf .apex-admin-form select:focus,
+.apex-perf .apex-admin-form textarea:focus,
+.apex-perf .apex-admin-search input:focus {
+  border-color: var(--color-ink);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-ink) 12%, transparent);
+}
+
+/* Links — black underline */
+.apex-perf .apex-news-link-btn,
+.apex-perf .apex-news-back,
+.apex-perf .apex-tools-link-btn,
+.apex-perf .apex-tools-card__link,
+.apex-perf .apex-admin-link,
+.apex-perf .apex-admin-link-btn,
+.apex-perf .apex-admin-back-link {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.apex-perf .apex-news-link-btn:hover,
+.apex-perf .apex-news-back:hover,
+.apex-perf .apex-tools-link-btn:hover,
+.apex-perf .apex-tools-card:hover .apex-tools-card__link,
+.apex-perf .apex-admin-link:hover,
+.apex-perf .apex-admin-link-btn:hover,
+.apex-perf .apex-admin-back-link:hover {
+  color: var(--color-ink-2);
+}
+
+.apex-perf .apex-news-article__body a {
+  color: var(--color-ink);
+}
+
+.apex-perf .apex-news-article__body a:hover {
+  color: var(--color-ink-2);
+}
+
+.apex-perf .apex-news-article__body blockquote {
+  border-left-color: var(--color-rule-2);
+}
+
+/* Active toggles — black ink, not green fill */
+.apex-perf .apex-tools-category.is-active,
+.apex-perf .apex-admin-filter.is-active {
+  color: #ffffff;
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+}
+
+.apex-perf .apex-news-tag-filter.is-active,
+.apex-perf .apex-tools-tag-filter.is-active {
+  border-color: var(--color-ink);
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+}
+
+/* Card hover — shadow lift, not green border */
+.apex-perf .apex-news-card:hover,
+.apex-perf .apex-tools-card:hover,
+.apex-perf .apex-tools-row:hover {
+  border-color: transparent;
+  box-shadow: var(--shadow-raised);
+}
+
+.apex-perf .apex-tools-card:hover .apex-tools-card__title {
+  color: var(--color-ink);
+}
+
+.apex-perf .apex-tools-icon-btn:hover {
+  color: var(--color-ink);
+}
+
+/* Admin tables — muted headers */
+.apex-perf .apex-admin-table th {
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-muted);
+  background: transparent;
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-perf .apex-admin-subtab.is-active {
+  border-bottom-color: var(--color-ink);
+}
+
+.apex-perf .apex-admin-check-ok {
+  color: var(--color-ink);
+}
+
+.apex-perf .apex-admin-column-picker__count {
+  color: #ffffff;
+  background: var(--color-ink);
+}
+
+.apex-perf .apex-admin-audit__scope-btn.is-active {
+  border-left-color: var(--apex-lime, #c8f032);
+}
+
+.apex-perf .apex-admin-audit__prompt-item.is-editing {
+  border-color: var(--color-ink);
+}
+
+.apex-perf .apex-admin-audit__prompt-active {
+  color: var(--color-muted);
+}
+
+.apex-perf .apex-admin-badge--info {
+  color: var(--color-ink-2);
+}
+
+.apex-perf .apex-admin-form input[type="checkbox"],
+.apex-perf .apex-admin-form input[type="radio"] {
+  accent-color: var(--color-ink);
+}
+
+.apex-perf .apex-admin-cell-link {
+  color: var(--color-ink);
+}
+
+.apex-perf .apex-admin-cell-link:hover {
+  color: var(--color-ink-2);
+}
+
+/* Notifications unread dot — lime accent */
+.apex-perf .apex-notifications-row__unread {
+  background: var(--apex-lime, #c8f032);
+}
+
+/* Guides toc */
+.apex-perf .apex-guides-toc__link:hover {
+  border-color: var(--color-rule-2);
+}
+
+.apex-perf .apex-guides-toc__link:hover svg,
+.apex-perf .apex-guides-section__head svg {
+  color: var(--color-ink);
+}
+
+.apex-perf .apex-guides-section:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-ink) 12%, transparent);
+}
+
+/* Tools modal */
+.apex-perf .apex-tools-modal-backdrop {
+  background: rgba(19, 19, 19, 0.45);
+}
+
+.apex-perf .apex-tools-modal {
+  border: none;
+  box-shadow: var(--shadow-raised);
+}
+
+.apex-perf .apex-tools-modal__cancel:hover {
+  color: var(--color-ink);
+}
+
+.apex-perf .apex-admin-tabs__btn.is-active {
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+  color: #ffffff;
+}
+
+.apex-perf .apex-admin-column-picker__panel {
+  border: none;
+  box-shadow: var(--shadow-raised);
+}

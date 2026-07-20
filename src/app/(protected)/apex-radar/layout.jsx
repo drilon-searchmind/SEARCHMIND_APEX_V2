@@ -27,7 +27,7 @@ export default function ApexRadarLayout({ children }) {
 
     if (status === "loading") {
         return (
-            <div className="cobalt-perf flex h-screen items-center justify-center bg-[var(--color-paper-2,#f4f6f5)]" data-theme="cobalt">
+            <div className="apex-perf flex h-screen items-center justify-center bg-[var(--color-paper-2,#f4f3f1)]">
                 <CobaltLoader variant="block" title="Loading Apex Radar" />
             </div>
         );
@@ -38,7 +38,7 @@ export default function ApexRadarLayout({ children }) {
     }
 
     return (
-        <div className="cobalt-dashboard cobalt-perf flex h-screen" data-theme="cobalt">
+        <div className="apex-dashboard apex-perf flex h-screen">
             <ApexRadarSidebar />
             <div className="flex min-w-0 flex-1 flex-col">
                 <Topbar showLinks={false} showLogo={true} showPropertySection={false} />

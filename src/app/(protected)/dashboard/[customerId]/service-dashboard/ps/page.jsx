@@ -466,7 +466,7 @@ export default function FacebookPSPage() {
     );
 
     return (
-        <div id="PsDashboardPage" className="cobalt-perf w-full" data-theme="cobalt">
+        <div id="PsDashboardPage" className="apex-perf w-full">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

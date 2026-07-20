@@ -54,7 +54,7 @@ export default function NewsArticlePage() {
     }, [contentTags]);
 
     return (
-        <div id="NewsArticlePage" className="cobalt-perf w-full apex-news-stack apex-news-stack--article" data-theme="cobalt">
+        <div id="NewsArticlePage" className="apex-perf w-full apex-news-stack apex-news-stack--article">
             <Link href="/news" className="apex-news-back">
                 ← Back to news
             </Link>

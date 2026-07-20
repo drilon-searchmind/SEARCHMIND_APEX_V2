@@ -32,7 +32,7 @@ export function getPnlRadialChartOptions(progressPercent, fillColor) {
                         offsetY: 10,
                         fontSize: '24px',
                         fontWeight: 700,
-                        fontFamily: 'Space Grotesk, ui-sans-serif, sans-serif',
+                        fontFamily: 'AcidGrotesk, ui-sans-serif, system-ui, sans-serif',
                         color: progressPercent < 0 ? 'var(--color-error, #b91c1c)' : t.ink,
                         formatter: (val) => `${val}%`,
                     },

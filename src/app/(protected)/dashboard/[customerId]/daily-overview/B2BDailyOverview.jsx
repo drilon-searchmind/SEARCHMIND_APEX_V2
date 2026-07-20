@@ -8,6 +8,10 @@ import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import B2BDailyMetricsTable from "./B2BDailyMetricsTable";
 import MetricToggleBar from "./MetricToggleBar";
 import GraphCard from "@/components/dashboard/GraphCard";
+import {
+    getCobaltChartBaseOptions,
+    applyCobaltSeriesStyle,
+} from "@/lib/charts/cobaltChartTheme";
 import { useB2BDailyOverviewData } from "./useB2BDailyOverviewData";
 import {
     B2B_METRIC_COLUMNS,
@@ -71,42 +75,47 @@ export default function B2BDailyOverview({ customer }) {
         return map;
     }, [metricColumns, visibleMetricKeys]);
 
-    const chartSeries = useMemo(
-        () => [
-            {
-                name: "Sessions",
-                data: (rows || []).map((r) => r.sessions || 0),
-            },
-            {
-                name: "Ad Spend",
-                data: (rows || []).map((r) => Math.round(r.totalMarketingSpend || 0)),
-            },
-        ],
-        [rows]
-    );
+    const { chartSeries, chartOptions } = useMemo(() => {
+        if (!rows?.length) {
+            return { chartSeries: [], chartOptions: {} };
+        }
 
-    const chartOptions = useMemo(
-        () => ({
-            chart: {
-                id: "b2b-daily-trend",
-                toolbar: { show: false },
-                fontFamily: "Inter, sans-serif",
+        const options = getCobaltChartBaseOptions();
+        options.chart = {
+            ...options.chart,
+            id: "b2b-daily-trend",
+            toolbar: { show: false },
+        };
+        options.xaxis = {
+            ...options.xaxis,
+            categories: rows.map((r) => r.date),
+            labels: {
+                ...options.xaxis?.labels,
+                rotate: -45,
             },
-            xaxis: {
-                categories: (rows || []).map((r) => r.date),
-                labels: { rotate: -45 },
-            },
-            stroke: { curve: "smooth", width: 2 },
-            legend: { show: true, position: "top" },
-            tooltip: { shared: true },
-        }),
-        [rows]
-    );
+        };
+
+        const series = applyCobaltSeriesStyle(
+            [
+                {
+                    name: "Sessions",
+                    data: rows.map((r) => r.sessions || 0),
+                },
+                {
+                    name: "Ad Spend",
+                    data: rows.map((r) => Math.round(r.totalMarketingSpend || 0)),
+                },
+            ],
+            options
+        );
+
+        return { chartSeries: series, chartOptions: options };
+    }, [rows]);
 
     const ga4PropertyId = customer?.CustomerSettings?.ga4PropertyId?.trim?.();
 
     return (
-        <div className="cobalt-perf w-full" data-theme="cobalt">
+        <div className="apex-perf w-full">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}
@@ -136,7 +145,7 @@ export default function B2BDailyOverview({ customer }) {
             )}
 
             <div className="apex-daily-panel">
-                <div className="apex-daily-panel__toolbar">
+                <div className="apex-daily-panel__head">
                     <MetricToggleBar
                         variant="cobalt"
                         metricColumns={metricColumns}

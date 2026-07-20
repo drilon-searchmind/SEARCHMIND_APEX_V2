@@ -34,10 +34,10 @@ export const LINE_ITEM_STATUSES = [
 ];
 
 export const SERVICE_COLORS = {
-  "Paid Social": "#dbeafe",
-  "Paid Search": "#dcfce7",
-  "Email Marketing": "#e9d5ff",
-  SEO: "#fed7aa",
+  "Paid Social": "#f4f3f1",
+  "Paid Search": "#eeede9",
+  "Email Marketing": "#e7e5e2",
+  SEO: "#d8d5d0",
 };
 
 /** ISO 4217 — used for parent total budget & service allocation display */

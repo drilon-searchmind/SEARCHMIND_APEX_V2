@@ -13,7 +13,7 @@ export default function MetricToggleBar({
 	const isCobalt = variant === 'cobalt';
 
 	return (
-		<div className={isCobalt ? 'apex-daily-panel__toolbar flex flex-wrap items-center gap-2' : 'flex flex-wrap items-center gap-2 mb-4'}>
+		<div className={isCobalt ? 'apex-daily-toggle-bar' : 'flex flex-wrap items-center gap-2 mb-4'}>
 			<span className={isCobalt ? 'apex-daily-toggle-label' : 'text-sm text-gray-600 mr-2'}>
 				Toggle metrics:
 			</span>

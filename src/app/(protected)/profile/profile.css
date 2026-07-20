@@ -1,6 +1,7 @@
-/* Hallmark · theme: Cobalt · page: profile */
+/* Apex · page: profile · theme: minimal (DESIGN.md) */
 
 @import "../dashboard/[customerId]/performance-dashboard/performance-dashboard.css";
+@import "../standalone-minimal.css";
 
 .apex-profile-stack {
   display: flex;

@@ -79,8 +79,7 @@ export default function ApexRadarDevToolsClient() {
     return (
         <div
             id="ApexRadarDevToolsPage"
-            className="cobalt-perf w-full max-w-[min(100%,1200px)] mx-auto apex-radar-stack"
-            data-theme="cobalt"
+            className="apex-perf w-full max-w-[min(100%,1200px)] mx-auto apex-radar-stack"
         >
             <DashboardHeading
                 variant="cobalt"
@@ -172,7 +171,7 @@ export default function ApexRadarDevToolsClient() {
 
                         <div className="overflow-x-auto rounded-lg border border-gray-200">
                             <table className="min-w-full text-sm">
-                                <thead className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wide">
+                                <thead className="bg-gray-50 text-left text-xs text-gray-500">
                                     <tr>
                                         <th className="px-3 py-2 font-semibold">Pixel</th>
                                         <th className="px-3 py-2 font-semibold">Last fired</th>
@@ -222,7 +221,7 @@ export default function ApexRadarDevToolsClient() {
                                                                 <li key={`${pixel.id}-${c._id}`}>
                                                                     <Link
                                                                         href={customerMetaConfigUrl(c._id)}
-                                                                        className="text-[var(--color-accent-light)] hover:underline"
+                                                                        className="text-[var(--color-ink)] underline underline-offset-2 hover:text-[var(--color-ink-2)]"
                                                                     >
                                                                         {c.customerName}
                                                                     </Link>
@@ -281,7 +280,7 @@ export default function ApexRadarDevToolsClient() {
                         Config:{" "}
                         <Link
                             href={customerMetaConfigUrl(customerId)}
-                            className="text-[var(--color-accent-light)] hover:underline"
+                            className="text-[var(--color-ink)] underline underline-offset-2 hover:text-[var(--color-ink-2)]"
                         >
                             Open Meta settings
                         </Link>

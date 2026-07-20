@@ -5,7 +5,7 @@ import Topbar from "./Topbar";
 import "@/app/(protected)/dashboard/dashboard-shell.css";
 import "@/app/(protected)/home/home.css";
 
-/** Full-width cobalt shell with topbar only (no sidebar). */
+/** Full-width minimal shell with topbar only (no sidebar). */
 export default function StandaloneTopbarShell({
     children,
     showLinks = false,
@@ -15,7 +15,7 @@ export default function StandaloneTopbarShell({
     mainClassName = "",
 }) {
     return (
-        <div className="cobalt-dashboard flex h-screen flex-col" data-theme="cobalt">
+        <div className="apex-dashboard flex h-screen flex-col">
             <Topbar
                 showLinks={showLinks}
                 showLogo={showLogo}
@@ -25,7 +25,7 @@ export default function StandaloneTopbarShell({
             <main
                 className={[
                     "apex-dash__content",
-                    "bg-[var(--color-paper-2,#f4f6f5)]",
+                    "bg-[var(--apex-canvas,#f4f3f1)]",
                     mainClassName,
                 ]
                     .filter(Boolean)

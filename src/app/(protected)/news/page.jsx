@@ -124,7 +124,7 @@ export default function NewsPage() {
     }, [posts, search, tagFilter, tagMeta]);
 
     return (
-        <div id="NewsPage" className="cobalt-perf w-full apex-news-stack" data-theme="cobalt">
+        <div id="NewsPage" className="apex-perf w-full apex-news-stack">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

@@ -1,32 +1,18 @@
 "use client";
 import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import AuthVerifyingScreen from "@/components/auth/AuthVerifyingScreen";
 import "@/components/auth/auth-verifying.css";
 
-const MIN_VERIFY_MS = 2800;
-const SUCCESS_HOLD_MS = 750;
-const EXIT_MS = 600;
+const EXIT_MS = 180;
 
 export default function AuthGuard({ children }) {
 	const { status } = useSession();
 	const router = useRouter();
 	const pathname = usePathname();
 	const [showVerify, setShowVerify] = useState(() => status === "loading");
-	const [verifyPhase, setVerifyPhase] = useState("verifying");
-	const startedAt = useRef(null);
-	const timers = useRef([]);
-
-	const clearTimers = () => {
-		timers.current.forEach((id) => window.clearTimeout(id));
-		timers.current = [];
-	};
-
-	const schedule = (fn, delay) => {
-		const id = window.setTimeout(fn, delay);
-		timers.current.push(id);
-	};
+	const [exiting, setExiting] = useState(false);
 
 	const isLanding = pathname === "/";
 	const isLogin = pathname === "/login";
@@ -44,45 +30,34 @@ export default function AuthGuard({ children }) {
 	}, [status, router, pathname, isLanding, isLogin, isPublicRoute]);
 
 	useEffect(() => {
-		clearTimers();
-
 		if ((isLanding || isPreview || isOnboarding) && status !== "authenticated") {
 			setShowVerify(false);
-			startedAt.current = null;
+			setExiting(false);
 			return undefined;
 		}
 
 		if (status === "loading") {
-			startedAt.current = Date.now();
 			setShowVerify(true);
-			setVerifyPhase("verifying");
+			setExiting(false);
 			return undefined;
 		}
 
-		if (startedAt.current === null) {
-			setShowVerify(false);
-			return undefined;
+		if (showVerify && status === "authenticated") {
+			setExiting(true);
+			const timer = window.setTimeout(() => {
+				setShowVerify(false);
+				setExiting(false);
+			}, EXIT_MS);
+			return () => window.clearTimeout(timer);
 		}
 
-		const elapsed = Date.now() - startedAt.current;
-		const wait = Math.max(0, MIN_VERIFY_MS - elapsed);
-		const isSuccess = status === "authenticated";
-
-		schedule(() => {
-			setVerifyPhase(isSuccess ? "success" : "exiting");
-		}, wait);
-
-		schedule(() => {
-			setVerifyPhase("exiting");
-		}, wait + (isSuccess ? SUCCESS_HOLD_MS : 0));
-
-		schedule(() => {
+		if (status === "unauthenticated") {
 			setShowVerify(false);
-			startedAt.current = null;
-		}, wait + (isSuccess ? SUCCESS_HOLD_MS : 0) + EXIT_MS);
+			setExiting(false);
+		}
 
-		return clearTimers;
-	}, [status, isLanding, isPreview, isOnboarding]);
+		return undefined;
+	}, [status, isLanding, isPreview, isOnboarding, showVerify]);
 
 	if (isPreview || isOnboarding) {
 		return children;
@@ -97,7 +72,7 @@ export default function AuthGuard({ children }) {
 	}
 
 	if (showVerify) {
-		return <AuthVerifyingScreen phase={verifyPhase} />;
+		return <AuthVerifyingScreen exiting={exiting} />;
 	}
 
 	if (status === "unauthenticated" && isLogin) {

@@ -110,7 +110,7 @@ export default function ParentChildAdSpendPlatformsActions({
                                               onTogglePlatform?.(customerId, p.id, e.target.checked)
                                           }
                                           disabled={fetchDisabled}
-                                          className="rounded border-gray-300 text-[var(--color-primary-searchmind)] focus:ring-[var(--color-primary-searchmind)] shrink-0"
+                                          className="rounded border-gray-300 text-[var(--color-ink)] focus:ring-[var(--color-ink)] shrink-0"
                                       />
                                       <span className="text-xs text-gray-800 truncate">{p.label}</span>
                                   </label>
@@ -125,7 +125,7 @@ export default function ParentChildAdSpendPlatformsActions({
                                   onApplySpend?.();
                                   setOpen(false);
                               }}
-                              className="w-full rounded-lg bg-[var(--color-primary-searchmind)] text-white text-xs py-2 px-3 font-medium shadow-none hover:bg-[var(--color-primary-searchmind-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              className="w-full rounded-lg bg-[var(--color-ink)] text-white text-xs py-2 px-3 font-medium shadow-none hover:bg-[var(--color-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
                               Apply
                           </button>

@@ -140,14 +140,14 @@ export default function PerformanceDashboardStandardSections({
         return keys;
     }, [sections]);
 
-    const [expandedGroups, setExpandedGroups] = useState(
-        () => new Set(collapsibleGroupKeys)
-    );
+    const [expandedGroups, setExpandedGroups] = useState(() => new Set());
 
     React.useEffect(() => {
         setExpandedGroups((prev) => {
-            const next = new Set(prev);
-            for (const k of collapsibleGroupKeys) next.add(k);
+            const next = new Set();
+            for (const k of prev) {
+                if (collapsibleGroupKeys.includes(k)) next.add(k);
+            }
             return next;
         });
     }, [collapsibleGroupKeys]);

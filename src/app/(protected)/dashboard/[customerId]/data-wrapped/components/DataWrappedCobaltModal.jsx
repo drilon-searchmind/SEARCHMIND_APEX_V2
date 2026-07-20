@@ -520,8 +520,7 @@ export default function DataWrappedCobaltModal({
 
     return (
         <div
-            className="apex-dw-modal-backdrop cobalt-perf"
-            data-theme="cobalt"
+            className="apex-dw-modal-backdrop apex-perf"
             role="dialog"
             aria-modal="true"
             aria-label="Data Wrapped"

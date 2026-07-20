@@ -51,10 +51,10 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="login-cobalt" data-theme="cobalt">
-            <section className="login-cobalt__form-panel" aria-labelledby="login-heading">
-                <div className="login-cobalt__form-inner">
-                    <div className="login-cobalt__wordmark">
+        <div className="apex-login">
+            <section className="apex-login__form-panel" aria-labelledby="login-heading">
+                <div className="apex-login__form-inner">
+                    <div className="apex-login__wordmark">
                         <Image
                             src="/images/icons/apex-icon-svg.svg"
                             alt=""
@@ -62,33 +62,33 @@ export default function LoginPage() {
                             height={32}
                             aria-hidden="true"
                         />
-                        <span className="login-cobalt__wordmark-text">Searchmind Apex</span>
+                        <span className="apex-login__wordmark-text">Searchmind Apex</span>
                     </div>
 
-                    <p className="login-cobalt__eyebrow">Authentication</p>
-                    <h1 id="login-heading" className="login-cobalt__headline">
+                    <p className="apex-login__eyebrow">Authentication</p>
+                    <h1 id="login-heading" className="apex-login__headline">
                         Sign in to Apex
                     </h1>
-                    <p className="login-cobalt__subhead">
+                    <p className="apex-login__subhead">
                         Access campaign analytics, reporting, and performance data.
                     </p>
 
                     {error && (
-                        <div className="login-cobalt__error" role="alert">
+                        <div className="apex-login__error" role="alert">
                             {error}
                         </div>
                     )}
 
                     <form onSubmit={handleSubmit} noValidate>
-                        <div className="login-cobalt__field">
-                            <label htmlFor="email" className="login-cobalt__label">
+                        <div className="apex-login__field">
+                            <label htmlFor="email" className="apex-login__label">
                                 Email
-                                <span className="login-cobalt__label-required" aria-hidden="true">*</span>
+                                <span className="apex-login__label-required" aria-hidden="true">*</span>
                             </label>
                             <input
                                 id="email"
                                 type="email"
-                                className="login-cobalt__input"
+                                className="apex-login__input"
                                 placeholder="you@searchmind.dk"
                                 required
                                 autoComplete="email"
@@ -99,15 +99,15 @@ export default function LoginPage() {
                             />
                         </div>
 
-                        <div className="login-cobalt__field">
-                            <label htmlFor="password" className="login-cobalt__label">
+                        <div className="apex-login__field">
+                            <label htmlFor="password" className="apex-login__label">
                                 Password
-                                <span className="login-cobalt__label-required" aria-hidden="true">*</span>
+                                <span className="apex-login__label-required" aria-hidden="true">*</span>
                             </label>
                             <input
                                 id="password"
                                 type="password"
-                                className="login-cobalt__input"
+                                className="apex-login__input"
                                 placeholder="Your password"
                                 required
                                 autoComplete="current-password"
@@ -120,21 +120,21 @@ export default function LoginPage() {
 
                         <button
                             type="submit"
-                            className="login-cobalt__btn login-cobalt__btn--primary"
+                            className="apex-login__btn apex-login__btn--primary"
                             disabled={isSubmitting}
                         >
                             {isSubmitting ? "Signing in…" : "Sign in"}
                         </button>
                     </form>
 
-                    <div className="login-cobalt__divider" aria-hidden="true">
-                        <span className="login-cobalt__divider-text">Or</span>
+                    <div className="apex-login__divider" aria-hidden="true">
+                        <span className="apex-login__divider-text">Or</span>
                     </div>
 
                     <button
                         type="button"
                         onClick={handleGoogleSignIn}
-                        className="login-cobalt__btn login-cobalt__btn--secondary"
+                        className="apex-login__btn apex-login__btn--secondary"
                     >
                         <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                             <path
@@ -157,34 +157,106 @@ export default function LoginPage() {
                         Continue with Google
                     </button>
 
-                    <p className="login-cobalt__note">
+                    <p className="apex-login__note">
                         Google SSO accepts <strong>searchmind.dk</strong> addresses only.
                     </p>
                 </div>
             </section>
 
-            <aside className="login-cobalt__brand-panel" aria-label="Product preview">
-                <p className="login-cobalt__brand-eyebrow">Apex · Marketing ops</p>
-                <p className="login-cobalt__brand-display">
+            <aside className="apex-login__brand-panel" aria-label="Product preview">
+                <p className="apex-login__brand-eyebrow">Apex · Marketing ops</p>
+                <p className="apex-login__brand-display">
                     One dashboard. Every channel.
                 </p>
-                <p className="login-cobalt__brand-copy">
+                <p className="apex-login__brand-copy">
                     Google Ads, Meta, analytics, and reporting — unified for your team.
                 </p>
 
-                <div className="login-cobalt__code-card">
-                    <div className="login-cobalt__code-bar">
-                        <div className="login-cobalt__code-dots" aria-hidden="true">
-                            <span /><span /><span />
-                        </div>
-                        <span className="login-cobalt__code-filename">GET /api/customers</span>
-                        <span className="login-cobalt__code-status">200 OK</span>
+                <div className="apex-login__preview-wrap">
+                    <div className="apex-login__channels" aria-hidden="true">
+                        {["Google Ads", "Meta", "GA4", "Pinterest"].map((channel) => (
+                            <span key={channel} className="apex-login__channel">
+                                <span className="apex-login__channel-dot" />
+                                {channel}
+                            </span>
+                        ))}
                     </div>
-                    <pre className="login-cobalt__code-body"><code>{`{
-  `}<span className="tok-key">&quot;status&quot;</span><span className="tok-punc">: </span><span className="tok-str">&quot;ok&quot;</span><span className="tok-punc">,</span>{`
-  `}<span className="tok-key">&quot;customers&quot;</span><span className="tok-punc">: </span><span className="tok-num">42</span><span className="tok-punc">,</span>{`
-  `}<span className="tok-key">&quot;channels&quot;</span><span className="tok-punc">: [</span><span className="tok-str">&quot;google&quot;</span><span className="tok-punc">, </span><span className="tok-str">&quot;meta&quot;</span><span className="tok-punc">]</span>{`
-}`}</code></pre>
+
+                    <div className="apex-login__preview" aria-hidden="true">
+                        <div className="apex-login__preview-sidebar">
+                            <Image
+                                src="/images/icons/apex-icon-svg.svg"
+                                alt=""
+                                width={15}
+                                height={15}
+                            />
+                            <div className="apex-login__preview-nav-active" />
+                            {Array.from({ length: 4 }).map((_, i) => (
+                                <div key={i} className="apex-login__preview-nav-dot" />
+                            ))}
+                        </div>
+
+                        <div className="apex-login__preview-main">
+                            <div className="apex-login__preview-head">
+                                <div>
+                                    <span className="apex-login__preview-tag">Nordic Sports DK</span>
+                                    <span className="apex-login__preview-title">Performance dashboard</span>
+                                </div>
+                                <span className="apex-login__preview-period">Last 30 days</span>
+                            </div>
+
+                            <div className="apex-login__preview-metrics">
+                                <div className="apex-login__preview-metric">
+                                    <span className="apex-login__preview-metric-label">Revenue</span>
+                                    <span className="apex-login__preview-metric-row">
+                                        <span className="apex-login__preview-metric-val">€124k</span>
+                                        <span className="apex-login__preview-delta apex-login__preview-delta--up">+8.2%</span>
+                                    </span>
+                                </div>
+                                <div className="apex-login__preview-metric">
+                                    <span className="apex-login__preview-metric-label">ROAS</span>
+                                    <span className="apex-login__preview-metric-row">
+                                        <span className="apex-login__preview-metric-val">4.2x</span>
+                                        <span className="apex-login__preview-delta apex-login__preview-delta--up">+0.3</span>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="apex-login__preview-chart">
+                                <div className="apex-login__preview-chart-head">
+                                    <span>Net revenue</span>
+                                    <span>11 days</span>
+                                </div>
+                                <div className="apex-login__preview-bars">
+                                    {[42, 55, 48, 62, 58, 71, 88, 65, 74, 69, 78].map((h, i) => (
+                                        <div
+                                            key={i}
+                                            className={`apex-login__preview-bar${i === 6 ? " apex-login__preview-bar--peak" : ""}`}
+                                            style={{ height: `${h}%` }}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="apex-login__preview-heatmap">
+                                <span className="apex-login__preview-heatmap-label">Daily overview</span>
+                                <div className="apex-login__preview-heatmap-grid">
+                                    {[0.08, 0.22, 0.14, 0.05, 0.18, 0.28, 0.12, 0.04, 0.16, 0.24, 0.11, 0.07, 0.19, 0.26].map((tint, i) => (
+                                        <span
+                                            key={i}
+                                            className={`apex-login__preview-heatmap-cell${tint > 0.15 ? " is-good" : tint < 0.1 ? " is-soft" : ""}`}
+                                            style={{ "--cell-tint": tint }}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="apex-login__preview-badge" aria-hidden="true">
+                        <span className="apex-login__preview-badge-dot" />
+                        Live data across all channels
+                    </div>
                 </div>
             </aside>
         </div>

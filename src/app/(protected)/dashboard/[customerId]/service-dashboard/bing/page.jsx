@@ -360,7 +360,7 @@ export default function BingAdsServiceDashboardPage() {
     );
 
     return (
-        <div id="BingDashboardPage" className="cobalt-perf w-full" data-theme="cobalt">
+        <div id="BingDashboardPage" className="apex-perf w-full">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

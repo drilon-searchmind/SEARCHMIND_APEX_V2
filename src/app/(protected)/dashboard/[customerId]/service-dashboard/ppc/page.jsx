@@ -417,7 +417,7 @@ export default function GoogleAdsPPCPage() {
     const row2 = CHART_TOGGLE_METRICS.filter((m) => m.row === 2);
 
     return (
-        <div id="PpcDashboardPage" className="cobalt-perf w-full" data-theme="cobalt">
+        <div id="PpcDashboardPage" className="apex-perf w-full">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

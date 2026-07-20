@@ -1,6 +1,7 @@
-/* Hallmark · theme: Cobalt · page: notifications */
+/* Apex · page: notifications · theme: minimal (DESIGN.md) */
 
 @import "../dashboard/[customerId]/performance-dashboard/performance-dashboard.css";
+@import "../standalone-minimal.css";
 
 .apex-notifications-stack {
   display: flex;

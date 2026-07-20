@@ -263,7 +263,7 @@ export default function ApexRadarFacebookSettingsModal({ row, onClose, onSaved }
                                     type="checkbox"
                                     checked={trackingAlertsEnabled}
                                     onChange={(e) => setTrackingAlertsEnabled(e.target.checked)}
-                                    className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-accent)]"
+                                    className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-ink)]"
                                 />
                                 <div>
                                     <label

@@ -292,7 +292,7 @@ export default function AnalyticsPage() {
         : "Connect a GA4 property in Config to load analytics.";
 
     return (
-        <div id="AnalyticsPage" className="cobalt-perf w-full apex-analytics-stack" data-theme="cobalt">
+        <div id="AnalyticsPage" className="apex-perf w-full apex-analytics-stack">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

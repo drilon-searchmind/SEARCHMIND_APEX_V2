@@ -16,6 +16,10 @@ import { DEFAULT_VISIBLE_METRICS, METRIC_COLUMNS } from './metricConfig';
 import { applyCustomKpiLabelsToMetricColumns } from '@/lib/performanceDashboard/dailyOverviewCustomKpis';
 import { AD_SPEND_DAILY_COLUMN_KEYS } from '@/lib/mergeAdSpendDaily';
 import GraphCard from '@/components/dashboard/GraphCard';
+import {
+    getCobaltChartBaseOptions,
+    applyCobaltSeriesStyle,
+} from '@/lib/charts/cobaltChartTheme';
 import { pushDashboardDateRangeApplied } from '@root/lib/gtmFunctions';
 import { useShopifyMarketsFilter } from '@/hooks/useShopifyMarketsFilter';
 import { useAdSpendPlatformsFilter } from '@/hooks/useAdSpendPlatformsFilter';
@@ -189,56 +193,53 @@ function EcommerceDailyOverview({ customer: customerProp }) {
     const revenueColumnLabel =
         metricColumns.find((c) => c.key === 'netRevenue')?.label ?? 'Net Revenue';
 
-    const trendChartSeries = useMemo(() => {
-        if (!rows?.length) return [];
-        return [
-            {
-                name: revenueColumnLabel,
-                data: rows.map((r) => Math.round(r.netRevenue || 0)),
-                color: '#406969',
+    const { trendChartSeries, trendChartOptions } = useMemo(() => {
+        if (!rows?.length) {
+            return { trendChartSeries: [], trendChartOptions: {} };
+        }
+
+        const options = getCobaltChartBaseOptions();
+        options.chart = {
+            ...options.chart,
+            id: 'daily-overview-trend',
+            toolbar: { show: false },
+        };
+        options.xaxis = {
+            ...options.xaxis,
+            categories: rows.map((r) => r.date),
+            labels: {
+                ...options.xaxis?.labels,
+                rotate: -45,
             },
-            {
-                name: 'Spend',
-				data: rows.map((r) => Math.round(r.totalMarketingSpend ?? ((r.ppcCost || 0) + (r.psCost || 0)))),
-                color: '#D6CDB6',
-            },
-            {
-                name: 'Net Profit',
-                data: rows.map((r) => Math.round(r.netProfit ?? 0)),
-                color: '#1E2B2B',
-            },
-        ];
+        };
+
+        const series = applyCobaltSeriesStyle(
+            [
+                {
+                    name: revenueColumnLabel,
+                    data: rows.map((r) => Math.round(r.netRevenue || 0)),
+                },
+                {
+                    name: 'Spend',
+                    data: rows.map((r) =>
+                        Math.round(
+                            r.totalMarketingSpend ?? (r.ppcCost || 0) + (r.psCost || 0)
+                        )
+                    ),
+                },
+                {
+                    name: 'Net Profit',
+                    data: rows.map((r) => Math.round(r.netProfit ?? 0)),
+                },
+            ],
+            options
+        );
+
+        return { trendChartSeries: series, trendChartOptions: options };
     }, [rows, revenueColumnLabel]);
 
-    const trendChartOptions = useMemo(
-        () => ({
-            chart: {
-                id: 'daily-overview-trend',
-                toolbar: { show: false },
-                fontFamily: 'Outfit, sans-serif',
-            },
-            xaxis: {
-                categories: rows?.map((r) => r.date) || [],
-                labels: { rotate: -45 },
-                axisTicks: { show: true },
-                axisBorder: { show: true },
-            },
-            stroke: { curve: 'smooth', width: 2 },
-            legend: { show: true, position: 'top' },
-            tooltip: { shared: true },
-            grid: {
-                borderColor: '#e5e7eb',
-                strokeDashArray: 0,
-                xaxis: { lines: { show: false } },
-                yaxis: { lines: { show: true } },
-            },
-            dataLabels: { enabled: false },
-        }),
-        [rows]
-    );
-
     return (
-        <div id="DailyOverviewPage" className="cobalt-perf w-full" data-theme="cobalt">
+        <div id="DailyOverviewPage" className="apex-perf w-full">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}
@@ -299,7 +300,7 @@ function EcommerceDailyOverview({ customer: customerProp }) {
             />
 
             <div className="apex-daily-panel">
-                <div className="apex-daily-panel__toolbar">
+                <div className="apex-daily-panel__head">
                     <MetricToggleBar
                         variant="cobalt"
                         visibleMetrics={visibleMetrics}

@@ -262,7 +262,7 @@ export default function EmailDashboardPage() {
     if (!customerId) return null;
 
     return (
-        <div id="EmDashboardPage" className="cobalt-perf w-full" data-theme="cobalt">
+        <div id="EmDashboardPage" className="apex-perf w-full">
             {!hasKlaviyoCredentials && (
                 <div className="apex-em-alert">
                     Configure your Klaviyo Private API Key in{" "}

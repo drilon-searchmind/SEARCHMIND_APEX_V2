@@ -114,10 +114,10 @@ export default function PlannerV2CalendarSection({
     if (event.kind === "parent") {
       return {
         style: {
-          backgroundColor: "var(--perf-accent)",
-          color: "var(--color-ink)",
-          border: "1px solid var(--color-accent)",
-          borderLeft: "4px solid var(--color-accent)",
+          backgroundColor: "var(--color-ink)",
+          color: "#ffffff",
+          border: "1px solid var(--color-ink)",
+          borderLeft: "4px solid var(--apex-lime)",
           fontWeight: 600,
         },
       };
@@ -129,7 +129,7 @@ export default function PlannerV2CalendarSection({
     return {
       style: {
         backgroundColor: st.bg,
-        color: "#1e293b",
+        color: "var(--color-ink)",
         border: `1px solid ${st.border}`,
         fontWeight: 500,
       },

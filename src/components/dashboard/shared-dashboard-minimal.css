@@ -1,0 +1,100 @@
+/* Apex · shared dashboard components · minimal overrides (DESIGN.md) */
+
+/* Heading filter dropdowns (markets / ad spend) */
+.apex-perf .apex-perf-heading input[type="checkbox"] {
+  accent-color: var(--color-ink);
+}
+
+.apex-perf .apex-perf-heading button.bg-\[var\(--color-primary-searchmind\)\],
+.apex-perf .apex-perf-heading .bg-\[var\(--color-primary-searchmind\)\] {
+  background: var(--color-ink) !important;
+  color: #ffffff !important;
+}
+
+.apex-perf .apex-perf-heading button.hover\:bg-\[var\(--color-primary-searchmind-hover\)\]:hover,
+.apex-perf .apex-perf-heading button:hover.bg-\[var\(--color-primary-searchmind\)\] {
+  background: var(--color-accent-hover) !important;
+}
+
+/* Date picker panel — remap legacy green utility classes */
+.apex-perf-date-panel button.bg-\[var\(--color-primary-searchmind\)\],
+.apex-perf-date-panel .bg-\[var\(--color-primary-searchmind\)\] {
+  background: var(--color-ink) !important;
+  color: #ffffff !important;
+}
+
+.apex-perf-date-panel button.hover\:bg-\[var\(--color-primary-searchmind-lighter\)\]:hover,
+.apex-perf-date-panel button:hover.bg-\[var\(--color-primary-searchmind-lighter\)\] {
+  background: var(--color-accent-hover) !important;
+}
+
+.apex-perf-date-panel .text-\[var\(--color-primary-searchmind\)\] {
+  color: var(--color-ink) !important;
+}
+
+.apex-perf-date-panel button.text-\[var\(--color-primary-searchmind\)\] {
+  color: var(--color-ink) !important;
+}
+
+/* Global minimal loader (outside .apex-perf wrappers) */
+.apex-loader[data-theme="apex"] .apex-loader__progress,
+.apex-loader[data-theme="apex"] .apex-loader__steps,
+.apex-loader[data-theme="apex"] .apex-loader__code-card,
+.apex-loader--minimal .apex-loader__progress,
+.apex-loader--minimal .apex-loader__steps,
+.apex-loader--minimal .apex-loader__code-card {
+  display: none;
+}
+
+.apex-loader[data-theme="apex"].apex-loader--panel,
+.apex-loader[data-theme="apex"].apex-loader--block,
+.apex-loader--minimal.apex-loader--panel,
+.apex-loader--minimal.apex-loader--block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md, 1rem);
+  padding: var(--space-xl, 1.5rem);
+  text-align: center;
+  max-width: none;
+  margin: 0;
+}
+
+.apex-loader[data-theme="apex"].apex-loader--panel::before,
+.apex-loader[data-theme="apex"].apex-loader--block::before,
+.apex-loader--minimal.apex-loader--panel::before,
+.apex-loader--minimal.apex-loader--block::before {
+  content: "";
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--color-rule, #e7e5e2);
+  border-top-color: var(--color-ink, #131313);
+  border-radius: 50%;
+  animation: apex-shared-loader-spin 0.65s linear infinite;
+}
+
+@keyframes apex-shared-loader-spin {
+  to { transform: rotate(360deg); }
+}
+
+.apex-loader[data-theme="apex"] .apex-loader__copy,
+.apex-loader--minimal .apex-loader__copy {
+  padding: 0;
+  margin: 0;
+  text-align: center;
+}
+
+.apex-loader[data-theme="apex"] .apex-loader__eyebrow,
+.apex-loader[data-theme="apex"] .apex-loader__subtitle,
+.apex-loader--minimal .apex-loader__eyebrow,
+.apex-loader--minimal .apex-loader__subtitle {
+  display: none;
+}
+
+.apex-loader[data-theme="apex"] .apex-loader__title,
+.apex-loader--minimal .apex-loader__title {
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 500;
+  color: var(--color-muted, #6b6b6b);
+  margin: 0;
+}

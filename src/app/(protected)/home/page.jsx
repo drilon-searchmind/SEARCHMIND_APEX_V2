@@ -27,7 +27,7 @@ const HomePage = () => {
     }, [session, showPasswordModal]);
 
     return (
-        <div id="HomePage" className="cobalt-home" data-theme="cobalt">
+        <div id="HomePage" className="apex-home-shell">
             <CustomerTable />
 
             {showPasswordModal && generatedPassword && (

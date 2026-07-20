@@ -1111,7 +1111,7 @@ export default function ParentPropertyHome() {
                 activeView !== PARENT_VIEWS.PACE_REPORT &&
                 activeView !== PARENT_VIEWS.PNL &&
                 activeView !== PARENT_VIEWS.ECOMMERCE && (
-                    <div id="ParentPropertyHome" className="cobalt-perf w-full apex-parent-stack" data-theme="cobalt">
+                    <div id="ParentPropertyHome" className="apex-perf w-full apex-parent-stack">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

@@ -107,8 +107,7 @@ export default function PerformanceInvestigatorClient({ channel, customerId }) {
     return (
         <div
             id="ApexRadarPerformanceInvestigatorPage"
-            className="cobalt-perf w-full max-w-[min(100%,1920px)] mx-auto apex-radar-stack"
-            data-theme="cobalt"
+            className="apex-perf w-full max-w-[min(100%,1920px)] mx-auto apex-radar-stack"
         >
             <DashboardHeading
                 variant="cobalt"

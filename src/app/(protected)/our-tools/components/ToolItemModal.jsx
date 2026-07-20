@@ -90,8 +90,8 @@ export default function ToolItemModal({
     if (!open) return null;
 
     return (
-        <div className="apex-tools-modal-backdrop" data-theme="cobalt">
-            <div className="apex-tools-modal cobalt-perf">
+        <div className="apex-tools-modal-backdrop">
+            <div className="apex-tools-modal apex-perf">
                 <button
                     type="button"
                     className="apex-tools-modal__close"

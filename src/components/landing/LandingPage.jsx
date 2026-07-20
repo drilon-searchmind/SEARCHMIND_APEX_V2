@@ -18,7 +18,7 @@ import ReportPreviewModal from "./ReportPreviewModal";
 export default function LandingPage() {
 	return (
 		<LandingProvider>
-			<main className="apex-landing" data-theme="cobalt" data-screen-label="Apex Landing">
+			<main className="apex-landing" data-screen-label="Apex Landing">
 				<LandingHeader />
 				<LandingHero />
 				<LandingIntegrations />

@@ -118,7 +118,7 @@ export default function ParentCampaignModal({
   if (!open) return null;
 
   return (
-    <div className="apex-cp-modal-backdrop" data-theme="cobalt">
+    <div className="apex-cp-modal-backdrop">
       <div className="apex-cp-modal max-w-2xl">
         <button
           type="button"

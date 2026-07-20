@@ -14,7 +14,7 @@ export default function ParentPropertyGroupSettingsModal({ onClose, draft, onApp
     };
 
     return (
-        <div className="apex-perf-modal-scrim cobalt-perf" data-theme="cobalt">
+        <div className="apex-perf-modal-scrim apex-perf">
             <div className="apex-perf-modal" role="dialog" aria-labelledby="parent-group-settings-title">
                 <button
                     type="button"

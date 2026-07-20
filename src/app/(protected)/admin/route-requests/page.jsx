@@ -84,7 +84,7 @@ export default function RouteRequestsAdminPage() {
     };
 
     return (
-        <div id="RouteRequestsAdminPage" className="cobalt-perf w-full apex-admin-stack" data-theme="cobalt">
+        <div id="RouteRequestsAdminPage" className="apex-perf w-full apex-admin-stack">
             <div className="apex-admin-page-head">
                 <DashboardHeading
                     variant="cobalt"

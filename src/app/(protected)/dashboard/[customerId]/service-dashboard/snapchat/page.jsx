@@ -361,7 +361,7 @@ export default function SnapchatServiceDashboardPage() {
     );
 
     return (
-        <div id="SnapchatDashboardPage" className="cobalt-perf w-full" data-theme="cobalt">
+        <div id="SnapchatDashboardPage" className="apex-perf w-full">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

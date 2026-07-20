@@ -282,7 +282,7 @@ export default function EcommercePage() {
     const pageLoading = activeTab === 'products' ? productsLoading : segmentationLoading;
 
     return (
-        <div id="EcommercePage" className="cobalt-perf w-full" data-theme="cobalt">
+        <div id="EcommercePage" className="apex-perf w-full">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

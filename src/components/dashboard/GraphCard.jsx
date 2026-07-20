@@ -42,7 +42,7 @@ function deepClonePreserveFunctions(obj) {
 }
 
 export default function GraphCard({ title, chartOptions, chartSeries, chartType = "line", height = 300, children, hideChartToggle = false, variant = "default" }) {
-    const isCobalt = variant === "cobalt";
+    const isApex = variant === "cobalt" || variant === "apex";
     // Toggle state (Period active by default). When hideChartToggle, always use Period view.
     const [toggle, setToggle] = React.useState("Period");
     const [isDark, setIsDark] = React.useState(false);
@@ -117,7 +117,7 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
             seriesCopy.forEach((s, i) => {
                 s.color = DARK_CHART_OVERRIDES.colors[i % DARK_CHART_OVERRIDES.colors.length];
             });
-        } else if (isCobalt) {
+        } else if (isApex) {
             optionsCopy = deepMerge(optionsCopy, getCobaltChartBaseOptions());
             const styledSeries = applyCobaltSeriesStyle(seriesCopy, optionsCopy);
             seriesCopy.splice(0, seriesCopy.length, ...styledSeries);
@@ -180,19 +180,19 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
             series: seriesCopy,
             type: chartType
         };
-    }, [toggle, chartOptions, chartSeries, chartType, aggregateByMonth, isDark, hideChartToggle, isCobalt]);
+    }, [toggle, chartOptions, chartSeries, chartType, aggregateByMonth, isDark, hideChartToggle, isApex]);
 
     return (
-        <div className={isCobalt ? "apex-perf-graph" : "bg-white rounded-xl border border-gray-200 p-6 flex flex-col justify-between h-full min-h-[320px]"}>
-            <div className={isCobalt ? "apex-perf-graph__head" : "mb-2 flex justify-between items-center"}>
-                {isCobalt ? (
+        <div className={isApex ? "apex-perf-graph" : "bg-white rounded-xl border border-gray-200 p-6 flex flex-col justify-between h-full min-h-[320px]"}>
+            <div className={isApex ? "apex-perf-graph__head" : "mb-2 flex justify-between items-center"}>
+                {isApex ? (
                     <h6 className="apex-perf-graph__title">{title}</h6>
                 ) : (
                     <h6 className="text-[var(--color-primary-searchmind)] mb-2 font-bold">{title}</h6>
                 )}
                 {!hideChartToggle && (
                 <div id="chartToggler">
-                    {isCobalt ? (
+                    {isApex ? (
                     <div className="apex-perf-segment">
                         <button
                             type="button"
@@ -230,7 +230,7 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
                 </div>
                 )}
             </div>
-            <div className={isCobalt ? "apex-perf-graph__body" : "flex-1 flex items-center justify-center w-full"}>
+            <div className={isApex ? "apex-perf-graph__body" : "flex-1 flex items-center justify-center w-full"}>
                 <div style={{ width: '100%' }}>
                     <ReactApexChart
                         key={`chart-${toggle}`}

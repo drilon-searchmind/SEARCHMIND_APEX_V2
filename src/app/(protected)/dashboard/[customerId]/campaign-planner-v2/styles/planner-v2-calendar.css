@@ -1,4 +1,4 @@
-/* react-big-calendar — flat surfaces, no shadows; matches planner gray-200 cards */
+/* Apex · react-big-calendar · campaign planner v2 · minimal (DESIGN.md) */
 
 .cp-rbc .rbc-calendar {
   font-family: inherit;
@@ -9,19 +9,19 @@
   gap: 0.5rem;
   margin-bottom: 1rem;
   padding: 0.65rem 0.75rem;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.75rem;
+  background: var(--color-paper-2, #f4f3f1);
+  border: none;
+  border-radius: var(--radius-input, 14px);
 }
 
 .cp-rbc .rbc-toolbar button {
-  border-radius: 0.5rem !important;
-  border: 1px solid #d1d5db !important;
-  color: #374151 !important;
+  border-radius: var(--radius-input, 14px) !important;
+  border: 1px solid var(--color-rule-2, #d8d5d0) !important;
+  color: var(--color-ink-2, #3a3a3a) !important;
   font-weight: 500;
   font-size: 0.8125rem;
   padding: 0.35rem 0.75rem !important;
-  background: #fff !important;
+  background: var(--perf-raised, #fff) !important;
   box-shadow: none !important;
   cursor: pointer;
   pointer-events: auto;
@@ -30,8 +30,8 @@
 }
 
 .cp-rbc .rbc-toolbar button:hover {
-  background: #f9fafb !important;
-  border-color: #9ca3af !important;
+  background: var(--color-paper-3, #eeede9) !important;
+  border-color: var(--color-ink, #131313) !important;
 }
 
 .cp-rbc .rbc-toolbar button:active,
@@ -44,52 +44,53 @@
 }
 
 .cp-rbc .rbc-toolbar button.rbc-active {
-  background: var(--color-primary-searchmind) !important;
+  background: var(--color-ink, #131313) !important;
   color: #fff !important;
-  border-color: var(--color-primary-searchmind) !important;
+  border-color: var(--color-ink, #131313) !important;
 }
 
 .cp-rbc .rbc-toolbar-label {
   font-weight: 600;
-  color: #111827;
+  color: var(--color-ink, #131313);
   font-size: 1rem;
 }
 
 .cp-rbc .rbc-header {
   padding: 0.5rem 0.25rem;
-  font-weight: 600;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #6b7280;
-  border-bottom: 1px solid #e5e7eb !important;
+  font-weight: 500;
+  font-size: 0.75rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--color-muted, #6b6b6b);
+  border-bottom: 1px solid var(--color-rule, #e7e5e2) !important;
 }
 
 .cp-rbc .rbc-header + .rbc-header {
-  border-left-color: #e5e7eb !important;
+  border-left-color: var(--color-rule, #e7e5e2) !important;
 }
 
 .cp-rbc .rbc-month-view {
-  border: 1px solid #e5e7eb;
-  border-radius: 0.75rem;
+  border: none;
+  border-radius: var(--radius-input, 14px);
   overflow: hidden;
-  background: #fff;
+  background: var(--perf-raised, #fff);
+  box-shadow: var(--shadow-card, rgba(0, 0, 0, 0.06) 0px 2px 8px 0px);
 }
 
 .cp-rbc .rbc-day-bg + .rbc-day-bg {
-  border-left: 1px solid #f3f4f6;
+  border-left: 1px solid var(--color-paper-2, #f4f3f1);
 }
 
 .cp-rbc .rbc-month-row + .rbc-month-row {
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--color-paper-2, #f4f3f1);
 }
 
 .cp-rbc .rbc-today {
-  background-color: #f9fafb;
+  background-color: var(--color-paper-2, #f4f3f1);
 }
 
 .cp-rbc .rbc-off-range-bg {
-  background: #f9fafb;
+  background: var(--color-paper-2, #f4f3f1);
 }
 
 .cp-rbc .rbc-date-cell {
@@ -101,11 +102,11 @@
 .cp-rbc .rbc-date-cell > button {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #4b5563;
+  color: var(--color-ink-2, #3a3a3a);
 }
 
 .cp-rbc .rbc-now .rbc-button-link {
-  color: var(--color-primary-searchmind);
+  color: var(--color-ink, #131313);
 }
 
 .cp-rbc .rbc-event {
@@ -121,35 +122,34 @@
 }
 
 .cp-rbc .rbc-event:focus {
-  outline: 2px solid var(--color-primary-searchmind);
+  outline: 2px solid var(--color-ink, #131313);
   outline-offset: 1px;
 }
 
 .cp-rbc .rbc-show-more {
-  color: var(--color-primary-searchmind);
+  color: var(--color-ink, #131313);
   font-weight: 600;
   font-size: 0.7rem;
 }
 
 .cp-rbc .rbc-overlay {
-  border-radius: 0.75rem;
-  border: 1px solid #e5e7eb;
-  box-shadow: none !important;
-  background: #fff;
+  border-radius: var(--radius-input, 14px);
+  border: none;
+  box-shadow: var(--shadow-raised, rgba(0, 0, 0, 0.1) 0px 4px 12px 0px) !important;
+  background: var(--perf-raised, #fff);
 }
 
-/* Week / day views — align grid with app borders */
 .cp-rbc .rbc-time-view,
 .cp-rbc .rbc-time-header-content,
 .cp-rbc .rbc-time-content,
 .cp-rbc .rbc-day-slot .rbc-time-slot {
-  border-color: #e5e7eb !important;
+  border-color: var(--color-rule, #e7e5e2) !important;
 }
 
 .cp-rbc .rbc-time-content > * + * > * {
-  border-left-color: #e5e7eb !important;
+  border-left-color: var(--color-rule, #e7e5e2) !important;
 }
 
 .cp-rbc .rbc-time-header > .rbc-row:first-child {
-  border-bottom-color: #e5e7eb !important;
+  border-bottom-color: var(--color-rule, #e7e5e2) !important;
 }

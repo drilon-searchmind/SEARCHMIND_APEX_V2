@@ -158,7 +158,7 @@ export default function DataWrappedPage() {
     };
 
     return (
-        <div id="DataWrappedPage" className="cobalt-perf w-full apex-dw-stack" data-theme="cobalt">
+        <div id="DataWrappedPage" className="apex-perf w-full apex-dw-stack">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

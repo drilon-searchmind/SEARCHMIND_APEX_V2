@@ -148,7 +148,7 @@ export default function NotificationsPage() {
     );
 
     return (
-        <div id="NotificationsPage" className="cobalt-perf w-full apex-notifications-stack" data-theme="cobalt">
+        <div id="NotificationsPage" className="apex-perf w-full apex-notifications-stack">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

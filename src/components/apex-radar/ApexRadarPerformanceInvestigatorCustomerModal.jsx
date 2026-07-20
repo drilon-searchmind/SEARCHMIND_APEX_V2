@@ -83,7 +83,7 @@ export default function ApexRadarPerformanceInvestigatorCustomerModal({ open, on
     };
 
     const modal = (
-        <div className="cobalt-perf" data-theme="cobalt">
+        <div className="apex-perf">
             <div
                 className="apex-radar-modal-backdrop"
                 role="dialog"

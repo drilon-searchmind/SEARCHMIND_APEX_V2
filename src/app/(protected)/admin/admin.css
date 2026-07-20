@@ -1,6 +1,7 @@
-/* Hallmark · theme: Cobalt · page: admin */
+/* Apex · page: admin · theme: minimal (DESIGN.md) */
 
 @import "../dashboard/[customerId]/performance-dashboard/performance-dashboard.css";
+@import "../standalone-minimal.css";
 
 .apex-admin-stack {
   display: flex;
@@ -57,9 +58,9 @@
 }
 
 .apex-admin-tabs__btn.is-active {
-  background: var(--color-paper-3);
-  border-color: var(--color-rule);
-  color: var(--color-ink);
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+  color: #ffffff;
 }
 
 .apex-admin-tabs__content {
@@ -303,7 +304,7 @@
 
 .apex-admin-subtab.is-active {
   color: var(--color-ink);
-  border-bottom-color: var(--color-accent);
+  border-bottom-color: var(--color-ink);
 }
 
 /* Tables */
@@ -325,14 +326,14 @@
 
 .apex-admin-table th {
   padding: var(--space-xs) var(--space-sm);
-  font-family: var(--font-label);
-  font-size: 0.58rem;
-  font-weight: 600;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
   text-align: left;
-  color: var(--color-accent-ink);
-  background: var(--color-accent);
+  color: var(--color-muted);
+  background: transparent;
   border-bottom: var(--rule-hair) solid var(--color-rule);
   white-space: nowrap;
 }
@@ -381,15 +382,16 @@
 .apex-admin-cell-link {
   font-family: ui-monospace, monospace;
   font-size: 0.68rem;
-  color: var(--color-accent-light);
+  color: var(--color-ink);
   word-break: break-all;
   max-width: 14rem;
   display: inline-block;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .apex-admin-cell-link:hover {
-  color: var(--color-accent);
-  text-decoration: underline;
+  color: var(--color-ink-2);
 }
 
 .apex-admin-cell-clamp {
@@ -403,7 +405,7 @@
 }
 
 .apex-admin-check-ok {
-  color: var(--color-accent);
+  color: var(--color-ink);
 }
 
 .apex-admin-check-no {
@@ -449,20 +451,20 @@
 .apex-admin-link {
   font-size: 0.68rem;
   font-weight: 600;
-  color: var(--color-accent-light);
-  text-decoration: none;
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .apex-admin-link:hover {
-  color: var(--color-accent);
-  text-decoration: underline;
+  color: var(--color-ink-2);
 }
 
 .apex-admin-link-btn {
   padding: 0;
   font-size: 0.68rem;
   font-weight: 600;
-  color: var(--color-accent-light);
+  color: var(--color-ink);
   background: none;
   border: none;
   cursor: pointer;
@@ -471,7 +473,7 @@
 }
 
 .apex-admin-link-btn:hover {
-  color: var(--color-accent);
+  color: var(--color-ink-2);
 }
 
 .apex-admin-link-btn--danger {
@@ -555,8 +557,8 @@
   padding: 0.1rem var(--space-xs);
   font-size: 0.58rem;
   font-weight: 700;
-  color: var(--color-accent-ink);
-  background: var(--color-accent);
+  color: #ffffff;
+  background: var(--color-ink);
   border-radius: 999px;
 }
 
@@ -695,7 +697,7 @@
 
 .apex-admin-audit__scope-btn.is-active {
   background: var(--perf-raised);
-  border-left: 3px solid var(--color-accent);
+  border-left: 3px solid var(--apex-lime, #c8f032);
   font-weight: 600;
   color: var(--color-ink);
 }
@@ -760,7 +762,7 @@
 }
 
 .apex-admin-audit__prompt-item.is-editing {
-  border-color: var(--color-accent);
+  border-color: var(--color-ink);
   background: var(--perf-raised);
 }
 
@@ -793,7 +795,7 @@
   margin-top: var(--space-2xs);
   font-size: 0.62rem;
   font-weight: 600;
-  color: var(--color-accent);
+  color: var(--color-muted);
 }
 
 .apex-admin-audit__editor {
@@ -919,9 +921,9 @@
 }
 
 .apex-admin-filter.is-active {
-  color: var(--color-accent-ink);
-  background: var(--color-accent);
-  border-color: var(--color-accent);
+  color: #ffffff;
+  background: var(--color-ink);
+  border-color: var(--color-ink);
 }
 
 .apex-admin-empty {
@@ -938,14 +940,14 @@
 .apex-admin-back-link {
   font-size: 0.72rem;
   font-weight: 600;
-  color: var(--color-accent-light);
-  text-decoration: none;
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
   white-space: nowrap;
 }
 
 .apex-admin-back-link:hover {
-  color: var(--color-accent);
-  text-decoration: underline;
+  color: var(--color-ink-2);
 }
 
 .apex-admin-page-head {
@@ -987,7 +989,7 @@
 
 .apex-admin-badge--info {
   background: var(--color-paper-3);
-  color: var(--color-accent);
+  color: var(--color-ink-2);
 }
 
 .apex-admin-table-detail-row td {

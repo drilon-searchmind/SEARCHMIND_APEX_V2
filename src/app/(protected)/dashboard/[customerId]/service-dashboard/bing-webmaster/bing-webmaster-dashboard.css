@@ -1,6 +1,7 @@
-/* Hallmark · theme: Cobalt · page: bing-webmaster */
+/* Apex · page: bing-webmaster · theme: minimal (DESIGN.md) */
 
 @import "../../performance-dashboard/performance-dashboard.css";
+@import "../service-dashboard-minimal.css";
 
 .apex-bwm-stack {
   display: flex;
@@ -241,13 +242,6 @@
   border-radius: var(--radius-card);
 }
 
-.apex-perf-date-panel {
-  --perf-raised: #ffffff;
-  --perf-canvas: var(--color-paper-2);
-  --perf-band: var(--color-paper-3);
-  background: #ffffff !important;
-}
-
-.cobalt-perf .apex-perf-date-trigger {
-  background: #ffffff;
+.apex-perf .apex-perf-date-trigger {
+  background: var(--perf-raised);
 }

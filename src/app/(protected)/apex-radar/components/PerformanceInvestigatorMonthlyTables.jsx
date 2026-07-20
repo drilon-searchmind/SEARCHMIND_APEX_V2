@@ -296,7 +296,7 @@ function CompactUnifiedTable({
                 <Tooltip content={tip}>
                     <button
                         type="button"
-                        className="block w-max max-w-full cursor-default text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-1 rounded"
+                        className="block w-max max-w-full cursor-default text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ink)] focus-visible:ring-offset-1 rounded"
                     >
                         {inner}
                     </button>

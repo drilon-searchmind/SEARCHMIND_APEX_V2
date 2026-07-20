@@ -21,13 +21,13 @@ export default function MetricCard({
     subCaption = null,
     variant = "default",
 }) {
-    const isCobalt = variant === "cobalt";
-    const activeBg = !isCobalt && isActive ? "#1E2B2B" : "";
-    const activeText = isActive ? (isCobalt ? "" : "text-white") : "text-gray-900";
-    const iconBg = isActive ? (isCobalt ? "" : "bg-[#243636]") : "bg-gray-50";
-    const labelText = isActive ? (isCobalt ? "" : "text-white") : "text-gray-400";
+    const isApex = variant === "cobalt" || variant === "apex";
+    const activeBg = !isApex && isActive ? "#1E2B2B" : "";
+    const activeText = isActive ? (isApex ? "" : "text-white") : "text-gray-900";
+    const iconBg = isActive ? (isApex ? "" : "bg-[#243636]") : "bg-gray-50";
+    const labelText = isActive ? (isApex ? "" : "text-white") : "text-gray-400";
 
-    if (isCobalt) {
+    if (isApex) {
         return (
             <ComparisonPeriodPopover
                 comparisonMethod={comparisonMethod}

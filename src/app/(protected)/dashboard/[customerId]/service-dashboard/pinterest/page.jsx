@@ -342,7 +342,7 @@ export default function PinterestServiceDashboardPage() {
     );
 
     return (
-        <div id="PinterestDashboardPage" className="cobalt-perf w-full" data-theme="cobalt">
+        <div id="PinterestDashboardPage" className="apex-perf w-full">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

@@ -14,7 +14,7 @@ const ParentPropertyLayout = ({ children }) => {
         <ParentPropertyViewProvider>
             <ParentPropertyGroupSettingsProvider>
                 <ParentPropertyFilterProvider>
-                    <div className="cobalt-dashboard flex h-screen" data-theme="cobalt">
+                    <div className="apex-dashboard flex h-screen">
                         <ParentPropertySidebar />
                         <div className="flex min-w-0 flex-1 flex-col">
                             <Topbar

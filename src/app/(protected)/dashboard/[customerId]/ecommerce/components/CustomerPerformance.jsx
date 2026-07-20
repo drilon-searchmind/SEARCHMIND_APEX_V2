@@ -106,17 +106,30 @@ export default function CustomerPerformance({
     const returningSeriesData = data?.dailySeries?.map(d => d.returningCustomers || 0) || [];
 
     const timeSeriesChartOptions = {
-        chart: { id: 'segmentation-timeseries', toolbar: { show: false } },
+        chart: {
+            id: 'segmentation-timeseries',
+            toolbar: { show: false },
+            stacked: true,
+        },
         stroke: { curve: 'smooth', width: 2 },
+        fill: {
+            type: 'solid',
+            opacity: 0.92,
+        },
         xaxis: { categories, labels: { rotate: -45 } },
-        legend: { position: 'top' },
-        tooltip: { shared: true, y: { formatter: v => formatNumber(v) } },
+        yaxis: {
+            labels: {
+                formatter: (v) => Math.round(v).toLocaleString('da-DK'),
+            },
+        },
+        legend: { position: 'top', horizontalAlign: 'left' },
+        tooltip: { shared: true, y: { formatter: (v) => formatNumber(v) } },
         dataLabels: { enabled: false },
     };
 
     const timeSeriesChartSeries = [
-        { name: 'Returning', data: returningSeriesData },
         { name: 'New', data: newSeriesData },
+        { name: 'Returning', data: returningSeriesData },
     ];
 
     const firstOrders = data.firstOrdersCount ?? 0;

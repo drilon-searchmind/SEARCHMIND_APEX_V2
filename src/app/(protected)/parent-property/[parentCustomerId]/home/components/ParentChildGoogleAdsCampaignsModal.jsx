@@ -152,8 +152,7 @@ export default function ParentChildGoogleAdsCampaignsModal({
 
     return (
         <div
-            className="apex-perf-modal-scrim cobalt-perf"
-            data-theme="cobalt"
+            className="apex-perf-modal-scrim apex-perf"
             role="dialog"
             aria-modal="true"
             aria-labelledby="google-ads-campaigns-modal-title"

@@ -1,4 +1,4 @@
-/* Hallmark · theme: Cobalt · page: apex-radar */
+/* Apex · page: apex-radar · theme: minimal (DESIGN.md) */
 
 @import "../dashboard/[customerId]/performance-dashboard/performance-dashboard.css";
 
@@ -6,16 +6,17 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
-  --perf-canvas: var(--color-paper-2, #eef2f0);
+  --perf-canvas: var(--color-paper-2);
   --perf-raised: #ffffff;
-  --perf-band: var(--color-paper-3, #e2e9e6);
-  --perf-accent: var(--color-accent, #213b34);
+  --perf-band: var(--color-paper-3);
+  --perf-accent: var(--color-ink);
 }
 
 .apex-radar-panel {
   background: var(--perf-raised);
-  border: var(--rule-hair) solid var(--color-rule);
+  border: none;
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 .apex-radar-panel--padded {
@@ -40,11 +41,11 @@
 .apex-radar-field-label {
   display: block;
   margin-bottom: var(--space-2xs);
-  font-family: var(--font-label);
-  font-size: 0.58rem;
-  font-weight: 600;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--color-muted);
 }
 
@@ -71,8 +72,8 @@
 .apex-radar-form input:focus,
 .apex-radar-form select:focus,
 .apex-radar-form textarea:focus {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 18%, transparent);
+  border-color: var(--color-ink);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-ink) 12%, transparent);
 }
 
 .apex-radar-search-wrap {
@@ -101,8 +102,8 @@
 }
 
 .apex-radar-search-wrap input:focus {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 18%, transparent);
+  border-color: var(--color-ink);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-ink) 12%, transparent);
 }
 
 .apex-radar-toolbar {
@@ -154,7 +155,7 @@
 }
 
 .apex-radar-icon-btn:hover {
-  color: var(--color-accent);
+  color: var(--color-ink);
   background: var(--color-paper-3);
 }
 
@@ -208,7 +209,7 @@
 .apex-radar-segmented__btn.is-active {
   color: var(--color-ink);
   background: var(--perf-raised);
-  box-shadow: 0 1px 2px rgba(33, 59, 52, 0.06);
+  box-shadow: var(--shadow-card);
 }
 
 .apex-radar-alert {
@@ -236,21 +237,22 @@
 
 .apex-radar-link {
   font-weight: 600;
-  color: var(--color-accent-light);
-  text-decoration: none;
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .apex-radar-link:hover {
-  color: var(--color-accent);
-  text-decoration: underline;
+  color: var(--color-ink-2);
 }
 
 /* Compact tables — shared */
 .apex-radar-table-wrap {
   overflow-x: auto;
   background: var(--perf-raised);
-  border: var(--rule-hair) solid var(--color-rule);
+  border: none;
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 .apex-radar-table {
@@ -269,13 +271,15 @@
 }
 
 .apex-radar-table th {
-  font-family: var(--font-label);
-  font-size: 0.58rem;
-  font-weight: 600;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--color-accent-ink);
-  background: var(--color-accent);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: left;
+  color: var(--color-muted);
+  background: transparent;
+  border-bottom: var(--rule-hair) solid var(--color-rule);
   white-space: nowrap;
 }
 
@@ -304,13 +308,15 @@
 .apex-radar-table thead .is-sticky-left,
 .apex-radar-table thead .is-sticky-left-2 {
   z-index: 30;
-  background: var(--color-accent);
+  background: var(--perf-raised);
 }
 
 .apex-radar-table .th-group {
   text-align: center;
-  font-size: 0.62rem;
-  background: color-mix(in srgb, var(--color-accent) 82%, var(--color-ink));
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  background: var(--color-paper-2);
 }
 
 .apex-radar-table .th-sub {
@@ -366,15 +372,15 @@
   height: 1.15rem;
   font-size: 0.65rem;
   font-weight: 700;
-  color: var(--color-accent-ink);
-  background: var(--color-accent);
-  border: var(--rule-hair) solid var(--color-accent);
+  color: #ffffff;
+  background: var(--color-ink);
+  border: none;
   border-radius: 999px;
   cursor: pointer;
 }
 
 .apex-radar-assign-btn:hover {
-  filter: brightness(1.05);
+  background: var(--color-accent-hover);
 }
 
 .apex-radar-settings-btn {
@@ -388,7 +394,7 @@
 }
 
 .apex-radar-settings-btn:hover {
-  color: var(--color-accent);
+  color: var(--color-ink);
   background: var(--color-paper-3);
 }
 
@@ -401,15 +407,17 @@
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
   background: var(--perf-raised, #ffffff);
-  border: var(--rule-hair) solid var(--color-rule);
+  border: none;
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 .apex-radar-pi-section {
   padding: var(--space-md);
   background: var(--perf-raised, #ffffff);
-  border: var(--rule-hair) solid var(--color-rule);
+  border: none;
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 .apex-radar-pi-section--muted {
@@ -426,32 +434,33 @@
 
 .apex-radar-pi-table .pi-th-first {
   padding: 0.25rem 0.5rem;
-  font-size: 0.62rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  color: var(--color-accent-ink);
-  background: var(--color-ink);
+  color: var(--color-ink);
+  background: var(--color-paper-2);
   vertical-align: middle;
 }
 
 .apex-radar-pi-table .pi-th-group {
   padding: 0.25rem 0.5rem;
-  font-size: 0.62rem;
+  font-size: 0.72rem;
   font-weight: 600;
   text-align: center;
-  color: var(--color-accent-ink);
-  border-left: var(--rule-hair) solid color-mix(in srgb, var(--color-accent-ink) 25%, transparent);
+  color: var(--color-ink);
+  background: var(--color-paper-3);
+  border-left: var(--rule-hair) solid var(--color-rule);
 }
 
 .apex-radar-pi-table .pi-th-group--reach {
-  background: color-mix(in srgb, var(--color-accent) 55%, var(--color-ink));
+  background: var(--color-paper-2);
 }
 
 .apex-radar-pi-table .pi-th-group--spend {
-  background: color-mix(in srgb, var(--color-accent) 75%, var(--color-ink));
+  background: var(--color-paper-3);
 }
 
 .apex-radar-pi-table .pi-th-group--conv {
-  background: var(--color-accent);
+  background: var(--color-paper-2);
 }
 
 .apex-radar-pi-table .pi-th-metric {
@@ -489,12 +498,12 @@
 }
 
 .apex-radar-pi-diff-pos-strong {
-  background: color-mix(in srgb, var(--color-accent) 22%, var(--perf-raised));
+  background: color-mix(in srgb, var(--apex-lime, #c8f032) 22%, var(--perf-raised));
   color: var(--color-ink);
 }
 
 .apex-radar-pi-diff-pos {
-  background: color-mix(in srgb, var(--color-accent) 10%, var(--perf-raised));
+  background: color-mix(in srgb, var(--apex-lime, #c8f032) 10%, var(--perf-raised));
   color: var(--color-ink-2);
 }
 
@@ -511,9 +520,10 @@
 .apex-radar-funnel-panel {
   width: 100%;
   padding: var(--space-md) 0;
-  background: var(--perf-canvas, var(--color-paper-2, #eef2f0));
-  border: var(--rule-hair) solid var(--color-rule);
+  background: var(--perf-raised);
+  border: none;
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 .apex-radar-funnel-flow {
@@ -522,7 +532,7 @@
   min-height: 260px;
   max-height: min(720px, calc(100dvh - 180px));
   overflow: hidden;
-  background: var(--color-paper-3, #e2e9e6);
+  background: var(--color-paper-2);
   border: var(--rule-hair) solid var(--color-rule);
   border-radius: var(--radius-input);
 }
@@ -530,14 +540,15 @@
 .apex-radar-funnel-flow .react-flow,
 .apex-radar-funnel-flow .react-flow__pane,
 .apex-radar-funnel-flow .react-flow__viewport {
-  background: var(--color-paper-3, #e2e9e6) !important;
+  background: var(--color-paper-2) !important;
 }
 
 .apex-radar-pi-loader-panel {
   padding: var(--space-xl);
   background: var(--perf-raised, #ffffff);
-  border: var(--rule-hair) solid var(--color-rule);
+  border: none;
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 /* Modals */
@@ -549,7 +560,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-md);
-  background: rgba(33, 59, 52, 0.45);
+  background: rgba(19, 19, 19, 0.45);
 }
 
 .apex-radar-modal {
@@ -559,9 +570,9 @@
   max-height: min(90vh, 780px);
   overflow: hidden;
   background: var(--perf-raised);
-  border: var(--rule-hair) solid var(--color-rule);
+  border: none;
   border-radius: var(--radius-card);
-  box-shadow: 0 16px 48px rgba(33, 59, 52, 0.14);
+  box-shadow: var(--shadow-raised);
 }
 
 .apex-radar-modal--sm {
@@ -664,12 +675,12 @@
 
 .apex-radar-modal-list input[type="checkbox"] {
   margin-top: 0.15rem;
-  accent-color: var(--color-accent);
+  accent-color: var(--color-ink);
 }
 
 .apex-radar-modal-list label.is-selected,
 .apex-radar-modal-list--selected label {
-  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  background: var(--color-paper-2);
 }
 
 .apex-radar-modal-list--selected {
@@ -702,15 +713,16 @@
   padding: var(--space-md);
   text-align: left;
   background: var(--perf-raised);
-  border: var(--rule-hair) solid var(--color-rule);
+  border: none;
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: box-shadow 0.15s ease, background 0.15s ease;
 }
 
 .apex-radar-platform-card:hover {
-  background: var(--color-paper-3);
-  border-color: var(--color-accent);
+  background: var(--color-paper-2);
+  box-shadow: var(--shadow-raised);
 }
 
 .apex-radar-platform-card__icon {
@@ -744,8 +756,9 @@
   padding: var(--space-xl);
   text-align: center;
   background: var(--perf-raised);
-  border: var(--rule-hair) solid var(--color-rule);
+  border: none;
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 /* Sidebar platform switcher (on dashboard graphite shell) */
@@ -784,13 +797,13 @@
 }
 
 .apex-radar-sidebar__switch a.is-active {
-  color: var(--color-accent-ink);
-  background: var(--color-accent);
+  color: #ffffff;
+  background: var(--color-ink);
 }
 
 .apex-radar-sidebar__switch a:hover:not(.is-active) {
   color: var(--color-code-ink-body);
-  background: oklch(98% 0.006 165 / 0.12);
+  background: oklch(98% 0 0 / 0.12);
 }
 
 .apex-radar-sidebar__switch-compact {
@@ -815,12 +828,12 @@
 }
 
 .apex-radar-sidebar__switch-compact a.is-active {
-  color: var(--color-accent-ink);
-  background: var(--color-accent);
+  color: #ffffff;
+  background: var(--color-ink);
 }
 
 .apex-radar-sidebar__switch-compact a:hover:not(.is-active) {
-  background: oklch(98% 0.006 165 / 0.12);
+  background: oklch(98% 0 0 / 0.12);
   color: var(--color-code-ink-body);
 }
 
@@ -828,7 +841,7 @@
   padding: 0;
   font-size: 0.68rem;
   font-weight: 600;
-  color: var(--color-accent-light);
+  color: var(--color-ink);
   background: none;
   border: none;
   cursor: pointer;
@@ -837,7 +850,7 @@
 }
 
 .apex-radar-link-btn:hover {
-  color: var(--color-accent);
+  color: var(--color-ink-2);
 }
 
 .apex-radar-link-btn:disabled {
@@ -903,7 +916,7 @@
 
 .apex-radar-alerts-panel__feedback.is-success {
   color: var(--color-ink-2);
-  background: color-mix(in srgb, var(--color-accent) 8%, var(--perf-raised));
+  background: var(--color-paper-2);
 }
 
 .apex-radar-alerts-panel__feedback.is-error {
@@ -928,7 +941,7 @@
 }
 
 .apex-radar-alerts-panel__count.has-alerts {
-  color: var(--color-accent-ink);
+  color: var(--color-ink);
   background: color-mix(in srgb, var(--color-error, oklch(50% 0.15 25)) 12%, white);
   border-color: color-mix(in srgb, var(--color-error, oklch(50% 0.15 25)) 35%, var(--color-rule));
 }
@@ -991,11 +1004,11 @@
 
 .apex-radar-alerts-item__type {
   padding: 0.1rem 0.45rem;
-  font-family: var(--font-label);
-  font-size: 0.55rem;
-  font-weight: 700;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--color-muted);
   background: var(--perf-canvas);
   border: var(--rule-hair) solid var(--color-rule);
@@ -1026,11 +1039,11 @@
 }
 
 .apex-radar-alerts-item__team-label {
-  font-family: var(--font-label);
-  font-size: 0.55rem;
-  font-weight: 600;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--color-muted);
 }
 

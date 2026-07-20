@@ -260,7 +260,7 @@ export default function PaceReportPage() {
 	};
 
 	return (
-		<div id="PaceReportPage" className="cobalt-perf w-full" data-theme="cobalt">
+		<div id="PaceReportPage" className="apex-perf w-full">
 			<ToastProvider />
 			<PropertyObjectivesSidebar
 				open={sidebarOpen}

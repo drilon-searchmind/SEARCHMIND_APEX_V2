@@ -132,7 +132,7 @@ export default function GeneralSettingsForm({ form, onChange, saving, isExternal
                 </div>
             </form>
             {showCreateModal ? (
-                <div className="apex-config-modal-backdrop" data-theme="cobalt">
+                <div className="apex-config-modal-backdrop">
                     <div className="apex-config-modal">
                         <FormCreateParentCustomer
                             onCreate={handleModalCreate}

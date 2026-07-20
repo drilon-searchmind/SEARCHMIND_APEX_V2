@@ -1,16 +1,64 @@
-/* Hallmark · theme: Cobalt · shell: dashboard (sidebar + topbar) */
+/* Apex · shell: dashboard (sidebar + topbar) · theme: minimal (DESIGN.md) */
 
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
-@import "../../../../tokens.css";
+@import "../../../styles/apex-design-tokens.css";
+@import "../../../styles/acid-grotesk.css";
 
+.apex-dashboard,
 .cobalt-dashboard {
+  --font-body: "AcidGrotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "AcidGrotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-label: "AcidGrotesk", ui-sans-serif, system-ui, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --heading-weight: 500;
+  --tracking-label: 0.01em;
+  --tracking-tight: -0.01em;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: var(--apex-space-xl);
+  --space-2xl: var(--apex-space-2xl);
+  --space-2xs: 0.25rem;
+  --rule-hair: 1px;
+  --dur-micro: 120ms;
+  --dur-short: 200ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --radius-input: var(--apex-radius-input);
+  --radius-pill: var(--apex-radius-pill);
+  --color-paper: var(--apex-canvas);
+  --color-paper-2: #f4f3f1;
+  --color-ink: var(--apex-ink);
+  --color-ink-2: #3a3a3a;
+  --color-muted: var(--apex-ink-muted);
+  --color-rule: var(--apex-hairline);
+  --color-rule-2: var(--apex-hairline-strong);
+  --color-accent: var(--apex-ink);
+  --color-accent-light: var(--apex-dark-green);
+  --color-graphite: var(--apex-sidebar);
+  --color-code-bg: rgba(255, 255, 255, 0.06);
+  --color-code-bar: rgba(255, 255, 255, 0.04);
+  --color-code-border: rgba(255, 255, 255, 0.1);
+  --color-code-ink-body: rgba(255, 255, 255, 0.72);
+  --color-code-ink-light: #ffffff;
+  --color-code-ink-dim: rgba(255, 255, 255, 0.55);
+  --color-code-ink-muted: rgba(255, 255, 255, 0.45);
+  --color-syntax-key: var(--apex-lime);
+  --color-syntax-num: var(--apex-bad);
+  --shadow-sm: var(--apex-shadow-low);
+
   font-family: var(--font-body);
   font-size: var(--text-sm);
-  color: var(--color-ink-2);
-  background: var(--color-paper);
+  font-weight: 500;
+  color: var(--apex-ink);
+  background: var(--apex-canvas);
   overflow: hidden;
 }
 
+.apex-dashboard *,
+.apex-dashboard *::before,
+.apex-dashboard *::after,
 .cobalt-dashboard *,
 .cobalt-dashboard *::before,
 .cobalt-dashboard *::after {
@@ -21,13 +69,13 @@
   min-width: 0;
   flex: 1;
   overflow-y: auto;
-  background: var(--color-paper);
-  padding: var(--space-lg) var(--space-md);
+  background: var(--apex-canvas);
+  padding: var(--apex-space-xl) var(--apex-space-lg);
 }
 
 @media (min-width: 1280px) {
   .apex-dash__content {
-    padding: var(--space-xl) var(--space-2xl);
+    padding: var(--apex-space-2xl) var(--apex-space-2xl);
   }
 }
 
@@ -38,16 +86,16 @@
   flex-direction: column;
   flex-shrink: 0;
   height: 100%;
-  background: var(--color-graphite);
-  color: var(--color-code-ink-body);
-  border-right: var(--rule-hair) solid var(--color-code-border);
+  background: var(--apex-sidebar);
+  color: rgba(255, 255, 255, 0.72);
+  border-right: none;
   transition: width var(--dur-short) var(--ease-out), padding var(--dur-short) var(--ease-out);
   z-index: 50;
 }
 
 .apex-dash-sidebar.is-expanded {
-  width: 18rem;
-  padding: var(--space-lg) var(--space-md);
+  width: 17.5rem;
+  padding: var(--apex-space-lg) var(--space-lg);
 }
 
 .apex-dash-sidebar.is-collapsed {
@@ -73,19 +121,16 @@
   align-items: center;
   gap: var(--space-sm);
   width: 100%;
-  min-height: 2.75rem;
-  padding: var(--space-sm) var(--space-md);
-  background: oklch(98% 0.006 165 / 0.94);
-  border: var(--rule-hair) solid var(--color-code-border);
+  min-height: 2.5rem;
+  padding: var(--space-xs) var(--space-sm);
+  background: transparent;
+  border: none;
   border-radius: var(--radius-input);
-  transition:
-    border-color var(--dur-micro) var(--ease-out),
-    background-color var(--dur-micro) var(--ease-out);
+  transition: opacity var(--dur-micro) var(--ease-out);
 }
 
 .apex-dash-sidebar__brand:hover .apex-dash-sidebar__brand-mark {
-  border-color: oklch(82% 0.13 155 / 0.45);
-  background: var(--color-paper);
+  opacity: 0.9;
 }
 
 .apex-dash-sidebar__brand-mark img {
@@ -93,14 +138,14 @@
   height: 1.25rem;
   flex-shrink: 0;
   object-fit: contain;
+  filter: brightness(0) invert(1);
 }
 
 .apex-dash-sidebar__brand-name {
-  font-family: var(--font-display);
   font-weight: 600;
   font-size: var(--text-sm);
   letter-spacing: var(--tracking-tight);
-  color: var(--color-ink);
+  color: #ffffff;
   line-height: 1;
   min-width: 0;
 }
@@ -124,12 +169,10 @@
 }
 
 .apex-dash-sidebar__menu-label {
-  font-family: var(--font-label);
-  font-size: 0.65rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--color-code-ink-muted);
+  color: rgba(255, 255, 255, 0.45);
   margin: 0 0 var(--space-md);
 }
 
@@ -138,9 +181,9 @@
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
-  margin-top: var(--space-2xl);
+  margin-top: var(--space-xl);
   padding-top: var(--space-md);
-  border-top: var(--rule-hair) solid var(--color-code-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -171,20 +214,18 @@
   margin-bottom: var(--space-xs);
   border: none;
   background: transparent;
-  font-family: var(--font-label);
   font-size: var(--text-xs);
   font-weight: 500;
   letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--color-code-ink-muted);
+  color: rgba(255, 255, 255, 0.45);
   cursor: pointer;
   border-radius: var(--radius-input);
   transition: color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out);
 }
 
 .apex-dash-nav__section-btn:hover {
-  color: var(--color-code-ink-light);
-  background: var(--color-code-bar);
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .apex-dash-nav__section-btn svg:last-child {
@@ -202,7 +243,7 @@
 .apex-dash-nav__section-icon {
   width: 0.875rem;
   height: 0.875rem;
-  color: var(--color-syntax-key);
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .apex-dash-nav__sub {
@@ -220,30 +261,28 @@
   justify-content: space-between;
   gap: var(--space-sm);
   width: 100%;
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--radius-input);
-  font-family: var(--font-body);
+  padding: 0.625rem var(--space-sm);
+  border-radius: 8px;
   font-size: var(--text-sm);
   font-weight: 500;
-  color: var(--color-code-ink-dim);
+  color: rgba(255, 255, 255, 0.55);
   text-decoration: none;
-  border: var(--rule-hair) solid transparent;
+  border: none;
+  border-left: 2px solid transparent;
   transition:
     color var(--dur-micro) var(--ease-out),
-    background-color var(--dur-micro) var(--ease-out),
-    border-color var(--dur-micro) var(--ease-out);
+    background-color var(--dur-micro) var(--ease-out);
 }
 
 .apex-dash-nav__link:hover {
-  color: var(--color-code-ink-light);
-  background: var(--color-code-bar);
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .apex-dash-nav__item.is-active .apex-dash-nav__link {
-  color: var(--color-code-ink-light);
-  background: var(--color-code-bg);
-  border-color: var(--color-code-border);
-  border-left: 2px solid var(--color-syntax-key);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+  border-left-color: var(--apex-lime);
   padding-left: calc(var(--space-sm) - 1px);
 }
 
@@ -303,15 +342,13 @@
 }
 
 .apex-dash-nav__badge {
-  font-family: var(--font-label);
-  font-size: 0.55rem;
+  font-size: 0.5625rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 2px 5px;
-  border: var(--rule-hair) solid var(--color-code-border);
+  letter-spacing: 0;
+  padding: 1px 5px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 4px;
-  color: var(--color-code-ink-muted);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .apex-dash-nav__warn {
@@ -332,16 +369,16 @@
   justify-content: space-between;
   gap: var(--space-md);
   flex-wrap: wrap;
-  padding: var(--space-sm) var(--space-lg);
-  background: oklch(98% 0.006 165 / 0.94);
-  border-bottom: var(--rule-hair) solid var(--color-rule);
-  backdrop-filter: blur(8px);
+  padding: var(--space-md) var(--apex-space-xl);
+  background: var(--apex-card);
+  border-bottom: 1px solid var(--apex-hairline);
+  box-shadow: var(--apex-shadow-low);
   font-family: var(--font-body);
 }
 
 @media (min-width: 768px) {
   .apex-dash-topbar {
-    padding: var(--space-sm) var(--space-2xl);
+    padding: var(--space-md) var(--apex-space-2xl);
   }
 }
 
@@ -379,6 +416,7 @@
   }
 }
 
+.apex-dashboard .apex-dash-topbar__left .apex-home__search,
 .cobalt-dashboard .apex-dash-topbar__left .apex-home__search {
   flex: 1 1 12rem;
   min-width: 0;
@@ -477,8 +515,9 @@
 }
 
 .apex-dash-topbar__btn:hover {
-  border-color: var(--color-accent);
-  color: var(--color-ink);
+  border-color: var(--apex-hairline-strong);
+  color: var(--apex-ink);
+  background: var(--apex-canvas);
 }
 
 .apex-dash-topbar__btn.is-disabled {
@@ -887,21 +926,24 @@
 }
 
 /* Team members in dashboard shell */
+.apex-dashboard #teamMembers,
+.apex-dashboard #teamMembers-mobile,
 .cobalt-dashboard #teamMembers,
 .cobalt-dashboard #teamMembers-mobile {
   font-family: var(--font-body);
 }
 
+.apex-dashboard #teamMembers p,
+.apex-dashboard #teamMembers-mobile p,
 .cobalt-dashboard #teamMembers p,
 .cobalt-dashboard #teamMembers-mobile p {
-  font-family: var(--font-label);
-  font-size: 0.65rem;
+  font-size: var(--text-sm);
   font-weight: 500;
   letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
   color: var(--color-muted);
 }
 
+.apex-dashboard .apex-dash-member,
 .cobalt-dashboard .apex-dash-member {
   width: 2rem;
   height: 2rem;
@@ -910,6 +952,7 @@
   overflow: hidden;
 }
 
+.apex-dashboard .apex-dash-member img,
 .cobalt-dashboard .apex-dash-member img {
   border-radius: 0;
 }
@@ -925,7 +968,7 @@
 
 /* cmdk current property highlight */
 .apex-home__cmdk-item.is-current {
-  border-left: 2px solid var(--color-accent);
+  border-left: 2px solid var(--apex-ink);
   padding-left: calc(var(--space-md) - 1px);
 }
 

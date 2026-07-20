@@ -76,7 +76,7 @@ export default function ApexRadarAlertsPanel({
         >
             <div className="apex-radar-alerts-panel__head">
                 <div className="flex items-center gap-2 min-w-0">
-                    <FiBell className="h-4 w-4 shrink-0 text-[var(--color-accent)]" aria-hidden />
+                    <FiBell className="h-4 w-4 shrink-0 text-[var(--color-ink)]" aria-hidden />
                     <div className="min-w-0">
                         <h2 id="apex-radar-alerts-heading" className="apex-radar-section__title">
                             Active warnings

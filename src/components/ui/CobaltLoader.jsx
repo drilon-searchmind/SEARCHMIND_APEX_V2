@@ -51,6 +51,7 @@ function LoaderCodeCard({ request, status }) {
 /**
  * Cobalt-themed loading indicator (auth-verify pattern).
  * @param {"panel"|"block"|"inline"} [variant="panel"] — panel: steps + copy; block: compact; inline: code card only
+ * Default theme is minimal (`apex`); legacy Cobalt code-card UI uses `theme="cobalt"`.
  */
 export default function CobaltLoader({
     eyebrow,
@@ -62,7 +63,7 @@ export default function CobaltLoader({
     stepIntervalMs = 900,
     variant = "panel",
     className = "",
-    theme = "cobalt",
+    theme = "apex",
     "aria-label": ariaLabel,
 }) {
     const [activeStep, setActiveStep] = useState(0);

@@ -173,7 +173,7 @@ export default function ProfilePage() {
     const sharedCustomers = Array.isArray(sessionUser?.sharedCustomers) ? sessionUser.sharedCustomers : [];
 
     return (
-        <div id="ProfilePage" className="cobalt-perf w-full apex-profile-stack" data-theme="cobalt">
+        <div id="ProfilePage" className="apex-perf w-full apex-profile-stack">
             <ToastProvider />
             <DashboardHeading
                 variant="cobalt"

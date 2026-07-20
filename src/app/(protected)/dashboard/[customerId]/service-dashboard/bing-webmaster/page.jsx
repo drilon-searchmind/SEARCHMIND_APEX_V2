@@ -34,11 +34,11 @@ const AI_METRIC_OPTIONS = [
 ];
 
 const CHART_COLORS = {
-    impressions: "#213b34",
-    clicks: "#3d6b5e",
-    ctr: "#5c756a",
-    totalCitations: "#213b34",
-    avgCitedPages: "#3d6b5e",
+    impressions: "#131313",
+    clicks: "#525252",
+    ctr: "#c6ed62",
+    totalCitations: "#131313",
+    avgCitedPages: "#858585",
 };
 
 function formatNumber(n) {
@@ -297,7 +297,7 @@ export default function BingWebmasterDashboardPage() {
     };
 
     return (
-        <div id="BingWebmasterPage" className="cobalt-perf w-full apex-bwm-stack" data-theme="cobalt">
+        <div id="BingWebmasterPage" className="apex-perf w-full apex-bwm-stack">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}

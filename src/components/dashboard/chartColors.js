@@ -1,17 +1,20 @@
-// src/components/dashboard/chartColors.js
-// Utility to get chart colors from CSS variables
+// Chart color tokens — reads Apex design tokens when available.
 
 export function getChartColors() {
-  if (typeof window === 'undefined') return {};
-  const styles = getComputedStyle(document.documentElement);
+  if (typeof window === "undefined") return {};
+  const root =
+    document.querySelector(".apex-perf") ||
+    document.querySelector(".cobalt-perf") ||
+    document.documentElement;
+  const styles = getComputedStyle(root);
   return {
-    primary: styles.getPropertyValue('--color-primary-searchmind').trim() || '#1E2B2B',
-    primaryLighter: styles.getPropertyValue('--color-primary-searchmind-lighter').trim() || '#406969',
-    secondary: styles.getPropertyValue('--color-secondary-searchmind').trim() || '#D6CDB6',
-    lime: styles.getPropertyValue('--color-lime').trim() || '#C6ED62',
-    natural: styles.getPropertyValue('--color-natural').trim() || '#FEFBF2',
-    lightGreen: styles.getPropertyValue('--color-light-green').trim() || '#6A8F4D',
-    green: styles.getPropertyValue('--color-green').trim() || '#213834',
-    black: styles.getPropertyValue('--color-black').trim() || '#131313',
+    primary: styles.getPropertyValue("--color-ink").trim() || styles.getPropertyValue("--apex-ink").trim() || "#131313",
+    primaryLighter: styles.getPropertyValue("--color-ink-2").trim() || "#3a3a3a",
+    secondary: styles.getPropertyValue("--color-muted").trim() || "#6b6b6b",
+    lime: styles.getPropertyValue("--apex-lime").trim() || styles.getPropertyValue("--color-lime").trim() || "#C6ED62",
+    natural: styles.getPropertyValue("--color-paper-2").trim() || "#f4f3f1",
+    lightGreen: styles.getPropertyValue("--apex-lime").trim() || "#C6ED62",
+    green: styles.getPropertyValue("--color-ink").trim() || "#131313",
+    black: styles.getPropertyValue("--color-ink").trim() || "#131313",
   };
 }

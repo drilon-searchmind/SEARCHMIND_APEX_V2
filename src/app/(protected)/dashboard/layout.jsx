@@ -8,7 +8,7 @@ import "./dashboard-shell.css";
 
 const DashboardLayout = ({ children }) => {
     return (
-        <div className="cobalt-dashboard flex h-screen" data-theme="cobalt">
+        <div className="apex-dashboard flex h-screen">
             <Sidebar />
             <div className="flex min-w-0 flex-1 flex-col">
                 <Topbar />

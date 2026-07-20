@@ -1,0 +1,210 @@
+/* Apex · shared minimal overrides · service dashboards (DESIGN.md) */
+
+.apex-perf [class$="-section__label"],
+.apex-perf [class$="-section__head"] [class$="-section__label"] {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  text-transform: none;
+  color: var(--color-ink);
+}
+
+.apex-perf [class$="-chart-block"],
+.apex-perf [class$="-table-panel"],
+.apex-perf [class$="-keywords"],
+.apex-perf [class$="-disclaimer"],
+.apex-perf [class$="-error"] {
+  border: none;
+  box-shadow: var(--shadow-card);
+}
+
+.apex-perf [class$="-chart-block"],
+.apex-perf [class$="-table-panel"] {
+  padding: var(--apex-space-card);
+}
+
+.apex-perf [class$="-table-wrap"] {
+  border: none;
+}
+
+.apex-perf table[class$="-table"] {
+  font-size: 0.8125rem;
+}
+
+.apex-perf table[class$="-table"] th {
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: left;
+  color: var(--color-muted);
+  background: transparent;
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-perf table[class$="-table"] th.is-sortable:hover {
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+}
+
+.apex-perf table[class$="-table"] td {
+  border-bottom: none;
+}
+
+.apex-perf table[class$="-table"] tbody tr:hover td {
+  background: var(--color-paper-2);
+}
+
+.apex-perf table[class$="-table"] td.is-left,
+.apex-perf table[class$="-table"] td.is-brand {
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.apex-perf table[class$="-table"] td.is-num {
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.apex-perf [class$="-table"] td.is-roas-up,
+.apex-perf .apex-seo-yoy.is-up,
+.apex-perf .apex-seo-uplift {
+  color: var(--perf-ok);
+  font-weight: 600;
+}
+
+.apex-perf [class$="-table"] td.is-roas-down,
+.apex-perf .apex-seo-yoy.is-down {
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+.apex-perf [class$="-link-btn"] {
+  border: var(--rule-hair) solid var(--color-rule-2);
+  box-shadow: none;
+}
+
+.apex-perf [class$="-link-btn"]:hover {
+  background: var(--color-paper-2);
+  border-color: var(--color-ink);
+}
+
+.apex-perf [class$="-table"] a,
+.apex-perf [class$="-table-panel"] a {
+  color: var(--color-ink);
+  font-weight: 500;
+}
+
+.apex-perf [class$="-warn"] {
+  border: none;
+  background: var(--color-paper-2);
+  box-shadow: var(--shadow-card);
+}
+
+/* SEO tabs */
+.apex-perf .apex-seo-tabs {
+  gap: var(--space-2xs);
+  padding: var(--space-2xs);
+  background: var(--color-paper-2);
+  border: none;
+  border-radius: var(--radius-pill);
+  box-shadow: none;
+}
+
+.apex-perf .apex-seo-tabs__btn {
+  border: none;
+  border-radius: var(--radius-pill);
+}
+
+.apex-perf .apex-seo-tabs__btn:hover:not(.is-active) {
+  color: var(--color-ink);
+  background: transparent;
+  border-color: transparent;
+}
+
+.apex-perf .apex-seo-tabs__btn.is-active {
+  color: var(--color-ink);
+  background: var(--perf-raised);
+  border-color: transparent;
+  box-shadow: var(--shadow-card);
+}
+
+/* SEO keywords & filters */
+.apex-perf .apex-seo-keywords__switch.is-on {
+  background: var(--color-ink);
+}
+
+.apex-perf .apex-seo-input:focus,
+.apex-perf .apex-seo-textarea:focus {
+  border-color: var(--color-ink);
+  box-shadow: 0 0 0 2px rgba(19, 19, 19, 0.08);
+}
+
+.apex-perf .apex-seo-keywords__card,
+.apex-perf .apex-seo-keywords__group {
+  border: none;
+  box-shadow: var(--shadow-card);
+}
+
+.apex-perf .apex-seo-filter-badge {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-ink);
+  background: var(--color-paper-2);
+  border: none;
+}
+
+.apex-perf .apex-seo-filter-badge.is-brand,
+.apex-perf .apex-seo-filter-badge.is-exact,
+.apex-perf .apex-seo-filter-badge.is-partial {
+  background: var(--color-paper-3);
+  color: var(--color-ink-2);
+}
+
+.apex-perf .apex-seo-keywords__status {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+
+.apex-perf .apex-seo-keywords__status.is-active {
+  color: var(--perf-ok);
+}
+
+.apex-perf .apex-seo-spread-track {
+  border: none;
+  background: var(--color-paper-2);
+}
+
+.apex-perf .apex-seo-spread-bar.is-low {
+  background: var(--color-ink);
+}
+
+.apex-perf .apex-seo-spread-bar.is-mid {
+  background: var(--apex-warn);
+}
+
+.apex-perf .apex-seo-spread-bar.is-high {
+  background: var(--color-error);
+}
+
+.apex-perf .apex-bwm-stack {
+  gap: var(--apex-space-grid);
+}
+
+/* Portaled date picker */
+.apex-perf-date-panel {
+  --perf-raised: #ffffff;
+  --perf-canvas: var(--color-paper-2);
+  --perf-band: var(--color-paper-3);
+  background: #ffffff !important;
+}
+
+.apex-perf .apex-perf-date-trigger {
+  background: var(--perf-raised);
+}
