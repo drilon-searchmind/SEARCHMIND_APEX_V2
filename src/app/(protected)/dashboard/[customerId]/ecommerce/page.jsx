@@ -17,6 +17,7 @@ import {
     adSpendChannelsForSpendTotals,
 } from '@/lib/mergeAdSpendDaily';
 import { formatAvgDaysToSoldOutDisplay } from '@/lib/shopifyProductsApi';
+import { useDashboardDataOptional } from '@/contexts/DashboardDataContext';
 import './ecommerce.css';
 
 const TABS = [
@@ -44,6 +45,7 @@ export default function EcommercePage() {
     const { customers } = useCustomers();
     const customer = customers.find((c) => c._id === customerId);
     const { isB2B } = useBusinessCategory(customer);
+    const shared = useDashboardDataOptional();
 
     useEffect(() => {
         if (isB2B && customerId) {
@@ -76,11 +78,17 @@ export default function EcommercePage() {
         spendQuerySuffix,
     } = useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn);
 
-    const mergedSourcesQuerySuffix = `${marketQuerySuffix}${spendQuerySuffix}`;
+    const mergedSourcesQuerySuffix = shared?.mergedSourcesQuerySuffix ?? `${marketQuerySuffix}${spendQuerySuffix}`;
 
     const defaultRangeValue = defaultRange();
     const [tempRange, setTempRange] = useState(defaultRangeValue);
     const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
+
+    useEffect(() => {
+        if (!shared) return;
+        setAppliedRange(shared.appliedDateRange);
+        setTempRange(shared.tempDateRange);
+    }, [shared, shared?.appliedDateRange, shared?.tempDateRange]);
     const [productsLoading, setProductsLoading] = useState(false);
     const [inventoryLoading, setInventoryLoading] = useState(false);
     const [segmentationLoading, setSegmentationLoading] = useState(false);
@@ -123,14 +131,18 @@ export default function EcommercePage() {
         if (t && TAB_IDS.includes(t)) setActiveTabState(t);
     }, [searchParams]);
 
-    const handleDateRangeApply = ({ startDate, endDate }) => {
+    const handleDateRangeApply = (payload) => {
         pushDashboardDateRangeApplied({
             page: 'ecommerce',
             customerId,
-            startDate,
-            endDate,
+            startDate: payload.startDate,
+            endDate: payload.endDate,
         });
-        setAppliedRange({ startDate, endDate });
+        if (shared?.handleDateRangeApply) {
+            shared.handleDateRangeApply(payload);
+        } else {
+            setAppliedRange({ startDate: payload.startDate, endDate: payload.endDate });
+        }
     };
 
     const rangeKey =

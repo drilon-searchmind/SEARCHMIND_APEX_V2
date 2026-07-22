@@ -8,18 +8,11 @@ import {
 } from "@/lib/mergeAdSpendDaily";
 import { formatComparisonPeriodDates } from "@/lib/dateRangeComparison";
 import { computePeriodMetricsFromMerged } from "@/lib/performanceDashboard/profitMetrics";
-
-async function fetchCustomKpis(customerId) {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-    try {
-        const res = await fetch(`${baseUrl}/api/custom-kpis/${customerId}`);
-        if (!res.ok) return [];
-        const data = await res.json();
-        return Array.isArray(data) ? data : [];
-    } catch {
-        return [];
-    }
-}
+import { useDashboardDataOptional } from "@/contexts/DashboardDataContext";
+import {
+    fetchMergedSourcesJson,
+    fetchCustomKpisJson,
+} from "@/lib/dashboard/fetchMergedSources";
 
 /**
  * Fetches merged data (current + previous period) and computes all P&L metrics.
@@ -33,7 +26,12 @@ export function usePnlData(
     pnlMarketsSpend = null,
     appliedCompareRange = { startDate: "", endDate: "" }
 ) {
-    const [loading, setLoading] = useState(true);
+    const dashboardData = useDashboardDataOptional();
+    const fetchMergedSources = dashboardData?.fetchMergedSources;
+    const fetchCustomKpisCached = dashboardData?.fetchCustomKpis;
+    const isHubMode = dashboardData?.isHubMode === true;
+
+    const [loading, setLoading] = useState(() => !isHubMode);
     const [error, setError] = useState(null);
     const [merged, setMerged] = useState(null);
     const [mergedPrev, setMergedPrev] = useState(null);
@@ -51,11 +49,12 @@ export function usePnlData(
 
     useEffect(() => {
         if (!customer || !appliedDateRange?.startDate || !appliedDateRange?.endDate) return;
-        setLoading(true);
+        if (!isHubMode) {
+            setLoading(true);
+        }
         setError(null);
         (async () => {
             try {
-                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
                 const comparisonDates = formatComparisonPeriodDates({
                     comparisonMethod,
                     startDate: appliedDateRange.startDate,
@@ -64,40 +63,67 @@ export function usePnlData(
                     compareEndDate: appliedCompareRange.endDate,
                 });
 
-                const fetches = [
-                    fetch(
-                        `${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&source=pnl${mergedSourcesQuerySuffix}`
-                    ),
-                    fetchCustomKpis(customer._id),
-                ];
+                const fetchCurrent = fetchMergedSources
+                    ? fetchMergedSources(
+                          "pnl",
+                          appliedDateRange.startDate,
+                          appliedDateRange.endDate,
+                          mergedSourcesQuerySuffix
+                      )
+                    : fetchMergedSourcesJson({
+                          customerId: customer._id,
+                          source: "pnl",
+                          startDate: appliedDateRange.startDate,
+                          endDate: appliedDateRange.endDate,
+                          suffix: mergedSourcesQuerySuffix,
+                      });
+
+                const fetchKpis = fetchCustomKpisCached
+                    ? fetchCustomKpisCached("ecommerce")
+                    : fetchCustomKpisJson({ customerId: customer._id });
+
+                const fetches = [fetchCurrent, fetchKpis];
                 if (!comparisonDates.skip && comparisonDates.startDate && comparisonDates.endDate) {
                     fetches.push(
-                        fetch(
-                            `${baseUrl}/api/merged-sources/${customer._id}?startDate=${comparisonDates.startDate}&endDate=${comparisonDates.endDate}&source=pnl${mergedSourcesQuerySuffix}`
-                        )
+                        fetchMergedSources
+                            ? fetchMergedSources(
+                                  "pnl",
+                                  comparisonDates.startDate,
+                                  comparisonDates.endDate,
+                                  mergedSourcesQuerySuffix
+                              )
+                            : fetchMergedSourcesJson({
+                                  customerId: customer._id,
+                                  source: "pnl",
+                                  startDate: comparisonDates.startDate,
+                                  endDate: comparisonDates.endDate,
+                                  suffix: mergedSourcesQuerySuffix,
+                              })
                     );
                 }
                 const results = await Promise.all(fetches);
-                const res = results[0];
+                const mergedData = results[0];
                 const kpis = results[1];
-                const resPrev = results[2];
+                const mergedPrevData = results[2];
                 setCustomKpis(Array.isArray(kpis) ? kpis : []);
-
-                if (!res.ok) throw new Error("Failed to fetch merged data");
-                const mergedData = await res.json();
                 setMerged(mergedData);
-                if (resPrev?.ok) {
-                    setMergedPrev(await resPrev.json());
-                } else {
-                    setMergedPrev(null);
-                }
+                setMergedPrev(mergedPrevData ?? null);
             } catch (err) {
                 setError(err?.message || "Failed to fetch");
             } finally {
                 setLoading(false);
             }
         })();
-    }, [customer, appliedDateRange, appliedCompareRange, comparisonMethod, mergedSourcesQuerySuffix]);
+    }, [
+        customer,
+        appliedDateRange,
+        appliedCompareRange,
+        comparisonMethod,
+        mergedSourcesQuerySuffix,
+        fetchMergedSources,
+        fetchCustomKpisCached,
+        isHubMode,
+    ]);
 
     let channelSpendTotals = {};
     let channelSpendTotalsPrev = {};

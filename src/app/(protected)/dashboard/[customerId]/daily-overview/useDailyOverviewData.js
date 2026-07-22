@@ -13,26 +13,30 @@ import {
 	buildShopifyDayFormulaMetrics,
 } from '@/lib/performanceDashboard/dailyOverviewCustomKpis';
 import { formatComparisonPeriodDates, COMPARISON_METHOD } from '@/lib/dateRangeComparison';
+import { useDashboardDataOptional } from '@/contexts/DashboardDataContext';
+import {
+	fetchMergedSourcesJson,
+	fetchCustomKpisJson,
+} from '@/lib/dashboard/fetchMergedSources';
 
-async function fetchPeriodData(customerId, startDate, endDate, mergedSourcesQuerySuffix = '') {
-	const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-	const res = await fetch(
-		`${baseUrl}/api/merged-sources/${customerId}?startDate=${startDate}&endDate=${endDate}&source=daily-overview${mergedSourcesQuerySuffix}`
-	);
-	if (!res.ok) throw new Error('Failed to fetch daily data');
-	return await res.json();
+async function fetchPeriodData(customerId, startDate, endDate, mergedSourcesQuerySuffix = '', fetchMergedSources) {
+	if (fetchMergedSources) {
+		return fetchMergedSources('daily-overview', startDate, endDate, mergedSourcesQuerySuffix);
+	}
+	return fetchMergedSourcesJson({
+		customerId,
+		source: 'daily-overview',
+		startDate,
+		endDate,
+		suffix: mergedSourcesQuerySuffix,
+	});
 }
 
-async function fetchCustomKpis(customerId) {
-	const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-	try {
-		const res = await fetch(`${baseUrl}/api/custom-kpis/${customerId}`);
-		if (!res.ok) return [];
-		const data = await res.json();
-		return Array.isArray(data) ? data : [];
-	} catch {
-		return [];
+async function fetchCustomKpis(customerId, fetchCustomKpis) {
+	if (fetchCustomKpis) {
+		return fetchCustomKpis('ecommerce');
 	}
+	return fetchCustomKpisJson({ customerId });
 }
 
 function buildDailyRows(merged, customer, revenueType, customKpis = []) {
@@ -147,11 +151,16 @@ export function useDailyOverviewData(
 	mergedSourcesQuerySuffix = '',
 	marketsSpendColumns = null
 ) {
+	const dashboardData = useDashboardDataOptional();
+	const fetchMergedSources = dashboardData?.fetchMergedSources;
+	const fetchCustomKpisCached = dashboardData?.fetchCustomKpis;
+	const isHubMode = dashboardData?.isHubMode === true;
+
 	const [revenueTypeState, setRevenueTypeState] = useState('total_sales');
 	const [customerMetricPreference, setCustomerMetricPreference] =
 		useState('ROAS/POAS');
 	const [rows, setRows] = useState([]);
-	const [loading, setLoading] = useState(true);
+	const [loading, setLoading] = useState(() => !isHubMode);
 	const [error, setError] = useState(null);
 	const [rowsPrev, setRowsPrev] = useState([]);
 	const [rowsLastYear, setRowsLastYear] = useState([]);
@@ -170,7 +179,9 @@ export function useDailyOverviewData(
 			customer?.CustomerSettings?.customerRevenueType || 'total_sales';
 		setRevenueTypeState(revenueType);
 
-		setLoading(true);
+		if (!isHubMode) {
+			setLoading(true);
+		}
 		setError(null);
 		setVisibleMarketingColumnKeys(null);
 
@@ -181,9 +192,10 @@ export function useDailyOverviewData(
 						customer._id,
 						appliedDateRange.startDate,
 						appliedDateRange.endDate,
-						mergedSourcesQuerySuffix
+						mergedSourcesQuerySuffix,
+						fetchMergedSources
 					),
-					fetchCustomKpis(customer._id),
+					fetchCustomKpis(customer._id, fetchCustomKpisCached),
 				]);
 				const kpis = Array.isArray(customKpisData) ? customKpisData : [];
 				setCustomKpis(kpis);
@@ -201,7 +213,8 @@ export function useDailyOverviewData(
 					customer._id,
 					prevStartStr,
 					prevEndStr,
-					mergedSourcesQuerySuffix
+					mergedSourcesQuerySuffix,
+					fetchMergedSources
 				);
 				const dailyRowsPrev = buildPrevPeriodRows(
 					mergedPrev,
@@ -242,7 +255,8 @@ export function useDailyOverviewData(
 						customer._id,
 						lastYearStart,
 						lastYearEnd,
-						mergedSourcesQuerySuffix
+						mergedSourcesQuerySuffix,
+						fetchMergedSources
 					);
 					const dailyRowsLastYear = buildDailyRows(
 						mergedLastYear,
@@ -264,7 +278,7 @@ export function useDailyOverviewData(
 				setLoading(false);
 			}
 		})();
-	}, [customer, appliedDateRange, mergedSourcesQuerySuffix, marketsSpendColumns]);
+	}, [customer, appliedDateRange, mergedSourcesQuerySuffix, marketsSpendColumns, fetchMergedSources, fetchCustomKpisCached, isHubMode]);
 
 	return {
 		rows,

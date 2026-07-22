@@ -58,6 +58,11 @@ import {
 } from "@/lib/mergeAdSpendDaily";
 import { calcBlendedPoasOrZero } from "@/lib/poasMetrics";
 import "./performance-dashboard.css";
+import { useDashboardDataOptional } from "@/contexts/DashboardDataContext";
+import {
+    fetchMergedSourcesJson,
+    fetchCustomKpisJson,
+} from "@/lib/dashboard/fetchMergedSources";
 
 export default function PerformanceDashboard() {
     const params = useParams();
@@ -76,6 +81,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
     const params = useParams();
     const { customers, updateCustomer } = useCustomers();
     const customer = customerProp || customers.find(c => c._id === params.customerId);
+    const shared = useDashboardDataOptional();
 
     const defaultRange = getDefaultDashboardDateRange();
 
@@ -122,6 +128,16 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
             endDate,
             comparisonMethod: appliedComparison,
         });
+        if (shared?.handleDateRangeApply) {
+            shared.handleDateRangeApply({
+                startDate,
+                endDate,
+                comparisonMethod: appliedComparison,
+                compareStartDate,
+                compareEndDate,
+            });
+            return;
+        }
         setAppliedDateRange({ startDate, endDate });
         if (appliedComparison) setComparisonMethod(appliedComparison);
         if (compareStartDate && compareEndDate) {
@@ -134,15 +150,31 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
         }
     };
     const handleStartDateChange = (newStart) => {
+        if (shared?.handleStartDateChange) {
+            shared.handleStartDateChange(newStart);
+            return;
+        }
         setTempDateRange(dr => ({ ...dr, startDate: newStart }));
     };
     const handleEndDateChange = (newEnd) => {
+        if (shared?.handleEndDateChange) {
+            shared.handleEndDateChange(newEnd);
+            return;
+        }
         setTempDateRange(dr => ({ ...dr, endDate: newEnd }));
     };
     const handleCompareStartChange = (newStart) => {
+        if (shared?.dateRangePickerProps?.onCompareStartChange) {
+            shared.dateRangePickerProps.onCompareStartChange(newStart);
+            return;
+        }
         setTempCompareRange((r) => ({ ...r, startDate: newStart }));
     };
     const handleCompareEndChange = (newEnd) => {
+        if (shared?.dateRangePickerProps?.onCompareEndChange) {
+            shared.dateRangePickerProps.onCompareEndChange(newEnd);
+            return;
+        }
         setTempCompareRange((r) => ({ ...r, endDate: newEnd }));
     };
 
@@ -171,13 +203,58 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
         spendQuerySuffix,
     } = useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn);
 
-    const mergedSourcesQuerySuffix = `${marketQuerySuffix}${spendQuerySuffix}`;
+    const mergedSourcesQuerySuffix = shared?.mergedSourcesQuerySuffix ?? `${marketQuerySuffix}${spendQuerySuffix}`;
+    const resolvedAppliedDateRange = shared?.appliedDateRange ?? appliedDateRange;
+    const resolvedAppliedCompareRange = shared?.appliedCompareRange ?? appliedCompareRange;
+    const resolvedComparisonMethod = shared?.comparisonMethod ?? comparisonMethod;
+    const resolvedTempDateRange = shared?.tempDateRange ?? tempDateRange;
+    const resolvedTempCompareRange = shared?.tempCompareRange ?? tempCompareRange;
+    const resolvedTempComparisonMethod = shared?.tempComparisonMethod ?? tempComparisonMethod;
+    const resolvedComparisonLabel = shared?.comparisonLabel ?? comparisonLabel;
+    const resolvedHandleDateRangeApply = shared?.handleDateRangeApply ?? handleDateRangeApply;
+    const resolvedHandleStartDateChange = shared?.handleStartDateChange ?? handleStartDateChange;
+    const resolvedHandleEndDateChange = shared?.handleEndDateChange ?? handleEndDateChange;
+    const resolvedHandleCompareStartChange = shared?.dateRangePickerProps?.onCompareStartChange ?? handleCompareStartChange;
+    const resolvedHandleCompareEndChange = shared?.dateRangePickerProps?.onCompareEndChange ?? handleCompareEndChange;
+    const resolvedShopifyMarketsFeatureOn = shared?.shopifyMarketsFeatureOn ?? shopifyMarketsFeatureOn;
+    const resolvedShopifyMarkets = shared?.shopifyMarkets ?? shopifyMarkets;
+    const resolvedShopifyMarketsLoading = shared?.shopifyMarketsLoading ?? shopifyMarketsLoading;
+    const resolvedExcludedShopifyMarkets = shared?.excludedShopifyMarkets ?? excludedShopifyMarkets;
+    const resolvedToggleShopifyMarket = shared?.toggleShopifyMarket ?? toggleShopifyMarket;
+    const resolvedApplyShopifyMarketFilters = shared?.applyShopifyMarketFilters ?? applyShopifyMarketFilters;
+    const resolvedSyncDraftFromAppliedMarkets = shared?.syncDraftFromAppliedMarkets ?? syncDraftFromAppliedMarkets;
+    const resolvedDraftFilterAdSpendByMarket = shared?.draftFilterAdSpendByMarket ?? draftFilterAdSpendByMarket;
+    const resolvedAppliedFilterAdSpendByMarket = shared?.appliedFilterAdSpendByMarket ?? appliedFilterAdSpendByMarket;
+    const resolvedSetDraftFilterAdSpendByMarket = shared?.setDraftFilterAdSpendByMarket ?? setDraftFilterAdSpendByMarket;
+    const resolvedAdSpendFilterUiChannels = shared?.adSpendFilterUiChannels ?? adSpendFilterUiChannels;
+    const resolvedDraftExcludedPlatforms = shared?.draftExcludedPlatforms ?? draftExcludedPlatforms;
+    const resolvedToggleAdSpendPlatformDraft = shared?.toggleAdSpendPlatformDraft ?? toggleAdSpendPlatformDraft;
+    const resolvedApplyAdSpendPlatformFilters = shared?.applyAdSpendPlatformFilters ?? applyAdSpendPlatformFilters;
+    const resolvedSyncDraftFromAppliedSpend = shared?.syncDraftFromAppliedSpend ?? syncDraftFromAppliedSpend;
+
+    useEffect(() => {
+        if (!shared) return;
+        setAppliedDateRange(shared.appliedDateRange);
+        setTempDateRange(shared.tempDateRange);
+        setAppliedCompareRange(shared.appliedCompareRange);
+        setTempCompareRange(shared.tempCompareRange);
+        setComparisonMethod(shared.comparisonMethod);
+        setTempComparisonMethod(shared.tempComparisonMethod);
+    }, [
+        shared,
+        shared?.appliedDateRange,
+        shared?.tempDateRange,
+        shared?.appliedCompareRange,
+        shared?.tempCompareRange,
+        shared?.comparisonMethod,
+        shared?.tempComparisonMethod,
+    ]);
 
     // Metrics state
     const [metrics, setMetrics] = useState([]);
     const [metricsData, setMetricsData] = useState(null);
     const [metricsDataForCustomKpis, setMetricsDataForCustomKpis] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(() => !(shared?.isHubMode === true));
     const [error, setError] = useState(null);
     const [customKpis, setCustomKpis] = useState([]);
     const [replacementByKey, setReplacementByKey] = useState({});
@@ -268,24 +345,36 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
     // Main fetch: merged data
     useEffect(() => {
         if (!customer) return;
-        setLoading(true);
+        if (shared?.isHubMode !== true) {
+            setLoading(true);
+        }
         setError(null);
         (async () => {
             try {
-                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
                 const comp = getComparisonPeriodRange({
-                    comparisonMethod,
-                    startDate: appliedDateRange.startDate,
-                    endDate: appliedDateRange.endDate,
-                    compareStartDate: appliedCompareRange.startDate,
-                    compareEndDate: appliedCompareRange.endDate,
+                    comparisonMethod: resolvedComparisonMethod,
+                    startDate: resolvedAppliedDateRange.startDate,
+                    endDate: resolvedAppliedDateRange.endDate,
+                    compareStartDate: resolvedAppliedCompareRange.startDate,
+                    compareEndDate: resolvedAppliedCompareRange.endDate,
                 });
 
-                const res = await fetch(
-                    `${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&source=performance-dashboard${mergedSourcesQuerySuffix}`
-                );
-                if (!res.ok) throw new Error("Failed to fetch merged data");
-                const merged = await res.json();
+                const fetchCurrent = shared?.fetchMergedSources
+                    ? shared.fetchMergedSources(
+                          "performance-dashboard",
+                          resolvedAppliedDateRange.startDate,
+                          resolvedAppliedDateRange.endDate,
+                          mergedSourcesQuerySuffix
+                      )
+                    : fetchMergedSourcesJson({
+                          customerId: customer._id,
+                          source: "performance-dashboard",
+                          startDate: resolvedAppliedDateRange.startDate,
+                          endDate: resolvedAppliedDateRange.endDate,
+                          suffix: mergedSourcesQuerySuffix,
+                      });
+
+                const merged = await fetchCurrent;
 
                 let mergedPrev = {
                     shopifyDaily: [],
@@ -297,11 +386,20 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
                     redditDaily: [],
                 };
                 if (!comp.skip && comp.prevStart && comp.prevEnd) {
-                    const resPrev = await fetch(
-                        `${baseUrl}/api/merged-sources/${customer._id}?startDate=${comp.prevStart.format("YYYY-MM-DD")}&endDate=${comp.prevEnd.format("YYYY-MM-DD")}&source=performance-dashboard${mergedSourcesQuerySuffix}`
-                    );
-                    if (!resPrev.ok) throw new Error("Failed to fetch comparison period data");
-                    mergedPrev = await resPrev.json();
+                    mergedPrev = shared?.fetchMergedSources
+                        ? await shared.fetchMergedSources(
+                              "performance-dashboard",
+                              comp.prevStart.format("YYYY-MM-DD"),
+                              comp.prevEnd.format("YYYY-MM-DD"),
+                              mergedSourcesQuerySuffix
+                          )
+                        : await fetchMergedSourcesJson({
+                              customerId: customer._id,
+                              source: "performance-dashboard",
+                              startDate: comp.prevStart.format("YYYY-MM-DD"),
+                              endDate: comp.prevEnd.format("YYYY-MM-DD"),
+                              suffix: mergedSourcesQuerySuffix,
+                          });
                 }
                 setMerged(merged);
                 setMergedPrev(mergedPrev);
@@ -339,20 +437,22 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
         })();
     }, [
         customer,
-        appliedDateRange,
-        appliedCompareRange,
-        comparisonMethod,
+        resolvedAppliedDateRange,
+        resolvedAppliedCompareRange,
+        resolvedComparisonMethod,
         mergedSourcesQuerySuffix,
         mergedDataRefreshKey,
+        shared,
     ]);
 
     useEffect(() => {
         const customerId = params?.customerId;
         if (!customerId) return;
         let cancelled = false;
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
-        fetch(`${baseUrl}/api/custom-kpis/${customerId}`)
-            .then((r) => (r.ok ? r.json() : []))
+        const loadKpis = shared?.fetchCustomKpis
+            ? shared.fetchCustomKpis("ecommerce")
+            : fetchCustomKpisJson({ customerId });
+        loadKpis
             .then((data) => {
                 if (!cancelled) setCustomKpis(Array.isArray(data) ? data : []);
             })
@@ -360,7 +460,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
                 if (!cancelled) setCustomKpis([]);
             });
         return () => { cancelled = true; };
-    }, [params?.customerId]);
+    }, [params?.customerId, shared]);
 
     const refreshCustomKpis = useCallback(async () => {
         const customerId = params?.customerId;

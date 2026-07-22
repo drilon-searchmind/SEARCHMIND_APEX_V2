@@ -13,20 +13,16 @@ import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import { useShopifyMarketsFilter } from "@/hooks/useShopifyMarketsFilter";
 import { useAdSpendPlatformsFilter } from "@/hooks/useAdSpendPlatformsFilter";
+import { useDashboardDataOptional } from "@/contexts/DashboardDataContext";
 import "./pnl.css";
 
 export default function PNLPage() {
     const params = useParams();
     const { customers } = useCustomers();
     const customer = customers.find((c) => c._id === params.customerId);
+    const shared = useDashboardDataOptional();
 
-    const {
-        appliedDateRange,
-        appliedCompareRange,
-        comparisonMethod,
-        comparisonLabel,
-        dateRangePickerProps,
-    } = useDashboardDateRange({
+    const localDateRange = useDashboardDateRange({
         onApply: ({ startDate, endDate, comparisonMethod: appliedComparison }) => {
             pushDashboardDateRangeApplied({
                 page: "tools_pnl",
@@ -37,6 +33,14 @@ export default function PNLPage() {
             });
         },
     });
+
+    const {
+        appliedDateRange,
+        appliedCompareRange,
+        comparisonMethod,
+        comparisonLabel,
+        dateRangePickerProps,
+    } = shared ?? localDateRange;
 
     const {
         shopifyMarketsFeatureOn,
@@ -63,7 +67,7 @@ export default function PNLPage() {
         spendQuerySuffix,
     } = useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn);
 
-    const mergedSourcesQuerySuffix = `${marketQuerySuffix}${spendQuerySuffix}`;
+    const mergedSourcesQuerySuffix = shared?.mergedSourcesQuerySuffix ?? `${marketQuerySuffix}${spendQuerySuffix}`;
 
     const pnlMarketsSpend = useMemo(
         () =>

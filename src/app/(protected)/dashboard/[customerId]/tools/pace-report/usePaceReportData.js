@@ -11,18 +11,11 @@ import {
 	primarySalesRevenueLabel,
 	shopifyDayPrimarySalesRevenue,
 } from '@/lib/performanceDashboard/primarySalesRevenue';
-
-async function fetchCustomKpis(customerId) {
-	const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-	try {
-		const res = await fetch(`${baseUrl}/api/custom-kpis/${customerId}`);
-		if (!res.ok) return [];
-		const data = await res.json();
-		return Array.isArray(data) ? data : [];
-	} catch {
-		return [];
-	}
-}
+import { useDashboardDataOptional } from '@/contexts/DashboardDataContext';
+import {
+	fetchMergedSourcesJson,
+	fetchCustomKpisJson,
+} from '@/lib/dashboard/fetchMergedSources';
 
 export function usePaceReportData(
 	customer,
@@ -31,7 +24,12 @@ export function usePaceReportData(
 	mergedSourcesQuerySuffix = '',
 	paceChannelSpecs = null
 ) {
-	const [loading, setLoading] = useState(true);
+	const dashboardData = useDashboardDataOptional();
+	const fetchMergedSources = dashboardData?.fetchMergedSources;
+	const fetchCustomKpisCached = dashboardData?.fetchCustomKpis;
+	const isHubMode = dashboardData?.isHubMode === true;
+
+	const [loading, setLoading] = useState(() => !isHubMode);
 	const [error, setError] = useState(null);
 	const [costData, setCostData] = useState([]);
 	const [costByChannelSeries, setCostByChannelSeries] = useState([]);
@@ -45,21 +43,32 @@ export function usePaceReportData(
 	useEffect(() => {
 		if (!customer || !appliedDateRange) return;
 
-		setLoading(true);
+		if (!isHubMode) {
+			setLoading(true);
+		}
 		setError(null);
 
 		(async () => {
 			try {
-				const baseUrl =
-					process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-				const [mergedRes, customKpis] = await Promise.all([
-					fetch(
-						`${baseUrl}/api/merged-sources/${customer._id}?startDate=${appliedDateRange.startDate}&endDate=${appliedDateRange.endDate}&source=pace-report${mergedSourcesQuerySuffix}`
-					),
-					fetchCustomKpis(customer._id),
+				const [merged, customKpis] = await Promise.all([
+					fetchMergedSources
+						? fetchMergedSources(
+								'pace-report',
+								appliedDateRange.startDate,
+								appliedDateRange.endDate,
+								mergedSourcesQuerySuffix
+						  )
+						: fetchMergedSourcesJson({
+								customerId: customer._id,
+								source: 'pace-report',
+								startDate: appliedDateRange.startDate,
+								endDate: appliedDateRange.endDate,
+								suffix: mergedSourcesQuerySuffix,
+						  }),
+					fetchCustomKpisCached
+						? fetchCustomKpisCached('ecommerce')
+						: fetchCustomKpisJson({ customerId: customer._id }),
 				]);
-				if (!mergedRes.ok) throw new Error('Failed to fetch merged data');
-				const merged = await mergedRes.json();
 				const customerSettings = customer?.CustomerSettings || {};
 				const customerType = customer?.customerType || 'Shopify';
 				const channelMaps = buildChannelSpendMapsFromMerged(merged);
@@ -258,7 +267,7 @@ export function usePaceReportData(
 				setLoading(false);
 			}
 		})();
-	}, [customer, objectives, appliedDateRange, mergedSourcesQuerySuffix, paceChannelSpecs]);
+	}, [customer, objectives, appliedDateRange, mergedSourcesQuerySuffix, paceChannelSpecs, fetchMergedSources, fetchCustomKpisCached, isHubMode]);
 
 	return {
 		loading,

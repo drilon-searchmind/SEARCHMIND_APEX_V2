@@ -6,7 +6,7 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { useBusinessCategory } from '@/hooks/useBusinessCategory';
 import { useParams } from 'next/navigation';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useDailyOverviewData } from './useDailyOverviewData';
 import DailyMetricsTable from './DailyMetricsTable';
 import RowComparisonPopover from './RowComparisonPopover';
@@ -24,6 +24,7 @@ import { pushDashboardDateRangeApplied } from '@root/lib/gtmFunctions';
 import { useShopifyMarketsFilter } from '@/hooks/useShopifyMarketsFilter';
 import { useAdSpendPlatformsFilter } from '@/hooks/useAdSpendPlatformsFilter';
 import B2BDailyOverview from './B2BDailyOverview';
+import { useDashboardDataOptional } from '@/contexts/DashboardDataContext';
 
 export default function DailyOverviewPage() {
     const params = useParams();
@@ -42,6 +43,7 @@ function EcommerceDailyOverview({ customer: customerProp }) {
     const params = useParams();
     const { customers } = useCustomers();
     const customer = customerProp || customers.find((c) => c._id === params.customerId);
+    const shared = useDashboardDataOptional();
 
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -61,21 +63,39 @@ function EcommerceDailyOverview({ customer: customerProp }) {
         endDate: defaultEnd,
     });
 
-    const handleDateRangeApply = ({ startDate, endDate }) => {
+    const handleDateRangeApply = (payload) => {
         pushDashboardDateRangeApplied({
             page: 'daily_overview',
             customerId: params.customerId,
-            startDate,
-            endDate,
+            startDate: payload.startDate,
+            endDate: payload.endDate,
         });
-        setAppliedDateRange({ startDate, endDate });
+        if (shared?.handleDateRangeApply) {
+            shared.handleDateRangeApply(payload);
+        } else {
+            setAppliedDateRange({ startDate: payload.startDate, endDate: payload.endDate });
+        }
     };
     const handleStartDateChange = (newStart) => {
-        setTempDateRange((dr) => ({ ...dr, startDate: newStart }));
+        if (shared?.handleStartDateChange) {
+            shared.handleStartDateChange(newStart);
+        } else {
+            setTempDateRange((dr) => ({ ...dr, startDate: newStart }));
+        }
     };
     const handleEndDateChange = (newEnd) => {
-        setTempDateRange((dr) => ({ ...dr, endDate: newEnd }));
+        if (shared?.handleEndDateChange) {
+            shared.handleEndDateChange(newEnd);
+        } else {
+            setTempDateRange((dr) => ({ ...dr, endDate: newEnd }));
+        }
     };
+
+    useEffect(() => {
+        if (!shared) return;
+        setAppliedDateRange(shared.appliedDateRange);
+        setTempDateRange(shared.tempDateRange);
+    }, [shared, shared?.appliedDateRange, shared?.tempDateRange]);
 
     const {
         shopifyMarketsFeatureOn,
@@ -102,7 +122,7 @@ function EcommerceDailyOverview({ customer: customerProp }) {
         spendQuerySuffix,
     } = useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn);
 
-    const mergedSourcesQuerySuffix = `${marketQuerySuffix}${spendQuerySuffix}`;
+    const mergedSourcesQuerySuffix = shared?.mergedSourcesQuerySuffix ?? `${marketQuerySuffix}${spendQuerySuffix}`;
 
     const marketsSpendColumns = useMemo(
         () =>

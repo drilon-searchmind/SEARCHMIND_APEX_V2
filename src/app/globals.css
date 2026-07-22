@@ -25,6 +25,10 @@
 
   /* Font family */
   --font-family: 'AcidGrotesk', 'Outfit', sans-serif;
+
+  /* Base surface colors (used by body) */
+  --background: var(--color-natural);
+  --foreground: var(--color-black);
 }
 
 html, body {

@@ -20,6 +20,7 @@ import MarketsMetricsTable from './MarketsMetricsTable';
 import { aggregateIncludedMarketRows } from './marketsTotalsUtils';
 import { isShopifyMarketsCustomer } from '@/lib/customerPlatformDisplay';
 import { revenueVatDisplayLabelSuffix } from '@/lib/revenueVatDisplay';
+import { useDashboardDataOptional } from '@/contexts/DashboardDataContext';
 import './markets-overview.css';
 
 const MarketsOverviewPage = () => {
@@ -27,6 +28,7 @@ const MarketsOverviewPage = () => {
     const router = useRouter();
     const { customers } = useCustomers();
     const customer = customers.find((c) => c._id === params.customerId);
+    const shared = useDashboardDataOptional();
     const marketsEnabled = isShopifyMarketsCustomer(customer);
 
     const today = new Date();
@@ -52,7 +54,7 @@ const MarketsOverviewPage = () => {
     useEffect(() => {
         if (!customer) return;
         if (!marketsEnabled) {
-            router.replace(`/dashboard/${params.customerId}/performance-dashboard`);
+            router.replace(`/dashboard/${params.customerId}/home?page_id=overview`);
         }
     }, [customer, marketsEnabled, params.customerId, router]);
 
@@ -60,15 +62,25 @@ const MarketsOverviewPage = () => {
         setHiddenMarkets({});
     }, [customer?._id, appliedDateRange.startDate, appliedDateRange.endDate]);
 
-    const handleDateRangeApply = ({ startDate, endDate }) => {
+    const handleDateRangeApply = (payload) => {
         pushDashboardDateRangeApplied({
             page: 'markets_overview',
             customerId: params.customerId,
-            startDate,
-            endDate,
+            startDate: payload.startDate,
+            endDate: payload.endDate,
         });
-        setAppliedDateRange({ startDate, endDate });
+        if (shared?.handleDateRangeApply) {
+            shared.handleDateRangeApply(payload);
+        } else {
+            setAppliedDateRange({ startDate: payload.startDate, endDate: payload.endDate });
+        }
     };
+
+    useEffect(() => {
+        if (!shared) return;
+        setAppliedDateRange(shared.appliedDateRange);
+        setTempDateRange(shared.tempDateRange);
+    }, [shared, shared?.appliedDateRange, shared?.tempDateRange]);
 
     const {
         adSpendFilterUiChannels,
@@ -80,7 +92,7 @@ const MarketsOverviewPage = () => {
         spendQuerySuffix,
     } = useAdSpendPlatformsFilter(customer, marketsEnabled);
 
-    const marketsQuerySuffix = spendQuerySuffix;
+    const marketsQuerySuffix = shared?.spendQuerySuffix ?? spendQuerySuffix;
 
     const { rows, storeTotalRow, loading, error, featureDisabled, visibleMarketingColumnKeys } =
         useMarketsOverviewData(
@@ -303,12 +315,20 @@ const MarketsOverviewPage = () => {
                         onApply={handleDateRangeApply}
                         startDate={tempDateRange.startDate}
                         endDate={tempDateRange.endDate}
-                        onStartDateChange={(newStart) =>
-                            setTempDateRange((dr) => ({ ...dr, startDate: newStart }))
-                        }
-                        onEndDateChange={(newEnd) =>
-                            setTempDateRange((dr) => ({ ...dr, endDate: newEnd }))
-                        }
+                        onStartDateChange={(newStart) => {
+                            if (shared?.handleStartDateChange) {
+                                shared.handleStartDateChange(newStart);
+                            } else {
+                                setTempDateRange((dr) => ({ ...dr, startDate: newStart }));
+                            }
+                        }}
+                        onEndDateChange={(newEnd) => {
+                            if (shared?.handleEndDateChange) {
+                                shared.handleEndDateChange(newEnd);
+                            } else {
+                                setTempDateRange((dr) => ({ ...dr, endDate: newEnd }));
+                            }
+                        }}
                     />
                 }
             />

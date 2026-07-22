@@ -1,22 +1,24 @@
 import { useEffect, useState } from "react";
 import { adSpendChannelsForShopifyMarketsFilterUi } from "@/lib/mergeAdSpendDaily";
+import { useDashboardDataOptional } from "@/contexts/DashboardDataContext";
+import { fetchMarketsOverviewJson } from "@/lib/dashboard/fetchMergedSources";
 
 async function fetchMarketsOverview(
     customerId,
     startDate,
     endDate,
-    querySuffix = ""
+    querySuffix = "",
+    fetchMarketsOverviewCached
 ) {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-    const res = await fetch(
-        `${baseUrl}/api/markets-overview/${customerId}?startDate=${startDate}&endDate=${endDate}${querySuffix}`,
-        { credentials: "same-origin" }
-    );
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) {
-        throw new Error(body.error || "Failed to fetch markets overview");
+    if (fetchMarketsOverviewCached) {
+        return fetchMarketsOverviewCached(startDate, endDate, querySuffix);
     }
-    return body;
+    return fetchMarketsOverviewJson({
+        customerId,
+        startDate,
+        endDate,
+        suffix: querySuffix,
+    });
 }
 
 /**
@@ -31,9 +33,13 @@ export function useMarketsOverviewData(
     querySuffix = "",
     appliedExcludedPlatforms = {}
 ) {
+    const dashboardData = useDashboardDataOptional();
+    const fetchMarketsOverviewCached = dashboardData?.fetchMarketsOverview;
+    const isHubMode = dashboardData?.isHubMode === true;
+
     const [rows, setRows] = useState([]);
     const [storeTotalRow, setStoreTotalRow] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(() => !isHubMode);
     const [error, setError] = useState(null);
     const [featureDisabled, setFeatureDisabled] = useState(false);
     const [visibleMarketingColumnKeys, setVisibleMarketingColumnKeys] = useState(null);
@@ -57,7 +63,9 @@ export function useMarketsOverviewData(
         }
 
         setFeatureDisabled(false);
-        setLoading(true);
+        if (!isHubMode) {
+            setLoading(true);
+        }
         setError(null);
         setVisibleMarketingColumnKeys(null);
 
@@ -69,7 +77,8 @@ export function useMarketsOverviewData(
                     customer._id,
                     appliedDateRange.startDate,
                     appliedDateRange.endDate,
-                    querySuffix
+                    querySuffix,
+                    fetchMarketsOverviewCached
                 );
                 if (cancelled) return;
 
@@ -114,7 +123,7 @@ export function useMarketsOverviewData(
         return () => {
             cancelled = true;
         };
-    }, [customer, appliedDateRange, querySuffix, appliedExcludedPlatforms]);
+    }, [customer, appliedDateRange, querySuffix, appliedExcludedPlatforms, fetchMarketsOverviewCached, isHubMode]);
 
     return {
         rows,

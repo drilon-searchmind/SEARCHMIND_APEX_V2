@@ -15,6 +15,7 @@ import { pushDashboardDateRangeApplied, pushGTMEvent, GTM_EVENTS } from '@root/l
 import { useShopifyMarketsFilter } from '@/hooks/useShopifyMarketsFilter';
 import { useAdSpendPlatformsFilter } from '@/hooks/useAdSpendPlatformsFilter';
 import { adSpendChannelsForShopifyMarketsFilterUi } from '@/lib/mergeAdSpendDaily';
+import { useDashboardDataOptional } from '@/contexts/DashboardDataContext';
 import {
 	getObjectivesScopeLabel,
 	normalizeMarketPropertyObjectives,
@@ -27,6 +28,7 @@ export default function PaceReportPage() {
 	const params = useParams();
 	const { customers, fetchCustomers } = useCustomers();
 	const customer = customers.find((c) => c._id === params.customerId);
+	const shared = useDashboardDataOptional();
 
 	const [updatedObjectives, setUpdatedObjectives] = useState(null);
 	const [updatedMarketObjectives, setUpdatedMarketObjectives] = useState(null);
@@ -50,21 +52,39 @@ export default function PaceReportPage() {
 		endDate: defaultEnd,
 	});
 
-	const handleDateRangeApply = ({ startDate, endDate }) => {
+	const handleDateRangeApply = (payload) => {
 		pushDashboardDateRangeApplied({
 			page: 'tools_pace_report',
 			customerId: params.customerId,
-			startDate,
-			endDate,
+			startDate: payload.startDate,
+			endDate: payload.endDate,
 		});
-		setAppliedDateRange({ startDate, endDate });
+		if (shared?.handleDateRangeApply) {
+			shared.handleDateRangeApply(payload);
+		} else {
+			setAppliedDateRange({ startDate: payload.startDate, endDate: payload.endDate });
+		}
 	};
 	const handleStartDateChange = (newStart) => {
-		setTempDateRange((dr) => ({ ...dr, startDate: newStart }));
+		if (shared?.handleStartDateChange) {
+			shared.handleStartDateChange(newStart);
+		} else {
+			setTempDateRange((dr) => ({ ...dr, startDate: newStart }));
+		}
 	};
 	const handleEndDateChange = (newEnd) => {
-		setTempDateRange((dr) => ({ ...dr, endDate: newEnd }));
+		if (shared?.handleEndDateChange) {
+			shared.handleEndDateChange(newEnd);
+		} else {
+			setTempDateRange((dr) => ({ ...dr, endDate: newEnd }));
+		}
 	};
+
+	useEffect(() => {
+		if (!shared) return;
+		setAppliedDateRange(shared.appliedDateRange);
+		setTempDateRange(shared.tempDateRange);
+	}, [shared, shared?.appliedDateRange, shared?.tempDateRange]);
 
 	const {
 		shopifyMarketsFeatureOn,
@@ -91,7 +111,7 @@ export default function PaceReportPage() {
 		spendQuerySuffix,
 	} = useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn);
 
-	const mergedSourcesQuerySuffix = `${marketQuerySuffix}${spendQuerySuffix}`;
+	const mergedSourcesQuerySuffix = shared?.mergedSourcesQuerySuffix ?? `${marketQuerySuffix}${spendQuerySuffix}`;
 
 	const customerForObjectives = useMemo(() => {
 		if (!customer) return null;

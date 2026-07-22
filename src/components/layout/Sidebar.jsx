@@ -22,7 +22,7 @@ import {
     FiMessageCircle,
 } from "react-icons/fi";
 import Image from "next/image";
-import { useParams, usePathname } from "next/navigation";
+import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { useCustomers } from "@/hooks/useCustomers";
 import { getServiceDashboardConfigWarnings } from "@/lib/customerServiceIntegrations";
 import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
@@ -45,7 +45,7 @@ function serviceDashboardWarningKeyForHref(href) {
 const getIconForRoute = (href) => {
     if (href.includes("performance-dashboard")) return <FiTrendingUp className="w-4 h-4" />;
     if (href.includes("daily-overview")) return <FiCalendar className="w-4 h-4" />;
-    if (href.includes("markets-overview")) return <FiGlobe className="w-4 h-4" />;
+    if (href.includes("markets-overview") || href.includes("page_id=markets")) return <FiGlobe className="w-4 h-4" />;
     if (href.includes("pace-report")) return <FiActivity className="w-4 h-4" />;
     if (href.includes("pnl")) return <FiDollarSign className="w-4 h-4" />;
     if (href.includes("ecommerce")) return <FiShoppingCart className="w-4 h-4" />;
@@ -69,8 +69,10 @@ const getIconForRoute = (href) => {
 const CONFIG_WARNING_TITLE =
     "Integration not configured for this customer (check Config or set a valid ID — not empty, 0, or 1)";
 
-const NavItem = ({ href, label, pathname, subLabel, isSmallScreen, configWarning }) => {
-    const isActive = pathname === href;
+const NavItem = ({ href, label, pathname, subLabel, isSmallScreen, configWarning, pageId, activePageId }) => {
+    const isActive = pageId
+        ? pathname.includes("/home") && activePageId === pageId
+        : pathname === href;
     const icon = getIconForRoute(href);
 
     return (
@@ -121,7 +123,12 @@ const Sidebar = ({ showLinks = true }) => {
     const params = useParams();
     const { customers } = useCustomers();
     const pathname = usePathname();
+    const searchParams = useSearchParams();
     const activeCustomerId = params?.customerId;
+    const activePageId = searchParams.get("page_id") || "overview";
+
+    const dashboardHubHref = (pageId) =>
+        `/dashboard/${activeCustomerId}/home?page_id=${pageId}`;
 
     const activeCustomer = useMemo(() => {
         if (!activeCustomerId) return null;
@@ -196,20 +203,26 @@ const Sidebar = ({ showLinks = true }) => {
                                     {dashboardOpen && (
                                         <ul className="apex-dash-nav__sub">
                                             <NavItem
-                                                href={`/dashboard/${activeCustomerId}/performance-dashboard`}
+                                                href={dashboardHubHref("overview")}
+                                                pageId="overview"
+                                                activePageId={activePageId}
                                                 label="Overview"
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                             />
                                             <NavItem
-                                                href={`/dashboard/${activeCustomerId}/daily-overview`}
+                                                href={dashboardHubHref("daily")}
+                                                pageId="daily"
+                                                activePageId={activePageId}
                                                 label="Daily"
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                             />
                                             {shopifyMarketsMenuEnabled && !b2bCustomer ? (
                                                 <NavItem
-                                                    href={`/dashboard/${activeCustomerId}/markets-overview`}
+                                                    href={dashboardHubHref("markets")}
+                                                    pageId="markets"
+                                                    activePageId={activePageId}
                                                     label="Markets"
                                                     subLabel="NEW"
                                                     pathname={pathname}
@@ -219,19 +232,25 @@ const Sidebar = ({ showLinks = true }) => {
                                             {!b2bCustomer ? (
                                                 <>
                                             <NavItem
-                                                href={`/dashboard/${activeCustomerId}/tools/pace-report`}
+                                                href={dashboardHubHref("pace-report")}
+                                                pageId="pace-report"
+                                                activePageId={activePageId}
                                                 label="Pace Report"
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                             />
                                             <NavItem
-                                                href={`/dashboard/${activeCustomerId}/tools/pnl`}
+                                                href={dashboardHubHref("pnl")}
+                                                pageId="pnl"
+                                                activePageId={activePageId}
                                                 label="P&L"
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
                                             />
                                             <NavItem
-                                                href={`/dashboard/${activeCustomerId}/ecommerce`}
+                                                href={dashboardHubHref("ecommerce")}
+                                                pageId="ecommerce"
+                                                activePageId={activePageId}
                                                 label="Ecommerce"
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
