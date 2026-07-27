@@ -11,8 +11,11 @@ import PnlChartsSidebar from "./PnlChartsSidebar";
 import PnlSummaryStrip from "./PnlSummaryStrip";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
-import { useShopifyMarketsFilter } from "@/hooks/useShopifyMarketsFilter";
-import { useAdSpendPlatformsFilter } from "@/hooks/useAdSpendPlatformsFilter";
+import {
+    useDashboardFilters,
+    buildShopifyMarketFilterProps,
+    buildAdSpendPlatformFilterProps,
+} from "@/hooks/useDashboardHubShared";
 import { useDashboardDataOptional } from "@/contexts/DashboardDataContext";
 import "./pnl.css";
 
@@ -42,32 +45,12 @@ export default function PNLPage() {
         dateRangePickerProps,
     } = shared ?? localDateRange;
 
+    const filters = useDashboardFilters(customer, params.customerId);
     const {
         shopifyMarketsFeatureOn,
-        shopifyMarkets,
-        shopifyMarketsLoading,
-        excludedShopifyMarkets,
-        appliedExcludedShopifyMarkets,
-        toggleShopifyMarket,
-        applyShopifyMarketFilters,
-        syncDraftFromAppliedMarkets,
-        marketQuerySuffix,
-        draftFilterAdSpendByMarket,
-        appliedFilterAdSpendByMarket,
-        setDraftFilterAdSpendByMarket,
-    } = useShopifyMarketsFilter(customer, params.customerId);
-
-    const {
-        adSpendFilterUiChannels,
-        draftExcludedPlatforms,
         appliedExcludedPlatforms,
-        toggleAdSpendPlatformDraft,
-        applyAdSpendPlatformFilters,
-        syncDraftFromAppliedSpend,
-        spendQuerySuffix,
-    } = useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn);
-
-    const mergedSourcesQuerySuffix = shared?.mergedSourcesQuerySuffix ?? `${marketQuerySuffix}${spendQuerySuffix}`;
+        mergedSourcesQuerySuffix,
+    } = filters;
 
     const pnlMarketsSpend = useMemo(
         () =>
@@ -128,37 +111,8 @@ export default function PNLPage() {
                     staticExpenses: pnl.staticExpenses,
                     days: pnl.days,
                 }}
-                shopifyMarketFilter={
-                    shopifyMarketsFeatureOn
-                        ? {
-                              loading: shopifyMarketsLoading,
-                              options: shopifyMarkets,
-                              excludedMarkets: excludedShopifyMarkets,
-                              appliedExcludedMarkets: appliedExcludedShopifyMarkets,
-                              onToggleMarket: toggleShopifyMarket,
-                              onMenuWillOpen: syncDraftFromAppliedMarkets,
-                              onApplyMarkets: applyShopifyMarketFilters,
-                              filterAdSpendByMarket: draftFilterAdSpendByMarket,
-                              appliedFilterAdSpendByMarket,
-                              onFilterAdSpendByMarketChange: setDraftFilterAdSpendByMarket,
-                          }
-                        : null
-                }
-                adSpendPlatformFilter={
-                    shopifyMarketsFeatureOn && adSpendFilterUiChannels.length > 0
-                        ? {
-                              options: adSpendFilterUiChannels.map((c) => ({
-                                  id: c.id,
-                                  label: c.label,
-                              })),
-                              excludedPlatforms: draftExcludedPlatforms,
-                              appliedExcludedPlatforms,
-                              onTogglePlatform: toggleAdSpendPlatformDraft,
-                              onMenuWillOpen: syncDraftFromAppliedSpend,
-                              onApplySpend: applyAdSpendPlatformFilters,
-                          }
-                        : null
-                }
+                shopifyMarketFilter={buildShopifyMarketFilterProps(filters)}
+                adSpendPlatformFilter={buildAdSpendPlatformFilterProps(filters)}
                 right={
                     <DateRangePicker
                         {...dateRangePickerProps}

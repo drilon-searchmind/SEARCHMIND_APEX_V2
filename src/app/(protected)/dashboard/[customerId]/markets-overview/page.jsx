@@ -14,7 +14,10 @@ import {
 } from './marketsMetricConfig';
 import { AD_SPEND_DAILY_COLUMN_KEYS } from '@/lib/mergeAdSpendDaily';
 import { pushDashboardDateRangeApplied } from '@root/lib/gtmFunctions';
-import { useAdSpendPlatformsFilter } from '@/hooks/useAdSpendPlatformsFilter';
+import {
+    useDashboardFilters,
+    buildAdSpendPlatformFilterProps,
+} from '@/hooks/useDashboardHubShared';
 import { useMarketsOverviewData } from './useMarketsOverviewData';
 import MarketsMetricsTable from './MarketsMetricsTable';
 import { aggregateIncludedMarketRows } from './marketsTotalsUtils';
@@ -51,6 +54,13 @@ const MarketsOverviewPage = () => {
     const [hiddenMarkets, setHiddenMarkets] = useState({});
     const [chartMetricKey, setChartMetricKey] = useState('netRevenue');
 
+    const filters = useDashboardFilters(customer, params.customerId);
+    const { appliedExcludedPlatforms, spendQuerySuffix } = filters;
+
+    const resolvedAppliedDateRange = shared?.appliedDateRange ?? appliedDateRange;
+    const resolvedTempDateRange = shared?.tempDateRange ?? tempDateRange;
+    const marketsQuerySuffix = spendQuerySuffix;
+
     useEffect(() => {
         if (!customer) return;
         if (!marketsEnabled) {
@@ -60,7 +70,7 @@ const MarketsOverviewPage = () => {
 
     useEffect(() => {
         setHiddenMarkets({});
-    }, [customer?._id, appliedDateRange.startDate, appliedDateRange.endDate]);
+    }, [customer?._id, resolvedAppliedDateRange.startDate, resolvedAppliedDateRange.endDate]);
 
     const handleDateRangeApply = (payload) => {
         pushDashboardDateRangeApplied({
@@ -82,22 +92,10 @@ const MarketsOverviewPage = () => {
         setTempDateRange(shared.tempDateRange);
     }, [shared, shared?.appliedDateRange, shared?.tempDateRange]);
 
-    const {
-        adSpendFilterUiChannels,
-        draftExcludedPlatforms,
-        appliedExcludedPlatforms,
-        toggleAdSpendPlatformDraft,
-        applyAdSpendPlatformFilters,
-        syncDraftFromAppliedSpend,
-        spendQuerySuffix,
-    } = useAdSpendPlatformsFilter(customer, marketsEnabled);
-
-    const marketsQuerySuffix = shared?.spendQuerySuffix ?? spendQuerySuffix;
-
     const { rows, storeTotalRow, loading, error, featureDisabled, visibleMarketingColumnKeys } =
         useMarketsOverviewData(
             customer,
-            appliedDateRange,
+            resolvedAppliedDateRange,
             marketsQuerySuffix,
             appliedExcludedPlatforms
         );
@@ -287,34 +285,20 @@ const MarketsOverviewPage = () => {
                 label={customer.customerName}
                 subtitle={headingSubtitle}
                 customerId={params.customerId}
-                dateRange={appliedDateRange}
+                dateRange={resolvedAppliedDateRange}
                 loading={loading}
                 dashboardType="markets-overview"
                 dataSnapshot={{
                     marketRows: rows,
                     storeTotalRow: displayTotalRow,
                 }}
-                adSpendPlatformFilter={
-                    adSpendFilterUiChannels.length > 0
-                        ? {
-                              options: adSpendFilterUiChannels.map((c) => ({
-                                  id: c.id,
-                                  label: c.label,
-                              })),
-                              excludedPlatforms: draftExcludedPlatforms,
-                              appliedExcludedPlatforms,
-                              onTogglePlatform: toggleAdSpendPlatformDraft,
-                              onMenuWillOpen: syncDraftFromAppliedSpend,
-                              onApplySpend: applyAdSpendPlatformFilters,
-                          }
-                        : null
-                }
+                adSpendPlatformFilter={buildAdSpendPlatformFilterProps(filters)}
                 right={
                     <DateRangePicker
                         variant="cobalt"
                         onApply={handleDateRangeApply}
-                        startDate={tempDateRange.startDate}
-                        endDate={tempDateRange.endDate}
+                        startDate={resolvedTempDateRange.startDate}
+                        endDate={resolvedTempDateRange.endDate}
                         onStartDateChange={(newStart) => {
                             if (shared?.handleStartDateChange) {
                                 shared.handleStartDateChange(newStart);

@@ -21,8 +21,11 @@ import {
     applyCobaltSeriesStyle,
 } from '@/lib/charts/cobaltChartTheme';
 import { pushDashboardDateRangeApplied } from '@root/lib/gtmFunctions';
-import { useShopifyMarketsFilter } from '@/hooks/useShopifyMarketsFilter';
-import { useAdSpendPlatformsFilter } from '@/hooks/useAdSpendPlatformsFilter';
+import {
+    useDashboardFilters,
+    buildShopifyMarketFilterProps,
+    buildAdSpendPlatformFilterProps,
+} from '@/hooks/useDashboardHubShared';
 import B2BDailyOverview from './B2BDailyOverview';
 import { useDashboardDataOptional } from '@/contexts/DashboardDataContext';
 
@@ -97,32 +100,15 @@ function EcommerceDailyOverview({ customer: customerProp }) {
         setTempDateRange(shared.tempDateRange);
     }, [shared, shared?.appliedDateRange, shared?.tempDateRange]);
 
+    const filters = useDashboardFilters(customer, params.customerId);
     const {
         shopifyMarketsFeatureOn,
-        shopifyMarkets,
-        shopifyMarketsLoading,
-        excludedShopifyMarkets,
-        appliedExcludedShopifyMarkets,
-        toggleShopifyMarket,
-        applyShopifyMarketFilters,
-        syncDraftFromAppliedMarkets,
-        marketQuerySuffix,
-        draftFilterAdSpendByMarket,
-        appliedFilterAdSpendByMarket,
-        setDraftFilterAdSpendByMarket,
-    } = useShopifyMarketsFilter(customer, params.customerId);
-
-    const {
-        adSpendFilterUiChannels,
-        draftExcludedPlatforms,
         appliedExcludedPlatforms,
-        toggleAdSpendPlatformDraft,
-        applyAdSpendPlatformFilters,
-        syncDraftFromAppliedSpend,
-        spendQuerySuffix,
-    } = useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn);
+        mergedSourcesQuerySuffix,
+    } = filters;
 
-    const mergedSourcesQuerySuffix = shared?.mergedSourcesQuerySuffix ?? `${marketQuerySuffix}${spendQuerySuffix}`;
+    const resolvedAppliedDateRange = shared?.appliedDateRange ?? appliedDateRange;
+    const resolvedTempDateRange = shared?.tempDateRange ?? tempDateRange;
 
     const marketsSpendColumns = useMemo(
         () =>
@@ -146,7 +132,7 @@ function EcommerceDailyOverview({ customer: customerProp }) {
         customerMetricPreference,
         visibleMarketingColumnKeys,
         customKpis,
-    } = useDailyOverviewData(customer, appliedDateRange, mergedSourcesQuerySuffix, marketsSpendColumns);
+    } = useDailyOverviewData(customer, resolvedAppliedDateRange, mergedSourcesQuerySuffix, marketsSpendColumns);
 
     const [hoveredRowIndex, setHoveredRowIndex] = useState(null);
     const [hoveredRowTable, setHoveredRowTable] = useState(null);
@@ -266,7 +252,7 @@ function EcommerceDailyOverview({ customer: customerProp }) {
                 title="Daily Overview"
                 label={customer ? customer.customerName : ''}
                 customerId={params.customerId}
-                dateRange={appliedDateRange}
+                dateRange={resolvedAppliedDateRange}
                 loading={loading}
                 dashboardType="daily-overview"
                 dataSnapshot={{
@@ -276,43 +262,14 @@ function EcommerceDailyOverview({ customer: customerProp }) {
                     metricPreference: customerMetricPreference,
                     revenueType: revenueTypeState,
                 }}
-                shopifyMarketFilter={
-                    shopifyMarketsFeatureOn
-                        ? {
-                              loading: shopifyMarketsLoading,
-                              options: shopifyMarkets,
-                              excludedMarkets: excludedShopifyMarkets,
-                              appliedExcludedMarkets: appliedExcludedShopifyMarkets,
-                              onToggleMarket: toggleShopifyMarket,
-                              onMenuWillOpen: syncDraftFromAppliedMarkets,
-                              onApplyMarkets: applyShopifyMarketFilters,
-                              filterAdSpendByMarket: draftFilterAdSpendByMarket,
-                              appliedFilterAdSpendByMarket,
-                              onFilterAdSpendByMarketChange: setDraftFilterAdSpendByMarket,
-                          }
-                        : null
-                }
-                adSpendPlatformFilter={
-                    shopifyMarketsFeatureOn && adSpendFilterUiChannels.length > 0
-                        ? {
-                              options: adSpendFilterUiChannels.map((c) => ({
-                                  id: c.id,
-                                  label: c.label,
-                              })),
-                              excludedPlatforms: draftExcludedPlatforms,
-                              appliedExcludedPlatforms,
-                              onTogglePlatform: toggleAdSpendPlatformDraft,
-                              onMenuWillOpen: syncDraftFromAppliedSpend,
-                              onApplySpend: applyAdSpendPlatformFilters,
-                          }
-                        : null
-                }
+                shopifyMarketFilter={buildShopifyMarketFilterProps(filters)}
+                adSpendPlatformFilter={buildAdSpendPlatformFilterProps(filters)}
                 right={
                     <DateRangePicker
                         variant="cobalt"
                         onApply={handleDateRangeApply}
-                        startDate={tempDateRange.startDate}
-                        endDate={tempDateRange.endDate}
+                        startDate={resolvedTempDateRange.startDate}
+                        endDate={resolvedTempDateRange.endDate}
                         onStartDateChange={handleStartDateChange}
                         onEndDateChange={handleEndDateChange}
                     />

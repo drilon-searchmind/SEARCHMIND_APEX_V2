@@ -46,8 +46,11 @@ import {
     resolveChartCategoryPrevKey,
     COMPARISON_METHOD,
 } from "@/lib/dateRangeComparison";
-import { useShopifyMarketsFilter } from "@/hooks/useShopifyMarketsFilter";
-import { useAdSpendPlatformsFilter } from "@/hooks/useAdSpendPlatformsFilter";
+import {
+    useDashboardFilters,
+    buildShopifyMarketFilterProps,
+    buildAdSpendPlatformFilterProps,
+} from "@/hooks/useDashboardHubShared";
 import {
     adSpendByPeriodMap,
     adSpendChannelsForDashboard,
@@ -178,32 +181,13 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
         setTempCompareRange((r) => ({ ...r, endDate: newEnd }));
     };
 
+    const filters = useDashboardFilters(customer, params?.customerId);
     const {
         shopifyMarketsFeatureOn,
-        shopifyMarkets,
-        shopifyMarketsLoading,
-        excludedShopifyMarkets,
-        appliedExcludedShopifyMarkets,
-        toggleShopifyMarket,
-        applyShopifyMarketFilters,
-        syncDraftFromAppliedMarkets,
-        marketQuerySuffix,
-        draftFilterAdSpendByMarket,
-        appliedFilterAdSpendByMarket,
-        setDraftFilterAdSpendByMarket,
-    } = useShopifyMarketsFilter(customer, params?.customerId);
-
-    const {
         adSpendFilterUiChannels,
-        draftExcludedPlatforms,
         appliedExcludedPlatforms,
-        toggleAdSpendPlatformDraft,
-        applyAdSpendPlatformFilters,
-        syncDraftFromAppliedSpend,
-        spendQuerySuffix,
-    } = useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn);
-
-    const mergedSourcesQuerySuffix = shared?.mergedSourcesQuerySuffix ?? `${marketQuerySuffix}${spendQuerySuffix}`;
+        mergedSourcesQuerySuffix,
+    } = filters;
     const resolvedAppliedDateRange = shared?.appliedDateRange ?? appliedDateRange;
     const resolvedAppliedCompareRange = shared?.appliedCompareRange ?? appliedCompareRange;
     const resolvedComparisonMethod = shared?.comparisonMethod ?? comparisonMethod;
@@ -216,21 +200,6 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
     const resolvedHandleEndDateChange = shared?.handleEndDateChange ?? handleEndDateChange;
     const resolvedHandleCompareStartChange = shared?.dateRangePickerProps?.onCompareStartChange ?? handleCompareStartChange;
     const resolvedHandleCompareEndChange = shared?.dateRangePickerProps?.onCompareEndChange ?? handleCompareEndChange;
-    const resolvedShopifyMarketsFeatureOn = shared?.shopifyMarketsFeatureOn ?? shopifyMarketsFeatureOn;
-    const resolvedShopifyMarkets = shared?.shopifyMarkets ?? shopifyMarkets;
-    const resolvedShopifyMarketsLoading = shared?.shopifyMarketsLoading ?? shopifyMarketsLoading;
-    const resolvedExcludedShopifyMarkets = shared?.excludedShopifyMarkets ?? excludedShopifyMarkets;
-    const resolvedToggleShopifyMarket = shared?.toggleShopifyMarket ?? toggleShopifyMarket;
-    const resolvedApplyShopifyMarketFilters = shared?.applyShopifyMarketFilters ?? applyShopifyMarketFilters;
-    const resolvedSyncDraftFromAppliedMarkets = shared?.syncDraftFromAppliedMarkets ?? syncDraftFromAppliedMarkets;
-    const resolvedDraftFilterAdSpendByMarket = shared?.draftFilterAdSpendByMarket ?? draftFilterAdSpendByMarket;
-    const resolvedAppliedFilterAdSpendByMarket = shared?.appliedFilterAdSpendByMarket ?? appliedFilterAdSpendByMarket;
-    const resolvedSetDraftFilterAdSpendByMarket = shared?.setDraftFilterAdSpendByMarket ?? setDraftFilterAdSpendByMarket;
-    const resolvedAdSpendFilterUiChannels = shared?.adSpendFilterUiChannels ?? adSpendFilterUiChannels;
-    const resolvedDraftExcludedPlatforms = shared?.draftExcludedPlatforms ?? draftExcludedPlatforms;
-    const resolvedToggleAdSpendPlatformDraft = shared?.toggleAdSpendPlatformDraft ?? toggleAdSpendPlatformDraft;
-    const resolvedApplyAdSpendPlatformFilters = shared?.applyAdSpendPlatformFilters ?? applyAdSpendPlatformFilters;
-    const resolvedSyncDraftFromAppliedSpend = shared?.syncDraftFromAppliedSpend ?? syncDraftFromAppliedSpend;
 
     useEffect(() => {
         if (!shared) return;
@@ -1276,41 +1245,12 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
                 title="Performance Dashboard"
                 label={customer ? customer.customerName : ""}
                 customerId={params.customerId}
-                dateRange={appliedDateRange}
-                comparisonMethod={comparisonMethod}
+                dateRange={resolvedAppliedDateRange}
+                comparisonMethod={resolvedComparisonMethod}
                 loading={loading}
                 dashboardType="performance-dashboard"
-                shopifyMarketFilter={
-                    shopifyMarketsFeatureOn
-                        ? {
-                              loading: shopifyMarketsLoading,
-                              options: shopifyMarkets,
-                              excludedMarkets: excludedShopifyMarkets,
-                              appliedExcludedMarkets: appliedExcludedShopifyMarkets,
-                              onToggleMarket: toggleShopifyMarket,
-                              onMenuWillOpen: syncDraftFromAppliedMarkets,
-                              onApplyMarkets: applyShopifyMarketFilters,
-                              filterAdSpendByMarket: draftFilterAdSpendByMarket,
-                              appliedFilterAdSpendByMarket,
-                              onFilterAdSpendByMarketChange: setDraftFilterAdSpendByMarket,
-                          }
-                        : null
-                }
-                adSpendPlatformFilter={
-                    shopifyMarketsFeatureOn && adSpendFilterUiChannels.length > 0
-                        ? {
-                              options: adSpendFilterUiChannels.map((c) => ({
-                                  id: c.id,
-                                  label: c.label,
-                              })),
-                              excludedPlatforms: draftExcludedPlatforms,
-                              appliedExcludedPlatforms,
-                              onTogglePlatform: toggleAdSpendPlatformDraft,
-                              onMenuWillOpen: syncDraftFromAppliedSpend,
-                              onApplySpend: applyAdSpendPlatformFilters,
-                          }
-                        : null
-                }
+                shopifyMarketFilter={buildShopifyMarketFilterProps(filters)}
+                adSpendPlatformFilter={buildAdSpendPlatformFilterProps(filters)}
                 dataSnapshot={{
                     metrics,
                     metricsData,
@@ -1335,8 +1275,8 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
                     <DateRangePicker
                         variant="cobalt"
                         onApply={handleDateRangeApply}
-                        startDate={tempDateRange.startDate}
-                        endDate={tempDateRange.endDate}
+                        startDate={resolvedTempDateRange.startDate}
+                        endDate={resolvedTempDateRange.endDate}
                         onStartDateChange={handleStartDateChange}
                         onEndDateChange={handleEndDateChange}
                         compareStartDate={tempCompareRange.startDate}
