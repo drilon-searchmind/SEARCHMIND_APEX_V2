@@ -26,6 +26,10 @@ import {
     getMonthlyFixedExpensesTotal,
     getFixedExpensesBreakdownLineItems,
 } from "@/lib/customerStaticExpensesUtils";
+import {
+    resolveOverviewChartMetricValue,
+    overviewChartMetricLabel,
+} from "@/lib/performanceDashboard/resolveOverviewChartMetricValue";
 import { buildPerformanceMetricsCards } from "./components/buildPerformanceMetricsCards";
 import PerformanceDashboardStandardSections from "./components/PerformanceDashboardStandardSections";
 import {
@@ -36,7 +40,6 @@ import {
 import { computePerformanceDashboardMetrics, netRevenueForShopifyDay } from "@/lib/performanceDashboard/computePerformanceMetrics";
 import { getReturnsOverrideSettings } from "@/lib/performanceDashboard/performanceDashboardConstants";
 import { applyVatDisplayToShopifyDailyRows } from "@/lib/revenueVatDisplay";
-import { netRevenueFromGrossDiscountsReturns } from "@/lib/performanceDashboard/computePerformanceMetrics";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 import {
     getDefaultDashboardDateRange,
@@ -59,7 +62,6 @@ import {
     channelSpendTotalsFromMerged,
     totalAdSpendFromMerged,
 } from "@/lib/mergeAdSpendDaily";
-import { calcBlendedPoasOrZero } from "@/lib/poasMetrics";
 import "./performance-dashboard.css";
 import { useDashboardDataOptional } from "@/contexts/DashboardDataContext";
 import {
@@ -776,38 +778,28 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
         const fetchCogsChart = customer?.CustomerSettings?.fetchCogsFromStore === true;
         const cogsPctChart = customer?.CustomerStaticExpenses?.cogsPercentage || 0;
 
-        const effectiveRevenue = (v) => {
-            if (!v) return 0;
-            if (returnsOverride.enabled) {
-                const pct = (returnsOverride.percent ?? 0) / 100;
-                const ret = (v.grossSales || 0) * pct;
-                return netRevenueFromGrossDiscountsReturns(
-                    v.grossSales || 0,
-                    v.discounts || 0,
-                    ret
-                );
-            }
-            return v.revenue || 0;
-        };
-        const effectiveReturns = (v) => {
-            if (!v) return 0;
-            if (returnsOverride.enabled) {
-                return (v.grossSales || 0) * ((returnsOverride.percent ?? 0) / 100);
-            }
-            return v.returns || 0;
-        };
-        const effectiveCogs = (v, rev) => {
-            if (fetchCogsChart) return v.cogs || 0;
-            return rev * cogsPctChart;
-        };
-
         const getFixedForPeriod = (k) => {
             if (aggregateBy === 'monthly') {
-                return fixedBase; // full month
+                return fixedBase;
             }
             const daysInMonth = dayjs(k).daysInMonth();
             return fixedBase / daysInMonth;
         };
+
+        const chartCtxBase = {
+            returnsOverride,
+            fetchCogsChart,
+            cogsPctChart,
+            shippingPerOrder,
+            pickPerOrder,
+            txCostPct,
+            returnsCostPct: staticExp.returnsCostPercentage ?? 0,
+            getFixedForPeriod,
+        };
+
+        const metricLabel = (key) =>
+            METRIC_OPTIONS.find((o) => o.key === key)?.label ||
+            overviewChartMetricLabel(key, visibleAdSpendChannels);
 
         selectedMetrics.forEach((metric) => {
             if (metric === 'cost') {
@@ -833,113 +825,26 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
                 return;
             }
 
-            const currData = categories.map(k => {
-                const v = currAgg[k];
-                if (!v) return null;
-                if (metric === 'revenue') return Number(effectiveRevenue(v).toFixed(0));
-                if (metric === 'total_sales') return Number(v.totalRevenue.toFixed(0));
-                if (metric === 'returns') return Number(effectiveReturns(v).toFixed(0));
-                if (metric === 'gross_profit') {
-                    const rev = effectiveRevenue(v);
-                    return Number((rev - effectiveCogs(v, rev)).toFixed(0));
-                }
-                if (metric === 'cogs') return Number(effectiveCogs(v, effectiveRevenue(v)).toFixed(0));
-                if (metric === 'fixed_costs') return Number(getFixedForPeriod(k).toFixed(0));
-                if (metric === 'variable_costs') return Number(((shippingPerOrder + pickPerOrder) * (v.orders || 0)).toFixed(0));
-                if (metric === 'pick_pack') return Number(((pickPerOrder || 0) * (v.orders || 0)).toFixed(0));
-                if (metric === 'ebit_pct') {
-                    const rev = effectiveRevenue(v);
-                    const cogs = effectiveCogs(v, rev);
-                    const fixed = getFixedForPeriod(k);
-                    const variable = (shippingPerOrder + pickPerOrder) * (v.orders || 0);
-                    const txFee = rev * txCostPct;
-                    const allCosts = cogs + fixed + variable + txFee + v.cost;
-                    return rev > 0 ? Number(((rev - allCosts) / rev * 100).toFixed(1)) : null;
-                }
-                if (metric === 'ebit') {
-                    const rev = effectiveRevenue(v);
-                    const cogs = effectiveCogs(v, rev);
-                    const fixed = getFixedForPeriod(k);
-                    const variable = (shippingPerOrder + pickPerOrder) * (v.orders || 0);
-                    const txFee = rev * txCostPct;
-                    const allCosts = cogs + fixed + variable + txFee + v.cost;
-                    return Number((rev - allCosts).toFixed(0));
-                }
-                if (metric === 'orders') return Number(v.orders || 0);
-                if (metric === 'roas') {
-                    const rev = effectiveRevenue(v);
-                    return v.cost > 0 ? Number((rev / v.cost).toFixed(2)) : null;
-                }
-                if (metric === 'poas') {
-                    const rev = effectiveRevenue(v);
-                    const cogs = effectiveCogs(v, rev);
-                    const grossProfit = rev - cogs;
-                    return v.cost > 0 ? Number(calcBlendedPoasOrZero(grossProfit, v.cost).toFixed(2)) : null;
-                }
-                if (metric === 'aov') {
-                    const rev = effectiveRevenue(v);
-                    return v.orders > 0 ? Number((rev / v.orders).toFixed(0)) : null;
-                }
-                if (metric === 'spendshare') {
-                    const rev = effectiveRevenue(v);
-                    return rev > 0 ? Number(((v.cost / rev) * 100).toFixed(0)) : null;
-                }
-                if (metric === 'cac') return (v.orders > 0 ? Number((v.cost / v.orders).toFixed(0)) : null);
-                return null;
-            });
+            const currData = categories.map((k) =>
+                resolveOverviewChartMetricValue(metric, currAgg[k], {
+                    ...chartCtxBase,
+                    periodKey: k,
+                })
+            );
 
-            series.push({ name: `${METRIC_OPTIONS.find(o=>o.key===metric)?.label || metric} (Current)`, data: currData });
+            series.push({ name: `${metricLabel(metric)} (Current)`, data: currData });
 
             const prevData = categories.map((k, idx) => {
                 const prevKey = getPrevKeyForCategory(k, idx);
-                const v = prevAgg[prevKey];
-                if (!v) return null;
-                if (metric === 'revenue') return Number(effectiveRevenue(v).toFixed(0));
-                if (metric === 'total_sales') return Number(v.totalRevenue.toFixed(0));
-                if (metric === 'returns') return Number(effectiveReturns(v).toFixed(0));
-                if (metric === 'gross_profit') {
-                    const rev = effectiveRevenue(v);
-                    return Number((rev - effectiveCogs(v, rev)).toFixed(0));
-                }
-                if (metric === 'cogs') return Number(effectiveCogs(v, effectiveRevenue(v)).toFixed(0));
-                if (metric === 'fixed_costs') return Number(getFixedForPeriod(prevKey).toFixed(0));
-                if (metric === 'variable_costs') return Number(((shippingPerOrder + pickPerOrder) * (v.orders || 0)).toFixed(0));
-                if (metric === 'pick_pack') return Number(((pickPerOrder || 0) * (v.orders || 0)).toFixed(0));
-                if (metric === 'ebit_pct') {
-                    const rev = effectiveRevenue(v);
-                    const cogs = effectiveCogs(v, rev);
-                    const fixed = getFixedForPeriod(prevKey);
-                    const variable = (shippingPerOrder + pickPerOrder) * (v.orders || 0);
-                    const txFee = rev * txCostPct;
-                    const allCosts = cogs + fixed + variable + txFee + v.cost;
-                    return rev > 0 ? Number(((rev - allCosts) / rev * 100).toFixed(1)) : null;
-                }
-                if (metric === 'ebit') {
-                    const rev = v.revenue || 0;
-                    const cogs = v.cogs || 0;
-                    const fixed = getFixedForPeriod(prevKey);
-                    const variable = (shippingPerOrder + pickPerOrder) * (v.orders || 0);
-                    const txFee = rev * txCostPct;
-                    const allCosts = cogs + fixed + variable + txFee + v.cost;
-                    return Number((rev - allCosts).toFixed(0));
-                }
-                if (metric === 'orders') return Number(v.orders || 0);
-                if (metric === 'roas') return (v.cost > 0 ? Number((v.revenue / v.cost).toFixed(2)) : null);
-                if (metric === 'poas') {
-                    const rev = v.revenue || 0;
-                    const cogs = v.cogs || 0;
-                    const grossProfit = rev - cogs;
-                    return v.cost > 0 ? Number(calcBlendedPoasOrZero(grossProfit, v.cost).toFixed(2)) : null;
-                }
-                if (metric === 'aov') return (v.orders > 0 ? Number((v.revenue / v.orders).toFixed(0)) : null);
-                if (metric === 'spendshare') return (v.revenue > 0 ? Number(((v.cost / v.revenue) * 100).toFixed(0)) : null);
-                if (metric === 'cac') return (v.orders > 0 ? Number((v.cost / v.orders).toFixed(0)) : null);
-                return null;
+                return resolveOverviewChartMetricValue(metric, prevAgg[prevKey], {
+                    ...chartCtxBase,
+                    periodKey: prevKey,
+                });
             });
 
             if (comparisonMethod !== COMPARISON_METHOD.NONE) {
                 series.push({
-                    name: `${METRIC_OPTIONS.find((o) => o.key === metric)?.label || metric} (${comparisonLabel})`,
+                    name: `${metricLabel(metric)} (${comparisonLabel})`,
                     data: prevData,
                 });
             }
