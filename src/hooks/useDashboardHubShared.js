@@ -24,13 +24,12 @@ export function useDashboardHubShared() {
 export function useDashboardPageContext() {
     const params = useParams();
     const customerId = params?.customerId;
-    const { customers } = useCustomers();
-    const customer = useMemo(
-        () => customers.find((c) => c._id === customerId) || null,
-        [customers, customerId]
-    );
     const shared = useDashboardHubShared();
-
+    const { customers } = useCustomers(0, { enabled: !shared?.customer });
+    const customer = useMemo(
+        () => shared?.customer ?? customers.find((c) => c._id === customerId) ?? null,
+        [shared?.customer, customers, customerId]
+    );
     return { customerId, customer, shared };
 }
 
@@ -53,7 +52,10 @@ export function useLocalAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn
  */
 export function useDashboardFilters(customer, customerId) {
     const shared = useDashboardDataOptional();
-    const localMarkets = useShopifyMarketsFilter(customer, customerId);
+    const skipLocalCatalogFetch = Boolean(shared);
+    const localMarkets = useShopifyMarketsFilter(customer, customerId, {
+        fetchMarketsCatalog: !skipLocalCatalogFetch,
+    });
     const localSpend = useAdSpendPlatformsFilter(
         customer,
         shared?.shopifyMarketsFeatureOn ?? localMarkets.shopifyMarketsFeatureOn

@@ -1,10 +1,49 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useCustomersOverride } from '@/contexts/CustomersOverrideContext';
 
-export function useCustomers(refreshKey = 0) {
+/** @type {any[] | null} */
+let sharedCustomersCache = null;
+/** @type {Promise<any[]> | null} */
+let sharedCustomersInflight = null;
+
+async function fetchCustomersShared() {
+    if (sharedCustomersCache) {
+        return sharedCustomersCache;
+    }
+    if (sharedCustomersInflight) {
+        return sharedCustomersInflight;
+    }
+
+    sharedCustomersInflight = fetch('/api/customers')
+        .then(async (response) => {
+            if (!response.ok) {
+                throw new Error('Failed to fetch customers');
+            }
+            return response.json();
+        })
+        .then((data) => {
+            sharedCustomersCache = data;
+            return data;
+        })
+        .finally(() => {
+            sharedCustomersInflight = null;
+        });
+
+    return sharedCustomersInflight;
+}
+
+function invalidateSharedCustomersCache() {
+    sharedCustomersCache = null;
+    sharedCustomersInflight = null;
+}
+
+export function useCustomers(refreshKey = 0, options = {}) {
+    const enabled = options.enabled !== false;
     const override = useCustomersOverride();
-    const [customers, setCustomers] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [customers, setCustomers] = useState(() =>
+        enabled && sharedCustomersCache ? sharedCustomersCache : []
+    );
+    const [loading, setLoading] = useState(() => enabled && !sharedCustomersCache);
     const [error, setError] = useState(null);
 
     // Fetch all customers
@@ -12,13 +51,7 @@ export function useCustomers(refreshKey = 0) {
         try {
             setLoading(true);
             setError(null);
-            const response = await fetch('/api/customers');
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch customers');
-            }
-
-            const data = await response.json();
+            const data = await fetchCustomersShared();
             setCustomers(data);
         } catch (err) {
             setError(err.message);
@@ -45,6 +78,7 @@ export function useCustomers(refreshKey = 0) {
             }
 
             const newCustomer = await response.json();
+            invalidateSharedCustomersCache();
             setCustomers(prev => [newCustomer, ...prev]);
             return newCustomer;
         } catch (err) {
@@ -71,6 +105,7 @@ export function useCustomers(refreshKey = 0) {
             }
 
             const updatedCustomer = await response.json();
+            invalidateSharedCustomersCache();
             setCustomers(prev =>
                 prev.map(customer =>
                     customer._id === customerId ? updatedCustomer : customer
@@ -97,6 +132,7 @@ export function useCustomers(refreshKey = 0) {
             }
 
             const result = await response.json();
+            invalidateSharedCustomersCache();
             setCustomers(prev =>
                 prev.filter(customer => customer._id !== customerId)
             );
@@ -109,9 +145,12 @@ export function useCustomers(refreshKey = 0) {
     };
 
     useEffect(() => {
-        if (override) return undefined;
+        if (override || !enabled) {
+            if (!enabled) setLoading(false);
+            return undefined;
+        }
         fetchCustomers();
-    }, [refreshKey, fetchCustomers, override]);
+    }, [refreshKey, fetchCustomers, override, enabled]);
 
     if (override) {
         return override;

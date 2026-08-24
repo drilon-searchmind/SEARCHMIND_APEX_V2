@@ -676,6 +676,7 @@ function extractCampaignTotals(statsJson) {
  *   snapCredentials?: ReturnType<import("./snapchatCustomerSettings").normalizeSnapchatSettings>,
  *   countryIsoCodes?: string[] — when set, daily spend is limited to these ISO-2 countries (Shopify Markets ad spend filter)
  *   spendByCountryOnly?: boolean — when true, return `spend_by_iso2` only (single country-dimension fetch)
+ *   spendByDateOnly?: boolean — when true, skip campaign TOTAL breakdown (merged-sources spend rollup)
  * }} args — when snapCredentials is set, 401 responses retry once via refresh_token
  */
 export async function fetchSnapchatDashboardMetrics({
@@ -686,6 +687,7 @@ export async function fetchSnapchatDashboardMetrics({
     snapCredentials,
     countryIsoCodes,
     spendByCountryOnly = false,
+    spendByDateOnly = false,
 }) {
     const trimmed = String(adAccountId || "").trim();
     if (!trimmed) throw new Error("Missing adAccountId");
@@ -698,6 +700,7 @@ export async function fetchSnapchatDashboardMetrics({
             endDate,
             countryIsoCodes,
             spendByCountryOnly,
+            spendByDateOnly,
         });
     } catch (e) {
         const msg = String(e?.message || "");
@@ -725,6 +728,7 @@ export async function fetchSnapchatDashboardMetrics({
             endDate,
             countryIsoCodes,
             spendByCountryOnly,
+            spendByDateOnly,
         });
     }
 }
@@ -736,6 +740,7 @@ async function fetchSnapchatDashboardMetricsInner({
     endDate,
     countryIsoCodes,
     spendByCountryOnly = false,
+    spendByDateOnly = false,
 }) {
     const trimmed = String(adAccountId || "").trim();
 
@@ -808,6 +813,26 @@ async function fetchSnapchatDashboardMetricsInner({
                 conversion_purchases_value_micro: 0,
                 conversion_add_cart: 0,
             };
+        }
+    } else if (spendByDateOnly) {
+        try {
+            const spendDayJson = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
+                ...dayStatsBase,
+                fields: "spend",
+            });
+            const spendByDateMicro = spendMicroByDateFromAccountDayStats(spendDayJson, accountTz);
+            for (const d of Object.keys(spendByDateMicro)) {
+                rollupByDate[d] = {
+                    impressions: 0,
+                    swipes: 0,
+                    spend_micro: spendByDateMicro[d],
+                    conversion_purchases: 0,
+                    conversion_purchases_value_micro: 0,
+                    conversion_add_cart: 0,
+                };
+            }
+        } catch (eSpendOnly) {
+            dbg("spendByDateOnly DAY spend request failed", eSpendOnly?.message || eSpendOnly);
         }
     } else try {
         const combinedDay = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
@@ -896,6 +921,7 @@ async function fetchSnapchatDashboardMetricsInner({
     metrics_by_date = metrics_by_date.filter((r) => r.date);
 
     let top_campaigns = [];
+    if (!spendByDateOnly) {
     const totalStatsBase = {
         granularity: "TOTAL",
         start_time,
@@ -931,6 +957,7 @@ async function fetchSnapchatDashboardMetricsInner({
                 dbg("Campaign breakdown stats skipped", e3?.message || e3);
             }
         }
+    }
     }
 
     return {
