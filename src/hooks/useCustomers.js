@@ -32,7 +32,7 @@ async function fetchCustomersShared() {
     return sharedCustomersInflight;
 }
 
-function invalidateSharedCustomersCache() {
+export function invalidateSharedCustomersCache() {
     sharedCustomersCache = null;
     sharedCustomersInflight = null;
 }
