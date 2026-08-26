@@ -12,6 +12,8 @@ import { hasMerchantCredentials, normalizeMerchantAccountSlot } from "./merchant
 
 const SIMILAR_THRESHOLD = 0.02;
 
+export const PRICE_INDEX_INITIAL_PRODUCT_LIMIT = 25;
+
 /** @type {Record<string, string>} */
 const CURRENCY_TO_COUNTRY = {
     DKK: "DK",
@@ -519,6 +521,7 @@ function resolveClicks(row, clicksByKey) {
  *   accountSlot?: 1 | 2,
  *   reportCountryCode?: string | null,
  *   performanceDays?: number,
+ *   includeAllProducts?: boolean,
  * }} opts
  */
 export async function fetchPriceShaperData(opts) {
@@ -528,6 +531,8 @@ export async function fetchPriceShaperData(opts) {
         ? String(opts.reportCountryCode).trim().toUpperCase()
         : null;
     const performanceDays = opts.performanceDays ?? 30;
+    const includeAllProducts = opts.includeAllProducts === true;
+    const auxiliaryMaxPages = includeAllProducts ? 10 : 3;
 
     if (!merchantAccountId) {
         throw new Error("Merchant Center account ID is not configured for this customer");
@@ -572,13 +577,13 @@ export async function fetchPriceShaperData(opts) {
     ] = await Promise.all([
         searchMerchantReportsWithSlotFallback(accountSlot, merchantAccountId, competitivenessQuery),
         searchMerchantReportsWithSlotFallback(accountSlot, merchantAccountId, performanceQuery, {
-            maxPages: 15,
+            maxPages: includeAllProducts ? 15 : 8,
         }),
         searchMerchantReportsWithSlotFallback(accountSlot, merchantAccountId, productViewQuery, {
-            maxPages: 10,
+            maxPages: auxiliaryMaxPages,
         }),
         searchMerchantReportsWithSlotFallback(accountSlot, merchantAccountId, priceInsightsQuery, {
-            maxPages: 10,
+            maxPages: auxiliaryMaxPages,
         }).catch((error) => {
             console.warn("price index: price insights lookup failed:", error?.message || error);
             return { slot: accountSlot, rows: [] };
@@ -704,7 +709,7 @@ export async function fetchPriceShaperData(opts) {
         categoryL1: resolveCategoryL1(row, categoryByKey),
     }));
 
-    const allProducts = withBenchmarkEnriched
+    const sortedProducts = withBenchmarkEnriched
         .map((row) => ({
             id: row.id,
             offerId: row.offerId || extractOfferIdFromProductId(row.id),
@@ -724,11 +729,16 @@ export async function fetchPriceShaperData(opts) {
         })
         .map(({ priceDelta, ...product }) => product);
 
-    const popularProducts = allProducts.slice(0, 12);
+    const totalProductCount = sortedProducts.length;
+    const products = includeAllProducts
+        ? sortedProducts
+        : sortedProducts.slice(0, PRICE_INDEX_INITIAL_PRODUCT_LIMIT);
+    const productsTruncated =
+        !includeAllProducts && totalProductCount > PRICE_INDEX_INITIAL_PRODUCT_LIMIT;
 
     const currencyCode =
         withBenchmark[0]?.currencyCode ||
-        allProducts[0]?.currencyCode ||
+        sortedProducts[0]?.currencyCode ||
         "DKK";
 
     const priceIndexDetails = computePriceIndexScoreDetails(withBenchmarkEnriched);
@@ -760,13 +770,58 @@ export async function fetchPriceShaperData(opts) {
         },
         brands,
         topCompetitors,
-        popularProducts,
-        allProducts,
+        products,
+        totalProductCount,
+        productsTruncated,
     };
 }
 
 /** Demo payload mirroring Merchant Center Price Index layout. */
-export function demoPriceShaperData() {
+export function demoPriceShaperData(options = {}) {
+    const includeAllProducts = options.includeAllProducts === true;
+    const demoProducts = [
+        {
+            id: "demo-1",
+            offerId: "demo-1",
+            title: "Polymarine, 2-komponent lim, 290 ml, hvid",
+            brand: "Polymarine",
+            imageUrl: null,
+            yourPrice: 389,
+            benchmarkPrice: 365.32,
+            suggestedPrice: 372,
+            currencyCode: "DKK",
+            clicks: 10,
+        },
+        {
+            id: "demo-2",
+            offerId: "demo-2",
+            title: "Talamex, dannebrog, 30 x 20 cm",
+            brand: "Talamex",
+            imageUrl: null,
+            yourPrice: 2390,
+            benchmarkPrice: 1880,
+            suggestedPrice: 1950,
+            currencyCode: "DKK",
+            clicks: 8,
+        },
+        {
+            id: "demo-3",
+            offerId: "demo-3",
+            title: "Wema, kontakt, 10A, dobbelt pol",
+            brand: "Wema",
+            imageUrl: null,
+            yourPrice: 145,
+            benchmarkPrice: 152.5,
+            suggestedPrice: 149,
+            currencyCode: "DKK",
+            clicks: 6,
+        },
+    ];
+
+    const totalProductCount = 1330;
+    const products = includeAllProducts ? demoProducts : demoProducts.slice(0, 3);
+    const productsTruncated = !includeAllProducts && totalProductCount > products.length;
+
     return {
         demo: true,
         reportCountryCode: "DK",
@@ -780,12 +835,12 @@ export function demoPriceShaperData() {
         priceIndexDetails: {
             score: 42,
             label: "Average",
-            productCount: 1330,
+            productCount: totalProductCount,
             avgPriceRatio: 1.08,
             avgVsBenchmarkPct: 108,
         },
         summary: {
-            productCount: 1330,
+            productCount: totalProductCount,
             productCountLabel: "1.33K",
             cheaper: 572,
             similar: 80,
@@ -836,81 +891,8 @@ export function demoPriceShaperData() {
                 categoryLabel: "Hardware",
             },
         ],
-        popularProducts: [
-            {
-                id: "demo-1",
-                offerId: "demo-1",
-                title: "Polymarine, 2-komponent lim, 290 ml, hvid",
-                brand: "Polymarine",
-                imageUrl: null,
-                yourPrice: 389,
-                benchmarkPrice: 365.32,
-                suggestedPrice: 372,
-                currencyCode: "DKK",
-                clicks: 10,
-            },
-            {
-                id: "demo-2",
-                offerId: "demo-2",
-                title: "Talamex, dannebrog, 30 x 20 cm",
-                brand: "Talamex",
-                imageUrl: null,
-                yourPrice: 2390,
-                benchmarkPrice: 1880,
-                suggestedPrice: 1950,
-                currencyCode: "DKK",
-                clicks: 8,
-            },
-            {
-                id: "demo-3",
-                offerId: "demo-3",
-                title: "Wema, kontakt, 10A, dobbelt pol",
-                brand: "Wema",
-                imageUrl: null,
-                yourPrice: 145,
-                benchmarkPrice: 152.5,
-                suggestedPrice: 149,
-                currencyCode: "DKK",
-                clicks: 6,
-            },
-        ],
-        allProducts: [
-            {
-                id: "demo-1",
-                offerId: "demo-1",
-                title: "Polymarine, 2-komponent lim, 290 ml, hvid",
-                brand: "Polymarine",
-                imageUrl: null,
-                yourPrice: 389,
-                benchmarkPrice: 365.32,
-                suggestedPrice: 372,
-                currencyCode: "DKK",
-                clicks: 10,
-            },
-            {
-                id: "demo-2",
-                offerId: "demo-2",
-                title: "Talamex, dannebrog, 30 x 20 cm",
-                brand: "Talamex",
-                imageUrl: null,
-                yourPrice: 2390,
-                benchmarkPrice: 1880,
-                suggestedPrice: 1950,
-                currencyCode: "DKK",
-                clicks: 8,
-            },
-            {
-                id: "demo-3",
-                offerId: "demo-3",
-                title: "Wema, kontakt, 10A, dobbelt pol",
-                brand: "Wema",
-                imageUrl: null,
-                yourPrice: 145,
-                benchmarkPrice: 152.5,
-                suggestedPrice: 149,
-                currencyCode: "DKK",
-                clicks: 6,
-            },
-        ],
+        products,
+        totalProductCount,
+        productsTruncated,
     };
 }

@@ -62,7 +62,7 @@ const getIconForRoute = (href) => {
     if (href.includes("service-dashboard/bing")) return <FiLayers className="w-4 h-4" />;
     if (href.includes("campaign-planner")) return <FiCalendar className="w-4 h-4" />;
     if (href.includes("share-of-search")) return <FiPieChart className="w-4 h-4" />;
-    if (href.includes("price-shaper")) return <FiTag className="w-4 h-4" />;
+    if (href.includes("price-index") || href.includes("price-shaper")) return <FiTag className="w-4 h-4" />;
     if (href.includes("config")) return <FiSettings className="w-4 h-4" />;
     if (href.includes("test-page")) return <FiFolder className="w-4 h-4" />;
     return <FiFolder className="w-4 h-4" />;
@@ -393,7 +393,7 @@ const Sidebar = ({ showLinks = true }) => {
                                                 isSmallScreen={isSmallScreen}
                                             />
                                             <NavItem
-                                                href={`/dashboard/${activeCustomerId}/price-shaper`}
+                                                href={`/dashboard/${activeCustomerId}/price-index`}
                                                 label="Price Index"
                                                 pathname={pathname}
                                                 subLabel={"NEW"}

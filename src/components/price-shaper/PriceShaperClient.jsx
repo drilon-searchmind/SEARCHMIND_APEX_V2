@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { FiHelpCircle, FiRefreshCw, FiSearch } from "react-icons/fi";
+import { FiRefreshCw, FiSearch } from "react-icons/fi";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import CobaltLoader from "@/components/ui/CobaltLoader";
 import { useUser } from "@/contexts/UserContext";
@@ -10,6 +10,11 @@ import { useCustomers, invalidateSharedCustomersCache } from "@/hooks/useCustome
 import { getPriceShaperConfigWarning } from "@/lib/customerServiceIntegrations";
 import PriceShaperSetupPanel from "@/components/price-shaper/PriceShaperSetupPanel";
 import PriceIndexDistributionChart from "@/components/price-shaper/PriceIndexDistributionChart";
+import InfoTip from "@/components/price-shaper/InfoTip";
+import PriceIndexScoreScale from "@/components/price-shaper/PriceIndexScoreScale";
+import { PRICE_INDEX_TOOLTIPS } from "@/components/price-shaper/priceIndexTooltips";
+
+const PRODUCTS_PAGE_SIZE = 10;
 
 function normalizeOauthSlot(value) {
     const n = Number(value);
@@ -79,14 +84,17 @@ function DistributionLegend() {
             <span className="apex-ps-legend__item">
                 <span className="apex-ps-legend__swatch is-cheaper" aria-hidden />
                 cheaper
+                <InfoTip text={PRICE_INDEX_TOOLTIPS.cheaper} label="Cheaper explained" />
             </span>
             <span className="apex-ps-legend__item">
                 <span className="apex-ps-legend__swatch is-similar" aria-hidden />
                 similar
+                <InfoTip text={PRICE_INDEX_TOOLTIPS.similar} label="Similar explained" />
             </span>
             <span className="apex-ps-legend__item">
                 <span className="apex-ps-legend__swatch is-expensive" aria-hidden />
                 more expensive
+                <InfoTip text={PRICE_INDEX_TOOLTIPS.expensive} label="More expensive explained" />
             </span>
         </div>
     );
@@ -107,15 +115,21 @@ function PriceIndexScoreCard({ score, label, details }) {
     return (
         <article className="apex-ps-card apex-ps-card--score">
             <header className="apex-ps-card__header">
-                <h2 className="apex-ps-card__title">How is your price index?</h2>
+                <h2 className="apex-ps-card__title">
+                    How is your price index?
+                    <InfoTip text={PRICE_INDEX_TOOLTIPS.score} label="Price index score explained" />
+                </h2>
                 <p className="apex-ps-card__desc">
                     A score from 1–100 based on your product prices compared to Google benchmark
                     prices. 50 is at market level; higher means you are priced more competitively.
                 </p>
             </header>
             <div className={`apex-ps-score ${tone}`}>
-                <span className="apex-ps-score__value">{score ?? "—"}</span>
-                <span className="apex-ps-score__label">{label || "No data"}</span>
+                <div className="apex-ps-score__visual">
+                    <span className="apex-ps-score__value">{score ?? "—"}</span>
+                    <span className="apex-ps-score__label">{label || "No data"}</span>
+                    <PriceIndexScoreScale score={score} />
+                </div>
             </div>
             {details ? (
                 <div className="apex-ps-score__calc">
@@ -181,7 +195,10 @@ function BenchmarkSummaryCard({ summary, chartMode, onChartModeChange }) {
             <div className="apex-ps-metric-row">
                 <span className="apex-ps-metric-label">
                     Products with benchmark
-                    <FiHelpCircle className="apex-ps-help-icon" aria-hidden />
+                    <InfoTip
+                        text={PRICE_INDEX_TOOLTIPS.productsWithBenchmark}
+                        label="Products with benchmark explained"
+                    />
                 </span>
                 <span className="apex-ps-metric-value">{summary?.productCountLabel || "0"}</span>
             </div>
@@ -229,10 +246,22 @@ function TopCompetitorsCard({ competitors }) {
                             <th scope="col">#</th>
                             <th scope="col">Domain</th>
                             <th scope="col" className="is-num">
-                                Page overlap
+                                <span className="apex-ps-th-label">
+                                    Page overlap
+                                    <InfoTip
+                                        text={PRICE_INDEX_TOOLTIPS.pageOverlap}
+                                        label="Page overlap explained"
+                                    />
+                                </span>
                             </th>
                             <th scope="col" className="is-num">
-                                Relative visibility
+                                <span className="apex-ps-th-label">
+                                    Relative visibility
+                                    <InfoTip
+                                        text={PRICE_INDEX_TOOLTIPS.relativeVisibility}
+                                        label="Relative visibility explained"
+                                    />
+                                </span>
                             </th>
                         </tr>
                     </thead>
@@ -393,12 +422,20 @@ function matchesProductSearch(product, query) {
     return haystack.includes(query);
 }
 
-function PopularProductsCard({ allProducts, currencyCode }) {
+function PopularProductsCard({
+    products,
+    totalProductCount,
+    productsTruncated,
+    currencyCode,
+    onLoadAll,
+    loadingAll,
+}) {
     const [searchQuery, setSearchQuery] = useState("");
     const [sortKey, setSortKey] = useState("clicks_desc");
     const [filterKey, setFilterKey] = useState("all");
+    const [page, setPage] = useState(1);
 
-    const sourceList = allProducts ?? [];
+    const sourceList = products ?? [];
     const normalizedSearch = searchQuery.trim().toLowerCase();
 
     const visibleProducts = useMemo(() => {
@@ -408,17 +445,40 @@ function PopularProductsCard({ allProducts, currencyCode }) {
         return sortProducts(filtered, sortKey);
     }, [sourceList, filterKey, normalizedSearch, sortKey]);
 
+    const totalPages = Math.max(1, Math.ceil(visibleProducts.length / PRODUCTS_PAGE_SIZE));
+    const currentPage = Math.min(page, totalPages);
+    const pageStart = (currentPage - 1) * PRODUCTS_PAGE_SIZE;
+    const pagedProducts = visibleProducts.slice(pageStart, pageStart + PRODUCTS_PAGE_SIZE);
+
+    useEffect(() => {
+        setPage(1);
+    }, [searchQuery, sortKey, filterKey, sourceList.length]);
+
+    const catalogTotal = totalProductCount ?? sourceList.length;
+
     return (
         <article className="apex-ps-card apex-ps-card--wide">
             <header className="apex-ps-card__header">
                 <h2 className="apex-ps-card__title">
                     Your most popular products with price comparisons
+                    <InfoTip
+                        text={PRICE_INDEX_TOOLTIPS.benchmark}
+                        label="Product price comparisons explained"
+                    />
                 </h2>
                 <p className="apex-ps-card__desc">
                     Identify your most popular products with a difference between your price and
                     the Google price benchmark.
                 </p>
             </header>
+
+            {productsTruncated ? (
+                <p className="apex-ps-table-truncated-note">
+                    Showing the top {sourceList.length.toLocaleString("en-US")} products by clicks
+                    out of {catalogTotal.toLocaleString("en-US")} total. Search and filters apply
+                    to loaded products only.
+                </p>
+            ) : null}
 
             <div className="apex-ps-table-toolbar">
                 <label className="apex-ps-table-search">
@@ -460,12 +520,25 @@ function PopularProductsCard({ allProducts, currencyCode }) {
                             ))}
                         </select>
                     </label>
+                    {productsTruncated ? (
+                        <button
+                            type="button"
+                            className="apex-ps-load-all-btn"
+                            onClick={onLoadAll}
+                            disabled={loadingAll}
+                        >
+                            {loadingAll ? "Loading all products…" : `Load all ${catalogTotal.toLocaleString("en-US")} products`}
+                        </button>
+                    ) : null}
                 </div>
             </div>
 
             <p className="apex-ps-table-meta">
                 Showing {visibleProducts.length.toLocaleString("en-US")} of{" "}
-                {sourceList.length.toLocaleString("en-US")} products
+                {sourceList.length.toLocaleString("en-US")} loaded products
+                {productsTruncated
+                    ? ` (${catalogTotal.toLocaleString("en-US")} total in catalog)`
+                    : ""}
             </p>
 
             <div className="apex-ps-product-table-wrap">
@@ -475,21 +548,36 @@ function PopularProductsCard({ allProducts, currencyCode }) {
                             <th scope="col">Image</th>
                             <th scope="col">Title</th>
                             <th scope="col" className="is-num">
-                                Your price
+                                <span className="apex-ps-th-label">
+                                    Your price
+                                    <InfoTip text={PRICE_INDEX_TOOLTIPS.yourPrice} label="Your price explained" />
+                                </span>
                             </th>
                             <th scope="col" className="is-num">
-                                Benchmark
+                                <span className="apex-ps-th-label">
+                                    Benchmark
+                                    <InfoTip text={PRICE_INDEX_TOOLTIPS.benchmark} label="Benchmark explained" />
+                                </span>
                             </th>
                             <th scope="col" className="is-num">
-                                Suggested price
+                                <span className="apex-ps-th-label">
+                                    Suggested price
+                                    <InfoTip
+                                        text={PRICE_INDEX_TOOLTIPS.suggestedPrice}
+                                        label="Suggested price explained"
+                                    />
+                                </span>
                             </th>
                             <th scope="col" className="is-num">
-                                Clicks
+                                <span className="apex-ps-th-label">
+                                    Clicks
+                                    <InfoTip text={PRICE_INDEX_TOOLTIPS.clicks} label="Clicks explained" />
+                                </span>
                             </th>
                         </tr>
                     </thead>
                     <tbody>
-                        {visibleProducts.length === 0 ? (
+                        {pagedProducts.length === 0 ? (
                             <tr>
                                 <td colSpan={6} className="apex-ps-empty-cell">
                                     {sourceList.length === 0
@@ -498,7 +586,7 @@ function PopularProductsCard({ allProducts, currencyCode }) {
                                 </td>
                             </tr>
                         ) : (
-                            visibleProducts.map((product) => (
+                            pagedProducts.map((product) => (
                                 <tr key={product.id || product.offerId}>
                                     <td className="is-image">
                                         {product.imageUrl ? (
@@ -534,6 +622,32 @@ function PopularProductsCard({ allProducts, currencyCode }) {
                     </tbody>
                 </table>
             </div>
+
+            {visibleProducts.length > PRODUCTS_PAGE_SIZE ? (
+                <div className="apex-ps-pagination">
+                    <span className="apex-ps-pagination__info">
+                        Page {currentPage} of {totalPages}
+                    </span>
+                    <div className="apex-ps-pagination__actions">
+                        <button
+                            type="button"
+                            className="apex-ps-pagination__btn"
+                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                            disabled={currentPage <= 1}
+                        >
+                            Previous
+                        </button>
+                        <button
+                            type="button"
+                            className="apex-ps-pagination__btn"
+                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                            disabled={currentPage >= totalPages}
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
+            ) : null}
         </article>
     );
 }
@@ -599,6 +713,7 @@ export default function PriceShaperClient() {
     const [setupSlot, setSetupSlot] = useState(1);
     const [savingSetup, setSavingSetup] = useState(false);
     const [setupError, setSetupError] = useState(null);
+    const [loadingAllProducts, setLoadingAllProducts] = useState(false);
     const isAdmin = user?.isAdmin === true;
 
     const activeCustomer = useMemo(
@@ -619,7 +734,7 @@ export default function PriceShaperClient() {
     }, [activeCustomer]);
 
     const loadData = useCallback(
-        async ({ force = false } = {}) => {
+        async ({ force = false, includeAllProducts = false } = {}) => {
             if (!customerId) return;
             if (configMissing && !force) {
                 setLoading(false);
@@ -627,10 +742,15 @@ export default function PriceShaperClient() {
                 setError(null);
                 return;
             }
-            setLoading(true);
+            if (includeAllProducts) {
+                setLoadingAllProducts(true);
+            } else {
+                setLoading(true);
+            }
             setError(null);
             try {
-                const res = await fetch(`/api/price-shaper/${customerId}`);
+                const query = includeAllProducts ? "?products=all" : "";
+                const res = await fetch(`/api/price-index/${customerId}${query}`);
                 const json = await res.json().catch(() => ({}));
                 if (!res.ok) {
                     if (json.code === "NOT_CONFIGURED") {
@@ -645,7 +765,9 @@ export default function PriceShaperClient() {
                         configuredSlot: json.configuredSlot,
                         merchantAccountId: json.merchantAccountId,
                     });
-                    setData(null);
+                    if (!includeAllProducts) {
+                        setData(null);
+                    }
                     return;
                 }
                 setData(json);
@@ -654,13 +776,23 @@ export default function PriceShaperClient() {
                 setError({
                     message: err.message || "Could not load Price Index data",
                 });
-                setData(null);
+                if (!includeAllProducts) {
+                    setData(null);
+                }
             } finally {
-                setLoading(false);
+                if (includeAllProducts) {
+                    setLoadingAllProducts(false);
+                } else {
+                    setLoading(false);
+                }
             }
         },
         [customerId, configMissing]
     );
+
+    const handleLoadAllProducts = useCallback(() => {
+        loadData({ force: true, includeAllProducts: true });
+    }, [loadData]);
 
     useEffect(() => {
         loadData();
@@ -670,7 +802,7 @@ export default function PriceShaperClient() {
         setSavingSetup(true);
         setSetupError(null);
         try {
-            const res = await fetch(`/api/price-shaper/${customerId}`, {
+            const res = await fetch(`/api/price-index/${customerId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -753,8 +885,12 @@ export default function PriceShaperClient() {
                     <BrandComparisonCard brands={data?.brands} />
                     <TopCompetitorsCard competitors={data?.topCompetitors} />
                     <PopularProductsCard
-                        allProducts={data?.allProducts}
+                        products={data?.products ?? data?.allProducts}
+                        totalProductCount={data?.totalProductCount}
+                        productsTruncated={data?.productsTruncated}
                         currencyCode={data?.currencyCode}
+                        onLoadAll={handleLoadAllProducts}
+                        loadingAll={loadingAllProducts}
                     />
                 </div>
             ) : null}
