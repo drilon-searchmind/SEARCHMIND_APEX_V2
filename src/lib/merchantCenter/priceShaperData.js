@@ -777,50 +777,51 @@ export async function fetchPriceShaperData(opts) {
 }
 
 /** Demo payload mirroring Merchant Center Price Index layout. */
+const DEMO_PRICE_INDEX_PRODUCTS = [
+    { id: "demo-1", offerId: "demo-1", title: "Polymarine, 2-komponent lim, 290 ml, hvid", brand: "Polymarine", yourPrice: 389, benchmarkPrice: 365.32, suggestedPrice: 372, clicks: 48 },
+    { id: "demo-2", offerId: "demo-2", title: "Talamex, dannebrog, 30 x 20 cm", brand: "Talamex", yourPrice: 2390, benchmarkPrice: 1880, suggestedPrice: 1950, clicks: 41 },
+    { id: "demo-3", offerId: "demo-3", title: "Wema, kontakt, 10A, dobbelt pol", brand: "Wema", yourPrice: 145, benchmarkPrice: 152.5, suggestedPrice: 149, clicks: 36 },
+    { id: "demo-4", offerId: "demo-4", title: "Dometic, køleskab CFX3 45", brand: "Dometic", yourPrice: 4299, benchmarkPrice: 3990, suggestedPrice: 4090, clicks: 32 },
+    { id: "demo-5", offerId: "demo-5", title: "Rule, lænsepumpe 800 GPH", brand: "Rule", yourPrice: 649, benchmarkPrice: 712, suggestedPrice: 689, clicks: 28 },
+    { id: "demo-6", offerId: "demo-6", title: "Osculati, fender 10 x 35 cm, hvid", brand: "Osculati", yourPrice: 189, benchmarkPrice: 175, suggestedPrice: 179, clicks: 27 },
+    { id: "demo-7", offerId: "demo-7", title: "Vetus, bronze gennemføring 1 1/2 tomme", brand: "Vetus", yourPrice: 890, benchmarkPrice: 845, suggestedPrice: 860, clicks: 24 },
+    { id: "demo-8", offerId: "demo-8", title: "Plastimo, kompas Offshore 115", brand: "Plastimo", yourPrice: 1199, benchmarkPrice: 1095, suggestedPrice: 1125, clicks: 22 },
+    { id: "demo-9", offerId: "demo-9", title: "Blue Sea, sikringspanel 6 kredse", brand: "Blue Sea", yourPrice: 549, benchmarkPrice: 520, suggestedPrice: 529, clicks: 21 },
+    { id: "demo-10", offerId: "demo-10", title: "Marinco, landstrømsstik 16A", brand: "Marinco", yourPrice: 329, benchmarkPrice: 298, suggestedPrice: 305, clicks: 19 },
+    { id: "demo-11", offerId: "demo-11", title: "Harken, blok 40 mm enkelt", brand: "Harken", yourPrice: 459, benchmarkPrice: 488, suggestedPrice: 469, clicks: 18 },
+    { id: "demo-12", offerId: "demo-12", title: "Spinlock, spinlock XTS 0814", brand: "Spinlock", yourPrice: 189, benchmarkPrice: 172, suggestedPrice: 178, clicks: 17 },
+    { id: "demo-13", offerId: "demo-13", title: "Lopolight, navigation light LED", brand: "Lopolight", yourPrice: 2190, benchmarkPrice: 2050, suggestedPrice: 2090, clicks: 16 },
+    { id: "demo-14", offerId: "demo-14", title: "Garmin, echoMAP UHD 72sv", brand: "Garmin", yourPrice: 6499, benchmarkPrice: 6190, suggestedPrice: 6290, clicks: 15 },
+    { id: "demo-15", offerId: "demo-15", title: "Lewmar, ankerspil V700", brand: "Lewmar", yourPrice: 8990, benchmarkPrice: 8650, suggestedPrice: 8790, clicks: 14 },
+    { id: "demo-16", offerId: "demo-16", title: "Seaflex, bådshampoo 1L", brand: "Seaflex", yourPrice: 89, benchmarkPrice: 79, suggestedPrice: 82, clicks: 13 },
+    { id: "demo-17", offerId: "demo-17", title: "Sika, marine sealant 290 ml", brand: "Sika", yourPrice: 119, benchmarkPrice: 108, suggestedPrice: 112, clicks: 12 },
+    { id: "demo-18", offerId: "demo-18", title: "Rutgerson, dekksgennemføring rustfri", brand: "Rutgerson", yourPrice: 245, benchmarkPrice: 228, suggestedPrice: 235, clicks: 11 },
+    { id: "demo-19", offerId: "demo-19", title: "Ocean Safety, redningsvest 150N", brand: "Ocean Safety", yourPrice: 699, benchmarkPrice: 655, suggestedPrice: 669, clicks: 10 },
+    { id: "demo-20", offerId: "demo-20", title: "Musto, MPX offshore jakke", brand: "Musto", yourPrice: 1899, benchmarkPrice: 1750, suggestedPrice: 1790, clicks: 9 },
+    { id: "demo-21", offerId: "demo-21", title: "Gill, neopren handsker", brand: "Gill", yourPrice: 349, benchmarkPrice: 329, suggestedPrice: 335, clicks: 8 },
+    { id: "demo-22", offerId: "demo-22", title: "Selden, mastefod bøjning 30 mm", brand: "Selden", yourPrice: 1290, benchmarkPrice: 1210, suggestedPrice: 1240, clicks: 7 },
+    { id: "demo-23", offerId: "demo-23", title: "Fortress, anker FX-7", brand: "Fortress", yourPrice: 2790, benchmarkPrice: 2650, suggestedPrice: 2690, clicks: 6 },
+    { id: "demo-24", offerId: "demo-24", title: "Scanstrut, radar bøjning", brand: "Scanstrut", yourPrice: 1590, benchmarkPrice: 1495, suggestedPrice: 1525, clicks: 5 },
+    { id: "demo-25", offerId: "demo-25", title: "Whale, vandpumpe Gusher 10", brand: "Whale", yourPrice: 899, benchmarkPrice: 860, suggestedPrice: 875, clicks: 4 },
+    { id: "demo-26", offerId: "demo-26", title: "C-MAP, kortpakke Discover X", brand: "C-MAP", yourPrice: 1199, benchmarkPrice: 1140, suggestedPrice: 1160, clicks: 3 },
+    { id: "demo-27", offerId: "demo-27", title: "Ronstan, snap shackle 80 mm", brand: "Ronstan", yourPrice: 279, benchmarkPrice: 265, suggestedPrice: 269, clicks: 3 },
+    { id: "demo-28", offerId: "demo-28", title: "Climax, redningsflåde 4 personer", brand: "Climax", yourPrice: 4290, benchmarkPrice: 3990, suggestedPrice: 4090, clicks: 2 },
+    { id: "demo-29", offerId: "demo-29", title: "B&G, vindmåler Triton²", brand: "B&G", yourPrice: 3490, benchmarkPrice: 3290, suggestedPrice: 3350, clicks: 2 },
+    { id: "demo-30", offerId: "demo-30", title: "Mueller, propeller 3-blads 15x10", brand: "Mueller", yourPrice: 2890, benchmarkPrice: 2750, suggestedPrice: 2790, clicks: 1 },
+].map((row) => ({
+    ...row,
+    imageUrl: null,
+    currencyCode: "DKK",
+}));
+
 export function demoPriceShaperData(options = {}) {
     const includeAllProducts = options.includeAllProducts === true;
-    const demoProducts = [
-        {
-            id: "demo-1",
-            offerId: "demo-1",
-            title: "Polymarine, 2-komponent lim, 290 ml, hvid",
-            brand: "Polymarine",
-            imageUrl: null,
-            yourPrice: 389,
-            benchmarkPrice: 365.32,
-            suggestedPrice: 372,
-            currencyCode: "DKK",
-            clicks: 10,
-        },
-        {
-            id: "demo-2",
-            offerId: "demo-2",
-            title: "Talamex, dannebrog, 30 x 20 cm",
-            brand: "Talamex",
-            imageUrl: null,
-            yourPrice: 2390,
-            benchmarkPrice: 1880,
-            suggestedPrice: 1950,
-            currencyCode: "DKK",
-            clicks: 8,
-        },
-        {
-            id: "demo-3",
-            offerId: "demo-3",
-            title: "Wema, kontakt, 10A, dobbelt pol",
-            brand: "Wema",
-            imageUrl: null,
-            yourPrice: 145,
-            benchmarkPrice: 152.5,
-            suggestedPrice: 149,
-            currencyCode: "DKK",
-            clicks: 6,
-        },
-    ];
-
     const totalProductCount = 1330;
-    const products = includeAllProducts ? demoProducts : demoProducts.slice(0, 3);
-    const productsTruncated = !includeAllProducts && totalProductCount > products.length;
+    const products = includeAllProducts
+        ? DEMO_PRICE_INDEX_PRODUCTS
+        : DEMO_PRICE_INDEX_PRODUCTS.slice(0, PRICE_INDEX_INITIAL_PRODUCT_LIMIT);
+    const productsTruncated =
+        !includeAllProducts && totalProductCount > products.length;
 
     return {
         demo: true,

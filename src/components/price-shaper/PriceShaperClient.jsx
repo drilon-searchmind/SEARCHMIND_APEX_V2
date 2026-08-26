@@ -9,6 +9,7 @@ import { useUser } from "@/contexts/UserContext";
 import { useCustomers, invalidateSharedCustomersCache } from "@/hooks/useCustomers";
 import { getPriceShaperConfigWarning } from "@/lib/customerServiceIntegrations";
 import { canConfigureMerchantCenter } from "@/lib/internalUserAccess";
+import { isDemoCustomerId } from "@/lib/demoCustomerId";
 import PriceShaperSetupPanel from "@/components/price-shaper/PriceShaperSetupPanel";
 import PriceShaperSetupExternalPanel from "@/components/price-shaper/PriceShaperSetupExternalPanel";
 import PriceIndexDistributionChart from "@/components/price-shaper/PriceIndexDistributionChart";
@@ -724,9 +725,11 @@ export default function PriceShaperClient() {
         [customers, customerId]
     );
 
+    const isDemo = isDemoCustomerId(customerId);
+
     const configMissing = useMemo(
-        () => getPriceShaperConfigWarning(activeCustomer?.CustomerSettings),
-        [activeCustomer]
+        () => !isDemo && getPriceShaperConfigWarning(activeCustomer?.CustomerSettings),
+        [activeCustomer, isDemo]
     );
 
     useEffect(() => {

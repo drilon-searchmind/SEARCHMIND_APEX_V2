@@ -202,7 +202,7 @@
 
 @media (min-width: 960px) {
   .apex-home__layout {
-    grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem);
+    grid-template-columns: minmax(0, 6fr) minmax(10rem, 2fr) minmax(10rem, 2fr);
   }
 }
 
@@ -210,6 +210,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--apex-space-lg);
+  min-width: 0;
+}
+
+.apex-home__shortcuts,
+.apex-home__news,
+.apex-home__aside {
   min-width: 0;
 }
 
@@ -420,6 +426,140 @@ a.apex-home__group-name:hover {
   border-radius: var(--apex-radius-card);
   box-shadow: var(--apex-shadow-low);
   overflow: hidden;
+}
+
+.apex-home__aside-card--news {
+  display: flex;
+  flex-direction: column;
+}
+
+.apex-home__aside-card--news .apex-home__news-spotlight {
+  flex: 1;
+}
+
+.apex-home__aside-more--news {
+  display: block;
+  padding: var(--apex-space-md) var(--apex-space-lg);
+  border-top: 1px solid var(--apex-hairline);
+  margin: 0;
+}
+
+.apex-home__news-spotlight {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--apex-hairline);
+  transition: background-color var(--apex-dur) var(--apex-ease);
+}
+
+.apex-home__news-spotlight:hover {
+  background: var(--apex-canvas);
+}
+
+.apex-home__news-spotlight:focus-visible {
+  outline: 2px solid var(--apex-dark-green);
+  outline-offset: -2px;
+}
+
+.apex-home__news-spotlight-media {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--apex-canvas);
+  overflow: hidden;
+}
+
+.apex-home__news-spotlight-image {
+  object-fit: cover;
+}
+
+.apex-home__news-spotlight-fallback {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--apex-dark-green) 18%, var(--apex-canvas)),
+    var(--apex-canvas)
+  );
+}
+
+.apex-home__news-spotlight-badge {
+  position: absolute;
+  top: var(--apex-space-sm);
+  left: var(--apex-space-sm);
+  z-index: 1;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-accent-ink, var(--apex-ink));
+  background: var(--color-accent, #c6ed62);
+  box-shadow: 0 1px 4px rgba(19, 19, 19, 0.18);
+}
+
+.apex-home__news-spotlight-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--apex-space-xs);
+  padding: var(--apex-space-md) var(--apex-space-lg);
+}
+
+.apex-home__news-spotlight-date {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--apex-ink-muted);
+}
+
+.apex-home__news-spotlight-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  color: var(--apex-ink);
+}
+
+.apex-home__news-spotlight-excerpt {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--apex-ink-muted);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.apex-home__news-spotlight:hover .apex-home__news-spotlight-title {
+  color: var(--apex-dark-green);
+}
+
+.apex-home__news-spotlight--loading {
+  pointer-events: none;
+}
+
+.apex-home__news-spotlight-skeleton {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--apex-canvas), #eef0ea, var(--apex-canvas));
+  background-size: 200% 100%;
+  animation: apex-home-shimmer 1.4s ease-in-out infinite;
+}
+
+.apex-home__news-spotlight--loading .apex-home__news-spotlight-body {
+  gap: var(--apex-space-sm);
+}
+
+.apex-home__news-spotlight--loading .apex-home__skeleton-line--title {
+  width: 85%;
+  height: 1rem;
+}
+
+.apex-home__news-spotlight--loading .apex-home__skeleton-line--copy {
+  width: 100%;
+  height: 0.75rem;
 }
 
 .apex-home__aside-hero {
