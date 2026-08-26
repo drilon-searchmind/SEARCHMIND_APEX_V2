@@ -245,8 +245,17 @@ function buildDerivedSnapshot(
         netSales,
         customerType,
     });
-    const returnsGoods = -returnDeduction;
-    const returnsShipping = 0;
+    const shippingReturnedRaw = Number(md.shipping_returned) || 0;
+    const shippingReturnDeduction =
+        shippingReturnedRaw < 0 ? -shippingReturnedRaw : shippingReturnedRaw;
+    const returnsShipping =
+        shippingReturnedRaw !== 0
+            ? shippingReturnedRaw
+            : shippingReturnDeduction > 0
+              ? -shippingReturnDeduction
+              : 0;
+    const goodsReturnDeduction = Math.max(0, returnDeduction - shippingReturnDeduction);
+    const returnsGoods = goodsReturnDeduction > 0 ? -goodsReturnDeduction : 0;
     const refundsRate = grossSales > 0 ? (returnDeduction / grossSales) * 100 : 0;
     const discountPctGross =
         grossSales > 0 ? (discountDeduction / grossSales) * 100 : 0;

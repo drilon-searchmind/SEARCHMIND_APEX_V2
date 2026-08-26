@@ -9,7 +9,6 @@ import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { useState, useMemo, useEffect } from 'react';
 import { useDailyOverviewData } from './useDailyOverviewData';
 import DailyMetricsTable from './DailyMetricsTable';
-import RowComparisonPopover from './RowComparisonPopover';
 import LastYearPeriodTable from './LastYearPeriodTable';
 import MetricToggleBar from './MetricToggleBar';
 import { DEFAULT_VISIBLE_METRICS, METRIC_COLUMNS } from './metricConfig';
@@ -134,26 +133,6 @@ function EcommerceDailyOverview({ customer: customerProp }) {
         customKpis,
     } = useDailyOverviewData(customer, resolvedAppliedDateRange, mergedSourcesQuerySuffix, marketsSpendColumns);
 
-    const [hoveredRowIndex, setHoveredRowIndex] = useState(null);
-    const [hoveredRowTable, setHoveredRowTable] = useState(null);
-    const [hoveredRowPosition, setHoveredRowPosition] = useState({
-        top: 0,
-        left: 0,
-    });
-    const [tableWidth, setTableWidth] = useState(null);
-
-    const handleRowHover = ({ index, tableType, position, tableWidth: w }) => {
-        setHoveredRowIndex(index);
-        setHoveredRowTable(tableType);
-        setHoveredRowPosition(position);
-        setTableWidth(w);
-    };
-    const handleRowHoverLeave = () => {
-        setHoveredRowIndex(null);
-        setHoveredRowTable(null);
-        setTableWidth(null);
-    };
-
     const [userColumnVisibility, setUserColumnVisibility] = useState({});
 
     const metricColumns = useMemo(() => {
@@ -195,6 +174,7 @@ function EcommerceDailyOverview({ customer: customerProp }) {
     };
 
     const [showTrendChart, setShowTrendChart] = useState(false);
+    const [showLastYearTable, setShowLastYearTable] = useState(false);
 
     const revenueColumnLabel =
         metricColumns.find((c) => c.key === 'netRevenue')?.label ?? 'Net Revenue';
@@ -284,6 +264,8 @@ function EcommerceDailyOverview({ customer: customerProp }) {
                         onToggle={handleMetricToggle}
                         showTrendChart={showTrendChart}
                         onTrendChartToggle={() => setShowTrendChart((v) => !v)}
+                        showLastYearTable={showLastYearTable}
+                        onLastYearTableToggle={() => setShowLastYearTable((v) => !v)}
                         metricColumns={metricColumns}
                     />
                     <h3 className="apex-daily-panel__title">Daily Metrics</h3>
@@ -308,38 +290,24 @@ function EcommerceDailyOverview({ customer: customerProp }) {
                     loading={loading}
                     error={error}
                     visibleMetrics={visibleMetrics}
-                    onRowHover={handleRowHover}
-                    onRowHoverLeave={handleRowHoverLeave}
                     metricColumns={metricColumns}
                 />
             </div>
 
-            <RowComparisonPopover
-                visible={false}
-                position={hoveredRowPosition}
-                tableWidth={tableWidth}
-                hoveredRowTable={hoveredRowTable}
-                hoveredRowIndex={hoveredRowIndex}
-                rows={rows}
-                rowsLastYear={rowsLastYear}
-                visibleMetrics={visibleMetrics}
-                metricColumns={metricColumns}
-            />
-
-            <div className="apex-daily-panel apex-daily-panel--muted">
-                <h3 className="apex-daily-panel__title">Last Year Period</h3>
-                <p className="apex-daily-panel__subtitle">Full month</p>
-                <LastYearPeriodTable
-                    variant="cobalt"
-                    rowsLastYear={rowsLastYear}
-                    rows={rows}
-                    loading={loadingLastYear}
-                    visibleMetrics={visibleMetrics}
-                    onRowHover={handleRowHover}
-                    onRowHoverLeave={handleRowHoverLeave}
-                    metricColumns={metricColumns}
-                />
-            </div>
+            {showLastYearTable && (
+                <div className="apex-daily-panel apex-daily-panel--muted">
+                    <h3 className="apex-daily-panel__title">Last Year Period</h3>
+                    <p className="apex-daily-panel__subtitle">Full month — raw daily data</p>
+                    <LastYearPeriodTable
+                        variant="cobalt"
+                        rowsLastYear={rowsLastYear}
+                        rows={rows}
+                        loading={loadingLastYear}
+                        visibleMetrics={visibleMetrics}
+                        metricColumns={metricColumns}
+                    />
+                </div>
+            )}
         </div>
     );
 }

@@ -185,10 +185,7 @@ const MarketsOverviewPage = () => {
     }, [rows, hiddenMarkets]);
 
     const displayTotalRow = useMemo(() => {
-        const periodFixed =
-            Number(storeTotalRow?.fixedExpense) ||
-            Number(includedRows[0]?.fixedExpense) ||
-            0;
+        const periodFixed = Number(storeTotalRow?.fixedExpense) || 0;
 
         if (!includedRows.length) {
             return {

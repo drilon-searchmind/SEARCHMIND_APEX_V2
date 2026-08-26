@@ -58,14 +58,6 @@
   height: 100%;
 }
 
-.apex-pace-section__secondary {
-  margin-top: var(--space-lg);
-}
-
-.apex-pace-section__secondary .apex-perf-graph {
-  box-shadow: none;
-}
-
 /* ── Analysis side panel ── */
 
 .apex-pace-analysis {

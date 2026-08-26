@@ -10,7 +10,6 @@ import {
 
 export default function CostPaceSection({
 	costData,
-	costByChannelSeries = [],
 	paceAnalysis,
 	appliedDateRange,
 	loading,
@@ -25,21 +24,6 @@ export default function CostPaceSection({
 		paceAnalysis,
 		appliedDateRange
 	);
-
-	const channelChartOptions =
-		costByChannelSeries.length > 0
-			? {
-					...BASE_CHART_OPTIONS,
-					xaxis: {
-						...BASE_CHART_OPTIONS.xaxis,
-						categories: chartCategoriesWithStart,
-					},
-					stroke: {
-						width: costByChannelSeries.map(() => 2),
-						curve: 'smooth',
-					},
-				}
-			: null;
 
 	const chartOptions = {
 		...BASE_CHART_OPTIONS,
@@ -93,18 +77,6 @@ export default function CostPaceSection({
 					objectivesScopeLabel={objectivesScopeLabel}
 				/>
 			</div>
-			{!loading && channelChartOptions && costByChannelSeries.length > 0 && (
-				<div className="apex-pace-section__secondary">
-					<GraphCard
-						variant="cobalt"
-						hideChartToggle
-						title="Cumulative paid media by channel"
-						chartOptions={channelChartOptions}
-						chartSeries={costByChannelSeries}
-						chartType="line"
-					/>
-				</div>
-			)}
 		</section>
 	);
 }

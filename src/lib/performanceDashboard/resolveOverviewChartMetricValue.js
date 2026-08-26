@@ -99,6 +99,9 @@ export function resolveOverviewChartMetricValue(metric, v, ctx) {
     if (metric === "returns" || metric === "returns_goods") {
         return Number(effectiveReturns().toFixed(0));
     }
+    if (metric === "returns_shipping") {
+        return Number((v.shipping_returned || 0).toFixed(0));
+    }
     if (metric === "duties") {
         return Number((v.duties || 0).toFixed(0));
     }

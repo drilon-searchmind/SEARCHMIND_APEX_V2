@@ -53,6 +53,7 @@ function buildPeriodTotals(shopifyRows, returnsOverride, customerSettings) {
     const duties = sumShopifyField(rows, "duties");
     const additionalFees = sumShopifyField(rows, "additional_fees");
     const netSalesFromStore = sumShopifyField(rows, "net_sales");
+    const shippingReturned = sumShopifyField(rows, "shipping_returned");
     let returns = sumShopifyField(rows, "returns");
     let netRevenue = netSalesFromStore;
 
@@ -69,6 +70,7 @@ function buildPeriodTotals(shopifyRows, returnsOverride, customerSettings) {
         grossSales,
         discounts,
         returns,
+        shippingReturned,
         netRevenue,
         netSalesFromStore,
         orders,
@@ -174,6 +176,7 @@ export function buildBaseMetricsData({
         gross_sales: curr.grossSales,
         discounts: curr.discounts,
         returns: curr.returns,
+        shipping_returned: curr.shippingReturned,
         orders: curr.orders,
         shipping_revenue: curr.shippingCharges,
         duties: curr.duties,
@@ -209,6 +212,7 @@ export function buildBaseMetricsData({
         gross_sales: prev.grossSales,
         discounts: prev.discounts,
         returns: prev.returns,
+        shipping_returned: prev.shippingReturned,
         orders: prev.orders,
         shipping_revenue: prev.shippingCharges,
         duties: prev.duties,

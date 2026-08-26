@@ -238,6 +238,65 @@ export function alignLastYearRowsToCurrentPeriod(currentRows, lastYearRows) {
 	);
 }
 
+/** Extract raw numeric metric values from a single daily row. */
+export function computeRowRawValues(row) {
+	if (!row) return null;
+
+	const totalCost =
+		row.totalMarketingSpend ??
+		(row.ppcCost || 0) +
+			(row.psCost || 0) +
+			(row.pinterestCost ?? 0) +
+			(row.snapchatCost ?? 0) +
+			(row.bingCost ?? 0) +
+			(row.redditCost ?? 0);
+	const netRevenue = row.netRevenue ?? 0;
+	const cogs = row.cogs || 0;
+	const grossProfit = netRevenue - cogs;
+
+	return {
+		orders: row.orders ?? 0,
+		netRevenue,
+		cogs,
+		ppcCost: row.ppcCost ?? 0,
+		psCost: row.psCost ?? 0,
+		pinterestCost: row.pinterestCost ?? 0,
+		snapchatCost: row.snapchatCost ?? 0,
+		bingCost: row.bingCost ?? 0,
+		redditCost: row.redditCost ?? 0,
+		variableExpense: row.variableExpense || 0,
+		fixedExpenses: row.fixedExpense || 0,
+		aov: row.aov ?? 0,
+		roas: row.roas ?? (totalCost > 0 ? netRevenue / totalCost : 0),
+		poas: row.poas ?? calcBlendedPoasOrZero(grossProfit, totalCost),
+		netProfit: row.netProfit ?? 0,
+	};
+}
+
+/** YoY % change per metric for a single daily row pair. */
+export function computeRowYoYPercentMap(currentRow, prevRow) {
+	const curr = computeRowRawValues(currentRow);
+	const prev = computeRowRawValues(prevRow);
+	if (!curr || !prev) return null;
+
+	const result = {};
+	for (const key of Object.keys(curr)) {
+		const p = prev[key];
+		if (p === 0 || p == null) {
+			result[key] = null;
+			continue;
+		}
+		const change = ((curr[key] - p) / p) * 100;
+		const rounded = Math.round(change);
+		result[key] = {
+			change: rounded,
+			formatted:
+				rounded === 0 ? '0%' : rounded > 0 ? `+${rounded}%` : `${rounded}%`,
+		};
+	}
+	return result;
+}
+
 /** Metrics where higher is better (green up, red down) */
 const HIGHER_IS_BETTER = new Set([
 	'orders',

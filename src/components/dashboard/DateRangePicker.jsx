@@ -148,6 +148,41 @@ function PresetList({ title, presets, activeId, onSelect, disabled, isApex = fal
     );
 }
 
+function MonthCustomModeToggle({ mode, onChange, isApex, disabled }) {
+    const segmentClass = isApex ? "apex-perf-segment" : "flex border border-gray-200 bg-gray-100 rounded-lg overflow-hidden";
+    const btnClass = (active) =>
+        isApex
+            ? `apex-perf-segment__btn${active ? " is-active" : ""}`
+            : `text-nowrap flex-1 px-2 py-1 text-xs font-medium focus:outline-none transition-colors duration-150 disabled:opacity-50 ${
+                  active
+                      ? "bg-white text-[var(--color-primary-searchmind)] shadow-sm"
+                      : "text-gray-500 hover:text-[var(--color-primary-searchmind)]"
+              }`;
+
+    return (
+        <div className="px-3 pt-3 pb-2 border-b border-gray-200">
+            <div className={segmentClass} role="group" aria-label="Date selection mode">
+                <button
+                    type="button"
+                    className={btnClass(mode === "month")}
+                    disabled={disabled}
+                    onClick={() => onChange("month")}
+                >
+                    Month
+                </button>
+                <button
+                    type="button"
+                    className={btnClass(mode === "custom")}
+                    disabled={disabled}
+                    onClick={() => onChange("custom")}
+                >
+                    Custom
+                </button>
+            </div>
+        </div>
+    );
+}
+
 function InlineRangeCalendar({
     startDate,
     endDate,
@@ -195,6 +230,7 @@ export default function DateRangePicker({
     onCompareStartDateChange,
     onCompareEndDateChange,
     monthOnly = false,
+    monthCustomToggle = false,
     customPresets = null,
     usePortal = false,
     triggerClassName = "",
@@ -202,6 +238,7 @@ export default function DateRangePicker({
 }) {
     const isApex = variant === "cobalt" || variant === "apex";
     const [isOpen, setIsOpen] = useState(false);
+    const [monthCustomMode, setMonthCustomMode] = useState("month");
     const [portalStyle, setPortalStyle] = useState({ top: 0, right: 0 });
     const [rangePresetId, setRangePresetId] = useState("mtd");
     const [comparePresetId, setComparePresetId] = useState("yoy");
@@ -209,7 +246,11 @@ export default function DateRangePicker({
     const triggerRef = useRef(null);
     const portalContentRef = useRef(null);
 
-    const useLegacyLayout = monthOnly || (customPresets?.length ?? 0) > 0;
+    const effectiveMonthOnly = monthCustomToggle
+        ? monthCustomMode === "month"
+        : monthOnly;
+    const useLegacyLayout =
+        monthCustomToggle || monthOnly || (customPresets?.length ?? 0) > 0;
     const useModernLayout = !useLegacyLayout;
 
     const syncDraftPresetsFromProps = useCallback(() => {
@@ -289,6 +330,13 @@ export default function DateRangePicker({
         onEndDateChange?.(end);
     };
 
+    const handleMonthCustomModeChange = (mode) => {
+        setMonthCustomMode(mode);
+        if (mode === "month" && startDateObj) {
+            handleMonthChange(startDateObj);
+        }
+    };
+
     const applyRangePreset = (presetId) => {
         setRangePresetId(presetId);
         if (presetId === "custom") return;
@@ -330,7 +378,7 @@ export default function DateRangePicker({
             }
             return true;
         }
-        if (monthOnly) return Boolean(startDate && endDate);
+        if (effectiveMonthOnly) return Boolean(startDate && endDate);
         return isValidDateRange(startDate, endDate);
     }, [
         loading,
@@ -342,7 +390,7 @@ export default function DateRangePicker({
         comparePresetId,
         compareStartDate,
         compareEndDate,
-        monthOnly,
+        effectiveMonthOnly,
     ]);
 
     const handleApply = () => {
@@ -382,7 +430,7 @@ export default function DateRangePicker({
 
     const displayText = formatRangeLabel(startDate, endDate);
 
-    const legacyPresetList = monthOnly
+    const legacyPresetList = effectiveMonthOnly
         ? MONTH_PRESETS
         : customPresets?.length
           ? customPresets
@@ -492,7 +540,16 @@ export default function DateRangePicker({
     );
 
     const legacyDropdownInner = (
-        <span className="flex flex-row gap-2">
+        <>
+            {monthCustomToggle ? (
+                <MonthCustomModeToggle
+                    mode={monthCustomMode}
+                    onChange={handleMonthCustomModeChange}
+                    isApex={isApex}
+                    disabled={loading}
+                />
+            ) : null}
+            <span className="flex flex-row gap-2">
             <div className="p-3 w-full">
                 <div className="text-xs font-medium text-gray-500 mb-2">Presets</div>
                 <div className="flex flex-wrap gap-1 max-w-[200px]">
@@ -541,9 +598,9 @@ export default function DateRangePicker({
             <span className="relative">
                 <div className="flex flex-col justify-between h-auto p-2">
                     <div className="text-xs font-medium text-gray-500 mb-2">
-                        {monthOnly ? "Month" : "Date Range"}
+                        {effectiveMonthOnly ? "Month" : "Date Range"}
                     </div>
-                    {monthOnly ? (
+                    {effectiveMonthOnly ? (
                         <DatePicker
                             selected={startDateObj}
                             onChange={handleMonthChange}
@@ -577,6 +634,7 @@ export default function DateRangePicker({
                 </div>
             </span>
         </span>
+        </>
     );
 
     const dropdownInner = useModernLayout ? modernDropdownInner : legacyDropdownInner;
@@ -588,7 +646,7 @@ export default function DateRangePicker({
         createPortal(
             <div
                 ref={portalContentRef}
-                className={`fixed z-[10000] overflow-hidden ${monthOnly ? "datepicker-monthly" : ""} ${isApex ? "apex-perf-date-panel" : "bg-white border border-gray-200 rounded-lg shadow-lg"}`}
+                className={`fixed z-[10000] overflow-hidden ${effectiveMonthOnly ? "datepicker-monthly" : ""} ${isApex ? "apex-perf-date-panel" : "bg-white border border-gray-200 rounded-lg shadow-lg"}`}
                 style={{ top: portalStyle.top, right: portalStyle.right }}
             >
                 {dropdownInner}
@@ -614,7 +672,7 @@ export default function DateRangePicker({
 
                 {isOpen && !usePortal && (
                     <div
-                        className={`absolute right-0 top-full mt-1 z-[100] overflow-hidden ${monthOnly ? "datepicker-monthly" : ""} ${isApex ? "apex-perf-date-panel" : "bg-white border border-gray-200 rounded-lg shadow-lg"}`}
+                        className={`absolute right-0 top-full mt-1 z-[100] overflow-hidden ${effectiveMonthOnly ? "datepicker-monthly" : ""} ${isApex ? "apex-perf-date-panel" : "bg-white border border-gray-200 rounded-lg shadow-lg"}`}
                     >
                         {dropdownInner}
                     </div>
