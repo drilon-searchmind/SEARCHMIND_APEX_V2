@@ -677,6 +677,20 @@
   color: var(--color-muted);
 }
 
+.apex-ps-setup__notice {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-input);
+  background: var(--color-paper-2);
+  border: var(--rule-hair) solid var(--color-rule-2);
+}
+
+.apex-ps-setup__notice p {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.55;
+  color: var(--color-ink-2);
+}
+
 .apex-ps-th-label {
   display: inline-flex;
   align-items: center;

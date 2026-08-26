@@ -8,7 +8,9 @@ import CobaltLoader from "@/components/ui/CobaltLoader";
 import { useUser } from "@/contexts/UserContext";
 import { useCustomers, invalidateSharedCustomersCache } from "@/hooks/useCustomers";
 import { getPriceShaperConfigWarning } from "@/lib/customerServiceIntegrations";
+import { canConfigureMerchantCenter } from "@/lib/internalUserAccess";
 import PriceShaperSetupPanel from "@/components/price-shaper/PriceShaperSetupPanel";
+import PriceShaperSetupExternalPanel from "@/components/price-shaper/PriceShaperSetupExternalPanel";
 import PriceIndexDistributionChart from "@/components/price-shaper/PriceIndexDistributionChart";
 import InfoTip from "@/components/price-shaper/InfoTip";
 import PriceIndexScoreScale from "@/components/price-shaper/PriceIndexScoreScale";
@@ -715,6 +717,7 @@ export default function PriceShaperClient() {
     const [setupError, setSetupError] = useState(null);
     const [loadingAllProducts, setLoadingAllProducts] = useState(false);
     const isAdmin = user?.isAdmin === true;
+    const canConfigureMc = canConfigureMerchantCenter(user);
 
     const activeCustomer = useMemo(
         () => customers.find((c) => String(c._id) === String(customerId)) || null,
@@ -847,16 +850,20 @@ export default function PriceShaperClient() {
             />
 
             {showSetup ? (
-                <PriceShaperSetupPanel
-                    customerId={customerId}
-                    merchantCenterId={setupId}
-                    oauthSlot={setupSlot}
-                    onMerchantCenterIdChange={setSetupId}
-                    onOauthSlotChange={setSetupSlot}
-                    onSave={handleSaveSetup}
-                    saving={savingSetup}
-                    error={setupError}
-                />
+                canConfigureMc ? (
+                    <PriceShaperSetupPanel
+                        customerId={customerId}
+                        merchantCenterId={setupId}
+                        oauthSlot={setupSlot}
+                        onMerchantCenterIdChange={setSetupId}
+                        onOauthSlotChange={setSetupSlot}
+                        onSave={handleSaveSetup}
+                        saving={savingSetup}
+                        error={setupError}
+                    />
+                ) : (
+                    <PriceShaperSetupExternalPanel />
+                )
             ) : null}
 
             {!showSetup && error ? (

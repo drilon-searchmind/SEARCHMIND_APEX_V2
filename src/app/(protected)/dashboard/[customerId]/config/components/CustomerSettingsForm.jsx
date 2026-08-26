@@ -154,6 +154,7 @@ export default function CustomerSettingsForm({
     customerType,
     customerId,
     onGoogleAdsMarketMappingChange,
+    canConfigureMerchantCenter: canConfigureMc = true,
 }) {
     const shopifyMarketsOn = customerType === "Shopify" && form.shopifyMarketsEnabled === true;
     const storeSection =
@@ -174,7 +175,7 @@ export default function CustomerSettingsForm({
         ...(storeSection ? [storeSection] : []),
         { id: CONFIG_SECTION.meta, label: "Meta" },
         { id: CONFIG_SECTION.googleAds, label: "Google Ads" },
-        { id: CONFIG_SECTION.merchantCenter, label: "Merchant Center" },
+        ...(canConfigureMc ? [{ id: CONFIG_SECTION.merchantCenter, label: "Merchant Center" }] : []),
         { id: CONFIG_SECTION.pinterestAds, label: "Pinterest Ads" },
         { id: CONFIG_SECTION.snapchatAds, label: "Snapchat Ads" },
         { id: CONFIG_SECTION.redditAds, label: "Reddit Ads" },
@@ -527,37 +528,39 @@ export default function CustomerSettingsForm({
             </SettingsSection>
 
             {/* Google Merchant Center */}
-            <SettingsSection title="Merchant Center" icon={FiShoppingBag} sectionId={CONFIG_SECTION.merchantCenter}>
-                <FormField
-                    id="googleMerchantCenterId"
-                    name="googleMerchantCenterId"
-                    label="Merchant Center account ID"
-                    value={form.googleMerchantCenterId}
-                    onChange={onChange}
-                    placeholder="e.g. 123456789"
-                />
-                <div className="config-field">
-                    <label htmlFor="googleMerchantAccountSlot" className="config-field__label">
-                        OAuth account slot
-                    </label>
-                    <select
-                        id="googleMerchantAccountSlot"
-                        name="googleMerchantAccountSlot"
-                        className="config-field__input"
-                        value={form.googleMerchantAccountSlot ?? 1}
+            {canConfigureMc ? (
+                <SettingsSection title="Merchant Center" icon={FiShoppingBag} sectionId={CONFIG_SECTION.merchantCenter}>
+                    <FormField
+                        id="googleMerchantCenterId"
+                        name="googleMerchantCenterId"
+                        label="Merchant Center account ID"
+                        value={form.googleMerchantCenterId}
                         onChange={onChange}
-                    >
-                        <option value={0}>Account 0 — Google Ads (GOOGLE_ADS_*)</option>
-                        <option value={1}>Account 1 — MC1 (GOOGLE_MERCHANT_*_1)</option>
-                        <option value={2}>Account 2 — MC2 (GOOGLE_MERCHANT_*_2)</option>
-                    </select>
-                    <p className="config-field__hint">
-                        Choose which OAuth credentials Price Index uses. Account 0 reuses the shared
-                        Google Ads credentials; accounts 1 and 2 use dedicated Merchant Center OAuth
-                        apps.
-                    </p>
-                </div>
-            </SettingsSection>
+                        placeholder="e.g. 123456789"
+                    />
+                    <div className="config-field">
+                        <label htmlFor="googleMerchantAccountSlot" className="config-field__label">
+                            OAuth account slot
+                        </label>
+                        <select
+                            id="googleMerchantAccountSlot"
+                            name="googleMerchantAccountSlot"
+                            className="config-field__input"
+                            value={form.googleMerchantAccountSlot ?? 1}
+                            onChange={onChange}
+                        >
+                            <option value={0}>Account 0 — Google Ads (GOOGLE_ADS_*)</option>
+                            <option value={1}>Account 1 — MC1 (GOOGLE_MERCHANT_*_1)</option>
+                            <option value={2}>Account 2 — MC2 (GOOGLE_MERCHANT_*_2)</option>
+                        </select>
+                        <p className="config-field__hint">
+                            Choose which OAuth credentials Price Index uses. Account 0 reuses the shared
+                            Google Ads credentials; accounts 1 and 2 use dedicated Merchant Center OAuth
+                            apps.
+                        </p>
+                    </div>
+                </SettingsSection>
+            ) : null}
 
             {/* Pinterest Ads */}
             <SettingsSection title="Pinterest Ads" icon={FiImage} sectionId={CONFIG_SECTION.pinterestAds}>

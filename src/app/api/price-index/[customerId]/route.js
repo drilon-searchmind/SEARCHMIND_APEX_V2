@@ -15,6 +15,7 @@ import {
 } from "@/lib/merchantCenter/priceShaperData";
 import { normalizeMerchantAccountSlot } from "@/lib/merchantCenter/merchantCenterAuth";
 import { MerchantAccessError } from "@/lib/merchantCenter/merchantCenterAccounts";
+import { assertCanConfigureMerchantCenter } from "@/lib/internalUserAccess";
 
 async function assertCustomerAccess(session, customerId) {
     const customer = await getCustomerById(customerId);
@@ -134,6 +135,15 @@ export async function PATCH(request, { params }) {
 
     if (isDemoCustomerId(customerId)) {
         return Response.json({ error: "Demo customer settings cannot be saved" }, { status: 400 });
+    }
+
+    try {
+        assertCanConfigureMerchantCenter(session.user);
+    } catch (accessErr) {
+        return Response.json(
+            { error: accessErr.message || "Forbidden" },
+            { status: accessErr.statusCode || 403 }
+        );
     }
 
     let body;

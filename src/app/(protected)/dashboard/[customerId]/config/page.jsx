@@ -22,6 +22,7 @@ import { normalizeGoogleAdsMarketMapping } from '@/lib/googleAdsMarketMapping';
 import { normalizeRevenueDisplayVat } from '@/lib/revenueVatDisplay';
 import { normalizeMarketPropertyObjectives, resolvePropertyObjectivesMode } from '@/lib/propertyObjectivesUtils';
 import { normalizeMerchantAccountSlot } from '@/lib/merchantCenter/merchantCenterAuth';
+import { canConfigureMerchantCenter } from '@/lib/internalUserAccess';
 
 export default function ConfigPage() {
     const { customerId } = useParams();
@@ -460,6 +461,7 @@ export default function ConfigPage() {
                     customerType={form.customerType}
                     customerId={customerId}
                     onGoogleAdsMarketMappingChange={handleGoogleAdsMarketMappingChange}
+                    canConfigureMerchantCenter={canConfigureMerchantCenter(user)}
                 />
             ),
         },
