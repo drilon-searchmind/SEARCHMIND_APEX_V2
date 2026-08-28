@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "../../auth/[...nextauth]/route";
 import { listMerchantAccounts, normalizeMerchantAccountId } from "@/lib/merchantCenter/merchantCenterAccounts";
 import { hasMerchantCredentials, normalizeMerchantAccountSlot } from "@/lib/merchantCenter/merchantCenterAuth";
+import { canConfigureMerchantCenter } from "@/lib/internalUserAccess";
 
 export async function GET(request) {
     const session = await getServerSession(authOptions);
@@ -9,7 +10,7 @@ export async function GET(request) {
         return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.isAdmin !== true) {
+    if (!canConfigureMerchantCenter(session.user)) {
         return Response.json({ error: "Forbidden" }, { status: 403 });
     }
 

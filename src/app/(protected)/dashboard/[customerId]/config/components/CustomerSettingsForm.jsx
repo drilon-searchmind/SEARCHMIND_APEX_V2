@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
 import { FiSettings, FiShoppingBag, FiPackage, FiDatabase, FiGlobe, FiFacebook, FiTrendingUp, FiSearch, FiMail, FiImage, FiLayers, FiZap, FiMessageCircle } from "react-icons/fi";
+import MerchantCenterAccountFields from "@/components/merchant-center/MerchantCenterAccountFields";
 
 function SettingsSection({ title, icon: Icon, children, sectionId }) {
     return (
@@ -530,35 +531,27 @@ export default function CustomerSettingsForm({
             {/* Google Merchant Center */}
             {canConfigureMc ? (
                 <SettingsSection title="Merchant Center" icon={FiShoppingBag} sectionId={CONFIG_SECTION.merchantCenter}>
-                    <FormField
-                        id="googleMerchantCenterId"
-                        name="googleMerchantCenterId"
-                        label="Merchant Center account ID"
-                        value={form.googleMerchantCenterId}
-                        onChange={onChange}
-                        placeholder="e.g. 123456789"
+                    <MerchantCenterAccountFields
+                        merchantCenterId={form.googleMerchantCenterId || ""}
+                        oauthSlot={form.googleMerchantAccountSlot ?? 1}
+                        onMerchantCenterIdChange={(value) =>
+                            onChange({
+                                target: { name: "googleMerchantCenterId", value },
+                            })
+                        }
+                        onOauthSlotChange={(value) =>
+                            onChange({
+                                target: { name: "googleMerchantAccountSlot", value: String(value) },
+                            })
+                        }
+                        idPrefix="config-mc"
+                        fieldClassName="config-field"
+                        labelClassName="config-field__label"
+                        inputClassName="config-field__input"
+                        hintClassName="config-field__hint"
+                        pickerClassName="config-field__input"
+                        errorClassName="config-field__hint"
                     />
-                    <div className="config-field">
-                        <label htmlFor="googleMerchantAccountSlot" className="config-field__label">
-                            OAuth account slot
-                        </label>
-                        <select
-                            id="googleMerchantAccountSlot"
-                            name="googleMerchantAccountSlot"
-                            className="config-field__input"
-                            value={form.googleMerchantAccountSlot ?? 1}
-                            onChange={onChange}
-                        >
-                            <option value={0}>Account 0 — Google Ads (GOOGLE_ADS_*)</option>
-                            <option value={1}>Account 1 — MC1 (GOOGLE_MERCHANT_*_1)</option>
-                            <option value={2}>Account 2 — MC2 (GOOGLE_MERCHANT_*_2)</option>
-                        </select>
-                        <p className="config-field__hint">
-                            Choose which OAuth credentials Price Index uses. Account 0 reuses the shared
-                            Google Ads credentials; accounts 1 and 2 use dedicated Merchant Center OAuth
-                            apps.
-                        </p>
-                    </div>
                 </SettingsSection>
             ) : null}
 

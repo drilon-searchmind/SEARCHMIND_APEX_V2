@@ -3,12 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { FiSave } from "react-icons/fi";
-
-const OAUTH_SLOT_OPTIONS = [
-    { value: 0, label: "Account 0 — Google Ads (GOOGLE_ADS_*)" },
-    { value: 1, label: "Account 1 — MC1 (GOOGLE_MERCHANT_*_1)" },
-    { value: 2, label: "Account 2 — MC2 (GOOGLE_MERCHANT_*_2)" },
-];
+import MerchantCenterAccountFields from "@/components/merchant-center/MerchantCenterAccountFields";
 
 export default function PriceShaperSetupPanel({
     customerId,
@@ -29,48 +24,19 @@ export default function PriceShaperSetupPanel({
                     Connect Merchant Center
                 </h2>
                 <p className="apex-ps-setup__desc">
-                    Enter your Merchant Center account ID and choose which OAuth credentials Price
-                    Index should use to load benchmark data.
+                    Choose OAuth credentials, pick a Merchant Center account from the list, or enter
+                    an account ID manually.
                 </p>
             </header>
 
             <div className="apex-ps-setup__fields">
-                <div className="apex-ps-setup__field">
-                    <label className="apex-ps-setup__label" htmlFor="apex-ps-mc-id">
-                        Merchant Center account ID
-                    </label>
-                    <input
-                        id="apex-ps-mc-id"
-                        type="text"
-                        className="apex-ps-setup__input"
-                        placeholder="e.g. 123456789"
-                        value={merchantCenterId}
-                        onChange={(e) => onMerchantCenterIdChange(e.target.value)}
-                        autoComplete="off"
-                    />
-                </div>
-
-                <div className="apex-ps-setup__field">
-                    <label className="apex-ps-setup__label" htmlFor="apex-ps-oauth-slot">
-                        OAuth account slot
-                    </label>
-                    <select
-                        id="apex-ps-oauth-slot"
-                        className="apex-ps-setup__input"
-                        value={oauthSlot}
-                        onChange={(e) => onOauthSlotChange(Number(e.target.value))}
-                    >
-                        {OAUTH_SLOT_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                                {option.label}
-                            </option>
-                        ))}
-                    </select>
-                    <p className="apex-ps-setup__hint">
-                        Account 0 reuses the shared Google Ads credentials; accounts 1 and 2 use
-                        dedicated Merchant Center OAuth apps.
-                    </p>
-                </div>
+                <MerchantCenterAccountFields
+                    merchantCenterId={merchantCenterId}
+                    oauthSlot={oauthSlot}
+                    onMerchantCenterIdChange={onMerchantCenterIdChange}
+                    onOauthSlotChange={onOauthSlotChange}
+                    idPrefix="apex-ps-mc"
+                />
             </div>
 
             {error ? <p className="apex-ps-setup__error">{error}</p> : null}
