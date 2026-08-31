@@ -34,6 +34,7 @@ Requires `customerId`, `startDate`, `endDate` unless noted.
 | `list_meta_campaigns` | Meta campaign list |
 | `list_google_campaigns` | Google campaign list |
 | `get_meta_ad_performance` | Ad-level Meta performance |
+| `get_meta_ad_creatives` | Live Meta ads with creative `thumbnail_url` / `image_url` (no dates required) |
 | `get_google_ad_performance` | Ad-level Google performance |
 | `get_google_ppc_dashboard` | Full Google PPC dashboard payload |
 | `get_klaviyo_dashboard` | Full Klaviyo EM dashboard (+ optional `prevStartDate`, `prevEndDate`) |
@@ -127,7 +128,18 @@ Use **`list_proxy_routes`** first to see allowlists and guardrails. Prefer curat
 | `request_route_access` | `{ route, customerId, reason }` → optional; blocked `call_apex_api` calls are **auto-logged** by APEX |
 | `shopify_graphql_read` | `{ queryType, customerId, params }` → ShopifyQL or Admin GraphQL templates |
 | `google_ads_gaql_read` | `{ customerId, query }` → read-only GAQL SELECT |
-| `meta_ads_read` | `{ endpoint, customerId, params }` → Meta insights / campaigns / adsets / ads / accounts |
+| `meta_ads_read` | `{ endpoint, customerId, params }` → Meta insights / campaigns / adsets / ads / **ads-with-creatives** / **ad-preview** / accounts |
+
+### Meta ad creatives
+
+| Tool / route | Purpose |
+|--------------|---------|
+| `get_meta_ad_creatives` | Curated tool — ACTIVE live ads + `creative.thumbnail_url` |
+| `call_apex_api` → `/api/meta-ad-creatives` | Same payload via allowlisted route |
+| `meta_ads_read` → `ads-with-creatives` | Same via Meta proxy |
+| `meta_ads_read` → `ad-preview` | Single-ad feed preview HTML (`params.adId`, optional `adFormat`) |
+
+Default allowlisted — no admin route approval required.
 
 ### Allowlisted APEX routes (`call_apex_api`)
 
@@ -151,6 +163,7 @@ Use **`list_proxy_routes`** first to see allowlists and guardrails. Prefer curat
 | `/api/apex-radar` | `startDate`, `endDate`, `channel` (`google-ads` or `facebook`) |
 | `/api/shopify-channel-attribution` | `startDate`, `endDate` |
 | `/api/shopify-referrer-domain-sessions` | `startDate`, `endDate` |
+| `/api/meta-ad-creatives` | optional `limit`, `activeOnly` (default true) |
 | `/api/shopify-agentic-attribution` | `startDate`, `endDate` |
 
 ### Approvable routes (`call_apex_api` — require admin approval per customer)
