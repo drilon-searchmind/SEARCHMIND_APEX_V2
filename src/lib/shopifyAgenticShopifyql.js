@@ -1,8 +1,8 @@
-import { shopifyqlQuery } from "@/lib/shopifyApi";
+import { shopifyqlQuery } from "./shopifyApi.js";
 import {
 	SHOPIFY_AGENTIC_SHOPIFYQL_API_VERSIONS,
 	getShopifyAdminApiVersion,
-} from "@/lib/shopifyShopDomain";
+} from "./shopifyShopDomain.js";
 
 /** Known Shopify Agentic Storefronts channel labels (exact, case-insensitive). */
 const AGENTIC_CHANNEL_EXACT = new Set([
@@ -18,7 +18,23 @@ const AGENTIC_CHANNEL_PATTERN =
 	/agentic|chatgpt|copilot|gemini|perplexity|google ai|\bshop\b/i;
 
 const AGENTIC_REFERRER_PATTERN =
-	/chatgpt|openai|perplexity|copilot|gemini|google ai|claude\.ai/i;
+	/chatgpt|openai|perplexity|copilot|gemini|google ai|claude\.ai|shop_app|shop app/i;
+
+/** UTM sources that indicate AI / agentic storefront traffic in Shopify sessions. */
+const AGENTIC_UTM_SOURCE_EXACT = new Set([
+	"chatgpt.com",
+	"chatgpt",
+	"openai",
+	"perplexity",
+	"copilot.com",
+	"copilot",
+	"gemini",
+	"shop_app",
+	"shop app",
+]);
+
+const AGENTIC_UTM_SOURCE_PATTERN =
+	/chatgpt|openai|perplexity|copilot|gemini|google.?ai|shop_app|shop app/i;
 
 /**
  * @param {unknown} err
@@ -117,6 +133,41 @@ function filterAgenticReferrerRows(rows, key = "referrer_source") {
 		const label = String(row?.[key] ?? "").trim();
 		return label && AGENTIC_REFERRER_PATTERN.test(label);
 	});
+}
+
+/**
+ * @param {string} utmSource
+ */
+export function isAgenticUtmSource(utmSource) {
+	const normalized = String(utmSource ?? "").trim().toLowerCase();
+	if (!normalized) return false;
+	if (AGENTIC_UTM_SOURCE_EXACT.has(normalized)) return true;
+	return AGENTIC_UTM_SOURCE_PATTERN.test(normalized);
+}
+
+/**
+ * @param {Array<Record<string, unknown>>} rows
+ */
+function filterAgenticUtmRows(rows) {
+	return (rows || []).filter((row) => isAgenticUtmSource(row?.utm_source));
+}
+
+function buildUtmSourceQuery(startDate, endDate) {
+	return `FROM sessions
+SHOW sessions, online_store_visitors, conversion_rate
+GROUP BY utm_source, utm_medium
+SINCE ${startDate} UNTIL ${endDate}
+ORDER BY sessions DESC
+LIMIT 250`;
+}
+
+function buildShopChannelSalesQuery(startDate, endDate) {
+	return `FROM sales
+SHOW net_sales, orders, gross_sales, total_sales
+GROUP BY sales_channel
+SINCE ${startDate} UNTIL ${endDate}
+ORDER BY net_sales DESC
+LIMIT 100`;
 }
 
 function buildSalesChannelFallbackQuery(startDate, endDate) {
@@ -277,30 +328,62 @@ export async function fetchAgenticReferringChannelReport({
 		apiVersion
 	);
 	const allReferrerRows = sessionsAttempt.tableData?.rows || [];
-	const filteredRows = filterAgenticReferrerRows(allReferrerRows, "referrer_source");
+	const filteredReferrerRows = filterAgenticReferrerRows(allReferrerRows, "referrer_source");
+
+	const utmQuery = buildUtmSourceQuery(startDate, endDate);
+	const utmAttempt = await runPinnedAgenticShopifyql(shopUrl, accessToken, utmQuery, apiVersion);
+	const allUtmRows = utmAttempt.tableData?.rows || [];
+	const filteredUtmRows = filterAgenticUtmRows(allUtmRows);
+
+	const primaryRows =
+		filteredUtmRows.length > 0
+			? filteredUtmRows
+			: filteredReferrerRows;
 
 	return {
-		query: sessionsQuery,
+		query: filteredUtmRows.length > 0 ? utmQuery : sessionsQuery,
 		apiVersion,
-		parseErrors: sessionsAttempt.parseErrors,
-		dimension: "referrer_source",
-		schema: "sessions",
-		fallback: "sessions_referrer_filter",
+		parseErrors: [...(sessionsAttempt.parseErrors || []), ...(utmAttempt.parseErrors || [])].filter(
+			Boolean
+		),
+		dimension: filteredUtmRows.length > 0 ? "utm_source" : "referrer_source",
+		schema: filteredUtmRows.length > 0 ? "sessions" : "sessions",
+		fallback: filteredUtmRows.length > 0 ? "sessions_utm_filter" : "sessions_referrer_filter",
 		tableData: {
-			columns: sessionsAttempt.tableData?.columns?.length
-				? sessionsAttempt.tableData.columns
-				: [
-						{ name: "referrer_source", displayName: "Referrer source" },
-						{ name: "sessions", displayName: "Sessions" },
-					],
-			rows: filteredRows,
+			columns:
+				filteredUtmRows.length > 0
+					? utmAttempt.tableData?.columns?.length
+						? utmAttempt.tableData.columns
+						: [
+								{ name: "utm_source", displayName: "UTM source" },
+								{ name: "utm_medium", displayName: "UTM medium" },
+								{ name: "sessions", displayName: "Sessions" },
+							]
+					: sessionsAttempt.tableData?.columns?.length
+						? sessionsAttempt.tableData.columns
+						: [
+								{ name: "referrer_source", displayName: "Referrer source" },
+								{ name: "sessions", displayName: "Sessions" },
+							],
+			rows: primaryRows,
+		},
+		trafficByAgenticUtmSource: {
+			query: utmQuery,
+			tableData: {
+				columns: utmAttempt.tableData?.columns || [],
+				rows: filteredUtmRows,
+			},
+			allUtmSourcesSample: filteredUtmRows.length ? undefined : allUtmRows.slice(0, 20),
+			parseErrors: utmAttempt.parseErrors || [],
 		},
 		allReferrerSourcesSample:
-			filteredRows.length ? undefined : allReferrerRows.slice(0, 15),
+			filteredReferrerRows.length ? undefined : allReferrerRows.slice(0, 15),
 		note:
-			filteredRows.length > 0
-				? "agentic_referring_channel unavailable — AI/agent referrers from sessions.referrer_source."
-				: "agentic_referring_channel unavailable — no AI referrers in sessions for this period (see allReferrerSourcesSample).",
+			filteredUtmRows.length > 0
+				? "agentic_referring_channel unavailable on sales — AI/agent sessions from utm_source (chatgpt.com, perplexity, copilot.com, shop_app, etc.)."
+				: filteredReferrerRows.length > 0
+					? "agentic_referring_channel unavailable — AI/agent referrers from sessions.referrer_source."
+					: "No agentic UTM or referrer traffic in this period (see allUtmSourcesSample / allReferrerSourcesSample).",
 	};
 }
 
@@ -359,23 +442,108 @@ export async function fetchAgenticSalesChannelDailyReport({
 }
 
 /**
+ * Explicit Shop sales channel row (matches Shopify Admin Agentic widget "Shop" line).
+ */
+export async function fetchShopChannelSalesReport({
+	shopUrl,
+	accessToken,
+	startDate,
+	endDate,
+	apiVersion,
+}) {
+	const query = buildShopChannelSalesQuery(startDate, endDate);
+	const result = await runPinnedAgenticShopifyql(shopUrl, accessToken, query, apiVersion);
+	const allRows = result.tableData?.rows || [];
+	const shopRows = allRows.filter(
+		(row) => String(row?.sales_channel ?? "").trim().toLowerCase() === "shop"
+	);
+
+	return {
+		query,
+		apiVersion,
+		parseErrors: result.parseErrors,
+		dimension: "sales_channel",
+		tableData: {
+			columns: result.tableData?.columns?.length
+				? result.tableData.columns
+				: [
+						{ name: "sales_channel", displayName: "Sales channel" },
+						{ name: "net_sales", displayName: "Net sales" },
+						{ name: "orders", displayName: "Orders" },
+					],
+			rows: shopRows,
+		},
+		allSalesChannelsSample: shopRows.length ? undefined : allRows.slice(0, 15),
+		note:
+			shopRows.length > 0
+				? "Shop channel sales — closest APEX proxy for Shopify Admin Agentic Storefronts Shop revenue line."
+				: "No sales_channel row named Shop in this period.",
+	};
+}
+
+/**
+ * Sessions from AI/agent UTM sources (always included in agentic bundle).
+ */
+export async function fetchAgenticUtmTrafficReport({
+	shopUrl,
+	accessToken,
+	startDate,
+	endDate,
+	apiVersion,
+}) {
+	const query = buildUtmSourceQuery(startDate, endDate);
+	const result = await runPinnedAgenticShopifyql(shopUrl, accessToken, query, apiVersion);
+	const allRows = result.tableData?.rows || [];
+	const filteredRows = filterAgenticUtmRows(allRows);
+
+	return {
+		query,
+		apiVersion,
+		parseErrors: result.parseErrors,
+		dimension: "utm_source",
+		schema: "sessions",
+		tableData: {
+			columns: result.tableData?.columns?.length
+				? result.tableData.columns
+				: [
+						{ name: "utm_source", displayName: "UTM source" },
+						{ name: "utm_medium", displayName: "UTM medium" },
+						{ name: "sessions", displayName: "Sessions" },
+					],
+			rows: filteredRows,
+		},
+		allUtmSourcesSample: filteredRows.length ? undefined : allRows.slice(0, 25),
+		note: "AI/agent session traffic by utm_source — includes chatgpt.com, perplexity, copilot.com, openai, shop_app.",
+	};
+}
+
+/**
  * Run all agentic ShopifyQL reports with one shared resolved API version.
  */
 export async function fetchAllAgenticShopifyqlReports(shopUrl, accessToken, startDate, endDate) {
 	const apiVersion = await resolveAgenticShopifyqlApiVersion(shopUrl, accessToken);
 	const base = { shopUrl, accessToken, startDate, endDate, apiVersion };
 
-	const [salesByAgenticSalesChannel, salesByAgenticReferringChannel, agenticSalesChannelDaily] =
-		await Promise.all([
-			fetchAgenticSalesChannelReport(base),
-			fetchAgenticReferringChannelReport(base),
-			fetchAgenticSalesChannelDailyReport(base),
-		]);
+	const [
+		salesByAgenticSalesChannel,
+		salesByAgenticReferringChannel,
+		agenticSalesChannelDaily,
+		shopChannelSales,
+		trafficByAgenticUtmSource,
+	] = await Promise.all([
+		fetchAgenticSalesChannelReport(base),
+		fetchAgenticReferringChannelReport(base),
+		fetchAgenticSalesChannelDailyReport(base),
+		fetchShopChannelSalesReport(base),
+		fetchAgenticUtmTrafficReport(base),
+	]);
 
 	return {
 		shopifyqlApiVersion: apiVersion,
 		salesByAgenticSalesChannel,
 		salesByAgenticReferringChannel,
 		agenticSalesChannelDaily,
+		shopChannelSales,
+		trafficByAgenticUtmSource,
 	};
 }

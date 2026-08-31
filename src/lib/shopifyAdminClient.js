@@ -3,7 +3,7 @@ import {
     shopifyAdminGraphqlEndpoint,
     getShopifyAdminApiVersion,
     SHOPIFY_ADMIN_API_VERSION_FALLBACKS,
-} from "./shopifyShopDomain";
+} from "./shopifyShopDomain.js";
 
 /**
  * POST to Shopify Admin GraphQL; follows redirects without turning POST into GET.

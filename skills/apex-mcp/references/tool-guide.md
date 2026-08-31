@@ -177,7 +177,16 @@ Admin review: `https://apex.searchmind.tech/admin/route-requests`
 
 Pair **session-level** AI traffic (`/api/shopify-channel-attribution`) with **order-level** agentic sales (`/api/shopify-agentic-attribution` or `ordersAttribution`) to see if AI referrals convert.
 
-All agentic endpoints return **`shopifyqlApiVersion`** — one shared resolved version per request (default `2026-04`). Empty rows with `fallback: null` usually means no agentic activity in the period, not a code error. If native columns are missing, fallbacks include **`Shop`** channel name and AI referrers from sessions.
+All agentic endpoints return **`shopifyqlApiVersion`** — one shared resolved version per request (default `2026-04`).
+
+| Response block | What it gives you |
+|----------------|-------------------|
+| `shopChannelSales` | `sales_channel = Shop` revenue/orders — proxy for Shopify Admin widget "Shop" line |
+| `trafficByAgenticUtmSource` | Sessions by `utm_source` (chatgpt.com, perplexity, copilot.com, openai, shop_app) |
+| `salesByAgenticSalesChannel` | Native `agentic_sales_channel` when Shopify exposes it, else Shop/AI `sales_channel` filter |
+| `salesByAgenticReferringChannel` | Native `agentic_referring_channel` or UTM/referrer session fallback |
+
+Native `agentic_sales_channel` / `agentic_referring_channel` may still be unavailable on API 2026-04 for some stores — fallbacks above still surface Shop revenue and AI session traffic. Per-agent revenue breakdown (ChatGPT vs Copilot vs Shop) requires Shopify to expose native agentic dimensions in ShopifyQL.
 
 ## Parameter notes
 

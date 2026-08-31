@@ -4,8 +4,8 @@ import {
     normalizeShopifyShopDomain,
     shopifyAdminGraphqlEndpoint,
     getShopifyAdminApiVersion,
-} from "./shopifyShopDomain";
-import { shopifyAdminGraphqlPost } from "./shopifyAdminClient";
+} from "./shopifyShopDomain.js";
+import { shopifyAdminGraphqlPost } from "./shopifyAdminClient.js";
 
 /**
  * Escapes a ShopifyQL query string for embedding in a GraphQL query.
