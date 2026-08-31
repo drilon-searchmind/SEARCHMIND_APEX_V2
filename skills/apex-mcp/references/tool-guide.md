@@ -169,8 +169,8 @@ Admin review: `https://apex.searchmind.tech/admin/route-requests`
 | queryType | Kind | Notes |
 |-----------|------|-------|
 | `SalesReport`, `OrdersReport`, `ProductsReport`, `CustomersReport`, `InventoryReport` | ShopifyQL | Standard reports |
-| `AgenticSalesReport` | ShopifyQL | Sales grouped by `agentic_sales_channel` (ChatGPT, Copilot, Gemini, etc.) |
-| `AgenticReferringReport` | ShopifyQL | Sales grouped by `agentic_referring_channel` |
+| `AgenticSalesReport` | ShopifyQL | Sales by `agentic_sales_channel` (tries API 2026-04→2026-01; falls back to filtered `sales_channel`) |
+| `AgenticReferringReport` | ShopifyQL | Sales by `agentic_referring_channel` (FROM sales, then FROM payments fallback) |
 | `orders` | GraphQL | Basic order list for date range |
 | `ordersAttribution` | GraphQL | Orders with `sourceName`, `tags`, `app`, `channelInformation`, `attribution`, `customerJourneySummary` |
 | `products`, `customers`, `inventory`, `shop` | GraphQL | Paginated Admin reads |

@@ -4,8 +4,14 @@
 
 export function getShopifyAdminApiVersion() {
     const fromEnv = process.env.SHOPIFY_ADMIN_API_VERSION?.trim();
-    return fromEnv || "2025-10";
+    return fromEnv || "2026-01";
 }
+
+/**
+ * Admin API versions to try for ShopifyQL queries that need newer agentic dimensions.
+ * Ordered newest-first; agentic_sales_channel requires a recent ShopifyQL schema.
+ */
+export const SHOPIFY_AGENTIC_SHOPIFYQL_API_VERSIONS = ["2026-04", "2026-01", "2025-10"];
 
 /**
  * @param {string} shop — CustomerSettings.shopifyUrl or similar
@@ -33,4 +39,4 @@ export function shopifyAdminGraphqlEndpoint(shop, apiVersion) {
 }
 
 /** Stable Admin API versions to try when configured version returns HTTP 404. */
-export const SHOPIFY_ADMIN_API_VERSION_FALLBACKS = ["2025-10", "2025-07", "2025-04"];
+export const SHOPIFY_ADMIN_API_VERSION_FALLBACKS = ["2026-04", "2026-01", "2025-10", "2025-07"];

@@ -57,7 +57,8 @@ export async function shopifyqlQuery(shopifyUrl, accessToken, shopifyqlQuery, op
         const { res, json, endpoint, domain, apiVersion } = await shopifyAdminGraphqlPost(
             shopifyUrl,
             accessToken,
-            body
+            body,
+            { apiVersion: options.apiVersion }
         );
         if (apiVersion && apiVersion !== getShopifyAdminApiVersion() && attempt === 1) {
             console.warn(
