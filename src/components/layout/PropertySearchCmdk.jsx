@@ -5,6 +5,25 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { FiSearch } from "react-icons/fi";
 import { getCustomerPlatformLabel } from "@/lib/customerPlatformDisplay";
+import { useRecentCustomers } from "@/hooks/useRecentCustomers";
+
+function customerToCmdkItem(customer, buildHref) {
+    return {
+        id: String(customer._id),
+        name: customer.customerName,
+        platform: getCustomerPlatformLabel(customer),
+        href: buildHref ? buildHref(customer._id) : `/dashboard/${customer._id}/performance-dashboard`,
+    };
+}
+
+function extraToCmdkItem(item) {
+    return {
+        id: item.id,
+        name: item.name,
+        platform: item.platform ?? "",
+        href: item.href,
+    };
+}
 
 /**
  * Cobalt property switcher — same ⌘K palette as the home page.
@@ -23,35 +42,57 @@ export default function PropertySearchCmdk({
     const [query, setQuery] = useState("");
     const [activeIndex, setActiveIndex] = useState(0);
     const inputRef = useRef(null);
+    const { recentIds, refreshRecentIds, recordRecentCustomer } = useRecentCustomers();
 
-    const cmdkItems = useMemo(() => {
+    const { cmdkGroups, cmdkItems } = useMemo(() => {
         const q = query.trim().toLowerCase();
+
         const fromCustomers = customers
             .filter((c) => !q || c.customerName?.toLowerCase().includes(q))
-            .map((c) => ({
-                id: String(c._id),
-                name: c.customerName,
-                platform: getCustomerPlatformLabel(c),
-                href: buildHref ? buildHref(c._id) : `/dashboard/${c._id}/performance-dashboard`,
-            }));
+            .map((c) => customerToCmdkItem(c, buildHref));
 
         const extras = extraItems
             .filter((item) => !q || item.name?.toLowerCase().includes(q))
-            .map((item) => ({
-                id: item.id,
-                name: item.name,
-                platform: item.platform ?? "",
-                href: item.href,
-            }));
+            .map(extraToCmdkItem);
 
-        return [...extras, ...fromCustomers];
-    }, [customers, query, buildHref, extraItems]);
+        if (q) {
+            const items = [...extras, ...fromCustomers];
+            return {
+                cmdkGroups: items.length ? [{ label: "Properties", items }] : [],
+                cmdkItems: items,
+            };
+        }
+
+        const customerById = new Map(customers.map((c) => [String(c._id), c]));
+        const recentItems = recentIds
+            .map((id) => customerById.get(String(id)))
+            .filter(Boolean)
+            .map((c) => customerToCmdkItem(c, buildHref));
+
+        const recentIdSet = new Set(recentItems.map((item) => item.id));
+        const remainingCustomers = fromCustomers.filter((item) => !recentIdSet.has(item.id));
+
+        const groups = [];
+        if (extras.length > 0) {
+            groups.push({ label: "Quick links", items: extras });
+        }
+        if (recentItems.length > 0) {
+            groups.push({ label: "Recent", items: recentItems });
+        }
+        groups.push({ label: "Properties", items: remainingCustomers });
+
+        return {
+            cmdkGroups: groups.filter((group) => group.items.length > 0),
+            cmdkItems: groups.flatMap((group) => group.items),
+        };
+    }, [customers, query, buildHref, extraItems, recentIds]);
 
     const openPalette = useCallback(() => {
+        refreshRecentIds();
         setOpen(true);
         setQuery("");
         setActiveIndex(0);
-    }, []);
+    }, [refreshRecentIds]);
 
     const closePalette = useCallback(() => {
         setOpen(false);
@@ -63,10 +104,13 @@ export default function PropertySearchCmdk({
         (index) => {
             const item = cmdkItems[index];
             if (!item) return;
+            if (item.id && !String(item.id).startsWith("__")) {
+                recordRecentCustomer(item.id);
+            }
             closePalette();
             router.push(item.href);
         },
-        [cmdkItems, closePalette, router]
+        [cmdkItems, closePalette, recordRecentCustomer, router]
     );
 
     useEffect(() => {
@@ -114,12 +158,15 @@ export default function PropertySearchCmdk({
 
     useEffect(() => {
         setMounted(true);
-    }, []);
+        refreshRecentIds();
+    }, [refreshRecentIds]);
 
     const buttonLabel =
         showCurrentProperty && activeCustomerName
             ? activeCustomerName
             : placeholder;
+
+    let itemOffset = 0;
 
     return (
         <>
@@ -173,27 +220,39 @@ export default function PropertySearchCmdk({
                                 {cmdkItems.length === 0 ? (
                                     <p className="apex-home__cmdk-empty">No matching properties.</p>
                                 ) : (
-                                    <>
-                                        <p className="apex-home__cmdk-group">Properties</p>
-                                        {cmdkItems.map((item, index) => (
-                                            <button
-                                                key={item.id}
-                                                type="button"
-                                                role="option"
-                                                aria-selected={index === activeIndex}
-                                                className={`apex-home__cmdk-item${
-                                                    index === activeIndex ? " is-active" : ""
-                                                }${String(item.id) === String(activeCustomerId) ? " is-current" : ""}`}
-                                                onMouseEnter={() => setActiveIndex(index)}
-                                                onClick={() => selectItem(index)}
-                                            >
-                                                <span>{item.name}</span>
-                                                {item.platform ? (
-                                                    <span className="apex-home__cmdk-item-meta">{item.platform}</span>
-                                                ) : null}
-                                            </button>
-                                        ))}
-                                    </>
+                                    cmdkGroups.map((group) => {
+                                        const groupStartIndex = itemOffset;
+                                        const groupButtons = group.items.map((item, groupIndex) => {
+                                            const index = groupStartIndex + groupIndex;
+                                            return (
+                                                <button
+                                                    key={`${group.label}-${item.id}`}
+                                                    type="button"
+                                                    role="option"
+                                                    aria-selected={index === activeIndex}
+                                                    className={`apex-home__cmdk-item${
+                                                        index === activeIndex ? " is-active" : ""
+                                                    }${String(item.id) === String(activeCustomerId) ? " is-current" : ""}`}
+                                                    onMouseEnter={() => setActiveIndex(index)}
+                                                    onClick={() => selectItem(index)}
+                                                >
+                                                    <span>{item.name}</span>
+                                                    {item.platform ? (
+                                                        <span className="apex-home__cmdk-item-meta">
+                                                            {item.platform}
+                                                        </span>
+                                                    ) : null}
+                                                </button>
+                                            );
+                                        });
+                                        itemOffset += group.items.length;
+                                        return (
+                                            <React.Fragment key={group.label}>
+                                                <p className="apex-home__cmdk-group">{group.label}</p>
+                                                {groupButtons}
+                                            </React.Fragment>
+                                        );
+                                    })
                                 )}
                             </div>
                             <div className="apex-home__cmdk-foot">

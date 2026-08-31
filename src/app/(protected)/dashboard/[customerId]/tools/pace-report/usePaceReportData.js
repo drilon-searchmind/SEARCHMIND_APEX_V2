@@ -1,11 +1,6 @@
 import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
-import {
-	adSpendByPeriodMap,
-	buildChannelCumulativeSpendSeriesForPace,
-	channelSpendTotalsFromMerged,
-	adSpendChannelsForSpendTotals,
-} from '@/lib/mergeAdSpendDaily';
+import { adSpendByPeriodMap } from '@/lib/mergeAdSpendDaily';
 import {
 	buildChannelSpendMapsFromMerged,
 	primarySalesRevenueLabel,
@@ -21,8 +16,7 @@ export function usePaceReportData(
 	customer,
 	objectives,
 	appliedDateRange,
-	mergedSourcesQuerySuffix = '',
-	paceChannelSpecs = null
+	mergedSourcesQuerySuffix = ''
 ) {
 	const dashboardData = useDashboardDataOptional();
 	const fetchMergedSources = dashboardData?.fetchMergedSources;
@@ -32,7 +26,6 @@ export function usePaceReportData(
 	const [loading, setLoading] = useState(() => !isHubMode);
 	const [error, setError] = useState(null);
 	const [costData, setCostData] = useState([]);
-	const [costByChannelSeries, setCostByChannelSeries] = useState([]);
 	const [budget, setBudget] = useState(0);
 	const [paceAnalysis, setPaceAnalysis] = useState(null);
 	const [conversionValueData, setConversionValueData] = useState([]);
@@ -93,20 +86,6 @@ export function usePaceReportData(
 					return { period, spend: Number(cumulative.toFixed(2)) };
 				});
 				setCostData(costDaily);
-				const visibleSpendChannels =
-					paceChannelSpecs != null
-						? paceChannelSpecs
-						: adSpendChannelsForSpendTotals(
-								customer?.CustomerSettings,
-								channelSpendTotalsFromMerged(merged)
-						  );
-				setCostByChannelSeries(
-					buildChannelCumulativeSpendSeriesForPace(
-						merged,
-						allPeriods,
-						visibleSpendChannels
-					)
-				);
 
 				const totalDays = endDateObj.diff(startDateObj, 'day') + 1;
 
@@ -267,13 +246,12 @@ export function usePaceReportData(
 				setLoading(false);
 			}
 		})();
-	}, [customer, objectives, appliedDateRange, mergedSourcesQuerySuffix, paceChannelSpecs, fetchMergedSources, fetchCustomKpisCached, isHubMode]);
+	}, [customer, objectives, appliedDateRange, mergedSourcesQuerySuffix, fetchMergedSources, fetchCustomKpisCached, isHubMode]);
 
 	return {
 		loading,
 		error,
 		costData,
-		costByChannelSeries,
 		budget,
 		paceAnalysis,
 		conversionValueData,

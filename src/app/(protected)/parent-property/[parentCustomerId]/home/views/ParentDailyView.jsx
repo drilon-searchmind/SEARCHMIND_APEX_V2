@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo } from "react";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import DailyMetricsTable from "@/app/(protected)/dashboard/[customerId]/daily-overview/DailyMetricsTable";
-import RowComparisonPopover from "@/app/(protected)/dashboard/[customerId]/daily-overview/RowComparisonPopover";
 import LastYearPeriodTable from "@/app/(protected)/dashboard/[customerId]/daily-overview/LastYearPeriodTable";
 import MetricToggleBar from "@/app/(protected)/dashboard/[customerId]/daily-overview/MetricToggleBar";
 import { DEFAULT_VISIBLE_METRICS, mapMetricColumnsForRevenueBasis } from "@/app/(protected)/dashboard/[customerId]/daily-overview/metricConfig";
@@ -40,12 +39,9 @@ export default function ParentDailyView({ sharedData }) {
 
     const [rowsLastYear, setRowsLastYear] = useState([]);
     const [loadingLastYear, setLoadingLastYear] = useState(false);
-    const [hoveredRowIndex, setHoveredRowIndex] = useState(null);
-    const [hoveredRowTable, setHoveredRowTable] = useState(null);
-    const [hoveredRowPosition, setHoveredRowPosition] = useState({ top: 0, left: 0 });
-    const [tableWidth, setTableWidth] = useState(null);
     const [visibleMetrics, setVisibleMetrics] = useState(DEFAULT_VISIBLE_METRICS);
     const [showTrendChart, setShowTrendChart] = useState(false);
+    const [showLastYearTable, setShowLastYearTable] = useState(false);
 
     const handleMetricToggle = (key) => {
         setVisibleMetrics((prev) => {
@@ -54,18 +50,6 @@ export default function ParentDailyView({ sharedData }) {
             if (count === 0) return prev;
             return next;
         });
-    };
-
-    const handleRowHover = ({ index, tableType, position, tableWidth: w }) => {
-        setHoveredRowIndex(index);
-        setHoveredRowTable(tableType);
-        setHoveredRowPosition(position);
-        setTableWidth(w);
-    };
-    const handleRowHoverLeave = () => {
-        setHoveredRowIndex(null);
-        setHoveredRowTable(null);
-        setTableWidth(null);
     };
 
     useEffect(() => {
@@ -173,6 +157,8 @@ export default function ParentDailyView({ sharedData }) {
                             onToggle={handleMetricToggle}
                             showTrendChart={showTrendChart}
                             onTrendChartToggle={() => setShowTrendChart((v) => !v)}
+                            showLastYearTable={showLastYearTable}
+                            onLastYearTableToggle={() => setShowLastYearTable((v) => !v)}
                             metricColumns={metricColumnsParent}
                         />
                         <h3 className="apex-parent-panel__title">Daily metrics</h3>
@@ -201,35 +187,23 @@ export default function ParentDailyView({ sharedData }) {
                     error={null}
                     visibleMetrics={visibleMetrics}
                     metricColumns={metricColumnsParent}
-                    onRowHover={handleRowHover}
-                    onRowHoverLeave={handleRowHoverLeave}
                 />
             </div>
 
-            <RowComparisonPopover
-                visible={false}
-                position={hoveredRowPosition}
-                tableWidth={tableWidth}
-                hoveredRowTable={hoveredRowTable}
-                hoveredRowIndex={hoveredRowIndex}
-                rows={rows}
-                rowsLastYear={rowsLastYear}
-                visibleMetrics={visibleMetrics}
-            />
-
-            <div className="apex-parent-panel">
-                <h3 className="apex-parent-panel__title mb-5">Last year period</h3>
-                <LastYearPeriodTable
-                    variant="cobalt"
-                    rowsLastYear={rowsLastYear}
-                    rows={rows}
-                    loading={loadingLastYear}
-                    visibleMetrics={visibleMetrics}
-                    metricColumns={metricColumnsParent}
-                    onRowHover={handleRowHover}
-                    onRowHoverLeave={handleRowHoverLeave}
-                />
-            </div>
+            {showLastYearTable ? (
+                <div className="apex-parent-panel">
+                    <h3 className="apex-parent-panel__title mb-5">Last year period</h3>
+                    <p className="apex-daily-panel__subtitle">Full month — raw daily data</p>
+                    <LastYearPeriodTable
+                        variant="cobalt"
+                        rowsLastYear={rowsLastYear}
+                        rows={rows}
+                        loading={loadingLastYear}
+                        visibleMetrics={visibleMetrics}
+                        metricColumns={metricColumnsParent}
+                    />
+                </div>
+            ) : null}
         </div>
     );
 }

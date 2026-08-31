@@ -11,14 +11,14 @@ function storeResolved(resolvedCache, key, value) {
     resolvedCache?.set(key, value);
 }
 
+/** Cache key ignores `source` — merged payload is identical per date range + filter suffix. */
 export function buildMergedSourcesCacheKey(
     customerId,
-    source,
     startDate,
     endDate,
     suffix = ""
 ) {
-    return `${customerId}|${source}|${startDate}|${endDate}|${suffix}`;
+    return `merged|${customerId}|${startDate}|${endDate}|${suffix}`;
 }
 
 export async function fetchMergedSourcesJson({
@@ -33,7 +33,6 @@ export async function fetchMergedSourcesJson({
 }) {
     const key = buildMergedSourcesCacheKey(
         customerId,
-        source,
         startDate,
         endDate,
         suffix
@@ -51,11 +50,12 @@ export async function fetchMergedSourcesJson({
         });
     }
 
-    const url = `${baseUrl()}/api/merged-sources/${customerId}?startDate=${startDate}&endDate=${endDate}&source=${source}${suffix}`;
+    const sourceParam = source || "hub";
+    const url = `${baseUrl()}/api/merged-sources/${customerId}?startDate=${startDate}&endDate=${endDate}&source=${sourceParam}${suffix}`;
     const promise = fetch(url, { signal })
         .then(async (res) => {
             if (!res.ok) {
-                throw new Error(`Failed to fetch merged-sources (${source})`);
+                throw new Error(`Failed to fetch merged-sources (${sourceParam})`);
             }
             return res.json();
         })

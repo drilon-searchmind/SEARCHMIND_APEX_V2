@@ -72,18 +72,64 @@ function HomeAsideAccordionItem({ id, title, count, isOpen, onToggle, children, 
     );
 }
 
-function HomeAsidePanel({
-    user,
-    showLatestNews,
-    favoriteCustomers,
-    newsPosts,
-    newsLoading,
-    onLogout,
-}) {
+function HomeLatestNewsSpotlight({ post, loading }) {
+    if (loading) {
+        return (
+            <div className="apex-home__news-spotlight apex-home__news-spotlight--loading" aria-hidden>
+                <div className="apex-home__news-spotlight-media">
+                    <div className="apex-home__news-spotlight-skeleton" />
+                </div>
+                <div className="apex-home__news-spotlight-body">
+                    <div className="apex-home__skeleton-line apex-home__skeleton-line--xs" />
+                    <div className="apex-home__skeleton-line apex-home__skeleton-line--title" />
+                    <div className="apex-home__skeleton-line apex-home__skeleton-line--copy" />
+                </div>
+            </div>
+        );
+    }
+
+    if (!post) return null;
+
+    return (
+        <Link href={`/news/${post.slug}`} className="apex-home__news-spotlight">
+            <div className="apex-home__news-spotlight-media">
+                {post.coverImageUrl ? (
+                    <Image
+                        src={post.coverImageUrl}
+                        alt=""
+                        fill
+                        className="apex-home__news-spotlight-image"
+                        sizes="(min-width: 1280px) 320px, 40vw"
+                        unoptimized
+                    />
+                ) : (
+                    <div className="apex-home__news-spotlight-fallback" aria-hidden />
+                )}
+                <span className="apex-home__news-spotlight-badge">NEW</span>
+            </div>
+            <div className="apex-home__news-spotlight-body">
+                {post.publishedAt ? (
+                    <time dateTime={post.publishedAt} className="apex-home__news-spotlight-date">
+                        {new Date(post.publishedAt).toLocaleDateString(undefined, {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                        })}
+                    </time>
+                ) : null}
+                <h3 className="apex-home__news-spotlight-title">{post.title}</h3>
+                {post.excerpt ? (
+                    <p className="apex-home__news-spotlight-excerpt">{post.excerpt}</p>
+                ) : null}
+            </div>
+        </Link>
+    );
+}
+
+function HomeShortcutsPanel({ user, favoriteCustomers, onLogout }) {
     const [asideOpen, setAsideOpen] = useState({
         favorites: true,
         navigate: false,
-        news: false,
     });
 
     const toggleAsideSection = (key) => {
@@ -91,7 +137,7 @@ function HomeAsidePanel({
     };
 
     return (
-        <aside className="apex-home__aside" aria-label="Shortcuts and updates">
+        <aside className="apex-home__shortcuts" aria-label="Shortcuts and updates">
             <div className="apex-home__aside-card">
                 <div className="apex-home__aside-hero">
                     <p className="apex-home__panel-eyebrow">Apex · Marketing ops</p>
@@ -178,49 +224,63 @@ function HomeAsidePanel({
                             </button>
                         </HomeAsideAccordionItem>
                     )}
-
-                    {showLatestNews && (
-                        <HomeAsideAccordionItem
-                            id="news"
-                            title="Latest news"
-                            count={newsLoading ? null : newsPosts.length || null}
-                            isOpen={asideOpen.news}
-                            onToggle={() => toggleAsideSection("news")}
-                        >
-                            {newsLoading ? (
-                                <p className="apex-home__aside-empty">Loading…</p>
-                            ) : newsPosts.length === 0 ? (
-                                <p className="apex-home__aside-empty">No posts yet.</p>
-                            ) : (
-                                <ul className="apex-home__news-rail">
-                                    {newsPosts.map((post) => (
-                                        <li key={post.slug || post._id}>
-                                            <Link href={`/news/${post.slug}`} className="apex-home__news-card">
-                                                {post.publishedAt && (
-                                                    <time
-                                                        dateTime={post.publishedAt}
-                                                        className="apex-home__news-card-date"
-                                                    >
-                                                        {new Date(post.publishedAt).toLocaleDateString(undefined, {
-                                                            year: "numeric",
-                                                            month: "short",
-                                                            day: "numeric",
-                                                        })}
-                                                    </time>
-                                                )}
-                                                <span className="apex-home__news-card-title">{post.title}</span>
-                                                <FiArrowRight className="apex-home__news-card-arrow" aria-hidden />
-                                            </Link>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                            <Link href="/news" className="apex-home__aside-more">
-                                All news →
-                            </Link>
-                        </HomeAsideAccordionItem>
-                    )}
                 </div>
+            </div>
+        </aside>
+    );
+}
+
+function HomeNewsPanel({ showLatestNews, latestNewsPost, newsLoading }) {
+    if (!showLatestNews) return null;
+
+    return (
+        <aside className="apex-home__news" aria-label="Latest news">
+            <div className="apex-home__aside-card apex-home__aside-card--news">
+                <HomeLatestNewsSpotlight post={latestNewsPost} loading={newsLoading} />
+                {!newsLoading && latestNewsPost ? (
+                    <Link href="/news" className="apex-home__aside-more apex-home__aside-more--news">
+                        All news →
+                    </Link>
+                ) : null}
+            </div>
+        </aside>
+    );
+}
+
+function HomeShortcutsPanelSkeleton() {
+    return (
+        <aside className="apex-home__shortcuts" aria-hidden>
+            <div className="apex-home__aside-card">
+                <div className="apex-home__aside-hero">
+                    <p className="apex-home__panel-eyebrow">Apex · Marketing ops</p>
+                    <p className="apex-home__panel-display">Shortcuts & updates</p>
+                    <p className="apex-home__panel-copy">
+                        Pinned properties, team links, and the latest from Searchmind.
+                    </p>
+                </div>
+                <div className="apex-home__accordion">
+                    <div className="apex-home__accordion-item is-open">
+                        <div className="apex-home__accordion-trigger apex-home__accordion-trigger--skeleton" />
+                        <div className="apex-home__skeleton-rail">
+                            <div className="apex-home__skeleton-line apex-home__skeleton-line--rail" />
+                            <div className="apex-home__skeleton-line apex-home__skeleton-line--rail" />
+                            <div className="apex-home__skeleton-line apex-home__skeleton-line--rail" />
+                        </div>
+                    </div>
+                    <div className="apex-home__accordion-item">
+                        <div className="apex-home__accordion-trigger apex-home__accordion-trigger--skeleton" />
+                    </div>
+                </div>
+            </div>
+        </aside>
+    );
+}
+
+function HomeNewsPanelSkeleton() {
+    return (
+        <aside className="apex-home__news" aria-hidden>
+            <div className="apex-home__aside-card apex-home__aside-card--news">
+                <HomeLatestNewsSpotlight loading />
             </div>
         </aside>
     );
@@ -317,33 +377,8 @@ function HomeLoading() {
                         ))}
                     </main>
 
-                    <aside className="apex-home__aside" aria-hidden>
-                        <div className="apex-home__aside-card">
-                            <div className="apex-home__aside-hero">
-                                <p className="apex-home__panel-eyebrow">Apex · Marketing ops</p>
-                                <p className="apex-home__panel-display">Shortcuts & updates</p>
-                                <p className="apex-home__panel-copy">
-                                    Pinned properties, team links, and the latest from Searchmind.
-                                </p>
-                            </div>
-                            <div className="apex-home__accordion">
-                                <div className="apex-home__accordion-item is-open">
-                                    <div className="apex-home__accordion-trigger apex-home__accordion-trigger--skeleton" />
-                                    <div className="apex-home__skeleton-rail">
-                                        <div className="apex-home__skeleton-line apex-home__skeleton-line--rail" />
-                                        <div className="apex-home__skeleton-line apex-home__skeleton-line--rail" />
-                                        <div className="apex-home__skeleton-line apex-home__skeleton-line--rail" />
-                                    </div>
-                                </div>
-                                <div className="apex-home__accordion-item">
-                                    <div className="apex-home__accordion-trigger apex-home__accordion-trigger--skeleton" />
-                                </div>
-                                <div className="apex-home__accordion-item">
-                                    <div className="apex-home__accordion-trigger apex-home__accordion-trigger--skeleton" />
-                                </div>
-                            </div>
-                        </div>
-                    </aside>
+                    <HomeShortcutsPanelSkeleton />
+                    <HomeNewsPanelSkeleton />
                 </div>
             </div>
         </>
@@ -391,7 +426,7 @@ export default function CustomerTable({ showLatestNews = true }) {
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(data.error || "Failed to load news");
                 const posts = Array.isArray(data.posts) ? data.posts : [];
-                if (!cancelled) setNewsPosts(posts.slice(0, 4));
+                if (!cancelled) setNewsPosts(posts.slice(0, 1));
             } catch {
                 if (!cancelled) setNewsPosts([]);
             } finally {
@@ -878,13 +913,16 @@ export default function CustomerTable({ showLatestNews = true }) {
                             )}
                         </main>
 
-                        <HomeAsidePanel
+                        <HomeShortcutsPanel
                             user={user}
-                            showLatestNews={showLatestNews}
                             favoriteCustomers={favoriteCustomers}
-                            newsPosts={newsPosts}
-                            newsLoading={newsLoading}
                             onLogout={handleLogout}
+                        />
+
+                        <HomeNewsPanel
+                            showLatestNews={showLatestNews}
+                            latestNewsPost={newsPosts[0] ?? null}
+                            newsLoading={newsLoading}
                         />
                     </div>
                 )}

@@ -21,11 +21,22 @@ function sanitizeCustomerUpdateForExternalUser(updateData, existingCustomer) {
     delete sanitized.customerType;
     delete sanitized.businessCategory;
     delete sanitized.isArchived;
+    if (sanitized.CustomerSettings && typeof sanitized.CustomerSettings === "object") {
+        delete sanitized.CustomerSettings.googleMerchantCenterId;
+        delete sanitized.CustomerSettings.googleMerchantAccountSlot;
+    }
     if (existingCustomer) {
         sanitized.parentCustomer = existingCustomer.parentCustomer ?? null;
         sanitized.customerType = existingCustomer.customerType;
         sanitized.businessCategory = existingCustomer.businessCategory ?? "ecommerce";
         sanitized.isArchived = existingCustomer.isArchived;
+        if (sanitized.CustomerSettings && typeof sanitized.CustomerSettings === "object") {
+            const existingSettings = existingCustomer.CustomerSettings || {};
+            sanitized.CustomerSettings.googleMerchantCenterId =
+                existingSettings.googleMerchantCenterId;
+            sanitized.CustomerSettings.googleMerchantAccountSlot =
+                existingSettings.googleMerchantAccountSlot;
+        }
     }
     return sanitized;
 }

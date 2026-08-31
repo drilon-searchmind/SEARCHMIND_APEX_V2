@@ -16,6 +16,70 @@ dayjs.extend(timezone);
 
 const SNAPCHAT_ADS_API = "https://adsapi.snapchat.com/v1";
 const SNAPCHAT_TOKEN_URL = "https://accounts.snapchat.com/login/oauth2/access_token";
+const ACCESS_TOKEN_CACHE_TTL_MS = 50 * 60 * 1000;
+
+/** @type {Map<string, { token: string, expires: number }>} */
+const accessTokenCache = new Map();
+/** @type {Map<string, Promise<string>>} */
+const refreshInFlight = new Map();
+
+function snapTokenCacheKey({ clientId, refreshToken }) {
+    return `${String(clientId || "").trim()}:${String(refreshToken || "").trim()}`;
+}
+
+function readCachedSnapchatAccessToken(cacheKey) {
+    if (!cacheKey) return null;
+    const entry = accessTokenCache.get(cacheKey);
+    if (!entry || entry.expires <= Date.now()) return null;
+    return entry.token;
+}
+
+function writeCachedSnapchatAccessToken(cacheKey, token) {
+    if (!cacheKey || !token) return;
+    accessTokenCache.set(cacheKey, {
+        token,
+        expires: Date.now() + ACCESS_TOKEN_CACHE_TTL_MS,
+    });
+}
+
+export function invalidateSnapchatAccessTokenCache(creds) {
+    const key = snapTokenCacheKey(creds || {});
+    if (key) accessTokenCache.delete(key);
+}
+
+async function refreshSnapchatAccessTokenCached(creds, { force = false } = {}) {
+    const cacheKey = snapTokenCacheKey(creds);
+    if (!cacheKey || cacheKey === ":") {
+        return refreshSnapchatAccessToken(creds);
+    }
+
+    if (!force) {
+        const cached = readCachedSnapchatAccessToken(cacheKey);
+        if (cached) {
+            dbg("Bearer source: in-memory cache");
+            return cached;
+        }
+        const pending = refreshInFlight.get(cacheKey);
+        if (pending) {
+            dbg("Bearer source: awaiting in-flight refresh");
+            return pending;
+        }
+    } else {
+        accessTokenCache.delete(cacheKey);
+    }
+
+    const promise = refreshSnapchatAccessToken(creds)
+        .then((token) => {
+            writeCachedSnapchatAccessToken(cacheKey, token);
+            return token;
+        })
+        .finally(() => {
+            refreshInFlight.delete(cacheKey);
+        });
+
+    refreshInFlight.set(cacheKey, promise);
+    return promise;
+}
 
 function num(v) {
     if (v === undefined || v === null || v === "") return 0;
@@ -83,7 +147,7 @@ export async function resolveSnapchatAccessTokenFromEnv() {
     const clientSecret = process.env.SNAPCHAT_CLIENT_SECRET?.trim();
     const refreshToken = process.env.SNAPCHAT_REFRESH_TOKEN?.trim();
     if (clientId && clientSecret && refreshToken) {
-        return refreshSnapchatAccessToken({ clientId, clientSecret, refreshToken });
+        return refreshSnapchatAccessTokenCached({ clientId, clientSecret, refreshToken });
     }
 
     const direct = process.env.SNAPCHAT_ACCESS_TOKEN?.trim();
@@ -93,10 +157,11 @@ export async function resolveSnapchatAccessTokenFromEnv() {
 }
 
 /**
- * Bearer for Marketing API. When client id + secret + refresh token exist, refresh on each resolve
- * (stored access tokens expire in ~1h). Falls back to stored access token, then env.
+ * Bearer for Marketing API. Refreshes via OAuth when needed, with in-memory cache and
+ * single-flight deduplication so parallel dashboard fetches do not hit rate limits.
+ * Falls back to stored access token when refresh is rate-limited or unavailable.
  * @param {Record<string, string | undefined>} snapNormalized — output of `normalizeSnapchatSettings()`
- * @param {{ preferStoredAccessToken?: boolean }} [opts]
+ * @param {{ preferStoredAccessToken?: boolean, forceRefresh?: boolean }} [opts]
  */
 export async function resolveSnapchatAccessTokenForCustomer(snapNormalized, opts = {}) {
     const snap = snapNormalized || {};
@@ -104,13 +169,18 @@ export async function resolveSnapchatAccessTokenForCustomer(snapNormalized, opts
     const clientSecret = typeof snap.clientSecret === "string" ? snap.clientSecret.trim() : "";
     const refreshToken = typeof snap.refreshToken === "string" ? snap.refreshToken.trim() : "";
     const direct = typeof snap.accessToken === "string" ? snap.accessToken.trim() : "";
+    const creds = { clientId, clientSecret, refreshToken };
+    const cacheKey = snapTokenCacheKey(creds);
 
-    if (clientId && clientSecret && refreshToken && !opts.preferStoredAccessToken) {
-        if (snapDebugEnabled()) dbg("Bearer source: refresh_token grant (per-customer client id)");
-        return refreshSnapchatAccessToken({ clientId, clientSecret, refreshToken });
+    if (!opts.forceRefresh && cacheKey && cacheKey !== ":") {
+        const cached = readCachedSnapchatAccessToken(cacheKey);
+        if (cached) {
+            dbg("Bearer source: in-memory cache (per-customer)");
+            return cached;
+        }
     }
 
-    if (direct) {
+    if (direct && opts.preferStoredAccessToken !== false && !opts.forceRefresh) {
         if (snapDebugEnabled()) {
             dbg("Bearer source: CustomerSettings.snapchat.accessToken", { tokenLengthChars: direct.length });
         }
@@ -118,8 +188,20 @@ export async function resolveSnapchatAccessTokenForCustomer(snapNormalized, opts
     }
 
     if (clientId && clientSecret && refreshToken) {
-        return refreshSnapchatAccessToken({ clientId, clientSecret, refreshToken });
+        try {
+            if (snapDebugEnabled()) dbg("Bearer source: refresh_token grant (cached / deduped)");
+            return await refreshSnapchatAccessTokenCached(creds, { force: opts.forceRefresh === true });
+        } catch (err) {
+            const msg = String(err?.message || err);
+            if (direct && /too many requests/i.test(msg)) {
+                dbg("Refresh rate-limited; falling back to stored accessToken");
+                return direct;
+            }
+            throw err;
+        }
     }
+
+    if (direct) return direct;
 
     const envFallback = await resolveSnapchatAccessTokenFromEnv();
     if (envFallback && snapDebugEnabled()) dbg("Bearer source: server env SNAPCHAT_* fallback");
@@ -594,6 +676,7 @@ function extractCampaignTotals(statsJson) {
  *   snapCredentials?: ReturnType<import("./snapchatCustomerSettings").normalizeSnapchatSettings>,
  *   countryIsoCodes?: string[] — when set, daily spend is limited to these ISO-2 countries (Shopify Markets ad spend filter)
  *   spendByCountryOnly?: boolean — when true, return `spend_by_iso2` only (single country-dimension fetch)
+ *   spendByDateOnly?: boolean — when true, skip campaign TOTAL breakdown (merged-sources spend rollup)
  * }} args — when snapCredentials is set, 401 responses retry once via refresh_token
  */
 export async function fetchSnapchatDashboardMetrics({
@@ -604,6 +687,7 @@ export async function fetchSnapchatDashboardMetrics({
     snapCredentials,
     countryIsoCodes,
     spendByCountryOnly = false,
+    spendByDateOnly = false,
 }) {
     const trimmed = String(adAccountId || "").trim();
     if (!trimmed) throw new Error("Missing adAccountId");
@@ -616,6 +700,7 @@ export async function fetchSnapchatDashboardMetrics({
             endDate,
             countryIsoCodes,
             spendByCountryOnly,
+            spendByDateOnly,
         });
     } catch (e) {
         const msg = String(e?.message || "");
@@ -627,11 +712,15 @@ export async function fetchSnapchatDashboardMetrics({
             creds.refreshToken;
         if (!canRefresh) throw e;
         dbg("401 — retrying after refresh_token");
-        const fresh = await refreshSnapchatAccessToken({
-            clientId: creds.clientId,
-            clientSecret: creds.clientSecret,
-            refreshToken: creds.refreshToken,
-        });
+        invalidateSnapchatAccessTokenCache(creds);
+        const fresh = await refreshSnapchatAccessTokenCached(
+            {
+                clientId: creds.clientId,
+                clientSecret: creds.clientSecret,
+                refreshToken: creds.refreshToken,
+            },
+            { force: true }
+        );
         return fetchSnapchatDashboardMetricsInner({
             accessToken: fresh,
             adAccountId: trimmed,
@@ -639,6 +728,7 @@ export async function fetchSnapchatDashboardMetrics({
             endDate,
             countryIsoCodes,
             spendByCountryOnly,
+            spendByDateOnly,
         });
     }
 }
@@ -650,6 +740,7 @@ async function fetchSnapchatDashboardMetricsInner({
     endDate,
     countryIsoCodes,
     spendByCountryOnly = false,
+    spendByDateOnly = false,
 }) {
     const trimmed = String(adAccountId || "").trim();
 
@@ -722,6 +813,26 @@ async function fetchSnapchatDashboardMetricsInner({
                 conversion_purchases_value_micro: 0,
                 conversion_add_cart: 0,
             };
+        }
+    } else if (spendByDateOnly) {
+        try {
+            const spendDayJson = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
+                ...dayStatsBase,
+                fields: "spend",
+            });
+            const spendByDateMicro = spendMicroByDateFromAccountDayStats(spendDayJson, accountTz);
+            for (const d of Object.keys(spendByDateMicro)) {
+                rollupByDate[d] = {
+                    impressions: 0,
+                    swipes: 0,
+                    spend_micro: spendByDateMicro[d],
+                    conversion_purchases: 0,
+                    conversion_purchases_value_micro: 0,
+                    conversion_add_cart: 0,
+                };
+            }
+        } catch (eSpendOnly) {
+            dbg("spendByDateOnly DAY spend request failed", eSpendOnly?.message || eSpendOnly);
         }
     } else try {
         const combinedDay = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
@@ -810,6 +921,7 @@ async function fetchSnapchatDashboardMetricsInner({
     metrics_by_date = metrics_by_date.filter((r) => r.date);
 
     let top_campaigns = [];
+    if (!spendByDateOnly) {
     const totalStatsBase = {
         granularity: "TOTAL",
         start_time,
@@ -845,6 +957,7 @@ async function fetchSnapchatDashboardMetricsInner({
                 dbg("Campaign breakdown stats skipped", e3?.message || e3);
             }
         }
+    }
     }
 
     return {

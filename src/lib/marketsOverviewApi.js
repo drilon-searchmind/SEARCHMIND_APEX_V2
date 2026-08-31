@@ -34,7 +34,8 @@ export function aggregateMetricsLikePerformanceDashboard(
     shopifyDaily,
     merged,
     customer,
-    dateRange
+    dateRange,
+    { fixedCosts: fixedCostsOverride } = {}
 ) {
     const shopify = shopifyDaily || [];
     const cs = customer?.CustomerSettings || customer || {};
@@ -47,11 +48,14 @@ export function aggregateMetricsLikePerformanceDashboard(
         typeof staticExpenses.cogsPercentage === "number"
             ? staticExpenses.cogsPercentage
             : 0;
-    const fixedCosts = calcFixedCostsForDateRange(
-        dateRange.startDate,
-        dateRange.endDate,
-        staticExpenses
-    );
+    const fixedCosts =
+        fixedCostsOverride !== undefined
+            ? Number(fixedCostsOverride) || 0
+            : calcFixedCostsForDateRange(
+                  dateRange.startDate,
+                  dateRange.endDate,
+                  staticExpenses
+              );
     const daysInRange =
         dayjs(dateRange.endDate).diff(dayjs(dateRange.startDate), "day") + 1;
 
@@ -171,6 +175,17 @@ export async function fetchMarketsOverviewRows(
 
     const storeChannelTotals = channelSpendTotalsFromMerged(storeMerged);
     const customerSettings = settings?.CustomerSettings || settings || {};
+    const staticExpenses = settings?.CustomerStaticExpenses || {};
+    const storeFixedCosts = calcFixedCostsForDateRange(
+        startDate,
+        endDate,
+        staticExpenses
+    );
+    const activeMarketCount = Math.max(
+        list.filter((m) => String(m.shopifyqlMarketId || "").trim()).length,
+        1
+    );
+    const fixedCostsPerMarket = storeFixedCosts / activeMarketCount;
     const returnsOverride = getReturnsOverrideSettings(customerSettings);
     const storeRevenue = aggregateShopifyDailyRows(
         storeMerged.shopifyDaily || [],
@@ -241,7 +256,8 @@ export async function fetchMarketsOverviewRows(
             shopifyDaily,
             merged,
             settings,
-            dateRange
+            dateRange,
+            { fixedCosts: fixedCostsPerMarket }
         );
 
         marketRows.push({

@@ -15,6 +15,70 @@ const REDDIT_ADS_API = "https://ads-api.reddit.com/api/v3";
 const REDDIT_TOKEN_URL = "https://www.reddit.com/api/v1/access_token";
 /** Reddit reports SPEND in USD microdollars; convert to DKK for dashboard parity with Google Ads. */
 export const REDDIT_ADS_SPEND_CURRENCY = "USD";
+const ACCESS_TOKEN_CACHE_TTL_MS = 50 * 60 * 1000;
+
+/** @type {Map<string, { token: string, expires: number }>} */
+const accessTokenCache = new Map();
+/** @type {Map<string, Promise<string>>} */
+const refreshInFlight = new Map();
+
+function redditTokenCacheKey({ appId, refreshToken }) {
+    return `${String(appId || "").trim()}:${String(refreshToken || "").trim()}`;
+}
+
+function readCachedRedditAccessToken(cacheKey) {
+    if (!cacheKey) return null;
+    const entry = accessTokenCache.get(cacheKey);
+    if (!entry || entry.expires <= Date.now()) return null;
+    return entry.token;
+}
+
+function writeCachedRedditAccessToken(cacheKey, token) {
+    if (!cacheKey || !token) return;
+    accessTokenCache.set(cacheKey, {
+        token,
+        expires: Date.now() + ACCESS_TOKEN_CACHE_TTL_MS,
+    });
+}
+
+export function invalidateRedditAccessTokenCache(creds) {
+    const key = redditTokenCacheKey(creds || {});
+    if (key) accessTokenCache.delete(key);
+}
+
+async function refreshRedditAccessTokenCached(creds, { force = false } = {}) {
+    const cacheKey = redditTokenCacheKey(creds);
+    if (!cacheKey || cacheKey === ":") {
+        return refreshRedditAccessToken(creds);
+    }
+
+    if (!force) {
+        const cached = readCachedRedditAccessToken(cacheKey);
+        if (cached) {
+            dbg("Bearer source: in-memory cache");
+            return cached;
+        }
+        const pending = refreshInFlight.get(cacheKey);
+        if (pending) {
+            dbg("Bearer source: awaiting in-flight refresh");
+            return pending;
+        }
+    } else {
+        accessTokenCache.delete(cacheKey);
+    }
+
+    const promise = refreshRedditAccessToken(creds)
+        .then((token) => {
+            writeCachedRedditAccessToken(cacheKey, token);
+            return token;
+        })
+        .finally(() => {
+            refreshInFlight.delete(cacheKey);
+        });
+
+    refreshInFlight.set(cacheKey, promise);
+    return promise;
+}
 
 function num(v) {
     if (v === undefined || v === null || v === "") return 0;
@@ -227,18 +291,30 @@ export async function resolveRedditAccessTokenForCustomer(redditNormalized, opts
     const refreshToken = typeof r.refreshToken === "string" ? r.refreshToken.trim() : "";
     const direct = typeof r.accessToken === "string" ? r.accessToken.trim() : "";
 
+    if (direct && opts.preferStoredAccessToken) {
+        if (redditDebugEnabled()) dbg("Bearer source: CustomerSettings.reddit.accessToken");
+        return direct;
+    }
+
     // User OAuth: prefer refresh_token grant so reporting does not use an expired pasted access token.
-    if (appId && appSecret && refreshToken && !opts.preferStoredAccessToken) {
-        return refreshRedditAccessToken({ appId, appSecret, refreshToken });
+    if (appId && appSecret && refreshToken) {
+        try {
+            return await refreshRedditAccessTokenCached(
+                { appId, appSecret, refreshToken },
+                { force: opts.forceRefresh === true }
+            );
+        } catch (err) {
+            if (direct && String(err?.message || "").includes("429")) {
+                dbg("Refresh rate-limited — falling back to stored access token");
+                return direct;
+            }
+            throw err;
+        }
     }
 
     if (direct) {
         if (redditDebugEnabled()) dbg("Bearer source: CustomerSettings.reddit.accessToken");
         return direct;
-    }
-
-    if (appId && appSecret && refreshToken) {
-        return refreshRedditAccessToken({ appId, appSecret, refreshToken });
     }
 
     if (appId && appSecret) {
@@ -501,6 +577,7 @@ function campaignKey(row) {
  *   redditCredentials?: ReturnType<import("./redditCustomerSettings").normalizeRedditSettings>,
  *   countryIsoCodes?: string[] — when set, daily spend is limited to these ISO-2 countries (Shopify Markets ad spend filter)
  *   aggregateSpendByCountry?: boolean — when true, return `spend_by_iso2` Map (single DATE+COUNTRY fetch, all countries)
+ *   spendByDateOnly?: boolean — when true, skip campaign breakdown fetches (merged-sources spend rollup)
  * }} args — when redditCredentials is set, 401 responses retry once via refresh_token
  */
 export async function fetchRedditDashboardMetrics({
@@ -512,6 +589,7 @@ export async function fetchRedditDashboardMetrics({
     redditCredentials,
     countryIsoCodes,
     aggregateSpendByCountry = false,
+    spendByDateOnly = false,
 }) {
     const acc = String(accountId || "").trim();
     if (!acc) throw new Error("Missing Reddit ad account id");
@@ -527,6 +605,7 @@ export async function fetchRedditDashboardMetrics({
             uaOpt,
             countryIsoCodes,
             aggregateSpendByCountry,
+            spendByDateOnly,
         });
     }
 
@@ -542,11 +621,15 @@ export async function fetchRedditDashboardMetrics({
             creds.refreshToken;
         if (!canRefresh) throw e;
         dbg("401 — retrying after refresh_token");
-        const fresh = await refreshRedditAccessToken({
-            appId: creds.appId,
-            appSecret: creds.appSecret,
-            refreshToken: creds.refreshToken,
-        });
+        invalidateRedditAccessTokenCache(creds);
+        const fresh = await refreshRedditAccessTokenCached(
+            {
+                appId: creds.appId,
+                appSecret: creds.appSecret,
+                refreshToken: creds.refreshToken,
+            },
+            { force: true }
+        );
         return runWithToken(fresh);
     }
 }
@@ -559,6 +642,7 @@ async function fetchRedditDashboardMetricsInner({
     uaOpt,
     countryIsoCodes,
     aggregateSpendByCountry = false,
+    spendByDateOnly = false,
 }) {
     const acc = String(accountId || "").trim();
 
@@ -700,6 +784,7 @@ async function fetchRedditDashboardMetricsInner({
     metrics_by_date = metrics_by_date.filter((r) => r.date);
 
     let top_campaigns = [];
+    if (!spendByDateOnly) {
     try {
         const campPayload = await redditAdsFetch(
             accessToken,
@@ -752,6 +837,7 @@ async function fetchRedditDashboardMetricsInner({
         if (e2 && typeof e2 === "object" && e2.stack && redditDebugEnabled()) {
             dbgErr(e2.stack);
         }
+    }
     }
 
     return finalizeRedditDashboardPayload({

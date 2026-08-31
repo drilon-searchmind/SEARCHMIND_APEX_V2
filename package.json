@@ -35,7 +35,7 @@
     "dagre": "^0.8.5",
     "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
-    "google-ads-api": "^21.0.1",
+    "google-ads-api": "^24.1.0",
     "google-auth-library": "^10.5.0",
     "gsap": "^3.14.2",
     "html2canvas": "^1.4.1",

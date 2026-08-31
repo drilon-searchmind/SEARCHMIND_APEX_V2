@@ -9,7 +9,8 @@ import { showToast } from "@/components/ui/ToastProvider";
  * Shopify Markets multi-select + query suffix for merged-sources APIs.
  * Draft exclusions in the dropdown; Apply commits to `appliedExcludedMarkets` and updates fetches.
  */
-export function useShopifyMarketsFilter(customer, customerIdFromParams) {
+export function useShopifyMarketsFilter(customer, customerIdFromParams, options = {}) {
+    const fetchMarketsCatalog = options.fetchMarketsCatalog !== false;
     const shopifyMarketsFeatureOn = Boolean(
         customer?.customerType === "Shopify" &&
             customer?.CustomerSettings?.shopifyMarketsEnabled === true
@@ -31,7 +32,7 @@ export function useShopifyMarketsFilter(customer, customerIdFromParams) {
 
     useEffect(() => {
         const id = customer?._id || customerIdFromParams;
-        if (!shopifyMarketsFeatureOn || !id) {
+        if (!fetchMarketsCatalog || !shopifyMarketsFeatureOn || !id) {
             setShopifyMarkets([]);
             setShopifyMarketsLoading(false);
             return undefined;
@@ -79,7 +80,7 @@ export function useShopifyMarketsFilter(customer, customerIdFromParams) {
         return () => {
             cancelled = true;
         };
-    }, [shopifyMarketsFeatureOn, customer?._id, customerIdFromParams]);
+    }, [shopifyMarketsFeatureOn, customer?._id, customerIdFromParams, fetchMarketsCatalog]);
 
     const syncDraftFromAppliedMarkets = useCallback(() => {
         setDraftExcludedMarkets({ ...appliedExcludedMarkets });
@@ -104,10 +105,14 @@ export function useShopifyMarketsFilter(customer, customerIdFromParams) {
         const enabledMarkets = shopifyMarkets.filter(
             (m) => appliedExcludedMarkets[m.shopifyqlMarketId] !== true
         );
-        if (!shopifyMarketsFeatureOn || shopifyMarkets.length === 0) return "";
+        if (!shopifyMarketsFeatureOn) return "";
         const adSpendPart = appliedFilterAdSpendByMarket
             ? "&shopifyMarketFilterAdSpend=1"
             : "&shopifyMarketFilterAdSpend=0";
+        // Stable suffix while catalog loads so prefetch cache keys don't change mid-flight.
+        if (shopifyMarkets.length === 0) {
+            return adSpendPart;
+        }
         if (enabledMarkets.length === 0) {
             return `&shopifyMarketNoSelection=1${adSpendPart}`;
         }

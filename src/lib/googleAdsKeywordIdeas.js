@@ -7,8 +7,7 @@ import {
     normalizeGoogleAdsCustomerId,
     primaryGoogleAdsCustomerId,
 } from '@/lib/googleAdsCustomerIdUtils';
-
-const GOOGLE_ADS_API_VERSION = 'v21';
+import { GOOGLE_ADS_API_VERSION } from '@/lib/googleAdsApiVersion';
 
 const MONTH_OF_YEAR = {
     JANUARY: 1,

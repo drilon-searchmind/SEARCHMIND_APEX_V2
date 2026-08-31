@@ -1,6 +1,6 @@
 /**
  * Aggregate numeric metrics from visible market rows for the totals row.
- * Uses a single period fixed expense (not summed per market).
+ * Fixed expense on the total row is the full store period amount (not summed per market).
  */
 import { calcBlendedPoas } from '@/lib/poasMetrics';
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { POAS_BREAK_EVEN } from '@/lib/poasMetrics';
-import { formatCurrency, getCellStyles } from './utils';
+import { formatCurrency, getCellStyles, computeRowYoYPercentMap } from './utils';
 import { METRIC_COLUMNS } from './metricConfig';
 import {
 	dailyCellClass,
@@ -9,8 +9,29 @@ import {
 	getGroupStartFlag,
 } from './dailyTableUi';
 
+function MetricCellContent({ value, yoyPercent }) {
+	if (!yoyPercent) {
+		return <span className="apex-daily-cell-value">{value}</span>;
+	}
+
+	const tone =
+		yoyPercent.change > 0
+			? 'is-up'
+			: yoyPercent.change < 0
+				? 'is-down'
+				: 'is-neutral';
+
+	return (
+		<div className="apex-daily-cell-inner">
+			<span className="apex-daily-cell-value">{value}</span>
+			<span className={`apex-daily-yoy-pct ${tone}`}>{yoyPercent.formatted}</span>
+		</div>
+	);
+}
+
 export default function DailyMetricsDataRow({
 	row,
+	yoyRow = null,
 	max,
 	index,
 	tableType,
@@ -23,22 +44,22 @@ export default function DailyMetricsDataRow({
 }) {
 	const netProfit = row.netProfit ?? 0;
 	const fixedExpense = row.fixedExpense ?? 0;
+	const yoyPercentMap = yoyRow ? computeRowYoYPercentMap(row, yoyRow) : null;
 
 	const handleMouseEnter = (e) => {
-		if (hasCorrespondingRow) {
-			const rect = e.currentTarget.getBoundingClientRect();
-			const table = e.currentTarget.closest('table');
-			const tableRect = table?.getBoundingClientRect();
-			onMouseEnter?.({
-				index,
-				tableType,
-				position: {
-					top: rect.top + rect.height / 2,
-					left: rect.left + rect.width / 2,
-				},
-				tableWidth: tableRect?.width || null,
-			});
-		}
+		if (!hasCorrespondingRow) return;
+		const rect = e.currentTarget.getBoundingClientRect();
+		const table = e.currentTarget.closest('table');
+		const tableRect = table?.getBoundingClientRect();
+		onMouseEnter?.({
+			index,
+			tableType,
+			position: {
+				top: rect.top + rect.height / 2,
+				left: rect.left + rect.width / 2,
+			},
+			tableWidth: tableRect?.width || null,
+		});
 	};
 
 	const handleMouseLeave = () => {
@@ -50,6 +71,8 @@ export default function DailyMetricsDataRow({
 	const getCellFor = (key) => {
 		const borderStart = getGroupStartFlag(visibleCols, key);
 		const cls = dailyCellClass(variant, borderStart);
+		const yoyPercent = yoyPercentMap?.[key] ?? null;
+
 		switch (key) {
 			case 'orders':
 				return (
@@ -62,7 +85,7 @@ export default function DailyMetricsDataRow({
 							row.orders === max.orders
 						)}
 					>
-						{row.orders}
+						<MetricCellContent value={row.orders} yoyPercent={yoyPercent} />
 					</td>
 				);
 			case 'netRevenue':
@@ -76,13 +99,19 @@ export default function DailyMetricsDataRow({
 							row.netRevenue === max.netRevenue
 						)}
 					>
-						{formatCurrency(row.netRevenue, { maximumFractionDigits: 0 })}
+						<MetricCellContent
+							value={formatCurrency(row.netRevenue, { maximumFractionDigits: 0 })}
+							yoyPercent={yoyPercent}
+						/>
 					</td>
 				);
 			case 'cogs':
 				return (
 					<td key={key} className={cls}>
-						{formatCurrency(row.cogs || 0, { maximumFractionDigits: 0 })}
+						<MetricCellContent
+							value={formatCurrency(row.cogs || 0, { maximumFractionDigits: 0 })}
+							yoyPercent={yoyPercent}
+						/>
 					</td>
 				);
 			case 'aov':
@@ -92,9 +121,14 @@ export default function DailyMetricsDataRow({
 						className={cls}
 						style={getCellStyles(row.aov, max.aov, row.aov === max.aov)}
 					>
-						{row.aov != null
-							? formatCurrency(row.aov, { maximumFractionDigits: 0 })
-							: '-'}
+						<MetricCellContent
+							value={
+								row.aov != null
+									? formatCurrency(row.aov, { maximumFractionDigits: 0 })
+									: '-'
+							}
+							yoyPercent={yoyPercent}
+						/>
 					</td>
 				);
 			case 'ppcCost':
@@ -108,7 +142,10 @@ export default function DailyMetricsDataRow({
 							row.ppcCost === max.ppcCost
 						)}
 					>
-						{formatCurrency(row.ppcCost, { maximumFractionDigits: 0 })}
+						<MetricCellContent
+							value={formatCurrency(row.ppcCost, { maximumFractionDigits: 0 })}
+							yoyPercent={yoyPercent}
+						/>
 					</td>
 				);
 			case 'psCost':
@@ -118,7 +155,10 @@ export default function DailyMetricsDataRow({
 						className={cls}
 						style={getCellStyles(row.psCost, max.psCost, row.psCost === max.psCost)}
 					>
-						{formatCurrency(row.psCost, { maximumFractionDigits: 0 })}
+						<MetricCellContent
+							value={formatCurrency(row.psCost, { maximumFractionDigits: 0 })}
+							yoyPercent={yoyPercent}
+						/>
 					</td>
 				);
 			case 'pinterestCost':
@@ -135,7 +175,10 @@ export default function DailyMetricsDataRow({
 							row[key] === max[key]
 						)}
 					>
-						{formatCurrency(row[key] ?? 0, { maximumFractionDigits: 0 })}
+						<MetricCellContent
+							value={formatCurrency(row[key] ?? 0, { maximumFractionDigits: 0 })}
+							yoyPercent={yoyPercent}
+						/>
 					</td>
 				);
 			case 'roas':
@@ -145,21 +188,30 @@ export default function DailyMetricsDataRow({
 						className={cls}
 						style={getCellStyles(row.roas, max.roas, row.roas === max.roas)}
 					>
-						{row.roas != null ? row.roas.toFixed(2) : '-'}
+						<MetricCellContent
+							value={row.roas != null ? row.roas.toFixed(2) : '-'}
+							yoyPercent={yoyPercent}
+						/>
 					</td>
 				);
 			case 'variableExpense':
 				return (
 					<td key={key} className={cls}>
-						{formatCurrency(row.variableExpense || 0, {
-							maximumFractionDigits: 0,
-						})}
+						<MetricCellContent
+							value={formatCurrency(row.variableExpense || 0, {
+								maximumFractionDigits: 0,
+							})}
+							yoyPercent={yoyPercent}
+						/>
 					</td>
 				);
 			case 'fixedExpenses':
 				return (
 					<td key={key} className={cls}>
-						{formatCurrency(fixedExpense, { maximumFractionDigits: 0 })}
+						<MetricCellContent
+							value={formatCurrency(fixedExpense, { maximumFractionDigits: 0 })}
+							yoyPercent={yoyPercent}
+						/>
 					</td>
 				);
 			case 'poas':
@@ -171,13 +223,19 @@ export default function DailyMetricsDataRow({
 							breakEven: POAS_BREAK_EVEN,
 						})}
 					>
-						{row.poas != null ? row.poas.toFixed(2) : '-'}
+						<MetricCellContent
+							value={row.poas != null ? row.poas.toFixed(2) : '-'}
+							yoyPercent={yoyPercent}
+						/>
 					</td>
 				);
 			case 'netProfit':
 				return (
 					<td key={key} className={cls}>
-						{formatCurrency(netProfit, { maximumFractionDigits: 0 })}
+						<MetricCellContent
+							value={formatCurrency(netProfit, { maximumFractionDigits: 0 })}
+							yoyPercent={yoyPercent}
+						/>
 					</td>
 				);
 			default:

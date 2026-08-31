@@ -5,6 +5,24 @@ import { getDemoMergedSourcesForRange } from '@/lib/demoMergedSources';
 import { getCustomerById } from '../../../../../lib/customerOperations';
 import { parseAdSpendExcludeQueryParam } from '@/lib/adSpendExcludeParam';
 
+/** @type {Map<string, Promise<object>>} */
+const inflightByKey = new Map();
+
+function buildInflightKey(customerId, startDate, endDate, opts) {
+    const marketsKey = opts.shopifyMarketsSelection
+        ? JSON.stringify(opts.shopifyMarketsSelection)
+        : '';
+    return [
+        customerId,
+        startDate,
+        endDate,
+        opts.shopifyMarketNoSelection ? '1' : '0',
+        marketsKey,
+        opts.shopifyMarketFilterAdSpend ? '1' : '0',
+        (opts.excludeAdSpendPlatforms || []).slice().sort().join(','),
+    ].join('|');
+}
+
 export async function GET(request, { params }) {
     const resolvedParams = await params;
     const customerId = resolvedParams.customerId;
@@ -62,47 +80,67 @@ export async function GET(request, { params }) {
         return Response.json(getDemoMergedSourcesForRange(startDate, endDate, customer, { excludeAdSpendPlatforms }));
     }
 
-    // Rule: parent-property, daily-overview, and performance-dashboard need daily breakdown for Facebook (PS cost per day, Ad Spend Allocation chart)
-    const dailyBreakdown = source === 'parent-property' || source === 'daily-overview' || source === 'performance-dashboard' || source === 'markets-overview';
+    // All dashboard views need daily ad spend rows (pace, P&L, overview charts).
+    const dailyBreakdown = true;
+
+    const fetchOptions = {
+        dailyBreakdown,
+        source: source || undefined,
+        shopifyMarketNoSelection,
+        shopifyMarketsSelection,
+        shopifyMarketFilterAdSpend,
+        excludeAdSpendPlatforms,
+    };
+
+    const inflightKey = buildInflightKey(customerId, startDate, endDate, fetchOptions);
 
     try {
-        const doc = await getCustomerById(customerId);
-        if (!doc) {
-            return Response.json({ error: 'Customer not found' }, { status: 404 });
+        let mergedPromise = inflightByKey.get(inflightKey);
+        if (!mergedPromise) {
+            mergedPromise = (async () => {
+                const doc = await getCustomerById(customerId);
+                if (!doc) {
+                    throw new Error('Customer not found');
+                }
+                const data = doc.toObject ? doc.toObject() : doc;
+                const settings = {
+                    customerName: data.customerName,
+                    customerType: data.customerType || 'Shopify',
+                    ...(data.CustomerSettings || {}),
+                    CustomerStaticExpenses: data.CustomerStaticExpenses || {},
+                };
+
+                const shopRef =
+                    settings.customerType === 'DanDomain'
+                        ? settings.danDomain?.shopHost || 'N/A'
+                        : settings.customerType === 'DanDomainOriginal'
+                          ? settings.danDomainOriginal?.shopAdminUrl || 'N/A'
+                          : settings.customerType === 'Magento'
+                          ? settings.magentoBaseUrl || 'N/A'
+                          : settings.customerType === 'WooCommerce'
+                            ? settings.wooCommerceApiUrl || 'N/A'
+                            : settings.shopifyUrl || 'N/A';
+                console.log(
+                    `[Merged Sources] Customer: ${data.customerName || 'Unknown'} (${customerId}), type: ${settings.customerType}, shop: ${shopRef}`
+                );
+
+                return fetchMergedSources(settings, startDate, endDate, fetchOptions);
+            })();
+
+            inflightByKey.set(inflightKey, mergedPromise);
+            mergedPromise.finally(() => {
+                if (inflightByKey.get(inflightKey) === mergedPromise) {
+                    inflightByKey.delete(inflightKey);
+                }
+            });
         }
-        const data = doc.toObject ? doc.toObject() : doc;
-        const settings = {
-            customerName: data.customerName,
-            customerType: data.customerType || 'Shopify',
-            ...(data.CustomerSettings || {}),
-            CustomerStaticExpenses: data.CustomerStaticExpenses || {},
-        };
 
-        const shopRef =
-            settings.customerType === 'DanDomain'
-                ? settings.danDomain?.shopHost || 'N/A'
-                : settings.customerType === 'DanDomainOriginal'
-                  ? settings.danDomainOriginal?.shopAdminUrl || 'N/A'
-                  : settings.customerType === 'Magento'
-                  ? settings.magentoBaseUrl || 'N/A'
-                  : settings.customerType === 'WooCommerce'
-                    ? settings.wooCommerceApiUrl || 'N/A'
-                    : settings.shopifyUrl || 'N/A';
-        console.log(
-            `[Merged Sources] Customer: ${data.customerName || 'Unknown'} (${customerId}), type: ${settings.customerType}, shop: ${shopRef}`
-        );
-
-        // Fetch merged sources (now returns daily arrays)
-        const merged = await fetchMergedSources(settings, startDate, endDate, {
-            dailyBreakdown,
-            source: source || undefined,
-            shopifyMarketNoSelection,
-            shopifyMarketsSelection,
-            shopifyMarketFilterAdSpend,
-            excludeAdSpendPlatforms,
-        });
+        const merged = await mergedPromise;
         return Response.json(merged);
     } catch (error) {
+        if (error.message === 'Customer not found') {
+            return Response.json({ error: 'Customer not found' }, { status: 404 });
+        }
         console.error('Error fetching merged sources:', error);
         return Response.json({ error: error.message }, { status: 500 });
     }

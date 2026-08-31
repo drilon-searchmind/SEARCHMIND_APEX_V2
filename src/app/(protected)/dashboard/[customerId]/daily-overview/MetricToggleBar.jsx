@@ -7,6 +7,8 @@ export default function MetricToggleBar({
 	onToggle,
 	showTrendChart = false,
 	onTrendChartToggle,
+	showLastYearTable = false,
+	onLastYearTableToggle,
 	metricColumns = METRIC_COLUMNS,
 	variant = 'default',
 }) {
@@ -52,6 +54,26 @@ export default function MetricToggleBar({
 						onClick={onTrendChartToggle}
 					>
 						Trend Chart
+					</button>
+				</>
+			)}
+			{onLastYearTableToggle && (
+				<>
+					<span className={isCobalt ? 'apex-daily-toggle-divider' : 'text-sm text-gray-400 mx-1'}>|</span>
+					<button
+						type="button"
+						className={
+							isCobalt
+								? `apex-perf-chip${showLastYearTable ? ' is-active' : ''}`
+								: `px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 ${
+										showLastYearTable
+											? 'bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]'
+											: 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+									}`
+						}
+						onClick={onLastYearTableToggle}
+					>
+						Last year table
 					</button>
 				</>
 			)}

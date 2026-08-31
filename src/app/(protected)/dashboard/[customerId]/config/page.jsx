@@ -21,6 +21,8 @@ import { prepareCustomerStaticExpensesForSave } from '@/lib/customerStaticExpens
 import { normalizeGoogleAdsMarketMapping } from '@/lib/googleAdsMarketMapping';
 import { normalizeRevenueDisplayVat } from '@/lib/revenueVatDisplay';
 import { normalizeMarketPropertyObjectives, resolvePropertyObjectivesMode } from '@/lib/propertyObjectivesUtils';
+import { normalizeMerchantAccountSlot } from '@/lib/merchantCenter/merchantCenterAuth';
+import { canConfigureMerchantCenter } from '@/lib/internalUserAccess';
 
 export default function ConfigPage() {
     const { customerId } = useParams();
@@ -59,6 +61,8 @@ export default function ConfigPage() {
         facebookAdAccountId: "",
         facebookPixelId: "",
         googleAdsCustomerId: "",
+        googleMerchantCenterId: "",
+        googleMerchantAccountSlot: 1,
         googleAdsCountryFilter: "",
         googleAdsCountryExclude: "",
         googleAdsMarketMapping: [],
@@ -256,6 +260,8 @@ export default function ConfigPage() {
                 facebookAdAccountId,
                 facebookPixelId,
                 googleAdsCustomerId,
+                googleMerchantCenterId,
+                googleMerchantAccountSlot,
                 googleAdsMarketMapping,
                 pinterestAdAccountId,
                 snapchat,
@@ -309,6 +315,8 @@ export default function ConfigPage() {
                             facebookAdAccountId,
                             facebookPixelId,
                             googleAdsCustomerId,
+                            googleMerchantCenterId,
+                            googleMerchantAccountSlot: normalizeMerchantAccountSlot(googleMerchantAccountSlot),
                             googleAdsMarketMapping: normalizeGoogleAdsMarketMapping(
                                 googleAdsMarketMapping
                             ),
@@ -453,6 +461,7 @@ export default function ConfigPage() {
                     customerType={form.customerType}
                     customerId={customerId}
                     onGoogleAdsMarketMappingChange={handleGoogleAdsMarketMappingChange}
+                    canConfigureMerchantCenter={canConfigureMerchantCenter(user)}
                 />
             ),
         },

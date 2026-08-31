@@ -9,7 +9,6 @@ import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import { useState, useMemo, useEffect } from 'react';
 import { useDailyOverviewData } from './useDailyOverviewData';
 import DailyMetricsTable from './DailyMetricsTable';
-import RowComparisonPopover from './RowComparisonPopover';
 import LastYearPeriodTable from './LastYearPeriodTable';
 import MetricToggleBar from './MetricToggleBar';
 import { DEFAULT_VISIBLE_METRICS, METRIC_COLUMNS } from './metricConfig';
@@ -21,8 +20,11 @@ import {
     applyCobaltSeriesStyle,
 } from '@/lib/charts/cobaltChartTheme';
 import { pushDashboardDateRangeApplied } from '@root/lib/gtmFunctions';
-import { useShopifyMarketsFilter } from '@/hooks/useShopifyMarketsFilter';
-import { useAdSpendPlatformsFilter } from '@/hooks/useAdSpendPlatformsFilter';
+import {
+    useDashboardFilters,
+    buildShopifyMarketFilterProps,
+    buildAdSpendPlatformFilterProps,
+} from '@/hooks/useDashboardHubShared';
 import B2BDailyOverview from './B2BDailyOverview';
 import { useDashboardDataOptional } from '@/contexts/DashboardDataContext';
 
@@ -97,32 +99,15 @@ function EcommerceDailyOverview({ customer: customerProp }) {
         setTempDateRange(shared.tempDateRange);
     }, [shared, shared?.appliedDateRange, shared?.tempDateRange]);
 
+    const filters = useDashboardFilters(customer, params.customerId);
     const {
         shopifyMarketsFeatureOn,
-        shopifyMarkets,
-        shopifyMarketsLoading,
-        excludedShopifyMarkets,
-        appliedExcludedShopifyMarkets,
-        toggleShopifyMarket,
-        applyShopifyMarketFilters,
-        syncDraftFromAppliedMarkets,
-        marketQuerySuffix,
-        draftFilterAdSpendByMarket,
-        appliedFilterAdSpendByMarket,
-        setDraftFilterAdSpendByMarket,
-    } = useShopifyMarketsFilter(customer, params.customerId);
-
-    const {
-        adSpendFilterUiChannels,
-        draftExcludedPlatforms,
         appliedExcludedPlatforms,
-        toggleAdSpendPlatformDraft,
-        applyAdSpendPlatformFilters,
-        syncDraftFromAppliedSpend,
-        spendQuerySuffix,
-    } = useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn);
+        mergedSourcesQuerySuffix,
+    } = filters;
 
-    const mergedSourcesQuerySuffix = shared?.mergedSourcesQuerySuffix ?? `${marketQuerySuffix}${spendQuerySuffix}`;
+    const resolvedAppliedDateRange = shared?.appliedDateRange ?? appliedDateRange;
+    const resolvedTempDateRange = shared?.tempDateRange ?? tempDateRange;
 
     const marketsSpendColumns = useMemo(
         () =>
@@ -146,27 +131,7 @@ function EcommerceDailyOverview({ customer: customerProp }) {
         customerMetricPreference,
         visibleMarketingColumnKeys,
         customKpis,
-    } = useDailyOverviewData(customer, appliedDateRange, mergedSourcesQuerySuffix, marketsSpendColumns);
-
-    const [hoveredRowIndex, setHoveredRowIndex] = useState(null);
-    const [hoveredRowTable, setHoveredRowTable] = useState(null);
-    const [hoveredRowPosition, setHoveredRowPosition] = useState({
-        top: 0,
-        left: 0,
-    });
-    const [tableWidth, setTableWidth] = useState(null);
-
-    const handleRowHover = ({ index, tableType, position, tableWidth: w }) => {
-        setHoveredRowIndex(index);
-        setHoveredRowTable(tableType);
-        setHoveredRowPosition(position);
-        setTableWidth(w);
-    };
-    const handleRowHoverLeave = () => {
-        setHoveredRowIndex(null);
-        setHoveredRowTable(null);
-        setTableWidth(null);
-    };
+    } = useDailyOverviewData(customer, resolvedAppliedDateRange, mergedSourcesQuerySuffix, marketsSpendColumns);
 
     const [userColumnVisibility, setUserColumnVisibility] = useState({});
 
@@ -209,6 +174,7 @@ function EcommerceDailyOverview({ customer: customerProp }) {
     };
 
     const [showTrendChart, setShowTrendChart] = useState(false);
+    const [showLastYearTable, setShowLastYearTable] = useState(false);
 
     const revenueColumnLabel =
         metricColumns.find((c) => c.key === 'netRevenue')?.label ?? 'Net Revenue';
@@ -266,7 +232,7 @@ function EcommerceDailyOverview({ customer: customerProp }) {
                 title="Daily Overview"
                 label={customer ? customer.customerName : ''}
                 customerId={params.customerId}
-                dateRange={appliedDateRange}
+                dateRange={resolvedAppliedDateRange}
                 loading={loading}
                 dashboardType="daily-overview"
                 dataSnapshot={{
@@ -276,43 +242,14 @@ function EcommerceDailyOverview({ customer: customerProp }) {
                     metricPreference: customerMetricPreference,
                     revenueType: revenueTypeState,
                 }}
-                shopifyMarketFilter={
-                    shopifyMarketsFeatureOn
-                        ? {
-                              loading: shopifyMarketsLoading,
-                              options: shopifyMarkets,
-                              excludedMarkets: excludedShopifyMarkets,
-                              appliedExcludedMarkets: appliedExcludedShopifyMarkets,
-                              onToggleMarket: toggleShopifyMarket,
-                              onMenuWillOpen: syncDraftFromAppliedMarkets,
-                              onApplyMarkets: applyShopifyMarketFilters,
-                              filterAdSpendByMarket: draftFilterAdSpendByMarket,
-                              appliedFilterAdSpendByMarket,
-                              onFilterAdSpendByMarketChange: setDraftFilterAdSpendByMarket,
-                          }
-                        : null
-                }
-                adSpendPlatformFilter={
-                    shopifyMarketsFeatureOn && adSpendFilterUiChannels.length > 0
-                        ? {
-                              options: adSpendFilterUiChannels.map((c) => ({
-                                  id: c.id,
-                                  label: c.label,
-                              })),
-                              excludedPlatforms: draftExcludedPlatforms,
-                              appliedExcludedPlatforms,
-                              onTogglePlatform: toggleAdSpendPlatformDraft,
-                              onMenuWillOpen: syncDraftFromAppliedSpend,
-                              onApplySpend: applyAdSpendPlatformFilters,
-                          }
-                        : null
-                }
+                shopifyMarketFilter={buildShopifyMarketFilterProps(filters)}
+                adSpendPlatformFilter={buildAdSpendPlatformFilterProps(filters)}
                 right={
                     <DateRangePicker
                         variant="cobalt"
                         onApply={handleDateRangeApply}
-                        startDate={tempDateRange.startDate}
-                        endDate={tempDateRange.endDate}
+                        startDate={resolvedTempDateRange.startDate}
+                        endDate={resolvedTempDateRange.endDate}
                         onStartDateChange={handleStartDateChange}
                         onEndDateChange={handleEndDateChange}
                     />
@@ -327,6 +264,8 @@ function EcommerceDailyOverview({ customer: customerProp }) {
                         onToggle={handleMetricToggle}
                         showTrendChart={showTrendChart}
                         onTrendChartToggle={() => setShowTrendChart((v) => !v)}
+                        showLastYearTable={showLastYearTable}
+                        onLastYearTableToggle={() => setShowLastYearTable((v) => !v)}
                         metricColumns={metricColumns}
                     />
                     <h3 className="apex-daily-panel__title">Daily Metrics</h3>
@@ -351,38 +290,24 @@ function EcommerceDailyOverview({ customer: customerProp }) {
                     loading={loading}
                     error={error}
                     visibleMetrics={visibleMetrics}
-                    onRowHover={handleRowHover}
-                    onRowHoverLeave={handleRowHoverLeave}
                     metricColumns={metricColumns}
                 />
             </div>
 
-            <RowComparisonPopover
-                visible={false}
-                position={hoveredRowPosition}
-                tableWidth={tableWidth}
-                hoveredRowTable={hoveredRowTable}
-                hoveredRowIndex={hoveredRowIndex}
-                rows={rows}
-                rowsLastYear={rowsLastYear}
-                visibleMetrics={visibleMetrics}
-                metricColumns={metricColumns}
-            />
-
-            <div className="apex-daily-panel apex-daily-panel--muted">
-                <h3 className="apex-daily-panel__title">Last Year Period</h3>
-                <p className="apex-daily-panel__subtitle">Full month</p>
-                <LastYearPeriodTable
-                    variant="cobalt"
-                    rowsLastYear={rowsLastYear}
-                    rows={rows}
-                    loading={loadingLastYear}
-                    visibleMetrics={visibleMetrics}
-                    onRowHover={handleRowHover}
-                    onRowHoverLeave={handleRowHoverLeave}
-                    metricColumns={metricColumns}
-                />
-            </div>
+            {showLastYearTable && (
+                <div className="apex-daily-panel apex-daily-panel--muted">
+                    <h3 className="apex-daily-panel__title">Last Year Period</h3>
+                    <p className="apex-daily-panel__subtitle">Full month — raw daily data</p>
+                    <LastYearPeriodTable
+                        variant="cobalt"
+                        rowsLastYear={rowsLastYear}
+                        rows={rows}
+                        loading={loadingLastYear}
+                        visibleMetrics={visibleMetrics}
+                        metricColumns={metricColumns}
+                    />
+                </div>
+            )}
         </div>
     );
 }

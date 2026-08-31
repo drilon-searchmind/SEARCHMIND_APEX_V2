@@ -41,6 +41,12 @@ export function getServiceDashboardConfigWarnings(settings) {
     };
 }
 
+/** True when Merchant Center ID is missing/placeholder (Price Shaper page). */
+export function getPriceShaperConfigWarning(settings) {
+    const s = settings || {};
+    return !isValidIntegrationId(s.googleMerchantCenterId);
+}
+
 /** Service dashboard segments that Apex can audit when integration is configured. */
 export const AUDITABLE_SERVICE_IDS = ["seo", "ppc", "ps", "pinterest", "bing", "em"];
 

@@ -24,8 +24,6 @@ export default function DailyMetricsTable({
 	rowsLastYear,
 	loading,
 	error,
-	onRowHover,
-	onRowHoverLeave,
 	visibleMetrics = {},
 	metricColumns = METRIC_COLUMNS,
 	variant = 'default',
@@ -56,6 +54,9 @@ export default function DailyMetricsTable({
 
 	const max = rows?.length ? computeRowMax(rows) : {};
 	const rowsLastYearAligned = alignLastYearRowsToCurrentPeriod(rows, rowsLastYear);
+	const lastYearByDate = new Map(
+		(rowsLastYear || []).map((r) => [String(r.date).slice(0, 10), r])
+	);
 	const visibleCount =
 		1 + metricColumns.filter((m) => visibleMetrics[m.key]).length;
 
@@ -77,26 +78,22 @@ export default function DailyMetricsTable({
 					) : (
 						<>
 							{rows.map((row, idx) => {
-								const lastYearDate = dayjs(row.date)
+								const lastYearDate = dayjs(String(row.date).slice(0, 10))
 									.subtract(1, 'year')
 									.format('YYYY-MM-DD');
-								const correspondingLastYearRow = rowsLastYear?.find(
-									(r) => r.date === lastYearDate
-								);
+								const yoyRow = lastYearByDate.get(lastYearDate);
 
 								return (
 									<DailyMetricsDataRow
-										key={idx}
+										key={row.date}
 										variant={variant}
 										row={row}
+										yoyRow={yoyRow}
 										max={max}
 										index={idx}
 										tableType="current"
-										hasCorrespondingRow={!!correspondingLastYearRow}
 										visibleMetrics={visibleMetrics}
 										metricColumns={metricColumns}
-										onMouseEnter={onRowHover}
-										onMouseLeave={onRowHoverLeave}
 									/>
 								);
 							})}

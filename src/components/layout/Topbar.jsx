@@ -22,6 +22,7 @@ import { RiToolsFill } from "react-icons/ri";
 import { getDemoCustomerIds } from "@/lib/demoCustomerId";
 import { normalizeInternalNotificationHref } from "@/lib/notificationLink";
 import { canAccessApexRadar } from "@/lib/apexRadarAccess";
+import { addRecentCustomerId } from "@/lib/recentCustomers";
 
 /** Set true to restore the topbar dark/light mode switcher. */
 const THEME_TOGGLE_ENABLED = false;
@@ -212,6 +213,12 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
         }
         router.push(`/dashboard/${first}/performance-dashboard`);
     }, [activeCustomerId, isActiveCustomerAccessible, accessibleCustomers, router, pathname]);
+
+    React.useEffect(() => {
+        if (!activeCustomerId || activeCustomerId === APEX_RADAR_CUSTOMER_SELECT_ALL) return;
+        if (!isActiveCustomerAccessible) return;
+        addRecentCustomerId(activeCustomerId);
+    }, [activeCustomerId, isActiveCustomerAccessible]);
 
     const handleToggleTheme = () => {
         if (!THEME_TOGGLE_ENABLED) return;

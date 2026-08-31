@@ -81,8 +81,8 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
         ) {
             const fetchCogs = settings.fetchCogsFromStore === true;
             const showFields = fetchCogs 
-                ? 'orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales, cost_of_goods_sold'
-                : 'orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales';
+                ? 'orders, gross_sales, discounts, returns, shipping_returned, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales, cost_of_goods_sold'
+                : 'orders, gross_sales, discounts, returns, shipping_returned, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales';
 
             // Billing-country filter is disabled when Shopify Markets mode is on (full-store rollup; optional subset via shopifyMarketsSelection).
             const shopifyMarketsOn = settings.shopifyMarketsEnabled === true;
@@ -188,6 +188,9 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                     gross_sales: (parseFloat(row.gross_sales) || 0) * conversionRate,
                     discounts: (parseFloat(row.discounts) || 0) * conversionRate,
                     returns: (parseFloat(row.returns) || 0) * conversionRate,
+                    shipping_returned:
+                        (parseFloat(row.shipping_returned ?? row.shipping_reversals) || 0) *
+                        conversionRate,
                     net_sales: (parseFloat(row.net_sales) || 0) * conversionRate,
                     shipping_charges: (parseFloat(row.shipping_charges) || 0) * conversionRate,
                     duties: (parseFloat(row.duties) || 0) * conversionRate,
@@ -621,6 +624,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                     endDate,
                     snapCredentials: snap,
                     countryIsoCodes: marketAdSpendFilters?.metaCountryCodes,
+                    spendByDateOnly: true,
                 });
                 snapchatDaily = metricsByDateToSpendDaily(snapDash.metrics_by_date);
             }
@@ -678,6 +682,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                     redditUsername: red.redditUsername,
                     redditCredentials: red,
                     countryIsoCodes: marketAdSpendFilters?.metaCountryCodes,
+                    spendByDateOnly: true,
                 });
                 // redditApi converts USD spend → DKK (same FX table as Google Ads)
                 redditDaily = metricsByDateToSpendDaily(redditDash.metrics_by_date);

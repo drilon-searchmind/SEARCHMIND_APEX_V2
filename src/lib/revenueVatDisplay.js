@@ -62,6 +62,7 @@ export const SHOPIFY_VAT_MONETARY_FIELDS = [
     "total_sales",
     "discounts",
     "returns",
+    "shipping_returned",
     "shipping_charges",
     "duties",
     "additional_fees",

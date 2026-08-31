@@ -154,7 +154,6 @@ export function DashboardDataProvider({ children }) {
         setIsPrefetchReady(false);
 
         const generation = ++prefetchGenerationRef.current;
-        const abortController = new AbortController();
 
         const comparisonDates = formatComparisonPeriodDates({
             comparisonMethod,
@@ -174,49 +173,48 @@ export function DashboardDataProvider({ children }) {
         const lastYearMonthStart = startMonth.subtract(1, "year").startOf("month");
         const lastYearMonthEnd = lastYearMonthStart.endOf("month");
 
-        const tasks = [
-            fetchMergedSources("performance-dashboard", appliedDateRange.startDate, appliedDateRange.endDate),
-            fetchMergedSources("daily-overview", appliedDateRange.startDate, appliedDateRange.endDate),
-            fetchMergedSources("pace-report", appliedDateRange.startDate, appliedDateRange.endDate),
-            fetchMergedSources("pnl", appliedDateRange.startDate, appliedDateRange.endDate),
+        const fetchRange = (startDate, endDate) =>
+            fetchMergedSources("hub", startDate, endDate);
+
+        // Phase 1 — show Overview as soon as current period + KPIs are ready.
+        const phase1 = Promise.allSettled([
+            fetchRange(appliedDateRange.startDate, appliedDateRange.endDate),
             fetchCustomKpis("ecommerce"),
-        ];
+        ]);
+
+        phase1.then(() => {
+            if (generation !== prefetchGenerationRef.current) return;
+            setIsPrefetchReady(true);
+        });
+
+        // Phase 2 — warm cache for other views / comparison ranges in the background.
+        const backgroundTasks = [];
 
         if (
             !comparisonDates.skip &&
             comparisonDates.startDate &&
             comparisonDates.endDate
         ) {
-            tasks.push(
-                fetchMergedSources(
-                    "performance-dashboard",
-                    comparisonDates.startDate,
-                    comparisonDates.endDate
-                ),
-                fetchMergedSources("pnl", comparisonDates.startDate, comparisonDates.endDate)
+            backgroundTasks.push(
+                fetchRange(comparisonDates.startDate, comparisonDates.endDate)
             );
         }
 
         if (prevPeriodDates.startDate && prevPeriodDates.endDate) {
-            tasks.push(
-                fetchMergedSources(
-                    "daily-overview",
-                    prevPeriodDates.startDate,
-                    prevPeriodDates.endDate
-                )
+            backgroundTasks.push(
+                fetchRange(prevPeriodDates.startDate, prevPeriodDates.endDate)
             );
         }
 
-        tasks.push(
-            fetchMergedSources(
-                "daily-overview",
+        backgroundTasks.push(
+            fetchRange(
                 lastYearMonthStart.format("YYYY-MM-DD"),
                 lastYearMonthEnd.format("YYYY-MM-DD")
             )
         );
 
         if (isShopifyMarkets) {
-            tasks.push(
+            backgroundTasks.push(
                 fetchMarketsOverview(
                     appliedDateRange.startDate,
                     appliedDateRange.endDate
@@ -224,14 +222,9 @@ export function DashboardDataProvider({ children }) {
             );
         }
 
-        Promise.allSettled(tasks).then(() => {
-            if (generation !== prefetchGenerationRef.current) return;
-            setIsPrefetchReady(true);
-        });
+        Promise.allSettled(backgroundTasks);
 
-        return () => {
-            abortController.abort();
-        };
+        return () => {};
     }, [
         customerId,
         customer,

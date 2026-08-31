@@ -19,12 +19,13 @@ import {
     FiGlobe,
     FiPieChart,
     FiZap,
+    FiTag,
     FiMessageCircle,
 } from "react-icons/fi";
 import Image from "next/image";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { useCustomers } from "@/hooks/useCustomers";
-import { getServiceDashboardConfigWarnings } from "@/lib/customerServiceIntegrations";
+import { getServiceDashboardConfigWarnings, getPriceShaperConfigWarning } from "@/lib/customerServiceIntegrations";
 import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
 import { isB2BCustomer } from "@/lib/customerBusinessCategory";
 
@@ -61,6 +62,7 @@ const getIconForRoute = (href) => {
     if (href.includes("service-dashboard/bing")) return <FiLayers className="w-4 h-4" />;
     if (href.includes("campaign-planner")) return <FiCalendar className="w-4 h-4" />;
     if (href.includes("share-of-search")) return <FiPieChart className="w-4 h-4" />;
+    if (href.includes("price-index") || href.includes("price-shaper")) return <FiTag className="w-4 h-4" />;
     if (href.includes("config")) return <FiSettings className="w-4 h-4" />;
     if (href.includes("test-page")) return <FiFolder className="w-4 h-4" />;
     return <FiFolder className="w-4 h-4" />;
@@ -141,6 +143,11 @@ const Sidebar = ({ showLinks = true }) => {
     const serviceDashboardWarnings = useMemo(() => {
         if (!activeCustomer) return null;
         return getServiceDashboardConfigWarnings(activeCustomer?.CustomerSettings);
+    }, [activeCustomer]);
+
+    const priceShaperConfigWarning = useMemo(() => {
+        if (!activeCustomer) return false;
+        return getPriceShaperConfigWarning(activeCustomer?.CustomerSettings);
     }, [activeCustomer]);
 
     const configWarningForHref = (href) => {
@@ -384,6 +391,14 @@ const Sidebar = ({ showLinks = true }) => {
                                                 pathname={pathname}
                                                 subLabel={"NEW"}
                                                 isSmallScreen={isSmallScreen}
+                                            />
+                                            <NavItem
+                                                href={`/dashboard/${activeCustomerId}/price-index`}
+                                                label="Price Index"
+                                                pathname={pathname}
+                                                subLabel={"NEW"}
+                                                isSmallScreen={isSmallScreen}
+                                                configWarning={priceShaperConfigWarning}
                                             />
                                             <NavItem
                                                 href={serviceDashboardHref("bing-webmaster")}

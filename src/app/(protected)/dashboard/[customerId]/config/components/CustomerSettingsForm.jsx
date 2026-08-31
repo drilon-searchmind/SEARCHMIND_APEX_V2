@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
 import { FiSettings, FiShoppingBag, FiPackage, FiDatabase, FiGlobe, FiFacebook, FiTrendingUp, FiSearch, FiMail, FiImage, FiLayers, FiZap, FiMessageCircle } from "react-icons/fi";
+import MerchantCenterAccountFields from "@/components/merchant-center/MerchantCenterAccountFields";
 
 function SettingsSection({ title, icon: Icon, children, sectionId }) {
     return (
@@ -106,6 +107,7 @@ const CONFIG_SECTION = {
     storePlatform: "config-store-platform",
     meta: "config-meta",
     googleAds: "config-google-ads",
+    merchantCenter: "config-merchant-center",
     pinterestAds: "config-pinterest-ads",
     snapchatAds: "config-snapchat-ads",
     redditAds: "config-reddit-ads",
@@ -153,6 +155,7 @@ export default function CustomerSettingsForm({
     customerType,
     customerId,
     onGoogleAdsMarketMappingChange,
+    canConfigureMerchantCenter: canConfigureMc = true,
 }) {
     const shopifyMarketsOn = customerType === "Shopify" && form.shopifyMarketsEnabled === true;
     const storeSection =
@@ -173,6 +176,7 @@ export default function CustomerSettingsForm({
         ...(storeSection ? [storeSection] : []),
         { id: CONFIG_SECTION.meta, label: "Meta" },
         { id: CONFIG_SECTION.googleAds, label: "Google Ads" },
+        ...(canConfigureMc ? [{ id: CONFIG_SECTION.merchantCenter, label: "Merchant Center" }] : []),
         { id: CONFIG_SECTION.pinterestAds, label: "Pinterest Ads" },
         { id: CONFIG_SECTION.snapchatAds, label: "Snapchat Ads" },
         { id: CONFIG_SECTION.redditAds, label: "Reddit Ads" },
@@ -523,6 +527,33 @@ export default function CustomerSettingsForm({
                     />
                 ) : null}
             </SettingsSection>
+
+            {/* Google Merchant Center */}
+            {canConfigureMc ? (
+                <SettingsSection title="Merchant Center" icon={FiShoppingBag} sectionId={CONFIG_SECTION.merchantCenter}>
+                    <MerchantCenterAccountFields
+                        merchantCenterId={form.googleMerchantCenterId || ""}
+                        oauthSlot={form.googleMerchantAccountSlot ?? 1}
+                        onMerchantCenterIdChange={(value) =>
+                            onChange({
+                                target: { name: "googleMerchantCenterId", value },
+                            })
+                        }
+                        onOauthSlotChange={(value) =>
+                            onChange({
+                                target: { name: "googleMerchantAccountSlot", value: String(value) },
+                            })
+                        }
+                        idPrefix="config-mc"
+                        fieldClassName="config-field"
+                        labelClassName="config-field__label"
+                        inputClassName="config-field__input"
+                        hintClassName="config-field__hint"
+                        pickerClassName="config-field__input"
+                        errorClassName="config-field__hint"
+                    />
+                </SettingsSection>
+            ) : null}
 
             {/* Pinterest Ads */}
             <SettingsSection title="Pinterest Ads" icon={FiImage} sectionId={CONFIG_SECTION.pinterestAds}>

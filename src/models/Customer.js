@@ -125,6 +125,28 @@ const CustomerSchema = new mongoose.Schema({
             type: String,
             default: ""
         },
+        /** Google Merchant Center account ID (numeric) for Price Shaper reports. */
+        googleMerchantCenterId: {
+            type: String,
+            default: ""
+        },
+        /** Which shared Merchant OAuth credential set to use (0 = Google Ads, 1 or 2 = dedicated MC). */
+        googleMerchantAccountSlot: {
+            type: Number,
+            default: 1,
+            set(value) {
+                const n = Number(value);
+                if (n === 0) return 0;
+                if (n === 2) return 2;
+                return 1;
+            },
+            validate: {
+                validator(value) {
+                    return value === 0 || value === 1 || value === 2;
+                },
+                message: "{VALUE} is not a valid Merchant OAuth slot (use 0, 1, or 2)",
+            },
+        },
         googleAdsCountryFilter: {
             type: String,
             default: ""

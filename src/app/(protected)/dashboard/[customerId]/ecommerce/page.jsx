@@ -9,8 +9,11 @@ import CustomerPerformance from './components/CustomerPerformance';
 import { FiPackage, FiUsers } from 'react-icons/fi';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useBusinessCategory } from '@/hooks/useBusinessCategory';
-import { useShopifyMarketsFilter } from '@/hooks/useShopifyMarketsFilter';
-import { useAdSpendPlatformsFilter } from '@/hooks/useAdSpendPlatformsFilter';
+import {
+    useDashboardFilters,
+    buildShopifyMarketFilterProps,
+    buildAdSpendPlatformFilterProps,
+} from '@/hooks/useDashboardHubShared';
 import { pushDashboardDateRangeApplied, pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
 import {
     adSpendChannelsForShopifyMarketsFilterUi,
@@ -53,36 +56,19 @@ export default function EcommercePage() {
         }
     }, [isB2B, customerId, router]);
 
+    const filters = useDashboardFilters(customer, customerId);
     const {
         shopifyMarketsFeatureOn,
-        shopifyMarkets,
-        shopifyMarketsLoading,
-        excludedShopifyMarkets,
-        appliedExcludedShopifyMarkets,
-        toggleShopifyMarket,
-        applyShopifyMarketFilters,
-        syncDraftFromAppliedMarkets,
-        marketQuerySuffix,
-        draftFilterAdSpendByMarket,
-        appliedFilterAdSpendByMarket,
-        setDraftFilterAdSpendByMarket,
-    } = useShopifyMarketsFilter(customer, customerId);
-
-    const {
-        adSpendFilterUiChannels,
-        draftExcludedPlatforms,
         appliedExcludedPlatforms,
-        toggleAdSpendPlatformDraft,
-        applyAdSpendPlatformFilters,
-        syncDraftFromAppliedSpend,
-        spendQuerySuffix,
-    } = useAdSpendPlatformsFilter(customer, shopifyMarketsFeatureOn);
-
-    const mergedSourcesQuerySuffix = shared?.mergedSourcesQuerySuffix ?? `${marketQuerySuffix}${spendQuerySuffix}`;
+        mergedSourcesQuerySuffix,
+    } = filters;
 
     const defaultRangeValue = defaultRange();
     const [tempRange, setTempRange] = useState(defaultRangeValue);
     const [appliedRange, setAppliedRange] = useState(defaultRangeValue);
+
+    const resolvedAppliedRange = shared?.appliedDateRange ?? appliedRange;
+    const resolvedTempRange = shared?.tempDateRange ?? tempRange;
 
     useEffect(() => {
         if (!shared) return;
@@ -301,7 +287,7 @@ export default function EcommercePage() {
                 title="Ecommerce"
                 label={customer ? customer.customerName : 'Ecommerce Dashboard'}
                 customerId={customerId}
-                dateRange={appliedRange}
+                dateRange={resolvedAppliedRange}
                 loading={pageLoading}
                 dashboardType="ecommerce"
                 dataSnapshot={{
@@ -313,44 +299,15 @@ export default function EcommercePage() {
                     <DateRangePicker
                         variant="cobalt"
                         onApply={handleDateRangeApply}
-                        startDate={tempRange.startDate}
-                        endDate={tempRange.endDate}
+                        startDate={resolvedTempRange.startDate}
+                        endDate={resolvedTempRange.endDate}
                         onStartDateChange={d => setTempRange(r => ({ ...r, startDate: d }))}
                         onEndDateChange={d => setTempRange(r => ({ ...r, endDate: d }))}
                     />
                 )}
                 showPdfExport={false}
-                shopifyMarketFilter={
-                    shopifyMarketsFeatureOn
-                        ? {
-                              loading: shopifyMarketsLoading,
-                              options: shopifyMarkets,
-                              excludedMarkets: excludedShopifyMarkets,
-                              appliedExcludedMarkets: appliedExcludedShopifyMarkets,
-                              onToggleMarket: toggleShopifyMarket,
-                              onMenuWillOpen: syncDraftFromAppliedMarkets,
-                              onApplyMarkets: applyShopifyMarketFilters,
-                              filterAdSpendByMarket: draftFilterAdSpendByMarket,
-                              appliedFilterAdSpendByMarket,
-                              onFilterAdSpendByMarketChange: setDraftFilterAdSpendByMarket,
-                          }
-                        : null
-                }
-                adSpendPlatformFilter={
-                    shopifyMarketsFeatureOn && adSpendFilterUiChannels.length > 0
-                        ? {
-                              options: adSpendFilterUiChannels.map((c) => ({
-                                  id: c.id,
-                                  label: c.label,
-                              })),
-                              excludedPlatforms: draftExcludedPlatforms,
-                              appliedExcludedPlatforms,
-                              onTogglePlatform: toggleAdSpendPlatformDraft,
-                              onMenuWillOpen: syncDraftFromAppliedSpend,
-                              onApplySpend: applyAdSpendPlatformFilters,
-                          }
-                        : null
-                }
+                shopifyMarketFilter={buildShopifyMarketFilterProps(filters)}
+                adSpendPlatformFilter={buildAdSpendPlatformFilterProps(filters)}
             />
 
             <nav className="apex-ecom-tabs" aria-label="Ecommerce views">

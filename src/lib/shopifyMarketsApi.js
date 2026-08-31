@@ -317,8 +317,8 @@ export async function fetchShopifySalesGroupedByBillingCountryAndDay(
 
     const fetchCogs = settings.fetchCogsFromStore === true;
     const showFields = fetchCogs
-        ? "orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales, cost_of_goods_sold"
-        : "orders, gross_sales, discounts, returns, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales";
+        ? "orders, gross_sales, discounts, returns, shipping_returned, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales, cost_of_goods_sold"
+        : "orders, gross_sales, discounts, returns, shipping_returned, net_sales, shipping_charges, duties, additional_fees, taxes, total_sales";
 
     const escape = escapeShopifyQlString;
     const whereParts = [];
@@ -375,6 +375,9 @@ export async function fetchShopifySalesGroupedByBillingCountryAndDay(
             gross_sales: (parseFloat(row.gross_sales) || 0) * conversionRate,
             discounts: (parseFloat(row.discounts) || 0) * conversionRate,
             returns: (parseFloat(row.returns) || 0) * conversionRate,
+            shipping_returned:
+                (parseFloat(row.shipping_returned ?? row.shipping_reversals) || 0) *
+                conversionRate,
             net_sales: (parseFloat(row.net_sales) || 0) * conversionRate,
             shipping_charges: (parseFloat(row.shipping_charges) || 0) * conversionRate,
             duties: (parseFloat(row.duties) || 0) * conversionRate,
@@ -422,6 +425,7 @@ export function shopifyDailyForBillingCountries(groupedRows, billingCountryNames
                 gross_sales: 0,
                 discounts: 0,
                 returns: 0,
+                shipping_returned: 0,
                 net_sales: 0,
                 shipping_charges: 0,
                 duties: 0,
@@ -438,6 +442,7 @@ export function shopifyDailyForBillingCountries(groupedRows, billingCountryNames
         agg.gross_sales += num(row.gross_sales);
         agg.discounts += num(row.discounts);
         agg.returns += num(row.returns);
+        agg.shipping_returned += num(row.shipping_returned);
         agg.net_sales += num(row.net_sales);
         agg.shipping_charges += num(row.shipping_charges);
         agg.duties += num(row.duties);
