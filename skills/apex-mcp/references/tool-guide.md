@@ -150,6 +150,7 @@ Use **`list_proxy_routes`** first to see allowlists and guardrails. Prefer curat
 | `/api/klaviyo-flows` | optional `includeActions` (default true), `status` (`live`/`draft`/`manual`), `maxFlows` (default 80) |
 | `/api/apex-radar` | `startDate`, `endDate`, `channel` (`google-ads` or `facebook`) |
 | `/api/shopify-channel-attribution` | `startDate`, `endDate` |
+| `/api/shopify-referrer-domain-sessions` | `startDate`, `endDate` |
 | `/api/shopify-agentic-attribution` | `startDate`, `endDate` |
 
 ### Approvable routes (`call_apex_api` — require admin approval per customer)
@@ -177,7 +178,18 @@ Admin review: `https://apex.searchmind.tech/admin/route-requests`
 | `ordersAttribution` | GraphQL | Orders with `sourceName`, `tags`, `app`, `channelInformation`, `attribution`, `customerJourneySummary` |
 | `products`, `customers`, `inventory`, `shop` | GraphQL | Paginated Admin reads |
 
-Pair **session-level** AI traffic (`/api/shopify-channel-attribution`) with **order-level** agentic sales (`/api/shopify-agentic-attribution` or `ordersAttribution`) to see if AI referrals convert.
+Pair **session-level** AI traffic (`/api/shopify-channel-attribution`, `/api/shopify-referrer-domain-sessions`) with **order-level** agentic sales (`/api/shopify-agentic-attribution` or `ordersAttribution`) to see if AI referrals convert.
+
+### Shopify referrer domain sessions (`/api/shopify-referrer-domain-sessions`)
+
+Use when platforms tag links inconsistently (UTM vs referrer). Groups **human** sessions by `referrer_domain` (e.g. `perplexity.ai`, `chatgpt.com`) — the fairest way to compare Perplexity vs ChatGPT vs Copilot **visit** volume.
+
+| Response block | What it gives you |
+|----------------|-------------------|
+| `trafficByReferrerDomain` | Full `FROM sessions GROUP BY referrer_domain` breakdown |
+| `aiReferrerDomains` | Filtered subset of known AI/agent domains |
+
+Also included in `/api/shopify-channel-attribution` as `trafficByReferrerDomain` + `aiReferrerDomains`.
 
 All agentic endpoints return **`shopifyqlApiVersion`** — one shared resolved version per request (default `2026-04`).
 
