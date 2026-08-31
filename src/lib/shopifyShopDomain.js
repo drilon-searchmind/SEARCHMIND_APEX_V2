@@ -4,12 +4,12 @@
 
 export function getShopifyAdminApiVersion() {
     const fromEnv = process.env.SHOPIFY_ADMIN_API_VERSION?.trim();
-    return fromEnv || "2026-01";
+    return fromEnv || "2026-04";
 }
 
 /**
- * Admin API versions to try for ShopifyQL queries that need newer agentic dimensions.
- * Ordered newest-first; agentic_sales_channel requires a recent ShopifyQL schema.
+ * Admin API versions to try when resolving agentic ShopifyQL support.
+ * Ordered newest-first.
  */
 export const SHOPIFY_AGENTIC_SHOPIFYQL_API_VERSIONS = ["2026-04", "2026-01", "2025-10"];
 

@@ -177,6 +177,8 @@ Admin review: `https://apex.searchmind.tech/admin/route-requests`
 
 Pair **session-level** AI traffic (`/api/shopify-channel-attribution`) with **order-level** agentic sales (`/api/shopify-agentic-attribution` or `ordersAttribution`) to see if AI referrals convert.
 
+All agentic endpoints return **`shopifyqlApiVersion`** — one shared resolved version per request (default `2026-04`). Empty rows with `fallback: null` usually means no agentic activity in the period, not a code error. If native columns are missing, fallbacks include **`Shop`** channel name and AI referrers from sessions.
+
 ## Parameter notes
 
 - **`period`** (Data Wrapped): `YYYY-MM` e.g. `2025-06`
