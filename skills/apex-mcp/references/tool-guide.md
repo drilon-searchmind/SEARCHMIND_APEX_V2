@@ -160,8 +160,22 @@ These routes have MCP handlers but are **not** on the default allowlist. A block
 | `/api/bing-ads` | `startDate`, `endDate` |
 | `/api/ga4-metrics` | `startDate`, `endDate` |
 | `/api/shopify-channel-attribution` | `startDate`, `endDate` |
+| `/api/shopify-agentic-attribution` | `startDate`, `endDate` |
 
 Admin review: `https://apex.searchmind.tech/admin/route-requests`
+
+### Shopify proxy query types (`shopify_graphql_read`)
+
+| queryType | Kind | Notes |
+|-----------|------|-------|
+| `SalesReport`, `OrdersReport`, `ProductsReport`, `CustomersReport`, `InventoryReport` | ShopifyQL | Standard reports |
+| `AgenticSalesReport` | ShopifyQL | Sales grouped by `agentic_sales_channel` (ChatGPT, Copilot, Gemini, etc.) |
+| `AgenticReferringReport` | ShopifyQL | Sales grouped by `agentic_referring_channel` |
+| `orders` | GraphQL | Basic order list for date range |
+| `ordersAttribution` | GraphQL | Orders with `sourceName`, `tags`, `app`, `channelInformation`, `attribution`, `customerJourneySummary` |
+| `products`, `customers`, `inventory`, `shop` | GraphQL | Paginated Admin reads |
+
+Pair **session-level** AI traffic (`/api/shopify-channel-attribution`) with **order-level** agentic sales (`/api/shopify-agentic-attribution` or `ordersAttribution`) to see if AI referrals convert.
 
 ## Parameter notes
 

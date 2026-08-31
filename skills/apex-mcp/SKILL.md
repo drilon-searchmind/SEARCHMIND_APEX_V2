@@ -122,7 +122,7 @@ When curated tools do not cover a question, use the read-only proxies (credentia
 |------|-------------|
 | `call_apex_api` | Allowlisted APEX dashboard route + params |
 | `request_route_access` | Log a permission request when `call_apex_api` returns `ROUTE_NOT_ALLOWLISTED` |
-| `shopify_graphql_read` | ShopifyQL reports or paginated Admin GraphQL reads |
+| `shopify_graphql_read` | ShopifyQL reports, agentic attribution reports, or paginated Admin GraphQL reads (`ordersAttribution`) |
 | `google_ads_gaql_read` | Custom GAQL SELECT (allowlisted resources only) |
 | `meta_ads_read` | Meta insights, campaigns, adsets, ads, accounts |
 
