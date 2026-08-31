@@ -1,6 +1,8 @@
 # APEX MCP tool guide
 
-Complete reference for the ~77 read-only APEX MCP tools (v0.7.2). All customer-scoped tools need **`customerId`** (MongoDB id from `list_customers`).
+Complete reference for the ~77 read-only APEX MCP tools (v0.7.3). All customer-scoped tools need **`customerId`** (MongoDB id from `list_customers`).
+
+**Concurrency (v0.7.3+):** `mcp-server-apex` serializes `/mcp` requests per session and validates `customerId` in responses, so parallel tool calls in one Claude session no longer cross customer data. Multiple independent MCP sessions (different clients) can still run in parallel safely.
 
 ## Core tools
 
