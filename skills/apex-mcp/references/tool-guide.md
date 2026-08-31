@@ -147,6 +147,8 @@ Use **`list_proxy_routes`** first to see allowlists and guardrails. Prefer curat
 | `/api/klaviyo-scheduled-campaigns` | optional `daysAhead` (default 60), `includeDrafts` (default true) |
 | `/api/klaviyo-flows` | optional `includeActions` (default true), `status` (`live`/`draft`/`manual`), `maxFlows` (default 80) |
 | `/api/apex-radar` | `startDate`, `endDate`, `channel` (`google-ads` or `facebook`) |
+| `/api/shopify-channel-attribution` | `startDate`, `endDate` |
+| `/api/shopify-agentic-attribution` | `startDate`, `endDate` |
 
 ### Approvable routes (`call_apex_api` — require admin approval per customer)
 
@@ -159,8 +161,6 @@ These routes have MCP handlers but are **not** on the default allowlist. A block
 | `/api/reddit-ads` | `startDate`, `endDate` |
 | `/api/bing-ads` | `startDate`, `endDate` |
 | `/api/ga4-metrics` | `startDate`, `endDate` |
-| `/api/shopify-channel-attribution` | `startDate`, `endDate` |
-| `/api/shopify-agentic-attribution` | `startDate`, `endDate` |
 
 Admin review: `https://apex.searchmind.tech/admin/route-requests`
 
