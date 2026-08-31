@@ -8,14 +8,16 @@ import {
 const AGENTIC_CHANNEL_EXACT = new Set([
 	"shop",
 	"chatgpt",
+	"chatgpt.com",
 	"microsoft copilot",
 	"google ai mode and gemini",
 	"perplexity",
 	"agentic storefronts",
+	"shop_app",
 ]);
 
 const AGENTIC_CHANNEL_PATTERN =
-	/agentic|chatgpt|copilot|gemini|perplexity|google ai|\bshop\b/i;
+	/agentic|chatgpt|copilot|gemini|perplexity|google ai|shop_app|\bshop\b/i;
 
 const AGENTIC_REFERRER_PATTERN =
 	/chatgpt|openai|perplexity|copilot|gemini|google ai|claude\.ai|shop_app|shop app/i;
@@ -188,6 +190,48 @@ ORDER BY net_sales DESC
 LIMIT 100`;
 }
 
+/**
+ * Standard Shopify analytics dimension (documented approximation for Agentic breakdown).
+ * @param {string} startDate
+ * @param {string} endDate
+ * @param {"LAST_CLICK"|"FIRST_CLICK"|null} attribution
+ */
+function buildReferringChannelSalesQuery(startDate, endDate, attribution = "LAST_CLICK") {
+	const withClause =
+		attribution === "LAST_CLICK"
+			? " WITH LAST_CLICK_ATTRIBUTION"
+			: attribution === "FIRST_CLICK"
+				? " WITH FIRST_CLICK_ATTRIBUTION"
+				: "";
+	const orderMetric =
+		attribution === "LAST_CLICK"
+			? "net_sales__last_click"
+			: attribution === "FIRST_CLICK"
+				? "net_sales__first_click"
+				: "net_sales";
+
+	return `FROM sales
+SHOW net_sales, orders, gross_sales, total_sales
+GROUP BY referring_channel${withClause}
+SINCE ${startDate} UNTIL ${endDate}
+ORDER BY ${orderMetric} DESC
+LIMIT 100`;
+}
+
+/**
+ * @param {unknown} label
+ */
+export function isAgenticReferringChannelLabel(label) {
+	return isAgenticSalesChannelLabel(label);
+}
+
+/**
+ * @param {Array<Record<string, unknown>>} rows
+ */
+function filterAgenticReferringChannelRows(rows) {
+	return (rows || []).filter((row) => isAgenticReferringChannelLabel(row?.referring_channel));
+}
+
 function buildSessionsReferrerQuery(startDate, endDate) {
 	return `FROM sessions
 SHOW sessions, online_store_visitors, conversion_rate
@@ -291,6 +335,70 @@ LIMIT 100`;
 }
 
 /**
+ * Shopify-recommended approximation: FROM sales GROUP BY referring_channel.
+ * Tries last-click attribution first, then plain GROUP BY.
+ * @param {object} params
+ */
+export async function fetchSalesByReferringChannelReport({
+	shopUrl,
+	accessToken,
+	startDate,
+	endDate,
+	apiVersion,
+}) {
+	const defaultColumns = [
+		{ name: "referring_channel", displayName: "Referring channel" },
+		{ name: "net_sales", displayName: "Net sales" },
+		{ name: "orders", displayName: "Orders" },
+	];
+
+	const attributedQuery = buildReferringChannelSalesQuery(startDate, endDate, "LAST_CLICK");
+	let result = await runPinnedAgenticShopifyql(
+		shopUrl,
+		accessToken,
+		attributedQuery,
+		apiVersion
+	);
+	let attribution = "LAST_CLICK_ATTRIBUTION";
+	let query = attributedQuery;
+
+	if (result.parseErrors?.length) {
+		const simpleQuery = buildReferringChannelSalesQuery(startDate, endDate, null);
+		result = await runPinnedAgenticShopifyql(shopUrl, accessToken, simpleQuery, apiVersion);
+		attribution = null;
+		query = simpleQuery;
+	}
+
+	const allRows = result.tableData?.rows || [];
+	const agenticRows = filterAgenticReferringChannelRows(allRows);
+
+	return {
+		query,
+		apiVersion,
+		parseErrors: result.parseErrors,
+		dimension: "referring_channel",
+		schema: "sales",
+		attribution,
+		fallback: attribution ? null : "no_attribution",
+		tableData: {
+			columns: result.tableData?.columns?.length ? result.tableData.columns : defaultColumns,
+			rows: allRows,
+		},
+		agenticApproximation: {
+			rows: agenticRows,
+			note:
+				agenticRows.length > 0
+					? "Rows where referring_channel matches known AI/agentic labels — approximate proxy for Agentic widget, not guaranteed to match."
+					: "No referring_channel rows matched known AI/agentic labels (see full tableData.rows).",
+		},
+		note:
+			allRows.length > 0
+				? "Standard referring_channel sales breakdown (Shopify-suggested approximation for Agentic Storefronts revenue)."
+				: "referring_channel query succeeded but returned no rows for this period.",
+	};
+}
+
+/**
  * @param {object} params
  */
 export async function fetchAgenticReferringChannelReport({
@@ -317,6 +425,24 @@ export async function fetchAgenticReferringChannelReport({
 			schema: "sales",
 			fallback: null,
 			note: emptyRowsNote("agentic_referring_channel", rows.length),
+		};
+	}
+
+	const referringChannelReport = await fetchSalesByReferringChannelReport({
+		shopUrl,
+		accessToken,
+		startDate,
+		endDate,
+		apiVersion,
+	});
+	if (
+		!referringChannelReport.parseErrors?.length &&
+		(referringChannelReport.tableData?.rows || []).length > 0
+	) {
+		return {
+			...referringChannelReport,
+			fallback: "referring_channel",
+			note: "agentic_referring_channel unavailable — using standard referring_channel sales breakdown (Shopify-suggested approximation).",
 		};
 	}
 
@@ -527,12 +653,14 @@ export async function fetchAllAgenticShopifyqlReports(shopUrl, accessToken, star
 	const [
 		salesByAgenticSalesChannel,
 		salesByAgenticReferringChannel,
+		salesByReferringChannel,
 		agenticSalesChannelDaily,
 		shopChannelSales,
 		trafficByAgenticUtmSource,
 	] = await Promise.all([
 		fetchAgenticSalesChannelReport(base),
 		fetchAgenticReferringChannelReport(base),
+		fetchSalesByReferringChannelReport(base),
 		fetchAgenticSalesChannelDailyReport(base),
 		fetchShopChannelSalesReport(base),
 		fetchAgenticUtmTrafficReport(base),
@@ -542,6 +670,7 @@ export async function fetchAllAgenticShopifyqlReports(shopUrl, accessToken, star
 		shopifyqlApiVersion: apiVersion,
 		salesByAgenticSalesChannel,
 		salesByAgenticReferringChannel,
+		salesByReferringChannel,
 		agenticSalesChannelDaily,
 		shopChannelSales,
 		trafficByAgenticUtmSource,

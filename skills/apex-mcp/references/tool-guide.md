@@ -184,9 +184,10 @@ All agentic endpoints return **`shopifyqlApiVersion`** — one shared resolved v
 | `shopChannelSales` | `sales_channel = Shop` revenue/orders — proxy for Shopify Admin widget "Shop" line |
 | `trafficByAgenticUtmSource` | Sessions by `utm_source` (chatgpt.com, perplexity, copilot.com, openai, shop_app) |
 | `salesByAgenticSalesChannel` | Native `agentic_sales_channel` when Shopify exposes it, else Shop/AI `sales_channel` filter |
-| `salesByAgenticReferringChannel` | Native `agentic_referring_channel` or UTM/referrer session fallback |
+| `salesByAgenticReferringChannel` | Native `agentic_referring_channel`, then `referring_channel` sales, then UTM/referrer session fallback |
+| `salesByReferringChannel` | Full `FROM sales GROUP BY referring_channel` breakdown (Shopify-suggested approximation; use `agenticApproximation` subset for AI-like channels) |
 
-Native `agentic_sales_channel` / `agentic_referring_channel` may still be unavailable on API 2026-04 for some stores — fallbacks above still surface Shop revenue and AI session traffic. Per-agent revenue breakdown (ChatGPT vs Copilot vs Shop) requires Shopify to expose native agentic dimensions in ShopifyQL.
+Native `agentic_sales_channel` / `agentic_referring_channel` may still be unavailable on API 2026-04 for some stores. Use `salesByReferringChannel` to approximate Admin Agentic revenue by channel — compare to the widget; values are not guaranteed to match exactly.
 
 ## Parameter notes
 

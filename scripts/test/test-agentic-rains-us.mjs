@@ -75,6 +75,14 @@ console.log(`\nshopifyqlApiVersion: ${reports.shopifyqlApiVersion}`);
 summarizeTable("shopChannelSales (Shop channel proxy)", reports.shopChannelSales);
 summarizeTable("trafficByAgenticUtmSource", reports.trafficByAgenticUtmSource);
 summarizeTable("salesByAgenticSalesChannel", reports.salesByAgenticSalesChannel);
+summarizeTable("salesByReferringChannel (Shopify approximation)", reports.salesByReferringChannel);
+const referringApprox = reports.salesByReferringChannel?.agenticApproximation?.rows || [];
+if (referringApprox.length) {
+	console.log("\n=== salesByReferringChannel.agenticApproximation ===");
+	for (const row of referringApprox.slice(0, 12)) {
+		console.log(`    ${JSON.stringify(row)}`);
+	}
+}
 summarizeTable("salesByAgenticReferringChannel", reports.salesByAgenticReferringChannel);
 
 const utmRows = reports.trafficByAgenticUtmSource?.tableData?.rows || [];
