@@ -130,6 +130,8 @@ Use **`list_proxy_routes`** first to see allowlists and guardrails. Prefer curat
 | `google_ads_gaql_read` | `{ customerId, query }` → read-only GAQL SELECT |
 | `meta_ads_read` | `{ endpoint, customerId, params }` → Meta insights / campaigns / adsets / ads / **ads-with-creatives** / **ad-preview** / accounts |
 
+**Meta proxy `insights` params:** `startDate`, `endDate` (required); optional `level` (`account` \| `campaign` \| `adset` \| `ad`, default `account`); `fields` (comma-separated allowlisted metrics, e.g. `spend,reach,frequency,action_values,purchase_roas`); `dailyBreakdown=true` for daily rows. Paging URLs are sanitized — no Meta access tokens are returned.
+
 ### Meta ad creatives
 
 | Tool / route | Purpose |
