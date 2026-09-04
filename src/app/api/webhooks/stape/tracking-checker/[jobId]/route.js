@@ -1,6 +1,23 @@
 import { NextResponse } from "next/server";
 import { completeStapeTrackingCheckerWebhook } from "@/lib/stapeTrackingChecker";
 
+const WEBHOOK_READY = {
+    ok: true,
+    endpoint: "stape-tracking-checker",
+    message: "Webhook ready — Stape must POST JSON results here.",
+};
+
+/**
+ * GET/HEAD — Stape or load balancers may probe callback URLs before accepting them.
+ */
+export async function GET() {
+    return NextResponse.json(WEBHOOK_READY);
+}
+
+export async function HEAD() {
+    return new NextResponse(null, { status: 200 });
+}
+
 /**
  * POST /api/webhooks/stape/tracking-checker/[jobId]?token=
  * Public callback from Stape Partner Tracking Checker API.
@@ -25,6 +42,16 @@ export async function POST(request, { params }) {
                 }
             }
         }
+
+        console.info("[stape webhook POST]", {
+            jobId,
+            hasToken: Boolean(token),
+            contentType,
+            keys:
+                payload && typeof payload === "object" && !Array.isArray(payload)
+                    ? Object.keys(payload)
+                    : [],
+        });
 
         const job = await completeStapeTrackingCheckerWebhook(jobId, token, payload);
         return NextResponse.json({ ok: true, job });

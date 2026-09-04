@@ -240,6 +240,9 @@ export default function StapeTrackingCheckerPage() {
                             </pre>
                         </details>
                     ) : null}
+                    {job.stale && job.hint ? (
+                        <p className="text-sm text-amber-800 bg-amber-50 rounded p-3">{job.hint}</p>
+                    ) : null}
                     {job.error ? (
                         <p className="text-sm text-red-700">{job.error}</p>
                     ) : null}

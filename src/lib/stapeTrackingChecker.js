@@ -80,6 +80,10 @@ export function normalizeStapeSiteUrl(raw) {
     if (!parsed.hostname) {
         throw new Error("Invalid siteUrl");
     }
+    // Stape scans expect HTTPS; customer config often stores http:// origins.
+    if (parsed.protocol === "http:") {
+        parsed.protocol = "https:";
+    }
     return parsed.origin;
 }
 
@@ -166,7 +170,7 @@ function serializeJob(doc) {
                     "Webhook was sent to localhost — Stape cannot reach it. Set APEX_PUBLIC_URL=https://apex.searchmind.tech on Vercel, redeploy, and start a new scan.";
             } else {
                 out.hint =
-                    "Webhook not received yet. If this persists, verify APEX_PUBLIC_URL and that /api/webhooks/stape/tracking-checker is deployed.";
+                    "Webhook not received yet. APEX accepts POST callbacks (browser GET returns 405 until deployed). If scans stay pending, Stape may not be firing callbacks — contact Stape support with the stapeIdentifier.";
             }
         }
     }
@@ -209,16 +213,27 @@ function formatStapeApiError(json, text, status) {
     return text?.trim() || `Stape API error (${status})`;
 }
 
+/** Only append ?region= on the global host; EU host already routes correctly. */
+function getStapeRegionQuery() {
+    const base = getStapeApiBase();
+    if (base.includes(".eu.")) return "";
+    const region = String(process.env.STAPE_REGION || "").trim().toUpperCase();
+    return region ? `?region=${encodeURIComponent(region)}` : "";
+}
+
 async function requestStapeScan(siteUrl, callbackUrl) {
-    const res = await fetch(`${getStapeApiBase()}/api/v2/partner-tracking-checker`, {
+    const res = await fetch(
+        `${getStapeApiBase()}/api/v2/partner-tracking-checker${getStapeRegionQuery()}`,
+        {
         method: "POST",
         headers: {
             accept: "application/json",
             "Content-Type": "application/json",
             "X-AUTH-TOKEN": getStapeApiKey(),
         },
-        body: JSON.stringify({ siteUrl, callbackUrl }),
-    });
+            body: JSON.stringify({ siteUrl, callbackUrl }),
+        }
+    );
 
     const text = await res.text();
     let json = null;
@@ -334,11 +349,35 @@ export async function completeStapeTrackingCheckerWebhook(jobId, token, payload)
         throw new Error("Invalid webhook token");
     }
 
-    if (job.status === "complete") {
+    if (job.status === "complete" || job.status === "failed") {
         return serializeJob(job.toObject());
     }
 
-    const summary = extractSummaryFromStapeResult(payload);
+    const body =
+        payload && typeof payload === "object" && payload.body && typeof payload.body === "object"
+            ? payload.body
+            : payload;
+
+    const isError =
+        body &&
+        typeof body === "object" &&
+        (body.status === "error" ||
+            body.reportStatus === "error" ||
+            (body.error && typeof body.error === "string"));
+
+    if (isError) {
+        job.status = "failed";
+        job.result = payload ?? null;
+        job.summary = null;
+        job.error =
+            (body && (body.message || body.error)) ||
+            "Stape reported a scan error";
+        job.completedAt = new Date();
+        await job.save();
+        return serializeJob(job.toObject());
+    }
+
+    const summary = extractSummaryFromStapeResult(body);
     job.status = "complete";
     job.result = payload ?? null;
     job.summary = summary;
@@ -397,14 +436,17 @@ export async function getStapeTrackingCheckerJob(jobId, options = {}) {
 }
 
 export async function fetchStapeTrackingCheckerLimit() {
-    const res = await fetch(`${getStapeApiBase()}/api/v2/partner-tracking-checker/limit`, {
+    const res = await fetch(
+        `${getStapeApiBase()}/api/v2/partner-tracking-checker/limit${getStapeRegionQuery()}`,
+        {
         method: "GET",
         headers: {
             accept: "application/json",
             "X-AUTH-TOKEN": getStapeApiKey(),
         },
-        cache: "no-store",
-    });
+            cache: "no-store",
+        }
+    );
 
     const text = await res.text();
     let json = null;
