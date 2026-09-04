@@ -223,7 +223,7 @@ export default function ApexRadarSidebar() {
                                     )}
                                     <ApexNavLink
                                         href={apexRadarCsHref(isCs ? null : customerId)}
-                                        label="CS"
+                                        label="Alerts"
                                         icon={FiUsers}
                                         isSmallScreen={isSmallScreen}
                                         isActive={csActive}

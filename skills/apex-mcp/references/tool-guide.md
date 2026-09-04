@@ -218,6 +218,22 @@ All agentic endpoints return **`shopifyqlApiVersion`** — one shared resolved v
 
 Native `agentic_sales_channel` / `agentic_referring_channel` may still be unavailable on API 2026-04 for some stores. Use `salesByReferringChannel` to approximate Admin Agentic revenue by channel — compare to the widget; values are not guaranteed to match exactly.
 
+## Stape Website Tracking Checker (async)
+
+Stape scans are **async** (webhook callback, up to ~2 minutes). APEX stores jobs in MongoDB and exposes MCP-friendly start + poll endpoints.
+
+| Tool (MCP server) | APEX endpoint | Purpose |
+|-------------------|---------------|---------|
+| `start_stape_tracking_check` | `POST /api/mcp/stape-tracking-checker` | Body: `{ customerId? }` and/or `{ siteUrl? }`. Returns `{ jobId, status, siteUrl, … }` with `202` when pending. |
+| `get_stape_tracking_check` | `GET /api/mcp/stape-tracking-checker/{jobId}?waitMs=120000` | Poll job status/result. Optional `waitMs` (max 130s) blocks until complete. |
+| `get_stape_tracking_check_limit` | `GET /api/mcp/stape-tracking-checker` | Monthly Stape API quota (`1000`/month partner limit). |
+
+**Site URL resolution:** When only `customerId` is passed, APEX uses `CustomerSettings.shopifyUrl`, then Search Console property.
+
+**Manual UI:** `/tools/stape-tracking-checker` (session auth).
+
+**Env on APEX:** `STAPE_API_KEY`, optional `STAPE_API_BASE`, `APEX_PUBLIC_URL` or `NEXTAUTH_URL` for webhook callback base.
+
 ## Parameter notes
 
 - **`period`** (Data Wrapped): `YYYY-MM` e.g. `2025-06`

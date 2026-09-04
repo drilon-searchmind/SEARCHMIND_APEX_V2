@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { FiAlertCircle, FiAlertTriangle, FiPlus, FiRefreshCw, FiSend, FiTrash2 } from "react-icons/fi";
+import { FiAlertCircle, FiAlertTriangle, FiChevronDown, FiChevronUp, FiPlus, FiRefreshCw, FiSend, FiTrash2 } from "react-icons/fi";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import CobaltLoader from "@/components/ui/CobaltLoader";
 import { APEX_RADAR_CS_HREF } from "@/lib/apexRadarChannels";
@@ -347,6 +347,8 @@ function PlatformCard({
     platform,
     rules,
     alerts = [],
+    isOpen = false,
+    onToggle,
     onRuleChange,
     onAddCustom,
     onDeleteCustom,
@@ -360,107 +362,137 @@ function PlatformCard({
     const kpis = APEX_RADAR_CS_PLATFORM_KPIS[platformKey] || [];
     const missing = !platform?.configured;
     const platformAlerts = alerts.filter((a) => a.platform === platformKey);
+    const panelId = `apex-radar-cs-platform-${platformKey}`;
 
     return (
         <section
-            className={`apex-radar-panel apex-radar-panel--padded apex-radar-cs-platform${
-                platformAlerts.length ? " has-alerts" : ""
-            }`}
+            className={`apex-radar-panel apex-radar-cs-accordion-item${
+                isOpen ? " is-open" : ""
+            }${platformAlerts.length ? " has-alerts" : ""}`}
         >
-            <h2 className="apex-radar-section__title apex-radar-cs-platform-title">
-                {APEX_RADAR_CS_PLATFORM_LABELS[platformKey]}
-                {missing ? (
-                    <FiAlertTriangle
-                        className="apex-radar-cs-platform-title__warn"
-                        aria-label="Integration not configured"
-                        title={APEX_RADAR_CS_CONFIG_WARNING_TITLE}
-                    />
-                ) : null}
-            </h2>
-            {missing ? (
-                <MissingServiceNotice platformKey={platformKey} skipReason={platform?.skipReason} />
-            ) : (
-                <>
-                    <KpiSnapshot
-                        platformKey={platformKey}
-                        platform={platform}
-                        rules={rules}
-                        alerts={alerts}
-                    />
-                    <div className="apex-radar-cs-rules">
-                        <p className="apex-radar-field-label">Default alerts</p>
-                        {defaults.map((rule) => (
-                            <RuleRow
-                                key={rule.id}
-                                rule={rule}
-                                disabled={saving}
-                                isAlerting={ruleIsAlerting(alerts, rule.id)}
-                                onChange={(next) => onRuleChange(next)}
+            <button
+                type="button"
+                className="apex-radar-cs-accordion-trigger"
+                aria-expanded={isOpen}
+                aria-controls={panelId}
+                onClick={onToggle}
+            >
+                <span className="apex-radar-cs-accordion-title">
+                    {APEX_RADAR_CS_PLATFORM_LABELS[platformKey]}
+                    {missing ? (
+                        <FiAlertTriangle
+                            className="apex-radar-cs-platform-title__warn"
+                            aria-label="Integration not configured"
+                            title={APEX_RADAR_CS_CONFIG_WARNING_TITLE}
+                        />
+                    ) : null}
+                </span>
+                <span className="apex-radar-cs-accordion-meta">
+                    {platformAlerts.length > 0 ? (
+                        <span className="apex-radar-cs-accordion-badge" aria-label={`${platformAlerts.length} active alerts`}>
+                            {platformAlerts.length}
+                        </span>
+                    ) : null}
+                    <span className="apex-radar-cs-accordion-chevron" aria-hidden>
+                        {isOpen ? <FiChevronUp className="h-4 w-4" /> : <FiChevronDown className="h-4 w-4" />}
+                    </span>
+                </span>
+            </button>
+            <div id={panelId} className="apex-radar-cs-accordion-panel" hidden={!isOpen}>
+                <div className="apex-radar-cs-accordion-panel__inner">
+                    {missing ? (
+                        <MissingServiceNotice platformKey={platformKey} skipReason={platform?.skipReason} />
+                    ) : (
+                        <>
+                            <KpiSnapshot
+                                platformKey={platformKey}
+                                platform={platform}
+                                rules={rules}
+                                alerts={alerts}
                             />
-                        ))}
-                        <p className="apex-radar-field-label mt-4">Custom alerts</p>
-                        {custom.length === 0 ? (
-                            <p className="apex-radar-field-hint">None yet. Add a KPI and period below.</p>
-                        ) : (
-                            custom.map((rule) => (
-                                <RuleRow
-                                    key={rule.id}
-                                    rule={rule}
-                                    disabled={saving}
-                                    isAlerting={ruleIsAlerting(alerts, rule.id)}
-                                    onChange={(next) => onRuleChange(next)}
-                                    onDelete={() => onDeleteCustom(rule.id)}
-                                />
-                            ))
-                        )}
-                        <div className="apex-radar-cs-add">
-                            <select
-                                value={newKpi}
-                                onChange={(e) => setNewKpi(e.target.value)}
-                                aria-label="KPI"
-                            >
-                                {kpis.map((kpi) => (
-                                    <option key={kpi} value={kpi}>
-                                        {APEX_RADAR_CS_KPI_LABELS[kpi]}
-                                    </option>
-                                ))}
-                            </select>
-                            <select
-                                value={newPeriod}
-                                onChange={(e) => setNewPeriod(e.target.value)}
-                                aria-label="Period"
-                            >
-                                <option value="dod">DoD</option>
-                                <option value="wow">WoW</option>
-                            </select>
-                            <input
-                                type="number"
-                                min={1}
-                                max={100}
-                                value={newDrop}
-                                onChange={(e) => setNewDrop(Number(e.target.value))}
-                                aria-label="Drop percent"
-                            />
-                            <button
-                                type="button"
-                                className="apex-perf-btn apex-perf-btn--ghost"
-                                disabled={saving}
-                                onClick={() =>
-                                    onAddCustom({
-                                        platform: platformKey,
-                                        kpi: newKpi,
-                                        period: newPeriod,
-                                        dropPct: newDrop,
-                                    })
-                                }
-                            >
-                                <FiPlus className="h-3.5 w-3.5" aria-hidden />
-                                Add
-                            </button>
-                        </div>
-                    </div>
-                </>
-            )}
+                            <details className="apex-radar-cs-details">
+                                <summary className="apex-radar-cs-details__summary">
+                                    Default alerts
+                                    <span className="apex-radar-cs-details__count">{defaults.length}</span>
+                                </summary>
+                                <div className="apex-radar-cs-details__body">
+                                    {defaults.map((rule) => (
+                                        <RuleRow
+                                            key={rule.id}
+                                            rule={rule}
+                                            disabled={saving}
+                                            isAlerting={ruleIsAlerting(alerts, rule.id)}
+                                            onChange={(next) => onRuleChange(next)}
+                                        />
+                                    ))}
+                                </div>
+                            </details>
+                            <div className="apex-radar-cs-rules">
+                                <p className="apex-radar-field-label">Custom alerts</p>
+                                {custom.length === 0 ? (
+                                    <p className="apex-radar-field-hint">None yet. Add a KPI and period below.</p>
+                                ) : (
+                                    custom.map((rule) => (
+                                        <RuleRow
+                                            key={rule.id}
+                                            rule={rule}
+                                            disabled={saving}
+                                            isAlerting={ruleIsAlerting(alerts, rule.id)}
+                                            onChange={(next) => onRuleChange(next)}
+                                            onDelete={() => onDeleteCustom(rule.id)}
+                                        />
+                                    ))
+                                )}
+                                <div className="apex-radar-cs-add">
+                                    <select
+                                        value={newKpi}
+                                        onChange={(e) => setNewKpi(e.target.value)}
+                                        aria-label="KPI"
+                                    >
+                                        {kpis.map((kpi) => (
+                                            <option key={kpi} value={kpi}>
+                                                {APEX_RADAR_CS_KPI_LABELS[kpi]}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <select
+                                        value={newPeriod}
+                                        onChange={(e) => setNewPeriod(e.target.value)}
+                                        aria-label="Period"
+                                    >
+                                        <option value="dod">DoD</option>
+                                        <option value="wow">WoW</option>
+                                    </select>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={100}
+                                        value={newDrop}
+                                        onChange={(e) => setNewDrop(Number(e.target.value))}
+                                        aria-label="Drop percent"
+                                    />
+                                    <button
+                                        type="button"
+                                        className="apex-perf-btn apex-perf-btn--ghost"
+                                        disabled={saving}
+                                        onClick={() =>
+                                            onAddCustom({
+                                                platform: platformKey,
+                                                kpi: newKpi,
+                                                period: newPeriod,
+                                                dropPct: newDrop,
+                                            })
+                                        }
+                                    >
+                                        <FiPlus className="h-3.5 w-3.5" aria-hidden />
+                                        Add
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
         </section>
     );
 }
@@ -483,6 +515,8 @@ export default function ApexRadarCsClient({ customerId }) {
     const [dateRange, setDateRange] = useState(null);
     const [slackSending, setSlackSending] = useState(false);
     const [slackSendFeedback, setSlackSendFeedback] = useState(null);
+    const [openPlatforms, setOpenPlatforms] = useState(() => new Set());
+    const openPlatformsInitialized = useRef(false);
 
     const loadOverview = useCallback(async () => {
         if (!customerId) return;
@@ -530,6 +564,8 @@ export default function ApexRadarCsClient({ customerId }) {
         setRules([]);
         setError(null);
         setSlackSendFeedback(null);
+        setOpenPlatforms(new Set());
+        openPlatformsInitialized.current = false;
         loadOverview();
     }, [loadOverview]);
 
@@ -537,6 +573,25 @@ export default function ApexRadarCsClient({ customerId }) {
         if (!platforms || !customer) return [];
         return evaluateCsAlerts(platforms, rules, customer);
     }, [platforms, rules, customer]);
+
+    useEffect(() => {
+        if (!platforms || openPlatformsInitialized.current) return;
+        openPlatformsInitialized.current = true;
+        const next = new Set();
+        for (const key of APEX_RADAR_CS_PLATFORMS) {
+            if (alerts.some((a) => a.platform === key)) next.add(key);
+        }
+        setOpenPlatforms(next);
+    }, [platforms, alerts]);
+
+    const togglePlatform = useCallback((platformKey) => {
+        setOpenPlatforms((prev) => {
+            const next = new Set(prev);
+            if (next.has(platformKey)) next.delete(platformKey);
+            else next.add(platformKey);
+            return next;
+        });
+    }, []);
 
     const slackPreview = useMemo(
         () =>
@@ -764,7 +819,7 @@ export default function ApexRadarCsClient({ customerId }) {
             {loading && !platforms ? (
                 <CobaltLoader variant="block" title="Loading CS metrics" />
             ) : platforms ? (
-                <div className="apex-radar-cs-platforms">
+                <div className="apex-radar-cs-platforms apex-radar-cs-accordion">
                     {APEX_RADAR_CS_PLATFORMS.map((key) => (
                         <PlatformCard
                             key={key}
@@ -772,6 +827,8 @@ export default function ApexRadarCsClient({ customerId }) {
                             platform={platforms?.[key]}
                             rules={rules}
                             alerts={alerts}
+                            isOpen={openPlatforms.has(key)}
+                            onToggle={() => togglePlatform(key)}
                             saving={saving}
                             onRuleChange={handleRuleChange}
                             onAddCustom={handleAddCustom}

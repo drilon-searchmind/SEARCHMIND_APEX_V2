@@ -1191,15 +1191,132 @@
 }
 
 .apex-radar-cs-platforms {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
 }
 
-@media (min-width: 1100px) {
-  .apex-radar-cs-platforms {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
+.apex-radar-cs-accordion-item {
+  overflow: hidden;
+}
+
+.apex-radar-cs-accordion-item.has-alerts {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, #ef4444 55%, transparent);
+}
+
+.apex-radar-cs-accordion-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: background-color 0.15s ease;
+}
+
+.apex-radar-cs-accordion-trigger:hover {
+  background: var(--color-paper-3);
+}
+
+.apex-radar-cs-accordion-trigger:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: -2px;
+}
+
+.apex-radar-cs-accordion-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.apex-radar-cs-accordion-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+.apex-radar-cs-accordion-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #fff;
+  background: color-mix(in srgb, #ef4444 85%, #000);
+}
+
+.apex-radar-cs-accordion-chevron {
+  display: inline-flex;
+  color: var(--color-muted);
+}
+
+.apex-radar-cs-accordion-panel__inner {
+  padding: 0 var(--space-lg) var(--space-lg);
+  border-top: var(--rule-hair) solid var(--color-rule);
+}
+
+.apex-radar-cs-details {
+  margin: var(--space-sm) 0 var(--space-md);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+  background: var(--perf-canvas);
+  overflow: hidden;
+}
+
+.apex-radar-cs-details__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-ink-2);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.apex-radar-cs-details__summary::-webkit-details-marker {
+  display: none;
+}
+
+.apex-radar-cs-details__summary::before {
+  content: "▸";
+  margin-right: 0.35rem;
+  font-size: 0.65rem;
+  color: var(--color-muted);
+  transition: transform 0.15s ease;
+}
+
+.apex-radar-cs-details[open] .apex-radar-cs-details__summary::before {
+  transform: rotate(90deg);
+}
+
+.apex-radar-cs-details__count {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.apex-radar-cs-details__body {
+  padding: 0 var(--space-md) var(--space-sm);
+  border-top: var(--rule-hair) solid var(--color-rule);
 }
 
 .apex-radar-cs-kpi-grid {
@@ -1234,10 +1351,6 @@
 .apex-radar-cs-kpi.is-alert-critical {
   background: color-mix(in srgb, #ef4444 17%, var(--perf-canvas));
   border-color: color-mix(in srgb, #ef4444 32%, transparent);
-}
-
-.apex-radar-cs-platform.has-alerts {
-  box-shadow: inset 3px 0 0 color-mix(in srgb, #ef4444 55%, transparent);
 }
 
 .apex-radar-cs-rule.is-alerting {
