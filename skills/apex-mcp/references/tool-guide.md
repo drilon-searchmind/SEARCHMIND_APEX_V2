@@ -1,6 +1,8 @@
 # APEX MCP tool guide
 
-Complete reference for the ~77 read-only APEX MCP tools (v0.7.2). All customer-scoped tools need **`customerId`** (MongoDB id from `list_customers`).
+Complete reference for the ~77 read-only APEX MCP tools (v0.7.3). All customer-scoped tools need **`customerId`** (MongoDB id from `list_customers`).
+
+**Concurrency (v0.7.3+):** `mcp-server-apex` serializes `/mcp` requests per session and validates `customerId` in responses, so parallel tool calls in one Claude session no longer cross customer data. Multiple independent MCP sessions (different clients) can still run in parallel safely.
 
 ## Core tools
 
@@ -32,6 +34,7 @@ Requires `customerId`, `startDate`, `endDate` unless noted.
 | `list_meta_campaigns` | Meta campaign list |
 | `list_google_campaigns` | Google campaign list |
 | `get_meta_ad_performance` | Ad-level Meta performance |
+| `get_meta_ad_creatives` | Live Meta ads with creative `thumbnail_url` / `image_url` (no dates required) |
 | `get_google_ad_performance` | Ad-level Google performance |
 | `get_google_ppc_dashboard` | Full Google PPC dashboard payload |
 | `get_klaviyo_dashboard` | Full Klaviyo EM dashboard (+ optional `prevStartDate`, `prevEndDate`) |
@@ -125,7 +128,20 @@ Use **`list_proxy_routes`** first to see allowlists and guardrails. Prefer curat
 | `request_route_access` | `{ route, customerId, reason }` → optional; blocked `call_apex_api` calls are **auto-logged** by APEX |
 | `shopify_graphql_read` | `{ queryType, customerId, params }` → ShopifyQL or Admin GraphQL templates |
 | `google_ads_gaql_read` | `{ customerId, query }` → read-only GAQL SELECT |
-| `meta_ads_read` | `{ endpoint, customerId, params }` → Meta insights / campaigns / adsets / ads / accounts |
+| `meta_ads_read` | `{ endpoint, customerId, params }` → Meta insights / campaigns / adsets / ads / **ads-with-creatives** / **ad-preview** / accounts |
+
+**Meta proxy `insights` params:** `startDate`, `endDate` (required); optional `level` (`account` \| `campaign` \| `adset` \| `ad`, default `account`); `fields` (comma-separated allowlisted metrics, e.g. `spend,reach,frequency,action_values,purchase_roas`); `dailyBreakdown=true` for daily rows. Paging URLs are sanitized — no Meta access tokens are returned.
+
+### Meta ad creatives
+
+| Tool / route | Purpose |
+|--------------|---------|
+| `get_meta_ad_creatives` | Curated tool — ACTIVE live ads + `creative.thumbnail_url` |
+| `call_apex_api` → `/api/meta-ad-creatives` | Same payload via allowlisted route |
+| `meta_ads_read` → `ads-with-creatives` | Same via Meta proxy |
+| `meta_ads_read` → `ad-preview` | Single-ad feed preview HTML (`params.adId`, optional `adFormat`) |
+
+Default allowlisted — no admin route approval required.
 
 ### Allowlisted APEX routes (`call_apex_api`)
 
@@ -147,6 +163,10 @@ Use **`list_proxy_routes`** first to see allowlists and guardrails. Prefer curat
 | `/api/klaviyo-scheduled-campaigns` | optional `daysAhead` (default 60), `includeDrafts` (default true) |
 | `/api/klaviyo-flows` | optional `includeActions` (default true), `status` (`live`/`draft`/`manual`), `maxFlows` (default 80) |
 | `/api/apex-radar` | `startDate`, `endDate`, `channel` (`google-ads` or `facebook`) |
+| `/api/shopify-channel-attribution` | `startDate`, `endDate` |
+| `/api/shopify-referrer-domain-sessions` | `startDate`, `endDate` |
+| `/api/meta-ad-creatives` | optional `limit`, `activeOnly` (default true) |
+| `/api/shopify-agentic-attribution` | `startDate`, `endDate` |
 
 ### Approvable routes (`call_apex_api` — require admin approval per customer)
 
@@ -159,9 +179,44 @@ These routes have MCP handlers but are **not** on the default allowlist. A block
 | `/api/reddit-ads` | `startDate`, `endDate` |
 | `/api/bing-ads` | `startDate`, `endDate` |
 | `/api/ga4-metrics` | `startDate`, `endDate` |
-| `/api/shopify-channel-attribution` | `startDate`, `endDate` |
 
 Admin review: `https://apex.searchmind.tech/admin/route-requests`
+
+### Shopify proxy query types (`shopify_graphql_read`)
+
+| queryType | Kind | Notes |
+|-----------|------|-------|
+| `SalesReport`, `OrdersReport`, `ProductsReport`, `CustomersReport`, `InventoryReport` | ShopifyQL | Standard reports |
+| `AgenticSalesReport` | ShopifyQL | Sales by `agentic_sales_channel` (tries API 2026-04→2026-01; falls back to filtered `sales_channel`) |
+| `AgenticReferringReport` | ShopifyQL | Sales by `agentic_referring_channel` (FROM sales, then FROM payments fallback) |
+| `orders` | GraphQL | Basic order list for date range |
+| `ordersAttribution` | GraphQL | Orders with `sourceName`, `tags`, `app`, `channelInformation`, `attribution`, `customerJourneySummary` |
+| `products`, `customers`, `inventory`, `shop` | GraphQL | Paginated Admin reads |
+
+Pair **session-level** AI traffic (`/api/shopify-channel-attribution`, `/api/shopify-referrer-domain-sessions`) with **order-level** agentic sales (`/api/shopify-agentic-attribution` or `ordersAttribution`) to see if AI referrals convert.
+
+### Shopify referrer domain sessions (`/api/shopify-referrer-domain-sessions`)
+
+Use when platforms tag links inconsistently (UTM vs referrer). Groups **human** sessions by `referrer_domain` (e.g. `perplexity.ai`, `chatgpt.com`) — the fairest way to compare Perplexity vs ChatGPT vs Copilot **visit** volume.
+
+| Response block | What it gives you |
+|----------------|-------------------|
+| `trafficByReferrerDomain` | Full `FROM sessions GROUP BY referrer_domain` breakdown |
+| `aiReferrerDomains` | Filtered subset of known AI/agent domains |
+
+Also included in `/api/shopify-channel-attribution` as `trafficByReferrerDomain` + `aiReferrerDomains`.
+
+All agentic endpoints return **`shopifyqlApiVersion`** — one shared resolved version per request (default `2026-04`).
+
+| Response block | What it gives you |
+|----------------|-------------------|
+| `shopChannelSales` | `sales_channel = Shop` revenue/orders — proxy for Shopify Admin widget "Shop" line |
+| `trafficByAgenticUtmSource` | Sessions by `utm_source` (chatgpt.com, perplexity, copilot.com, openai, shop_app) |
+| `salesByAgenticSalesChannel` | Native `agentic_sales_channel` when Shopify exposes it, else Shop/AI `sales_channel` filter |
+| `salesByAgenticReferringChannel` | Native `agentic_referring_channel`, then `referring_channel` sales, then UTM/referrer session fallback |
+| `salesByReferringChannel` | Full `FROM sales GROUP BY referring_channel` breakdown (Shopify-suggested approximation; use `agenticApproximation` subset for AI-like channels) |
+
+Native `agentic_sales_channel` / `agentic_referring_channel` may still be unavailable on API 2026-04 for some stores. Use `salesByReferringChannel` to approximate Admin Agentic revenue by channel — compare to the widget; values are not guaranteed to match exactly.
 
 ## Parameter notes
 

@@ -93,7 +93,7 @@ For the full catalog and use-case matrix, read **`references/tool-guide.md`**.
 | Who is on this account (ClickUp)? | `get_clickup_team` → optionally `list_internal_users` to map ClickUp ids |
 | Overall performance / daily overview | `get_merged_sources` or `get_merged_sources_filtered` |
 | Full customer config (no secrets) | `get_customer` |
-| Meta spend & campaigns | `get_facebook_ads`, `get_meta_ad_performance`, `list_meta_campaigns` |
+| Meta spend & campaigns | `get_facebook_ads`, `get_meta_ad_performance`, `get_meta_ad_creatives`, `list_meta_campaigns` |
 | Google spend & campaigns | `get_google_ads`, `get_google_ppc_dashboard`, `list_google_campaigns` |
 | Store revenue only | `get_store_revenue` |
 | Email performance (sent campaigns) | `get_klaviyo_metrics` or `get_klaviyo_dashboard` |
@@ -122,9 +122,9 @@ When curated tools do not cover a question, use the read-only proxies (credentia
 |------|-------------|
 | `call_apex_api` | Allowlisted APEX dashboard route + params |
 | `request_route_access` | Log a permission request when `call_apex_api` returns `ROUTE_NOT_ALLOWLISTED` |
-| `shopify_graphql_read` | ShopifyQL reports or paginated Admin GraphQL reads |
+| `shopify_graphql_read` | ShopifyQL reports, agentic attribution reports, or paginated Admin GraphQL reads (`ordersAttribution`) |
 | `google_ads_gaql_read` | Custom GAQL SELECT (allowlisted resources only) |
-| `meta_ads_read` | Meta insights, campaigns, adsets, ads, accounts |
+| `meta_ads_read` | Meta insights, campaigns, adsets, ads, **ads-with-creatives**, **ad-preview**, accounts |
 
 Always pass **`customerId`**. Call **`list_proxy_routes`** for the full allowlist.
 

@@ -4,8 +4,8 @@ import {
     normalizeShopifyShopDomain,
     shopifyAdminGraphqlEndpoint,
     getShopifyAdminApiVersion,
-} from "./shopifyShopDomain";
-import { shopifyAdminGraphqlPost } from "./shopifyAdminClient";
+} from "./shopifyShopDomain.js";
+import { shopifyAdminGraphqlPost } from "./shopifyAdminClient.js";
 
 /**
  * Escapes a ShopifyQL query string for embedding in a GraphQL query.
@@ -57,7 +57,8 @@ export async function shopifyqlQuery(shopifyUrl, accessToken, shopifyqlQuery, op
         const { res, json, endpoint, domain, apiVersion } = await shopifyAdminGraphqlPost(
             shopifyUrl,
             accessToken,
-            body
+            body,
+            { apiVersion: options.apiVersion }
         );
         if (apiVersion && apiVersion !== getShopifyAdminApiVersion() && attempt === 1) {
             console.warn(
