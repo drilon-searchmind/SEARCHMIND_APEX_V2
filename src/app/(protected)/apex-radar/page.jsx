@@ -7,6 +7,7 @@ import {
     APEX_RADAR_CHANNEL_FACEBOOK,
     APEX_RADAR_CHANNEL_GOOGLE_ADS,
     APEX_RADAR_CHANNEL_META,
+    APEX_RADAR_CS_HREF,
     apexRadarOverviewHref,
 } from "@/lib/apexRadarChannels";
 
@@ -20,7 +21,7 @@ export default function ApexRadarPlatformPickerPage() {
             <div className="apex-radar-picker-card">
                 <h1 className="apex-radar-section__title">Apex Radar</h1>
                 <p className="apex-radar-section__subtitle mt-2">
-                    Pick an ad platform to open the overview, or use the switcher at the bottom of the sidebar.
+                    Pick an ad platform or CS, or use the switcher at the bottom of the sidebar.
                 </p>
                 <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
                     <Link
@@ -34,6 +35,9 @@ export default function ApexRadarPlatformPickerPage() {
                         className="apex-perf-btn apex-perf-btn--secondary justify-center"
                     >
                         {APEX_RADAR_CHANNEL_META[APEX_RADAR_CHANNEL_GOOGLE_ADS].label}
+                    </Link>
+                    <Link href={APEX_RADAR_CS_HREF} className="apex-perf-btn apex-perf-btn--ghost justify-center">
+                        CS
                     </Link>
                 </div>
                 <button

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { FiChevronDown, FiChevronUp, FiBarChart, FiSearch, FiDollarSign, FiTool } from "react-icons/fi";
+import { FiChevronDown, FiChevronUp, FiBarChart, FiSearch, FiDollarSign, FiTool, FiUsers } from "react-icons/fi";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { LuRadar } from "react-icons/lu";
@@ -10,6 +10,8 @@ import {
     APEX_RADAR_CHANNEL_FACEBOOK,
     APEX_RADAR_CHANNEL_GOOGLE_ADS,
     APEX_RADAR_CHANNEL_META,
+    APEX_RADAR_CS_HREF,
+    apexRadarCsHref,
     apexRadarOverviewHref,
     apexRadarPerformanceInvestigatorHref,
     parseApexRadarPath,
@@ -116,11 +118,12 @@ export default function ApexRadarSidebar() {
     const [isSmallScreen, setIsSmallScreen] = useState(false);
     const [performanceInvestigatorModalOpen, setPerformanceInvestigatorModalOpen] = useState(false);
     const pathname = usePathname();
-    const { channel, customerId } = parseApexRadarPath(pathname);
+    const { channel, customerId, isCs } = parseApexRadarPath(pathname);
     const { allowed: devToolsAllowed } = useApexRadarDevToolsAccess();
 
     const overviewHref = channel ? apexRadarOverviewHref(channel, customerId) : "/apex-radar";
     const overviewActive = pathname === overviewHref;
+    const csActive = isCs || pathname === APEX_RADAR_CS_HREF || pathname.startsWith(`${APEX_RADAR_CS_HREF}/`);
     const devToolsActive = pathname === APEX_RADAR_DEV_TOOLS_HREF || pathname.startsWith(`${APEX_RADAR_DEV_TOOLS_HREF}/`);
     const performanceInvestigatorHref =
         channel && customerId ? apexRadarPerformanceInvestigatorHref(channel, customerId) : null;
@@ -218,6 +221,13 @@ export default function ApexRadarSidebar() {
                                             </button>
                                         </li>
                                     )}
+                                    <ApexNavLink
+                                        href={apexRadarCsHref(isCs ? null : customerId)}
+                                        label="CS"
+                                        icon={FiUsers}
+                                        isSmallScreen={isSmallScreen}
+                                        isActive={csActive}
+                                    />
                                     <ApexNavPlaceholder
                                         label="Budget Report"
                                         icon={FiDollarSign}

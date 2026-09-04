@@ -47,7 +47,7 @@ const METRIC_CACHE_TTL_MS = 60 * 60 * 1000;
  * @param {string} apiKey - Klaviyo Private API Key
  * @returns {Promise<string|null>} Metric ID or null if not found
  */
-async function getPlacedOrderMetricId(apiKey) {
+export async function getPlacedOrderMetricId(apiKey) {
     const cached = metricIdCache.get(apiKey);
     if (cached && cached.expires > Date.now()) return cached.metricId;
 

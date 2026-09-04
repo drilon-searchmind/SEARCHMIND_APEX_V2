@@ -20,7 +20,54 @@ function getSlackClient() {
             "Slack bot token missing. Set SLACK_BOT_USER_OAUTH_TOKEN (or SLACK_TOKEN) in .env."
         );
     }
-    return new WebClient(token);
+    return new WebClient(token, {
+        // Fail fast on rate limits instead of blocking the request for ~30s.
+        rejectRateLimitedCalls: true,
+        retryConfig: { retries: 1 },
+    });
+}
+
+const SLACK_CHANNEL_CACHE_TTL_MS = 5 * 60 * 1000;
+/** @type {{ channels: import("@slack/web-api").ConversationsListResponse["channels"], fetchedAt: number } | null} */
+let slackChannelCache = null;
+
+export function clearSlackChannelCache() {
+    slackChannelCache = null;
+}
+
+function isSlackChannelId(value) {
+    const s = String(value || "").trim();
+    return /^[CG][A-Z0-9]+$/i.test(s);
+}
+
+/**
+ * Cached Slack channel list (public + private). Shared across CS picker and name resolution.
+ */
+export async function listSlackChannelsCached() {
+    const now = Date.now();
+    if (slackChannelCache && now - slackChannelCache.fetchedAt < SLACK_CHANNEL_CACHE_TTL_MS) {
+        return slackChannelCache.channels;
+    }
+
+    const client = getSlackClient();
+    /** @type {NonNullable<import("@slack/web-api").ConversationsListResponse["channels"]>} */
+    const channels = [];
+    let cursor;
+    do {
+        const res = await client.conversations.list({
+            types: "public_channel,private_channel",
+            exclude_archived: true,
+            limit: 200,
+            cursor,
+        });
+        for (const c of res.channels || []) {
+            if (c?.id && c?.name) channels.push(c);
+        }
+        cursor = res.response_metadata?.next_cursor;
+    } while (cursor);
+
+    slackChannelCache = { channels, fetchedAt: now };
+    return channels;
 }
 
 function normalizeChannelName(name) {
@@ -38,20 +85,9 @@ export async function resolveSlackChannelIdByName(channelName) {
     const target = normalizeChannelName(channelName);
     if (!target) return null;
 
-    const client = getSlackClient();
-    let cursor;
-    do {
-        const res = await client.conversations.list({
-            types: "public_channel,private_channel",
-            limit: 200,
-            cursor,
-        });
-        const match = (res.channels || []).find((c) => c.name === target);
-        if (match?.id) return match.id;
-        cursor = res.response_metadata?.next_cursor;
-    } while (cursor);
-
-    return null;
+    const channels = await listSlackChannelsCached();
+    const match = channels.find((c) => c.name === target);
+    return match?.id || null;
 }
 
 /**
@@ -62,7 +98,7 @@ export async function postSlackChannelMessage(channelIdOrName, message) {
     const client = getSlackClient();
     let channel = String(channelIdOrName || "").trim();
 
-    if (channel.startsWith("#") || (!channel.startsWith("C") && !channel.startsWith("G"))) {
+    if (channel.startsWith("#") || !isSlackChannelId(channel)) {
         const resolved = await resolveSlackChannelIdByName(channel);
         if (!resolved) {
             return {
@@ -73,23 +109,34 @@ export async function postSlackChannelMessage(channelIdOrName, message) {
         channel = resolved;
     }
 
-    const res = await client.chat.postMessage({
-        channel,
-        text: message.text,
-        blocks: message.blocks,
-        unfurl_links: false,
-        unfurl_media: false,
-    });
+    try {
+        const res = await client.chat.postMessage({
+            channel,
+            text: message.text,
+            blocks: message.blocks,
+            unfurl_links: false,
+            unfurl_media: false,
+        });
 
-    if (!res.ok) {
-        return { success: false, error: res.error || "Failed to post Slack message" };
+        if (!res.ok) {
+            return { success: false, error: res.error || "Failed to post Slack message" };
+        }
+
+        return {
+            success: true,
+            channelId: res.channel,
+            messageTs: res.ts,
+        };
+    } catch (err) {
+        const retryAfter = err?.data?.retryAfter ?? err?.retryAfter;
+        if (retryAfter != null) {
+            return {
+                success: false,
+                error: `Slack rate limit hit. Try again in ${retryAfter} seconds.`,
+            };
+        }
+        return { success: false, error: formatSlackApiError(err) };
     }
-
-    return {
-        success: true,
-        channelId: res.channel,
-        messageTs: res.ts,
-    };
 }
 
 function formatSlackApiError(err) {

@@ -54,24 +54,37 @@ export function getApexRadarChannelFromPathname(pathname) {
     return isValidApexRadarChannel(seg) ? seg : null;
 }
 
+/** Dedicated CS (Client Strategists) section — not a PPC channel. */
+export const APEX_RADAR_CS_PATH = "cs";
+export const APEX_RADAR_CS_HREF = "/apex-radar/cs";
+
+export function apexRadarCsHref(customerId = null) {
+    if (customerId) return `${APEX_RADAR_CS_HREF}/${String(customerId)}`;
+    return APEX_RADAR_CS_HREF;
+}
+
 /**
- * @returns {{ isApexRadar: boolean, channel: string | null, customerId: string | null }}
+ * @returns {{ isApexRadar: boolean, channel: string | null, customerId: string | null, isCs: boolean }}
  */
 export function parseApexRadarPath(pathname) {
     const raw = String(pathname || "");
     if (!raw.startsWith("/apex-radar")) {
-        return { isApexRadar: false, channel: null, customerId: null };
+        return { isApexRadar: false, channel: null, customerId: null, isCs: false };
     }
     const parts = raw.split("/").filter(Boolean);
     if (parts.length < 2) {
-        return { isApexRadar: true, channel: null, customerId: null };
+        return { isApexRadar: true, channel: null, customerId: null, isCs: false };
     }
     const seg = parts[1];
+    if (seg === APEX_RADAR_CS_PATH) {
+        const customerId = parts.length >= 3 ? parts[2] : null;
+        return { isApexRadar: true, channel: null, customerId, isCs: true };
+    }
     if (!isValidApexRadarChannel(seg)) {
-        return { isApexRadar: true, channel: null, customerId: null };
+        return { isApexRadar: true, channel: null, customerId: null, isCs: false };
     }
     const customerId = parts.length >= 3 ? parts[2] : null;
-    return { isApexRadar: true, channel: seg, customerId };
+    return { isApexRadar: true, channel: seg, customerId, isCs: false };
 }
 
 /** Overview URL for a channel; optional customer scopes the table to one property. */

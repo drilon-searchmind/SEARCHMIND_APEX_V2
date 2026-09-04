@@ -2,20 +2,21 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { FiX } from "react-icons/fi";
+import { FiUsers, FiX } from "react-icons/fi";
 import { SiFacebook, SiGoogleads } from "react-icons/si";
 import {
     APEX_RADAR_CHANNEL_FACEBOOK,
     APEX_RADAR_CHANNEL_GOOGLE_ADS,
     APEX_RADAR_CHANNEL_META,
+    APEX_RADAR_CS_HREF,
     apexRadarOverviewHref,
 } from "@/lib/apexRadarChannels";
 
 export default function ApexRadarPlatformModal({ onClose }) {
     const router = useRouter();
 
-    const choose = (channel) => {
-        router.push(apexRadarOverviewHref(channel));
+    const choose = (href) => {
+        router.push(href);
         onClose?.();
     };
 
@@ -33,7 +34,7 @@ export default function ApexRadarPlatformModal({ onClose }) {
                             Choose platform
                         </h2>
                         <p className="apex-radar-modal__subtitle">
-                            Apex Radar is split by ad platform. You can switch anytime in the sidebar.
+                            Apex Radar is split by ad platform and CS. You can switch anytime in the sidebar.
                         </p>
                     </div>
                     <button type="button" onClick={onClose} className="apex-radar-modal__close" aria-label="Close">
@@ -43,7 +44,7 @@ export default function ApexRadarPlatformModal({ onClose }) {
                 <div className="apex-radar-modal__body space-y-3">
                     <button
                         type="button"
-                        onClick={() => choose(APEX_RADAR_CHANNEL_FACEBOOK)}
+                        onClick={() => choose(apexRadarOverviewHref(APEX_RADAR_CHANNEL_FACEBOOK))}
                         className="apex-radar-platform-card"
                     >
                         <span className="apex-radar-platform-card__icon bg-[#1877F2]/10 text-[#1877F2]">
@@ -60,7 +61,7 @@ export default function ApexRadarPlatformModal({ onClose }) {
                     </button>
                     <button
                         type="button"
-                        onClick={() => choose(APEX_RADAR_CHANNEL_GOOGLE_ADS)}
+                        onClick={() => choose(apexRadarOverviewHref(APEX_RADAR_CHANNEL_GOOGLE_ADS))}
                         className="apex-radar-platform-card"
                     >
                         <span className="apex-radar-platform-card__icon bg-[#4285F4]/10 text-[#4285F4]">
@@ -72,6 +73,21 @@ export default function ApexRadarPlatformModal({ onClose }) {
                             </span>
                             <span className="apex-radar-platform-card__desc">
                                 {APEX_RADAR_CHANNEL_META[APEX_RADAR_CHANNEL_GOOGLE_ADS].description}
+                            </span>
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => choose(APEX_RADAR_CS_HREF)}
+                        className="apex-radar-platform-card"
+                    >
+                        <span className="apex-radar-platform-card__icon bg-[var(--color-paper-3)] text-[var(--color-ink)]">
+                            <FiUsers className="h-7 w-7" aria-hidden />
+                        </span>
+                        <span>
+                            <span className="apex-radar-platform-card__title">CS — Client Strategists</span>
+                            <span className="apex-radar-platform-card__desc">
+                                Google Ads, Meta, SEO, and Email alerts
                             </span>
                         </span>
                     </button>

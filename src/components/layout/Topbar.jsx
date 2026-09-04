@@ -7,7 +7,7 @@ import { useUser } from "@/contexts/UserContext";
 import { signOut } from "next-auth/react";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { parseApexRadarPath, APEX_RADAR_CHANNEL_FACEBOOK, apexRadarOverviewHref } from "@/lib/apexRadarChannels";
+import { parseApexRadarPath, APEX_RADAR_CHANNEL_FACEBOOK, APEX_RADAR_CS_HREF, apexRadarCsHref, apexRadarOverviewHref } from "@/lib/apexRadarChannels";
 
 /** Sentinel value for Apex Radar "All properties" in the customer Select. */
 const APEX_RADAR_CUSTOMER_SELECT_ALL = "__apex_radar_all__";
@@ -175,14 +175,18 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
 
     const customerSearchExtraItems = useMemo(() => {
         if (!apexRadarPath.isApexRadar) return [];
+        if (apexRadarPath.isCs) {
+            return [{ id: APEX_RADAR_CUSTOMER_SELECT_ALL, name: "Select customer", href: APEX_RADAR_CS_HREF }];
+        }
         const ch = apexRadarPath.channel ?? APEX_RADAR_CHANNEL_FACEBOOK;
         return [{ id: APEX_RADAR_CUSTOMER_SELECT_ALL, name: "All", href: apexRadarOverviewHref(ch) }];
-    }, [apexRadarPath.isApexRadar, apexRadarPath.channel]);
+    }, [apexRadarPath.isApexRadar, apexRadarPath.isCs, apexRadarPath.channel]);
 
     const activeCustomerName = useMemo(() => {
+        if (apexRadarPath.isCs && !apexRadarPath.customerId) return "Select customer";
         if (apexRadarPath.isApexRadar && !apexRadarPath.customerId) return "All";
         return activeCustomer?.customerName ?? null;
-    }, [apexRadarPath.isApexRadar, apexRadarPath.customerId, activeCustomer?.customerName]);
+    }, [apexRadarPath.isApexRadar, apexRadarPath.isCs, apexRadarPath.customerId, activeCustomer?.customerName]);
 
     const parentCustomerId = useMemo(
         () => getParentCustomerId(activeCustomer),
@@ -191,13 +195,16 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
 
     const buildPropertyHref = useCallback(
         (customerId) => {
+            if (apexRadarPath.isCs) {
+                return apexRadarCsHref(customerId);
+            }
             if (apexRadarPath.isApexRadar) {
                 const ch = apexRadarPath.channel ?? APEX_RADAR_CHANNEL_FACEBOOK;
                 return `/apex-radar/${ch}/${customerId}`;
             }
             return `/dashboard/${customerId}/performance-dashboard`;
         },
-        [apexRadarPath.isApexRadar, apexRadarPath.channel]
+        [apexRadarPath.isApexRadar, apexRadarPath.isCs, apexRadarPath.channel]
     );
 
     // Check if activeCustomerId is accessible, if not redirect to first accessible customer
@@ -205,8 +212,12 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
     React.useEffect(() => {
         if (!activeCustomerId || isActiveCustomerAccessible || accessibleCustomers.length === 0) return;
         const first = accessibleCustomers[0]._id;
-        const { isApexRadar, channel } = parseApexRadarPath(pathname);
+        const { isApexRadar, channel, isCs } = parseApexRadarPath(pathname);
         if (isApexRadar) {
+            if (isCs) {
+                router.push(apexRadarCsHref(first));
+                return;
+            }
             const ch = channel ?? APEX_RADAR_CHANNEL_FACEBOOK;
             router.push(`/apex-radar/${ch}/${first}`);
             return;
