@@ -21,6 +21,7 @@ const StapeTrackingCheckerJobSchema = new mongoose.Schema(
             default: "",
         },
         webhookToken: { type: String, required: true },
+        callbackUrl: { type: String, default: "" },
         stapeResponse: { type: mongoose.Schema.Types.Mixed, default: null },
         result: { type: mongoose.Schema.Types.Mixed, default: null },
         summary: { type: mongoose.Schema.Types.Mixed, default: null },

@@ -8,6 +8,8 @@ const STAPE_DEFAULT_BASE = "https://api.app.stape.io";
 /** EU partner accounts must set STAPE_API_BASE=https://api.app.eu.stape.io */
 const PENDING_DEDUPE_MS = 5 * 60 * 1000;
 const DEFAULT_POLL_INTERVAL_MS = 2000;
+const STALE_PENDING_MS = 3 * 60 * 1000;
+const PENDING_TIMEOUT_MS = 10 * 60 * 1000;
 
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -26,12 +28,32 @@ export function getStapeApiBase() {
 }
 
 export function getApexPublicBaseUrl() {
-    const raw =
-        process.env.APEX_PUBLIC_URL ||
-        process.env.NEXTAUTH_URL ||
-        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
-    const base = String(raw || "https://apex.searchmind.tech").replace(/\/$/, "");
-    return base;
+    /** Prefer explicit public URL; never use localhost for external webhooks. */
+    const candidates = [
+        process.env.APEX_PUBLIC_URL,
+        process.env.VERCEL_PROJECT_PRODUCTION_URL
+            ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+            : "",
+        process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "",
+        process.env.NEXTAUTH_URL,
+        "https://apex.searchmind.tech",
+    ];
+
+    for (const raw of candidates) {
+        const base = String(raw || "").trim().replace(/\/$/, "");
+        if (!base) continue;
+        try {
+            const url = new URL(/^https?:\/\//i.test(base) ? base : `https://${base}`);
+            if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
+                continue;
+            }
+            return url.origin;
+        } catch {
+            continue;
+        }
+    }
+
+    return "https://apex.searchmind.tech";
 }
 
 function createWebhookToken() {
@@ -114,7 +136,7 @@ function extractSummaryFromStapeResult(result) {
 function serializeJob(doc) {
     if (!doc) return null;
     const id = String(doc._id);
-    return {
+    const out = {
         jobId: id,
         status: doc.status,
         siteUrl: doc.siteUrl,
@@ -123,9 +145,33 @@ function serializeJob(doc) {
         summary: doc.summary || null,
         result: doc.status === "complete" ? doc.result ?? null : undefined,
         error: doc.error || "",
+        stapeIdentifier: doc.stapeResponse?.body?.identifier || null,
         createdAt: doc.createdAt,
         completedAt: doc.completedAt || null,
     };
+
+    if (doc.status === "pending" && doc.createdAt) {
+        const ageMs = Date.now() - new Date(doc.createdAt).getTime();
+        if (ageMs > STALE_PENDING_MS) {
+            out.stale = true;
+            const callbackHost = (() => {
+                try {
+                    return doc.callbackUrl ? new URL(doc.callbackUrl).hostname : null;
+                } catch {
+                    return null;
+                }
+            })();
+            if (callbackHost === "localhost" || callbackHost === "127.0.0.1") {
+                out.hint =
+                    "Webhook was sent to localhost — Stape cannot reach it. Set APEX_PUBLIC_URL=https://apex.searchmind.tech on Vercel, redeploy, and start a new scan.";
+            } else {
+                out.hint =
+                    "Webhook not received yet. If this persists, verify APEX_PUBLIC_URL and that /api/webhooks/stape/tracking-checker is deployed.";
+            }
+        }
+    }
+
+    return out;
 }
 
 function buildCallbackUrl(jobId, webhookToken) {
@@ -227,17 +273,20 @@ export async function startStapeTrackingCheckerJob(input = {}) {
     }
 
     const webhookToken = createWebhookToken();
+    const jobIdPlaceholder = new mongoose.Types.ObjectId();
+    const jobId = String(jobIdPlaceholder);
+    const callbackUrl = buildCallbackUrl(jobId, webhookToken);
+
     const job = await StapeTrackingCheckerJob.create({
+        _id: jobIdPlaceholder,
         siteUrl,
         customerId,
         customerName,
         status: "pending",
         requestedBy: String(input.requestedBy || "").trim(),
         webhookToken,
+        callbackUrl,
     });
-
-    const jobId = String(job._id);
-    const callbackUrl = buildCallbackUrl(jobId, webhookToken);
 
     try {
         const stapeResponse = await requestStapeScan(siteUrl, callbackUrl);
@@ -314,10 +363,29 @@ export async function getStapeTrackingCheckerJob(jobId, options = {}) {
     const deadline = Date.now() + waitMs;
 
     do {
-        const doc = await StapeTrackingCheckerJob.findById(jobId).lean();
+        let doc = await StapeTrackingCheckerJob.findById(jobId).lean();
         if (!doc) {
             throw new Error("Job not found");
         }
+
+        if (doc.status === "pending" && doc.createdAt) {
+            const ageMs = Date.now() - new Date(doc.createdAt).getTime();
+            if (ageMs > PENDING_TIMEOUT_MS) {
+                await StapeTrackingCheckerJob.updateOne(
+                    { _id: doc._id, status: "pending" },
+                    {
+                        $set: {
+                            status: "failed",
+                            error:
+                                "Timed out waiting for Stape webhook (10 minutes). Start a new scan after verifying APEX_PUBLIC_URL on Vercel.",
+                            completedAt: new Date(),
+                        },
+                    }
+                );
+                doc = await StapeTrackingCheckerJob.findById(jobId).lean();
+            }
+        }
+
         if (doc.status !== "pending" || waitMs <= 0) {
             return serializeJob(doc);
         }
