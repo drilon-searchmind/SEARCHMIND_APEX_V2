@@ -232,7 +232,7 @@ Stape scans are **async** (webhook callback, up to ~2 minutes). APEX stores jobs
 
 **Manual UI:** `/tools/stape-tracking-checker` (session auth).
 
-**Env on APEX:** `STAPE_API_KEY`, optional `STAPE_API_BASE`, `APEX_PUBLIC_URL` or `NEXTAUTH_URL` for webhook callback base.
+**Env on APEX:** `STAPE_API_KEY`, optional `STAPE_API_BASE` (`https://api.app.eu.stape.io` for EU partner accounts; default global is `https://api.app.stape.io`), `APEX_PUBLIC_URL` or `NEXTAUTH_URL` for webhook callback base.
 
 ## Parameter notes
 

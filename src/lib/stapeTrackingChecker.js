@@ -5,6 +5,7 @@ import { getCustomerById } from "@root/lib/customerOperations";
 import StapeTrackingCheckerJob from "@/models/StapeTrackingCheckerJob";
 
 const STAPE_DEFAULT_BASE = "https://api.app.stape.io";
+/** EU partner accounts must set STAPE_API_BASE=https://api.app.eu.stape.io */
 const PENDING_DEDUPE_MS = 5 * 60 * 1000;
 const DEFAULT_POLL_INTERVAL_MS = 2000;
 
@@ -131,6 +132,37 @@ function buildCallbackUrl(jobId, webhookToken) {
     return `${getApexPublicBaseUrl()}/api/webhooks/stape/tracking-checker/${jobId}?token=${encodeURIComponent(webhookToken)}`;
 }
 
+function formatStapeApiError(json, text, status) {
+    if (json && typeof json === "object") {
+        const nested = json.error;
+        if (nested && typeof nested === "object") {
+            return (
+                nested.message ||
+                nested.description ||
+                nested.detail ||
+                JSON.stringify(nested)
+            );
+        }
+        if (typeof nested === "string" && nested.trim()) {
+            return nested;
+        }
+        if (json.body && typeof json.body === "object" && json.body.message) {
+            return String(json.body.message);
+        }
+        if (typeof json.message === "string" && json.message.trim()) {
+            return json.message;
+        }
+        if (Array.isArray(json.errors) && json.errors.length) {
+            const first = json.errors[0];
+            if (typeof first === "string") return first;
+            if (first && typeof first === "object") {
+                return first.detail || first.message || JSON.stringify(first);
+            }
+        }
+    }
+    return text?.trim() || `Stape API error (${status})`;
+}
+
 async function requestStapeScan(siteUrl, callbackUrl) {
     const res = await fetch(`${getStapeApiBase()}/api/v2/partner-tracking-checker`, {
         method: "POST",
@@ -151,13 +183,7 @@ async function requestStapeScan(siteUrl, callbackUrl) {
     }
 
     if (!res.ok) {
-        const msg =
-            json?.message ||
-            json?.error ||
-            (Array.isArray(json?.errors) ? json.errors[0]?.detail : null) ||
-            text ||
-            `Stape API error (${res.status})`;
-        throw new Error(msg);
+        throw new Error(formatStapeApiError(json, text, res.status));
     }
 
     return json;
@@ -321,8 +347,7 @@ export async function fetchStapeTrackingCheckerLimit() {
     }
 
     if (!res.ok) {
-        const msg = json?.message || json?.error || text || `Stape limit API error (${res.status})`;
-        throw new Error(msg);
+        throw new Error(formatStapeApiError(json, text, res.status));
     }
 
     return json;
