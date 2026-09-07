@@ -63,28 +63,75 @@ export function apexRadarCsHref(customerId = null) {
     return APEX_RADAR_CS_HREF;
 }
 
+/** Weekly Performance Brief (Meta + Google Ads) — not a PPC channel. */
+export const APEX_RADAR_PERFORMANCE_BRIEF_PATH = "performance-brief";
+export const APEX_RADAR_PERFORMANCE_BRIEF_HREF = "/apex-radar/performance-brief";
+
+export function apexRadarPerformanceBriefHref(customerId = null) {
+    if (customerId) return `${APEX_RADAR_PERFORMANCE_BRIEF_HREF}/${String(customerId)}`;
+    return APEX_RADAR_PERFORMANCE_BRIEF_HREF;
+}
+
+function emptyApexRadarPath() {
+    return {
+        isApexRadar: false,
+        channel: null,
+        customerId: null,
+        isCs: false,
+        isPerformanceBrief: false,
+    };
+}
+
 /**
- * @returns {{ isApexRadar: boolean, channel: string | null, customerId: string | null, isCs: boolean }}
+ * @returns {{
+ *   isApexRadar: boolean,
+ *   channel: string | null,
+ *   customerId: string | null,
+ *   isCs: boolean,
+ *   isPerformanceBrief: boolean,
+ * }}
  */
 export function parseApexRadarPath(pathname) {
     const raw = String(pathname || "");
     if (!raw.startsWith("/apex-radar")) {
-        return { isApexRadar: false, channel: null, customerId: null, isCs: false };
+        return emptyApexRadarPath();
     }
     const parts = raw.split("/").filter(Boolean);
     if (parts.length < 2) {
-        return { isApexRadar: true, channel: null, customerId: null, isCs: false };
+        return { ...emptyApexRadarPath(), isApexRadar: true };
     }
     const seg = parts[1];
     if (seg === APEX_RADAR_CS_PATH) {
         const customerId = parts.length >= 3 ? parts[2] : null;
-        return { isApexRadar: true, channel: null, customerId, isCs: true };
+        return {
+            isApexRadar: true,
+            channel: null,
+            customerId,
+            isCs: true,
+            isPerformanceBrief: false,
+        };
+    }
+    if (seg === APEX_RADAR_PERFORMANCE_BRIEF_PATH) {
+        const customerId = parts.length >= 3 ? parts[2] : null;
+        return {
+            isApexRadar: true,
+            channel: null,
+            customerId,
+            isCs: false,
+            isPerformanceBrief: true,
+        };
     }
     if (!isValidApexRadarChannel(seg)) {
-        return { isApexRadar: true, channel: null, customerId: null, isCs: false };
+        return { ...emptyApexRadarPath(), isApexRadar: true };
     }
     const customerId = parts.length >= 3 ? parts[2] : null;
-    return { isApexRadar: true, channel: seg, customerId, isCs: false };
+    return {
+        isApexRadar: true,
+        channel: seg,
+        customerId,
+        isCs: false,
+        isPerformanceBrief: false,
+    };
 }
 
 /** Overview URL for a channel; optional customer scopes the table to one property. */

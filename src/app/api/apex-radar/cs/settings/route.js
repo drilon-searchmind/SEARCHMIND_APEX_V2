@@ -7,6 +7,10 @@ import { canAccessApexRadar } from "@/lib/apexRadarAccess";
 import Customer from "@/models/Customer";
 import ApexRadarCsCustomerSettings from "@/models/ApexRadarCsCustomerSettings";
 import {
+    getApexRadarCustomerSlackChannel,
+    setApexRadarCustomerSlackChannel,
+} from "@/lib/apexRadarCustomerSlack";
+import {
     APEX_RADAR_CS_DEFAULT_RULE_IDS,
     clampCsDropPct,
     isApexRadarCsCustomerId,
@@ -86,12 +90,18 @@ export async function GET(request) {
         if (!exists) {
             return NextResponse.json({ error: "Customer not found" }, { status: 404 });
         }
-        const doc = await ApexRadarCsCustomerSettings.findOne({
-            customerId,
-        }).lean();
+        const [doc, slack] = await Promise.all([
+            ApexRadarCsCustomerSettings.findOne({
+                customerId,
+            }).lean(),
+            getApexRadarCustomerSlackChannel(customerId),
+        ]);
         return NextResponse.json({
             customerId,
-            settings: serializeCsSettings(doc),
+            settings: {
+                ...serializeCsSettings(doc),
+                ...slack,
+            },
         });
     } catch (e) {
         console.error("[apex-radar/cs/settings GET]", e);
@@ -133,14 +143,13 @@ export async function PATCH(request) {
 
         const cid = new mongoose.Types.ObjectId(customerId);
         const update = { updatedAt: new Date() };
+        let slackPatch = null;
 
-        if (body.slackChannelId !== undefined) {
-            update.slackChannelId = String(body.slackChannelId || "").trim();
-        }
-        if (body.slackChannelName !== undefined) {
-            update.slackChannelName = String(body.slackChannelName || "")
-                .trim()
-                .replace(/^#/, "");
+        if (body.slackChannelId !== undefined || body.slackChannelName !== undefined) {
+            const slack = {};
+            if (body.slackChannelId !== undefined) slack.slackChannelId = body.slackChannelId;
+            if (body.slackChannelName !== undefined) slack.slackChannelName = body.slackChannelName;
+            slackPatch = await setApexRadarCustomerSlackChannel(customerId, slack);
         }
         if (body.defaultOverrides !== undefined) {
             const overrides = normalizeDefaultOverrides(body.defaultOverrides);
@@ -157,15 +166,23 @@ export async function PATCH(request) {
             update.customRules = custom;
         }
 
-        const saved = await ApexRadarCsCustomerSettings.findOneAndUpdate(
-            { customerId: cid },
-            { $set: update },
-            { upsert: true, new: true, runValidators: true }
-        ).lean();
+        const saved =
+            Object.keys(update).length > 1
+                ? await ApexRadarCsCustomerSettings.findOneAndUpdate(
+                      { customerId: cid },
+                      { $set: update },
+                      { upsert: true, new: true, runValidators: true }
+                  ).lean()
+                : await ApexRadarCsCustomerSettings.findOne({ customerId: cid }).lean();
+
+        const slack = slackPatch || (await getApexRadarCustomerSlackChannel(customerId));
 
         return NextResponse.json({
             customerId,
-            settings: serializeCsSettings(saved),
+            settings: {
+                ...serializeCsSettings(saved),
+                ...slack,
+            },
         });
     } catch (e) {
         console.error("[apex-radar/cs/settings PATCH]", e);

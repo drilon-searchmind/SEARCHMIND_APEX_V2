@@ -1518,6 +1518,46 @@
   border-radius: 0.2rem;
 }
 
+.apex-radar-brief-emoji {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.62rem;
+  color: var(--color-muted);
+}
+
+.apex-radar-brief-table-wrap {
+  overflow-x: auto;
+  margin: var(--space-sm) 0;
+}
+
+.apex-radar-brief-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.apex-radar-brief-table th,
+.apex-radar-brief-table td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  text-align: right;
+  white-space: nowrap;
+  color: var(--color-ink-2);
+}
+
+.apex-radar-brief-table th:first-child,
+.apex-radar-brief-table td:first-child {
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.apex-radar-brief-table th {
+  font-weight: 600;
+  color: var(--color-muted);
+  font-size: 0.64rem;
+}
+
 @media (max-width: 768px) {
   .apex-radar-cs-rule {
     grid-template-columns: 1fr 1fr;

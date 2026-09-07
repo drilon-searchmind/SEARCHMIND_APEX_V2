@@ -4,6 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import connectToDatabase from "@root/lib/mongodb";
 import { canAccessApexRadar } from "@/lib/apexRadarAccess";
 import ApexRadarCsCustomerSettings from "@/models/ApexRadarCsCustomerSettings";
+import { getApexRadarCustomerSlackChannel } from "@/lib/apexRadarCustomerSlack";
 import { fetchApexRadarCsOverviewMetrics } from "@/lib/apexRadarCsMetrics";
 import { evaluateCsAlerts, mergeCsRules } from "@/lib/apexRadarCsRules";
 import { formatApexRadarCsSlackPreview } from "@/lib/apexRadarCsSlack";
@@ -31,14 +32,17 @@ export async function GET(req) {
 
     try {
         await connectToDatabase();
-        const metrics = await fetchApexRadarCsOverviewMetrics(customerId);
-        const settingsDoc = await ApexRadarCsCustomerSettings.findOne({
-            customerId,
-        }).lean();
+        const [metrics, settingsDoc, slack] = await Promise.all([
+            fetchApexRadarCsOverviewMetrics(customerId),
+            ApexRadarCsCustomerSettings.findOne({
+                customerId,
+            }).lean(),
+            getApexRadarCustomerSlackChannel(customerId),
+        ]);
         const rules = mergeCsRules(settingsDoc);
         const alerts = evaluateCsAlerts(metrics.platforms, rules, metrics.customer);
-        const slackChannelName = String(settingsDoc?.slackChannelName || "").replace(/^#/, "");
-        const slackChannelId = String(settingsDoc?.slackChannelId || "");
+        const slackChannelName = slack.slackChannelName;
+        const slackChannelId = slack.slackChannelId;
         const slackPreview = formatApexRadarCsSlackPreview({
             alerts,
             customerName: metrics.customer.customerName,

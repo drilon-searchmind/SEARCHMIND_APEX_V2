@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { FiChevronDown, FiChevronUp, FiBarChart, FiSearch, FiDollarSign, FiTool, FiUsers } from "react-icons/fi";
+import { FiChevronDown, FiChevronUp, FiBarChart, FiSearch, FiTool, FiUsers, FiFileText } from "react-icons/fi";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { LuRadar } from "react-icons/lu";
@@ -11,7 +11,9 @@ import {
     APEX_RADAR_CHANNEL_GOOGLE_ADS,
     APEX_RADAR_CHANNEL_META,
     APEX_RADAR_CS_HREF,
+    APEX_RADAR_PERFORMANCE_BRIEF_HREF,
     apexRadarCsHref,
+    apexRadarPerformanceBriefHref,
     apexRadarOverviewHref,
     apexRadarPerformanceInvestigatorHref,
     parseApexRadarPath,
@@ -41,29 +43,6 @@ const ApexNavLink = ({ href, label, icon: Icon, isSmallScreen, isActive }) => {
         </li>
     );
 };
-
-const ApexNavPlaceholder = ({ label, icon: Icon, isSmallScreen }) => (
-    <li
-        className={`apex-dash-nav__item opacity-65${isSmallScreen ? " is-collapsed" : ""}`}
-        title="Coming soon"
-    >
-        <span className="apex-dash-nav__link cursor-default">
-            {isSmallScreen ? (
-                <>
-                    <span className="apex-dash-nav__link-main">
-                        <Icon className="w-4 h-4" aria-hidden />
-                    </span>
-                    <span className="apex-dash-nav__tooltip">{label}</span>
-                </>
-            ) : (
-                <span className="apex-dash-nav__link-main">
-                    <Icon className="w-4 h-4 shrink-0" aria-hidden />
-                    <span>{label}</span>
-                </span>
-            )}
-        </span>
-    </li>
-);
 
 function ApexRadarChannelSwitcher({ channel, customerId, isSmallScreen }) {
     if (isSmallScreen) {
@@ -118,12 +97,16 @@ export default function ApexRadarSidebar() {
     const [isSmallScreen, setIsSmallScreen] = useState(false);
     const [performanceInvestigatorModalOpen, setPerformanceInvestigatorModalOpen] = useState(false);
     const pathname = usePathname();
-    const { channel, customerId, isCs } = parseApexRadarPath(pathname);
+    const { channel, customerId, isCs, isPerformanceBrief } = parseApexRadarPath(pathname);
     const { allowed: devToolsAllowed } = useApexRadarDevToolsAccess();
 
     const overviewHref = channel ? apexRadarOverviewHref(channel, customerId) : "/apex-radar";
     const overviewActive = pathname === overviewHref;
     const csActive = isCs || pathname === APEX_RADAR_CS_HREF || pathname.startsWith(`${APEX_RADAR_CS_HREF}/`);
+    const performanceBriefActive =
+        isPerformanceBrief ||
+        pathname === APEX_RADAR_PERFORMANCE_BRIEF_HREF ||
+        pathname.startsWith(`${APEX_RADAR_PERFORMANCE_BRIEF_HREF}/`);
     const devToolsActive = pathname === APEX_RADAR_DEV_TOOLS_HREF || pathname.startsWith(`${APEX_RADAR_DEV_TOOLS_HREF}/`);
     const performanceInvestigatorHref =
         channel && customerId ? apexRadarPerformanceInvestigatorHref(channel, customerId) : null;
@@ -228,10 +211,14 @@ export default function ApexRadarSidebar() {
                                         isSmallScreen={isSmallScreen}
                                         isActive={csActive}
                                     />
-                                    <ApexNavPlaceholder
-                                        label="Budget Report"
-                                        icon={FiDollarSign}
+                                    <ApexNavLink
+                                        href={apexRadarPerformanceBriefHref(
+                                            isPerformanceBrief ? null : customerId
+                                        )}
+                                        label="Performance Brief"
+                                        icon={FiFileText}
                                         isSmallScreen={isSmallScreen}
+                                        isActive={performanceBriefActive}
                                     />
                                     {devToolsAllowed ? (
                                         <ApexNavLink
