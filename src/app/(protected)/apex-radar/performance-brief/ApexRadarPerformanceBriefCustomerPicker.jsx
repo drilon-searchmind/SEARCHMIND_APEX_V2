@@ -9,6 +9,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { useUser } from "@/contexts/UserContext";
 import { getDemoCustomerIds } from "@/lib/demoCustomerId";
 import { apexRadarPerformanceBriefHref } from "@/lib/apexRadarChannels";
+import PerformanceBriefNavTabs from "./PerformanceBriefNavTabs";
 import {
     PERFORMANCE_BRIEF_CONFIG_WARNING_TITLE,
     PERFORMANCE_BRIEF_PLATFORM_LABELS,
@@ -69,6 +70,8 @@ export default function ApexRadarPerformanceBriefCustomerPicker() {
                 showAnalyzeWithAi={false}
                 showPdfExport={false}
             />
+
+            <PerformanceBriefNavTabs />
 
             <section className="apex-radar-panel apex-radar-panel--padded apex-radar-cs-picker">
                 <h1 className="apex-radar-section__title">Choose a property</h1>

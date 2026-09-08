@@ -41,8 +41,11 @@ export async function POST(request) {
         }
 
         const slack = await getApexRadarCustomerSlackChannel(customerId);
-        const slackChannelId = slack.slackChannelId;
-        const slackChannelName = slack.slackChannelName;
+        const slackChannelId =
+            String(body?.slackChannelId || "").trim() || slack.slackChannelId;
+        const slackChannelName =
+            String(body?.slackChannelName || "").trim().replace(/^#/, "") ||
+            slack.slackChannelName;
 
         if (!slackChannelId) {
             return NextResponse.json(

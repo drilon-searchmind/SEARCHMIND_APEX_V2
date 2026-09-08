@@ -66,6 +66,8 @@ export function apexRadarCsHref(customerId = null) {
 /** Weekly Performance Brief (Meta + Google Ads) — not a PPC channel. */
 export const APEX_RADAR_PERFORMANCE_BRIEF_PATH = "performance-brief";
 export const APEX_RADAR_PERFORMANCE_BRIEF_HREF = "/apex-radar/performance-brief";
+export const APEX_RADAR_PERFORMANCE_BRIEF_BULK_HREF =
+    "/apex-radar/performance-brief/bulk-run";
 
 export function apexRadarPerformanceBriefHref(customerId = null) {
     if (customerId) return `${APEX_RADAR_PERFORMANCE_BRIEF_HREF}/${String(customerId)}`;
@@ -112,7 +114,8 @@ export function parseApexRadarPath(pathname) {
         };
     }
     if (seg === APEX_RADAR_PERFORMANCE_BRIEF_PATH) {
-        const customerId = parts.length >= 3 ? parts[2] : null;
+        const third = parts.length >= 3 ? parts[2] : null;
+        const customerId = third === "bulk-run" ? null : third;
         return {
             isApexRadar: true,
             channel: null,

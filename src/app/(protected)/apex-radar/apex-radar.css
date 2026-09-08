@@ -1569,3 +1569,110 @@
   }
 }
 
+.apex-radar-brief-tabs {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.apex-radar-brief-tabs__link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--radius-input, 6px);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-muted);
+  background: var(--perf-canvas, #f4f3f1);
+  border: 1px solid var(--color-rule, #e5e2dc);
+  text-decoration: none;
+}
+
+.apex-radar-brief-tabs__link:hover {
+  color: var(--color-ink-2);
+}
+
+.apex-radar-brief-tabs__link.is-active {
+  color: var(--color-ink);
+  background: #fff;
+  border-color: var(--color-ink-2, #333);
+}
+
+.apex-radar-brief-bulk-table-wrap {
+  overflow-x: auto;
+}
+
+.apex-radar-brief-bulk-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.apex-radar-brief-bulk-table th,
+.apex-radar-brief-bulk-table td {
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid var(--color-rule, #e5e2dc);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.apex-radar-brief-bulk-table th {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.apex-radar-brief-bulk-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.apex-radar-brief-bulk-select {
+  min-width: 12rem;
+  max-width: 100%;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-input, 6px);
+  border: 1px solid var(--color-rule, #e5e2dc);
+  font-size: 0.8125rem;
+  background: #fff;
+}
+
+.apex-radar-brief-bulk-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.apex-radar-brief-bulk-log__item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--radius-input, 6px);
+  background: var(--perf-canvas, #f4f3f1);
+  font-size: 0.8125rem;
+}
+
+.apex-radar-brief-bulk-log__item.is-success {
+  background: color-mix(in srgb, #059669 8%, #fff);
+}
+
+.apex-radar-brief-bulk-log__item.is-error {
+  background: color-mix(in srgb, #dc2626 8%, #fff);
+}
+
+.apex-radar-brief-bulk-log__name {
+  font-weight: 600;
+  min-width: 8rem;
+}
+
+.apex-radar-brief-bulk-log__msg {
+  color: var(--color-muted);
+}
+

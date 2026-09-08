@@ -6,6 +6,7 @@ import { FiAlertTriangle, FiRefreshCw, FiSend } from "react-icons/fi";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import CobaltLoader from "@/components/ui/CobaltLoader";
 import { APEX_RADAR_PERFORMANCE_BRIEF_HREF } from "@/lib/apexRadarChannels";
+import PerformanceBriefNavTabs from "./PerformanceBriefNavTabs";
 import {
     PERFORMANCE_BRIEF_CONFIG_WARNING_TITLE,
     PERFORMANCE_BRIEF_PLATFORM_LABELS,
@@ -450,6 +451,8 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
                 dateRange={dateRange}
                 loading={loading || generating}
             />
+
+            <PerformanceBriefNavTabs />
 
             <div className="apex-radar-panel apex-radar-panel--padded">
                 <div className="apex-radar-cs-toolbar">

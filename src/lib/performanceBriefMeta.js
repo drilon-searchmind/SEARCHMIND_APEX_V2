@@ -5,8 +5,11 @@ import {
     getPurchaseRevenue,
     getActionValue,
 } from "@/lib/facebookPsDashboardUtils";
-import { fetchMcpMetaAdCreatives } from "@root/lib/mcpMetaAdCreatives";
 import { pctChange, roundN, safeDiv } from "@/lib/performanceBriefDates";
+
+const META_GRAPH = "https://graph.facebook.com/v21.0";
+const AD_CREATIVE_FIELDS =
+    "name,creative{id,name,object_type,product_set_id,video_id,asset_feed_spec,image_url,thumbnail_url}";
 
 const LEAD_ACTION_TYPES = [
     "lead",
@@ -139,15 +142,100 @@ function detectAccountType(actions, actionValues) {
     return "brand";
 }
 
-export function classifyMetaAdType(adName, creativeObjectType = "") {
-    const n = String(adName || "").toUpperCase();
-    const obj = String(creativeObjectType || "").toUpperCase();
-    if (/\bDPA\b|CATALOG|PRODUCT_SET|DYNAMIC PRODUCT/.test(n)) return "DPA";
-    if (/\bCAROUSEL\b|\bSAMLING\b/.test(n) || obj === "CAROUSEL") return "Carousel";
-    if (/\bMP4\b|\bVIDEO\b|\bREEL\b|\bMOV\b/.test(n) || obj === "VIDEO") return "Video";
-    if (/\bJPG\b|\bJPEG\b|\bPNG\b|\bBILLEDE\b|\bIMAGE\b|\bSTATIC\b/.test(n)) return "Billede";
-    if (obj === "PHOTO" || obj === "SHARE" || obj === "STATUS") return "Billede";
+export function classifyMetaAdType(adName, creativeMeta = "") {
+    const creative =
+        typeof creativeMeta === "string"
+            ? { object_type: creativeMeta }
+            : creativeMeta && typeof creativeMeta === "object"
+              ? creativeMeta
+              : {};
+    const objectType = String(creative.object_type || "").toUpperCase();
+    const creativeName = String(creative.name || "");
+    const n = String(adName || "");
+    const combined = `${n} ${creativeName}`.toUpperCase();
+
+    if (creative.product_set_id) return "DPA";
+    if (/\bDPA\b|CATALOG|PRODUCT_SET|DYNAMIC PRODUCT|PRODUKTER|KATALOG|SHOPPING/.test(combined)) {
+        return "DPA";
+    }
+
+    if (/\bCAROUSEL\b|\bSAMLING\b/.test(combined) || objectType === "CAROUSEL") return "Carousel";
+
+    const assetFeed = creative.asset_feed_spec;
+    const hasFeedVideos =
+        assetFeed &&
+        typeof assetFeed === "object" &&
+        Array.isArray(assetFeed.videos) &&
+        assetFeed.videos.length > 0;
+    const hasFeedImages =
+        assetFeed &&
+        typeof assetFeed === "object" &&
+        Array.isArray(assetFeed.images) &&
+        assetFeed.images.length > 0;
+
+    if (
+        creative.video_id ||
+        objectType === "VIDEO" ||
+        hasFeedVideos ||
+        /\bMP4\b|\bVIDEO\b|\bREEL\b|\bREELS\b|\bMOV\b/.test(combined)
+    ) {
+        return "Video";
+    }
+
+    if (
+        /\bJPG\b|\bJPEG\b|\bPNG\b|\bBILLEDE\b|\bIMAGE\b|\bSTATIC\b|\bSTILL\b|\bSTILLBILLEDE\b/.test(
+            combined
+        )
+    ) {
+        return "Billede";
+    }
+    if (["PHOTO", "SHARE", "STATUS", "PAGE", "LINK", "OFFER"].includes(objectType)) {
+        return "Billede";
+    }
+    if ((creative.image_url || hasFeedImages) && !creative.video_id && !hasFeedVideos) {
+        return "Billede";
+    }
+    if (creative.thumbnail_url && !creative.video_id && objectType !== "VIDEO") {
+        return "Billede";
+    }
+
     return "Ukendt";
+}
+
+/**
+ * Fetch creative metadata for specific ad IDs (ads with spend in the brief window).
+ * @param {string} accessToken
+ * @param {string[]} adIds
+ */
+async function fetchCreativeMetaByAdIds(accessToken, adIds) {
+    const unique = [...new Set(adIds.filter(Boolean).map(String))];
+    const map = new Map();
+    if (!unique.length || !accessToken) return map;
+
+    const BATCH = 50;
+    for (let i = 0; i < unique.length; i += BATCH) {
+        const batch = unique.slice(i, i + BATCH);
+        const params = new URLSearchParams({
+            access_token: accessToken,
+            ids: batch.join(","),
+            fields: AD_CREATIVE_FIELDS,
+        });
+        const res = await fetch(`${META_GRAPH}/?${params.toString()}`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+        });
+        if (!res.ok) continue;
+        const json = await res.json();
+        if (json.error) continue;
+        for (const [id, ad] of Object.entries(json)) {
+            if (!ad || typeof ad !== "object" || id === "error") continue;
+            map.set(String(id), {
+                adName: ad.name || "",
+                creative: ad.creative && typeof ad.creative === "object" ? ad.creative : {},
+            });
+        }
+    }
+    return map;
 }
 
 async function fetchAccountWindow(opts) {
@@ -307,8 +395,7 @@ export async function fetchPerformanceBriefMeta({
     windows,
 }) {
     const common = { accessToken, adAccountId, metaIdInclude, metaIdExclude };
-    const [last7, prev7, last14, prev14, last90, campaigns, adPerf, creatives] =
-        await Promise.all([
+    const [last7, prev7, last14, prev14, last90, campaigns, adPerf] = await Promise.all([
             fetchAccountWindow({ ...common, startDate: windows.last7.start, endDate: windows.last7.end }),
             fetchAccountWindow({ ...common, startDate: windows.prev7.start, endDate: windows.prev7.end }),
             fetchAccountWindow({
@@ -339,16 +426,20 @@ export async function fetchPerformanceBriefMeta({
                 metaIdInclude,
                 metaIdExclude,
             }).catch(() => ({ ads: [] })),
-            fetchMcpMetaAdCreatives(customerId, { activeOnly: "false", limit: "250" }).catch(() => null),
         ]);
 
-    const creativeTypeByAdId = new Map();
-    for (const ad of creatives?.ads || []) {
-        if (ad?.id) creativeTypeByAdId.set(String(ad.id), ad.creative?.object_type || "");
-    }
+    const adIds = (adPerf?.ads || []).map((ad) => String(ad.ad_id || "")).filter(Boolean);
+    const creativeMetaByAdId = await fetchCreativeMetaByAdIds(accessToken, adIds).catch(
+        () => new Map()
+    );
 
     const ads = (adPerf?.ads || []).map((ad) => {
-        const type = classifyMetaAdType(ad.ad_name, creativeTypeByAdId.get(String(ad.ad_id || "")));
+        const adId = String(ad.ad_id || "");
+        const meta = creativeMetaByAdId.get(adId);
+        const type = classifyMetaAdType(
+            ad.ad_name || meta?.adName,
+            meta?.creative || {}
+        );
         return {
             id: String(ad.ad_id || ""),
             name: ad.ad_name,
