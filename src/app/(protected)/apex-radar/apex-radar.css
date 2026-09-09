@@ -1598,6 +1598,51 @@
   border-color: var(--color-ink-2, #333);
 }
 
+.apex-radar-brief-bulk-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  margin-top: 1rem;
+  align-items: flex-end;
+}
+
+.apex-radar-brief-bulk-filters__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.apex-radar-brief-bulk-filters__label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.apex-radar-brief-bulk-table tr.is-run-active {
+  background: color-mix(in srgb, #059669 5%, #fff);
+}
+
+.apex-radar-brief-bulk-customer {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.apex-radar-brief-bulk-active-badge {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #047857;
+  background: color-mix(in srgb, #059669 12%, #fff);
+  border-radius: 999px;
+}
+
 .apex-radar-brief-bulk-table-wrap {
   overflow-x: auto;
 }

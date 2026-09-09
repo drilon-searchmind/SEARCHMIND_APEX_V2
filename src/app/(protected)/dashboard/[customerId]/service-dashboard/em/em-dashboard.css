@@ -30,9 +30,17 @@
   grid-template-columns: repeat(2, 1fr);
 }
 
+.apex-em-kpi-grid--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 @media (min-width: 768px) {
   .apex-em-kpi-grid--4 {
     grid-template-columns: repeat(4, 1fr);
+  }
+
+  .apex-em-kpi-grid--2 {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -175,4 +183,20 @@
   text-align: center;
   font-size: var(--text-xs);
   color: var(--color-muted);
+}
+
+.apex-em-chart-section {
+  margin-bottom: var(--space-lg);
+}
+
+.apex-em-planning-grid {
+  display: grid;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+@media (min-width: 1024px) {
+  .apex-em-planning-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

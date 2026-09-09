@@ -643,11 +643,15 @@ export function getDemoKlaviyoDashboardForRange(startDate, endDate, prevStartDat
         const revScale = 1 + di * 0.000055;
         const w = dateWiggle(date, "kl-v");
         const h = numHash(`kl-${date}`);
-        const recipients = Math.round((1500 + (h % 100)) * (1 + di * 0.00005) * dateWiggle(date, "klr"));
+        const campaignRecipients = Math.round((900 + (h % 60)) * (1 + di * 0.00005) * dateWiggle(date, "klr"));
+        const flowRecipients = Math.round((600 + (h % 40)) * (1 + di * 0.00004) * dateWiggle(date, "klfr"));
+        const recipients = campaignRecipients + flowRecipients;
         const opens = Math.round((400 + (h % 50)) * (1 + di * 0.00006) * dateWiggle(date, "klo"));
         const clicks = Math.round((200 + (h % 50)) * (1 + di * 0.00006) * dateWiggle(date, "klc"));
         const conversions = Math.round((10 + (h % 8)) * (1 + di * 0.00008) * dateWiggle(date, "klx"));
         const conversion_value = Math.round((3400 + (h % 1000)) * revScale * w);
+        const campaign_revenue = Math.round(conversion_value * 0.62);
+        const flow_revenue = conversion_value - campaign_revenue;
         const unsubscribes = 5 + (h % 5);
         return {
             date,
@@ -659,6 +663,10 @@ export function getDemoKlaviyoDashboardForRange(startDate, endDate, prevStartDat
             unsubscribes,
             open_rate: recipients > 0 ? opens / recipients : 0,
             click_rate: recipients > 0 ? clicks / recipients : 0,
+            campaign_revenue,
+            flow_revenue,
+            campaign_recipients: campaignRecipients,
+            flow_recipients: flowRecipients,
         };
     });
 
@@ -687,12 +695,30 @@ export function getDemoKlaviyoDashboardForRange(startDate, endDate, prevStartDat
         });
     }
 
+    const totalRevenue = metrics_by_date.reduce((s, r) => s + (r.conversion_value || 0), 0);
+    const campaignRevenue = metrics_by_date.reduce((s, r) => s + (r.campaign_revenue || 0), 0);
+    const flowRevenue = metrics_by_date.reduce((s, r) => s + (r.flow_revenue || 0), 0);
+
     return {
         metrics_by_date,
         metrics_by_date_prev,
+        hasDailySeries: metrics_by_date.length > 1,
+        seriesAvailable: true,
+        channel_split: {
+            campaign: {
+                revenue: campaignRevenue,
+                recipients: metrics_by_date.reduce((s, r) => s + (r.campaign_recipients || 0), 0),
+                sharePct: totalRevenue > 0 ? (campaignRevenue / totalRevenue) * 100 : null,
+            },
+            flow: {
+                revenue: flowRevenue,
+                recipients: metrics_by_date.reduce((s, r) => s + (r.flow_recipients || 0), 0),
+                sharePct: totalRevenue > 0 ? (flowRevenue / totalRevenue) * 100 : null,
+            },
+        },
         top_campaigns: [
             {
-                campaign_name: "abc123…",
+                campaign_name: "Summer sale blast",
                 campaign_id: "cmp_demo_1",
                 recipients: 12000,
                 opens: 4000,
@@ -702,6 +728,46 @@ export function getDemoKlaviyoDashboardForRange(startDate, endDate, prevStartDat
                 conversions: 90,
                 conversion_value: 32000,
                 unsubscribes: 12,
+            },
+            {
+                campaign_name: "Newsletter — Uge 28",
+                campaign_id: "cmp_demo_2",
+                recipients: 8500,
+                opens: 2800,
+                clicks: 420,
+                open_rate: 0.329,
+                click_rate: 0.049,
+                conversions: 38,
+                conversion_value: 14200,
+                unsubscribes: 8,
+            },
+        ],
+        top_flows: [
+            {
+                flow_id: "demo-flow-2",
+                flow_name: "Abandoned Cart",
+                recipients: 18000,
+                opens: 7200,
+                clicks: 2100,
+                conversions: 145,
+                conversion_value: 48500,
+                unsubscribes: 6,
+                open_rate: 0.4,
+                click_rate: 0.117,
+                revenue_share_pct: 58,
+            },
+            {
+                flow_id: "demo-flow-1",
+                flow_name: "Welcome Series",
+                recipients: 9200,
+                opens: 4100,
+                clicks: 980,
+                conversions: 62,
+                conversion_value: 22100,
+                unsubscribes: 4,
+                open_rate: 0.446,
+                click_rate: 0.106,
+                revenue_share_pct: 26,
             },
         ],
     };

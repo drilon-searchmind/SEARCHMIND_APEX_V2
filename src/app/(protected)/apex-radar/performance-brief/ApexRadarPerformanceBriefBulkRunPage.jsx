@@ -15,6 +15,26 @@ const RUN_STATUS = {
     skipped: "skipped",
 };
 
+const SLACK_FILTERS = {
+    all: "all",
+    assigned: "assigned",
+    unassigned: "unassigned",
+};
+
+const INTEGRATION_FILTERS = {
+    all: "all",
+    complete: "complete",
+    incomplete: "incomplete",
+};
+
+function hasSlackChannel(row) {
+    return Boolean(String(row.slackChannelId || "").trim());
+}
+
+function hasBothIntegrations(row) {
+    return Boolean(row.integrations?.meta && row.integrations?.googleAds);
+}
+
 function statusLabel(status, message) {
     switch (status) {
         case RUN_STATUS.generating:
@@ -36,8 +56,9 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [rows, setRows] = useState([]);
-    const [selected, setSelected] = useState({});
     const [search, setSearch] = useState("");
+    const [slackFilter, setSlackFilter] = useState(SLACK_FILTERS.all);
+    const [integrationFilter, setIntegrationFilter] = useState(INTEGRATION_FILTERS.all);
     const [channels, setChannels] = useState([]);
     const [channelsLoading, setChannelsLoading] = useState(false);
     const [channelsLoaded, setChannelsLoaded] = useState(false);
@@ -64,11 +85,6 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
                     integrations: c.integrations || {},
                 }))
             );
-            const initialSelected = {};
-            for (const c of customers) {
-                initialSelected[c.customerId] = Boolean(c.slackChannelId);
-            }
-            setSelected(initialSelected);
         } catch (e) {
             setError(e.message || "Failed to load customers");
         } finally {
@@ -99,21 +115,32 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
 
     const filteredRows = useMemo(() => {
         const q = search.trim().toLowerCase();
-        if (!q) return rows;
-        return rows.filter((r) => r.customerName.toLowerCase().includes(q));
-    }, [rows, search]);
+        return rows.filter((r) => {
+            if (q && !r.customerName.toLowerCase().includes(q)) return false;
 
-    const selectedCount = useMemo(
-        () => Object.values(selected).filter(Boolean).length,
-        [selected]
+            const assigned = hasSlackChannel(r);
+            if (slackFilter === SLACK_FILTERS.assigned && !assigned) return false;
+            if (slackFilter === SLACK_FILTERS.unassigned && assigned) return false;
+
+            const complete = hasBothIntegrations(r);
+            if (integrationFilter === INTEGRATION_FILTERS.complete && !complete) return false;
+            if (integrationFilter === INTEGRATION_FILTERS.incomplete && complete) return false;
+
+            return true;
+        });
+    }, [rows, search, slackFilter, integrationFilter]);
+
+    const filterCounts = useMemo(
+        () => ({
+            slackAssigned: rows.filter(hasSlackChannel).length,
+            slackUnassigned: rows.filter((r) => !hasSlackChannel(r)).length,
+            integrationsComplete: rows.filter(hasBothIntegrations).length,
+            integrationsIncomplete: rows.filter((r) => !hasBothIntegrations(r)).length,
+        }),
+        [rows]
     );
 
-    const readyCount = useMemo(
-        () =>
-            rows.filter((r) => selected[r.customerId] && String(r.slackChannelId || "").trim())
-                .length,
-        [rows, selected]
-    );
+    const readyCount = useMemo(() => rows.filter(hasSlackChannel).length, [rows]);
 
     const updateRow = (customerId, patch) => {
         setRows((prev) =>
@@ -125,17 +152,7 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
         const ch = channels.find((c) => c.id === channelId);
         updateRow(customerId, {
             slackChannelId: channelId,
-            slackChannelName: ch?.name || "",
-        });
-    };
-
-    const toggleAllVisible = (checked) => {
-        setSelected((prev) => {
-            const next = { ...prev };
-            for (const row of filteredRows) {
-                next[row.customerId] = checked;
-            }
-            return next;
+            slackChannelName: channelId ? ch?.name || "" : "",
         });
     };
 
@@ -171,9 +188,7 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
     };
 
     const handleRunBulk = async () => {
-        const queue = rows.filter(
-            (r) => selected[r.customerId] && String(r.slackChannelId || "").trim()
-        );
+        const queue = rows.filter(hasSlackChannel);
         if (!queue.length) return;
 
         setRunning(true);
@@ -247,9 +262,6 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
         setRunning(false);
     };
 
-    const allVisibleSelected =
-        filteredRows.length > 0 && filteredRows.every((r) => selected[r.customerId]);
-
     return (
         <div className="apex-radar-stack">
             <DashboardHeading
@@ -269,9 +281,10 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
                     <div>
                         <h1 className="apex-radar-section__title">Bulk run & Slack test</h1>
                         <p className="apex-radar-section__subtitle">
-                            Select active customers, assign a Slack channel to each, then generate
-                            and post Performance Briefs manually. Runs one customer at a time (future
-                            cron will use the same pipeline).
+                            Assign a Slack channel to include a customer in the bulk run. Customers
+                            with a channel are active automatically — save channels, then generate
+                            and post briefs manually. Runs one customer at a time (future cron will
+                            use the same pipeline).
                         </p>
                     </div>
                     <div className="apex-radar-cs-toolbar__actions">
@@ -300,7 +313,7 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
                             disabled={loading || running || saving || readyCount === 0}
                             title={
                                 readyCount === 0
-                                    ? "Select customers with a Slack channel assigned"
+                                    ? "Assign a Slack channel to at least one customer"
                                     : `Run ${readyCount} brief(s)`
                             }
                         >
@@ -319,7 +332,7 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
                 {channelsError ? <p className="apex-radar-alert mt-3">{channelsError}</p> : null}
 
                 <p className="apex-radar-section__subtitle mt-3">
-                    {selectedCount} selected · {readyCount} ready (channel assigned)
+                    {filteredRows.length} shown · {readyCount} active for run
                 </p>
 
                 <div className="apex-radar-search-wrap mt-4">
@@ -332,6 +345,88 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
                         aria-label="Search customers"
                     />
                 </div>
+
+                <div className="apex-radar-brief-bulk-filters">
+                    <div className="apex-radar-brief-bulk-filters__group">
+                        <span className="apex-radar-brief-bulk-filters__label">Slack channel</span>
+                        <div
+                            className="apex-radar-segmented"
+                            role="group"
+                            aria-label="Filter by Slack channel assignment"
+                        >
+                            <button
+                                type="button"
+                                className={`apex-radar-segmented__btn${
+                                    slackFilter === SLACK_FILTERS.all ? " is-active" : ""
+                                }`}
+                                onClick={() => setSlackFilter(SLACK_FILTERS.all)}
+                            >
+                                All ({rows.length})
+                            </button>
+                            <button
+                                type="button"
+                                className={`apex-radar-segmented__btn${
+                                    slackFilter === SLACK_FILTERS.assigned ? " is-active" : ""
+                                }`}
+                                onClick={() => setSlackFilter(SLACK_FILTERS.assigned)}
+                            >
+                                Assigned ({filterCounts.slackAssigned})
+                            </button>
+                            <button
+                                type="button"
+                                className={`apex-radar-segmented__btn${
+                                    slackFilter === SLACK_FILTERS.unassigned ? " is-active" : ""
+                                }`}
+                                onClick={() => setSlackFilter(SLACK_FILTERS.unassigned)}
+                            >
+                                Unassigned ({filterCounts.slackUnassigned})
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="apex-radar-brief-bulk-filters__group">
+                        <span className="apex-radar-brief-bulk-filters__label">Integrations</span>
+                        <div
+                            className="apex-radar-segmented"
+                            role="group"
+                            aria-label="Filter by Meta and Google Ads setup"
+                        >
+                            <button
+                                type="button"
+                                className={`apex-radar-segmented__btn${
+                                    integrationFilter === INTEGRATION_FILTERS.all ? " is-active" : ""
+                                }`}
+                                onClick={() => setIntegrationFilter(INTEGRATION_FILTERS.all)}
+                            >
+                                All
+                            </button>
+                            <button
+                                type="button"
+                                className={`apex-radar-segmented__btn${
+                                    integrationFilter === INTEGRATION_FILTERS.complete
+                                        ? " is-active"
+                                        : ""
+                                }`}
+                                onClick={() => setIntegrationFilter(INTEGRATION_FILTERS.complete)}
+                            >
+                                Meta + GAds ({filterCounts.integrationsComplete})
+                            </button>
+                            <button
+                                type="button"
+                                className={`apex-radar-segmented__btn${
+                                    integrationFilter === INTEGRATION_FILTERS.incomplete
+                                        ? " is-active"
+                                        : ""
+                                }`}
+                                onClick={() =>
+                                    setIntegrationFilter(INTEGRATION_FILTERS.incomplete)
+                                }
+                            >
+                                Missing setup ({filterCounts.integrationsIncomplete})
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             {loading ? (
@@ -342,36 +437,36 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
                         <table className="apex-radar-brief-bulk-table">
                             <thead>
                                 <tr>
-                                    <th>
-                                        <input
-                                            type="checkbox"
-                                            checked={allVisibleSelected}
-                                            onChange={(e) => toggleAllVisible(e.target.checked)}
-                                            aria-label="Select all visible customers"
-                                        />
-                                    </th>
                                     <th>Customer</th>
                                     <th>Integrations</th>
                                     <th>Slack channel</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredRows.map((row) => (
-                                    <tr key={row.customerId}>
-                                        <td>
-                                            <input
-                                                type="checkbox"
-                                                checked={Boolean(selected[row.customerId])}
-                                                onChange={(e) =>
-                                                    setSelected((prev) => ({
-                                                        ...prev,
-                                                        [row.customerId]: e.target.checked,
-                                                    }))
-                                                }
-                                                aria-label={`Select ${row.customerName}`}
-                                            />
+                                {!filteredRows.length ? (
+                                    <tr>
+                                        <td colSpan={3} className="apex-radar-empty">
+                                            No customers match the current filters.
                                         </td>
-                                        <td>{row.customerName}</td>
+                                    </tr>
+                                ) : null}
+                                {filteredRows.map((row) => (
+                                    <tr
+                                        key={row.customerId}
+                                        className={
+                                            hasSlackChannel(row) ? "is-run-active" : undefined
+                                        }
+                                    >
+                                        <td>
+                                            <span className="apex-radar-brief-bulk-customer">
+                                                {row.customerName}
+                                                {hasSlackChannel(row) ? (
+                                                    <span className="apex-radar-brief-bulk-active-badge">
+                                                        Active
+                                                    </span>
+                                                ) : null}
+                                            </span>
+                                        </td>
                                         <td>
                                             <span className="apex-radar-brief-bulk-chips">
                                                 <span

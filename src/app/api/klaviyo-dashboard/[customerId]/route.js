@@ -3,7 +3,9 @@ import { fetchKlaviyoDashboardMetricsBothPeriods } from '@/lib/klaviyoDashboard'
 import { isDemoCustomerId } from '@/lib/demoCustomer';
 import { getDemoKlaviyoDashboardForRange } from '@/lib/demoAdMetrics';
 
-// In-memory cache for repeat requests. TTL 5 min. Avoids 50–60s waits when Klaviyo is rate-limited.
+export const maxDuration = 120;
+
+// In-memory cache for repeat requests. TTL 5 min.
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const cache = new Map();
 
@@ -20,6 +22,7 @@ export async function GET(req, { params }) {
     const endDate = searchParams.get('endDate');
     const prevStartDate = searchParams.get('prevStartDate');
     const prevEndDate = searchParams.get('prevEndDate');
+    const part = searchParams.get('part') || 'summary';
 
     if (!customerId || !startDate || !endDate) {
         return new Response(
@@ -45,7 +48,7 @@ export async function GET(req, { params }) {
             );
         }
 
-        const cacheKey = `${customerId}:${startDate}:${endDate}:${prevStartDate || ''}:${prevEndDate || ''}`;
+        const cacheKey = `${customerId}:${part}:${startDate}:${endDate}:${prevStartDate || ''}:${prevEndDate || ''}`;
         const cached = cache.get(cacheKey);
         if (cached && cached.expires > Date.now()) {
             return new Response(JSON.stringify(cached.data), { status: 200 });
@@ -57,6 +60,7 @@ export async function GET(req, { params }) {
             endDate,
             prevStartDate: prevStartDate || null,
             prevEndDate: prevEndDate || null,
+            part,
         });
         cache.set(cacheKey, { data: result, expires: Date.now() + CACHE_TTL_MS });
         return new Response(JSON.stringify(result), { status: 200 });
