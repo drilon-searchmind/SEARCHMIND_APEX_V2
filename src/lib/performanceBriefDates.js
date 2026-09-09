@@ -32,8 +32,6 @@ export function buildPerformanceBriefWindows(endDate = null) {
     const yesterday = endDate || getUtcCalendarSpendDodRange().calendarYesterday;
     const last7 = { start: addDaysIso(yesterday, -6), end: yesterday };
     const prev7 = { start: addDaysIso(last7.start, -7), end: addDaysIso(last7.start, -1) };
-    const last14 = { start: addDaysIso(yesterday, -13), end: yesterday };
-    const prev14 = { start: addDaysIso(last14.start, -14), end: addDaysIso(last14.start, -1) };
     const last90 = { start: addDaysIso(yesterday, -89), end: yesterday };
     const { week, year } = isoWeekFromDate(yesterday);
 
@@ -43,8 +41,6 @@ export function buildPerformanceBriefWindows(endDate = null) {
         isoWeekYear: year,
         last7,
         prev7,
-        last14,
-        prev14,
         last90,
     };
 }

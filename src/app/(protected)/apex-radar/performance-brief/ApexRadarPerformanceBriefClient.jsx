@@ -28,6 +28,7 @@ const SLACK_EMOJI = {
     ":white_circle:": "⚪",
     ":trophy:": "🏆",
     ":dart:": "🎯",
+    ":fire:": "🔥",
 };
 
 function mrkdwnToNodes(text) {

@@ -4,6 +4,7 @@ import { buildPerformanceBriefWindows } from "@/lib/performanceBriefDates";
 import { fetchPerformanceBriefMeta } from "@/lib/performanceBriefMeta";
 import { fetchPerformanceBriefGoogle } from "@/lib/performanceBriefGoogle";
 import { analyzePerformanceBriefWithClaude } from "@/lib/performanceBriefClaude";
+import { buildPerformanceBriefOptimizations } from "@/lib/performanceBriefOptimizations";
 import { formatPerformanceBriefSlack } from "@/lib/performanceBriefSlackPreview";
 
 function toPlain(doc) {
@@ -61,6 +62,7 @@ export async function generatePerformanceBrief(customerId) {
                 return await fetchPerformanceBriefGoogle({
                     customerId: String(customer._id),
                     windows,
+                    settings,
                 });
             } catch (e) {
                 return errorPlatform(e?.message || e);
@@ -80,14 +82,13 @@ export async function generatePerformanceBrief(customerId) {
             yesterday: windows.yesterday,
             last7: windows.last7,
             prev7: windows.prev7,
-            last14: windows.last14,
-            prev14: windows.prev14,
         },
         meta: metaResult,
         google: googleResult,
     };
 
-    const narrative = await analyzePerformanceBriefWithClaude(compact);
+    const optimizations = buildPerformanceBriefOptimizations(compact);
+    const narrative = await analyzePerformanceBriefWithClaude(compact, optimizations);
     const slackPreview = formatPerformanceBriefSlack({
         compact,
         narrative,
@@ -100,6 +101,9 @@ export async function generatePerformanceBrief(customerId) {
         meta: metaResult,
         google: googleResult,
         narrative,
+        optimizations: narrative.topOptimizations?.length
+            ? narrative.topOptimizations
+            : optimizations,
         slackPreview,
         claude: {
             configured: narrative.configured,

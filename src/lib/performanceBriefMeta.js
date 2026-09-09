@@ -395,19 +395,9 @@ export async function fetchPerformanceBriefMeta({
     windows,
 }) {
     const common = { accessToken, adAccountId, metaIdInclude, metaIdExclude };
-    const [last7, prev7, last14, prev14, last90, campaigns, adPerf] = await Promise.all([
+    const [last7, prev7, last90, campaigns, adPerf] = await Promise.all([
             fetchAccountWindow({ ...common, startDate: windows.last7.start, endDate: windows.last7.end }),
             fetchAccountWindow({ ...common, startDate: windows.prev7.start, endDate: windows.prev7.end }),
-            fetchAccountWindow({
-                ...common,
-                startDate: windows.last14.start,
-                endDate: windows.last14.end,
-            }),
-            fetchAccountWindow({
-                ...common,
-                startDate: windows.prev14.start,
-                endDate: windows.prev14.end,
-            }),
             fetchAccountWindow({
                 ...common,
                 startDate: windows.last90.start,
@@ -496,9 +486,9 @@ export async function fetchPerformanceBriefMeta({
 
     return {
         configured: true,
+        dataSource: "Facebook Graph API account insights (same filters as Apex overview)",
         accountType: resolvedType,
         last7: attachComparisons(last7, prev7),
-        last14: attachComparisons(last14, prev14),
         adTypes,
         campaigns: campaignsWithShare,
         adsForAnalysis: {

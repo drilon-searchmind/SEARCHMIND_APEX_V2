@@ -1,3 +1,6 @@
+import { extractGoogleAdsClientErrorMessage, fetchGoogleAdsMetrics } from "@/lib/googleAdsApi";
+import { aggregateGoogleAdsMetricsToDaily } from "@/lib/apexRadarGoogleAdsOverview";
+import { getCurrencyConversionTable, conversionRateToDkk } from "@/lib/currencyConversionTable";
 import { executeMcpGoogleAdsGaqlProxy } from "@root/lib/mcpGoogleAdsProxy";
 import { classifyBrandGeneric } from "@/lib/googlePpcDashboardUtils";
 import { pctChange, roundN, safeDiv } from "@/lib/performanceBriefDates";
@@ -50,6 +53,60 @@ function num(value) {
     return Number.isFinite(n) ? n : 0;
 }
 
+function purchaseFromDailyRows(dailyRows) {
+    let spend = 0;
+    let revenue = 0;
+    let conversions = 0;
+    for (const row of dailyRows || []) {
+        spend += num(row.spend);
+        const convAction = (row.actions || []).find((a) => a.action_type === "purchase");
+        conversions += num(convAction?.value);
+        const valAction = (row.action_values || []).find((a) => a.action_type === "purchase");
+        revenue += num(valAction?.value);
+    }
+    return {
+        spend: roundN(spend, 2),
+        revenue: roundN(revenue, 2),
+        conversions: roundN(conversions, 2),
+        roas: roundN(safeDiv(revenue, spend), 4),
+        cpa: roundN(safeDiv(spend, conversions), 2),
+    };
+}
+
+/**
+ * Account totals via fetchGoogleAdsMetrics — same path as Apex overview / merged-sources googleDaily.
+ */
+function scaleMetricsToDkk(metrics, rate) {
+    if (!rate || rate === 1) return metrics;
+    return (metrics || []).map((row) => {
+        const raw = Number(row?.metrics?.cost_micros) || 0;
+        if (!raw) return row;
+        return {
+            ...row,
+            metrics: {
+                ...row.metrics,
+                cost_micros: Math.round(raw * rate),
+            },
+        };
+    });
+}
+
+async function fetchGoogleAccountTotals(settings, startDate, endDate) {
+    const googleCid = String(settings.googleAdsCustomerId || "").trim();
+    const { metrics, currencyCode } = await fetchGoogleAdsMetrics(
+        googleCid,
+        startDate,
+        endDate,
+        settings.googleAdsCountryFilter || undefined,
+        settings.googleAdsCountryExclude || undefined,
+        { quietLog: true }
+    );
+    const { data: currencyData } = await getCurrencyConversionTable();
+    const rate = conversionRateToDkk(currencyCode || "DKK", currencyData);
+    const daily = aggregateGoogleAdsMetricsToDaily(scaleMetricsToDkk(metrics, rate));
+    return purchaseFromDailyRows(daily);
+}
+
 function parseCampaignRows(rows) {
     return (rows || []).map((row) => {
         const name = row?.campaign?.name || "Unknown";
@@ -70,19 +127,6 @@ function parseCampaignRows(rows) {
             cpa: roundN(safeDiv(spend, conversions), 2),
         };
     });
-}
-
-function totalsFromCampaigns(campaigns) {
-    const spend = campaigns.reduce((s, c) => s + c.spend, 0);
-    const revenue = campaigns.reduce((s, c) => s + c.revenue, 0);
-    const conversions = campaigns.reduce((s, c) => s + c.conversions, 0);
-    return {
-        spend: roundN(spend, 2),
-        revenue: roundN(revenue, 2),
-        conversions: roundN(conversions, 2),
-        roas: roundN(safeDiv(revenue, spend), 4),
-        cpa: roundN(safeDiv(spend, conversions), 2),
-    };
 }
 
 function attachComparisons(current, previous) {
@@ -166,46 +210,44 @@ WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
     return byName;
 }
 
-export async function fetchPerformanceBriefGoogle({ customerId, windows }) {
-    const [last7Campaigns, prev7Campaigns, last14Campaigns, prev14Campaigns, isByName] =
-        await Promise.all([
+export async function fetchPerformanceBriefGoogle({ customerId, windows, settings = {} }) {
+    try {
+        const [last7Totals, prev7Totals, last7Campaigns, isByName] = await Promise.all([
+            fetchGoogleAccountTotals(settings, windows.last7.start, windows.last7.end),
+            fetchGoogleAccountTotals(settings, windows.prev7.start, windows.prev7.end),
             queryCampaigns(customerId, windows.last7.start, windows.last7.end),
-            queryCampaigns(customerId, windows.prev7.start, windows.prev7.end),
-            queryCampaigns(customerId, windows.last14.start, windows.last14.end),
-            queryCampaigns(customerId, windows.prev14.start, windows.prev14.end),
             querySearchImpressionShare(customerId, windows.last7.start, windows.last7.end).catch(
                 () => new Map()
             ),
         ]);
 
-    const last7 = totalsFromCampaigns(last7Campaigns);
-    const prev7 = totalsFromCampaigns(prev7Campaigns);
-    const last14 = totalsFromCampaigns(last14Campaigns);
-    const prev14 = totalsFromCampaigns(prev14Campaigns);
+        const campaigns = last7Campaigns.slice(0, 20).map((c) => {
+            const is = isByName.get(c.name) || null;
+            return {
+                ...c,
+                spendSharePct: roundN(safeDiv(c.spend, last7Totals.spend) * 100, 1),
+                impressionShare: is?.impressionShare ?? null,
+                budgetLostIs: is?.budgetLostIs ?? null,
+                rankLostIs: is?.rankLostIs ?? null,
+            };
+        });
 
-    const campaigns = last7Campaigns.slice(0, 20).map((c) => {
-        const is = isByName.get(c.name) || null;
         return {
-            ...c,
-            spendSharePct: roundN(safeDiv(c.spend, last7.spend) * 100, 1),
-            impressionShare: is?.impressionShare ?? null,
-            budgetLostIs: is?.budgetLostIs ?? null,
-            rankLostIs: is?.rankLostIs ?? null,
+            configured: true,
+            dataSource:
+                "fetchGoogleAdsMetrics + country filters + DKK conversion (same path as Apex overview googleDaily)",
+            last7: attachComparisons(last7Totals, prev7Totals),
+            campaignTypes: rollupTypes(last7Campaigns),
+            campaigns,
+            checksum: {
+                accountSpend: last7Totals.spend,
+                campaignQuerySpend: roundN(
+                    last7Campaigns.reduce((s, c) => s + c.spend, 0),
+                    2
+                ),
+            },
         };
-    });
-
-    return {
-        configured: true,
-        last7: attachComparisons(last7, prev7),
-        last14: attachComparisons(last14, prev14),
-        campaignTypes: rollupTypes(last7Campaigns),
-        campaigns,
-        checksum: {
-            typeSpend: roundN(
-                rollupTypes(last7Campaigns).reduce((s, t) => s + t.spend, 0),
-                2
-            ),
-            accountSpend: last7.spend,
-        },
-    };
+    } catch (e) {
+        throw new Error(extractGoogleAdsClientErrorMessage(e));
+    }
 }

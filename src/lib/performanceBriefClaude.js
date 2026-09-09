@@ -40,7 +40,7 @@ function extractJson(text) {
     }
 }
 
-function normalizeNarrative(parsed, compact) {
+function normalizeNarrative(parsed, compact, fallbackOptimizations = []) {
     const metaOk = compact.meta?.configured && !compact.meta?.error;
     const googleOk = compact.google?.configured && !compact.google?.error;
     const light = (value, fallback) => {
@@ -54,21 +54,24 @@ function normalizeNarrative(parsed, compact) {
             .filter(Boolean)
             .slice(0, 3);
 
+    const claudeOpts = recs(parsed?.topOptimizations);
+    const topOptimizations =
+        claudeOpts.length >= 2 ? claudeOpts : fallbackOptimizations.slice(0, 3);
+
     return {
         configured: true,
         headlineSentence: String(parsed?.headlineSentence || "").trim(),
+        topOptimizations,
         meta: metaOk
             ? {
                   light: light(parsed?.meta?.light, "yellow"),
                   summary: String(parsed?.meta?.summary || "").trim(),
-                  recommendations: recs(parsed?.meta?.recommendations),
               }
             : null,
         google: googleOk
             ? {
                   light: light(parsed?.google?.light, "yellow"),
                   summary: String(parsed?.google?.summary || "").trim(),
-                  recommendations: recs(parsed?.google?.recommendations),
               }
             : null,
     };
@@ -76,56 +79,53 @@ function normalizeNarrative(parsed, compact) {
 
 const SYSTEM_PROMPT = `Du er Searchminds interne Performance Brief-analytiker. Du skriver KUN narrativ til en ugentlig Slack-brief for Meta og Google Ads.
 
-Du får et kompakt JSON med tal der allerede er aggregeret. Du må ALDRIG opfinde tal, kampagner, annoncer eller procenter. Brug kun de tal der står i JSON'et.
+Du får et kompakt JSON med tal der allerede er aggregeret (seneste 7 dage vs. forrige 7 dage). Du må ALDRIG opfinde tal, kampagner, annoncer eller procenter. Brug kun de tal der står i JSON'et.
 
 Svar KUN med JSON i denne form:
 {
   "headlineSentence": "Én sætning om de to kanalers retning (eller den ene kanal hvis kun én er aktiv).",
+  "topOptimizations": [
+    "Tværgående optimering #1 med kanal, navn/type og tal (spend + ROAS/CPA)",
+    "...",
+    "..."
+  ],
   "meta": {
     "light": "green" | "yellow" | "red",
-    "summary": "Én sætning: hvad der driver billedet.",
-    "recommendations": ["Handling med tal der begrunder den", "...", "..."]
+    "summary": "Én kort sætning om Meta."
   },
   "google": {
     "light": "green" | "yellow" | "red",
-    "summary": "Én sætning.",
-    "recommendations": ["...", "...", "..."]
+    "summary": "Én kort sætning om Google."
   }
 }
 
 Regler:
-- Dansk, direkte, intern tone. Ingen kildelinjer, ingen attributionsforklaring, ingen "det er ændret siden sidst".
-- Højst tre anbefalinger pr. kanal. Én tal-påstand pr. linje. Handling først.
-- Anbefalinger skal pege på konkrete kampagner/annoncer/typer fra JSON (navn + spend + ROAS).
-- Meta og Google måler omsætning forskelligt — læg dem aldrig sammen og foreslå det aldrig.
-- Aggregering pr. type er allerede spend-vægtet. Gennemsnit af ROAS er forkert.
-- Impression share: læs budgetLostIs og rankLostIs hver for sig. Mere budget hjælper ikke hvis tabet er rang.
-- Hvis en kanal mangler (configured:false eller error), sæt den kanal til null.
-- Trafiklys for headeren:
-  green = omsætning og konverteringer op, ROAS holder eller stiger
-  yellow = vækst men flad/faldende effektivitet, eller stigende frekvens/CPA
-  red = omsætning ned mens spend op, eller ROAS mere end halveret
-- Aldrig opfind margin/POAS. POAS nævnes kun hvis JSON indeholder det.
-- Annoncetype "Ukendt" må du ikke overfortolke.
-- Kopi-annoncer: hvis flere annoncer har næsten samme navn og dårlig ROAS, kan du anbefale at slukke dem samlet og citere samlet spend og retur.
-- Hold anbefalingerne operationelle (flyt budget, sæt på pause, rul skalering tilbage, producér mere af det der virker).`;
+- Dansk, direkte, intern tone.
+- Præcis 3 topOptimizations på tværs af kanaler — prioriter hvor der brænder mest budget med dårlig effektivitet, eller størst skaleringspotentiale.
+- Hver topOptimization skal nævne kanal (Meta/Google), konkret kampagne/annonce/type fra JSON, plus spend og ROAS/CPA.
+- Meta og Google måler omsætning forskelligt — læg dem aldrig sammen.
+- Hvis en kanal mangler, sæt den kanal til null og fokusér topOptimizations på den aktive kanal.
+- Impression share: budgetLostIs vs rankLostIs — mere budget hjælper ikke hvis tabet er rang.
+- Annoncetype "Ukendt" må du ikke overfortolke.`;
 
 /**
  * @param {object} compact
+ * @param {string[]} [fallbackOptimizations]
  * @returns {Promise<object>}
  */
-export async function analyzePerformanceBriefWithClaude(compact) {
+export async function analyzePerformanceBriefWithClaude(compact, fallbackOptimizations = []) {
     const apiKey = getApiKey();
     if (!apiKey) {
         return {
             configured: false,
             error: "CLAUDE_API_KEY is not configured",
             headlineSentence: "",
+            topOptimizations: fallbackOptimizations.slice(0, 3),
             meta: compact.meta?.configured && !compact.meta?.error
-                ? { light: "yellow", summary: "", recommendations: [] }
+                ? { light: "yellow", summary: "" }
                 : null,
             google: compact.google?.configured && !compact.google?.error
-                ? { light: "yellow", summary: "", recommendations: [] }
+                ? { light: "yellow", summary: "" }
                 : null,
         };
     }
@@ -137,8 +137,8 @@ export async function analyzePerformanceBriefWithClaude(compact) {
             compact.meta?.configured && !compact.meta?.error
                 ? {
                       accountType: compact.meta.accountType,
+                      dataSource: compact.meta.dataSource,
                       last7: compact.meta.last7,
-                      last14: compact.meta.last14,
                       adTypes: compact.meta.adTypes,
                       campaigns: compact.meta.campaigns,
                       adsForAnalysis: compact.meta.adsForAnalysis,
@@ -147,12 +147,13 @@ export async function analyzePerformanceBriefWithClaude(compact) {
         google:
             compact.google?.configured && !compact.google?.error
                 ? {
+                      dataSource: compact.google.dataSource,
                       last7: compact.google.last7,
-                      last14: compact.google.last14,
                       campaignTypes: compact.google.campaignTypes,
                       campaigns: compact.google.campaigns,
                   }
                 : compact.google,
+        heuristicOptimizations: fallbackOptimizations,
     };
 
     const model = getModel();
@@ -190,7 +191,7 @@ export async function analyzePerformanceBriefWithClaude(compact) {
         const parsed = extractJson(text);
         if (!parsed) throw new Error("Claude returned no JSON narrative");
         return {
-            ...normalizeNarrative(parsed, compact),
+            ...normalizeNarrative(parsed, compact, fallbackOptimizations),
             model,
         };
     } catch (e) {
@@ -198,13 +199,14 @@ export async function analyzePerformanceBriefWithClaude(compact) {
             configured: true,
             error: e.message || "Claude analysis failed",
             headlineSentence: "",
+            topOptimizations: fallbackOptimizations.slice(0, 3),
             meta:
                 compact.meta?.configured && !compact.meta?.error
-                    ? { light: "yellow", summary: "", recommendations: [] }
+                    ? { light: "yellow", summary: "" }
                     : null,
             google:
                 compact.google?.configured && !compact.google?.error
-                    ? { light: "yellow", summary: "", recommendations: [] }
+                    ? { light: "yellow", summary: "" }
                     : null,
         };
     }

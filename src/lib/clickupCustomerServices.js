@@ -45,6 +45,11 @@ export const TOPBAR_CUSTOMER_SERVICES = [
         label: "Creative",
         optionId: "760b9c31-350c-4560-9e9a-a30ba75fd32b",
     },
+    {
+        key: "content",
+        label: "Content",
+        optionId: "f72c7efc-a4e0-4465-997d-8d50bbf3de0c",
+    },
 ];
 
 /**
