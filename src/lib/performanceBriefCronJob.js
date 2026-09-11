@@ -73,6 +73,35 @@ async function listCustomersForCronTick(options = {}) {
     return customers.filter((customer) => isCustomerScheduleDue(customer, now, tz));
 }
 
+function buildCronTickDiagnostics(customers, now = dayjs()) {
+    const tz = getCronTimezone();
+    const local = now.tz(tz);
+    const dueCustomers = customers.filter((customer) => isCustomerScheduleDue(customer, now, tz));
+
+    return {
+        timezone: tz,
+        localTime: local.format("YYYY-MM-DD HH:mm:ss"),
+        localDay: local.day(),
+        localHour: local.hour(),
+        queueSize: customers.length,
+        dueCount: dueCustomers.length,
+        dueCustomers: dueCustomers.slice(0, 10).map((customer) => ({
+            customerId: customer.customerId,
+            customerName: customer.customerName,
+            scheduleDayOfWeek: customer.scheduleDayOfWeek,
+            scheduleHour: customer.scheduleHour,
+            slackChannelName: customer.slackChannelName,
+        })),
+        sample: customers.slice(0, 5).map((customer) => ({
+            customerId: customer.customerId,
+            customerName: customer.customerName,
+            scheduleDayOfWeek: customer.scheduleDayOfWeek,
+            scheduleHour: customer.scheduleHour,
+            due: isCustomerScheduleDue(customer, now, tz),
+        })),
+    };
+}
+
 function mergeDueCustomersIntoRun(run, dueCustomers) {
     const existingById = new Map(run.customers.map((c) => [c.customerId, c]));
     let changed = false;
@@ -95,6 +124,16 @@ function mergeDueCustomersIntoRun(run, dueCustomers) {
         existing.customerName = customer.customerName;
         existing.slackChannelId = customer.slackChannelId;
         existing.slackChannelName = customer.slackChannelName;
+        if (
+            existing.status === CUSTOMER_STATUS.success ||
+            existing.status === CUSTOMER_STATUS.skipped ||
+            existing.status === CUSTOMER_STATUS.error
+        ) {
+            existing.status = CUSTOMER_STATUS.pending;
+            existing.error = "";
+            existing.finishedAt = undefined;
+            changed = true;
+        }
     }
 
     if (changed) {
@@ -480,9 +519,16 @@ async function resolveRun({ weekKey, runId, force, tickOptions = {} }) {
         if (byId) return byId;
     }
 
+    const queue = await listPerformanceBriefCronCustomers();
     const dueCustomers = await listCustomersForCronTick(tickOptions);
     if (!dueCustomers.length) {
-        return { skipped: true, reason: "no_due_customers", weekKey };
+        const diagnostics = buildCronTickDiagnostics(
+            tickOptions.testCustomerId
+                ? await applyTestOverrides(queue, tickOptions)
+                : queue
+        );
+        console.info("[performance-brief/cron] no_due_customers", diagnostics);
+        return { skipped: true, reason: "no_due_customers", weekKey, diagnostics };
     }
 
     let run = await loadRunByWeekKey(weekKey);
@@ -503,8 +549,12 @@ async function resolveRun({ weekKey, runId, force, tickOptions = {} }) {
     await syncCustomersFromDeliveries(run);
     mergeDueCustomersIntoRun(run, dueCustomers);
 
+    const dueIds = new Set(dueCustomers.map((customer) => customer.customerId));
     const pendingRemain = run.customers.some(
-        (c) => c.status === CUSTOMER_STATUS.pending || c.status === CUSTOMER_STATUS.running
+        (customer) =>
+            dueIds.has(customer.customerId) &&
+            (customer.status === CUSTOMER_STATUS.pending ||
+                customer.status === CUSTOMER_STATUS.running)
     );
 
     if (
@@ -512,7 +562,20 @@ async function resolveRun({ weekKey, runId, force, tickOptions = {} }) {
         !force &&
         (run.status === RUN_STATUS.completed || run.status === RUN_STATUS.failed)
     ) {
-        return { skipped: true, reason: "already_completed", weekKey, run };
+        const diagnostics = buildCronTickDiagnostics(queue);
+        console.info("[performance-brief/cron] already_completed", {
+            weekKey,
+            dueCount: dueCustomers.length,
+            diagnostics,
+        });
+        return {
+            skipped: true,
+            reason: "already_completed",
+            weekKey,
+            run,
+            dueCount: dueCustomers.length,
+            diagnostics,
+        };
     }
 
     run.status = RUN_STATUS.running;

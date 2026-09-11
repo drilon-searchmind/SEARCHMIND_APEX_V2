@@ -32,6 +32,4 @@ SEOBrandKeywordSchema.pre('save', function(next) {
     next();
 });
 
-SEOBrandKeywordSchema.index({ customer: 1 });
-
 export default mongoose.models.SEOBrandKeyword || mongoose.model('SEOBrandKeyword', SEOBrandKeywordSchema);
