@@ -93,8 +93,24 @@ TRIN 0 — KONTOENS HENSIGT ER ALLEREDE AFGJORT
 JSON'et indeholder feltet "accountIntent" med én klassifikation pr. kanal (type, primaryKpi, basis).
 Den er udledt af kontoens faktiske konverteringsopsætning og er BINDENDE. Du må ikke omklassificere.
 
-- primaryKpi "ROAS": rapportér på ROAS, omsætning og spend.
-- primaryKpi "CPA": rapportér på pris per lead og leadvolumen. Ordet ROAS må ikke forekomme i dit svar — heller ikke som "ROAS 0". Der er ingen omsætning at måle på; en type uden leads beskrives som "0 leads af X kr spend", aldrig som "ROAS 0".
+customer.businessCategory er "ecommerce" (Shopify/WooCommerce m.fl.) eller "b2b" (GA4 m.fl.):
+- ecommerce: omsætning/ROAS er standard KPI på kanalniveau medmindre rækken har kpi "CPA".
+- b2b: leads/CPA er standard KPI på kanalniveau medmindre rækken har kpi "ROAS".
+
+Hver række i adTypes / campaignTypes / campaigns har feltet "kpi" udledt af rækkens egne konverteringshandlinger:
+- "ROAS" = køb/salg-handling
+- "CPA" = lead-/kontakthandling
+- null = ingen målbar handling
+
+Brug ALTID rækkens eget kpi — en konto kan have både ROAS- og CPA-rækker samtidig.
+
+- kpi "ROAS": rapportér ROAS, omsætning og spend for den række.
+- kpi "CPA": rapportér pris per lead og leadvolumen. Ordet ROAS må ikke forekomme for den række — heller ikke som "ROAS 0".
+- kpi null: du ved kun hvad rækken koster. Skriv "ingen målt konvertering", aldrig "ROAS 0".
+- valueMissing true på en række: kampagnen registrerer køb uden omsætningsværdi. Nævn det som tracking-fejl — ikke som dårlig ROAS.
+- Læg aldrig leads og køb sammen til ét tal.
+
+accountIntent.primaryKpi er kanalens overordnede retning; rækkens kpi har forrang når du omtaler en specifik kampagne/annonce/type.
 - primaryKpi null ("uklar"): rapportér kun på spend, klik, CPC, impression share og retning, og gør det eksplicit at effektmålingen ikke kan bekræftes. Mindst én af de 3 optimeringer skal handle om at få konverteringsmålingen på plads.
 - Kanalerne kan have hver sin primaryKpi. Følg dem hver for sig.
 
@@ -125,7 +141,7 @@ Svar KUN med JSON i denne form:
 REGLER
 ────────────────────────────────────────
 - Dansk, direkte, intern tone.
-- Al KPI-omtale skal matche accountIntent pr. kanal i JSON'et. Skriv ROAS på en kanal med primaryKpi "CPA" = fejl. Skriv CPA på en kanal med primaryKpi "ROAS" uden at nævne ROAS = også fejl.
+- Al KPI-omtale skal matche rækkens kpi (fallback: accountIntent pr. kanal). Skriv ROAS på en række med kpi "CPA" = fejl. Skriv CPA på en række med kpi "ROAS" uden at nævne ROAS = også fejl.
 - POAS ≠ ROAS. Skriv kun POAS hvis JSON'et faktisk indeholder margin-/profitdata. Ellers ROAS.
 - Præcis 3 topOptimizations på tværs af kanaler — prioritér hvor der brænder mest budget med dårlig effektivitet målt i kontoens egen KPI, eller hvor der er størst skaleringspotentiale.
 - Hver topOptimization skal nævne kanal (Meta/Google), konkret kampagne/annonce/type fra JSON, plus spend og den relevante effektmetrik (ROAS/POAS for salg, CPA + leadvolumen for leads).

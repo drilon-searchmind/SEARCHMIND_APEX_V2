@@ -6,6 +6,11 @@ import {
     getActionValue,
 } from "@/lib/facebookPsDashboardUtils";
 import { pctChange, roundN, safeDiv } from "@/lib/performanceBriefDates";
+import {
+    countMetaLeadsFromActions,
+    getPrimaryMetaLeadActionType,
+    num,
+} from "@/lib/performanceBriefIntent";
 
 const META_GRAPH = "https://graph.facebook.com/v21.0";
 const AD_CREATIVE_FIELDS =
@@ -122,6 +127,8 @@ function metricsFromAggregated(agg) {
         clicks: Math.round(agg.clicks),
         ctr: roundN(safeDiv(agg.clicks, agg.impressions) * 100, 2),
         cpc: roundN(safeDiv(agg.spend, agg.clicks), 2),
+        actions: agg.actions || [],
+        action_values: agg.action_values || [],
     };
 }
 
@@ -336,8 +343,12 @@ async function fetchCampaignWindow(opts) {
                 spend: m.spend,
                 revenue: m.revenue,
                 conversions: m.conversions,
+                leads: m.leads,
                 roas: m.roas,
                 cpa: m.cpa,
+                cpl: m.cpl,
+                actions: agg.actions || [],
+                action_values: agg.action_values || [],
             };
         })
         .filter((r) => r.spend > 0)
@@ -360,26 +371,56 @@ function attachComparisons(current, previous) {
     };
 }
 
-function rollupByType(ads, totalSpend, totalRevenue, totalConv) {
+function mergeMetaActions(existing = [], incoming = []) {
+    const byKey = new Map();
+    for (const a of [...existing, ...incoming]) {
+        const key = String(a.action_type || a.name || "").trim();
+        if (!key) continue;
+        const prev = byKey.get(key) || { action_type: key, name: key, value: 0 };
+        byKey.set(key, {
+            ...prev,
+            value: String(num(prev.value) + num(a.value)),
+        });
+    }
+    return [...byKey.values()];
+}
+
+function rollupByType(ads, totalSpend, totalRevenue, totalConv, primaryLeadType = null) {
     const byType = new Map();
     for (const ad of ads) {
         const type = ad.type || "Ukendt";
-        const cur = byType.get(type) || { type, spend: 0, revenue: 0, conversions: 0 };
+        const cur = byType.get(type) || {
+            type,
+            spend: 0,
+            revenue: 0,
+            conversions: 0,
+            actions: [],
+            action_values: [],
+        };
         cur.spend += ad.spend;
         cur.revenue += ad.revenue;
         cur.conversions += ad.conversions;
+        cur.actions = mergeMetaActions(cur.actions, ad.actions || []);
+        cur.action_values = mergeMetaActions(cur.action_values, ad.action_values || []);
         byType.set(type, cur);
     }
     return [...byType.values()]
-        .map((row) => ({
+        .map((row) => {
+            const leads = countMetaLeadsFromActions(row.actions, primaryLeadType);
+            return {
             type: row.type,
             spend: roundN(row.spend, 2),
             revenue: roundN(row.revenue, 2),
             conversions: roundN(row.conversions, 2),
+            leads: roundN(leads, 2),
             roas: roundN(safeDiv(row.revenue, row.spend), 2),
+            cpl: roundN(safeDiv(row.spend, leads), 2),
             spendSharePct: roundN(safeDiv(row.spend, totalSpend) * 100, 1),
             conversionSharePct: roundN(safeDiv(row.conversions, totalConv) * 100, 1),
-        }))
+            actions: row.actions,
+            action_values: row.action_values,
+            };
+        })
         .sort((a, b) => b.roas - a.roas);
 }
 
@@ -438,13 +479,30 @@ export async function fetchPerformanceBriefMeta({
             revenue: roundN(ad.revenue, 2),
             conversions: roundN(ad.conversions, 2),
             roas: roundN(ad.roas, 2),
+            actions: ad.actions || [],
+            action_values: ad.action_values || [],
         };
     });
 
     const totalSpend = ads.reduce((s, a) => s + a.spend, 0);
     const totalRevenue = ads.reduce((s, a) => s + a.revenue, 0);
     const totalConv = ads.reduce((s, a) => s + a.conversions, 0);
-    const adTypes = rollupByType(ads, last7.spend || totalSpend, last7.revenue || totalRevenue, last7.conversions || totalConv);
+    const metaPrimaryLeadType = getPrimaryMetaLeadActionType(last7.actions);
+    const adTypes = rollupByType(
+        ads,
+        last7.spend || totalSpend,
+        last7.revenue || totalRevenue,
+        last7.conversions || totalConv,
+        metaPrimaryLeadType
+    );
+    const campaignsNormalized = campaigns.map((c) => {
+        const leads = countMetaLeadsFromActions(c.actions, metaPrimaryLeadType);
+        return {
+            ...c,
+            leads,
+            cpl: roundN(safeDiv(c.spend, leads), 2),
+        };
+    });
 
     const accountType = detectAccountType(
         [
@@ -472,8 +530,8 @@ export async function fetchPerformanceBriefMeta({
         resolvedType = accountType;
     }
 
-    const campaignTotalSpend = campaigns.reduce((s, c) => s + c.spend, 0);
-    const campaignsWithShare = campaigns.slice(0, 15).map((c) => ({
+    const campaignTotalSpend = campaignsNormalized.reduce((s, c) => s + c.spend, 0);
+    const campaignsWithShare = campaignsNormalized.slice(0, 15).map((c) => ({
         ...c,
         spendSharePct: roundN(safeDiv(c.spend, campaignTotalSpend) * 100, 1),
     }));

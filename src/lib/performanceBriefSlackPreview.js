@@ -4,7 +4,12 @@ import {
     performanceBriefCustomerSettingsUrl,
 } from "@/lib/performanceBriefConstants";
 import { channelLight, metricLight } from "@/lib/performanceBriefLights";
-import { formatTypeLine, num, rankTypes } from "@/lib/performanceBriefIntent";
+import {
+    formatTypeLine,
+    getPrimaryMetaLeadActionType,
+    num,
+    rankTypes,
+} from "@/lib/performanceBriefIntent";
 
 function fmtDk(n, digits = 0) {
     if (n == null || !Number.isFinite(Number(n))) return "—";
@@ -86,10 +91,10 @@ function pushSection(blocks, lines) {
     }
 }
 
-function rankedLines(title, rows, intent) {
+function rankedLines(title, rows, intent, options = {}) {
     if (!rows?.length) return [];
     const totalSpend = rows.reduce((s, r) => s + num(r.spend), 0);
-    const { rows: sorted, label } = rankTypes(rows, intent);
+    const { rows: sorted, label } = rankTypes(rows, intent, options);
     const lines = [`:trophy: *${title}* (${label})`];
     sorted.slice(0, 6).forEach((row, i) => {
         lines.push(`${i + 1}. ${formatTypeLine(row, intent, totalSpend)}`);
@@ -124,6 +129,9 @@ function combinedKpiTable(compact, currency) {
     const metaIntent = compact?.accountIntent?.meta;
     const googleIntent = compact?.accountIntent?.google;
     const metaType = compact?.meta?.accountType || "ecommerce";
+    const businessCategory = compact?.customer?.businessCategory || "ecommerce";
+    const isEcommerceCustomer = businessCategory === "ecommerce";
+    const isB2bCustomer = businessCategory === "b2b";
 
     const header = ["KPI", "Meta (7d)", "Meta Δ", "Google (7d)", "Google Δ"];
 
@@ -137,10 +145,27 @@ function combinedKpiTable(compact, currency) {
         ),
     ];
 
-    const metaLeadKpi = metaIntent?.primaryKpi === "CPA";
-    const googleLeadKpi = googleIntent?.primaryKpi === "CPA";
-    const metaRoasKpi = metaIntent?.primaryKpi === "ROAS";
-    const googleRoasKpi = googleIntent?.primaryKpi === "ROAS";
+    let metaLeadKpi = false;
+    let googleLeadKpi = false;
+    let metaRoasKpi = false;
+    let googleRoasKpi = false;
+
+    if (isB2bCustomer) {
+        metaLeadKpi = metaOk;
+        googleLeadKpi = googleOk;
+    } else {
+        metaLeadKpi = metaIntent?.primaryKpi === "CPA";
+        googleLeadKpi = googleIntent?.primaryKpi === "CPA";
+        metaRoasKpi =
+            metaIntent?.primaryKpi === "ROAS" ||
+            (num(m7?.revenue) > 0 && metaIntent?.primaryKpi !== "CPA");
+        googleRoasKpi =
+            googleIntent?.primaryKpi === "ROAS" ||
+            (num(g7?.revenue) > 0 && googleIntent?.primaryKpi !== "CPA");
+
+        if (metaRoasKpi && metaLeadKpi && num(m7?.revenue) > 0) metaLeadKpi = false;
+        if (googleRoasKpi && googleLeadKpi && num(g7?.revenue) > 0) googleLeadKpi = false;
+    }
 
     if (metaRoasKpi || googleRoasKpi) {
         rows.push(
@@ -198,7 +223,7 @@ function combinedKpiTable(compact, currency) {
                 googleOk ? deltaCell("conversions", g7?.vsPrev?.conversions) : "—"
             )
         );
-    } else if (metaRoasKpi || googleRoasKpi) {
+    } else if ((metaRoasKpi || googleRoasKpi) && !isB2bCustomer) {
         rows.push(
             pivotRow(
                 metaType === "brand" ? "LP-visninger" : "Konverteringer",
@@ -322,7 +347,12 @@ export function formatPerformanceBriefSlack({
             ...rankedLines(
                 "Meta annoncetyper, seneste 7 dage",
                 compact.meta.adTypes,
-                compact.accountIntent?.meta
+                compact.accountIntent?.meta,
+                {
+                    platform: "meta",
+                    businessCategory: compact.customer?.businessCategory,
+                    metaPrimaryLeadType: getPrimaryMetaLeadActionType(compact.meta?.last7?.actions),
+                }
             ),
         ]);
     } else if (compact?.meta?.skipReason) {
@@ -337,7 +367,11 @@ export function formatPerformanceBriefSlack({
             ...rankedLines(
                 "Google kampagnetyper, seneste 7 dage",
                 compact.google.campaignTypes,
-                compact.accountIntent?.google
+                compact.accountIntent?.google,
+                {
+                    platform: "google",
+                    businessCategory: compact.customer?.businessCategory,
+                }
             ),
         ]);
     } else if (compact?.google?.skipReason) {

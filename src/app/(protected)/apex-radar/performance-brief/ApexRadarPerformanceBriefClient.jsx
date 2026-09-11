@@ -215,7 +215,7 @@ function SlackPreview({
     );
 }
 
-function PlatformStatus({ label, platform }) {
+function PlatformStatus({ label, platform, accountIntent, businessCategory }) {
     if (!platform) return null;
     if (!platform.configured) {
         return (
@@ -234,6 +234,8 @@ function PlatformStatus({ label, platform }) {
         return <p className="apex-radar-alert">{platform.error}</p>;
     }
     const w7 = platform.last7 || {};
+    const isB2b = businessCategory === "b2b" || accountIntent?.primaryKpi === "CPA";
+    const leadCount = w7.leads ?? w7.conversions;
     return (
         <div className="apex-radar-cs-kpi-grid">
             <div className="apex-radar-cs-kpi is-ok">
@@ -242,27 +244,54 @@ function PlatformStatus({ label, platform }) {
                     {new Intl.NumberFormat("da-DK", { maximumFractionDigits: 0 }).format(w7.spend || 0)}
                 </span>
             </div>
-            <div className="apex-radar-cs-kpi is-ok">
-                <span className="apex-radar-cs-kpi__label">ROAS 7d</span>
-                <span className="apex-radar-cs-kpi__value">
-                    {w7.roas != null
-                        ? new Intl.NumberFormat("da-DK", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                          }).format(w7.roas)
-                        : "—"}
-                </span>
-            </div>
-            <div className="apex-radar-cs-kpi is-ok">
-                <span className="apex-radar-cs-kpi__label">Conv. 7d</span>
-                <span className="apex-radar-cs-kpi__value">
-                    {w7.conversions != null
-                        ? new Intl.NumberFormat("da-DK", { maximumFractionDigits: 1 }).format(
-                              w7.conversions
-                          )
-                        : "—"}
-                </span>
-            </div>
+            {isB2b ? (
+                <>
+                    <div className="apex-radar-cs-kpi is-ok">
+                        <span className="apex-radar-cs-kpi__label">Leads 7d</span>
+                        <span className="apex-radar-cs-kpi__value">
+                            {leadCount != null
+                                ? new Intl.NumberFormat("da-DK", { maximumFractionDigits: 0 }).format(
+                                      leadCount
+                                  )
+                                : "—"}
+                        </span>
+                    </div>
+                    <div className="apex-radar-cs-kpi is-ok">
+                        <span className="apex-radar-cs-kpi__label">CPA 7d</span>
+                        <span className="apex-radar-cs-kpi__value">
+                            {w7.cpl != null || w7.cpa != null
+                                ? new Intl.NumberFormat("da-DK", {
+                                      maximumFractionDigits: 0,
+                                  }).format(w7.cpl ?? w7.cpa)
+                                : "—"}
+                        </span>
+                    </div>
+                </>
+            ) : (
+                <>
+                    <div className="apex-radar-cs-kpi is-ok">
+                        <span className="apex-radar-cs-kpi__label">ROAS 7d</span>
+                        <span className="apex-radar-cs-kpi__value">
+                            {w7.roas != null
+                                ? new Intl.NumberFormat("da-DK", {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                  }).format(w7.roas)
+                                : "—"}
+                        </span>
+                    </div>
+                    <div className="apex-radar-cs-kpi is-ok">
+                        <span className="apex-radar-cs-kpi__label">Conv. 7d</span>
+                        <span className="apex-radar-cs-kpi__value">
+                            {w7.conversions != null
+                                ? new Intl.NumberFormat("da-DK", { maximumFractionDigits: 1 }).format(
+                                      w7.conversions
+                                  )
+                                : "—"}
+                        </span>
+                    </div>
+                </>
+            )}
         </div>
     );
 }
@@ -669,13 +698,23 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
                         <h2 className="apex-radar-section__title">
                             {PERFORMANCE_BRIEF_PLATFORM_LABELS.meta}
                         </h2>
-                        <PlatformStatus label="Meta" platform={meta} />
+                        <PlatformStatus
+                            label="Meta"
+                            platform={meta}
+                            accountIntent={accountIntent?.meta}
+                            businessCategory={customer?.businessCategory}
+                        />
                     </section>
                     <section className="apex-radar-panel apex-radar-panel--padded">
                         <h2 className="apex-radar-section__title">
                             {PERFORMANCE_BRIEF_PLATFORM_LABELS["google-ads"]}
                         </h2>
-                        <PlatformStatus label="Google Ads" platform={google} />
+                        <PlatformStatus
+                            label="Google Ads"
+                            platform={google}
+                            accountIntent={accountIntent?.google}
+                            businessCategory={customer?.businessCategory}
+                        />
                     </section>
                 </div>
             ) : (

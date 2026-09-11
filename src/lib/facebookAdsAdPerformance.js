@@ -191,6 +191,8 @@ export async function fetchFacebookAdsAdPerformance({
                 ctr,
                 conv_rate_clicks: convRateClicks,
                 conv_rate_impressions: convRateImpr,
+                actions: row.actions || [],
+                action_values: row.action_values || [],
             };
         })
         .filter((r) => r.impressions > 0 || r.clicks > 0 || r.ad_spend > 0)

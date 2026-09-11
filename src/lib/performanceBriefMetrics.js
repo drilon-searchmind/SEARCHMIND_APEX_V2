@@ -77,6 +77,8 @@ export async function generatePerformanceBrief(customerId) {
             customerName,
             currency,
             vatBasis: settings.revenueDisplayVat || "excl",
+            businessCategory: customer.businessCategory || "ecommerce",
+            customerType: customer.customerType || "Shopify",
         },
         windows: {
             isoWeek: windows.isoWeek,
