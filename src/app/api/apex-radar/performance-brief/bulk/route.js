@@ -5,7 +5,7 @@ import connectToDatabase from "@root/lib/mongodb";
 import { canAccessApexRadar } from "@/lib/apexRadarAccess";
 import {
     listPerformanceBriefBulkCustomers,
-    savePerformanceBriefBulkSlackChannels,
+    savePerformanceBriefBulkSettings,
 } from "@/lib/performanceBriefBulk";
 
 /**
@@ -36,7 +36,7 @@ export async function GET() {
 
 /**
  * PATCH /api/apex-radar/performance-brief/bulk
- * Body: { updates: [{ customerId, slackChannelId?, slackChannelName? }] }
+ * Body: { updates: [{ customerId, slackChannelId?, slackChannelName?, scheduleDayOfWeek?, scheduleHour? }] }
  */
 export async function PATCH(request) {
     const session = await getServerSession(authOptions);
@@ -61,7 +61,7 @@ export async function PATCH(request) {
 
     try {
         await connectToDatabase();
-        const saved = await savePerformanceBriefBulkSlackChannels(updates);
+        const saved = await savePerformanceBriefBulkSettings(updates);
         return NextResponse.json({ saved });
     } catch (e) {
         console.error("[apex-radar/performance-brief/bulk PATCH]", e);

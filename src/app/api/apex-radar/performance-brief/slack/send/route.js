@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import connectToDatabase from "@root/lib/mongodb";
-import { canAccessApexRadar } from "@/lib/apexRadarAccess";
+import { canAccessApexRadar, isApexRadarAdmin } from "@/lib/apexRadarAccess";
 import Customer from "@/models/Customer";
 import { sendPerformanceBriefToSlack } from "@/lib/performanceBriefSlack";
 import { getApexRadarCustomerSlackChannel } from "@/lib/apexRadarCustomerSlack";
@@ -31,6 +31,13 @@ export async function POST(request) {
     const customerId = String(body?.customerId || "").trim();
     if (!isPerformanceBriefCustomerId(customerId)) {
         return NextResponse.json({ error: "customerId is required" }, { status: 400 });
+    }
+
+    if (body?.bulkRun === true && !isApexRadarAdmin(session.user)) {
+        return NextResponse.json(
+            { error: "Only admins can run bulk Performance Brief sends." },
+            { status: 403 }
+        );
     }
 
     try {

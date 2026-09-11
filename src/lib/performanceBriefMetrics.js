@@ -4,6 +4,7 @@ import { buildPerformanceBriefWindows } from "@/lib/performanceBriefDates";
 import { fetchPerformanceBriefMeta } from "@/lib/performanceBriefMeta";
 import { fetchPerformanceBriefGoogle } from "@/lib/performanceBriefGoogle";
 import { analyzePerformanceBriefWithClaude } from "@/lib/performanceBriefClaude";
+import { applyPerformanceBriefIntent } from "@/lib/performanceBriefIntent";
 import { buildPerformanceBriefOptimizations } from "@/lib/performanceBriefOptimizations";
 import { formatPerformanceBriefSlack } from "@/lib/performanceBriefSlackPreview";
 
@@ -87,19 +88,21 @@ export async function generatePerformanceBrief(customerId) {
         google: googleResult,
     };
 
-    const optimizations = buildPerformanceBriefOptimizations(compact);
-    const narrative = await analyzePerformanceBriefWithClaude(compact, optimizations);
+    const { compact: intentCompact, accountIntent } = applyPerformanceBriefIntent(compact);
+    const optimizations = buildPerformanceBriefOptimizations(intentCompact, accountIntent);
+    const narrative = await analyzePerformanceBriefWithClaude(intentCompact, optimizations);
     const slackPreview = formatPerformanceBriefSlack({
-        compact,
+        compact: intentCompact,
         narrative,
         channelName: "",
     });
 
     return {
-        customer: compact.customer,
-        windows: compact.windows,
-        meta: metaResult,
-        google: googleResult,
+        customer: intentCompact.customer,
+        windows: intentCompact.windows,
+        meta: intentCompact.meta,
+        google: intentCompact.google,
+        accountIntent,
         narrative,
         optimizations: narrative.topOptimizations?.length
             ? narrative.topOptimizations

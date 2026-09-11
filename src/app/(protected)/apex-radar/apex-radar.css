@@ -1685,6 +1685,16 @@
   background: #fff;
 }
 
+.apex-radar-brief-bulk-schedule {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.apex-radar-brief-bulk-select--schedule {
+  min-width: 6.5rem;
+}
+
 .apex-radar-brief-bulk-log {
   list-style: none;
   margin: 0;

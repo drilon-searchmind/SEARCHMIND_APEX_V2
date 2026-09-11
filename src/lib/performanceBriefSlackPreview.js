@@ -1,5 +1,6 @@
 import { SLACK_LIGHT, SLACK_LIGHT_EMOJI } from "@/lib/performanceBriefConstants";
 import { channelLight, metricLight } from "@/lib/performanceBriefLights";
+import { formatTypeLine, num, rankTypes } from "@/lib/performanceBriefIntent";
 
 function fmtDk(n, digits = 0) {
     if (n == null || !Number.isFinite(Number(n))) return "—";
@@ -81,17 +82,13 @@ function pushSection(blocks, lines) {
     }
 }
 
-function rankedLines(title, rows, convLabel) {
+function rankedLines(title, rows, intent) {
     if (!rows?.length) return [];
-    const lines = [`:trophy: *${title}* (rangeret på ROAS)`];
-    rows.slice(0, 6).forEach((row, i) => {
-        const conv =
-            row.conversions == null
-                ? ""
-                : ` · ${fmtDk(row.conversions, Number.isInteger(row.conversions) ? 0 : 1)} ${convLabel}`;
-        lines.push(
-            `${i + 1}. ${row.type}: ROAS ${fmtDk(row.roas, 1)} · ${fmtDk(row.spendSharePct, 0)} % af spend${conv}`
-        );
+    const totalSpend = rows.reduce((s, r) => s + num(r.spend), 0);
+    const { rows: sorted, label } = rankTypes(rows, intent);
+    const lines = [`:trophy: *${title}* (${label})`];
+    sorted.slice(0, 6).forEach((row, i) => {
+        lines.push(`${i + 1}. ${formatTypeLine(row, intent, totalSpend)}`);
     });
     return lines;
 }
@@ -120,6 +117,8 @@ function combinedKpiTable(compact, currency) {
     const googleOk = compact?.google?.configured && !compact?.google?.error;
     const m7 = compact?.meta?.last7;
     const g7 = compact?.google?.last7;
+    const metaIntent = compact?.accountIntent?.meta;
+    const googleIntent = compact?.accountIntent?.google;
     const metaType = compact?.meta?.accountType || "ecommerce";
 
     const header = ["KPI", "Meta (7d)", "Meta Δ", "Google (7d)", "Google Δ"];
@@ -134,43 +133,55 @@ function combinedKpiTable(compact, currency) {
         ),
     ];
 
-    if (metaType === "lead" && metaOk) {
-        rows.push(
-            pivotRow(
-                "Leads",
-                fmtDk(m7.leads, 0),
-                deltaCell("leads", m7.vsPrev?.leads),
-                googleOk ? fmtDk(g7.conversions, 0) : "—",
-                googleOk ? deltaCell("conversions", g7.vsPrev?.conversions) : "—"
-            ),
-            pivotRow(
-                "Pris per lead / CPA",
-                fmtMoney(m7.cpl, currency),
-                deltaCell("cpl", m7.vsPrev?.cpl),
-                googleOk ? fmtMoney(g7.cpa, currency) : "—",
-                googleOk ? deltaCell("cpa", g7.vsPrev?.cpa) : "—"
-            )
-        );
-    } else {
+    const metaLeadKpi = metaIntent?.primaryKpi === "CPA";
+    const googleLeadKpi = googleIntent?.primaryKpi === "CPA";
+    const metaRoasKpi = metaIntent?.primaryKpi === "ROAS";
+    const googleRoasKpi = googleIntent?.primaryKpi === "ROAS";
+
+    if (metaRoasKpi || googleRoasKpi) {
         rows.push(
             pivotRow(
                 "Omsætning",
-                cellValue(metaOk, (w) => fmtMoney(w.revenue, currency), m7),
-                metaOk
-                    ? deltaCell("revenue", m7.vsPrev?.revenue, { spendPct: m7.vsPrev?.spend })
+                metaRoasKpi ? cellValue(metaOk, (w) => fmtMoney(w.revenue, currency), m7) : "—",
+                metaRoasKpi
+                    ? deltaCell("revenue", m7?.vsPrev?.revenue, { spendPct: m7?.vsPrev?.spend })
                     : "—",
-                cellValue(googleOk, (w) => fmtMoney(w.revenue, currency), g7),
-                googleOk
-                    ? deltaCell("revenue", g7.vsPrev?.revenue, { spendPct: g7.vsPrev?.spend })
+                googleRoasKpi ? cellValue(googleOk, (w) => fmtMoney(w.revenue, currency), g7) : "—",
+                googleRoasKpi
+                    ? deltaCell("revenue", g7?.vsPrev?.revenue, { spendPct: g7?.vsPrev?.spend })
                     : "—"
             ),
             pivotRow(
                 "ROAS",
-                cellValue(metaOk, (w) => fmtDk(w.roas, 2), m7),
-                metaOk ? deltaCell("roas", m7.vsPrev?.roas) : "—",
-                cellValue(googleOk, (w) => fmtDk(w.roas, 2), g7),
-                googleOk ? deltaCell("roas", g7.vsPrev?.roas) : "—"
+                metaRoasKpi ? cellValue(metaOk, (w) => fmtDk(w.roas, 2), m7) : "—",
+                metaRoasKpi ? deltaCell("roas", m7?.vsPrev?.roas) : "—",
+                googleRoasKpi ? cellValue(googleOk, (w) => fmtDk(w.roas, 2), g7) : "—",
+                googleRoasKpi ? deltaCell("roas", g7?.vsPrev?.roas) : "—"
+            )
+        );
+    }
+
+    if (metaLeadKpi || googleLeadKpi) {
+        rows.push(
+            pivotRow(
+                "Leads",
+                metaLeadKpi ? fmtDk(m7?.leads ?? m7?.conversions, 0) : "—",
+                metaLeadKpi ? deltaCell("leads", m7?.vsPrev?.leads ?? m7?.vsPrev?.conversions) : "—",
+                googleLeadKpi ? fmtDk(g7?.conversions, 0) : "—",
+                googleLeadKpi ? deltaCell("conversions", g7?.vsPrev?.conversions) : "—"
             ),
+            pivotRow(
+                "Pris per lead / CPA",
+                metaLeadKpi ? fmtMoney(m7?.cpl ?? m7?.cpa, currency) : "—",
+                metaLeadKpi ? deltaCell("cpl", m7?.vsPrev?.cpl ?? m7?.vsPrev?.cpa) : "—",
+                googleLeadKpi ? fmtMoney(g7?.cpa, currency) : "—",
+                googleLeadKpi ? deltaCell("cpa", g7?.vsPrev?.cpa) : "—"
+            )
+        );
+    }
+
+    if (!metaRoasKpi && !googleRoasKpi && !metaLeadKpi && !googleLeadKpi) {
+        rows.push(
             pivotRow(
                 metaType === "brand" ? "LP-visninger" : "Konverteringer",
                 cellValue(
@@ -178,16 +189,26 @@ function combinedKpiTable(compact, currency) {
                     (w) => fmtDk(metaType === "brand" ? w.landingPageViews : w.conversions, 0),
                     m7
                 ),
-                metaOk ? deltaCell("conversions", m7.vsPrev?.conversions) : "—",
+                metaOk ? deltaCell("conversions", m7?.vsPrev?.conversions) : "—",
                 cellValue(googleOk, (w) => fmtDk(w.conversions, 1), g7),
-                googleOk ? deltaCell("conversions", g7.vsPrev?.conversions) : "—"
-            ),
+                googleOk ? deltaCell("conversions", g7?.vsPrev?.conversions) : "—"
+            )
+        );
+    } else if (metaRoasKpi || googleRoasKpi) {
+        rows.push(
             pivotRow(
-                "CPA",
-                cellValue(metaOk, (w) => fmtMoney(w.cpa, currency), m7),
-                metaOk ? deltaCell("cpa", m7.vsPrev?.cpa) : "—",
-                cellValue(googleOk, (w) => fmtMoney(w.cpa, currency), g7),
-                googleOk ? deltaCell("cpa", g7.vsPrev?.cpa) : "—"
+                metaType === "brand" ? "LP-visninger" : "Konverteringer",
+                metaRoasKpi
+                    ? cellValue(
+                          metaOk,
+                          (w) =>
+                              fmtDk(metaType === "brand" ? w.landingPageViews : w.conversions, 0),
+                          m7
+                      )
+                    : "—",
+                metaRoasKpi ? deltaCell("conversions", m7?.vsPrev?.conversions) : "—",
+                googleRoasKpi ? cellValue(googleOk, (w) => fmtDk(w.conversions, 1), g7) : "—",
+                googleRoasKpi ? deltaCell("conversions", g7?.vsPrev?.conversions) : "—"
             )
         );
     }
@@ -291,7 +312,11 @@ export function formatPerformanceBriefSlack({ compact, narrative, channelName, o
     if (metaOk) {
         pushSection(blocks, [
             "",
-            ...rankedLines("Meta annoncetyper, seneste 7 dage", compact.meta.adTypes, "køb"),
+            ...rankedLines(
+                "Meta annoncetyper, seneste 7 dage",
+                compact.meta.adTypes,
+                compact.accountIntent?.meta
+            ),
         ]);
     } else if (compact?.meta?.skipReason) {
         pushSection(blocks, [":white_circle: *Meta* — ikke konfigureret"]);
@@ -302,7 +327,11 @@ export function formatPerformanceBriefSlack({ compact, narrative, channelName, o
     if (googleOk) {
         pushSection(blocks, [
             "",
-            ...rankedLines("Google kampagnetyper, seneste 7 dage", compact.google.campaignTypes, "konv."),
+            ...rankedLines(
+                "Google kampagnetyper, seneste 7 dage",
+                compact.google.campaignTypes,
+                compact.accountIntent?.google
+            ),
         ]);
     } else if (compact?.google?.skipReason) {
         pushSection(blocks, [":white_circle: *Google Ads* — ikke konfigureret"]);

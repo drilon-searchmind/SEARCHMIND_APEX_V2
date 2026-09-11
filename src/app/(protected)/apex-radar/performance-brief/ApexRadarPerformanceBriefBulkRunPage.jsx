@@ -1,10 +1,17 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import { FiAlertTriangle, FiPlay, FiRefreshCw, FiSave, FiSearch } from "react-icons/fi";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import CobaltLoader from "@/components/ui/CobaltLoader";
 import PerformanceBriefNavTabs from "./PerformanceBriefNavTabs";
+import {
+    SCHEDULE_DAY_OPTIONS,
+    SCHEDULE_HOUR_OPTIONS,
+    DEFAULT_SCHEDULE_DAY_OF_WEEK,
+    DEFAULT_SCHEDULE_HOUR,
+} from "@/lib/performanceBriefSchedule";
 
 const RUN_STATUS = {
     idle: "idle",
@@ -53,6 +60,8 @@ function statusLabel(status, message) {
 }
 
 export default function ApexRadarPerformanceBriefBulkRunPage() {
+    const { data: session } = useSession();
+    const isAdmin = Boolean(session?.user?.isAdmin);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [rows, setRows] = useState([]);
@@ -82,6 +91,8 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
                     customerName: c.customerName,
                     slackChannelId: c.slackChannelId || "",
                     slackChannelName: c.slackChannelName || "",
+                    scheduleDayOfWeek: c.scheduleDayOfWeek ?? DEFAULT_SCHEDULE_DAY_OF_WEEK,
+                    scheduleHour: c.scheduleHour ?? DEFAULT_SCHEDULE_HOUR,
                     integrations: c.integrations || {},
                 }))
             );
@@ -164,6 +175,8 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
                 customerId: r.customerId,
                 slackChannelId: r.slackChannelId,
                 slackChannelName: r.slackChannelName,
+                scheduleDayOfWeek: r.scheduleDayOfWeek,
+                scheduleHour: r.scheduleHour,
             }));
             const res = await fetch("/api/apex-radar/performance-brief/bulk", {
                 method: "PATCH",
@@ -174,7 +187,7 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
             if (!res.ok) throw new Error(data.error || "Failed to save channels");
             setSaveFeedback({
                 type: "success",
-                message: `Saved Slack channels for ${updates.length} customers.`,
+                message: `Saved settings for ${updates.length} customers.`,
             });
         } catch (e) {
             setSaveFeedback({ type: "error", message: e.message || "Failed to save channels" });
@@ -188,6 +201,8 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
     };
 
     const handleRunBulk = async () => {
+        if (!isAdmin) return;
+
         const queue = rows.filter(hasSlackChannel);
         if (!queue.length) return;
 
@@ -229,6 +244,7 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
                         slackPreview: genData.slackPreview,
                         slackChannelId: row.slackChannelId,
                         slackChannelName: row.slackChannelName,
+                        bulkRun: true,
                     }),
                 });
                 const sendData = await sendRes.json().catch(() => ({}));
@@ -281,10 +297,9 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
                     <div>
                         <h1 className="apex-radar-section__title">Bulk run & Slack test</h1>
                         <p className="apex-radar-section__subtitle">
-                            Assign a Slack channel to include a customer in the bulk run. Customers
-                            with a channel are active automatically — save channels, then generate
-                            and post briefs manually. Runs one customer at a time (future cron will
-                            use the same pipeline).
+                            Assign a Slack channel and weekly send time for each customer. Cron
+                            posts automatically on that day and hour (Europe/Copenhagen, default
+                            Monday 10:00). Save settings, or run briefs manually below.
                         </p>
                     </div>
                     <div className="apex-radar-cs-toolbar__actions">
@@ -304,17 +319,21 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
                             disabled={loading || running || saving || !rows.length}
                         >
                             <FiSave className="h-3.5 w-3.5" />
-                            {saving ? "Saving…" : "Save all channels"}
+                            {saving ? "Saving…" : "Save all settings"}
                         </button>
                         <button
                             type="button"
                             className="apex-radar-alerts-panel__slack-btn"
                             onClick={handleRunBulk}
-                            disabled={loading || running || saving || readyCount === 0}
+                            disabled={
+                                !isAdmin || loading || running || saving || readyCount === 0
+                            }
                             title={
-                                readyCount === 0
-                                    ? "Assign a Slack channel to at least one customer"
-                                    : `Run ${readyCount} brief(s)`
+                                !isAdmin
+                                    ? "Admin only — manual bulk run"
+                                    : readyCount === 0
+                                      ? "Assign a Slack channel to at least one customer"
+                                      : `Run ${readyCount} brief(s)`
                             }
                         >
                             <FiPlay className="h-3.5 w-3.5" />
@@ -440,12 +459,13 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
                                     <th>Customer</th>
                                     <th>Integrations</th>
                                     <th>Slack channel</th>
+                                    <th>Cron schedule</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {!filteredRows.length ? (
                                     <tr>
-                                        <td colSpan={3} className="apex-radar-empty">
+                                        <td colSpan={4} className="apex-radar-empty">
                                             No customers match the current filters.
                                         </td>
                                     </tr>
@@ -525,6 +545,46 @@ export default function ApexRadarPerformanceBriefBulkRunPage() {
                                                     </option>
                                                 ))}
                                             </select>
+                                        </td>
+                                        <td>
+                                            <div className="apex-radar-brief-bulk-schedule">
+                                                <select
+                                                    value={row.scheduleDayOfWeek}
+                                                    onChange={(e) =>
+                                                        updateRow(row.customerId, {
+                                                            scheduleDayOfWeek: Number(
+                                                                e.target.value
+                                                            ),
+                                                        })
+                                                    }
+                                                    disabled={running || saving}
+                                                    className="apex-radar-brief-bulk-select apex-radar-brief-bulk-select--schedule"
+                                                    aria-label={`Schedule day for ${row.customerName}`}
+                                                >
+                                                    {SCHEDULE_DAY_OPTIONS.map((opt) => (
+                                                        <option key={opt.value} value={opt.value}>
+                                                            {opt.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <select
+                                                    value={row.scheduleHour}
+                                                    onChange={(e) =>
+                                                        updateRow(row.customerId, {
+                                                            scheduleHour: Number(e.target.value),
+                                                        })
+                                                    }
+                                                    disabled={running || saving}
+                                                    className="apex-radar-brief-bulk-select apex-radar-brief-bulk-select--schedule"
+                                                    aria-label={`Schedule hour for ${row.customerName}`}
+                                                >
+                                                    {SCHEDULE_HOUR_OPTIONS.map((opt) => (
+                                                        <option key={opt.value} value={opt.value}>
+                                                            {opt.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

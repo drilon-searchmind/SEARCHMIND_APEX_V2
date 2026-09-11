@@ -50,6 +50,7 @@ export async function POST(request) {
                 windows: brief.windows,
                 meta: brief.meta,
                 google: brief.google,
+                accountIntent: brief.accountIntent,
             },
             narrative: brief.narrative,
             channelName: slackChannelName,
@@ -60,6 +61,7 @@ export async function POST(request) {
             windows: brief.windows,
             meta: brief.meta,
             google: brief.google,
+            accountIntent: brief.accountIntent,
             narrative: brief.narrative,
             claude: brief.claude,
             slack: {

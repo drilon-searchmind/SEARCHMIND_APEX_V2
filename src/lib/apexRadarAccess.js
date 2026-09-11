@@ -6,3 +6,7 @@ export function canAccessApexRadar(user) {
     if (!user) return false;
     return Boolean(user.isAdmin || !user.isExternal);
 }
+
+export function isApexRadarAdmin(user) {
+    return Boolean(user?.isAdmin);
+}

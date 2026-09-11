@@ -270,6 +270,7 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
     const [windows, setWindows] = useState(null);
     const [meta, setMeta] = useState(null);
     const [google, setGoogle] = useState(null);
+    const [accountIntent, setAccountIntent] = useState(null);
     const [narrative, setNarrative] = useState(null);
     const [claude, setClaude] = useState(null);
     const [slackChannelId, setSlackChannelId] = useState("");
@@ -310,6 +311,7 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
             setWindows(data.windows);
             setMeta(data.meta);
             setGoogle(data.google);
+            setAccountIntent(data.accountIntent || null);
             setNarrative(data.narrative);
             setClaude(data.claude);
             if (data.slack) {
@@ -345,6 +347,7 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
         setCustomer(null);
         setMeta(null);
         setGoogle(null);
+        setAccountIntent(null);
         setNarrative(null);
         setError(null);
         setSlackSendFeedback(null);
@@ -357,11 +360,11 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
     const slackPreview = useMemo(() => {
         if (!customer || (!meta && !google)) return null;
         return formatPerformanceBriefSlack({
-            compact: { customer, windows, meta, google },
+            compact: { customer, windows, meta, google, accountIntent },
             narrative,
             channelName: slackChannelName,
         });
-    }, [customer, windows, meta, google, narrative, slackChannelName]);
+    }, [customer, windows, meta, google, accountIntent, narrative, slackChannelName]);
 
     const persistSlack = useCallback(
         async ({ id, name }) => {

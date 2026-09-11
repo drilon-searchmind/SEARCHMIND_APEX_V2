@@ -28,3 +28,8 @@ export function isApexRadarCronEnabled() {
     const flag = (process.env.APEX_RADAR_CRON_ENABLED || "true").trim().toLowerCase();
     return flag !== "false" && flag !== "0" && flag !== "off";
 }
+
+export function isPerformanceBriefCronEnabled() {
+    const flag = (process.env.PERFORMANCE_BRIEF_CRON_ENABLED || "true").trim().toLowerCase();
+    return flag !== "false" && flag !== "0" && flag !== "off";
+}

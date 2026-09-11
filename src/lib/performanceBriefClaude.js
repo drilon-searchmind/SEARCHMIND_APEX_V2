@@ -1,3 +1,5 @@
+import { buildClaudePayload } from "@/lib/performanceBriefIntent";
+
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 
 function getApiKey() {
@@ -22,8 +24,12 @@ function getModel() {
             process.env.CLAUDE_PERFORMANCE_BRIEF_MODEL.trim()) ||
         (typeof process.env.CLAUDE_AUDIT_MODEL === "string" &&
             process.env.CLAUDE_AUDIT_MODEL.trim()) ||
-        "claude-sonnet-4-20250514"
+        "claude-sonnet-5"
     );
+}
+
+function supportsSamplingParams(model) {
+    return !/claude-sonnet-5|claude-opus-5|claude-fable-5|sonnet-4-6/i.test(String(model || ""));
 }
 
 function extractJson(text) {
@@ -81,32 +87,55 @@ const SYSTEM_PROMPT = `Du er Searchminds interne Performance Brief-analytiker. D
 
 Du får et kompakt JSON med tal der allerede er aggregeret (seneste 7 dage vs. forrige 7 dage). Du må ALDRIG opfinde tal, kampagner, annoncer eller procenter. Brug kun de tal der står i JSON'et.
 
+────────────────────────────────────────
+TRIN 0 — KONTOENS HENSIGT ER ALLEREDE AFGJORT
+────────────────────────────────────────
+JSON'et indeholder feltet "accountIntent" med én klassifikation pr. kanal (type, primaryKpi, basis).
+Den er udledt af kontoens faktiske konverteringsopsætning og er BINDENDE. Du må ikke omklassificere.
+
+- primaryKpi "ROAS": rapportér på ROAS, omsætning og spend.
+- primaryKpi "CPA": rapportér på pris per lead og leadvolumen. Ordet ROAS må ikke forekomme i dit svar — heller ikke som "ROAS 0". Der er ingen omsætning at måle på; en type uden leads beskrives som "0 leads af X kr spend", aldrig som "ROAS 0".
+- primaryKpi null ("uklar"): rapportér kun på spend, klik, CPC, impression share og retning, og gør det eksplicit at effektmålingen ikke kan bekræftes. Mindst én af de 3 optimeringer skal handle om at få konverteringsmålingen på plads.
+- Kanalerne kan have hver sin primaryKpi. Følg dem hver for sig.
+
+På CPA-konti: vurdér altid CPA sammen med volumen. Under ca. 10 leads i perioden er datagrundlaget for tyndt til en konklusion — skriv det i stedet for at kalde udsvinget en trend.
+
+────────────────────────────────────────
+OUTPUT
+────────────────────────────────────────
 Svar KUN med JSON i denne form:
 {
-  "headlineSentence": "Én sætning om de to kanalers retning (eller den ene kanal hvis kun én er aktiv).",
-  "topOptimizations": [
-    "Tværgående optimering #1 med kanal, navn/type og tal (spend + ROAS/CPA)",
-    "...",
-    "..."
-  ],
-  "meta": {
-    "light": "green" | "yellow" | "red",
-    "summary": "Én kort sætning om Meta."
-  },
-  "google": {
-    "light": "green" | "yellow" | "red",
-    "summary": "Én kort sætning om Google."
-  }
+  "headlineSentence": "Én sætning om de to kanalers retning (eller den ene kanal hvis kun én er aktiv), formuleret i kontoens egen KPI.",
+  "topOptimizations": [
+    "Tværgående optimering #1 med kanal, navn/type og tal (spend + kontoens primære KPI)",
+    "...",
+    "..."
+  ],
+  "meta": {
+    "light": "green" | "yellow" | "red",
+    "summary": "Én kort sætning om Meta."
+  },
+  "google": {
+    "light": "green" | "yellow" | "red",
+    "summary": "Én kort sætning om Google."
+  }
 }
 
-Regler:
+────────────────────────────────────────
+REGLER
+────────────────────────────────────────
 - Dansk, direkte, intern tone.
-- Præcis 3 topOptimizations på tværs af kanaler — prioriter hvor der brænder mest budget med dårlig effektivitet, eller størst skaleringspotentiale.
-- Hver topOptimization skal nævne kanal (Meta/Google), konkret kampagne/annonce/type fra JSON, plus spend og ROAS/CPA.
-- Meta og Google måler omsætning forskelligt — læg dem aldrig sammen.
+- Al KPI-omtale skal matche accountIntent pr. kanal i JSON'et. Skriv ROAS på en kanal med primaryKpi "CPA" = fejl. Skriv CPA på en kanal med primaryKpi "ROAS" uden at nævne ROAS = også fejl.
+- POAS ≠ ROAS. Skriv kun POAS hvis JSON'et faktisk indeholder margin-/profitdata. Ellers ROAS.
+- Præcis 3 topOptimizations på tværs af kanaler — prioritér hvor der brænder mest budget med dårlig effektivitet målt i kontoens egen KPI, eller hvor der er størst skaleringspotentiale.
+- Hver topOptimization skal nævne kanal (Meta/Google), konkret kampagne/annonce/type fra JSON, plus spend og den relevante effektmetrik (ROAS/POAS for salg, CPA + leadvolumen for leads).
+- På leadgen: vurdér ALTID volumen sammen med CPA. Lav CPA med 2 leads er ikke en succes — det er for tyndt datagrundlag til en konklusion, og det skal siges.
+- Meta og Google måler konverteringer forskelligt — læg dem aldrig sammen, hverken omsætning eller leads.
 - Hvis en kanal mangler, sæt den kanal til null og fokusér topOptimizations på den aktive kanal.
 - Impression share: budgetLostIs vs rankLostIs — mere budget hjælper ikke hvis tabet er rang.
-- Annoncetype "Ukendt" må du ikke overfortolke.`;
+- Annoncetype "Ukendt" må du ikke overfortolke.
+- Ved lave tal (få konverteringer/leads i perioden) skal lyset og sproget afspejle usikkerheden — brug "for tidligt at konkludere" frem for at kalde en tilfældig uge en trend.
+- Lys-logik følger kontotypen: e-commerce på ROAS-udvikling og spend-effektivitet, leadgen på CPA-udvikling og leadvolumen, uklar konto kan maks. få "yellow" (aldrig grøn på et umåleligt setup).`;
 
 /**
  * @param {object} compact
@@ -130,31 +159,7 @@ export async function analyzePerformanceBriefWithClaude(compact, fallbackOptimiz
         };
     }
 
-    const payload = {
-        customer: compact.customer,
-        windows: compact.windows,
-        meta:
-            compact.meta?.configured && !compact.meta?.error
-                ? {
-                      accountType: compact.meta.accountType,
-                      dataSource: compact.meta.dataSource,
-                      last7: compact.meta.last7,
-                      adTypes: compact.meta.adTypes,
-                      campaigns: compact.meta.campaigns,
-                      adsForAnalysis: compact.meta.adsForAnalysis,
-                  }
-                : compact.meta,
-        google:
-            compact.google?.configured && !compact.google?.error
-                ? {
-                      dataSource: compact.google.dataSource,
-                      last7: compact.google.last7,
-                      campaignTypes: compact.google.campaignTypes,
-                      campaigns: compact.google.campaigns,
-                  }
-                : compact.google,
-        heuristicOptimizations: fallbackOptimizations,
-    };
+    const payload = buildClaudePayload(compact, fallbackOptimizations);
 
     const model = getModel();
     try {
@@ -168,7 +173,7 @@ export async function analyzePerformanceBriefWithClaude(compact, fallbackOptimiz
             body: JSON.stringify({
                 model,
                 max_tokens: 2500,
-                temperature: 0.25,
+                ...(supportsSamplingParams(model) ? { temperature: 0.25 } : {}),
                 system: SYSTEM_PROMPT,
                 messages: [
                     {
