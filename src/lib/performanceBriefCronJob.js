@@ -9,7 +9,7 @@ import { generatePerformanceBrief } from "@/lib/performanceBriefMetrics";
 import { formatPerformanceBriefSlack } from "@/lib/performanceBriefSlackPreview";
 import { sendPerformanceBriefToSlack, listPerformanceBriefSlackChannels } from "@/lib/performanceBriefSlack";
 import { buildPerformanceBriefWindows } from "@/lib/performanceBriefDates";
-import { isCustomerScheduleDue, isCustomerScheduleDueToday } from "@/lib/performanceBriefSchedule";
+import { isCustomerScheduleDue } from "@/lib/performanceBriefSchedule";
 import {
     tryClaimWeeklySlackDelivery,
     markWeeklySlackDeliverySent,
@@ -64,17 +64,12 @@ async function listCustomersForCronTick(options = {}) {
         return customers;
     }
 
-    const tz = getCronTimezone();
-    const now = dayjs();
-
-    if (options.dueToday) {
-        return customers.filter((customer) => isCustomerScheduleDueToday(customer, now, tz));
-    }
-
     if (options.force) {
         return customers;
     }
 
+    const tz = getCronTimezone();
+    const now = dayjs();
     return customers.filter((customer) => isCustomerScheduleDue(customer, now, tz));
 }
 
@@ -125,9 +120,7 @@ function parseEnvBool(name) {
 export function shouldSendSlackForCron(options = {}) {
     if (parseEnvBool("PERFORMANCE_BRIEF_CRON_DRY_RUN")) return false;
     if (options.dryRun) return false;
-    if ((options.skipSchedule || options.dueToday) && !options.send && !options.continue) {
-        return false;
-    }
+    if (options.skipSchedule && !options.send && !options.continue) return false;
     return true;
 }
 
@@ -406,43 +399,6 @@ async function resetRunForForce(run) {
 }
 
 /** Re-run a single test customer without resetting the full weekly run. */
-async function resetDueTodayCustomersInRun(run, dueCustomers) {
-    const dueIds = new Set(dueCustomers.map((c) => c.customerId));
-
-    await PerformanceBriefSlackDelivery.deleteMany({
-        weekKey: run.weekKey,
-        customerId: { $in: [...dueIds] },
-    });
-
-    for (const testCustomer of dueCustomers) {
-        const row = run.customers.find((c) => c.customerId === testCustomer.customerId);
-        if (row) {
-            row.customerName = testCustomer.customerName;
-            row.slackChannelId = testCustomer.slackChannelId;
-            row.slackChannelName = testCustomer.slackChannelName;
-            row.status = CUSTOMER_STATUS.pending;
-            row.error = "";
-            row.finishedAt = undefined;
-            continue;
-        }
-        run.customers.push({
-            customerId: testCustomer.customerId,
-            customerName: testCustomer.customerName,
-            slackChannelId: testCustomer.slackChannelId,
-            slackChannelName: testCustomer.slackChannelName,
-            status: CUSTOMER_STATUS.pending,
-            error: "",
-        });
-    }
-
-    run.status = RUN_STATUS.running;
-    run.finishedAt = undefined;
-    run.batchLockUntil = null;
-    run.stats = recomputeStats(run.customers);
-    await run.save();
-    return run;
-}
-
 async function resetTestCustomerInRun(run, testCustomer) {
     await PerformanceBriefSlackDelivery.deleteMany({
         weekKey: run.weekKey,

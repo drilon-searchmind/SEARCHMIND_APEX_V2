@@ -71,6 +71,6 @@ export function isCustomerScheduleDue(
     const schedule = normalizePerformanceBriefSchedule(customer);
     const local = now.tz(timezoneName);
     if (local.day() !== schedule.scheduleDayOfWeek) return false;
-    if (local.hour() !== schedule.scheduleHour) return false;
-    return local.minute() < SCHEDULE_WINDOW_MINUTES;
+    // Match the scheduled hour only — Vercel cron often fires 30–60s after :00.
+    return local.hour() === schedule.scheduleHour;
 }
