@@ -333,6 +333,7 @@ export async function runPerformanceBriefForCustomer({
             },
             narrative: brief.narrative,
             channelName: slackChannelName || "",
+            customerId,
         });
 
         if (!sendSlack) {

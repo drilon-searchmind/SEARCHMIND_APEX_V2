@@ -5,9 +5,9 @@ import connectToDatabase from "@root/lib/mongodb";
 import { canAccessApexRadar } from "@/lib/apexRadarAccess";
 import Customer from "@/models/Customer";
 import {
-    getApexRadarCustomerSlackChannel,
-    setApexRadarCustomerSlackChannel,
-} from "@/lib/apexRadarCustomerSlack";
+    getPerformanceBriefCustomerSettings,
+    savePerformanceBriefCustomerSettings,
+} from "@/lib/performanceBriefCustomerSettings";
 import { isPerformanceBriefCustomerId } from "@/lib/performanceBriefConstants";
 
 function customerIdFromRequest(request, body = null) {
@@ -38,13 +38,14 @@ export async function GET(request) {
 
     try {
         await connectToDatabase();
-        const exists = await Customer.findById(customerId).select("_id").lean();
-        if (!exists) {
+        const customerDoc = await Customer.findById(customerId).select("_id customerName").lean();
+        if (!customerDoc) {
             return NextResponse.json({ error: "Customer not found" }, { status: 404 });
         }
-        const settings = await getApexRadarCustomerSlackChannel(customerId);
+        const settings = await getPerformanceBriefCustomerSettings(customerId);
         return NextResponse.json({
             customerId,
+            customerName: customerDoc.customerName || "Untitled",
             settings,
         });
     } catch (e) {
@@ -58,7 +59,7 @@ export async function GET(request) {
 
 /**
  * PATCH /api/apex-radar/performance-brief/settings
- * Body: { customerId?, slackChannelId?, slackChannelName? }
+ * Body: { customerId?, slackChannelId?, slackChannelName?, scheduleDayOfWeek?, scheduleHour? }
  */
 export async function PATCH(request) {
     const session = await getServerSession(authOptions);
@@ -83,21 +84,25 @@ export async function PATCH(request) {
 
     try {
         await connectToDatabase();
-        const exists = await Customer.findById(customerId).select("_id").lean();
-        if (!exists) {
+        const customerDoc = await Customer.findById(customerId).select("_id customerName").lean();
+        if (!customerDoc) {
             return NextResponse.json({ error: "Customer not found" }, { status: 404 });
         }
 
-        const slack = {};
-        if (body.slackChannelId !== undefined) slack.slackChannelId = body.slackChannelId;
-        if (body.slackChannelName !== undefined) slack.slackChannelName = body.slackChannelName;
+        const patch = {};
+        if (body.slackChannelId !== undefined) patch.slackChannelId = body.slackChannelId;
+        if (body.slackChannelName !== undefined) patch.slackChannelName = body.slackChannelName;
+        if (body.scheduleDayOfWeek !== undefined) patch.scheduleDayOfWeek = body.scheduleDayOfWeek;
+        if (body.scheduleHour !== undefined) patch.scheduleHour = body.scheduleHour;
+
         const settings =
-            Object.keys(slack).length > 0
-                ? await setApexRadarCustomerSlackChannel(customerId, slack)
-                : await getApexRadarCustomerSlackChannel(customerId);
+            Object.keys(patch).length > 0
+                ? await savePerformanceBriefCustomerSettings(customerId, patch)
+                : await getPerformanceBriefCustomerSettings(customerId);
 
         return NextResponse.json({
             customerId,
+            customerName: customerDoc.customerName || "Untitled",
             settings,
         });
     } catch (e) {

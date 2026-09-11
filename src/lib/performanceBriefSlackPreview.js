@@ -1,4 +1,8 @@
-import { SLACK_LIGHT, SLACK_LIGHT_EMOJI } from "@/lib/performanceBriefConstants";
+import {
+    SLACK_LIGHT,
+    SLACK_LIGHT_EMOJI,
+    performanceBriefCustomerSettingsUrl,
+} from "@/lib/performanceBriefConstants";
 import { channelLight, metricLight } from "@/lib/performanceBriefLights";
 import { formatTypeLine, num, rankTypes } from "@/lib/performanceBriefIntent";
 
@@ -237,11 +241,20 @@ function periodLabel(windows) {
 /**
  * Format the Performance Brief as Slack Block Kit. Safe for client import.
  */
-export function formatPerformanceBriefSlack({ compact, narrative, channelName, optimizations }) {
+export function formatPerformanceBriefSlack({
+    compact,
+    narrative,
+    channelName,
+    optimizations,
+    preview = false,
+    customerId,
+}) {
     const customerName = compact?.customer?.customerName || "Customer";
     const currency = compact?.customer?.currency || "DKK";
     const week = compact?.windows?.isoWeek;
     const dest = channelName ? `#${String(channelName).replace(/^#/, "")}` : "unassigned channel";
+    const resolvedCustomerId = customerId || compact?.customer?.customerId || "";
+    const settingsUrl = performanceBriefCustomerSettingsUrl(resolvedCustomerId);
     const metaOk = compact?.meta?.configured && !compact?.meta?.error;
     const googleOk = compact?.google?.configured && !compact?.google?.error;
 
@@ -265,23 +278,17 @@ export function formatPerformanceBriefSlack({ compact, narrative, channelName, o
             : optimizations || [];
 
     const fallbackText = `${customerName} · uge ${week} — Performance Brief`;
+    const period = periodLabel(compact?.windows);
+    const contextLine = preview
+        ? `Performance Brief · ${period} · would post to ${dest}`
+        : period
+          ? `Performance Brief · ${period}`
+          : "Performance Brief";
+
     const blocks = [
         {
-            type: "header",
-            text: {
-                type: "plain_text",
-                text: `${customerName} · uge ${week}`.slice(0, 150),
-                emoji: true,
-            },
-        },
-        {
             type: "context",
-            elements: [
-                {
-                    type: "mrkdwn",
-                    text: `Performance Brief · ${periodLabel(compact?.windows)} · would post to ${dest}`,
-                },
-            ],
+            elements: [{ type: "mrkdwn", text: contextLine }],
         },
     ];
 
@@ -342,13 +349,13 @@ export function formatPerformanceBriefSlack({ compact, narrative, channelName, o
         ]);
     }
 
-    if (metaOk && googleOk) {
+    if (settingsUrl) {
         blocks.push({
             type: "context",
             elements: [
                 {
                     type: "mrkdwn",
-                    text: "_Google spend via samme API som Apex overview. Meta/Google omsætning må ikke lægges sammen._",
+                    text: `You can adjust your schedule timing for this customer here: ${settingsUrl}`,
                 },
             ],
         });

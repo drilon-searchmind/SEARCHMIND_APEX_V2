@@ -119,24 +119,37 @@ export async function savePerformanceBriefBulkSettings(updates = []) {
             });
         }
 
-        const schedule = normalizePerformanceBriefSchedule(row);
         const cid = new mongoose.Types.ObjectId(customerId);
-        await ApexRadarPerformanceBriefCustomerSettings.findOneAndUpdate(
-            { customerId: cid },
-            {
-                $set: {
-                    scheduleDayOfWeek: schedule.scheduleDayOfWeek,
-                    scheduleHour: schedule.scheduleHour,
-                    updatedAt: new Date(),
-                },
-            },
-            { upsert: true, new: true, runValidators: true }
-        );
+        const hasSchedulePatch =
+            row.scheduleDayOfWeek !== undefined || row.scheduleHour !== undefined;
 
+        let briefDoc = await ApexRadarPerformanceBriefCustomerSettings.findOne({ customerId: cid })
+            .select("scheduleDayOfWeek scheduleHour slackChannelId slackChannelName")
+            .lean();
+
+        if (hasSchedulePatch) {
+            const schedule = normalizePerformanceBriefSchedule({
+                scheduleDayOfWeek: row.scheduleDayOfWeek ?? briefDoc?.scheduleDayOfWeek,
+                scheduleHour: row.scheduleHour ?? briefDoc?.scheduleHour,
+            });
+            briefDoc = await ApexRadarPerformanceBriefCustomerSettings.findOneAndUpdate(
+                { customerId: cid },
+                {
+                    $set: {
+                        scheduleDayOfWeek: schedule.scheduleDayOfWeek,
+                        scheduleHour: schedule.scheduleHour,
+                        updatedAt: new Date(),
+                    },
+                },
+                { upsert: true, new: true, runValidators: true }
+            ).lean();
+        }
+
+        const schedule = normalizePerformanceBriefSchedule(briefDoc || row);
         saved.push({
             customerId,
-            slackChannelId: slack?.slackChannelId,
-            slackChannelName: slack?.slackChannelName,
+            slackChannelId: slack?.slackChannelId ?? briefDoc?.slackChannelId,
+            slackChannelName: slack?.slackChannelName ?? briefDoc?.slackChannelName,
             scheduleDayOfWeek: schedule.scheduleDayOfWeek,
             scheduleHour: schedule.scheduleHour,
         });

@@ -12,6 +12,13 @@ import {
     PERFORMANCE_BRIEF_PLATFORM_LABELS,
 } from "@/lib/performanceBriefConstants";
 import { formatPerformanceBriefSlack } from "@/lib/performanceBriefSlackPreview";
+import {
+    DEFAULT_SCHEDULE_DAY_OF_WEEK,
+    DEFAULT_SCHEDULE_HOUR,
+    SCHEDULE_DAY_OPTIONS,
+    SCHEDULE_HOUR_OPTIONS,
+    formatPerformanceBriefScheduleLabel,
+} from "@/lib/performanceBriefSchedule";
 
 const SKIP_REASON_LABELS = {
     no_google_ads_customer_id: "Google Ads account not configured",
@@ -261,11 +268,12 @@ function PlatformStatus({ label, platform }) {
 }
 
 export default function ApexRadarPerformanceBriefClient({ customerId }) {
-    const [loading, setLoading] = useState(true);
+    const [settingsLoading, setSettingsLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
     const [saveError, setSaveError] = useState(null);
+    const [customerName, setCustomerName] = useState("");
     const [customer, setCustomer] = useState(null);
     const [windows, setWindows] = useState(null);
     const [meta, setMeta] = useState(null);
@@ -275,6 +283,8 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
     const [claude, setClaude] = useState(null);
     const [slackChannelId, setSlackChannelId] = useState("");
     const [slackChannelName, setSlackChannelName] = useState("");
+    const [scheduleDayOfWeek, setScheduleDayOfWeek] = useState(DEFAULT_SCHEDULE_DAY_OF_WEEK);
+    const [scheduleHour, setScheduleHour] = useState(DEFAULT_SCHEDULE_HOUR);
     const [channels, setChannels] = useState([]);
     const [channelsLoading, setChannelsLoading] = useState(false);
     const [channelsLoaded, setChannelsLoaded] = useState(false);
@@ -290,8 +300,13 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
         );
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || "Failed to load settings");
+        setCustomerName(data.customerName || "");
         setSlackChannelId(data.settings?.slackChannelId || "");
         setSlackChannelName(data.settings?.slackChannelName || "");
+        setScheduleDayOfWeek(
+            data.settings?.scheduleDayOfWeek ?? DEFAULT_SCHEDULE_DAY_OF_WEEK
+        );
+        setScheduleHour(data.settings?.scheduleHour ?? DEFAULT_SCHEDULE_HOUR);
     }, [customerId]);
 
     const generateBrief = useCallback(async () => {
@@ -308,6 +323,9 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.error || "Failed to generate Performance Brief");
             setCustomer(data.customer);
+            if (data.customer?.customerName) {
+                setCustomerName(data.customer.customerName);
+            }
             setWindows(data.windows);
             setMeta(data.meta);
             setGoogle(data.google);
@@ -322,7 +340,6 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
             setError(e.message || "Failed to generate Performance Brief");
         } finally {
             setGenerating(false);
-            setLoading(false);
         }
     }, [customerId]);
 
@@ -344,6 +361,7 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
     }, [channelsLoaded, channelsLoading]);
 
     useEffect(() => {
+        setCustomerName("");
         setCustomer(null);
         setMeta(null);
         setGoogle(null);
@@ -351,11 +369,11 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
         setNarrative(null);
         setError(null);
         setSlackSendFeedback(null);
-        setLoading(true);
+        setSettingsLoading(true);
         loadSettings()
             .catch((e) => setError(e.message || "Failed to load settings"))
-            .finally(() => generateBrief());
-    }, [loadSettings, generateBrief]);
+            .finally(() => setSettingsLoading(false));
+    }, [loadSettings, customerId]);
 
     const slackPreview = useMemo(() => {
         if (!customer || (!meta && !google)) return null;
@@ -363,11 +381,13 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
             compact: { customer, windows, meta, google, accountIntent },
             narrative,
             channelName: slackChannelName,
+            preview: true,
+            customerId,
         });
-    }, [customer, windows, meta, google, accountIntent, narrative, slackChannelName]);
+    }, [customer, windows, meta, google, accountIntent, narrative, slackChannelName, customerId]);
 
-    const persistSlack = useCallback(
-        async ({ id, name }) => {
+    const persistSettings = useCallback(
+        async (patch) => {
             if (!customerId) return;
             setSaving(true);
             setSaveError(null);
@@ -379,13 +399,20 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             customerId,
-                            slackChannelId: id,
-                            slackChannelName: name,
+                            ...patch,
                         }),
                     }
                 );
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(data.error || "Failed to save settings");
+                if (data.settings) {
+                    setSlackChannelId(data.settings.slackChannelId || "");
+                    setSlackChannelName(data.settings.slackChannelName || "");
+                    setScheduleDayOfWeek(
+                        data.settings.scheduleDayOfWeek ?? DEFAULT_SCHEDULE_DAY_OF_WEEK
+                    );
+                    setScheduleHour(data.settings.scheduleHour ?? DEFAULT_SCHEDULE_HOUR);
+                }
             } catch (e) {
                 setSaveError(e.message || "Failed to save");
             } finally {
@@ -400,8 +427,32 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
         const name = ch?.name || "";
         setSlackChannelId(channelId);
         setSlackChannelName(name);
-        persistSlack({ id: channelId, name });
+        persistSettings({
+            slackChannelId: channelId,
+            slackChannelName: name,
+        });
     };
+
+    const handleScheduleDayChange = (day) => {
+        const nextDay = Number(day);
+        setScheduleDayOfWeek(nextDay);
+        persistSettings({ scheduleDayOfWeek: nextDay });
+    };
+
+    const handleScheduleHourChange = (hour) => {
+        const nextHour = Number(hour);
+        setScheduleHour(nextHour);
+        persistSettings({ scheduleHour: nextHour });
+    };
+
+    const scheduleLabel = useMemo(
+        () =>
+            formatPerformanceBriefScheduleLabel({
+                scheduleDayOfWeek,
+                scheduleHour,
+            }),
+        [scheduleDayOfWeek, scheduleHour]
+    );
 
     const filteredChannels = useMemo(() => {
         const q = channelQuery.trim().toLowerCase();
@@ -410,16 +461,22 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
     }, [channels, channelQuery]);
 
     const handleSendSlack = useCallback(async () => {
-        if (!customerId || !slackChannelId || !slackPreview) return;
+        if (!customerId || !slackChannelId || !slackPreview || !customer) return;
         setSlackSending(true);
         setSlackSendFeedback(null);
         try {
+            const slackPreviewForSend = formatPerformanceBriefSlack({
+                compact: { customer, windows, meta, google, accountIntent },
+                narrative,
+                channelName: slackChannelName,
+                customerId,
+            });
             const res = await fetch("/api/apex-radar/performance-brief/slack/send", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     customerId,
-                    slackPreview,
+                    slackPreview: slackPreviewForSend,
                 }),
             });
             const data = await res.json().catch(() => ({}));
@@ -437,7 +494,18 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
         } finally {
             setSlackSending(false);
         }
-    }, [customerId, slackChannelId, slackChannelName, slackPreview]);
+    }, [
+        customerId,
+        slackChannelId,
+        slackChannelName,
+        slackPreview,
+        customer,
+        windows,
+        meta,
+        google,
+        accountIntent,
+        narrative,
+    ]);
 
     const dateRange = windows?.last7
         ? { startDate: windows.last7.start, endDate: windows.last7.end }
@@ -449,11 +517,15 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
                 variant="cobalt"
                 showRunAudit={false}
                 title="Performance Brief"
-                label={customer?.customerName || "Performance Brief"}
+                label={
+                    customer?.customerName ||
+                    customerName ||
+                    "Performance Brief"
+                }
                 showAnalyzeWithAi={false}
                 showPdfExport={false}
                 dateRange={dateRange}
-                loading={loading || generating}
+                loading={settingsLoading || generating}
             />
 
             <PerformanceBriefNavTabs />
@@ -461,10 +533,13 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
             <div className="apex-radar-panel apex-radar-panel--padded">
                 <div className="apex-radar-cs-toolbar">
                     <div>
-                        <h1 className="apex-radar-section__title">Slack destination</h1>
+                        <h1 className="apex-radar-section__title">
+                            {customerName || customer?.customerName || "Customer"}
+                        </h1>
                         <p className="apex-radar-section__subtitle">
-                            Assign this customer to a Slack channel, generate the weekly brief, then send
-                            it manually. Daily cron is not wired yet.
+                            Slack &amp; schedule — assign a channel and weekly send time
+                            (Europe/Copenhagen). The cron posts automatically at the scheduled time;
+                            you can also generate and send manually below.
                         </p>
                     </div>
                     <div className="apex-radar-cs-toolbar__actions">
@@ -472,7 +547,7 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
                             type="button"
                             className="apex-radar-alerts-panel__slack-btn"
                             onClick={() => generateBrief()}
-                            disabled={loading || generating || saving}
+                            disabled={settingsLoading || generating || saving}
                         >
                             <FiRefreshCw
                                 className={`h-3.5 w-3.5${generating ? " animate-spin" : ""}`}
@@ -529,8 +604,51 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
                             </option>
                         ))}
                     </select>
+                    <label className="apex-radar-field-label" htmlFor="brief-schedule-day">
+                        Weekly send time
+                    </label>
+                    <div className="apex-radar-brief-bulk-schedule">
+                        <select
+                            id="brief-schedule-day"
+                            value={scheduleDayOfWeek}
+                            onChange={(e) => handleScheduleDayChange(e.target.value)}
+                            disabled={saving || generating}
+                            className="apex-radar-brief-bulk-select apex-radar-brief-bulk-select--schedule"
+                            aria-label="Schedule day"
+                        >
+                            {SCHEDULE_DAY_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </option>
+                            ))}
+                        </select>
+                        <select
+                            id="brief-schedule-hour"
+                            value={scheduleHour}
+                            onChange={(e) => handleScheduleHourChange(e.target.value)}
+                            disabled={saving || generating}
+                            className="apex-radar-brief-bulk-select apex-radar-brief-bulk-select--schedule"
+                            aria-label="Schedule hour"
+                        >
+                            {SCHEDULE_HOUR_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <p className="apex-radar-section__subtitle mt-2">
+                        Cron posts every{" "}
+                        <span className="font-medium text-[var(--color-ink-2)]">{scheduleLabel}</span>{" "}
+                        when a Slack channel is assigned.
+                    </p>
                     {channelsError ? <p className="apex-radar-alert mt-2">{channelsError}</p> : null}
                     {saveError ? <p className="apex-radar-alert mt-2">{saveError}</p> : null}
+                    {saving ? (
+                        <p className="apex-radar-section__subtitle mt-2" role="status">
+                            Saving…
+                        </p>
+                    ) : null}
                 </div>
             </div>
 
@@ -541,9 +659,11 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
                 </div>
             ) : null}
 
-            {loading && !meta && !google ? (
+            {settingsLoading ? (
+                <CobaltLoader variant="block" title="Loading settings" />
+            ) : generating && !customer ? (
                 <CobaltLoader variant="block" title="Generating Performance Brief" />
-            ) : (
+            ) : customer ? (
                 <div className="apex-radar-cs-platforms">
                     <section className="apex-radar-panel apex-radar-panel--padded">
                         <h2 className="apex-radar-section__title">
@@ -558,6 +678,11 @@ export default function ApexRadarPerformanceBriefClient({ customerId }) {
                         <PlatformStatus label="Google Ads" platform={google} />
                     </section>
                 </div>
+            ) : (
+                <p className="apex-radar-empty px-4 py-6">
+                    Click &ldquo;Generate brief&rdquo; to load channel performance and preview the
+                    Slack message.
+                </p>
             )}
 
             <SlackPreview

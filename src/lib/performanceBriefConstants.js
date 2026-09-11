@@ -17,6 +17,16 @@ export function isPerformanceBriefCustomerId(value) {
     return /^[a-fA-F0-9]{24}$/.test(String(value || "").trim());
 }
 
+const PERFORMANCE_BRIEF_APP_BASE =
+    (typeof process !== "undefined" && process.env.NEXT_PUBLIC_APP_URL) ||
+    "https://apex.searchmind.tech";
+
+export function performanceBriefCustomerSettingsUrl(customerId) {
+    const id = String(customerId || "").trim();
+    if (!isPerformanceBriefCustomerId(id)) return "";
+    return `${String(PERFORMANCE_BRIEF_APP_BASE).replace(/\/$/, "")}/apex-radar/performance-brief/${id}`;
+}
+
 export const SLACK_LIGHT = {
     green: ":large_green_circle:",
     yellow: ":large_yellow_circle:",
