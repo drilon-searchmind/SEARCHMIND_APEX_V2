@@ -19,7 +19,7 @@ import {
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-const DEFAULT_TIME_BUDGET_MS = 240_000;
+const DEFAULT_TIME_BUDGET_MS = 285_000;
 const CUSTOMER_STATUS = {
     pending: "pending",
     running: "running",
@@ -143,11 +143,57 @@ function mergeDueCustomersIntoRun(run, dueCustomers) {
     return changed;
 }
 
+/** Add any cron-queue customers missing from the run (does not reset completed rows). */
+function mergeQueueCustomersIntoRun(run, queueCustomers) {
+    const existingById = new Map(run.customers.map((c) => [c.customerId, c]));
+    let changed = false;
+
+    for (const customer of queueCustomers) {
+        const existing = existingById.get(customer.customerId);
+        if (!existing) {
+            run.customers.push({
+                customerId: customer.customerId,
+                customerName: customer.customerName,
+                slackChannelId: customer.slackChannelId,
+                slackChannelName: customer.slackChannelName,
+                status: CUSTOMER_STATUS.pending,
+                error: "",
+            });
+            changed = true;
+            continue;
+        }
+
+        existing.customerName = customer.customerName;
+        existing.slackChannelId = customer.slackChannelId;
+        existing.slackChannelName = customer.slackChannelName;
+    }
+
+    if (changed) {
+        run.stats = recomputeStats(run.customers);
+    }
+
+    return changed;
+}
+
+function countPendingCustomers(run) {
+    return run.customers.filter(
+        (c) => c.status === CUSTOMER_STATUS.pending || c.status === CUSTOMER_STATUS.running
+    ).length;
+}
+
 function getCronBaseUrl() {
+    const configured = (
+        process.env.APEX_RADAR_CRON_URL ||
+        process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+        ""
+    ).trim();
+    if (configured) {
+        return configured.replace(/\/$/, "");
+    }
     if (process.env.VERCEL_URL) {
         return `https://${process.env.VERCEL_URL}`;
     }
-    return (process.env.APEX_RADAR_CRON_URL || "http://localhost:3000").replace(/\/$/, "");
+    return "http://localhost:3000";
 }
 
 function parseEnvBool(name) {
@@ -388,14 +434,33 @@ async function triggerContinuation(runId) {
 
     const url = `${getCronBaseUrl()}/api/cron/performance-brief?runId=${encodeURIComponent(
         runId
-    )}&continue=1&skipSchedule=1`;
+    )}&continue=1&skipSchedule=1&send=1`;
 
-    fetch(url, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${secret}` },
-    }).catch((err) => {
-        console.error("[performance-brief/cron] continuation fetch failed:", err);
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+        const res = await fetch(url, {
+            method: "GET",
+            headers: { Authorization: `Bearer ${secret}` },
+            signal: controller.signal,
+        });
+        if (!res.ok) {
+            const body = await res.text().catch(() => "");
+            console.error(
+                "[performance-brief/cron] continuation HTTP",
+                res.status,
+                body.slice(0, 500)
+            );
+        }
+    } catch (err) {
+        if (err?.name === "AbortError") {
+            console.info("[performance-brief/cron] continuation dispatched", { runId });
+        } else {
+            console.error("[performance-brief/cron] continuation fetch failed:", err);
+        }
+    } finally {
+        clearTimeout(timeout);
+    }
 }
 
 async function loadRunById(runId) {
@@ -528,7 +593,25 @@ async function resolveRun({ weekKey, runId, force, tickOptions = {} }) {
 
     const queue = await listPerformanceBriefCronCustomers();
     const dueCustomers = await listCustomersForCronTick(tickOptions);
+    let run = await loadRunByWeekKey(weekKey);
+
     if (!dueCustomers.length) {
+        if (run && countPendingCustomers(run) > 0 && !force) {
+            await syncCustomersFromDeliveries(run);
+            mergeQueueCustomersIntoRun(run, queue);
+            run.status = RUN_STATUS.running;
+            run.stats = recomputeStats(run.customers);
+            await run.save();
+            console.info("[performance-brief/cron] resume_pending_run", {
+                weekKey,
+                runId: String(run._id),
+                pending: run.stats.pending,
+                queueSize: queue.length,
+                total: run.stats.total,
+            });
+            return run;
+        }
+
         const diagnostics = buildCronTickDiagnostics(
             tickOptions.testCustomerId
                 ? await applyTestOverrides(queue, tickOptions)
@@ -547,10 +630,10 @@ async function resolveRun({ weekKey, runId, force, tickOptions = {} }) {
         return { skipped: true, reason, weekKey, diagnostics };
     }
 
-    let run = await loadRunByWeekKey(weekKey);
-
     if (!run) {
         run = await createRunForWeek(weekKey, dueCustomers);
+        mergeQueueCustomersIntoRun(run, queue);
+        await run.save();
         return run;
     }
 
@@ -564,6 +647,7 @@ async function resolveRun({ weekKey, runId, force, tickOptions = {} }) {
 
     await syncCustomersFromDeliveries(run);
     mergeDueCustomersIntoRun(run, dueCustomers);
+    mergeQueueCustomersIntoRun(run, queue);
 
     const dueIds = new Set(dueCustomers.map((customer) => customer.customerId));
     const pendingRemain = run.customers.some(
@@ -751,6 +835,8 @@ export async function runPerformanceBriefCron(options = {}) {
             return { success: false, error: "Run not found", runId: options.runId || null };
         }
         await syncCustomersFromDeliveries(run);
+        mergeQueueCustomersIntoRun(run, await listPerformanceBriefCronCustomers());
+        await run.save();
         if (run.status === RUN_STATUS.completed || run.status === RUN_STATUS.failed) {
             const pendingRemain = run.stats?.pending > 0;
             if (!pendingRemain) {
