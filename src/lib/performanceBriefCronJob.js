@@ -143,33 +143,18 @@ function mergeDueCustomersIntoRun(run, dueCustomers) {
     return changed;
 }
 
-/** Add any cron-queue customers missing from the run (does not reset completed rows). */
-function mergeQueueCustomersIntoRun(run, queueCustomers) {
-    const existingById = new Map(run.customers.map((c) => [c.customerId, c]));
+/** Refresh names/channels on rows already in the run (never adds new customers). */
+function syncRunCustomerMetadata(run, queueCustomers) {
+    const queueById = new Map(queueCustomers.map((c) => [c.customerId, c]));
     let changed = false;
 
-    for (const customer of queueCustomers) {
-        const existing = existingById.get(customer.customerId);
-        if (!existing) {
-            run.customers.push({
-                customerId: customer.customerId,
-                customerName: customer.customerName,
-                slackChannelId: customer.slackChannelId,
-                slackChannelName: customer.slackChannelName,
-                status: CUSTOMER_STATUS.pending,
-                error: "",
-            });
-            changed = true;
-            continue;
-        }
-
-        existing.customerName = customer.customerName;
-        existing.slackChannelId = customer.slackChannelId;
-        existing.slackChannelName = customer.slackChannelName;
-    }
-
-    if (changed) {
-        run.stats = recomputeStats(run.customers);
+    for (const row of run.customers) {
+        const customer = queueById.get(row.customerId);
+        if (!customer) continue;
+        row.customerName = customer.customerName;
+        row.slackChannelId = customer.slackChannelId;
+        row.slackChannelName = customer.slackChannelName;
+        changed = true;
     }
 
     return changed;
@@ -598,7 +583,7 @@ async function resolveRun({ weekKey, runId, force, tickOptions = {} }) {
     if (!dueCustomers.length) {
         if (run && countPendingCustomers(run) > 0 && !force) {
             await syncCustomersFromDeliveries(run);
-            mergeQueueCustomersIntoRun(run, queue);
+            syncRunCustomerMetadata(run, queue);
             run.status = RUN_STATUS.running;
             run.stats = recomputeStats(run.customers);
             await run.save();
@@ -631,10 +616,7 @@ async function resolveRun({ weekKey, runId, force, tickOptions = {} }) {
     }
 
     if (!run) {
-        run = await createRunForWeek(weekKey, dueCustomers);
-        mergeQueueCustomersIntoRun(run, queue);
-        await run.save();
-        return run;
+        return createRunForWeek(weekKey, dueCustomers);
     }
 
     if (force && tickOptions.testCustomerId && dueCustomers.length) {
@@ -647,7 +629,7 @@ async function resolveRun({ weekKey, runId, force, tickOptions = {} }) {
 
     await syncCustomersFromDeliveries(run);
     mergeDueCustomersIntoRun(run, dueCustomers);
-    mergeQueueCustomersIntoRun(run, queue);
+    syncRunCustomerMetadata(run, queue);
 
     const dueIds = new Set(dueCustomers.map((customer) => customer.customerId));
     const pendingRemain = run.customers.some(
@@ -835,7 +817,7 @@ export async function runPerformanceBriefCron(options = {}) {
             return { success: false, error: "Run not found", runId: options.runId || null };
         }
         await syncCustomersFromDeliveries(run);
-        mergeQueueCustomersIntoRun(run, await listPerformanceBriefCronCustomers());
+        syncRunCustomerMetadata(run, await listPerformanceBriefCronCustomers());
         await run.save();
         if (run.status === RUN_STATUS.completed || run.status === RUN_STATUS.failed) {
             const pendingRemain = run.stats?.pending > 0;
