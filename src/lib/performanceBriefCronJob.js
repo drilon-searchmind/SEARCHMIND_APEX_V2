@@ -683,8 +683,6 @@ async function processRunBatch(run, { timeBudgetMs = getTimeBudgetMs(), sendSlac
     const started = Date.now();
     const stopBeforeMs = timeBudgetMs - BATCH_SAFETY_MARGIN_MS;
     const results = [];
-    let shouldChain = false;
-
     try {
         await syncCustomersFromDeliveries(lockedRun);
         for (const row of lockedRun.customers) {
@@ -769,12 +767,23 @@ async function processRunBatch(run, { timeBudgetMs = getTimeBudgetMs(), sendSlac
             (c) => c.status === CUSTOMER_STATUS.pending || c.status === CUSTOMER_STATUS.running
         );
 
-        shouldChain = pendingRemain;
-
         if (!pendingRemain) {
             lockedRun.status = lockedRun.stats.failed > 0 ? RUN_STATUS.failed : RUN_STATUS.completed;
             lockedRun.finishedAt = new Date();
             await lockedRun.save();
+            console.info("[performance-brief/cron] run_completed", {
+                runId,
+                weekKey: lockedRun.weekKey,
+                stats: lockedRun.stats,
+            });
+        } else {
+            console.info("[performance-brief/cron] batch_complete_pending_remain", {
+                runId,
+                weekKey: lockedRun.weekKey,
+                processedThisBatch: results.length,
+                stats: lockedRun.stats,
+                note: "Next batch will run on the scheduled cron tick (no self-chain — avoids Vercel 508).",
+            });
         }
 
         return {
@@ -783,14 +792,11 @@ async function processRunBatch(run, { timeBudgetMs = getTimeBudgetMs(), sendSlac
             status: lockedRun.status,
             stats: lockedRun.stats,
             processed: results,
-            chained: pendingRemain,
+            pendingRemain,
             dryRun: !sendSlack,
         };
     } finally {
         await releaseRunBatchLock(runId);
-        if (shouldChain) {
-            await dispatchPerformanceBriefContinuation(runId);
-        }
     }
 }
 
