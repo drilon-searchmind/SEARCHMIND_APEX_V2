@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import {
     verifyApexRadarCronRequest,
     isPerformanceBriefCronEnabled,
 } from "@/lib/apexRadarCronAuth";
-import { runPerformanceBriefCron } from "@/lib/performanceBriefCronJob";
+import {
+    dispatchPerformanceBriefContinuation,
+    runPerformanceBriefCron,
+} from "@/lib/performanceBriefCronJob";
 
 /** Vercel Pro: allow long Meta/Google/Claude fetches per customer batch. */
 export const maxDuration = 300;
@@ -66,6 +70,11 @@ async function handleCron(request) {
 
     try {
         const result = await runPerformanceBriefCron(options);
+        const pending = Number(result?.stats?.pending || 0);
+        const runId = result?.runId;
+        if (!result?.skipped && pending > 0 && runId && !result?.chained) {
+            waitUntil(dispatchPerformanceBriefContinuation(runId));
+        }
         if (result.skipped) {
             return NextResponse.json(result, { status: 200 });
         }

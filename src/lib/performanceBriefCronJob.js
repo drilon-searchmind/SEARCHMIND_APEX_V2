@@ -19,7 +19,10 @@ import {
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-const DEFAULT_TIME_BUDGET_MS = 285_000;
+/** Stay well under Vercel's 300s limit so cleanup + continuation always run. */
+const DEFAULT_TIME_BUDGET_MS = 230_000;
+const BATCH_SAFETY_MARGIN_MS = 25_000;
+const MIN_CUSTOMER_SLOT_MS = 45_000;
 const CUSTOMER_STATUS = {
     pending: "pending",
     running: "running",
@@ -27,7 +30,7 @@ const CUSTOMER_STATUS = {
     error: "error",
     skipped: "skipped",
 };
-const BATCH_LOCK_MS = 280_000;
+const BATCH_LOCK_MS = 120_000;
 const RUN_STATUS = {
     pending: "pending",
     running: "running",
@@ -124,11 +127,7 @@ function mergeDueCustomersIntoRun(run, dueCustomers) {
         existing.customerName = customer.customerName;
         existing.slackChannelId = customer.slackChannelId;
         existing.slackChannelName = customer.slackChannelName;
-        if (
-            existing.status === CUSTOMER_STATUS.success ||
-            existing.status === CUSTOMER_STATUS.skipped ||
-            existing.status === CUSTOMER_STATUS.error
-        ) {
+        if (existing.status === CUSTOMER_STATUS.error) {
             existing.status = CUSTOMER_STATUS.pending;
             existing.error = "";
             existing.finishedAt = undefined;
@@ -410,24 +409,25 @@ export async function runPerformanceBriefForCustomer({
     }
 }
 
-async function triggerContinuation(runId) {
+export function buildPerformanceBriefContinuationUrl(runId) {
+    return `${getCronBaseUrl()}/api/cron/performance-brief?runId=${encodeURIComponent(
+        runId
+    )}&continue=1&skipSchedule=1&send=1`;
+}
+
+/** Fire the next batch (separate serverless invocation). */
+export async function dispatchPerformanceBriefContinuation(runId) {
     const secret = (process.env.CRON_SECRET || "").trim();
     if (!secret) {
         console.error("[performance-brief/cron] CRON_SECRET missing; cannot chain continuation.");
-        return;
+        return { ok: false, reason: "missing_secret" };
     }
 
-    const url = `${getCronBaseUrl()}/api/cron/performance-brief?runId=${encodeURIComponent(
-        runId
-    )}&continue=1&skipSchedule=1&send=1`;
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const url = buildPerformanceBriefContinuationUrl(runId);
     try {
         const res = await fetch(url, {
             method: "GET",
             headers: { Authorization: `Bearer ${secret}` },
-            signal: controller.signal,
         });
         if (!res.ok) {
             const body = await res.text().catch(() => "");
@@ -436,15 +436,13 @@ async function triggerContinuation(runId) {
                 res.status,
                 body.slice(0, 500)
             );
+            return { ok: false, status: res.status };
         }
+        console.info("[performance-brief/cron] continuation started", { runId, status: res.status });
+        return { ok: true, status: res.status };
     } catch (err) {
-        if (err?.name === "AbortError") {
-            console.info("[performance-brief/cron] continuation dispatched", { runId });
-        } else {
-            console.error("[performance-brief/cron] continuation fetch failed:", err);
-        }
-    } finally {
-        clearTimeout(timeout);
+        console.error("[performance-brief/cron] continuation fetch failed:", err);
+        return { ok: false, error: err?.message || String(err) };
     }
 }
 
@@ -683,14 +681,25 @@ async function processRunBatch(run, { timeBudgetMs = getTimeBudgetMs(), sendSlac
     }
 
     const started = Date.now();
+    const stopBeforeMs = timeBudgetMs - BATCH_SAFETY_MARGIN_MS;
     const results = [];
+    let shouldChain = false;
 
     try {
         await syncCustomersFromDeliveries(lockedRun);
+        for (const row of lockedRun.customers) {
+            if (row.status === CUSTOMER_STATUS.running) {
+                row.status = CUSTOMER_STATUS.pending;
+                row.error = "";
+            }
+        }
         lockedRun.status = RUN_STATUS.running;
         await lockedRun.save();
 
-        while (Date.now() - started < timeBudgetMs) {
+        while (Date.now() - started < stopBeforeMs) {
+            const elapsed = Date.now() - started;
+            if (stopBeforeMs - elapsed < MIN_CUSTOMER_SLOT_MS) break;
+
             const next = lockedRun.customers.find((c) => c.status === CUSTOMER_STATUS.pending);
             if (!next) break;
 
@@ -760,12 +769,12 @@ async function processRunBatch(run, { timeBudgetMs = getTimeBudgetMs(), sendSlac
             (c) => c.status === CUSTOMER_STATUS.pending || c.status === CUSTOMER_STATUS.running
         );
 
+        shouldChain = pendingRemain;
+
         if (!pendingRemain) {
             lockedRun.status = lockedRun.stats.failed > 0 ? RUN_STATUS.failed : RUN_STATUS.completed;
             lockedRun.finishedAt = new Date();
             await lockedRun.save();
-        } else {
-            await triggerContinuation(runId);
         }
 
         return {
@@ -779,6 +788,9 @@ async function processRunBatch(run, { timeBudgetMs = getTimeBudgetMs(), sendSlac
         };
     } finally {
         await releaseRunBatchLock(runId);
+        if (shouldChain) {
+            await dispatchPerformanceBriefContinuation(runId);
+        }
     }
 }
 
