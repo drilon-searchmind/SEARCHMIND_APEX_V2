@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/apex-radar-slack",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/performance-brief/prepare",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/performance-brief/deliver",
+      "schedule": "0 */4 * * *"
     }
   ]
 }

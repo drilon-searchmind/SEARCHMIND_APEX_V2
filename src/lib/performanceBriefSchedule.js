@@ -9,8 +9,8 @@ dayjs.extend(timezone);
 export const DEFAULT_SCHEDULE_DAY_OF_WEEK = 1;
 export const DEFAULT_SCHEDULE_HOUR = 10;
 
-/** Cron + UI use 2-hour slots (08:00, 10:00, 12:00, …). */
-export const SCHEDULE_SLOT_HOURS = 2;
+/** Cron + UI use 4-hour slots (00:00, 04:00, 08:00, 12:00, 16:00, 20:00). */
+export const SCHEDULE_SLOT_HOURS = 4;
 
 export const SCHEDULE_DAY_OPTIONS = [
     { value: 1, label: "Monday" },
@@ -41,7 +41,7 @@ export function normalizeScheduleDayOfWeek(value) {
     return day;
 }
 
-/** Snap to nearest lower 2-hour slot (e.g. 11 → 10, 9 → 8). */
+/** Snap to nearest lower 4-hour slot (e.g. 11 → 8, 9 → 8). */
 export function normalizeScheduleHour(value) {
     const n = Number(value);
     if (!Number.isFinite(n)) return DEFAULT_SCHEDULE_HOUR;
@@ -74,7 +74,7 @@ export function formatPerformanceBriefScheduleLabel(schedule = {}) {
 
 /**
  * Whether a customer's brief should run in the current cron tick.
- * Matches the full 2-hour slot (e.g. 10:00 schedule → 10:00–11:59 local).
+ * Matches the full 4-hour slot (e.g. 08:00 schedule → 08:00–11:59 local).
  * @param {{ scheduleDayOfWeek?: number, scheduleHour?: number }} customer
  * @param {import("dayjs").Dayjs} [now]
  * @param {string} [timezoneName]
