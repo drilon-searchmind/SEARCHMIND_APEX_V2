@@ -88,7 +88,7 @@ async function handleCron(request) {
  *   runId — resume a specific run
  *   continue=1 — process next batch for runId
  *   force=1 — re-run current week even if completed
- *   skipSchedule=1 — manual trigger (respects per-customer schedule unless --force)
+ *   skipSchedule=1 — manual trigger (bypasses per-customer schedule; use send=1 to post Slack)
  *   send=1 — allow Slack posts for manual skipSchedule runs (default: dry-run)
  *   testCustomerId — limit run to one customer (manual testing)
  *   testChannelName — override Slack channel e.g. 1337-crm (manual testing)

@@ -64,7 +64,7 @@ async function listCustomersForCronTick(options = {}) {
         return customers;
     }
 
-    if (options.force) {
+    if (options.force || options.skipSchedule) {
         return customers;
     }
 
@@ -211,6 +211,12 @@ async function applyTestOverrides(customers, options = {}) {
             }
             channelId = resolved.id;
             channelName = resolved.name;
+        }
+        if (process.env.VERCEL && !options.testChannelName && !options.testChannelId) {
+            console.warn(
+                "[performance-brief/cron] PERFORMANCE_BRIEF_CRON_TEST_CHANNEL is set — all Slack posts will go to",
+                channelName || channelId
+            );
         }
         rows = rows.map((c) => ({
             ...c,
@@ -528,8 +534,17 @@ async function resolveRun({ weekKey, runId, force, tickOptions = {} }) {
                 ? await applyTestOverrides(queue, tickOptions)
                 : queue
         );
-        console.info("[performance-brief/cron] no_due_customers", diagnostics);
-        return { skipped: true, reason: "no_due_customers", weekKey, diagnostics };
+        const reason =
+            diagnostics.queueSize === 0 ? "empty_queue" : "no_matching_schedule";
+        const testChannelEnv = String(
+            process.env.PERFORMANCE_BRIEF_CRON_TEST_CHANNEL || ""
+        ).trim();
+        console.info("[performance-brief/cron] no_due_customers", {
+            reason,
+            testChannelEnvOverride: testChannelEnv || null,
+            ...diagnostics,
+        });
+        return { skipped: true, reason, weekKey, diagnostics };
     }
 
     let run = await loadRunByWeekKey(weekKey);

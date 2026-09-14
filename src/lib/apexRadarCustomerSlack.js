@@ -19,7 +19,7 @@ function fromDoc(doc) {
     };
 }
 
-function pickPreferredSlack(csDoc, briefDoc) {
+export function pickPreferredSlack(csDoc, briefDoc) {
     const cs = fromDoc(csDoc);
     const brief = fromDoc(briefDoc);
     const csHas = Boolean(cs.slackChannelId);

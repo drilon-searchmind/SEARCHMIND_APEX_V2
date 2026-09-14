@@ -1,11 +1,15 @@
 import mongoose from "mongoose";
 import Customer from "@/models/Customer";
+import ApexRadarCsCustomerSettings from "@/models/ApexRadarCsCustomerSettings";
 import ApexRadarPerformanceBriefCustomerSettings from "@/models/ApexRadarPerformanceBriefCustomerSettings";
 import {
     getServiceDashboardConfigWarnings,
     isValidIntegrationId,
 } from "@/lib/customerServiceIntegrations";
-import { setApexRadarCustomerSlackChannel } from "@/lib/apexRadarCustomerSlack";
+import {
+    pickPreferredSlack,
+    setApexRadarCustomerSlackChannel,
+} from "@/lib/apexRadarCustomerSlack";
 import { isPerformanceBriefCustomerId } from "@/lib/performanceBriefConstants";
 import { normalizePerformanceBriefSchedule } from "@/lib/performanceBriefSchedule";
 
@@ -60,37 +64,59 @@ export async function listPerformanceBriefBulkCustomers() {
 
 /**
  * Active customers with a Performance Brief Slack channel assigned (cron queue).
+ * Uses the same CS + Brief Slack merge as the settings UI (not Brief-only).
  */
 export async function listPerformanceBriefCronCustomers() {
-    const settingsDocs = await ApexRadarPerformanceBriefCustomerSettings.find({
-        slackChannelId: { $exists: true, $nin: ["", null] },
-    })
-        .select("customerId slackChannelId slackChannelName scheduleDayOfWeek scheduleHour")
-        .lean();
+    const [briefDocs, csDocs] = await Promise.all([
+        ApexRadarPerformanceBriefCustomerSettings.find({})
+            .select("customerId slackChannelId slackChannelName scheduleDayOfWeek scheduleHour updatedAt")
+            .lean(),
+        ApexRadarCsCustomerSettings.find({})
+            .select("customerId slackChannelId slackChannelName updatedAt")
+            .lean(),
+    ]);
 
-    if (!settingsDocs.length) return [];
+    const briefByCustomerId = new Map(briefDocs.map((doc) => [String(doc.customerId), doc]));
+    const csByCustomerId = new Map(csDocs.map((doc) => [String(doc.customerId), doc]));
 
-    const customerIds = settingsDocs.map((doc) => doc.customerId);
+    const candidateIds = new Set();
+    for (const doc of briefDocs) {
+        if (String(doc.slackChannelId || "").trim()) {
+            candidateIds.add(String(doc.customerId));
+        }
+    }
+    for (const doc of csDocs) {
+        if (String(doc.slackChannelId || "").trim()) {
+            candidateIds.add(String(doc.customerId));
+        }
+    }
+
+    if (!candidateIds.size) return [];
+
     const customers = await Customer.find({
-        _id: { $in: customerIds },
+        _id: { $in: [...candidateIds] },
         isArchived: { $ne: true },
     })
         .select("_id customerName")
         .sort({ customerName: 1 })
         .lean();
 
-    const settingsByCustomerId = new Map(
-        settingsDocs.map((doc) => [String(doc.customerId), doc])
-    );
-
     return customers
         .map((c) => {
-            const briefSettings = mapBriefSettingsRow(settingsByCustomerId.get(String(c._id)) || {});
-            if (!briefSettings.slackChannelId) return null;
+            const customerId = String(c._id);
+            const briefDoc = briefByCustomerId.get(customerId);
+            const csDoc = csByCustomerId.get(customerId);
+            const slack = pickPreferredSlack(csDoc, briefDoc);
+            if (!slack.slackChannelId) return null;
+
+            const schedule = normalizePerformanceBriefSchedule(briefDoc || {});
             return {
-                customerId: String(c._id),
+                customerId,
                 customerName: c.customerName || "Untitled",
-                ...briefSettings,
+                slackChannelId: slack.slackChannelId,
+                slackChannelName: slack.slackChannelName,
+                scheduleDayOfWeek: schedule.scheduleDayOfWeek,
+                scheduleHour: schedule.scheduleHour,
             };
         })
         .filter(Boolean);
