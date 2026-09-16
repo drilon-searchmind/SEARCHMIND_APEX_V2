@@ -116,7 +116,9 @@ export async function runPerformanceBriefPrepare(options = {}) {
     const weekKey = getPerformanceBriefWeekKey();
     const dueCustomers = await listCustomersForPrepare(ctx, options);
     const preparedIds = await listPreparedCustomerIds(weekKey);
-    const reprepareAll = Boolean(options.manual && options.force);
+    const chainDepth = Number(options.chainDepth || 0);
+    // First manual batch may refresh all; continuations must skip already-prepared rows.
+    const reprepareAll = Boolean(options.manual && options.force && chainDepth === 0);
     const todo = reprepareAll
         ? dueCustomers
         : dueCustomers.filter((c) => !preparedIds.has(c.customerId));
@@ -192,9 +194,9 @@ export async function runPerformanceBriefPrepare(options = {}) {
 
     let continued = false;
     if (timedOut && remaining > 0) {
-        continued = dispatchOutboxContinuation("prepare", {
+        continued = await dispatchOutboxContinuation("prepare", {
             manual: options.manual,
-            chainDepth: options.chainDepth,
+            chainDepth,
         });
     }
 
