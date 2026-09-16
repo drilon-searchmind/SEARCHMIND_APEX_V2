@@ -57,7 +57,7 @@ async function handleCron(request) {
 /**
  * Manual test CRON A — run from Vercel dashboard ("Run Cron") or every 10 min (resume).
  * All Slack customers · today · #apex-test-cron on deliver · skips already-prepared rows.
- * Re-run until nextStep says complete, or wait for */10 resume cron.
+ * Re-run until nextStep says complete, or wait for the every-10-min resume cron.
  */
 export async function GET(request) {
     return handleCron(request);
