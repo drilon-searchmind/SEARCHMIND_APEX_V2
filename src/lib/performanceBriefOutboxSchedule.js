@@ -17,6 +17,8 @@ dayjs.extend(timezone);
 /**
  * @typedef {Object} DeliveryContext
  * @property {boolean} testMode
+ * @property {boolean} manual
+ * @property {boolean} useTestChannel post to #apex-test-cron
  * @property {string} timezone
  * @property {string} nowLocal
  * @property {string} deliveryDate YYYY-MM-DD (Copenhagen)
@@ -25,18 +27,29 @@ dayjs.extend(timezone);
 
 /**
  * Production: delivery day = today (prepare at 04:00, deliver in 4-hour slots same day).
- * Test mode: delivery day = tomorrow; prepare includes all Slack-assigned customers (ignores schedule day).
+ * Test mode (env): delivery day = tomorrow; all Slack customers; #apex-test-cron.
+ * Manual (?manual=1): delivery day = today; all Slack customers; #apex-test-cron; run now.
  * @param {import("dayjs").Dayjs} [now]
+ * @param {{ manual?: boolean }} [options]
  * @returns {DeliveryContext}
  */
-export function getDeliveryContext(now = dayjs()) {
+export function getDeliveryContext(now = dayjs(), options = {}) {
+    const manual = Boolean(options.manual);
     const testMode = isPerformanceBriefTestMode();
     const timezoneName = OUTBOX_CRON_TZ;
     const local = now.tz(timezoneName);
-    const deliveryLocal = testMode ? local.add(1, "day") : local;
+
+    let deliveryLocal = local;
+    if (manual) {
+        deliveryLocal = local;
+    } else if (testMode) {
+        deliveryLocal = local.add(1, "day");
+    }
 
     return {
         testMode,
+        manual,
+        useTestChannel: manual || testMode,
         timezone: timezoneName,
         nowLocal: local.format("YYYY-MM-DD HH:mm:ss"),
         deliveryDate: deliveryLocal.format("YYYY-MM-DD"),
@@ -71,6 +84,7 @@ export function isCustomerInDeliverySlot(customer, now = dayjs(), ctx) {
  */
 export function isPrepareWindowAllowed(now = dayjs(), options = {}) {
     if (options.force) return true;
+    if (options.manual) return true;
     if (isPerformanceBriefTestMode()) return true;
 
     const local = now.tz(OUTBOX_CRON_TZ);

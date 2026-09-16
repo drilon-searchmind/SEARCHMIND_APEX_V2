@@ -16,18 +16,15 @@ function parseBoolParam(value, defaultValue = false) {
     return defaultValue;
 }
 
-function parseOptionsFromRequest(request, body = {}) {
+function parseOptionsFromRequest(request) {
     const { searchParams } = new URL(request.url);
     return {
-        force: parseBoolParam(body.force ?? searchParams.get("force"), false),
-        manual: parseBoolParam(body.manual ?? searchParams.get("manual"), false),
-        continue: parseBoolParam(body.continue ?? searchParams.get("continue"), false),
-        chainDepth: Number(body.chainDepth ?? searchParams.get("chainDepth") ?? 0) || 0,
-        skipSchedule: parseBoolParam(body.skipSchedule ?? searchParams.get("skipSchedule"), false),
-        dryRun: parseBoolParam(body.dryRun ?? searchParams.get("dryRun"), false),
-        testCustomerId:
-            String(body.testCustomerId ?? searchParams.get("testCustomerId") ?? "").trim() ||
-            undefined,
+        manual: true,
+        force: true,
+        continue: parseBoolParam(searchParams.get("continue"), false),
+        chainDepth: Number(searchParams.get("chainDepth") || 0) || 0,
+        dryRun: parseBoolParam(searchParams.get("dryRun"), false),
+        testCustomerId: String(searchParams.get("testCustomerId") || "").trim() || undefined,
     };
 }
 
@@ -44,31 +41,25 @@ async function handleCron(request) {
         );
     }
 
-    let body = {};
-    if (request.method === "POST") {
-        try {
-            body = await request.json();
-        } catch {
-            body = {};
-        }
-    }
-
-    const options = parseOptionsFromRequest(request, body);
+    const options = parseOptionsFromRequest(request);
 
     try {
         const result = await runPerformanceBriefDeliver(options);
         const status = result.skipped ? 200 : result.success ? 200 : 207;
         return NextResponse.json(result, { status });
     } catch (err) {
-        console.error("[performance-brief/deliver]", err);
+        console.error("[performance-brief/deliver/manual]", err);
         return NextResponse.json(
-            { error: err?.message || "Performance Brief deliver failed" },
+            { error: err?.message || "Performance Brief manual deliver failed" },
             { status: 500 }
         );
     }
 }
 
-/** GET /api/cron/performance-brief/deliver — CRON B (every 4 hours) */
+/**
+ * Manual test CRON B — run from Vercel dashboard after prepare/manual completes.
+ * All ready briefs today → #apex-test-cron · auto-chains until done.
+ */
 export async function GET(request) {
     return handleCron(request);
 }

@@ -1,9 +1,10 @@
 /**
  * Single switch for Performance Brief outbox crons (prepare + deliver).
  *
- * PERFORMANCE_BRIEF_TEST_MODE=true  → all Slack-assigned customers run (ignore per-customer schedule day);
- *                                     delivery day = tomorrow; all Slack → #apex-test-cron
- * PERFORMANCE_BRIEF_TEST_MODE=false → production: same-day prepare + deliver; real channels
+ * PERFORMANCE_BRIEF_TEST_MODE=true  → scheduled crons: all customers, delivery day = tomorrow, #apex-test-cron
+ * PERFORMANCE_BRIEF_TEST_MODE=false → production: per-customer schedule + real channels
+ *
+ * Manual run (?manual=1&force=1): all customers, delivery day = today, #apex-test-cron — no env change needed
  */
 export const TEST_SLACK_CHANNEL_NAME = "apex-test-cron";
 

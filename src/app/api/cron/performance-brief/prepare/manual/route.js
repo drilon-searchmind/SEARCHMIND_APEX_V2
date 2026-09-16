@@ -3,7 +3,7 @@ import {
     verifyApexRadarCronRequest,
     isPerformanceBriefCronEnabled,
 } from "@/lib/apexRadarCronAuth";
-import { runPerformanceBriefDeliver } from "@/lib/performanceBriefOutboxDeliver";
+import { runPerformanceBriefPrepare } from "@/lib/performanceBriefOutboxPrepare";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -16,18 +16,14 @@ function parseBoolParam(value, defaultValue = false) {
     return defaultValue;
 }
 
-function parseOptionsFromRequest(request, body = {}) {
+function parseOptionsFromRequest(request) {
     const { searchParams } = new URL(request.url);
     return {
-        force: parseBoolParam(body.force ?? searchParams.get("force"), false),
-        manual: parseBoolParam(body.manual ?? searchParams.get("manual"), false),
-        continue: parseBoolParam(body.continue ?? searchParams.get("continue"), false),
-        chainDepth: Number(body.chainDepth ?? searchParams.get("chainDepth") ?? 0) || 0,
-        skipSchedule: parseBoolParam(body.skipSchedule ?? searchParams.get("skipSchedule"), false),
-        dryRun: parseBoolParam(body.dryRun ?? searchParams.get("dryRun"), false),
-        testCustomerId:
-            String(body.testCustomerId ?? searchParams.get("testCustomerId") ?? "").trim() ||
-            undefined,
+        manual: true,
+        force: true,
+        continue: parseBoolParam(searchParams.get("continue"), false),
+        chainDepth: Number(searchParams.get("chainDepth") || 0) || 0,
+        testCustomerId: String(searchParams.get("testCustomerId") || "").trim() || undefined,
     };
 }
 
@@ -44,31 +40,26 @@ async function handleCron(request) {
         );
     }
 
-    let body = {};
-    if (request.method === "POST") {
-        try {
-            body = await request.json();
-        } catch {
-            body = {};
-        }
-    }
-
-    const options = parseOptionsFromRequest(request, body);
+    const options = parseOptionsFromRequest(request);
 
     try {
-        const result = await runPerformanceBriefDeliver(options);
+        const result = await runPerformanceBriefPrepare(options);
         const status = result.skipped ? 200 : result.success ? 200 : 207;
         return NextResponse.json(result, { status });
     } catch (err) {
-        console.error("[performance-brief/deliver]", err);
+        console.error("[performance-brief/prepare/manual]", err);
         return NextResponse.json(
-            { error: err?.message || "Performance Brief deliver failed" },
+            { error: err?.message || "Performance Brief manual prepare failed" },
             { status: 500 }
         );
     }
 }
 
-/** GET /api/cron/performance-brief/deliver — CRON B (every 4 hours) */
+/**
+ * Manual test CRON A — run from Vercel dashboard ("Run Cron").
+ * All Slack customers · today · no schedule filter · auto-chains until done.
+ * Deliver step: /api/cron/performance-brief/deliver/manual
+ */
 export async function GET(request) {
     return handleCron(request);
 }

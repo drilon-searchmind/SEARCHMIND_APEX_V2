@@ -20,6 +20,9 @@ function parseOptionsFromRequest(request, body = {}) {
     const { searchParams } = new URL(request.url);
     return {
         force: parseBoolParam(body.force ?? searchParams.get("force"), false),
+        manual: parseBoolParam(body.manual ?? searchParams.get("manual"), false),
+        continue: parseBoolParam(body.continue ?? searchParams.get("continue"), false),
+        chainDepth: Number(body.chainDepth ?? searchParams.get("chainDepth") ?? 0) || 0,
         skipSchedule: parseBoolParam(body.skipSchedule ?? searchParams.get("skipSchedule"), false),
         testCustomerId:
             String(body.testCustomerId ?? searchParams.get("testCustomerId") ?? "").trim() ||

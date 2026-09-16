@@ -14,6 +14,7 @@ import {
     isPrepareWindowAllowed,
 } from "@/lib/performanceBriefOutboxSchedule";
 import { isPerformanceBriefTestMode } from "@/lib/performanceBriefOutboxConfig";
+import { dispatchOutboxContinuation } from "@/lib/performanceBriefOutboxContinuation";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -43,7 +44,7 @@ async function listCustomersForPrepare(ctx, options = {}) {
 
     customers = customers.filter((c) => String(c.slackChannelId || "").trim());
 
-    if (ctx.testMode || (options.force && options.skipSchedule)) {
+    if (ctx.testMode || ctx.manual || (options.force && options.skipSchedule)) {
         return customers;
     }
 
@@ -90,7 +91,7 @@ async function prepareOneCustomer(customer, { weekKey, ctx }) {
                 slackChannelName: customer.slackChannelName || "",
                 slackPayload,
                 status: "ready",
-                testMode: ctx.testMode,
+                testMode: ctx.useTestChannel,
                 preparedAt: new Date(),
                 sentAt: null,
                 messageTs: "",
@@ -111,14 +112,17 @@ export async function runPerformanceBriefPrepare(options = {}) {
     await connectToDatabase();
 
     const now = dayjs();
-    const ctx = getDeliveryContext(now);
+    const ctx = getDeliveryContext(now, { manual: options.manual });
     const weekKey = getPerformanceBriefWeekKey();
     const dueCustomers = await listCustomersForPrepare(ctx, options);
     const preparedIds = await listPreparedCustomerIds(weekKey);
-    const todo = dueCustomers.filter((c) => !preparedIds.has(c.customerId));
+    const reprepareAll = Boolean(options.manual && options.force);
+    const todo = reprepareAll
+        ? dueCustomers
+        : dueCustomers.filter((c) => !preparedIds.has(c.customerId));
     const hasBacklog = todo.length > 0;
 
-    if (!isPrepareWindowAllowed(now, { force: options.force, hasBacklog })) {
+    if (!isPrepareWindowAllowed(now, { force: options.force, manual: options.manual, hasBacklog })) {
         return {
             skipped: true,
             phase: "prepare",
@@ -173,7 +177,7 @@ export async function runPerformanceBriefPrepare(options = {}) {
                         slackChannelId: customer.slackChannelId,
                         slackChannelName: customer.slackChannelName || "",
                         status: "prepare_failed",
-                        testMode: ctx.testMode,
+                        testMode: ctx.useTestChannel,
                         error: message,
                         expiresAt: dayjs().add(OUTBOX_TTL_DAYS, "day").toDate(),
                     },
@@ -186,14 +190,25 @@ export async function runPerformanceBriefPrepare(options = {}) {
     const remaining = todo.length - prepared - failed;
     const timedOut = remaining > 0;
 
+    let continued = false;
+    if (timedOut && remaining > 0) {
+        continued = dispatchOutboxContinuation("prepare", {
+            manual: options.manual,
+            chainDepth: options.chainDepth,
+        });
+    }
+
     console.info("[performance-brief/prepare]", {
         weekKey,
         testMode: isPerformanceBriefTestMode(),
+        manual: options.manual,
         deliveryDate: ctx.deliveryDate,
         prepared,
         failed,
         remaining,
         timedOut,
+        continued,
+        chainDepth: options.chainDepth || 0,
     });
 
     return {
@@ -201,6 +216,8 @@ export async function runPerformanceBriefPrepare(options = {}) {
         phase: "prepare",
         weekKey,
         deliveryContext: ctx,
+        continued,
+        chainDepth: options.chainDepth || 0,
         stats: {
             queueSize: dueCustomers.length,
             todo: todo.length,

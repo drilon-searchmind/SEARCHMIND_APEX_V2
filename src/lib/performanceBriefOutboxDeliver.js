@@ -23,6 +23,7 @@ import {
     isPerformanceBriefOutboxDryRun,
     TEST_SLACK_CHANNEL_NAME,
 } from "@/lib/performanceBriefOutboxConfig";
+import { dispatchOutboxContinuation } from "@/lib/performanceBriefOutboxContinuation";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -68,7 +69,7 @@ async function getTestSlackChannel() {
 }
 
 function filterItemsForCurrentSlot(items, now, ctx, options = {}) {
-    if (ctx.testMode || options.force || options.skipSchedule) {
+    if (ctx.testMode || ctx.manual || options.force || options.skipSchedule) {
         return items;
     }
 
@@ -84,7 +85,7 @@ export async function runPerformanceBriefDeliver(options = {}) {
     await connectToDatabase();
 
     const now = dayjs();
-    const ctx = getDeliveryContext(now);
+    const ctx = getDeliveryContext(now, { manual: options.manual });
     const weekKey = getPerformanceBriefWeekKey();
     const dryRun = options.dryRun ?? isPerformanceBriefOutboxDryRun();
 
@@ -121,7 +122,8 @@ export async function runPerformanceBriefDeliver(options = {}) {
         };
     }
 
-    const testChannel = ctx.testMode ? await getTestSlackChannel() : null;
+    const testChannel = ctx.useTestChannel ? await getTestSlackChannel() : null;
+    const skipDedup = Boolean(options.manual && options.force);
     const budget = getTimeBudgetMs();
     const startedAt = Date.now();
     let sent = 0;
@@ -158,35 +160,40 @@ export async function runPerformanceBriefDeliver(options = {}) {
             continue;
         }
 
-        const claim = await tryClaimWeeklySlackDelivery({
-            weekKey,
-            customerId: item.customerId,
-            slackChannelId: channelId,
-            slackChannelName: channelName,
-            runId: `outbox-${weekKey}`,
-        });
+        let deliveryId = null;
 
-        if (!claim.claim) {
-            skipped += 1;
-            if (claim.reason === "already_sent") {
-                await PerformanceBriefOutbox.updateOne(
-                    { _id: item._id },
-                    {
-                        $set: {
-                            status: "sent",
-                            sentAt: new Date(),
-                            messageTs: claim.messageTs || "",
-                        },
-                    }
-                );
-            }
-            results.push({
+        if (!skipDedup) {
+            const claim = await tryClaimWeeklySlackDelivery({
+                weekKey,
                 customerId: item.customerId,
-                success: true,
-                skipped: true,
-                reason: claim.reason,
+                slackChannelId: channelId,
+                slackChannelName: channelName,
+                runId: `outbox-${weekKey}`,
             });
-            continue;
+
+            if (!claim.claim) {
+                skipped += 1;
+                if (claim.reason === "already_sent") {
+                    await PerformanceBriefOutbox.updateOne(
+                        { _id: item._id },
+                        {
+                            $set: {
+                                status: "sent",
+                                sentAt: new Date(),
+                                messageTs: claim.messageTs || "",
+                            },
+                        }
+                    );
+                }
+                results.push({
+                    customerId: item.customerId,
+                    success: true,
+                    skipped: true,
+                    reason: claim.reason,
+                });
+                continue;
+            }
+            deliveryId = claim.deliveryId;
         }
 
         try {
@@ -198,7 +205,9 @@ export async function runPerformanceBriefDeliver(options = {}) {
 
             if (!result.success) {
                 failed += 1;
-                await markWeeklySlackDeliveryFailed(claim.deliveryId, result.error);
+                if (deliveryId) {
+                    await markWeeklySlackDeliveryFailed(deliveryId, result.error);
+                }
                 await PerformanceBriefOutbox.updateOne(
                     { _id: item._id },
                     { $set: { status: "failed", error: result.error || "Slack send failed" } }
@@ -211,10 +220,12 @@ export async function runPerformanceBriefDeliver(options = {}) {
                 continue;
             }
 
-            await markWeeklySlackDeliverySent(claim.deliveryId, {
-                messageTs: result.messageTs,
-                channelName: result.channelName,
-            });
+            if (deliveryId) {
+                await markWeeklySlackDeliverySent(deliveryId, {
+                    messageTs: result.messageTs,
+                    channelName: result.channelName,
+                });
+            }
             await PerformanceBriefOutbox.updateOne(
                 { _id: item._id },
                 {
@@ -236,7 +247,9 @@ export async function runPerformanceBriefDeliver(options = {}) {
         } catch (err) {
             failed += 1;
             const message = err?.message || String(err);
-            await markWeeklySlackDeliveryFailed(claim.deliveryId, message);
+            if (deliveryId) {
+                await markWeeklySlackDeliveryFailed(deliveryId, message);
+            }
             await PerformanceBriefOutbox.updateOne(
                 { _id: item._id },
                 { $set: { status: "failed", error: message } }
@@ -246,16 +259,29 @@ export async function runPerformanceBriefDeliver(options = {}) {
     }
 
     const remaining = items.length - sent - skipped - failed;
+    const timedOut = remaining > 0;
+
+    let continued = false;
+    if (timedOut && remaining > 0) {
+        continued = dispatchOutboxContinuation("deliver", {
+            manual: options.manual,
+            chainDepth: options.chainDepth,
+        });
+    }
 
     console.info("[performance-brief/deliver]", {
         weekKey,
         testMode: isPerformanceBriefTestMode(),
+        manual: options.manual,
         deliveryDate: ctx.deliveryDate,
         dryRun,
         sent,
         skipped,
         failed,
         remaining,
+        timedOut,
+        continued,
+        chainDepth: options.chainDepth || 0,
         testChannel: testChannel?.name || null,
     });
 
@@ -265,6 +291,8 @@ export async function runPerformanceBriefDeliver(options = {}) {
         weekKey,
         deliveryContext: ctx,
         dryRun,
+        continued,
+        chainDepth: options.chainDepth || 0,
         testChannel: testChannel ? `#${testChannel.name}` : null,
         stats: {
             ready: items.length,
@@ -272,6 +300,7 @@ export async function runPerformanceBriefDeliver(options = {}) {
             skipped,
             failed,
             remaining,
+            timedOut,
         },
         results: results.slice(0, 20),
     };
