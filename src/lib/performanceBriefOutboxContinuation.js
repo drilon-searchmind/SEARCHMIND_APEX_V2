@@ -1,5 +1,6 @@
+import { waitUntil } from "@vercel/functions";
+
 const MAX_CHAIN_DEPTH = 80;
-const CONTINUATION_TIMEOUT_MS = 20_000;
 
 function getCronBaseUrl() {
     const configured = (
@@ -17,12 +18,12 @@ function getCronBaseUrl() {
 }
 
 /**
- * Trigger the next batch in a NEW serverless invocation (separate HTTP request — no 508 loop).
- * Awaited so the dispatch completes before this function exits.
+ * Trigger the next batch in a NEW serverless invocation.
+ * Returns immediately — does not wait for the child run to finish (child may take ~4 min).
  * @param {"prepare"|"deliver"} phase
  * @param {{ manual?: boolean, chainDepth?: number }} [options]
  */
-export async function dispatchOutboxContinuation(phase, options = {}) {
+export function dispatchOutboxContinuation(phase, options = {}) {
     const secret = (process.env.CRON_SECRET || "").trim();
     if (!secret) {
         console.warn("[performance-brief/outbox] CRON_SECRET missing — cannot chain next batch.");
@@ -46,54 +47,46 @@ export async function dispatchOutboxContinuation(phase, options = {}) {
 
     const url = `${getCronBaseUrl()}${path}?${params.toString()}`;
 
-    try {
-        const res = await fetch(url, {
-            method: "GET",
-            headers: { Authorization: `Bearer ${secret}` },
-            signal: AbortSignal.timeout(CONTINUATION_TIMEOUT_MS),
-        });
-
-        const body = await res.text().catch(() => "");
-
-        if (!res.ok) {
-            console.error("[performance-brief/outbox] Continuation failed", {
+    const followUp = fetch(url, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${secret}` },
+    })
+        .then(async (res) => {
+            if (!res.ok) {
+                const body = await res.text().catch(() => "");
+                console.error("[performance-brief/outbox] Continuation failed", {
+                    phase,
+                    status: res.status,
+                    chainDepth: chainDepth + 1,
+                    url: path,
+                    body: body.slice(0, 500),
+                });
+                return;
+            }
+            console.info("[performance-brief/outbox] Continuation started", {
                 phase,
-                status: res.status,
                 chainDepth: chainDepth + 1,
                 url: path,
-                body: body.slice(0, 500),
+                status: res.status,
             });
-            return false;
-        }
-
-        let summary = {};
-        try {
-            summary = JSON.parse(body);
-        } catch {
-            summary = { raw: body.slice(0, 200) };
-        }
-
-        console.info("[performance-brief/outbox] Continuation accepted", {
-            phase,
-            chainDepth: chainDepth + 1,
-            url: path,
-            status: res.status,
-            prepared: summary?.stats?.prepared,
-            sent: summary?.stats?.sent,
-            remaining: summary?.stats?.remaining,
-            skipped: summary?.skipped,
-            reason: summary?.reason,
+        })
+        .catch((err) => {
+            console.error("[performance-brief/outbox] Continuation error", {
+                phase,
+                chainDepth: chainDepth + 1,
+                url: path,
+                error: err?.message || String(err),
+            });
         });
-        return true;
-    } catch (err) {
-        console.error("[performance-brief/outbox] Continuation error", {
-            phase,
-            chainDepth: chainDepth + 1,
-            url: path,
-            error: err?.message || String(err),
-        });
-        return false;
-    }
+
+    waitUntil(followUp);
+    console.info("[performance-brief/outbox] Dispatched continuation", {
+        phase,
+        manual: Boolean(options.manual),
+        chainDepth: chainDepth + 1,
+        url: path,
+    });
+    return true;
 }
 
 export { MAX_CHAIN_DEPTH };

@@ -263,7 +263,7 @@ export async function runPerformanceBriefDeliver(options = {}) {
 
     let continued = false;
     if (timedOut && remaining > 0) {
-        continued = await dispatchOutboxContinuation("deliver", {
+        continued = dispatchOutboxContinuation("deliver", {
             manual: options.manual,
             chainDepth: Number(options.chainDepth || 0),
         });

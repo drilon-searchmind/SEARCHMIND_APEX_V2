@@ -194,7 +194,7 @@ export async function runPerformanceBriefPrepare(options = {}) {
 
     let continued = false;
     if (timedOut && remaining > 0) {
-        continued = await dispatchOutboxContinuation("prepare", {
+        continued = dispatchOutboxContinuation("prepare", {
             manual: options.manual,
             chainDepth,
         });
