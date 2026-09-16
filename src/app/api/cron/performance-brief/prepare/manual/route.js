@@ -21,8 +21,7 @@ function parseOptionsFromRequest(request) {
     return {
         manual: true,
         force: true,
-        continue: parseBoolParam(searchParams.get("continue"), false),
-        chainDepth: Number(searchParams.get("chainDepth") || 0) || 0,
+        reprepare: parseBoolParam(searchParams.get("reprepare"), false),
         testCustomerId: String(searchParams.get("testCustomerId") || "").trim() || undefined,
     };
 }
@@ -56,9 +55,9 @@ async function handleCron(request) {
 }
 
 /**
- * Manual test CRON A — run from Vercel dashboard ("Run Cron").
- * All Slack customers · today · no schedule filter · auto-chains until done.
- * Deliver step: /api/cron/performance-brief/deliver/manual
+ * Manual test CRON A — run from Vercel dashboard ("Run Cron") or every 10 min (resume).
+ * All Slack customers · today · #apex-test-cron on deliver · skips already-prepared rows.
+ * Re-run until nextStep says complete, or wait for */10 resume cron.
  */
 export async function GET(request) {
     return handleCron(request);

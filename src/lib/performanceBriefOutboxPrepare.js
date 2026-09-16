@@ -14,7 +14,6 @@ import {
     isPrepareWindowAllowed,
 } from "@/lib/performanceBriefOutboxSchedule";
 import { isPerformanceBriefTestMode } from "@/lib/performanceBriefOutboxConfig";
-import { dispatchOutboxContinuation } from "@/lib/performanceBriefOutboxContinuation";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -22,6 +21,7 @@ dayjs.extend(timezone);
 const DEFAULT_TIME_BUDGET_MS = 230_000;
 const BATCH_SAFETY_MARGIN_MS = 25_000;
 const OUTBOX_TTL_DAYS = 14;
+const DEFAULT_PREPARE_CONCURRENCY = 2;
 
 function parseCronNumberEnv(name, fallback) {
     const raw = process.env[name];
@@ -32,6 +32,21 @@ function parseCronNumberEnv(name, fallback) {
 
 function getTimeBudgetMs() {
     return parseCronNumberEnv("PERFORMANCE_BRIEF_CRON_TIME_BUDGET_MS", DEFAULT_TIME_BUDGET_MS);
+}
+
+function getPrepareConcurrency() {
+    return parseCronNumberEnv("PERFORMANCE_BRIEF_PREPARE_CONCURRENCY", DEFAULT_PREPARE_CONCURRENCY);
+}
+
+function buildNextStep(phase, remaining, manual) {
+    if (remaining <= 0) {
+        return manual
+            ? "Complete. Run deliver/manual when ready."
+            : "Complete for this batch.";
+    }
+    return manual
+        ? `${remaining} remaining — click Run again on prepare/manual, or wait for the every-10-min resume cron.`
+        : `${remaining} remaining — next hourly prepare cron will resume automatically.`;
 }
 
 async function listCustomersForPrepare(ctx, options = {}) {
@@ -105,8 +120,67 @@ async function prepareOneCustomer(customer, { weekKey, ctx }) {
     return { success: true, customerId: customer.customerId };
 }
 
+async function recordPrepareFailure(customer, { weekKey, ctx, message }) {
+    await PerformanceBriefOutbox.findOneAndUpdate(
+        { customerId: customer.customerId, weekKey },
+        {
+            $set: {
+                customerId: customer.customerId,
+                customerName: customer.customerName || "",
+                weekKey,
+                deliverDate: ctx.deliveryDate,
+                scheduleDayOfWeek: customer.scheduleDayOfWeek,
+                scheduleHour: customer.scheduleHour,
+                slackChannelId: customer.slackChannelId,
+                slackChannelName: customer.slackChannelName || "",
+                status: "prepare_failed",
+                testMode: ctx.useTestChannel,
+                error: message,
+                expiresAt: dayjs().add(OUTBOX_TTL_DAYS, "day").toDate(),
+            },
+        },
+        { upsert: true }
+    );
+}
+
+/**
+ * Process customers in parallel until the time budget is exhausted.
+ */
+async function prepareCustomerBatch(todo, { weekKey, ctx, budget, startedAt }) {
+    const concurrency = Math.min(getPrepareConcurrency(), todo.length);
+    let cursor = 0;
+    let prepared = 0;
+    let failed = 0;
+    const errors = [];
+
+    const timeRemaining = () => Date.now() - startedAt < budget - BATCH_SAFETY_MARGIN_MS;
+
+    async function worker() {
+        while (timeRemaining()) {
+            const index = cursor++;
+            if (index >= todo.length) break;
+
+            const customer = todo[index];
+            try {
+                await prepareOneCustomer(customer, { weekKey, ctx });
+                prepared += 1;
+            } catch (err) {
+                failed += 1;
+                const message = err?.message || String(err);
+                errors.push({ customerId: customer.customerId, error: message });
+                await recordPrepareFailure(customer, { weekKey, ctx, message });
+            }
+        }
+    }
+
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+
+    return { prepared, failed, errors };
+}
+
 /**
  * CRON A — generate briefs for customers due on the delivery day; store in outbox (no Slack).
+ * Does NOT self-call — Vercel blocks same-deployment HTTP loops. Resume via hourly crons or re-run manual.
  */
 export async function runPerformanceBriefPrepare(options = {}) {
     await connectToDatabase();
@@ -116,10 +190,7 @@ export async function runPerformanceBriefPrepare(options = {}) {
     const weekKey = getPerformanceBriefWeekKey();
     const dueCustomers = await listCustomersForPrepare(ctx, options);
     const preparedIds = await listPreparedCustomerIds(weekKey);
-    const chainDepth = Number(options.chainDepth || 0);
-    // First manual batch may refresh all; continuations must skip already-prepared rows.
-    const reprepareAll = Boolean(options.manual && options.force && chainDepth === 0);
-    const todo = reprepareAll
+    const todo = options.reprepare
         ? dueCustomers
         : dueCustomers.filter((c) => !preparedIds.has(c.customerId));
     const hasBacklog = todo.length > 0;
@@ -145,60 +216,21 @@ export async function runPerformanceBriefPrepare(options = {}) {
             deliveryContext: ctx,
             queueSize: dueCustomers.length,
             preparedCount: preparedIds.size,
+            nextStep: buildNextStep("prepare", 0, options.manual),
         };
     }
 
     const budget = getTimeBudgetMs();
     const startedAt = Date.now();
-    let prepared = 0;
-    let failed = 0;
-    const errors = [];
-
-    for (const customer of todo) {
-        if (Date.now() - startedAt > budget - BATCH_SAFETY_MARGIN_MS) {
-            break;
-        }
-
-        try {
-            await prepareOneCustomer(customer, { weekKey, ctx });
-            prepared += 1;
-        } catch (err) {
-            failed += 1;
-            const message = err?.message || String(err);
-            errors.push({ customerId: customer.customerId, error: message });
-            await PerformanceBriefOutbox.findOneAndUpdate(
-                { customerId: customer.customerId, weekKey },
-                {
-                    $set: {
-                        customerId: customer.customerId,
-                        customerName: customer.customerName || "",
-                        weekKey,
-                        deliverDate: ctx.deliveryDate,
-                        scheduleDayOfWeek: customer.scheduleDayOfWeek,
-                        scheduleHour: customer.scheduleHour,
-                        slackChannelId: customer.slackChannelId,
-                        slackChannelName: customer.slackChannelName || "",
-                        status: "prepare_failed",
-                        testMode: ctx.useTestChannel,
-                        error: message,
-                        expiresAt: dayjs().add(OUTBOX_TTL_DAYS, "day").toDate(),
-                    },
-                },
-                { upsert: true }
-            );
-        }
-    }
+    const { prepared, failed, errors } = await prepareCustomerBatch(todo, {
+        weekKey,
+        ctx,
+        budget,
+        startedAt,
+    });
 
     const remaining = todo.length - prepared - failed;
     const timedOut = remaining > 0;
-
-    let continued = false;
-    if (timedOut && remaining > 0) {
-        continued = dispatchOutboxContinuation("prepare", {
-            manual: options.manual,
-            chainDepth,
-        });
-    }
 
     console.info("[performance-brief/prepare]", {
         weekKey,
@@ -209,8 +241,7 @@ export async function runPerformanceBriefPrepare(options = {}) {
         failed,
         remaining,
         timedOut,
-        continued,
-        chainDepth: options.chainDepth || 0,
+        concurrency: getPrepareConcurrency(),
     });
 
     return {
@@ -218,8 +249,7 @@ export async function runPerformanceBriefPrepare(options = {}) {
         phase: "prepare",
         weekKey,
         deliveryContext: ctx,
-        continued,
-        chainDepth: options.chainDepth || 0,
+        nextStep: buildNextStep("prepare", remaining, options.manual),
         stats: {
             queueSize: dueCustomers.length,
             todo: todo.length,

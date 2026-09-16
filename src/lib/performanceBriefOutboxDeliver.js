@@ -23,7 +23,6 @@ import {
     isPerformanceBriefOutboxDryRun,
     TEST_SLACK_CHANNEL_NAME,
 } from "@/lib/performanceBriefOutboxConfig";
-import { dispatchOutboxContinuation } from "@/lib/performanceBriefOutboxContinuation";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -260,14 +259,14 @@ export async function runPerformanceBriefDeliver(options = {}) {
 
     const remaining = items.length - sent - skipped - failed;
     const timedOut = remaining > 0;
-
-    let continued = false;
-    if (timedOut && remaining > 0) {
-        continued = dispatchOutboxContinuation("deliver", {
-            manual: options.manual,
-            chainDepth: Number(options.chainDepth || 0),
-        });
-    }
+    const nextStep =
+        remaining <= 0
+            ? options.manual
+                ? "Deliver complete."
+                : "Deliver complete for this batch."
+            : options.manual
+              ? `${remaining} remaining — click Run again on deliver/manual, or wait for the every-10-min resume cron.`
+              : `${remaining} remaining — next deliver cron will resume.`;
 
     console.info("[performance-brief/deliver]", {
         weekKey,
@@ -280,8 +279,6 @@ export async function runPerformanceBriefDeliver(options = {}) {
         failed,
         remaining,
         timedOut,
-        continued,
-        chainDepth: options.chainDepth || 0,
         testChannel: testChannel?.name || null,
     });
 
@@ -291,8 +288,7 @@ export async function runPerformanceBriefDeliver(options = {}) {
         weekKey,
         deliveryContext: ctx,
         dryRun,
-        continued,
-        chainDepth: options.chainDepth || 0,
+        nextStep,
         testChannel: testChannel ? `#${testChannel.name}` : null,
         stats: {
             ready: items.length,

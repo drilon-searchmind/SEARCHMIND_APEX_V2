@@ -21,8 +21,6 @@ function parseOptionsFromRequest(request) {
     return {
         manual: true,
         force: true,
-        continue: parseBoolParam(searchParams.get("continue"), false),
-        chainDepth: Number(searchParams.get("chainDepth") || 0) || 0,
         dryRun: parseBoolParam(searchParams.get("dryRun"), false),
         testCustomerId: String(searchParams.get("testCustomerId") || "").trim() || undefined,
     };
@@ -57,8 +55,8 @@ async function handleCron(request) {
 }
 
 /**
- * Manual test CRON B — run from Vercel dashboard after prepare/manual completes.
- * All ready briefs today → #apex-test-cron · auto-chains until done.
+ * Manual test CRON B — run from Vercel dashboard or every 10 min (resume).
+ * All ready briefs today → #apex-test-cron. Re-run until nextStep says complete.
  */
 export async function GET(request) {
     return handleCron(request);

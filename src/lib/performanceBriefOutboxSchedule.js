@@ -91,11 +91,12 @@ export function isPrepareWindowAllowed(now = dayjs(), options = {}) {
     if (local.hour() === PREPARE_HOUR_COPENHAGEN) return true;
 
     const ctx = getDeliveryContext(now);
+    // Hourly resume crons (02–06 UTC ≈ 04:00–08:00 Copenhagen) drain prepare backlog.
     if (
         options.hasBacklog &&
         local.format("YYYY-MM-DD") === ctx.deliveryDate &&
         local.hour() >= PREPARE_HOUR_COPENHAGEN &&
-        local.hour() < PREPARE_HOUR_COPENHAGEN + 4
+        local.hour() <= PREPARE_HOUR_COPENHAGEN + 6
     ) {
         return true;
     }

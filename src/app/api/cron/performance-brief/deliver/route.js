@@ -21,8 +21,6 @@ function parseOptionsFromRequest(request, body = {}) {
     return {
         force: parseBoolParam(body.force ?? searchParams.get("force"), false),
         manual: parseBoolParam(body.manual ?? searchParams.get("manual"), false),
-        continue: parseBoolParam(body.continue ?? searchParams.get("continue"), false),
-        chainDepth: Number(body.chainDepth ?? searchParams.get("chainDepth") ?? 0) || 0,
         skipSchedule: parseBoolParam(body.skipSchedule ?? searchParams.get("skipSchedule"), false),
         dryRun: parseBoolParam(body.dryRun ?? searchParams.get("dryRun"), false),
         testCustomerId:
