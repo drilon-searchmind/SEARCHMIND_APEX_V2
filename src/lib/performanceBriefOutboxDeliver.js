@@ -68,13 +68,20 @@ async function getTestSlackChannel() {
 }
 
 function filterItemsForCurrentSlot(items, now, ctx, options = {}) {
-    if (ctx.testMode || ctx.manual || options.force || options.skipSchedule) {
+    if (ctx.testMode || ctx.manual || options.skipSchedule) {
         return items;
     }
 
-    return items.filter((item) =>
-        isCustomerInDeliverySlot({ scheduleHour: item.scheduleHour }, now, ctx)
-    );
+    const local = now.tz(ctx.timezone);
+    if (local.format("YYYY-MM-DD") !== ctx.deliveryDate) return [];
+
+    const hour = local.hour();
+    return items.filter((item) => {
+        if (options.force) {
+            return hour >= Number(item.scheduleHour || 0);
+        }
+        return isCustomerInDeliverySlot({ scheduleHour: item.scheduleHour }, now, ctx);
+    });
 }
 
 /**
