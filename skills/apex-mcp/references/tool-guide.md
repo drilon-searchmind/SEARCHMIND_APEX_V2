@@ -130,7 +130,18 @@ Use **`list_proxy_routes`** first to see allowlists and guardrails. Prefer curat
 | `google_ads_gaql_read` | `{ customerId, query }` → read-only GAQL SELECT |
 | `meta_ads_read` | `{ endpoint, customerId, params }` → Meta insights / campaigns / adsets / ads / **ads-with-creatives** / **ad-preview** / accounts |
 
-**Meta proxy `insights` params:** `startDate`, `endDate` (required); optional `level` (`account` \| `campaign` \| `adset` \| `ad`, default `account`); `fields` (comma-separated allowlisted metrics, e.g. `spend,reach,frequency,action_values,purchase_roas`); `dailyBreakdown=true` for daily rows. Paging URLs are sanitized — no Meta access tokens are returned.
+**Meta proxy `insights` params:** `startDate`, `endDate` (required); optional `level` (`account` \| `campaign` \| `adset` \| `ad`, default `account`); `fields` (comma-separated allowlisted metrics, e.g. `spend,reach,frequency,action_values,purchase_roas`); `breakdowns` (`product_id` or `["product_id"]` for DPA product rows); `dailyBreakdown=true` for daily rows. Paging URLs are sanitized — no Meta access tokens are returned.
+
+### Meta DPA / catalog product images
+
+Dynamic catalog ads (`{{product.name}}`) have no fixed creative image. Use **Meta’s catalog** (not Shopify packshots):
+
+| Tool / route | Purpose |
+|--------------|---------|
+| `call_apex_api` → `/api/meta-catalog-products` | Cached catalog `products[]` with `id`, `retailer_id`, `name`, `image_url` |
+| `meta_ads_read` → `catalog-products` | Same via Meta proxy |
+| `meta_ads_read` → `insights` + `breakdowns=product_id` | Per-product spend/impressions — join `product_id` to catalog `products[].id` |
+| `get_meta_ad_creatives` / `/api/meta-ad-creatives` | Flags `is_dynamic_catalog_ad`; optional `includeCatalogProducts=true` embeds full catalog payload |
 
 ### Meta ad creatives
 
@@ -165,7 +176,8 @@ Default allowlisted — no admin route approval required.
 | `/api/apex-radar` | `startDate`, `endDate`, `channel` (`google-ads` or `facebook`) |
 | `/api/shopify-channel-attribution` | `startDate`, `endDate` |
 | `/api/shopify-referrer-domain-sessions` | `startDate`, `endDate` |
-| `/api/meta-ad-creatives` | optional `limit`, `activeOnly` (default true) |
+| `/api/meta-ad-creatives` | optional `limit`, `activeOnly`, `includeCatalogProducts`, `catalogMaxProducts` |
+| `/api/meta-catalog-products` | optional `catalogId`, `productIds`, `retailerIds`, `maxProducts` (cached ~6h) |
 | `/api/shopify-agentic-attribution` | `startDate`, `endDate` |
 
 ### Approvable routes (`call_apex_api` — require admin approval per customer)
