@@ -34,7 +34,7 @@ Requires `customerId`, `startDate`, `endDate` unless noted.
 | `list_meta_campaigns` | Meta campaign list |
 | `list_google_campaigns` | Google campaign list |
 | `get_meta_ad_performance` | Ad-level Meta performance |
-| `get_meta_ad_creatives` | Live Meta ads with creative `thumbnail_url` / `image_url` (no dates required) |
+| `get_meta_ad_creatives` | Live Meta ads + resolved `creative.full_image_url` (width/height, permalink when available) |
 | `get_google_ad_performance` | Ad-level Google performance |
 | `get_google_ppc_dashboard` | Full Google PPC dashboard payload |
 | `get_klaviyo_dashboard` | Full Klaviyo EM dashboard (+ optional `prevStartDate`, `prevEndDate`) |
@@ -136,7 +136,7 @@ Use **`list_proxy_routes`** first to see allowlists and guardrails. Prefer curat
 
 | Tool / route | Purpose |
 |--------------|---------|
-| `get_meta_ad_creatives` | Curated tool — ACTIVE live ads + `creative.thumbnail_url` |
+| `get_meta_ad_creatives` | Curated tool — ACTIVE live ads + `creative.full_image_url` (SHARE / Advantage+ / page post / video) |
 | `call_apex_api` → `/api/meta-ad-creatives` | Same payload via allowlisted route |
 | `meta_ads_read` → `ads-with-creatives` | Same via Meta proxy |
 | `meta_ads_read` → `ad-preview` | Single-ad feed preview HTML (`params.adId`, optional `adFormat`) |
