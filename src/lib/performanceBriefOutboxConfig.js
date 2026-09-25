@@ -12,8 +12,19 @@
  */
 export const TEST_SLACK_CHANNEL_NAME = "apex-test-cron";
 
+/** How many hours before a customer's send time prepare may start. */
+export const DEFAULT_PREPARE_LEAD_HOURS = 4;
+
 /** CRON A (Prepare): 04:00 Europe/Copenhagen on delivery day */
 export const PREPARE_HOUR_COPENHAGEN = 4;
+
+export function getPrepareLeadHours() {
+    const raw = process.env.PERFORMANCE_BRIEF_PREPARE_LEAD_HOURS;
+    if (raw == null || raw === "") return DEFAULT_PREPARE_LEAD_HOURS;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) return DEFAULT_PREPARE_LEAD_HOURS;
+    return Math.trunc(n);
+}
 
 export const OUTBOX_CRON_TZ = "Europe/Copenhagen";
 

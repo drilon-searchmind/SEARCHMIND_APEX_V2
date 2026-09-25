@@ -22,7 +22,7 @@ async function handleCron(request) {
     }
 
     try {
-        const result = await runPerformanceBriefDeliver({ force: true });
+        const result = await runPerformanceBriefDeliver();
         const status = result.skipped ? 200 : result.success ? 200 : 207;
         return NextResponse.json(result, { status });
     } catch (err) {

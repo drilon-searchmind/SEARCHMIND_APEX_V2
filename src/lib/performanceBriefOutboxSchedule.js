@@ -2,13 +2,15 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import {
+    getPrepareLeadHours,
     isPerformanceBriefForceAllToday,
     isPerformanceBriefTestMode,
     PREPARE_HOUR_COPENHAGEN,
     OUTBOX_CRON_TZ,
 } from "@/lib/performanceBriefOutboxConfig";
 import {
-    normalizePerformanceBriefSchedule,
+    normalizeScheduleDayOfWeek,
+    scheduleSendHour,
     SCHEDULE_SLOT_HOURS,
 } from "@/lib/performanceBriefSchedule";
 
@@ -63,8 +65,46 @@ export function getDeliveryContext(now = dayjs(), options = {}) {
 }
 
 export function isCustomerScheduledForDeliveryDay(customer, ctx) {
-    const schedule = normalizePerformanceBriefSchedule(customer);
-    return schedule.scheduleDayOfWeek === ctx.deliveryDayOfWeek;
+    return normalizeScheduleDayOfWeek(customer.scheduleDayOfWeek) === ctx.deliveryDayOfWeek;
+}
+
+/**
+ * Active when now is inside [send time − lead hours, send time + slot length).
+ * Monday 10:00 with a 4-hour lead prepares from Monday 06:00 until 14:00.
+ * @returns {{ deliverDate: string, scheduleDayOfWeek: number, scheduleHour: number } | null}
+ */
+export function getCustomerDeliverySlot(customer, now = dayjs(), timezoneName = OUTBOX_CRON_TZ) {
+    const scheduleDayOfWeek = normalizeScheduleDayOfWeek(customer.scheduleDayOfWeek);
+    const scheduleHour = scheduleSendHour(customer.scheduleHour);
+    const leadHours = getPrepareLeadHours();
+    const local = now.tz(timezoneName);
+    const thisWeek = local
+        .clone()
+        .day(scheduleDayOfWeek)
+        .hour(scheduleHour)
+        .minute(0)
+        .second(0)
+        .millisecond(0);
+    const candidates = [
+        thisWeek.clone().subtract(7, "day"),
+        thisWeek.clone(),
+        thisWeek.clone().add(7, "day"),
+    ];
+
+    for (const slotStart of candidates) {
+        const windowStart = slotStart.clone().subtract(leadHours, "hour");
+        const windowEnd = slotStart.clone().add(SCHEDULE_SLOT_HOURS, "hour");
+        const started = local.isAfter(windowStart) || local.isSame(windowStart);
+        if (started && local.isBefore(windowEnd)) {
+            return {
+                deliverDate: slotStart.format("YYYY-MM-DD"),
+                scheduleDayOfWeek,
+                scheduleHour,
+            };
+        }
+    }
+
+    return null;
 }
 
 /**
@@ -74,12 +114,12 @@ export function isCustomerScheduledForDeliveryDay(customer, ctx) {
  * @param {DeliveryContext} ctx
  */
 export function isCustomerInDeliverySlot(customer, now = dayjs(), ctx) {
-    const schedule = normalizePerformanceBriefSchedule(customer);
+    const scheduleHour = scheduleSendHour(customer.scheduleHour);
     const local = now.tz(ctx.timezone);
     if (local.format("YYYY-MM-DD") !== ctx.deliveryDate) return false;
 
     const hour = local.hour();
-    return hour >= schedule.scheduleHour && hour < schedule.scheduleHour + SCHEDULE_SLOT_HOURS;
+    return hour >= scheduleHour && hour < scheduleHour + SCHEDULE_SLOT_HOURS;
 }
 
 /**

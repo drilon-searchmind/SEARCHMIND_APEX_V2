@@ -11,7 +11,11 @@ import {
     setApexRadarCustomerSlackChannel,
 } from "@/lib/apexRadarCustomerSlack";
 import { isPerformanceBriefCustomerId } from "@/lib/performanceBriefConstants";
-import { normalizePerformanceBriefSchedule } from "@/lib/performanceBriefSchedule";
+import {
+    normalizePerformanceBriefSchedule,
+    normalizeScheduleDayOfWeek,
+    scheduleSendHour,
+} from "@/lib/performanceBriefSchedule";
 
 function mapBriefSettingsRow(briefSettings = {}) {
     const schedule = normalizePerformanceBriefSchedule(briefSettings);
@@ -109,14 +113,13 @@ export async function listPerformanceBriefCronCustomers() {
             const slack = pickPreferredSlack(csDoc, briefDoc);
             if (!slack.slackChannelId) return null;
 
-            const schedule = normalizePerformanceBriefSchedule(briefDoc || {});
             return {
                 customerId,
                 customerName: c.customerName || "Untitled",
                 slackChannelId: slack.slackChannelId,
                 slackChannelName: slack.slackChannelName,
-                scheduleDayOfWeek: schedule.scheduleDayOfWeek,
-                scheduleHour: schedule.scheduleHour,
+                scheduleDayOfWeek: normalizeScheduleDayOfWeek(briefDoc?.scheduleDayOfWeek),
+                scheduleHour: scheduleSendHour(briefDoc?.scheduleHour),
             };
         })
         .filter(Boolean);

@@ -75,13 +75,9 @@ function filterItemsForCurrentSlot(items, now, ctx, options = {}) {
     const local = now.tz(ctx.timezone);
     if (local.format("YYYY-MM-DD") !== ctx.deliveryDate) return [];
 
-    const hour = local.hour();
-    return items.filter((item) => {
-        if (options.force) {
-            return hour >= Number(item.scheduleHour || 0);
-        }
-        return isCustomerInDeliverySlot({ scheduleHour: item.scheduleHour }, now, ctx);
-    });
+    return items.filter((item) =>
+        isCustomerInDeliverySlot({ scheduleHour: item.scheduleHour }, now, ctx)
+    );
 }
 
 /**

@@ -41,6 +41,15 @@ export function normalizeScheduleDayOfWeek(value) {
     return day;
 }
 
+/** Customer's send hour, kept as stored (10 stays 10:00). */
+export function scheduleSendHour(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return DEFAULT_SCHEDULE_HOUR;
+    const hour = Math.trunc(n);
+    if (hour < 0 || hour > 23) return DEFAULT_SCHEDULE_HOUR;
+    return hour;
+}
+
 /** Snap to nearest lower 4-hour slot (e.g. 11 → 8, 9 → 8). */
 export function normalizeScheduleHour(value) {
     const n = Number(value);

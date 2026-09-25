@@ -7,10 +7,10 @@ import { listPerformanceBriefCronCustomers } from "@/lib/performanceBriefBulk";
 import { generatePerformanceBrief } from "@/lib/performanceBriefMetrics";
 import { formatPerformanceBriefSlack } from "@/lib/performanceBriefSlackPreview";
 import { getPerformanceBriefWeekKey } from "@/lib/performanceBriefCronJob";
-import { normalizePerformanceBriefSchedule } from "@/lib/performanceBriefSchedule";
+import { normalizeScheduleDayOfWeek, scheduleSendHour } from "@/lib/performanceBriefSchedule";
 import {
+    getCustomerDeliverySlot,
     getDeliveryContext,
-    isCustomerScheduledForDeliveryDay,
     isPrepareWindowAllowed,
 } from "@/lib/performanceBriefOutboxSchedule";
 import { isPerformanceBriefTestMode } from "@/lib/performanceBriefOutboxConfig";
@@ -63,7 +63,12 @@ async function listCustomersForPrepare(ctx, options = {}) {
         return customers;
     }
 
-    return customers.filter((c) => isCustomerScheduledForDeliveryDay(c, ctx));
+    const now = dayjs();
+    return customers.flatMap((customer) => {
+        const slot = getCustomerDeliverySlot(customer, now, ctx.timezone);
+        if (!slot) return [];
+        return [{ ...customer, ...slot }];
+    });
 }
 
 async function listPreparedCustomerIds(weekKey) {
@@ -77,7 +82,9 @@ async function listPreparedCustomerIds(weekKey) {
 }
 
 async function prepareOneCustomer(customer, { weekKey, ctx }) {
-    const schedule = normalizePerformanceBriefSchedule(customer);
+    const scheduleDayOfWeek = normalizeScheduleDayOfWeek(customer.scheduleDayOfWeek);
+    const scheduleHour = scheduleSendHour(customer.scheduleHour);
+    const deliverDate = customer.deliverDate || ctx.deliveryDate;
     const brief = await generatePerformanceBrief(customer.customerId);
     const slackPayload = formatPerformanceBriefSlack({
         compact: {
@@ -99,9 +106,9 @@ async function prepareOneCustomer(customer, { weekKey, ctx }) {
                 customerId: customer.customerId,
                 customerName: customer.customerName || "",
                 weekKey,
-                deliverDate: ctx.deliveryDate,
-                scheduleDayOfWeek: schedule.scheduleDayOfWeek,
-                scheduleHour: schedule.scheduleHour,
+                deliverDate,
+                scheduleDayOfWeek,
+                scheduleHour,
                 slackChannelId: customer.slackChannelId,
                 slackChannelName: customer.slackChannelName || "",
                 slackPayload,
@@ -128,9 +135,9 @@ async function recordPrepareFailure(customer, { weekKey, ctx, message }) {
                 customerId: customer.customerId,
                 customerName: customer.customerName || "",
                 weekKey,
-                deliverDate: ctx.deliveryDate,
-                scheduleDayOfWeek: customer.scheduleDayOfWeek,
-                scheduleHour: customer.scheduleHour,
+                deliverDate: customer.deliverDate || ctx.deliveryDate,
+                scheduleDayOfWeek: normalizeScheduleDayOfWeek(customer.scheduleDayOfWeek),
+                scheduleHour: scheduleSendHour(customer.scheduleHour),
                 slackChannelId: customer.slackChannelId,
                 slackChannelName: customer.slackChannelName || "",
                 status: "prepare_failed",
