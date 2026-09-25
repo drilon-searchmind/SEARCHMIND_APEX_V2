@@ -174,7 +174,6 @@ export async function runPerformanceBriefDeliver(options = {}) {
                 customerId: item.customerId,
                 slackChannelId: channelId,
                 slackChannelName: channelName,
-                runId: `outbox-${weekKey}`,
             });
 
             if (!claim.claim) {

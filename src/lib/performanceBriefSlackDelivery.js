@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import PerformanceBriefSlackDelivery from "@/models/PerformanceBriefSlackDelivery";
 
 const STALE_SENDING_MS = 15 * 60 * 1000;
@@ -55,7 +56,7 @@ export async function tryClaimWeeklySlackDelivery({
                 customerId: cid,
                 slackChannelId: channelId,
                 slackChannelName: String(slackChannelName || "").trim(),
-                runId: runId || undefined,
+                ...(mongoose.isValidObjectId(runId) ? { runId } : {}),
                 status: "sending",
                 error: "",
                 claimedAt: new Date(),
