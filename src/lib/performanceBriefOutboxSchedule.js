@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import {
+    isPerformanceBriefForceAllToday,
     isPerformanceBriefTestMode,
     PREPARE_HOUR_COPENHAGEN,
     OUTBOX_CRON_TZ,
@@ -17,6 +18,7 @@ dayjs.extend(timezone);
 /**
  * @typedef {Object} DeliveryContext
  * @property {boolean} testMode
+ * @property {boolean} forceAllToday
  * @property {boolean} manual
  * @property {boolean} useTestChannel post to #apex-test-cron
  * @property {string} timezone
@@ -28,6 +30,7 @@ dayjs.extend(timezone);
 /**
  * Production: delivery day = today (prepare at 04:00, deliver in 4-hour slots same day).
  * Test mode (env): delivery day = tomorrow; all Slack customers; #apex-test-cron.
+ * Force all today (env): delivery day = today; all Slack customers; real channels.
  * Manual (?manual=1): delivery day = today; all Slack customers; #apex-test-cron; run now.
  * @param {import("dayjs").Dayjs} [now]
  * @param {{ manual?: boolean }} [options]
@@ -36,11 +39,12 @@ dayjs.extend(timezone);
 export function getDeliveryContext(now = dayjs(), options = {}) {
     const manual = Boolean(options.manual);
     const testMode = isPerformanceBriefTestMode();
+    const forceAllToday = isPerformanceBriefForceAllToday();
     const timezoneName = OUTBOX_CRON_TZ;
     const local = now.tz(timezoneName);
 
     let deliveryLocal = local;
-    if (manual) {
+    if (manual || forceAllToday) {
         deliveryLocal = local;
     } else if (testMode) {
         deliveryLocal = local.add(1, "day");
@@ -48,8 +52,9 @@ export function getDeliveryContext(now = dayjs(), options = {}) {
 
     return {
         testMode,
+        forceAllToday,
         manual,
-        useTestChannel: manual || testMode,
+        useTestChannel: (manual || testMode) && !forceAllToday,
         timezone: timezoneName,
         nowLocal: local.format("YYYY-MM-DD HH:mm:ss"),
         deliveryDate: deliveryLocal.format("YYYY-MM-DD"),

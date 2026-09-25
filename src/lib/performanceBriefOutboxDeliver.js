@@ -68,7 +68,7 @@ async function getTestSlackChannel() {
 }
 
 function filterItemsForCurrentSlot(items, now, ctx, options = {}) {
-    if (ctx.testMode || ctx.manual || options.skipSchedule) {
+    if (ctx.forceAllToday || ctx.testMode || ctx.manual || options.skipSchedule) {
         return items;
     }
 

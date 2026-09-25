@@ -59,7 +59,7 @@ async function listCustomersForPrepare(ctx, options = {}) {
 
     customers = customers.filter((c) => String(c.slackChannelId || "").trim());
 
-    if (ctx.testMode || ctx.manual || (options.force && options.skipSchedule)) {
+    if (ctx.forceAllToday || ctx.testMode || ctx.manual || (options.force && options.skipSchedule)) {
         return customers;
     }
 
