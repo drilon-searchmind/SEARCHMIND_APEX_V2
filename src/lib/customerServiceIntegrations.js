@@ -19,6 +19,7 @@ export function getServiceDashboardConfigWarnings(settings) {
         ppc: !isValidIntegrationId(s.googleAdsCustomerId),
         ps: !isValidIntegrationId(s.facebookAdAccountId),
         pinterest: !isValidIntegrationId(s.pinterestAdAccountId),
+        linkedin: !isValidIntegrationId(s.linkedinAdAccountId),
         snapchat: (() => {
             const sn = normalizeSnapchatSettings(s);
             const hasAuth =

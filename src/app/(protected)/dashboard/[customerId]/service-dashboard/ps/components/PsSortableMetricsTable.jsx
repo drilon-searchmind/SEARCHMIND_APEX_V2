@@ -59,7 +59,7 @@ export default function PsSortableMetricsTable({
     cobaltScope = "ppc",
 }) {
     const isCobalt = variant === "cobalt";
-    const scope = ["ps", "pin", "sc", "rd", "bing", "em"].includes(cobaltScope) ? cobaltScope : "ppc";
+    const scope = ["ps", "pin", "li", "sc", "rd", "bing", "em"].includes(cobaltScope) ? cobaltScope : "ppc";
     const [sortKey, setSortKey] = useState(columns.find((c) => c.align !== "left")?.key || columns[0]?.key);
     const [sortDir, setSortDir] = useState("desc");
 

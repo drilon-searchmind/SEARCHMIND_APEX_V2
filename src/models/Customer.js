@@ -172,6 +172,11 @@ const CustomerSchema = new mongoose.Schema({
             type: String,
             default: ""
         },
+        /** Numeric LinkedIn sponsored account id (Campaign Manager). */
+        linkedinAdAccountId: {
+            type: String,
+            default: ""
+        },
         /**
          * Snapchat — Marketing API OAuth + ads account; Conversions API token stored for offline sends.
          * Organization ID is the business organization (different from ad account UUID).

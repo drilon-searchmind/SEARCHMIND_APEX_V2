@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import FormInputText from "@/components/form/FormInputText";
 import FormLabel from "@/components/form/FormLabel";
-import { FiSettings, FiShoppingBag, FiPackage, FiDatabase, FiGlobe, FiFacebook, FiTrendingUp, FiSearch, FiMail, FiImage, FiLayers, FiZap, FiMessageCircle } from "react-icons/fi";
+import { FiSettings, FiShoppingBag, FiPackage, FiDatabase, FiGlobe, FiFacebook, FiTrendingUp, FiSearch, FiMail, FiImage, FiLayers, FiZap, FiMessageCircle, FiBriefcase } from "react-icons/fi";
 import MerchantCenterAccountFields from "@/components/merchant-center/MerchantCenterAccountFields";
 
 function SettingsSection({ title, icon: Icon, children, sectionId }) {
@@ -109,6 +109,7 @@ const CONFIG_SECTION = {
     googleAds: "config-google-ads",
     merchantCenter: "config-merchant-center",
     pinterestAds: "config-pinterest-ads",
+    linkedinAds: "config-linkedin-ads",
     snapchatAds: "config-snapchat-ads",
     redditAds: "config-reddit-ads",
     microsoftAds: "config-microsoft-ads",
@@ -178,6 +179,7 @@ export default function CustomerSettingsForm({
         { id: CONFIG_SECTION.googleAds, label: "Google Ads" },
         ...(canConfigureMc ? [{ id: CONFIG_SECTION.merchantCenter, label: "Merchant Center" }] : []),
         { id: CONFIG_SECTION.pinterestAds, label: "Pinterest Ads" },
+        { id: CONFIG_SECTION.linkedinAds, label: "LinkedIn Ads" },
         { id: CONFIG_SECTION.snapchatAds, label: "Snapchat Ads" },
         { id: CONFIG_SECTION.redditAds, label: "Reddit Ads" },
         { id: CONFIG_SECTION.microsoftAds, label: "Microsoft Ads" },
@@ -564,6 +566,17 @@ export default function CustomerSettingsForm({
                     value={form.pinterestAdAccountId}
                     onChange={onChange}
                     placeholder="Numeric id from Pinterest Ads Manager or GET /api/pinterest-ad-accounts"
+                />
+            </SettingsSection>
+
+            <SettingsSection title="LinkedIn Ads" icon={FiBriefcase} sectionId={CONFIG_SECTION.linkedinAds}>
+                <FormField
+                    id="linkedinAdAccountId"
+                    name="linkedinAdAccountId"
+                    label="LinkedIn ad account ID"
+                    value={form.linkedinAdAccountId}
+                    onChange={onChange}
+                    placeholder="Numeric sponsored account id — e.g. from GET /api/linkedin-ad-accounts"
                 />
             </SettingsSection>
 

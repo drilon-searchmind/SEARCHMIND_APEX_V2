@@ -1,0 +1,184 @@
+/* Apex · page: linkedin-dashboard · theme: minimal (DESIGN.md) */
+
+@import "../../performance-dashboard/performance-dashboard.css";
+@import "../service-dashboard-minimal.css";
+
+.apex-li-panel {
+  margin-top: var(--space-md);
+}
+
+.apex-li-section {
+  margin-bottom: var(--space-md);
+}
+
+.apex-li-section__label {
+  margin: 0 0 var(--space-sm);
+  font-family: var(--font-label);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.apex-li-kpi-grid {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.apex-li-kpi-grid--3 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 768px) {
+  .apex-li-kpi-grid--3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.apex-li-kpi-grid--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 768px) {
+  .apex-li-kpi-grid--2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.apex-li-kpi-card {
+  cursor: pointer;
+}
+
+.apex-li-chart-block {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+}
+
+@media (min-width: 768px) {
+  .apex-li-chart-block {
+    padding: var(--space-lg) var(--space-xl);
+  }
+}
+
+.apex-li-chart-note {
+  margin: var(--space-sm) 0 0;
+  font-size: 0.65rem;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+.apex-li-table-panel {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--perf-raised);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-card);
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (min-width: 768px) {
+  .apex-li-table-panel {
+    padding: var(--space-lg) var(--space-xl);
+  }
+}
+
+.apex-li-table-panel__head {
+  margin-bottom: var(--space-md);
+}
+
+.apex-li-table-panel__title {
+  margin: 0 0 var(--space-2xs);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-md);
+  color: var(--color-ink);
+}
+
+.apex-li-table-panel__subtitle {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+.apex-li-table-wrap {
+  overflow-x: auto;
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+}
+
+.apex-li-table {
+  width: 100%;
+  min-width: 32rem;
+  border-collapse: collapse;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--color-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.apex-li-table th {
+  padding: var(--space-xs) var(--space-sm);
+  font-family: var(--font-label);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--color-accent-ink);
+  background: var(--perf-accent);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  white-space: nowrap;
+}
+
+.apex-li-table th.is-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.apex-li-table th.is-sortable:hover {
+  background: var(--color-accent-hover);
+}
+
+.apex-li-table th.is-num,
+.apex-li-table td.is-num {
+  text-align: right;
+}
+
+.apex-li-table td {
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  vertical-align: middle;
+}
+
+.apex-li-table tbody tr:hover {
+  background: var(--perf-canvas);
+}
+
+.apex-li-table td.is-left {
+  text-align: left;
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-ink);
+}
+
+.apex-li-empty {
+  padding: var(--space-xl) var(--space-md);
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+.apex-li-error {
+  padding: var(--space-lg);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-error, oklch(50% 0.15 25));
+}

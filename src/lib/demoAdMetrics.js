@@ -390,6 +390,49 @@ export function getDemoPinterestDashboardForRange(startDate, endDate) {
     };
 }
 
+function linkedinRow(date) {
+    const di = dayIndexFrom20250101(date);
+    const spendScale = 1 + di * 0.00004;
+    const h = numHash(`li-${date}`);
+    const impressions = Math.round((62000 + (h % 3800)) * (1 + di * 0.00005) * dateWiggle(date, "liimp"));
+    const clicks = Math.round((980 + (h % 120)) * (1 + di * 0.00006) * dateWiggle(date, "liclk"));
+    const ad_spend = Math.round((620 + (h % 85)) * spendScale * dateWiggle(date, "lisp"));
+    const leads = Math.round((8 + (h % 5)) * (1 + di * 0.00005) * dateWiggle(date, "lilead"));
+    const conversions = Math.round(leads * 0.85);
+    return {
+        date,
+        conversion_value: 0,
+        ad_spend,
+        conversions,
+        leads,
+        impressions,
+        clicks,
+        roas: 0,
+        aov: 0,
+        ctr: impressions > 0 ? clicks / impressions : 0,
+        cpc: clicks > 0 ? ad_spend / clicks : 0,
+        cpm: impressions > 0 ? (ad_spend / impressions) * 1000 : 0,
+    };
+}
+
+export function getDemoLinkedInDashboardForRange(startDate, endDate) {
+    const days = eachDayInclusive(startDate, endDate);
+    return {
+        metrics_by_date: days.map(linkedinRow),
+        top_campaigns: [
+            {
+                campaign_name: "LinkedIn — Lead gen",
+                clicks: 1240,
+                impressions: 78000,
+                leads: 42,
+                conversions: 36,
+                ctr: 0.016,
+            },
+        ],
+        campaigns_by_date: [],
+    };
+}
+
 function snapchatRow(date) {
     const di = dayIndexFrom20250101(date);
     const revScale = 1 + di * 0.000065;

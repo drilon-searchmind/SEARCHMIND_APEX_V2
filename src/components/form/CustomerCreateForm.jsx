@@ -405,6 +405,8 @@ export default function CustomerCreateForm({
             <div>
                 <FormLabel className={labelClass} htmlFor="pinterestAdAccountId">Pinterest ad account ID</FormLabel>
                 <FormInputText id="pinterestAdAccountId" name="pinterestAdAccountId" value={form.CustomerSettings.pinterestAdAccountId} onChange={handleChange} className={inputClass} />
+                <FormLabel className={labelClass} htmlFor="linkedinAdAccountId">LinkedIn ad account ID</FormLabel>
+                <FormInputText id="linkedinAdAccountId" name="linkedinAdAccountId" value={form.CustomerSettings.linkedinAdAccountId} onChange={handleChange} className={inputClass} />
             </div>
             <div>
                 <FormLabel className={labelClass} htmlFor="snapchat.organizationId">Snapchat organization ID</FormLabel>

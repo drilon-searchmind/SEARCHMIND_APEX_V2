@@ -67,6 +67,7 @@ export default function ConfigPage() {
         googleAdsCountryExclude: "",
         googleAdsMarketMapping: [],
         pinterestAdAccountId: "",
+        linkedinAdAccountId: "",
         snapchat: defaultSnapchatSettings(),
         reddit: defaultRedditSettings(),
         danDomain: defaultDanDomainSettings(),
@@ -264,6 +265,7 @@ export default function ConfigPage() {
                 googleMerchantAccountSlot,
                 googleAdsMarketMapping,
                 pinterestAdAccountId,
+                linkedinAdAccountId,
                 snapchat,
                 reddit,
                 danDomain,
@@ -321,6 +323,7 @@ export default function ConfigPage() {
                                 googleAdsMarketMapping
                             ),
                             pinterestAdAccountId,
+                            linkedinAdAccountId,
                             snapchat: {
                                 ...defaultSnapchatSettings(),
                                 ...snapchat,
