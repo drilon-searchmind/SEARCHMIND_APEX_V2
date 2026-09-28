@@ -1,0 +1,138 @@
+{
+  "fetchedAt": "2026-09-28T11:57:00.924Z",
+  "linkedinVersion": "202609",
+  "accessTokenRefreshed": false,
+  "refreshExpiresIn": null,
+  "authenticatedUser": {
+    "ok": false,
+    "status": 403,
+    "error": "Not enough permissions to access: userinfo.GET.NO_VERSION"
+  },
+  "accountCount": 2,
+  "accounts": [
+    {
+      "id": "557711026",
+      "urn": "urn:li:sponsoredAccount:557711026",
+      "name": "Boost Searchmind August 24, 2026 at 7:07 AM",
+      "status": "ACTIVE",
+      "currency": "DKK",
+      "type": "BUSINESS",
+      "reference": "urn:li:organization:10384287",
+      "test": false,
+      "servingStatuses": [
+        "BILLING_HOLD"
+      ],
+      "role": "ACCOUNT_BILLING_ADMIN",
+      "user": "urn:li:person:slF7zIrgr8",
+      "account": {
+        "test": false,
+        "notifiedOnCreativeRejection": false,
+        "notifiedOnNewFeaturesEnabled": false,
+        "notifiedOnEndOfCampaign": false,
+        "servingStatuses": [
+          "BILLING_HOLD"
+        ],
+        "notifiedOnCampaignOptimization": false,
+        "type": "BUSINESS",
+        "version": {
+          "versionTag": "3"
+        },
+        "reference": "urn:li:organization:10384287",
+        "notifiedOnCreativeApproval": false,
+        "changeAuditStamps": {
+          "created": {
+            "actor": "urn:li:unknown:0",
+            "time": 1787555229932
+          },
+          "lastModified": {
+            "actor": "urn:li:unknown:0",
+            "time": 1789548139407
+          }
+        },
+        "name": "Boost Searchmind August 24, 2026 at 7:07 AM",
+        "currency": "DKK",
+        "id": 557711026,
+        "status": "ACTIVE"
+      },
+      "access": {
+        "role": "ACCOUNT_BILLING_ADMIN",
+        "changeAuditStamps": {
+          "created": {
+            "actor": "urn:li:person:slF7zIrgr8",
+            "impersonator": "urn:li:servicePrincipal:core-authz-mt",
+            "time": 1787555230048
+          },
+          "lastModified": {
+            "actor": "urn:li:person:slF7zIrgr8",
+            "impersonator": "urn:li:servicePrincipal:core-authz-mt",
+            "time": 1787555230048
+          }
+        },
+        "user": "urn:li:person:slF7zIrgr8",
+        "account": "urn:li:sponsoredAccount:557711026"
+      }
+    },
+    {
+      "id": "507014643",
+      "urn": "urn:li:sponsoredAccount:507014643",
+      "name": "Searchmind",
+      "status": "ACTIVE",
+      "currency": "DKK",
+      "type": "BUSINESS",
+      "reference": "urn:li:organization:10384287",
+      "test": false,
+      "servingStatuses": [
+        "RUNNABLE"
+      ],
+      "role": "CAMPAIGN_MANAGER",
+      "user": "urn:li:person:slF7zIrgr8",
+      "account": {
+        "test": false,
+        "notifiedOnCreativeRejection": false,
+        "notifiedOnNewFeaturesEnabled": false,
+        "notifiedOnEndOfCampaign": false,
+        "servingStatuses": [
+          "RUNNABLE"
+        ],
+        "notifiedOnCampaignOptimization": false,
+        "type": "BUSINESS",
+        "version": {
+          "versionTag": "23"
+        },
+        "reference": "urn:li:organization:10384287",
+        "notifiedOnCreativeApproval": false,
+        "changeAuditStamps": {
+          "created": {
+            "actor": "urn:li:unknown:0",
+            "time": 1610626426000
+          },
+          "lastModified": {
+            "actor": "urn:li:unknown:0",
+            "time": 1788867647865
+          }
+        },
+        "name": "Searchmind",
+        "currency": "DKK",
+        "id": 507014643,
+        "status": "ACTIVE"
+      },
+      "access": {
+        "role": "CAMPAIGN_MANAGER",
+        "changeAuditStamps": {
+          "created": {
+            "actor": "urn:li:enterpriseAuthToken:eJxjZAACrgsJr0A0j4LjQhDN2cy0iRHE8JkzfzUDgxgAdE8GvQ==",
+            "impersonator": "urn:li:servicePrincipal:core-authz-mt",
+            "time": 1789631746271
+          },
+          "lastModified": {
+            "actor": "urn:li:enterpriseAuthToken:eJxjZAACrgsJr0A0j4LjQhDN2cy0iRHE8JkzfzUDgxgAdE8GvQ==",
+            "impersonator": "urn:li:servicePrincipal:core-authz-mt",
+            "time": 1789631746271
+          }
+        },
+        "user": "urn:li:person:slF7zIrgr8",
+        "account": "urn:li:sponsoredAccount:507014643"
+      }
+    }
+  ]
+}
