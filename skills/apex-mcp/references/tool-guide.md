@@ -24,6 +24,7 @@ Requires `customerId`, `startDate`, `endDate` unless noted.
 | `get_facebook_ads` | Meta daily spend / PS dashboard metrics |
 | `get_google_ads` | Google Ads PPC metrics |
 | `get_pinterest_ads` | Pinterest metrics |
+| `get_linkedin_ads` | LinkedIn metrics |
 | `get_snapchat_ads` | Snapchat metrics |
 | `get_reddit_ads` | Reddit metrics |
 | `get_bing_ads` | Microsoft Advertising metrics |
@@ -42,6 +43,7 @@ Requires `customerId`, `startDate`, `endDate` unless noted.
 | `get_klaviyo_flows` | Klaviyo flow setup (triggers, delays, email steps) — optional `includeActions`, `status`, `maxFlows` |
 | `get_weekly_audit` | Compact weekly audit JSON — `startDate`, `endDate`; optional `compare` (`prev_period` default, `yoy`) |
 | `get_pinterest_dashboard` | Full Pinterest dashboard |
+| `get_linkedin_dashboard` | Full LinkedIn dashboard |
 | `get_snapchat_dashboard` | Full Snapchat dashboard |
 | `get_reddit_dashboard` | Full Reddit dashboard |
 | `get_bing_dashboard` | Full Bing dashboard |
@@ -187,6 +189,7 @@ These routes have MCP handlers but are **not** on the default allowlist. A block
 | Route | Required params |
 |-------|-----------------|
 | `/api/pinterest-ads` | `startDate`, `endDate` |
+| `/api/linkedin-ads` | `startDate`, `endDate` |
 | `/api/snapchat-ads` | `startDate`, `endDate` |
 | `/api/reddit-ads` | `startDate`, `endDate` |
 | `/api/bing-ads` | `startDate`, `endDate` |
