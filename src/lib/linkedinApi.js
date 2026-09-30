@@ -22,6 +22,7 @@ const ACCOUNT_DAILY_FIELDS = [
     "costInLocalCurrency",
     "externalWebsiteConversions",
     "oneClickLeads",
+    "oneClickLeadFormOpens",
     "dateRange",
 ].join(",");
 
@@ -32,8 +33,34 @@ const CAMPAIGN_TOTAL_FIELDS = [
     "costInLocalCurrency",
     "externalWebsiteConversions",
     "oneClickLeads",
+    "oneClickLeadFormOpens",
     "pivotValues",
 ].join(",");
+
+const CREATIVE_TOTAL_FIELDS = [
+    "impressions",
+    "clicks",
+    "landingPageClicks",
+    "costInLocalCurrency",
+    "externalWebsiteConversions",
+    "oneClickLeads",
+    "oneClickLeadFormOpens",
+    "pivotValues",
+].join(",");
+
+/** Explains LinkedIn metric semantics for dashboard + MCP consumers. */
+export const LINKEDIN_METRICS_DEFINITIONS = {
+    clicks:
+        "Landing page clicks when available (landingPageClicks), otherwise all ad clicks.",
+    leads:
+        "oneClickLeads — Lead Gen Form submissions (One Click Lead Gen). Not the same as website conversions.",
+    lead_form_opens:
+        "oneClickLeadFormOpens — users who opened a Lead Gen Form without necessarily submitting.",
+    conversions:
+        "externalWebsiteConversions — Insight Tag / Conversions API website events attributed to the ad. Not Lead Gen Form submits.",
+};
+
+const CREATIVE_FETCH_CONCURRENCY = 8;
 
 let cachedAccessToken = null;
 let resolvedApiVersion = null;
@@ -273,30 +300,38 @@ async function fetchAllAnalyticsElements(options) {
     return elements;
 }
 
-function analyticsRowToMetric(row) {
-    const date = parseLinkedInDateFromElement(row);
+function aggregateAnalyticsCounts(row) {
     const ad_spend = num(row.costInLocalCurrency);
     const impressions = num(row.impressions);
     const clicks = num(row.landingPageClicks) || num(row.clicks);
     const leads = num(row.oneClickLeads);
-    const conversions = num(row.externalWebsiteConversions) || leads;
+    const lead_form_opens = num(row.oneClickLeadFormOpens);
+    const conversions = num(row.externalWebsiteConversions);
     const ctr = impressions > 0 ? clicks / impressions : 0;
     const cpc = clicks > 0 ? ad_spend / clicks : 0;
     const cpm = impressions > 0 ? (ad_spend / impressions) * 1000 : 0;
-
     return {
-        date,
-        conversion_value: 0,
         ad_spend,
-        conversions,
-        leads,
         impressions,
         clicks,
-        roas: 0,
-        aov: 0,
+        leads,
+        lead_form_opens,
+        conversions,
         ctr,
         cpc,
         cpm,
+    };
+}
+
+function analyticsRowToMetric(row) {
+    const date = parseLinkedInDateFromElement(row);
+    const counts = aggregateAnalyticsCounts(row);
+    return {
+        date,
+        conversion_value: 0,
+        ...counts,
+        roas: 0,
+        aov: 0,
     };
 }
 
@@ -307,6 +342,7 @@ function emptyMetricForDate(date) {
         ad_spend: 0,
         conversions: 0,
         leads: 0,
+        lead_form_opens: 0,
         impressions: 0,
         clicks: 0,
         roas: 0,
@@ -354,17 +390,36 @@ async function fetchAccountDailyMetrics(accessToken, version, adAccountId, start
     return fillDateRangeMetrics(startDate, endDate, byDate);
 }
 
-function campaignIdFromPivot(row) {
+function idFromPivotUrn(row, entity) {
     const urn = (row?.pivotValues || [])[0];
     if (!urn) return "";
-    const match = String(urn).match(/sponsoredCampaign:(\d+)/);
+    const match = String(urn).match(new RegExp(`${entity}:(\\d+)`));
     return match ? match[1] : String(urn).split(":").pop() || "";
 }
 
-async function fetchCampaignName(accessToken, version, campaignId) {
+function campaignIdFromPivot(row) {
+    return idFromPivotUrn(row, "sponsoredCampaign");
+}
+
+function creativeUrnFromPivot(row) {
+    const urn = (row?.pivotValues || [])[0];
+    return urn ? String(urn) : "";
+}
+
+function creativeIdFromPivot(row) {
+    return idFromPivotUrn(row, "sponsoredCreative");
+}
+
+function campaignIdFromUrn(urn) {
+    const match = String(urn || "").match(/sponsoredCampaign:(\d+)/);
+    return match ? match[1] : "";
+}
+
+async function fetchCampaignName(accessToken, version, adAccountId, campaignId) {
+    if (!campaignId) return "Unknown campaign";
     try {
         const { payload } = await linkedInGet(
-            `${API_ROOT}/rest/adCampaigns/${encodeURIComponent(campaignId)}`,
+            `${API_ROOT}/rest/adAccounts/${encodeURIComponent(adAccountId)}/adCampaigns/${encodeURIComponent(campaignId)}`,
             accessToken,
             version
         );
@@ -372,6 +427,42 @@ async function fetchCampaignName(accessToken, version, campaignId) {
     } catch {
         return `Campaign ${campaignId}`;
     }
+}
+
+function inferCreativeFormat(creative = {}) {
+    if (creative.leadgenCallToAction) return "Lead Gen Form";
+    const ref = String(creative.content?.reference || "");
+    if (ref.includes("ugcPost")) return "Video / UGC";
+    if (ref.includes("share")) return "Image / Document";
+    return "Sponsored";
+}
+
+async function fetchCreativeMeta(accessToken, version, adAccountId, creativeUrn) {
+    if (!creativeUrn) return null;
+    try {
+        const { payload } = await linkedInGet(
+            `${API_ROOT}/rest/adAccounts/${encodeURIComponent(adAccountId)}/creatives/${encodeURIComponent(creativeUrn)}`,
+            accessToken,
+            version
+        );
+        return payload;
+    } catch {
+        return null;
+    }
+}
+
+async function mapPool(items, concurrency, mapper) {
+    const results = new Array(items.length);
+    let index = 0;
+    async function worker() {
+        while (index < items.length) {
+            const current = index;
+            index += 1;
+            results[current] = await mapper(items[current], current);
+        }
+    }
+    await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()));
+    return results;
 }
 
 async function fetchTopCampaigns(accessToken, version, adAccountId, startDate, endDate) {
@@ -394,37 +485,123 @@ async function fetchTopCampaigns(accessToken, version, adAccountId, startDate, e
             if (!campaignId) continue;
             const prev = agg.get(campaignId) || {
                 campaign_id: campaignId,
+                ad_spend: 0,
                 impressions: 0,
                 clicks: 0,
                 leads: 0,
+                lead_form_opens: 0,
                 conversions: 0,
             };
-            prev.impressions += num(row.impressions);
-            prev.clicks += num(row.landingPageClicks) || num(row.clicks);
-            prev.leads += num(row.oneClickLeads);
-            prev.conversions += num(row.externalWebsiteConversions) || num(row.oneClickLeads);
+            const counts = aggregateAnalyticsCounts(row);
+            prev.ad_spend += counts.ad_spend;
+            prev.impressions += counts.impressions;
+            prev.clicks += counts.clicks;
+            prev.leads += counts.leads;
+            prev.lead_form_opens += counts.lead_form_opens;
+            prev.conversions += counts.conversions;
             agg.set(campaignId, prev);
         }
     }
 
     const sorted = [...agg.values()].sort((a, b) => b.clicks - a.clicks).slice(0, 50);
-    const normalized = await Promise.all(
-        sorted.map(async (row) => {
-            const impressions = row.impressions;
-            const clicks = row.clicks;
-            const campaign_name = await fetchCampaignName(accessToken, version, row.campaign_id);
-            return {
-                campaign_name,
-                clicks,
-                impressions,
-                leads: row.leads,
-                conversions: row.conversions,
-                ctr: impressions > 0 ? clicks / impressions : 0,
-            };
-        })
-    );
+    const normalized = await mapPool(sorted, CREATIVE_FETCH_CONCURRENCY, async (row) => {
+        const { impressions, clicks } = row;
+        const campaign_name = await fetchCampaignName(
+            accessToken,
+            version,
+            adAccountId,
+            row.campaign_id
+        );
+        return {
+            campaign_id: row.campaign_id,
+            campaign_name,
+            ad_spend: row.ad_spend,
+            clicks,
+            impressions,
+            leads: row.leads,
+            lead_form_opens: row.lead_form_opens,
+            conversions: row.conversions,
+            ctr: impressions > 0 ? clicks / impressions : 0,
+        };
+    });
 
     return normalized;
+}
+
+async function fetchTopAds(accessToken, version, adAccountId, startDate, endDate) {
+    const chunks = splitDateRangeIntoChunks(startDate, endDate);
+    const agg = new Map();
+
+    for (const chunk of chunks) {
+        const elements = await fetchAllAnalyticsElements({
+            accessToken,
+            version,
+            adAccountId,
+            pivot: "CREATIVE",
+            timeGranularity: "ALL",
+            startDate: chunk.start,
+            endDate: chunk.end,
+            fields: CREATIVE_TOTAL_FIELDS,
+        });
+        for (const row of elements) {
+            const creativeUrn = creativeUrnFromPivot(row);
+            const creativeId = creativeIdFromPivot(row);
+            if (!creativeId) continue;
+            const prev = agg.get(creativeId) || {
+                creative_id: creativeId,
+                creative_urn: creativeUrn,
+                ad_spend: 0,
+                impressions: 0,
+                clicks: 0,
+                leads: 0,
+                lead_form_opens: 0,
+                conversions: 0,
+            };
+            const counts = aggregateAnalyticsCounts(row);
+            prev.ad_spend += counts.ad_spend;
+            prev.impressions += counts.impressions;
+            prev.clicks += counts.clicks;
+            prev.leads += counts.leads;
+            prev.lead_form_opens += counts.lead_form_opens;
+            prev.conversions += counts.conversions;
+            agg.set(creativeId, prev);
+        }
+    }
+
+    const sorted = [...agg.values()].sort((a, b) => b.ad_spend - a.ad_spend).slice(0, 50);
+    const campaignNameCache = new Map();
+
+    return mapPool(sorted, CREATIVE_FETCH_CONCURRENCY, async (row) => {
+        const creative = await fetchCreativeMeta(
+            accessToken,
+            version,
+            adAccountId,
+            row.creative_urn || `urn:li:sponsoredCreative:${row.creative_id}`
+        );
+        const campaignId = campaignIdFromUrn(creative?.campaign);
+        let campaign_name = campaignNameCache.get(campaignId);
+        if (campaignId && !campaign_name) {
+            campaign_name = await fetchCampaignName(accessToken, version, adAccountId, campaignId);
+            campaignNameCache.set(campaignId, campaign_name);
+        }
+
+        const impressions = row.impressions;
+        const clicks = row.clicks;
+        return {
+            creative_id: row.creative_id,
+            creative_name: creative?.name || `Ad ${row.creative_id}`,
+            format: inferCreativeFormat(creative || {}),
+            campaign_id: campaignId || null,
+            campaign_name: campaign_name || null,
+            ad_spend: row.ad_spend,
+            clicks,
+            impressions,
+            leads: row.leads,
+            lead_form_opens: row.lead_form_opens,
+            conversions: row.conversions,
+            ctr: impressions > 0 ? clicks / impressions : 0,
+        };
+    });
 }
 
 /**
@@ -443,15 +620,18 @@ export async function fetchLinkedInDashboardMetrics({ adAccountId, startDate, en
 
     dbg("fetchLinkedInDashboardMetrics", { adAccountId, startDate, endDate, version });
 
-    const [metrics_by_date, top_campaigns] = await Promise.all([
+    const [metrics_by_date, top_campaigns, top_ads] = await Promise.all([
         fetchAccountDailyMetrics(token, version, adAccountId, startDate, endDate),
         fetchTopCampaigns(token, version, adAccountId, startDate, endDate),
+        fetchTopAds(token, version, adAccountId, startDate, endDate),
     ]);
 
     return {
         metrics_by_date,
         top_campaigns,
+        top_ads,
         campaigns_by_date: [],
+        metrics_definitions: LINKEDIN_METRICS_DEFINITIONS,
     };
 }
 

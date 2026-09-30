@@ -22,6 +22,7 @@ import {
     CHART_TOGGLE_ROW3,
     METRIC_OPTIONS,
     CAMPAIGN_TABLE_COLUMNS,
+    AD_TABLE_COLUMNS,
 } from "./components/linkedinDashboardConfig";
 import "./linkedin-dashboard.css";
 
@@ -98,6 +99,7 @@ export default function LinkedInServiceDashboardPage() {
     const [metricsByDate, setMetricsByDate] = useState([]);
     const [metricsByDatePrev, setMetricsByDatePrev] = useState([]);
     const [topCampaigns, setTopCampaigns] = useState([]);
+    const [topAds, setTopAds] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedMetrics, setSelectedMetrics] = useState(["ad_spend"]);
@@ -155,6 +157,7 @@ export default function LinkedInServiceDashboardPage() {
                 const metrics = await curRes.json();
                 setMetricsByDate(metrics.metrics_by_date || []);
                 setTopCampaigns(metrics.top_campaigns || []);
+                setTopAds(metrics.top_ads || []);
 
                 if (prevRes.ok) {
                     const metricsPrev = await prevRes.json();
@@ -167,6 +170,7 @@ export default function LinkedInServiceDashboardPage() {
                 setMetricsByDate([]);
                 setMetricsByDatePrev([]);
                 setTopCampaigns([]);
+                setTopAds([]);
             } finally {
                 setLoading(false);
             }
@@ -338,10 +342,20 @@ export default function LinkedInServiceDashboardPage() {
         () =>
             topCampaigns.map((r, i) => ({
                 ...r,
-                id: r.campaign_name || i,
+                id: r.campaign_id || r.campaign_name || i,
                 ctr: r.ctr != null && r.ctr <= 1 ? r.ctr : r.ctr != null ? r.ctr / 100 : null,
             })),
         [topCampaigns]
+    );
+
+    const adRows = useMemo(
+        () =>
+            topAds.map((r, i) => ({
+                ...r,
+                id: r.creative_id || i,
+                ctr: r.ctr != null && r.ctr <= 1 ? r.ctr : r.ctr != null ? r.ctr / 100 : null,
+            })),
+        [topAds]
     );
 
     return (
@@ -360,6 +374,7 @@ export default function LinkedInServiceDashboardPage() {
                     metricsByDate,
                     metricsByDatePrev,
                     topCampaigns,
+                    topAds,
                     selectedMetrics,
                     METRIC_OPTIONS,
                 }}
@@ -418,9 +433,19 @@ export default function LinkedInServiceDashboardPage() {
                         variant="cobalt"
                         cobaltScope="li"
                         title="Top performance campaigns"
-                        subtitle="Sorted by clicks — heatmap highlights relative volume within the table."
+                        subtitle="Lead Gen leads = form submits. Web conversions = Insight Tag / CAPI events (different metric)."
                         columns={CAMPAIGN_TABLE_COLUMNS}
                         rows={campaignRows}
+                        rowKeyField="id"
+                    />
+
+                    <PsSortableMetricsTable
+                        variant="cobalt"
+                        cobaltScope="li"
+                        title="Top ads (creatives)"
+                        subtitle="Per-ad totals for the selected period, with creative name and format."
+                        columns={AD_TABLE_COLUMNS}
+                        rows={adRows}
                         rowKeyField="id"
                     />
                 </div>

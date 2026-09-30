@@ -398,13 +398,15 @@ function linkedinRow(date) {
     const clicks = Math.round((980 + (h % 120)) * (1 + di * 0.00006) * dateWiggle(date, "liclk"));
     const ad_spend = Math.round((620 + (h % 85)) * spendScale * dateWiggle(date, "lisp"));
     const leads = Math.round((8 + (h % 5)) * (1 + di * 0.00005) * dateWiggle(date, "lilead"));
-    const conversions = Math.round(leads * 0.85);
+    const lead_form_opens = Math.round(leads * 2.4);
+    const conversions = Math.round((6 + (h % 4)) * (1 + di * 0.00004) * dateWiggle(date, "liconv"));
     return {
         date,
         conversion_value: 0,
         ad_spend,
         conversions,
         leads,
+        lead_form_opens,
         impressions,
         clicks,
         roas: 0,
@@ -425,11 +427,29 @@ export function getDemoLinkedInDashboardForRange(startDate, endDate) {
                 clicks: 1240,
                 impressions: 78000,
                 leads: 42,
+                lead_form_opens: 98,
                 conversions: 36,
                 ctr: 0.016,
             },
         ],
+        top_ads: [
+            {
+                creative_name: "SM | Lead | JPG04",
+                format: "Lead Gen Form",
+                campaign_name: "LinkedIn — Lead gen",
+                ad_spend: 4200,
+                clicks: 620,
+                impressions: 41000,
+                leads: 28,
+                conversions: 12,
+                ctr: 0.015,
+            },
+        ],
         campaigns_by_date: [],
+        metrics_definitions: {
+            leads: "oneClickLeads — Lead Gen Form submissions.",
+            conversions: "externalWebsiteConversions — website conversion events.",
+        },
     };
 }
 

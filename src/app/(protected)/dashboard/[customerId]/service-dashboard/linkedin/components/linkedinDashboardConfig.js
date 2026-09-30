@@ -17,7 +17,7 @@ export const CHART_TOGGLE_ROW1 = [
 
 export const CHART_TOGGLE_ROW2 = [
     { key: "impressions", label: "Impressions", icon: FiEye },
-    { key: "leads", label: "Leads", icon: FiUserPlus },
+    { key: "leads", label: "Lead Gen leads", icon: FiUserPlus },
 ];
 
 export const CHART_TOGGLE_ROW3 = [
@@ -30,8 +30,22 @@ export const METRIC_OPTIONS = [...CHART_TOGGLE_ROW1, ...CHART_TOGGLE_ROW2, ...CH
 
 export const CAMPAIGN_TABLE_COLUMNS = [
     { key: "campaign_name", label: "Campaign", align: "left", format: "text" },
+    { key: "ad_spend", label: "Spend", align: "right", format: "money", heatmap: true },
     { key: "clicks", label: "Clicks", align: "right", format: "number", heatmap: true },
     { key: "impressions", label: "Impressions", align: "right", format: "number", heatmap: true },
-    { key: "leads", label: "Leads", align: "right", format: "number", heatmap: true },
+    { key: "leads", label: "Lead Gen leads", align: "right", format: "number", heatmap: true },
+    { key: "conversions", label: "Web conversions", align: "right", format: "number", heatmap: true },
+    { key: "ctr", label: "CTR", align: "right", format: "percent", heatmap: true },
+];
+
+export const AD_TABLE_COLUMNS = [
+    { key: "creative_name", label: "Ad / creative", align: "left", format: "text" },
+    { key: "format", label: "Format", align: "left", format: "text" },
+    { key: "campaign_name", label: "Campaign", align: "left", format: "text" },
+    { key: "ad_spend", label: "Spend", align: "right", format: "money", heatmap: true },
+    { key: "clicks", label: "Clicks", align: "right", format: "number", heatmap: true },
+    { key: "impressions", label: "Impressions", align: "right", format: "number", heatmap: true },
+    { key: "leads", label: "Lead Gen leads", align: "right", format: "number", heatmap: true },
+    { key: "conversions", label: "Web conversions", align: "right", format: "number", heatmap: true },
     { key: "ctr", label: "CTR", align: "right", format: "percent", heatmap: true },
 ];
