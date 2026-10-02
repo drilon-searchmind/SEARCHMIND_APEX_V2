@@ -211,93 +211,123 @@ export async function fetchKlaviyoScheduledCampaigns(apiKey, options = {}) {
 }
 
 /**
- * @param {unknown} action
+ * @param {string} rawType
  */
-function mapFlowActionType(action) {
-    const a = /** @type {Record<string, unknown>} */ (action);
-    const attrs = /** @type {Record<string, unknown>} */ (a.attributes || {});
-    const def = /** @type {Record<string, unknown>} */ (attrs.definition || {});
-    const defData = /** @type {Record<string, unknown>} */ (def.data || {});
-    const raw =
-        attrs.action_type ||
-        def.type ||
-        defData.action_type ||
-        defData.type ||
-        "unknown";
-    const s = String(raw).toLowerCase();
+function normalizeDefinitionActionType(rawType) {
+    const s = String(rawType || "").toLowerCase();
     if (s.includes("delay") || s === "time-delay") return "delay";
-    if (s.includes("send") && s.includes("email")) return "send_email";
-    if (s.includes("send") && s.includes("sms")) return "send_sms";
-    if (s.includes("split")) return "split";
+    if (s === "send-email" || (s.includes("send") && s.includes("email"))) return "send_email";
+    if (s === "send-sms" || (s.includes("send") && s.includes("sms"))) return "send_sms";
+    if (s.includes("conditional") || s.includes("split")) return "split";
     if (s.includes("trigger")) return "trigger";
-    return String(raw);
+    return s.replace(/-/g, "_") || "unknown";
 }
 
 /**
- * @param {unknown} action
+ * @param {Record<string, unknown>} data
  */
-function extractFlowDelay(action) {
-    const a = /** @type {Record<string, unknown>} */ (action);
-    const attrs = /** @type {Record<string, unknown>} */ (a.attributes || {});
-    const def = /** @type {Record<string, unknown>} */ (attrs.definition || {});
-    const defData = /** @type {Record<string, unknown>} */ (def.data || {});
+function extractDefinitionDelay(data) {
     return {
-        unit: defData.unit || defData.delay_units || null,
-        value: defData.value ?? defData.delay ?? null,
-        delayUntilTime: defData.delay_until_time || null,
-        delayUntilWeekdays: defData.delay_until_weekdays || null,
+        unit: data.unit || data.delay_units || null,
+        value: data.value ?? data.delay ?? null,
+        delayUntilTime: data.delay_until_time || null,
+        delayUntilWeekdays: data.delay_until_weekdays || null,
     };
+}
+
+/**
+ * @param {Record<string, unknown>} action
+ * @param {string|null} branch
+ */
+function definitionActionToStep(action, branch) {
+    const data = /** @type {Record<string, unknown>} */ (action.data || {});
+    const links = /** @type {Record<string, unknown>} */ (action.links || {});
+    const type = normalizeDefinitionActionType(action.type);
+    /** @type {Record<string, unknown>} */
+    const step = {
+        id: action.id,
+        type,
+        status: data.status || null,
+        links: {
+            next: links.next || null,
+            next_if_true: links.next_if_true || null,
+            next_if_false: links.next_if_false || null,
+        },
+    };
+    if (branch) step.branch = branch;
+    if (type === "delay") step.delay = extractDefinitionDelay(data);
+    if (type === "split") step.split = { profileFilter: data.profile_filter || null };
+    if (type === "send_email" || type === "send_sms") {
+        const msg = /** @type {Record<string, unknown>} */ (data.message || {});
+        step.messages = [
+            {
+                id: msg.id || null,
+                name: msg.name || null,
+                subject: msg.subject_line || msg.subject || null,
+                channel: type === "send_sms" ? "sms" : "email",
+                templateId: msg.template_id || null,
+            },
+        ];
+    } else {
+        step.messages = [];
+    }
+    return step;
+}
+
+/**
+ * Walk flow definition from entry_action_id (Klaviyo-recommended; avoids flow-messages include).
+ *
+ * @param {Record<string, unknown>} definition
+ */
+function stepsFromFlowDefinition(definition) {
+    const actions = /** @type {Array<Record<string, unknown>>} */ (definition.actions || []);
+    const byId = new Map(actions.map((a) => [String(a.id), a]));
+    const entryId = definition.entry_action_id ? String(definition.entry_action_id) : null;
+    /** @type {ReturnType<typeof definitionActionToStep>[]} */
+    const ordered = [];
+    const seen = new Set();
+
+    /**
+     * @param {string|null|undefined} id
+     * @param {string|null} branch
+     */
+    function visit(id, branch) {
+        if (!id || seen.has(id)) return;
+        seen.add(id);
+        const action = byId.get(String(id));
+        if (!action) return;
+        ordered.push(definitionActionToStep(action, branch));
+        const links = /** @type {Record<string, unknown>} */ (action.links || {});
+        if (links.next_if_true) visit(String(links.next_if_true), "true");
+        if (links.next_if_false) visit(String(links.next_if_false), "false");
+        if (links.next) visit(String(links.next), branch);
+    }
+
+    if (entryId) visit(entryId, null);
+    else {
+        for (const action of actions) {
+            const id = String(action.id);
+            if (!seen.has(id)) visit(id, null);
+        }
+    }
+    return ordered;
 }
 
 /**
  * @param {string} apiKey
  * @param {string} flowId
  */
-async function fetchFlowActionsForFlow(apiKey, flowId) {
-    const path = `/flows/${flowId}/flow-actions/?include=flow-messages`;
-    const { data, included } = await klaviyoPaginate(path, apiKey, { maxPages: 20 });
-
-    const messagesById = new Map();
-    for (const inc of included) {
-        const row = /** @type {Record<string, unknown>} */ (inc);
-        if (row.type === "flow-message") messagesById.set(String(row.id), row);
-    }
-
-    return data.map((action) => {
-        const a = /** @type {Record<string, unknown>} */ (action);
-        const attrs = /** @type {Record<string, unknown>} */ (a.attributes || {});
-        const type = mapFlowActionType(action);
-        /** @type {Record<string, unknown>} */
-        const step = {
-            id: a.id,
-            type,
-            status: attrs.status || null,
-        };
-        if (type === "delay") {
-            step.delay = extractFlowDelay(action);
-        }
-        const rel = /** @type {Record<string, unknown>} */ (a.relationships || {});
-        const msgRel = /** @type {{ data?: Array<{ id: string }> }} */ (rel["flow-messages"] || {});
-        step.messages = (msgRel.data || []).map((ref) => {
-            const msg = messagesById.get(ref.id);
-            const mAttrs = /** @type {Record<string, unknown>} */ (
-                msg ? /** @type {Record<string, unknown>} */ (msg).attributes || {} : {}
-            );
-            const content = /** @type {Record<string, unknown>} */ (mAttrs.content || {});
-            return {
-                id: ref.id,
-                name: mAttrs.name || mAttrs.label || null,
-                subject: content.subject || null,
-                channel: mAttrs.channel || "email",
-            };
-        });
-        return step;
-    });
+async function fetchFlowStepsForFlow(apiKey, flowId) {
+    const path = `/flows/${encodeURIComponent(flowId)}/?additional-fields[flow]=definition`;
+    const json = await klaviyoGetJson(`${KLAVIYO_BASE}${path}`, apiKey);
+    const attrs = /** @type {Record<string, unknown>} */ (json.data?.attributes || {});
+    const def = /** @type {Record<string, unknown>} */ (attrs.definition || {});
+    return stepsFromFlowDefinition(def);
 }
 
 /**
  * @param {unknown} flow
- * @param {ReturnType<typeof fetchFlowActionsForFlow> extends Promise<infer R> ? R : never} steps
+ * @param {ReturnType<typeof stepsFromFlowDefinition>} steps
  */
 function serializeFlowOverview(flow, steps) {
     const f = /** @type {Record<string, unknown>} */ (flow);
@@ -305,7 +335,11 @@ function serializeFlowOverview(flow, steps) {
     const def = /** @type {Record<string, unknown>} */ (attrs.definition || {});
     const triggers = /** @type {unknown[]} */ (def.triggers || []);
     const firstTrigger = /** @type {Record<string, unknown>} */ (triggers[0] || {});
-    const triggerData = /** @type {Record<string, unknown>} */ (firstTrigger.data || {});
+    const triggerType =
+        firstTrigger.type ||
+        attrs.trigger_type ||
+        /** @type {Record<string, unknown>} */ (firstTrigger.data || {}).trigger_type ||
+        null;
 
     const emailSteps = steps.filter((s) => s.type === "send_email");
 
@@ -313,7 +347,7 @@ function serializeFlowOverview(flow, steps) {
         id: f.id,
         name: attrs.name || "",
         status: attrs.status || "",
-        triggerType: triggerData.trigger_type || attrs.trigger_type || null,
+        triggerType,
         archived: Boolean(attrs.archived),
         updated: attrs.updated || null,
         created: attrs.created || null,
@@ -357,7 +391,7 @@ export async function fetchKlaviyoFlowsOverview(apiKey, options = {}) {
         let steps = [];
         if (includeActions) {
             try {
-                steps = await fetchFlowActionsForFlow(apiKey.trim(), id);
+                steps = await fetchFlowStepsForFlow(apiKey.trim(), id);
             } catch (e) {
                 steps = [
                     {

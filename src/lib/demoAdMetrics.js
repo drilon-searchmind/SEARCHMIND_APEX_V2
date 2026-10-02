@@ -1174,3 +1174,245 @@ export function getDemoKlaviyoFlowsOverview() {
         flows,
     };
 }
+
+export function getDemoKlaviyoFlowMessagePerformance(startDate, endDate, flowId) {
+    const messages = [
+        {
+            flow_id: flowId || "demo-flow-2",
+            flow_name: "Abandoned Cart",
+            flow_message_id: "fm3",
+            flow_message_name: "Cart reminder",
+            send_channel: "email",
+            recipients: 4200,
+            opens: 1680,
+            clicks: 420,
+            open_rate: 0.4,
+            click_rate: 0.1,
+            conversions: 84,
+            conversion_value: 126000,
+            revenue_per_recipient: 30,
+            unsubscribes: 12,
+        },
+        {
+            flow_id: "demo-flow-1",
+            flow_name: "Welcome Series",
+            flow_message_id: "fm1",
+            flow_message_name: "Welcome #1",
+            send_channel: "email",
+            recipients: 3100,
+            opens: 1550,
+            clicks: 310,
+            open_rate: 0.5,
+            click_rate: 0.1,
+            conversions: 45,
+            conversion_value: 67500,
+            revenue_per_recipient: 21.77,
+            unsubscribes: 8,
+        },
+    ].filter((m) => !flowId || m.flow_id === flowId);
+
+    return {
+        readOnly: true,
+        startDate,
+        endDate,
+        flowIdFilter: flowId || null,
+        conversion_metric: {
+            id: "demo-metric-placed-order",
+            name: "Placed Order",
+            note: "Demo data.",
+        },
+        messageCount: messages.length,
+        messages,
+    };
+}
+
+export function getDemoKlaviyoMetricsCatalog() {
+    return {
+        readOnly: true,
+        generatedAt: new Date().toISOString(),
+        truncated: false,
+        metricCount: 3,
+        metrics: [
+            { id: "m1", name: "Placed Order", integration: "Shopify", created: null, updated: null },
+            { id: "m2", name: "Viewed Product", integration: "Shopify", created: null, updated: null },
+            { id: "m3", name: "Added to Cart", integration: "Shopify", created: null, updated: null },
+        ],
+        eventSamples: [
+            {
+                metricId: "m1",
+                metricName: "Placed Order",
+                events: [
+                    {
+                        id: "ev1",
+                        datetime: "2026-09-01T12:00:00Z",
+                        propertyKeys: ["$value", "Items", "Customer Locale"],
+                        sampleProperties: { $value: 499, Items: ["Demo SKU"], "Customer Locale": "da-DK" },
+                    },
+                ],
+            },
+        ],
+    };
+}
+
+export function getDemoKlaviyoAccountContext() {
+    return {
+        readOnly: true,
+        generatedAt: new Date().toISOString(),
+        account: {
+            id: "demo-account",
+            organizationName: "Demo Store",
+            timezone: "Europe/Copenhagen",
+            preferredCurrency: "DKK",
+            publicApiKey: "demo_public_key",
+            websiteUrl: "https://demo.example",
+        },
+        conversion_metric: { id: "demo-metric-placed-order", name: "Placed Order", note: "Demo." },
+        attribution: {
+            availableViaApi: false,
+            note: "Attribution windows are not exposed via Klaviyo public API.",
+        },
+    };
+}
+
+export function getDemoKlaviyoListsAndSegments() {
+    return {
+        readOnly: true,
+        generatedAt: new Date().toISOString(),
+        includeProfileCounts: true,
+        lists: {
+            truncated: false,
+            count: 2,
+            items: [
+                { id: "list1", name: "Newsletter", profile_count: 12500, created: null, updated: null },
+                { id: "list2", name: "VIP", profile_count: 890, created: null, updated: null },
+            ],
+        },
+        segments: {
+            truncated: false,
+            count: 1,
+            items: [{ id: "seg1", name: "Engaged 30d", profile_count: 4200, created: null, updated: null }],
+        },
+        note: "Demo data.",
+    };
+}
+
+export function getDemoKlaviyoFlowMessagePerformance(startDate, endDate, flowId) {
+    const messages = [
+        {
+            flow_id: flowId || "demo-flow-2",
+            flow_name: "Abandoned Cart",
+            flow_message_id: "fm3",
+            flow_message_name: "Cart reminder",
+            send_channel: "email",
+            recipients: 4200,
+            opens: 1680,
+            clicks: 420,
+            open_rate: 0.4,
+            click_rate: 0.1,
+            conversions: 84,
+            conversion_value: 126000,
+            revenue_per_recipient: 30,
+            unsubscribes: 12,
+        },
+        {
+            flow_id: "demo-flow-1",
+            flow_name: "Welcome Series",
+            flow_message_id: "fm1",
+            flow_message_name: "Welcome #1",
+            send_channel: "email",
+            recipients: 3100,
+            opens: 1550,
+            clicks: 310,
+            open_rate: 0.5,
+            click_rate: 0.1,
+            conversions: 45,
+            conversion_value: 67500,
+            revenue_per_recipient: 21.77,
+            unsubscribes: 8,
+        },
+    ].filter((m) => !flowId || m.flow_id === flowId);
+
+    return {
+        readOnly: true,
+        startDate,
+        endDate,
+        flowIdFilter: flowId || null,
+        conversion_metric: {
+            id: "demo-metric-placed-order",
+            name: "Placed Order",
+            note: "Demo data.",
+        },
+        messageCount: messages.length,
+        messages,
+    };
+}
+
+export function getDemoKlaviyoMetricsCatalog() {
+    return {
+        readOnly: true,
+        generatedAt: new Date().toISOString(),
+        truncated: false,
+        metricCount: 3,
+        metrics: [
+            { id: "m1", name: "Placed Order", integration: "Shopify", created: null, updated: null },
+            { id: "m2", name: "Viewed Product", integration: "Shopify", created: null, updated: null },
+            { id: "m3", name: "Added to Cart", integration: "Shopify", created: null, updated: null },
+        ],
+        eventSamples: [
+            {
+                metricId: "m1",
+                metricName: "Placed Order",
+                events: [
+                    {
+                        id: "ev1",
+                        datetime: "2026-09-01T12:00:00Z",
+                        propertyKeys: ["$value", "Items", "Customer Locale"],
+                        sampleProperties: { $value: 499, Items: ["Demo SKU"], "Customer Locale": "da-DK" },
+                    },
+                ],
+            },
+        ],
+    };
+}
+
+export function getDemoKlaviyoAccountContext() {
+    return {
+        readOnly: true,
+        generatedAt: new Date().toISOString(),
+        account: {
+            id: "demo-account",
+            organizationName: "Demo Store",
+            timezone: "Europe/Copenhagen",
+            preferredCurrency: "DKK",
+            publicApiKey: "demo_public_key",
+            websiteUrl: "https://demo.example",
+        },
+        conversion_metric: { id: "demo-metric-placed-order", name: "Placed Order", note: "Demo." },
+        attribution: {
+            availableViaApi: false,
+            note: "Attribution windows are not exposed via Klaviyo public API.",
+        },
+    };
+}
+
+export function getDemoKlaviyoListsAndSegments() {
+    return {
+        readOnly: true,
+        generatedAt: new Date().toISOString(),
+        includeProfileCounts: true,
+        lists: {
+            truncated: false,
+            count: 2,
+            items: [
+                { id: "list1", name: "Newsletter", profile_count: 12500, created: null, updated: null },
+                { id: "list2", name: "VIP", profile_count: 890, created: null, updated: null },
+            ],
+        },
+        segments: {
+            truncated: false,
+            count: 1,
+            items: [{ id: "seg1", name: "Engaged 30d", profile_count: 4200, created: null, updated: null }],
+        },
+        note: "Demo data.",
+    };
+}
