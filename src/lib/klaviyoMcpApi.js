@@ -86,10 +86,13 @@ export async function fetchKlaviyoMetricsCatalog(apiKey, options = {}) {
     const sampleEventsPerMetric = Math.min(Math.max(Number(options.sampleEventsPerMetric) || 1, 0), 3);
     const maxMetrics = Math.min(Math.max(Number(options.maxMetrics) || 120, 1), 200);
 
-    const { data, truncated } = await klaviyoPaginate('/metrics/?sort=name', apiKey.trim(), {
+    const { data, truncated } = await klaviyoPaginate('/metrics/', apiKey.trim(), {
         maxPages: Math.ceil(maxMetrics / 50) + 1,
     });
-    const metrics = data.slice(0, maxMetrics).map(serializeMetric);
+    const metrics = data
+        .slice(0, maxMetrics)
+        .map(serializeMetric)
+        .sort((a, b) => String(a.name).localeCompare(String(b.name)));
 
     /** @type {Record<string, { metricId: string, metricName: string, events: Array<Record<string, unknown>> }>} */
     const eventSamples = {};
@@ -107,7 +110,7 @@ export async function fetchKlaviyoMetricsCatalog(apiKey, options = {}) {
             try {
                 const filter = encodeURIComponent(`equals(metric_id,"${metric.id}")`);
                 const json = await klaviyoGetJson(
-                    `${KLAVIYO_BASE}/events/?filter=${filter}&page[size]=${sampleEventsPerMetric}&sort=-datetime`,
+                    `${KLAVIYO_BASE}/events/?filter=${filter}&page[size]=${sampleEventsPerMetric}`,
                     apiKey.trim()
                 );
                 const events = (json.data || []).map((ev) => {
@@ -227,8 +230,8 @@ async function fetchAudienceWithProfileCount(apiKey, resource, id) {
 export async function fetchKlaviyoListsAndSegments(apiKey, options = {}) {
     if (!apiKey?.trim()) throw new Error('Klaviyo Private API Key is required');
     const key = apiKey.trim();
-    const maxLists = Math.min(Math.max(Number(options.maxLists) || 40, 1), 100);
-    const maxSegments = Math.min(Math.max(Number(options.maxSegments) || 40, 1), 100);
+    const maxLists = Math.min(Math.max(Number(options.maxLists) || 100, 1), 150);
+    const maxSegments = Math.min(Math.max(Number(options.maxSegments) || 100, 1), 150);
     const includeProfileCounts = options.includeProfileCounts !== false;
 
     const [listsPage, segmentsPage] = await Promise.all([
@@ -272,7 +275,9 @@ export async function fetchKlaviyoListsAndSegments(apiKey, options = {}) {
                 enrichedLists.push({ ...list, profile_count_error: e.message });
             }
         }
-        lists = enrichedLists;
+        lists = enrichedLists.sort(
+            (a, b) => Number(b.profile_count ?? -1) - Number(a.profile_count ?? -1)
+        );
 
         const enrichedSegments = [];
         for (const seg of segments) {
@@ -285,25 +290,35 @@ export async function fetchKlaviyoListsAndSegments(apiKey, options = {}) {
                 enrichedSegments.push({ ...seg, profile_count_error: e.message });
             }
         }
-        segments = enrichedSegments;
+        segments = enrichedSegments.sort(
+            (a, b) => Number(b.profile_count ?? -1) - Number(a.profile_count ?? -1)
+        );
     }
+
+    const listsTruncated = listsPage.truncated || listsPage.data.length > maxLists;
+    const segmentsTruncated = segmentsPage.truncated || segmentsPage.data.length > maxSegments;
 
     return {
         readOnly: true,
         generatedAt: new Date().toISOString(),
         includeProfileCounts,
+        sortedByProfileCount: includeProfileCounts,
         lists: {
-            truncated: listsPage.truncated || listsPage.data.length > maxLists,
+            truncated: listsTruncated,
             count: lists.length,
             items: lists,
         },
         segments: {
-            truncated: segmentsPage.truncated || segmentsPage.data.length > maxSegments,
+            truncated: segmentsTruncated,
             count: segments.length,
             items: segments,
         },
         note: includeProfileCounts
-            ? 'Profile counts use additional-fields per list/segment (Klaviyo rate limit ~15/min).'
+            ? 'Profile counts use additional-fields per list/segment (Klaviyo rate limit ~15/min). Results are sorted by profile_count descending within the fetched page — raise maxLists/maxSegments if you need more than the largest in this slice.'
             : 'Pass includeProfileCounts=true to fetch sizes (slower).',
+        warning:
+            listsTruncated || segmentsTruncated
+                ? 'List or segment catalog was truncated before profile counts; increase maxLists/maxSegments to search for larger audiences.'
+                : null,
     };
 }

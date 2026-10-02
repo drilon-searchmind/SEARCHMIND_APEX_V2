@@ -227,19 +227,62 @@ async function postReport(path, type, attributes, apiKey) {
 }
 
 async function fetchCampaignValuesReport(apiKey, conversionMetricId, startDate, endDate) {
-    const json = await postReport(
-        '/campaign-values-reports/',
-        'campaign-values-report',
-        {
-            timeframe: { start: `${startDate}T00:00:00+00:00`, end: `${endDate}T23:59:59+00:00` },
-            conversion_metric_id: conversionMetricId,
-            filter: 'equals(send_channel,"email")',
-            statistics: VALUES_STATISTICS,
-            group_by: ['campaign_message_id', 'campaign_id', 'send_channel'],
-        },
-        apiKey
-    );
-    return extractReportResults(json);
+    const baseAttrs = {
+        timeframe: { start: `${startDate}T00:00:00+00:00`, end: `${endDate}T23:59:59+00:00` },
+        conversion_metric_id: conversionMetricId,
+        filter: 'equals(send_channel,"email")',
+        statistics: VALUES_STATISTICS,
+    };
+    try {
+        const json = await postReport(
+            '/campaign-values-reports/',
+            'campaign-values-report',
+            {
+                ...baseAttrs,
+                group_by: ['campaign_message_id', 'campaign_id', 'send_channel', 'campaign_name'],
+            },
+            apiKey
+        );
+        return extractReportResults(json);
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (!msg.includes('campaign_name')) throw err;
+        const json = await postReport(
+            '/campaign-values-reports/',
+            'campaign-values-report',
+            {
+                ...baseAttrs,
+                group_by: ['campaign_message_id', 'campaign_id', 'send_channel'],
+            },
+            apiKey
+        );
+        return extractReportResults(json);
+    }
+}
+
+async function fetchCampaignNamesById(apiKey, campaignIds) {
+    /** @type {Record<string, string>} */
+    const names = {};
+    const ids = [...new Set(campaignIds.filter(Boolean))].slice(0, 60);
+    for (const id of ids) {
+        await sleep(RATE_LIMIT_DELAY_MS);
+        try {
+            const res = await klaviyoFetch(`${KLAVIYO_BASE}/campaigns/${encodeURIComponent(id)}/`, {
+                headers: {
+                    Authorization: `Klaviyo-API-Key ${apiKey}`,
+                    Accept: 'application/json',
+                    revision: REVISION,
+                },
+            });
+            if (!res.ok) continue;
+            const json = await res.json();
+            const name = json?.data?.attributes?.name;
+            if (name) names[id] = name;
+        } catch {
+            /* skip */
+        }
+    }
+    return names;
 }
 
 async function fetchFlowSeriesReport(apiKey, conversionMetricId, startDate, endDate) {
@@ -366,6 +409,7 @@ function processCampaignValuesResults(results) {
         if (!campaignMap[cid]) {
             campaignMap[cid] = {
                 campaign_id: cid,
+                campaign_name: row.groupings?.campaign_name || null,
                 recipients: 0,
                 opens: 0,
                 clicks: 0,
@@ -373,6 +417,8 @@ function processCampaignValuesResults(results) {
                 conversion_value: 0,
                 unsubscribes: 0,
             };
+        } else if (!campaignMap[cid].campaign_name && row.groupings?.campaign_name) {
+            campaignMap[cid].campaign_name = row.groupings.campaign_name;
         }
         addStatsToRow(campaignMap[cid], row.statistics || {});
     }
@@ -382,7 +428,7 @@ function processCampaignValuesResults(results) {
 function buildTopCampaigns(campaignMap) {
     return Object.values(campaignMap)
         .map((c) => ({
-            campaign_name: campaignDisplayId(c.campaign_id),
+            campaign_name: c.campaign_name || campaignDisplayId(c.campaign_id),
             campaign_id: c.campaign_id,
             recipients: c.recipients,
             opens: c.opens,
@@ -434,6 +480,17 @@ export async function fetchKlaviyoDashboardSummary({ apiKey, startDate, endDate 
     await sleep(RATE_LIMIT_DELAY_MS);
     const results = await fetchCampaignValuesReport(apiKey, conversionMetricId, startDate, endDate);
     const campaignMap = processCampaignValuesResults(results);
+    const missingNameIds = Object.values(campaignMap)
+        .filter((c) => !c.campaign_name)
+        .map((c) => c.campaign_id);
+    if (missingNameIds.length) {
+        const names = await fetchCampaignNamesById(apiKey.trim(), missingNameIds);
+        for (const row of Object.values(campaignMap)) {
+            if (!row.campaign_name && names[row.campaign_id]) {
+                row.campaign_name = names[row.campaign_id];
+            }
+        }
+    }
 
     return {
         campaign_totals: campaignTotalsRow(startDate, campaignMap),

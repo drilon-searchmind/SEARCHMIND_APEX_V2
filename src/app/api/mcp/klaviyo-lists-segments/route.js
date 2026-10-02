@@ -44,8 +44,8 @@ export async function GET(request) {
         }
 
         const data = await fetchKlaviyoListsAndSegments(apiKey.trim(), {
-            maxLists: maxLists != null ? Number(maxLists) : 40,
-            maxSegments: maxSegments != null ? Number(maxSegments) : 40,
+            maxLists: maxLists != null ? Number(maxLists) : 100,
+            maxSegments: maxSegments != null ? Number(maxSegments) : 100,
             includeProfileCounts: includeProfileCounts !== "false",
         });
         return NextResponse.json({ customerId, customerName: doc.customerName || "", ...data });

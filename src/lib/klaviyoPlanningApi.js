@@ -9,6 +9,8 @@
 
 const KLAVIYO_BASE = "https://a.klaviyo.com/api";
 const REVISION = "2024-10-15";
+/** Flow `definition` / additional-fields[flow] requires a newer revision than reporting. */
+const FLOWS_DEFINITION_REVISION = "2025-07-15";
 const RATE_LIMIT_DELAY_MS = 500;
 
 /** @readonly */
@@ -28,13 +30,14 @@ function sleep(ms) {
 /**
  * @param {string} url
  * @param {string} apiKey
+ * @param {{ revision?: string }} [options]
  */
-async function klaviyoGetJson(url, apiKey) {
+async function klaviyoGetJson(url, apiKey, options = {}) {
     const res = await fetch(url, {
         headers: {
             Authorization: `Klaviyo-API-Key ${apiKey}`,
             Accept: "application/json",
-            revision: REVISION,
+            revision: options.revision || REVISION,
         },
     });
     if (!res.ok) {
@@ -314,15 +317,94 @@ function stepsFromFlowDefinition(definition) {
 }
 
 /**
+ * @param {unknown} action
+ */
+function legacyFlowActionToStep(action) {
+    const a = /** @type {Record<string, unknown>} */ (action);
+    const attrs = /** @type {Record<string, unknown>} */ (a.attributes || {});
+    const actionType = String(attrs.action_type || "unknown");
+    const type = normalizeDefinitionActionType(actionType);
+    /** @type {Record<string, unknown>} */
+    const step = {
+        id: a.id,
+        type,
+        status: attrs.status || null,
+        messages: [],
+    };
+    const settings = /** @type {Record<string, unknown>} */ (attrs.settings || {});
+    if (type === "delay") {
+        step.delay = extractDefinitionDelay(settings);
+    }
+    return step;
+}
+
+/**
+ * Two-step fallback for accounts/revisions where flow definition is unavailable.
+ *
+ * @param {string} apiKey
+ * @param {string} flowId
+ */
+async function fetchFlowStepsLegacyTwoStep(apiKey, flowId) {
+    const path = `/flows/${encodeURIComponent(flowId)}/flow-actions/`;
+    const { data } = await klaviyoPaginate(path, apiKey, { maxPages: 25 });
+
+    /** @type {ReturnType<typeof legacyFlowActionToStep>[]} */
+    const steps = [];
+    for (const action of data) {
+        const step = legacyFlowActionToStep(action);
+        const id = String(/** @type {{ id: string }} */ (action).id);
+        if (step.type === "send_email" || step.type === "send_sms") {
+            const msgPath = `/flow-actions/${encodeURIComponent(id)}/flow-messages/`;
+            const { data: messages } = await klaviyoPaginate(msgPath, apiKey, { maxPages: 5 });
+            step.messages = messages.map((msg) => {
+                const row = /** @type {Record<string, unknown>} */ (msg);
+                const mAttrs = /** @type {Record<string, unknown>} */ (row.attributes || {});
+                const content = /** @type {Record<string, unknown>} */ (mAttrs.content || {});
+                return {
+                    id: row.id,
+                    name: mAttrs.name || mAttrs.label || null,
+                    subject: content.subject || null,
+                    channel: mAttrs.channel || (step.type === "send_sms" ? "sms" : "email"),
+                    templateId: content.template_id || mAttrs.template_id || null,
+                };
+            });
+            await sleep(RATE_LIMIT_DELAY_MS);
+        }
+        steps.push(step);
+    }
+    return steps;
+}
+
+/**
+ * @param {string} flowId
+ */
+function flowDefinitionRequestUrls(flowId) {
+    const base = `${KLAVIYO_BASE}/flows/${encodeURIComponent(flowId)}/`;
+    return [
+        `${base}?additional-fields%5Bflow%5D=definition`,
+        `${base}?fields%5Bflow%5D=definition`,
+    ];
+}
+
+/**
  * @param {string} apiKey
  * @param {string} flowId
  */
 async function fetchFlowStepsForFlow(apiKey, flowId) {
-    const path = `/flows/${encodeURIComponent(flowId)}/?additional-fields[flow]=definition`;
-    const json = await klaviyoGetJson(`${KLAVIYO_BASE}${path}`, apiKey);
-    const attrs = /** @type {Record<string, unknown>} */ (json.data?.attributes || {});
-    const def = /** @type {Record<string, unknown>} */ (attrs.definition || {});
-    return stepsFromFlowDefinition(def);
+    for (const url of flowDefinitionRequestUrls(flowId)) {
+        try {
+            const json = await klaviyoGetJson(url, apiKey, { revision: FLOWS_DEFINITION_REVISION });
+            const attrs = /** @type {Record<string, unknown>} */ (json.data?.attributes || {});
+            const def = /** @type {Record<string, unknown>} */ (attrs.definition || {});
+            if (Array.isArray(def.actions) && def.actions.length > 0) {
+                return stepsFromFlowDefinition(def);
+            }
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            if (!msg.includes("400") && !msg.includes("404")) throw e;
+        }
+    }
+    return fetchFlowStepsLegacyTwoStep(apiKey, flowId);
 }
 
 /**
