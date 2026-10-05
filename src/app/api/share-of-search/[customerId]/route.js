@@ -9,6 +9,7 @@ import {
     getShareOfSearchPreviousPeriodRange,
     getShareOfSearchLastYearRange,
     mergeShareComparisonIntoRows,
+    areShareComparisonRangesEqual,
 } from '@/lib/shareOfSearchComparisonRanges';
 import { isDemoCustomerId } from '@/lib/demoCustomer';
 import { isWorldwideGeoValue } from '@/lib/countrySelectOptions';
@@ -186,9 +187,14 @@ export async function POST(request, { params }) {
             metrics.normalizedStartDate,
             metrics.normalizedEndDate
         );
+        const rangesEqual = areShareComparisonRangesEqual(prevRange, lyRange);
         metrics.comparisonRanges = {
             previousPeriod: { ...prevRange, ok: true },
             lastYear: { ...lyRange, ok: true },
+            rangesEqual,
+            note: rangesEqual
+                ? 'Previous period and last year use the same calendar window for this date selection.'
+                : null,
         };
         return Response.json({
             snapshot: null,
@@ -267,9 +273,14 @@ export async function POST(request, { params }) {
         }
 
         metrics.rows = mergeShareComparisonIntoRows(metrics.rows, previousPeriodRows, lastYearRows);
+        const rangesEqual = areShareComparisonRangesEqual(prevRange, lyRange);
         metrics.comparisonRanges = {
             previousPeriod: { ...prevRange, ok: previousPeriodRows != null },
             lastYear: { ...lyRange, ok: lastYearRows != null },
+            rangesEqual,
+            note: rangesEqual
+                ? 'Previous period and last year use the same calendar window for this date selection (e.g. full calendar year). SoS % will match between those two columns; compare against the current period above.'
+                : null,
         };
 
         const persistedGeoLabel = isWorldwideGeoValue(geoLabel)

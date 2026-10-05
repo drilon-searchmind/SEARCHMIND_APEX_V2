@@ -25,6 +25,7 @@ import {
     isWorldwideGeoValue,
     matchCountryOption,
 } from "@/lib/countrySelectOptions";
+import { shareOfSearchBrandColor } from "@/lib/shareOfSearchBrandColors";
 
 const MONTH_OF_YEAR = {
     JANUARY: 1,
@@ -40,8 +41,6 @@ const MONTH_OF_YEAR = {
     NOVEMBER: 11,
     DECEMBER: 12,
 };
-
-const CHART_COLORS = ["#131313", "#525252", "#858585", "#a3a3a3", "#c6ed62", "#3a3a3a", "#6b6b6b"];
 
 const COUNTRY_SELECT_STYLES = {
     control: (base, state) => ({
@@ -147,6 +146,38 @@ function formatSharePctValue(val) {
     return `${Number(val).toFixed(2)}%`;
 }
 
+/** Google Ads Keyword Planner language code from country / market selection. */
+function languageCodeForGeo(geoValue) {
+    if (isWorldwideGeoValue(geoValue)) return "en";
+    const code = String(geoValue || "").trim().toUpperCase();
+    const map = {
+        DK: "da",
+        SE: "sv",
+        NO: "no",
+        FI: "fi",
+        DE: "de",
+        AT: "de",
+        CH: "de",
+        NL: "nl",
+        BE: "nl",
+        FR: "fr",
+        ES: "es",
+        IT: "it",
+        PT: "pt",
+        PL: "pl",
+        GB: "en",
+        UK: "en",
+        US: "en",
+        IE: "en",
+    };
+    return map[code] || "en";
+}
+
+function formatComparisonRange(range) {
+    if (!range?.startDate || !range?.endDate) return null;
+    return `${range.startDate} → ${range.endDate}`;
+}
+
 /** DateRangePicker presets only for Share of Search */
 function getShareOfSearchDatePresets() {
     return [
@@ -215,6 +246,7 @@ export default function ShareOfSearchClient() {
     const [chartDisplayMode, setChartDisplayMode] = useState("share");
     /** stacked area (default) vs overlapping lines */
     const [chartVisualMode, setChartVisualMode] = useState("stacked");
+    const [comparisonRanges, setComparisonRanges] = useState(null);
 
     const countryValue = useMemo(() => {
         return (
@@ -263,6 +295,7 @@ export default function ShareOfSearchClient() {
         setDraft("");
         setMetricsRows(null);
         setSelectedChartKeys([]);
+        setComparisonRanges(null);
         setError(null);
     };
 
@@ -301,6 +334,7 @@ export default function ShareOfSearchClient() {
                 body: JSON.stringify({
                     brands,
                     geoLabel,
+                    languageCode: languageCodeForGeo(geoLabel),
                     startDate: appliedRange.startDate,
                     endDate: appliedRange.endDate,
                 }),
@@ -309,6 +343,7 @@ export default function ShareOfSearchClient() {
             if (!res.ok) throw new Error(data.error || "Request failed");
             const rows = data.metrics?.rows || [];
             setMetricsRows(rows);
+            setComparisonRanges(data.metrics?.comparisonRanges || null);
             setSelectedChartKeys(getDefaultChartKeys(rows, chartDisplayMode));
             await loadHistory();
         } catch (e) {
@@ -328,9 +363,19 @@ export default function ShareOfSearchClient() {
         setTempRange(r);
         setAppliedRange(r);
         setMetricsRows(h.rows || []);
+        setComparisonRanges(null);
         setSelectedChartKeys(getDefaultChartKeys(h.rows || [], chartDisplayMode));
         setError(null);
     };
+
+    const loadedFromHistoryWithoutComparisons =
+        metricsRows?.length > 0 &&
+        !comparisonRanges &&
+        metricsRows.some(
+            (r) =>
+                r.sharePctPreviousPeriod == null &&
+                r.sharePctLastYear == null
+        );
 
     const deleteSnapshot = async (snapshotId) => {
         if (!customerId || !snapshotId) return;
@@ -368,7 +413,7 @@ export default function ShareOfSearchClient() {
     const brandColorByBrand = useMemo(() => {
         const m = new Map();
         (metricsRows || []).forEach((r, i) => {
-            m.set(r.brand, CHART_COLORS[i % CHART_COLORS.length]);
+            m.set(r.brand, shareOfSearchBrandColor(i));
         });
         return m;
     }, [metricsRows]);
@@ -408,7 +453,7 @@ export default function ShareOfSearchClient() {
         const seriesColors = series.map((s) => {
             if (s.name === "Total") return "#94a3b8";
             const idx = metricsRows?.findIndex((r) => r.brand === s.name) ?? -1;
-            return CHART_COLORS[(idx >= 0 ? idx : 0) % CHART_COLORS.length];
+            return shareOfSearchBrandColor(idx >= 0 ? idx : 0);
         });
 
         const stacked = chartVisualMode === "stacked";
@@ -633,12 +678,62 @@ export default function ShareOfSearchClient() {
                 </div>
 
                 {error && <p className="apex-sos-alert">{error}</p>}
+
+                <p className="apex-sos-help text-sm text-[var(--color-muted)] leading-relaxed mt-3">
+                    Data comes from{" "}
+                    <strong className="font-medium text-[var(--color-ink)]">
+                        Google Ads Keyword Planner
+                    </strong>{" "}
+                    (Google Search network). Each brand is sent as a keyword; we use the matched
+                    idea’s monthly search volumes in your selected country and date range. Share of
+                    Search is each brand’s % of the <em>sum of the brands you listed</em> — not the
+                    whole market.
+                </p>
             </section>
+
+            {loadedFromHistoryWithoutComparisons && (
+                <p className="apex-sos-alert">
+                    Loaded from history — click <strong>Fetch data</strong> again to refresh period
+                    comparisons (last period / last year).
+                </p>
+            )}
 
             {metricsRows && metricsRows.length > 0 && (
                 <>
                     <section>
                         <h3 className="apex-sos-section__label">Brand metrics</h3>
+                        {comparisonRanges?.note && (
+                            <p className="text-sm text-[var(--color-muted)] mb-3 leading-relaxed">
+                                {comparisonRanges.note}
+                            </p>
+                        )}
+                        {(comparisonRanges?.previousPeriod?.ok ||
+                            comparisonRanges?.lastYear?.ok) && (
+                            <p className="text-xs text-[var(--color-muted)] mb-3 leading-relaxed">
+                                {comparisonRanges?.previousPeriod?.ok && (
+                                    <>
+                                        <span className="font-medium text-[var(--color-ink)]">
+                                            Last period:{" "}
+                                        </span>
+                                        {formatComparisonRange(comparisonRanges.previousPeriod)}
+                                    </>
+                                )}
+                                {comparisonRanges?.previousPeriod?.ok &&
+                                    comparisonRanges?.lastYear?.ok &&
+                                    !comparisonRanges?.rangesEqual && (
+                                        <span className="mx-2">·</span>
+                                    )}
+                                {comparisonRanges?.lastYear?.ok &&
+                                    !comparisonRanges?.rangesEqual && (
+                                        <>
+                                            <span className="font-medium text-[var(--color-ink)]">
+                                                Last year:{" "}
+                                            </span>
+                                            {formatComparisonRange(comparisonRanges.lastYear)}
+                                        </>
+                                    )}
+                            </p>
+                        )}
                         <div className="apex-sos-kpi-grid">
                         {chartDisplayMode === "volume" && (
                             <div
@@ -682,7 +777,7 @@ export default function ShareOfSearchClient() {
                                                 style={{
                                                     backgroundColor:
                                                         brandColorByBrand.get(row.brand) ??
-                                                        CHART_COLORS[0],
+                                                        shareOfSearchBrandColor(0),
                                                 }}
                                                 aria-hidden
                                             />
@@ -700,10 +795,12 @@ export default function ShareOfSearchClient() {
                                                 SoS % last period:{" "}
                                                 {formatSharePctValue(row.sharePctPreviousPeriod)}
                                             </span>
-                                            <span>
-                                                SoS % last year:{" "}
-                                                {formatSharePctValue(row.sharePctLastYear)}
-                                            </span>
+                                            {!comparisonRanges?.rangesEqual && (
+                                                <span>
+                                                    SoS % last year:{" "}
+                                                    {formatSharePctValue(row.sharePctLastYear)}
+                                                </span>
+                                            )}
                                         </div>
                                     }
                                     icon={<FiTrendingUp />}

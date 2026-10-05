@@ -23,6 +23,14 @@ export function getShareOfSearchLastYearRange(startIso, endIso) {
     };
 }
 
+export function areShareComparisonRangesEqual(prevRange, lyRange) {
+    if (!prevRange || !lyRange) return false;
+    return (
+        String(prevRange.startDate) === String(lyRange.startDate) &&
+        String(prevRange.endDate) === String(lyRange.endDate)
+    );
+}
+
 export function mergeShareComparisonIntoRows(mainRows, previousPeriodRows, lastYearRows) {
     const prevMap = new Map((previousPeriodRows || []).map((r) => [r.brand, r.sharePct]));
     const lyMap = new Map((lastYearRows || []).map((r) => [r.brand, r.sharePct]));
