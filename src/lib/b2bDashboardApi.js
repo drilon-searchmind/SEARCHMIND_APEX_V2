@@ -51,7 +51,7 @@ function normalizeGa4DailyRow(row) {
     };
 }
 
-function computeGa4Totals(ga4Daily) {
+export function computeGa4Totals(ga4Daily) {
     const sessions = sumGa4Metric(ga4Daily, "sessions");
     const totalUsers = sumGa4Metric(ga4Daily, "totalUsers");
     const newUsers = sumGa4Metric(ga4Daily, "newUsers");
@@ -106,7 +106,7 @@ async function fetchGa4ConversionCountsByDate(
     return byDate;
 }
 
-async function fetchGa4Daily(
+export async function fetchGa4Daily(
     propertyId,
     startDate,
     endDate,
@@ -147,7 +147,7 @@ async function fetchGa4Daily(
     return rows.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-async function fetchGa4Channels(
+export async function fetchGa4Channels(
     propertyId,
     startDate,
     endDate,
@@ -215,7 +215,7 @@ async function fetchGa4Channels(
         .slice(0, 8);
 }
 
-async function fetchGa4TopPages(propertyId, startDate, endDate, { demo = false } = {}) {
+export async function fetchGa4TopPages(propertyId, startDate, endDate, { demo = false } = {}) {
     let report;
     if (demo) {
         report = getDemoPayload("ga4Pages");
