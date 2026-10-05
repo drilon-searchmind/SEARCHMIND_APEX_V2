@@ -278,9 +278,12 @@ export async function POST(request, { params }) {
             previousPeriod: { ...prevRange, ok: previousPeriodRows != null },
             lastYear: { ...lyRange, ok: lastYearRows != null },
             rangesEqual,
-            note: rangesEqual
-                ? 'Previous period and last year use the same calendar window for this date selection (e.g. full calendar year). SoS % will match between those two columns; compare against the current period above.'
-                : null,
+            note:
+                prevRange.definition === 'sequential_prior_year'
+                    ? 'Prior period is the equal-length window before the YoY range (Keyword Planner uses whole months, so the default “day before” window often matched YoY for ~12 month selections).'
+                    : rangesEqual
+                      ? 'Previous period and last year cover the same calendar months in Keyword Planner; SoS % will match between those columns.'
+                      : null,
         };
 
         const persistedGeoLabel = isWorldwideGeoValue(geoLabel)

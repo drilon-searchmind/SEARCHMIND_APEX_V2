@@ -470,6 +470,11 @@ export default function ShareOfSearchClient() {
                   ? Math.round(val).toLocaleString()
                   : val;
 
+        const seriesWithColors = series.map((s, i) => ({
+            ...s,
+            color: seriesColors[i],
+        }));
+
         const cobaltBase = getCobaltChartBaseOptions();
         const options = {
             ...cobaltBase,
@@ -509,7 +514,11 @@ export default function ShareOfSearchClient() {
                 },
             },
         };
-        return { chartSeries: series, chartOptions: options, chartTitle: title };
+        return {
+            chartSeries: seriesWithColors,
+            chartOptions: options,
+            chartTitle: title,
+        };
     }, [categories, brandLineSeries, selectedChartKeys, chartDisplayMode, chartVisualMode, metricsRows]);
 
     const totalVolume = useMemo(
@@ -713,7 +722,7 @@ export default function ShareOfSearchClient() {
                                 {comparisonRanges?.previousPeriod?.ok && (
                                     <>
                                         <span className="font-medium text-[var(--color-ink)]">
-                                            Last period:{" "}
+                                            Prior period:{" "}
                                         </span>
                                         {formatComparisonRange(comparisonRanges.previousPeriod)}
                                     </>
@@ -792,12 +801,12 @@ export default function ShareOfSearchClient() {
                                                 {Number(row.volumeInRange || 0).toLocaleString()}
                                             </span>
                                             <span>
-                                                SoS % last period:{" "}
+                                                SoS % prior period:{" "}
                                                 {formatSharePctValue(row.sharePctPreviousPeriod)}
                                             </span>
                                             {!comparisonRanges?.rangesEqual && (
                                                 <span>
-                                                    SoS % last year:{" "}
+                                                    SoS % YoY (last year):{" "}
                                                     {formatSharePctValue(row.sharePctLastYear)}
                                                 </span>
                                             )}
