@@ -1,7 +1,7 @@
 import {
     normalizeDanDomainOriginalSettings,
     normalizeDanDomainOriginalShopAdminUrl,
-} from "./danDomainOriginalCustomerSettings";
+} from "./danDomainOriginalCustomerSettings.js";
 
 /**
  * DanDomain legacy WEBAPI (pre-HostedShop GraphQL).
@@ -173,9 +173,13 @@ export function mapDanDomainOriginalOrderToMetrics(order) {
     const tax = Math.max(0, totalIncl - totalExcl);
 
     let linesGrossIncl = 0;
+    let costOfGoodsSold = 0;
     const lines = Array.isArray(order.orderLines) ? order.orderLines : [];
     for (const line of lines) {
         linesGrossIncl += num(line.totalPrice);
+        const buy = num(line.buyPrice ?? line.costPrice ?? line.purchasePrice);
+        const qty = num(line.amount ?? line.quantity ?? 1) || 1;
+        if (buy > 0) costOfGoodsSold += buy * qty;
     }
     const linesGrossExcl = linesGrossIncl > 0 ? linesGrossIncl / (1 + vatRate) : 0;
 
@@ -197,6 +201,7 @@ export function mapDanDomainOriginalOrderToMetrics(order) {
         taxes: tax,
         total_sales: totalIncl,
         custom_1: netSales + shippingExcl,
+        cost_of_goods_sold: costOfGoodsSold,
         orders: 1,
     };
 }
@@ -230,6 +235,7 @@ export function aggregateDanDomainOriginalOrdersToDaily(orders, startDate, endDa
                 taxes: 0,
                 total_sales: 0,
                 custom_1: 0,
+                cost_of_goods_sold: 0,
                 orders: 0,
             };
         }
@@ -244,6 +250,7 @@ export function aggregateDanDomainOriginalOrdersToDaily(orders, startDate, endDa
         d.taxes += m.taxes;
         d.total_sales += m.total_sales;
         d.custom_1 += m.custom_1;
+        d.cost_of_goods_sold += m.cost_of_goods_sold || 0;
         d.orders += 1;
     }
 

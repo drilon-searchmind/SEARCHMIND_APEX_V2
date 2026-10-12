@@ -431,6 +431,60 @@ export default function CustomerSettingsForm({
                         type="password"
                         placeholder="Optional if client id + secret are set (OAuth)"
                     />
+                    <FormField
+                        id="danDomain.revenueReporting"
+                        name="danDomain.revenueReporting"
+                        label="Revenue reporting (DanDomain)"
+                        value={
+                            form.danDomain?.revenueReporting === "orderSent"
+                                ? "orderSent"
+                                : "salgsstatistik"
+                        }
+                        onChange={onChange}
+                        placeholder="salgsstatistik (Statistik → Salg) or orderSent"
+                    />
+                    <FormField
+                        id="danDomain.orderStatusIds"
+                        name="danDomain.orderStatusIds"
+                        label="Order status IDs (revenue)"
+                        value={
+                            Array.isArray(form.danDomain?.orderStatusIds)
+                                ? form.danDomain.orderStatusIds.join(", ")
+                                : String(form.danDomain?.orderStatusIds ?? "3")
+                        }
+                        onChange={onChange}
+                        placeholder="Default 3 (Order Sent). Use all to include every status."
+                    />
+                    <FormField
+                        id="danDomain.revenueDateField"
+                        name="danDomain.revenueDateField"
+                        label="Revenue date field"
+                        value={form.danDomain?.revenueDateField === "createdAt" ? "createdAt" : "sentAt"}
+                        onChange={onChange}
+                        placeholder="sentAt (matches DanDomain admin) or createdAt"
+                    />
+                    <FormField
+                        id="danDomain.orderCountDateField"
+                        name="danDomain.orderCountDateField"
+                        label="Order count date field"
+                        value={
+                            form.danDomain?.orderCountDateField === "sentAt" ? "sentAt" : "createdAt"
+                        }
+                        onChange={onChange}
+                        placeholder="createdAt (DanDomain Ordrer) or sentAt"
+                    />
+                    <FormField
+                        id="danDomain.orderCountStatusIds"
+                        name="danDomain.orderCountStatusIds"
+                        label="Order count status IDs"
+                        value={
+                            Array.isArray(form.danDomain?.orderCountStatusIds)
+                                ? form.danDomain.orderCountStatusIds.join(", ")
+                                : String(form.danDomain?.orderCountStatusIds ?? "3, 203")
+                        }
+                        onChange={onChange}
+                        placeholder="Default 3, 203 — matches DanDomain order count"
+                    />
                 </SettingsSection>
             )}
 

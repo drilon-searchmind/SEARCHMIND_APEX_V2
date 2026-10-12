@@ -67,7 +67,7 @@ function buildTotalSalesExVatCalc(metricsData, customerType, customerSettings = 
     } else if (type === "WooCommerce") {
         popOverContent = `${salesLabel}\n= WooCommerce sales total (excl. VAT) for the period\n= ${fmtNum(exVat)}`;
     } else if (type === "DanDomain") {
-        popOverContent = `${salesLabel}\n= HostedShop order totals (excl. VAT) for the period\n= ${fmtNum(exVat)}`;
+        popOverContent = `${salesLabel}\n= DanDomain Rapporter → Salg (ordredato, ex moms) or orderSent (sentAt, status 3)\n= ${fmtNum(exVat)}`;
     } else if (type === "DanDomainOriginal") {
         popOverContent = `${salesLabel}\n= DanDomain WEBAPI order totals (excl. VAT) for the period\n= ${fmtNum(exVat)}`;
     } else {

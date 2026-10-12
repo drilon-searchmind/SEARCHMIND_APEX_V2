@@ -1,7 +1,9 @@
 import {
     normalizeDanDomainSettings,
     normalizeDanDomainShopHost,
-} from "./danDomainCustomerSettings";
+    normalizeDanDomainOrderStatusIds,
+    resolveDanDomainReportingRules,
+} from "./danDomainCustomerSettings.js";
 
 /**
  * HostedShop / DanDomain GraphQL API client.
@@ -27,7 +29,21 @@ const ALWAYS_ORDER_FIELDS = new Set(["id", "createdAt", "currencyCode"]);
 
 /** Object fields on Order — subfields resolved via introspection when possible. */
 const ORDER_NESTED_FIELDS = {
-    status: { typeName: "OrderStatus", fallback: ["id", "name"] },
+    status: { typeName: "OrderStatus", fallback: ["id"] },
+    orderLines: {
+        typeName: "OrderLine",
+        fallback: [
+            "id",
+            "unit",
+            "amount",
+            "unitRevenue",
+            "totalRevenue",
+            "vatRate",
+            "unitCost",
+            "totalCost",
+            "productTitle",
+        ],
+    },
 };
 
 const PREFERRED_ORDER_FIELDS = [
@@ -318,14 +334,25 @@ async function discoverNestedSubfields(shopHost, accessToken, typeName, fallback
         }
         const preferred = ["id", "name", "code", "title", "label"];
         const selected = preferred.filter((n) => names.has(n));
-        return selected.length ? selected : fallback;
+        const fromFallback = fallback.filter((n) => names.has(n));
+        const costLike = [...names].filter((n) =>
+            /unit|quantity|cost|cogs|purchase|buy|total/i.test(n)
+        );
+        const merged = [...new Set([...selected, ...fromFallback, ...costLike])];
+        return merged.length ? merged : fallback;
     } catch {
         return fallback;
     }
 }
 
-async function discoverOrderDataSelection(shopHost, accessToken) {
-    const cacheKey = `${shopHost}:order-selection`;
+/**
+ * @param {string} shopHost
+ * @param {string} accessToken
+ * @param {{ includeOrderLines?: boolean }} [opts]
+ */
+async function discoverOrderDataSelection(shopHost, accessToken, opts = {}) {
+    const includeOrderLines = opts.includeOrderLines === true;
+    const cacheKey = `${shopHost}:order-selection:${includeOrderLines ? "lines" : "base"}`;
     if (orderSelectionCache.has(cacheKey)) {
         return orderSelectionCache.get(cacheKey);
     }
@@ -338,7 +365,15 @@ async function discoverOrderDataSelection(shopHost, accessToken) {
                     type {
                         kind
                         name
-                        ofType { kind name ofType { kind name } }
+                        ofType {
+                            kind
+                            name
+                            ofType {
+                                kind
+                                name
+                                ofType { kind name ofType { kind name } }
+                            }
+                        }
                     }
                 }
             }
@@ -356,11 +391,16 @@ async function discoverOrderDataSelection(shopHost, accessToken) {
         fields = res?.data?.__type?.fields || [];
     } catch (e) {
         dbg("Order introspection failed, using preferred field list:", e?.message);
-        const fallbackScalars = PREFERRED_ORDER_FIELDS;
-        const fallback = [
-            ...fallbackScalars,
+        const fallbackParts = [
+            ...PREFERRED_ORDER_FIELDS,
             buildNestedSelection("status", ORDER_NESTED_FIELDS.status.fallback),
-        ].join("\n              ");
+        ];
+        if (includeOrderLines) {
+            fallbackParts.push(
+                buildNestedSelection("orderLines", ORDER_NESTED_FIELDS.orderLines.fallback)
+            );
+        }
+        const fallback = fallbackParts.join("\n              ");
         orderSelectionCache.set(cacheKey, fallback);
         return fallback;
     }
@@ -384,14 +424,23 @@ async function discoverOrderDataSelection(shopHost, accessToken) {
         if (scalarNames.has(name)) selectedScalars.add(name);
     }
     for (const name of scalarNames) {
-        if (/total|price|vat|tax|ship|freight|deliver|discount|rebate|subtotal|grand/i.test(name)) {
+        if (
+            /total|price|vat|tax|ship|freight|deliver|discount|rebate|subtotal|grand|sent|paid|updated/i.test(
+                name
+            )
+        ) {
             selectedScalars.add(name);
         }
     }
 
+    const orderFieldNames = new Set(fields.map((f) => f?.name).filter(Boolean));
     const lines = [...selectedScalars];
     for (const [fieldName, config] of Object.entries(ORDER_NESTED_FIELDS)) {
-        if (objectNames.has(fieldName)) {
+        if (fieldName === "orderLines" && !includeOrderLines) continue;
+        const present =
+            objectNames.has(fieldName) ||
+            (orderFieldNames.has(fieldName) && config.typeName);
+        if (present) {
             const subfields = await discoverNestedSubfields(
                 shopHost,
                 accessToken,
@@ -408,28 +457,30 @@ async function discoverOrderDataSelection(shopHost, accessToken) {
     return out;
 }
 
-function buildCreatedAtSearch(startDate, endDate) {
+function buildDateRangeIso(startDate, endDate) {
     const startIso = `${startDate}T00:00:00+00:00`;
     const endExclusive = new Date(`${endDate}T00:00:00Z`);
     endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
     const endIso = endExclusive.toISOString().replace(".000Z", "+00:00");
+    return { startIso, endIso };
+}
 
+function buildDateFieldSearch(startDate, endDate, fieldName, { gteComparator = "GREATER_THAN_OR_EQUAL" } = {}) {
+    const { startIso, endIso } = buildDateRangeIso(startDate, endDate);
     return [
-        `{ field: createdAt, comparator: GREATER_THAN_OR_EQUAL, value: "${startIso}" }`,
-        `{ field: createdAt, comparator: LESS_THAN, value: "${endIso}" }`,
+        `{ field: ${fieldName}, comparator: ${gteComparator}, value: "${startIso}" }`,
+        `{ field: ${fieldName}, comparator: LESS_THAN, value: "${endIso}" }`,
     ].join("\n");
 }
 
-function buildCreatedAtSearchFallback(startDate, endDate) {
-    const startIso = `${startDate}T00:00:00+00:00`;
-    const endExclusive = new Date(`${endDate}T00:00:00Z`);
-    endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
-    const endIso = endExclusive.toISOString().replace(".000Z", "+00:00");
+function buildCreatedAtSearch(startDate, endDate) {
+    return buildDateFieldSearch(startDate, endDate, "createdAt");
+}
 
-    return [
-        `{ field: createdAt, comparator: GREATER_THAN, value: "${startIso}" }`,
-        `{ field: createdAt, comparator: LESS_THAN, value: "${endIso}" }`,
-    ].join("\n");
+function buildCreatedAtSearchFallback(startDate, endDate) {
+    return buildDateFieldSearch(startDate, endDate, "createdAt", {
+        gteComparator: "GREATER_THAN",
+    });
 }
 
 /**
@@ -506,39 +557,102 @@ async function requestDanDomainOrdersPage(
     throw lastError || new Error("DanDomain orders query failed");
 }
 
-export async function fetchDanDomainOrdersInRange(
+/**
+ * @param {Record<string, unknown>} order
+ */
+export function getDanDomainOrderStatusId(order) {
+    const status = order?.status;
+    if (status && typeof status === "object") {
+        return String(/** @type {{ id?: string }} */ (status).id ?? "").trim();
+    }
+    return String(status ?? "").trim();
+}
+
+/**
+ * @param {Record<string, unknown>} order
+ * @param {{ statusIds?: string[]|null, excludeStatusIds?: string[] }} [opts]
+ */
+export function isDanDomainOrderIncludedForRevenue(order, opts = {}) {
+    const statusIds = Array.isArray(opts) ? opts : opts.statusIds;
+    const excludeStatusIds = Array.isArray(opts) ? [] : opts.excludeStatusIds || [];
+    const id = getDanDomainOrderStatusId(order);
+    if (excludeStatusIds.length && excludeStatusIds.includes(id)) return false;
+    if (!statusIds || statusIds.length === 0) return true;
+    return statusIds.includes(id);
+}
+
+/**
+ * DanDomain Rapporter → Salg “Omsætning (ex moms)” for the order-created period.
+ * HostedShop GraphQL often exposes inc-VAT `total` while line/subTotal sums do not match admin.
+ * Empirically matches admin when ex-VAT = total / 1.25 (DK standard rate). Credit notes negative.
+ */
+export function danDomainSalgsstatistikOmsExclVat(order, metrics) {
+    const id = getDanDomainOrderStatusId(order);
+    const sign = id === "100" ? -1 : 1;
+
+    const totalIncl =
+        num(order.total) ||
+        num(order.totalPriceIncVat) ||
+        num(order.totalIncVat) ||
+        num(metrics.total_sales);
+
+    const exVatField =
+        num(order.totalPriceExVat) ||
+        num(order.totalExVat) ||
+        num(order.totalExclVat) ||
+        num(order.priceExVat);
+    if (exVatField > 0) {
+        return sign * exVatField;
+    }
+
+    if (totalIncl > 0) {
+        return sign * (totalIncl / 1.25);
+    }
+
+    const net = Number(metrics.net_sales) || 0;
+    const ship = Number(metrics.shipping_charges) || 0;
+    return sign * (net + ship);
+}
+
+/**
+ * @param {string} shopHost
+ * @param {string} accessToken
+ * @param {string} searchBlock
+ * @param {string} selection
+ * @param {string[]} paginationFields
+ * @param {{ fallbackSearchBlock?: string }} [searchOpts]
+ */
+async function fetchDanDomainOrdersForSearchBlock(
     shopHost,
     accessToken,
-    startDate,
-    endDate
+    searchBlock,
+    selection,
+    paginationFields,
+    searchOpts = {}
 ) {
-    const [selection, paginationFields] = await Promise.all([
-        discoverOrderDataSelection(shopHost, accessToken),
-        discoverPaginationFields(shopHost, accessToken),
-    ]);
-
     /** @type {Record<string, unknown>[]} */
     const all = [];
 
     for (let page = 1; page <= MAX_PAGES; page += 1) {
-        let searchBlock = buildCreatedAtSearch(startDate, endDate);
+        let blockToUse = searchBlock;
         let res;
 
         try {
             res = await requestDanDomainOrdersPage(shopHost, accessToken, {
                 page,
                 pageSize: DEFAULT_PAGE_SIZE,
-                searchBlock,
+                searchBlock: blockToUse,
                 selection,
                 paginationFields,
             });
         } catch (e) {
-            if (String(e?.message || "").includes("GREATER_THAN_OR_EQUAL")) {
-                searchBlock = buildCreatedAtSearchFallback(startDate, endDate);
+            const msg = String(e?.message || "");
+            if (msg.includes("GREATER_THAN_OR_EQUAL") && searchOpts.fallbackSearchBlock) {
+                blockToUse = searchOpts.fallbackSearchBlock;
                 res = await requestDanDomainOrdersPage(shopHost, accessToken, {
                     page,
                     pageSize: DEFAULT_PAGE_SIZE,
-                    searchBlock,
+                    searchBlock: blockToUse,
                     selection,
                     paginationFields,
                 });
@@ -567,6 +681,41 @@ export async function fetchDanDomainOrdersInRange(
     return all;
 }
 
+/**
+ * @param {string} shopHost
+ * @param {string} accessToken
+ * @param {string} startDate
+ * @param {string} endDate
+ * @param {{ includeOrderLines?: boolean, revenueDateField?: "sentAt"|"createdAt" }} [opts]
+ */
+export async function fetchDanDomainOrdersInRange(
+    shopHost,
+    accessToken,
+    startDate,
+    endDate,
+    opts = {}
+) {
+    const [selection, paginationFields] = await Promise.all([
+        discoverOrderDataSelection(shopHost, accessToken, {
+            includeOrderLines: opts.includeOrderLines === true,
+        }),
+        discoverPaginationFields(shopHost, accessToken),
+    ]);
+
+    const createdAtSearch = buildCreatedAtSearch(startDate, endDate);
+    const createdAtFallback = buildCreatedAtSearchFallback(startDate, endDate);
+
+    // Fetch by createdAt window; aggregate may bucket by sentAt (DanDomain admin “Omsætning”).
+    return fetchDanDomainOrdersForSearchBlock(
+        shopHost,
+        accessToken,
+        createdAtSearch,
+        selection,
+        paginationFields,
+        { fallbackSearchBlock: createdAtFallback }
+    );
+}
+
 function pickFirstNumber(obj, keys) {
     for (const key of keys) {
         if (obj?.[key] != null) return num(obj[key]);
@@ -574,12 +723,83 @@ function pickFirstNumber(obj, keys) {
     return 0;
 }
 
-function orderDateYmd(order) {
-    const raw = order?.createdAt ?? order?.created_at ?? order?.date;
+/**
+ * @param {Record<string, unknown>} order
+ * @param {"sentAt"|"createdAt"} [revenueDateField]
+ */
+export function getDanDomainOrderReportingYmd(order, revenueDateField = "sentAt") {
+    const field = revenueDateField === "createdAt" ? "createdAt" : "sentAt";
+    let raw = order?.[field];
+    if (field === "sentAt" && !raw) {
+        raw = order?.createdAt ?? order?.created_at ?? order?.date;
+    } else if (field === "createdAt") {
+        raw = order?.createdAt ?? order?.created_at ?? order?.date;
+    }
     if (!raw) return "";
     const s = String(raw).trim();
     if (s.length >= 10) return s.slice(0, 10);
     return "";
+}
+
+/**
+ * @param {Record<string, unknown>} order
+ */
+function danDomainOrderLines(order) {
+    return Array.isArray(order?.orderLines)
+        ? order.orderLines
+        : Array.isArray(order?.lines)
+          ? order.lines
+          : [];
+}
+
+function isGiftCardLine(line) {
+    if (!line || typeof line !== "object") return false;
+    const row = /** @type {Record<string, unknown>} */ (line);
+    if (row.giftCard != null) return true;
+    const title = String(row.productTitle ?? row.additionalTitle ?? "").toLowerCase();
+    return title.includes("gift card") || title.includes("gavekort");
+}
+
+/**
+ * Product line revenue excl. VAT (matches DanDomain admin “Omsætning” when lines are present).
+ * @param {Record<string, unknown>} order
+ */
+export function sumDanDomainOrderLineRevenue(order) {
+    const lines = danDomainOrderLines(order);
+    if (!lines.length) return 0;
+    let sum = 0;
+    for (const line of lines) {
+        if (!line || typeof line !== "object" || isGiftCardLine(line)) continue;
+        const row = /** @type {Record<string, unknown>} */ (line);
+        const totalRev = num(row.totalRevenue);
+        if (totalRev > 0) {
+            sum += totalRev;
+            continue;
+        }
+        const unitRev = num(row.unitRevenue);
+        const units = num(row.amount ?? row.quantity ?? 1) || 1;
+        if (unitRev > 0) sum += unitRev * units;
+    }
+    return sum;
+}
+
+export function sumDanDomainOrderLineCogs(order) {
+    const lines = danDomainOrderLines(order);
+    let sum = 0;
+    for (const line of lines) {
+        if (!line || typeof line !== "object" || isGiftCardLine(line)) continue;
+        const row = /** @type {Record<string, unknown>} */ (line);
+        const totalCost = num(row.totalCost);
+        if (totalCost > 0) {
+            sum += totalCost;
+            continue;
+        }
+        const unitCost = num(row.unitCost);
+        const unitsRaw = row.amount ?? row.quantity ?? row.unit;
+        const units = num(unitsRaw) > 0 ? num(unitsRaw) : 1;
+        if (unitCost > 0) sum += unitCost * units;
+    }
+    return sum;
 }
 
 /**
@@ -604,7 +824,52 @@ export function mapDanDomainOrderToMetrics(order) {
         "freight",
         "shippingTotal",
     ]);
-    const tax = pickFirstNumber(order, [
+
+    const subTotal = pickFirstNumber(order, ["subTotal", "subtotal"]);
+    const orderTotal = pickFirstNumber(order, [
+        "total",
+        "totalPriceIncVat",
+        "totalIncVat",
+        "totalInclVat",
+        "priceIncVat",
+        "grandTotal",
+        "totalPrice",
+        "orderTotal",
+    ]);
+
+    const costOfGoodsSold = sumDanDomainOrderLineCogs(order);
+    const lineRevenue = sumDanDomainOrderLineRevenue(order);
+
+    if (subTotal > 0 && orderTotal > 0) {
+        let tax = pickFirstNumber(order, [
+            "totalVat",
+            "vat",
+            "tax",
+            "taxAmount",
+            "totalTax",
+        ]);
+        if (!tax) {
+            tax = Math.max(0, orderTotal - subTotal - shipping);
+        }
+        const netSales = lineRevenue > 0 ? lineRevenue : subTotal;
+        const gross = netSales + discount;
+        return {
+            gross_sales: gross,
+            discounts: discount,
+            returns: 0,
+            net_sales: netSales,
+            shipping_charges: shipping,
+            duties: 0,
+            additional_fees: 0,
+            taxes: tax,
+            total_sales: orderTotal,
+            custom_1: netSales + shipping,
+            cost_of_goods_sold: costOfGoodsSold,
+            orders: 1,
+        };
+    }
+
+    let tax = pickFirstNumber(order, [
         "totalVat",
         "vat",
         "tax",
@@ -618,24 +883,9 @@ export function mapDanDomainOrderToMetrics(order) {
         "totalExclVat",
         "priceExVat",
     ]);
-    let totalIncl = pickFirstNumber(order, [
-        "totalPriceIncVat",
-        "totalIncVat",
-        "totalInclVat",
-        "priceIncVat",
-        "grandTotal",
-        "totalPrice",
-        "orderTotal",
-        "total",
-    ]);
+    let totalIncl = orderTotal;
 
-    let gross = pickFirstNumber(order, [
-        "subtotal",
-        "subTotal",
-        "productTotal",
-        "lineTotal",
-        "grossSales",
-    ]);
+    let gross = subTotal || pickFirstNumber(order, ["productTotal", "lineTotal", "grossSales"]);
 
     if (!gross && totalExcl > 0) {
         gross = totalExcl + discount;
@@ -643,14 +893,23 @@ export function mapDanDomainOrderToMetrics(order) {
     if (!gross && totalIncl > 0 && tax > 0) {
         gross = totalIncl - tax - shipping + discount;
     }
-    if (!totalExcl && totalIncl > 0) {
+    if (!totalExcl && subTotal > 0) {
+        totalExcl = subTotal;
+    }
+    if (!totalExcl && totalIncl > 0 && tax > 0) {
         totalExcl = Math.max(0, totalIncl - tax);
+    } else if (!totalExcl && totalIncl > 0 && subTotal > 0) {
+        totalExcl = subTotal;
+        if (!tax) tax = Math.max(0, totalIncl - subTotal - shipping);
+    } else if (!totalExcl && totalIncl > 0 && !tax) {
+        totalExcl = Math.max(0, totalIncl - shipping);
     }
     if (!totalIncl && totalExcl > 0) {
         totalIncl = totalExcl + tax;
     }
 
-    const netSales = totalExcl > 0 ? totalExcl : Math.max(0, gross - discount);
+    let netSales = totalExcl > 0 ? totalExcl : Math.max(0, gross - discount);
+    if (lineRevenue > 0) netSales = lineRevenue;
     const totalSales = totalIncl > 0 ? totalIncl : netSales + tax;
 
     return {
@@ -664,6 +923,7 @@ export function mapDanDomainOrderToMetrics(order) {
         taxes: tax,
         total_sales: totalSales,
         custom_1: netSales + shipping,
+        cost_of_goods_sold: costOfGoodsSold,
         orders: 1,
     };
 }
@@ -672,16 +932,36 @@ export function mapDanDomainOrderToMetrics(order) {
  * @param {Record<string, unknown>[]} orders
  * @param {string} startDate
  * @param {string} endDate
+ * @param {{
+ *   reportingRules?: ReturnType<typeof resolveDanDomainReportingRules>,
+ *   statusIds?: string[]|null,
+ *   revenueDateField?: "sentAt"|"createdAt",
+ *   orderCountDateField?: "sentAt"|"createdAt",
+ *   orderCountStatusIds?: string[]|null,
+ * }} [opts]
  */
-export function aggregateDanDomainOrdersToDaily(orders, startDate, endDate) {
+export function aggregateDanDomainOrdersToDaily(orders, startDate, endDate, opts = {}) {
+    const rules =
+        opts.reportingRules ||
+        resolveDanDomainReportingRules({
+            revenueReporting: "orderSent",
+            orderStatusIds: opts.statusIds,
+            excludeOrderStatusIds: [],
+            revenueDateField: opts.revenueDateField,
+            orderCountDateField: opts.orderCountDateField,
+            orderCountStatusIds: opts.orderCountStatusIds,
+        });
+
+    const revenueDateField =
+        rules.revenueDateField === "sentAt" ? "sentAt" : "createdAt";
+    const orderCountDateField =
+        rules.orderCountDateField === "sentAt" ? "sentAt" : "createdAt";
+    const useSalgsstatistik = rules.revenueReporting === "salgsstatistik";
+
     /** @type {Record<string, Record<string, number>>} */
     const byDay = {};
 
-    for (const order of orders || []) {
-        const ymd = orderDateYmd(order);
-        if (!ymd || ymd < startDate || ymd > endDate) continue;
-
-        const m = mapDanDomainOrderToMetrics(order);
+    function ensureDay(ymd) {
         if (!byDay[ymd]) {
             byDay[ymd] = {
                 period: ymd,
@@ -695,19 +975,58 @@ export function aggregateDanDomainOrdersToDaily(orders, startDate, endDate) {
                 taxes: 0,
                 total_sales: 0,
                 custom_1: 0,
+                cost_of_goods_sold: 0,
                 orders: 0,
             };
         }
-        const d = byDay[ymd];
-        d.gross_sales += m.gross_sales;
+        return byDay[ymd];
+    }
+
+    for (const order of orders || []) {
+        if (
+            !isDanDomainOrderIncludedForRevenue(order, {
+                statusIds: rules.revenueStatusIds,
+                excludeStatusIds: rules.excludeOrderStatusIds,
+            })
+        ) {
+            continue;
+        }
+
+        const ymd = getDanDomainOrderReportingYmd(order, revenueDateField);
+        if (!ymd || ymd < startDate || ymd > endDate) continue;
+        if (revenueDateField === "sentAt" && !order?.sentAt) continue;
+
+        const m = mapDanDomainOrderToMetrics(order);
+        const omsExVat = useSalgsstatistik
+            ? danDomainSalgsstatistikOmsExclVat(order, m)
+            : m.net_sales;
+        const cogsSign = getDanDomainOrderStatusId(order) === "100" ? -1 : 1;
+
+        const d = ensureDay(ymd);
+        d.gross_sales += useSalgsstatistik ? omsExVat : m.gross_sales;
         d.discounts += m.discounts;
         d.returns += m.returns;
-        d.net_sales += m.net_sales;
-        d.shipping_charges += m.shipping_charges;
+        d.net_sales += omsExVat;
+        d.shipping_charges += useSalgsstatistik ? 0 : m.shipping_charges;
         d.taxes += m.taxes;
         d.total_sales += m.total_sales;
-        d.custom_1 += m.custom_1;
-        d.orders += 1;
+        d.custom_1 += omsExVat;
+        d.cost_of_goods_sold += cogsSign * (m.cost_of_goods_sold || 0);
+    }
+
+    for (const order of orders || []) {
+        if (
+            !isDanDomainOrderIncludedForRevenue(order, {
+                statusIds: rules.orderCountStatusIds,
+                excludeStatusIds: rules.orderCountExcludeStatusIds,
+            })
+        ) {
+            continue;
+        }
+        const countYmd = getDanDomainOrderReportingYmd(order, orderCountDateField);
+        if (!countYmd || countYmd < startDate || countYmd > endDate) continue;
+        if (orderCountDateField === "sentAt" && !order?.sentAt) continue;
+        ensureDay(countYmd).orders += 1;
     }
 
     return Object.values(byDay).sort((a, b) => a.period.localeCompare(b.period));
@@ -727,15 +1046,21 @@ export async function fetchDanDomainPerformanceDaily(
     const dan = normalizeDanDomainSettings(customerSettings);
     const shopHost = getDanDomainShopHost(dan);
 
+    const includeOrderLines = customerSettings?.fetchCogsFromStore === true;
+    const reportingRules = resolveDanDomainReportingRules(dan);
+
     async function run(forceRefresh = false) {
         const token = await resolveDanDomainAccessToken(dan, { forceRefresh });
         const orders = await fetchDanDomainOrdersInRange(
             shopHost,
             token,
             startDate,
-            endDate
+            endDate,
+            { includeOrderLines, revenueDateField: reportingRules.revenueDateField }
         );
-        return aggregateDanDomainOrdersToDaily(orders, startDate, endDate);
+        return aggregateDanDomainOrdersToDaily(orders, startDate, endDate, {
+            reportingRules,
+        });
     }
 
     try {
