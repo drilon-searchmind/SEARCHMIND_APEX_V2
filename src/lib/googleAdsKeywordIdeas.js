@@ -111,10 +111,13 @@ function volumeInSelectedMonths(metrics, monthSet) {
                 sum += Number(m.monthlySearches ?? m.monthly_searches ?? 0);
             }
         }
+        // Do not fall back to avg monthly when filtered sum is 0 — that made every
+        // comparison period return the same volume (SoS % looked identical everywhere).
         return sum;
     }
     const avg = Number(metrics.avgMonthlySearches ?? metrics.avg_monthly_searches ?? 0);
-    return avg;
+    const monthCount = Math.max(1, monthSet.size);
+    return Math.round(avg * monthCount);
 }
 
 function normalizeResultRow(r) {

@@ -9,6 +9,7 @@ import {
     getShareOfSearchPreviousPeriodRange,
     getShareOfSearchLastYearRange,
     mergeShareComparisonIntoRows,
+    areShareComparisonRangesEqual,
 } from '@/lib/shareOfSearchComparisonRanges';
 import { isDemoCustomerId } from '@/lib/demoCustomer';
 import { isWorldwideGeoValue } from '@/lib/countrySelectOptions';
@@ -186,9 +187,14 @@ export async function POST(request, { params }) {
             metrics.normalizedStartDate,
             metrics.normalizedEndDate
         );
+        const rangesEqual = areShareComparisonRangesEqual(prevRange, lyRange);
         metrics.comparisonRanges = {
             previousPeriod: { ...prevRange, ok: true },
             lastYear: { ...lyRange, ok: true },
+            rangesEqual,
+            note: rangesEqual
+                ? 'Previous period and last year use the same calendar window for this date selection.'
+                : null,
         };
         return Response.json({
             snapshot: null,
@@ -267,9 +273,17 @@ export async function POST(request, { params }) {
         }
 
         metrics.rows = mergeShareComparisonIntoRows(metrics.rows, previousPeriodRows, lastYearRows);
+        const rangesEqual = areShareComparisonRangesEqual(prevRange, lyRange);
         metrics.comparisonRanges = {
             previousPeriod: { ...prevRange, ok: previousPeriodRows != null },
             lastYear: { ...lyRange, ok: lastYearRows != null },
+            rangesEqual,
+            note:
+                prevRange.definition === 'sequential_prior_year'
+                    ? 'Prior period is the equal-length window before the YoY range (Keyword Planner uses whole months, so the default “day before” window often matched YoY for ~12 month selections).'
+                    : rangesEqual
+                      ? 'Previous period and last year cover the same calendar months in Keyword Planner; SoS % will match between those columns.'
+                      : null,
         };
 
         const persistedGeoLabel = isWorldwideGeoValue(geoLabel)

@@ -30,7 +30,7 @@ Requires `customerId`, `startDate`, `endDate` unless noted.
 | `get_bing_ads` | Microsoft Advertising metrics |
 | `get_klaviyo_metrics` | Klaviyo sent-campaign performance (opens, clicks, conversions) |
 | `get_store_revenue` | E-commerce revenue only (no ad spend) |
-| `get_ga4_metrics` | GA4 sessions/users by day |
+| `get_ga4_metrics` | GA4 daily metrics + totals (`averageSessionDuration`, engagedSessions, conversions, …) |
 | `get_seo_metrics` | GSC clicks/impressions + top keywords |
 | `list_meta_campaigns` | Meta campaign list |
 | `list_google_campaigns` | Google campaign list |
@@ -181,6 +181,13 @@ Default allowlisted — no admin route approval required.
 | `/api/meta-ad-creatives` | optional `limit`, `activeOnly`, `includeCatalogProducts`, `catalogMaxProducts` |
 | `/api/meta-catalog-products` | optional `catalogId`, `productIds`, `retailerIds`, `maxProducts` (cached ~6h) |
 | `/api/shopify-agentic-attribution` | `startDate`, `endDate` |
+| `/api/ga4-metrics` | `startDate`, `endDate` — daily rows + `totals.averageSessionDuration` (seconds) |
+| `/api/ga4-channels` | `startDate`, `endDate` |
+| `/api/ga4-top-pages` | `startDate`, `endDate` |
+| `/api/ga4-events` | `startDate`, `endDate`; optional `limit` |
+| `/api/ga4-report` | `startDate`, `endDate`, `metrics`, `dimensions` (comma-separated; see `list_proxy_routes` → `ga4.allowlists`) |
+
+**GA4 vs Shopify sessions:** Shopify `/api/shopify-channel-attribution` sessions are store-side ShopifyQL (sessions, visitors, conversion rate only). **Average visit duration** comes from **Google Analytics 4** via `/api/ga4-metrics` or `get_ga4_metrics`, not custom ShopifyQL through the MCP Shopify proxy.
 
 ### Approvable routes (`call_apex_api` — require admin approval per customer)
 
@@ -193,7 +200,6 @@ These routes have MCP handlers but are **not** on the default allowlist. A block
 | `/api/snapchat-ads` | `startDate`, `endDate` |
 | `/api/reddit-ads` | `startDate`, `endDate` |
 | `/api/bing-ads` | `startDate`, `endDate` |
-| `/api/ga4-metrics` | `startDate`, `endDate` |
 
 Admin review: `https://apex.searchmind.tech/admin/route-requests`
 

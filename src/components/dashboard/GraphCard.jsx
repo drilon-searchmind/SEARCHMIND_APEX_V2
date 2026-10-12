@@ -110,17 +110,34 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
         // Deep copy without stripping Apex formatters (functions)
         let optionsCopy = deepClonePreserveFunctions(chartOptions);
         const seriesCopy = JSON.parse(JSON.stringify(chartSeries));
+        const presetColors = optionsCopy.colors;
+        const usePresetColors =
+            Array.isArray(presetColors) &&
+            presetColors.length > 0 &&
+            presetColors.length === seriesCopy.length;
 
         if (isDark) {
             optionsCopy = deepMerge(optionsCopy, DARK_CHART_OVERRIDES);
-            // Override per-series colors with dark-mode palette
-            seriesCopy.forEach((s, i) => {
-                s.color = DARK_CHART_OVERRIDES.colors[i % DARK_CHART_OVERRIDES.colors.length];
-            });
+            if (usePresetColors) {
+                seriesCopy.forEach((s, i) => {
+                    s.color = presetColors[i];
+                });
+            } else {
+                seriesCopy.forEach((s, i) => {
+                    s.color =
+                        DARK_CHART_OVERRIDES.colors[i % DARK_CHART_OVERRIDES.colors.length];
+                });
+            }
         } else if (isApex) {
             optionsCopy = deepMerge(optionsCopy, getCobaltChartBaseOptions());
-            const styledSeries = applyCobaltSeriesStyle(seriesCopy, optionsCopy);
-            seriesCopy.splice(0, seriesCopy.length, ...styledSeries);
+            if (usePresetColors) {
+                seriesCopy.forEach((s, i) => {
+                    s.color = presetColors[i];
+                });
+            } else {
+                const styledSeries = applyCobaltSeriesStyle(seriesCopy, optionsCopy);
+                seriesCopy.splice(0, seriesCopy.length, ...styledSeries);
+            }
         }
         
         if (toggle === "Monthly" && !hideChartToggle) {
