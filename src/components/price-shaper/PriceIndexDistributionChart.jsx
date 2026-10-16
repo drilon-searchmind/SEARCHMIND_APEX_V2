@@ -3,10 +3,12 @@
 import React, { useMemo } from "react";
 import dynamic from "next/dynamic";
 import { getCobaltChartBaseOptions } from "@/lib/charts/cobaltChartTheme";
+import { chartSeriesColor } from "@/lib/charts/chartSeriesColors";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-const SEGMENT_COLORS = ["#6a8f4d", "#c6ed62", "#ee6251"];
+/** Cheaper / similar / more expensive — green, amber, red from shared chart palette. */
+const SEGMENT_COLORS = [chartSeriesColor(2), chartSeriesColor(6), chartSeriesColor(1)];
 
 export default function PriceIndexDistributionChart({ cheaperPct, similarPct, expensivePct }) {
     const series = useMemo(

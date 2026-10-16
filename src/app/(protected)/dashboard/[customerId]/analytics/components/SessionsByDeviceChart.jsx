@@ -2,7 +2,8 @@
 
 import React, { useMemo } from "react";
 import dynamic from "next/dynamic";
-import { getCobaltChartBaseOptions, getCobaltChartTokens } from "@/lib/charts/cobaltChartTheme";
+import { getCobaltChartBaseOptions } from "@/lib/charts/cobaltChartTheme";
+import { getChartSeriesPalette } from "@/lib/charts/chartSeriesColors";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -15,9 +16,8 @@ export default function SessionsByDeviceChart({
     const series = data.map((d) => d.value);
 
     const options = useMemo(() => {
-        const t = getCobaltChartTokens();
         const base = getCobaltChartBaseOptions();
-        const palette = [t.ink, t.accentLight, t.neutral];
+        const palette = getChartSeriesPalette(Math.max(3, labels.length));
 
         return {
             ...base,

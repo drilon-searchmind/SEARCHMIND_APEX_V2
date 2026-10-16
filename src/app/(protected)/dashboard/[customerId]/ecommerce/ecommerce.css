@@ -224,7 +224,7 @@
 
 .apex-ecom-table {
   width: 100%;
-  min-width: 58rem;
+  min-width: 68rem;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 0.8125rem;
@@ -659,4 +659,46 @@
 .apex-ecom-panel .grid {
   gap: var(--apex-space-grid);
   margin-bottom: var(--space-md);
+}
+
+.apex-ecom-inline-spinner {
+  display: inline-block;
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 2px solid var(--color-rule, #e7e5e2);
+  border-top-color: var(--color-ink, #131313);
+  border-radius: 50%;
+  animation: apex-ecom-inline-spin 0.65s linear infinite;
+  vertical-align: middle;
+}
+
+.apex-ecom-inline-spinner--btn {
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-inline-end: var(--space-2xs);
+}
+
+.apex-ecom-loading-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 1rem;
+  min-height: 1rem;
+}
+
+.apex-ecom-catalog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+@keyframes apex-ecom-inline-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.apex-perf-metric__value .apex-ecom-inline-spinner {
+  width: 1.125rem;
+  height: 1.125rem;
 }

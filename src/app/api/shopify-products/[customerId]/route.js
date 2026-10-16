@@ -1,5 +1,7 @@
-import { fetchShopifyProductMetrics } from '@/lib/shopifyProductsApi';
+import { fetchShopifyProductPerformancePage } from '@/lib/shopifyProductsApi';
 import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
+
+export const maxDuration = 300;
 
 export async function GET(request, { params }) {
     const resolvedParams = await params;
@@ -7,7 +9,9 @@ export async function GET(request, { params }) {
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
-    const fast = searchParams.get('fast') === 'true';
+    const catalogCursor = searchParams.get('catalogCursor') || null;
+    const salesOffset = parseInt(searchParams.get('salesOffset') || '0', 10);
+    const pageSize = parseInt(searchParams.get('pageSize') || '100', 10);
 
     if (!startDate || !endDate) {
         return Response.json({ error: 'Missing startDate or endDate' }, { status: 400 });
@@ -26,9 +30,15 @@ export async function GET(request, { params }) {
             ...(data.CustomerSettings || {}),
             CustomerStaticExpenses: data.CustomerStaticExpenses || {},
         };
+        const customerType = data.customerType || data.CustomerSettings?.customerType || 'Shopify';
 
-        const products = await fetchShopifyProductMetrics(settings, startDate, endDate, { fast });
-        return Response.json({ products });
+        const result = await fetchShopifyProductPerformancePage(settings, startDate, endDate, {
+            catalogCursor,
+            salesOffset: Number.isFinite(salesOffset) ? salesOffset : 0,
+            pageSize: Number.isFinite(pageSize) ? pageSize : 100,
+            customerType,
+        });
+        return Response.json(result);
     } catch (error) {
         console.error('Error fetching shopify product metrics:', error);
         return Response.json({ error: error.message }, { status: 500 });

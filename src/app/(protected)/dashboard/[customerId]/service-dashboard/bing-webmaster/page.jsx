@@ -8,6 +8,7 @@ import MetricCard from "@/components/dashboard/MetricCard";
 import GraphCard from "@/components/dashboard/GraphCard";
 import CobaltLoader from "@/components/ui/CobaltLoader";
 import { getCobaltChartBaseOptions } from "@/lib/charts/cobaltChartTheme";
+import { chartSeriesColor } from "@/lib/charts/chartSeriesColors";
 import {
     FiBookmark,
     FiExternalLink,
@@ -34,11 +35,11 @@ const AI_METRIC_OPTIONS = [
 ];
 
 const CHART_COLORS = {
-    impressions: "#131313",
-    clicks: "#525252",
-    ctr: "#c6ed62",
-    totalCitations: "#131313",
-    avgCitedPages: "#858585",
+    impressions: chartSeriesColor(0),
+    clicks: chartSeriesColor(1),
+    ctr: chartSeriesColor(2),
+    totalCitations: chartSeriesColor(3),
+    avgCitedPages: chartSeriesColor(4),
 };
 
 function formatNumber(n) {

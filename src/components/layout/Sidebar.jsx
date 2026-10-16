@@ -30,20 +30,6 @@ import { getServiceDashboardConfigWarnings, getPriceShaperConfigWarning } from "
 import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
 import { isB2BCustomer } from "@/lib/customerBusinessCategory";
 
-function serviceDashboardWarningKeyForHref(href) {
-    if (href.includes("service-dashboard/seo")) return "seo";
-    if (href.includes("service-dashboard/ppc")) return "ppc";
-    if (href.includes("service-dashboard/ps")) return "ps";
-    if (href.includes("service-dashboard/pinterest")) return "pinterest";
-    if (href.includes("service-dashboard/linkedin")) return "linkedin";
-    if (href.includes("service-dashboard/snapchat")) return "snapchat";
-    if (href.includes("service-dashboard/reddit")) return "reddit";
-    if (href.includes("service-dashboard/bing-webmaster")) return null;
-    if (href.includes("service-dashboard/bing")) return "bing";
-    if (href.includes("service-dashboard/em")) return "em";
-    return null;
-}
-
 // Map of route patterns to their respective icons
 const getIconForRoute = (href) => {
     if (href.includes("performance-dashboard")) return <FiTrendingUp className="w-4 h-4" />;
@@ -73,6 +59,19 @@ const getIconForRoute = (href) => {
 
 const CONFIG_WARNING_TITLE =
     "Integration not configured for this customer (check Config or set a valid ID — not empty, 0, or 1)";
+
+/** Default order within configured / unconfigured groups (sidebar Service Dashboard). */
+const SERVICE_DASHBOARD_NAV_ITEMS = [
+    { segment: "seo", label: "SEO" },
+    { segment: "ppc", label: "PPC" },
+    { segment: "ps", label: "PS" },
+    { segment: "pinterest", label: "Pinterest" },
+    { segment: "linkedin", label: "LinkedIn" },
+    { segment: "snapchat", label: "Snapchat" },
+    { segment: "reddit", label: "Reddit" },
+    { segment: "bing", label: "Bing Ads" },
+    { segment: "em", label: "EM" },
+];
 
 const NavItem = ({ href, label, pathname, subLabel, isSmallScreen, configWarning, pageId, activePageId }) => {
     const isActive = pageId
@@ -153,14 +152,18 @@ const Sidebar = ({ showLinks = true }) => {
         return getPriceShaperConfigWarning(activeCustomer?.CustomerSettings);
     }, [activeCustomer]);
 
-    const configWarningForHref = (href) => {
-        const key = serviceDashboardWarningKeyForHref(href);
-        if (!key || !serviceDashboardWarnings) return false;
-        return !!serviceDashboardWarnings[key];
-    };
-
     const serviceDashboardHref = (segment) =>
         `/dashboard/${activeCustomerId}/service-dashboard/${segment}`;
+
+    const serviceDashboardNavItems = useMemo(() => {
+        const w = serviceDashboardWarnings;
+        return [...SERVICE_DASHBOARD_NAV_ITEMS]
+            .map((item) => ({
+                ...item,
+                configWarning: w ? !!w[item.segment] : false,
+            }))
+            .sort((a, b) => Number(a.configWarning) - Number(b.configWarning));
+    }, [serviceDashboardWarnings]);
 
     // Handle responsive sidebar
     React.useEffect(() => {
@@ -292,78 +295,17 @@ const Sidebar = ({ showLinks = true }) => {
                                     </button>
                                     {serviceOpen && (
                                         <ul className="apex-dash-nav__sub">
-                                            <NavItem
-                                                href={serviceDashboardHref("seo")}
-                                                label="SEO"
-                                                pathname={pathname}
-                                                isSmallScreen={isSmallScreen}
-                                                subLabel={"BETA"}
-                                                configWarning={configWarningForHref(serviceDashboardHref("seo"))}
-                                            />
-                                            <NavItem
-                                                href={serviceDashboardHref("ppc")}
-                                                label="PPC"
-                                                pathname={pathname}
-                                                isSmallScreen={isSmallScreen}
-                                                subLabel={"BETA"}
-                                                configWarning={configWarningForHref(serviceDashboardHref("ppc"))}
-                                            />
-                                            <NavItem
-                                                href={serviceDashboardHref("ps")}
-                                                label="PS"
-                                                pathname={pathname}
-                                                isSmallScreen={isSmallScreen}
-                                                subLabel={"BETA"}
-                                                configWarning={configWarningForHref(serviceDashboardHref("ps"))}
-                                            />
-                                            <NavItem
-                                                href={serviceDashboardHref("pinterest")}
-                                                label="Pinterest"
-                                                pathname={pathname}
-                                                isSmallScreen={isSmallScreen}
-                                                subLabel={"BETA"}
-                                                configWarning={configWarningForHref(serviceDashboardHref("pinterest"))}
-                                            />
-                                            <NavItem
-                                                href={serviceDashboardHref("linkedin")}
-                                                label="LinkedIn"
-                                                pathname={pathname}
-                                                isSmallScreen={isSmallScreen}
-                                                subLabel={"BETA"}
-                                                configWarning={configWarningForHref(serviceDashboardHref("linkedin"))}
-                                            />
-                                            <NavItem
-                                                href={serviceDashboardHref("snapchat")}
-                                                label="Snapchat"
-                                                pathname={pathname}
-                                                isSmallScreen={isSmallScreen}
-                                                subLabel={"BETA"}
-                                                configWarning={configWarningForHref(serviceDashboardHref("snapchat"))}
-                                            />
-                                            <NavItem
-                                                href={serviceDashboardHref("reddit")}
-                                                label="Reddit"
-                                                pathname={pathname}
-                                                isSmallScreen={isSmallScreen}
-                                                subLabel={"BETA"}
-                                                configWarning={configWarningForHref(serviceDashboardHref("reddit"))}
-                                            />
-                                            <NavItem
-                                                href={serviceDashboardHref("bing")}
-                                                label="Bing Ads"
-                                                pathname={pathname}
-                                                isSmallScreen={isSmallScreen}
-                                                subLabel={"BETA"}
-                                                configWarning={configWarningForHref(serviceDashboardHref("bing"))}
-                                            />
-                                            <NavItem
-                                                href={serviceDashboardHref("em")}
-                                                label="EM"
-                                                pathname={pathname}
-                                                isSmallScreen={isSmallScreen}
-                                                subLabel={"BETA"}
-                                                configWarning={configWarningForHref(serviceDashboardHref("em"))}
-                                            />
+                                            {serviceDashboardNavItems.map((item) => (
+                                                <NavItem
+                                                    key={item.segment}
+                                                    href={serviceDashboardHref(item.segment)}
+                                                    label={item.label}
+                                                    pathname={pathname}
+                                                    isSmallScreen={isSmallScreen}
+                                                    subLabel="BETA"
+                                                    configWarning={item.configWarning}
+                                                />
+                                            ))}
                                         </ul>
                                     )}
                                 </li>

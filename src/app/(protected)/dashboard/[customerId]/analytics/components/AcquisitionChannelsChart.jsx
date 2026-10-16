@@ -2,7 +2,8 @@
 
 import React, { useMemo } from "react";
 import dynamic from "next/dynamic";
-import { getCobaltChartBaseOptions, getCobaltChartTokens } from "@/lib/charts/cobaltChartTheme";
+import { getCobaltChartBaseOptions } from "@/lib/charts/cobaltChartTheme";
+import { getChartSeriesPalette } from "@/lib/charts/chartSeriesColors";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -13,9 +14,8 @@ export default function AcquisitionChannelsChart({
     series = [],
 }) {
     const { options, chartSeries } = useMemo(() => {
-        const t = getCobaltChartTokens();
         const base = getCobaltChartBaseOptions();
-        const palette = [t.ink, t.accentLight, t.neutral, t.rule2, t.muted];
+        const palette = getChartSeriesPalette(Math.max(5, series.length));
 
         return {
             chartSeries: series,

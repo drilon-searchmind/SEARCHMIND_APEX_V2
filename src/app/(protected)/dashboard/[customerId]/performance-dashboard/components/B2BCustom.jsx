@@ -11,7 +11,7 @@ import { B2B_METRIC_DEFS } from "@/lib/b2bDashboard/b2bKpiConstants";
 import { B2B_REPLACEABLE_STANDARD_METRICS } from "@/lib/b2bDashboard/b2bKpiConstants";
 import { evaluateB2BFormula } from "@/lib/b2bDashboard/b2bKpiFormulaUtils";
 import { buildB2BDailySeries } from "@/lib/b2bDashboard/b2bOverviewMetrics";
-import { getChartColors } from "@/components/dashboard/chartColors";
+import { chartComparisonColor, chartSeriesColor } from "@/components/dashboard/chartColors";
 import { COMPARISON_METHOD, getComparisonMethodLabel } from "@/lib/dateRangeComparison";
 
 const B2B_AVAILABLE_METRICS = B2B_METRIC_DEFS.map((m) => ({ ...m, icon: undefined }));
@@ -152,19 +152,17 @@ export default function B2BCustom({
     );
 
     const comparisonLabel = getComparisonMethodLabel(comparisonMethod);
-    const chartColors = getChartColors();
-
     const chartSeries = useMemo(() => {
         const selected = kpis.filter((k) => selectedKpis.includes(k.id || k._id));
         if (!selected.length || !categories.length) return [];
 
-        return selected.flatMap((kpi) => {
+        return selected.flatMap((kpi, kpiIndex) => {
             const currData = currRows.map((row) => evaluateB2BFormula(kpi, row) ?? 0);
             const series = [
                 {
                     name: `${kpi.name} (Current)`,
                     data: currData,
-                    color: chartColors.primaryLighter || "#406969",
+                    color: chartSeriesColor(kpiIndex),
                 },
             ];
             if (comparisonMethod !== COMPARISON_METHOD.NONE && prevRows.length) {
@@ -175,12 +173,12 @@ export default function B2BCustom({
                 series.push({
                     name: `${kpi.name} (${comparisonLabel})`,
                     data: prevData,
-                    color: "#94a3b8",
+                    color: chartComparisonColor(kpiIndex),
                 });
             }
             return series;
         });
-    }, [kpis, selectedKpis, categories, currRows, prevRows, comparisonMethod, comparisonLabel, chartColors]);
+    }, [kpis, selectedKpis, categories, currRows, prevRows, comparisonMethod, comparisonLabel]);
 
     const chartOptions = useMemo(
         () => ({

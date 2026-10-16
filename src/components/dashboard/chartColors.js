@@ -1,5 +1,12 @@
 // Chart color tokens — reads Apex design tokens when available.
 
+export {
+  chartSeriesColor,
+  chartComparisonColor,
+  getChartSeriesPalette,
+  colorsForCurrentComparisonSeries,
+} from "@/lib/charts/chartSeriesColors";
+
 export function getChartColors() {
   if (typeof window === "undefined") return {};
   const root =

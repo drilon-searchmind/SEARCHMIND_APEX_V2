@@ -1,6 +1,29 @@
 import { getCurrencyConversionTable, conversionRateToDkk } from './currencyConversionTable';
-import { combineShopifyOrderSearchQuery } from './shopifyQlFilters';
+import {
+    buildShopifySalesWhereParts,
+    combineShopifyOrderSearchQuery,
+    shopifySalesWhereClause,
+} from './shopifyQlFilters';
 import { shopifyAdminGraphqlPost } from './shopifyAdminClient';
+import { shopifyqlQuery } from './shopifyApi';
+import { computeTotalSalesExVat } from './performanceDashboard/totalSalesExVat';
+import { displaysTotalSalesWithoutVatDeduction } from './revenueVatDisplay';
+import {
+    fetchExpectedArrivalByProduct,
+    fetchOpenInventoryIncomingArrivals,
+    fetchProductsInventoryDetails,
+    fetchProductsStockValueDetails,
+} from './shopifyInventoryIncoming';
+/** Cap inventory GraphQL work per request (products are pre-sorted by revenue on the client). */
+export const SHOPIFY_INVENTORY_MAX_PRODUCTS_PER_REQUEST = 400;
+
+export {
+    SHOPIFY_INCOMING_INVENTORY_SCOPES,
+    fetchShopifyGrantedAccessScopes,
+    checkShopifyIncomingInventoryScopes,
+    fetchOpenInventoryIncomingArrivals,
+    INVENTORY_LEVEL_QUANTITY_NAMES,
+} from './shopifyInventoryIncoming';
 
 /** Rolling window for "avg. days to sold out" velocity (calendar days, ending yesterday UTC). */
 export const SHOPIFY_PRODUCT_SOLD_OUT_LOOKBACK_DAYS = 90;
@@ -45,6 +68,15 @@ export function formatAvgDaysToSoldOutDisplay(
     }
 
     const stock = Number(inventoryStock);
+    if (stock <= 0) {
+        return {
+            days: null,
+            label: 'Out of stock',
+            title:
+                'Available inventory is 0 in Shopify. Restock or check that the app token has read_inventory access.',
+        };
+    }
+
     const sold60 = Number(unitsSold60d);
     if (!Number.isFinite(sold60) || sold60 <= 0) {
         return {
@@ -102,67 +134,101 @@ function mergeChunkUnitsSold(chunkMaps) {
 }
 
 /**
- * Fetch inventory stock and value for a list of Shopify product IDs.
- * @param {string} shopUrl - Shopify shop hostname
- * @param {string} accessToken - Shopify access token
- * @param {string[]} productIds - Array of product GIDs (e.g. gid://shopify/Product/123)
- * @param {number} conversionRate - Currency conversion rate to DKK
- * @returns {Promise<Record<string, { inventoryStock: number, inventoryValue: number }>>}
+ * Fetch inventory stock, value, incoming quantities, and optional arrival dates.
+ * Uses GraphQL InventoryLevel.quantities (incoming is 0 unless transfers/POs exist in Shopify).
+ *
+ * @param {string} shopUrl
+ * @param {string} accessToken
+ * @param {string[]} productIds - Product GIDs
+ * @param {number} conversionRate
+ * @param {{ includeArrivals?: boolean }} [options]
+ * @returns {Promise<Record<string, {
+ *   inventoryStock: number,
+ *   inventoryValue: number,
+ *   incomingQuantity: number,
+ *   expectedArrivalDate: string|null,
+ *   variants: object[],
+ * }>>}
  */
-async function fetchProductInventory(shopUrl, accessToken, productIds, conversionRate) {
+async function fetchProductInventory(shopUrl, accessToken, productIds, conversionRate, options = {}) {
     const out = {};
     if (!productIds.length) return out;
 
-    // Shopify allows up to 250 IDs per products query
-    const BATCH = 100;
-    for (let i = 0; i < productIds.length; i += BATCH) {
-        const batch = productIds.slice(i, i + BATCH);
-        const query = `query getProductInventory($ids: [ID!]!) {
-            nodes(ids: $ids) {
-                ... on Product {
-                    id
-                    variants(first: 100) {
-                        nodes {
-                            sellableOnlineQuantity
-                            inventoryItem {
-                                unitCost {
-                                    amount
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }`;
+    const { includeArrivals = false, includeVariantDetails = false } = options;
+    const maxProducts =
+        options.maxProducts ?? SHOPIFY_INVENTORY_MAX_PRODUCTS_PER_REQUEST;
+    const ids = productIds
+        .filter((id) => id && typeof id === 'string')
+        .slice(0, maxProducts);
 
-        try {
-            const { res, json } = await shopifyAdminGraphqlPost(shopUrl, accessToken, {
-                query,
-                variables: { ids: batch },
-            });
-            if (!res.ok) continue;
-            const nodes = json?.data?.nodes || [];
-            for (const node of nodes) {
-                if (!node?.id) continue;
-                const variants = node.variants?.nodes || [];
-                let inventoryStock = 0;
-                let inventoryValue = 0;
-                for (const v of variants) {
-                    const qty = parseInt(v.sellableOnlineQuantity, 10) || 0;
-                    const unitCost = parseFloat(v.inventoryItem?.unitCost?.amount) || 0;
-                    inventoryStock += qty;
-                    inventoryValue += qty * unitCost;
-                }
-                out[node.id] = {
-                    inventoryStock,
-                    inventoryValue: inventoryValue * conversionRate,
-                };
+    if (productIds.length > ids.length) {
+        console.warn(
+            `[Shopify inventory] Capped inventory fetch to ${ids.length} products (${productIds.length} requested).`
+        );
+    }
+
+    const [stockMap, incomingMap] = await Promise.all([
+        fetchProductsStockValueDetails(shopUrl, accessToken, ids),
+        fetchProductsInventoryDetails(shopUrl, accessToken, ids, {
+            includeVariantDetails,
+        }),
+    ]);
+
+    let totalIncoming = 0;
+    for (const productId of ids) {
+        const stock = stockMap.get(productId);
+        if (!stock?.fetched) continue;
+
+        const incoming = incomingMap.get(productId);
+
+        const availableFromLevels = incoming?.availableQuantity ?? 0;
+        const inventoryStock =
+            availableFromLevels > 0
+                ? Math.max(stock.inventoryStock, availableFromLevels)
+                : stock.inventoryStock;
+
+        if (includeArrivals && incoming?.inventoryItemIds?.length) {
+            try {
+                const arrivalByItem = await fetchOpenInventoryIncomingArrivals(shopUrl, accessToken);
+                applyExpectedArrivalFromItems(incoming, arrivalByItem);
+            } catch (err) {
+                console.warn('[Shopify inventory] Skipping arrival dates:', err?.message || err);
             }
-        } catch (err) {
-            console.error('fetchProductInventory batch error:', err);
+        }
+
+        delete incoming?.inventoryItemIds;
+
+        const incomingQuantity = incoming?.incomingQuantity ?? 0;
+        totalIncoming += incomingQuantity;
+
+        out[productId] = {
+            inventoryStock,
+            inventoryValue: stock.inventoryValue * conversionRate,
+            incomingQuantity,
+            expectedArrivalDate: incoming?.expectedArrivalDate ?? null,
+            variants: incoming?.variants ?? [],
+        };
+    }
+
+    if (ids.length > 0 && totalIncoming === 0) {
+        console.info(
+            '[Shopify inventory] incoming quantity is 0 for all fetched products. ' +
+                'Shopify only populates incoming when inventory transfers or purchase orders are active in Admin.'
+        );
+    }
+
+    return out;
+}
+
+/** @param {object} detail @param {Map<string, string>} arrivalByItem */
+function applyExpectedArrivalFromItems(detail, arrivalByItem) {
+    for (const itemId of detail.inventoryItemIds || []) {
+        const at = arrivalByItem.get(itemId);
+        if (!at) continue;
+        if (!detail.expectedArrivalDate || at < detail.expectedArrivalDate) {
+            detail.expectedArrivalDate = at;
         }
     }
-    return out;
 }
 
 /**
@@ -395,142 +461,561 @@ function getDateChunks(startDate, endDate, maxChunks = 6) {
     return chunks;
 }
 
+/** @param {string|number|null|undefined} productId */
+export function shopifyProductGid(productId) {
+    if (productId == null || productId === '') return null;
+    const s = String(productId).trim();
+    if (s.startsWith('gid://shopify/Product/')) return s;
+    const digits = s.replace(/\D/g, '');
+    if (!digits) return null;
+    return `gid://shopify/Product/${digits}`;
+}
+
+async function runShopifyql(settings, shopifyql) {
+    const json = await shopifyqlQuery(settings.shopifyUrl, settings.shopifyApiPassword, shopifyql);
+    const parseErrors = json?.data?.shopifyqlQuery?.parseErrors || [];
+    if (parseErrors.length) {
+        throw new Error(`ShopifyQL: ${parseErrors.join('; ')}`);
+    }
+    return json?.data?.shopifyqlQuery?.tableData?.rows || [];
+}
+
 /**
- * Fetch Shopify orders and aggregate product-level metrics between dates.
- * Uses parallel date chunks for faster loading. Supports fast mode to skip inventory.
- * @param {object} settings - customer settings containing shopifyUrl and shopifyApiPassword and customerStoreValutaCode
- * @param {string} startDate - YYYY-MM-DD
- * @param {string} endDate - YYYY-MM-DD
- * @param {object} options - { fast?: boolean } - if true, skip inventory fetch
- * @returns {Promise<object[]>} - [{ productId, title, handle, vendor, image, productType, unitsSold, ordersCount, totalRevenue, inventoryStock?, inventoryValue? }]
+ * Period totals from ShopifyQL (same sales dataset as Overview).
+ * @param {object} settings
+ * @param {string} startDate
+ * @param {string} endDate
+ * @param {number} conversionRate
+ * @param {string} [customerType]
  */
-export async function fetchShopifyProductMetrics(settings, startDate, endDate, options = {}) {
-    if (!settings?.shopifyUrl || !settings?.shopifyApiPassword) return [];
+export async function fetchShopifySalesPeriodSummary(
+    settings,
+    startDate,
+    endDate,
+    customerType = 'Shopify'
+) {
+    if (!settings?.shopifyUrl || !settings?.shopifyApiPassword) return null;
+    const fromCode = settings?.customerStoreValutaCode || 'DKK';
+    const currencyData = (await getCurrencyConversionTable()).data;
+    const conversionRate = conversionRateToDkk(fromCode, currencyData);
+    return fetchProductPerformancePeriodSummary(
+        settings,
+        startDate,
+        endDate,
+        conversionRate,
+        customerType
+    );
+}
+
+async function fetchProductPerformancePeriodSummary(
+    settings,
+    startDate,
+    endDate,
+    conversionRate,
+    customerType = 'Shopify'
+) {
+    const whereParts = buildShopifySalesWhereParts(settings);
+    const whereClause = shopifySalesWhereClause(whereParts);
+    const shopifyql = `FROM sales
+SHOW net_sales, orders, net_items_sold, gross_sales, total_sales, taxes, shipping_charges
+${whereClause}
+SINCE ${startDate} UNTIL ${endDate}`;
+
+    const rows = await runShopifyql(settings, shopifyql);
+    const row = rows[0] || {};
+    const num = (k) => (parseFloat(row[k]) || 0) * conversionRate;
+    const netSales = num('net_sales');
+    const shippingCharges = num('shipping_charges');
+    const totalSales = num('total_sales');
+    const taxes = num('taxes');
+    const grossSales = num('gross_sales');
+
+    let totalSalesExVat = totalSales;
+    if (!displaysTotalSalesWithoutVatDeduction(settings)) {
+        totalSalesExVat = computeTotalSalesExVat({
+            totalSales,
+            taxes,
+            grossSales,
+            netSales,
+            shippingRevenue: shippingCharges,
+            customerType,
+        });
+    }
+
+    return {
+        netSales,
+        shippingCharges,
+        totalSales,
+        taxes,
+        grossSales,
+        orders: parseInt(row.orders, 10) || 0,
+        netItemsSold: parseInt(row.net_items_sold, 10) || 0,
+        totalSalesExVat,
+    };
+}
+
+/**
+ * @returns {Promise<Map<string, { netSales: number, orders: number, unitsSold: number, title: string }>>}
+ */
+async function fetchProductSalesMapShopifyql(settings, startDate, endDate, conversionRate) {
+    const whereParts = [...buildShopifySalesWhereParts(settings), 'product_id IS NOT NULL'];
+    const whereClause = shopifySalesWhereClause(whereParts);
+    const shopifyql = `FROM sales
+SHOW net_sales, orders, net_items_sold, product_title
+${whereClause}
+GROUP BY product_id, product_title
+SINCE ${startDate} UNTIL ${endDate}
+ORDER BY net_sales DESC
+LIMIT 5000`;
+
+    const rows = await runShopifyql(settings, shopifyql);
+    const map = new Map();
+    for (const row of rows) {
+        const gid = shopifyProductGid(row.product_id);
+        if (!gid) continue;
+        map.set(gid, {
+            netSales: (parseFloat(row.net_sales) || 0) * conversionRate,
+            orders: parseInt(row.orders, 10) || 0,
+            unitsSold: parseInt(row.net_items_sold, 10) || 0,
+            title: row.product_title ? String(row.product_title) : '',
+        });
+    }
+    return map;
+}
+
+/** @returns {Promise<Map<string, number>>} product GID → units */
+async function fetchProductUnitsSoldRollingShopifyql(
+    settings,
+    startDate,
+    endDate,
+    conversionRate
+) {
+    const whereParts = [...buildShopifySalesWhereParts(settings), 'product_id IS NOT NULL'];
+    const whereClause = shopifySalesWhereClause(whereParts);
+    const shopifyql = `FROM sales
+SHOW net_items_sold
+${whereClause}
+GROUP BY product_id
+SINCE ${startDate} UNTIL ${endDate}
+LIMIT 5000`;
+
+    const rows = await runShopifyql(settings, shopifyql);
+    const map = new Map();
+    for (const row of rows) {
+        const gid = shopifyProductGid(row.product_id);
+        if (!gid) continue;
+        map.set(gid, parseInt(row.net_items_sold, 10) || 0);
+    }
+    return map;
+}
+
+const PRODUCT_CATALOG_NODES_BATCH = 50;
+
+export function sortProductsByNetSales(products) {
+    return products.slice().sort((a, b) => {
+        const diff = (Number(b.totalRevenue) || 0) - (Number(a.totalRevenue) || 0);
+        if (diff !== 0) return diff;
+        return String(a.title || '').localeCompare(String(b.title || ''));
+    });
+}
+
+function buildProductPerformanceRow(productId, node, salesByProduct, unitsSold60dByProduct) {
+    const sales = salesByProduct.get(productId);
+    const unitsSold = sales?.unitsSold ?? 0;
+    const totalRevenue = sales?.netSales ?? 0;
+    const unitsSold60d = unitsSold60dByProduct.get(productId) ?? 0;
+    return {
+        productId,
+        title: node?.title || sales?.title || 'Untitled',
+        handle: node?.handle || null,
+        vendor: node?.vendor || '',
+        productType: node?.productType || '',
+        image: node?.featuredImage?.url || null,
+        unitsSold,
+        ordersCount: sales?.orders ?? 0,
+        totalRevenue,
+        avgPrice: unitsSold > 0 ? totalRevenue / unitsSold : 0,
+        unitsSold60d,
+        inventoryStock: null,
+        inventoryValue: null,
+        incomingQuantity: null,
+        expectedArrivalDate: null,
+        avgDaysToSoldOut: null,
+    };
+}
+
+async function fetchProductCatalogNodesByIds(shopUrl, accessToken, productIds) {
+    /** @type {Map<string, object>} */
+    const byId = new Map();
+    const ids = productIds.filter(Boolean);
+    if (!ids.length) return byId;
+
+    const query = `query ProductCatalogNodes($ids: [ID!]!) {
+        nodes(ids: $ids) {
+            ... on Product {
+                id
+                title
+                handle
+                vendor
+                productType
+                featuredImage { url }
+            }
+        }
+    }`;
+
+    for (let i = 0; i < ids.length; i += PRODUCT_CATALOG_NODES_BATCH) {
+        const batch = ids.slice(i, i + PRODUCT_CATALOG_NODES_BATCH);
+        const { res, json } = await shopifyAdminGraphqlPost(shopUrl, accessToken, {
+            query,
+            variables: { ids: batch },
+        });
+        if (!res.ok) continue;
+        for (const node of json?.data?.nodes || []) {
+            if (node?.id) byId.set(node.id, node);
+        }
+    }
+    return byId;
+}
+
+async function fetchProductsCatalogPage(shopUrl, accessToken, { first = 100, after = null } = {}) {
+    const query = `query CatalogProducts($first: Int!, $after: String) {
+        products(first: $first, after: $after) {
+            nodes {
+                id
+                title
+                handle
+                vendor
+                productType
+                featuredImage { url }
+            }
+            pageInfo { hasNextPage endCursor }
+        }
+        productsCount {
+            count
+        }
+    }`;
+
+    const { res, json } = await shopifyAdminGraphqlPost(shopUrl, accessToken, {
+        query,
+        variables: { first, after },
+    });
+    if (!res.ok) throw new Error(`Shopify GraphQL products error: ${res.status}`);
+    return {
+        nodes: json?.data?.products?.nodes || [],
+        pageInfo: json?.data?.products?.pageInfo || { hasNextPage: false, endCursor: null },
+        totalCount: json?.data?.productsCount?.count ?? null,
+    };
+}
+
+/**
+ * Product performance page: ShopifyQL sales (Overview-aligned) + paginated full catalog.
+ */
+export async function fetchShopifyProductPerformancePage(
+    settings,
+    startDate,
+    endDate,
+    options = {}
+) {
+    const empty = {
+        products: [],
+        periodSummary: null,
+        catalogPageInfo: { hasNextPage: false, endCursor: null },
+        catalogTotalCount: null,
+    };
+    if (!settings?.shopifyUrl || !settings?.shopifyApiPassword) return empty;
+
     const shopUrl = settings.shopifyUrl;
     const accessToken = settings.shopifyApiPassword;
-    const { fast = false } = options;
+    const pageSize = Math.min(Math.max(options.pageSize ?? 100, 25), 250);
+    const catalogCursor = options.catalogCursor ?? null;
+    const salesOffset = Math.max(parseInt(String(options.salesOffset ?? 0), 10) || 0, 0);
+    const customerType = options.customerType || 'Shopify';
 
     const fromCode = settings?.customerStoreValutaCode || 'DKK';
     const currencyData = (await getCurrencyConversionTable()).data;
     const conversionRate = conversionRateToDkk(fromCode, currencyData);
 
-    const billingFilter = parseBillingCountryFilter(settings);
-    const hasBillingFilter = billingFilter.include.length > 0 || billingFilter.exclude.length > 0;
-
     try {
-        // Fetch ALL products from the store first
-        const allProductsMap = await fetchAllProducts(shopUrl, accessToken);
+        const rolling = getRollingProductSoldOutRange();
+        const salesMapPromise = fetchProductSalesMapShopifyql(
+            settings,
+            startDate,
+            endDate,
+            conversionRate
+        );
+        const isFirstCatalogPage = salesOffset === 0 && !catalogCursor;
+        const periodPromise = isFirstCatalogPage
+            ? fetchProductPerformancePeriodSummary(
+                  settings,
+                  startDate,
+                  endDate,
+                  conversionRate,
+                  customerType
+              )
+            : Promise.resolve(null);
+        const units60Promise = fetchProductUnitsSoldRollingShopifyql(
+            settings,
+            rolling.startDate,
+            rolling.endDate,
+            conversionRate
+        );
 
-        // Fetch order data for the date range (products that sold)
-        const chunks = getDateChunks(startDate, endDate, 6);
-        const rolling60 = getRollingProductSoldOutRange();
-        const chunks60 = getDateChunks(rolling60.startDate, rolling60.endDate, 3);
-        const billingArg = hasBillingFilter ? billingFilter : { include: [], exclude: [] };
-
-        const [chunkResults, chunkResults60] = await Promise.all([
-            Promise.all(
-                chunks.map(({ start: chunkStart, end: chunkEnd }) =>
-                    fetchOrdersChunk(
-                        shopUrl,
-                        accessToken,
-                        chunkStart,
-                        chunkEnd,
-                        conversionRate,
-                        billingArg,
-                        settings
-                    )
-                )
-            ),
-            Promise.all(
-                chunks60.map(({ start: chunkStart, end: chunkEnd }) =>
-                    fetchOrdersChunk(
-                        shopUrl,
-                        accessToken,
-                        chunkStart,
-                        chunkEnd,
-                        conversionRate,
-                        billingArg,
-                        settings
-                    )
-                )
-            ),
+        const [salesByProduct, periodSummary, unitsSold60dByProduct] = await Promise.all([
+            salesMapPromise,
+            periodPromise,
+            units60Promise,
         ]);
 
-        const unitsSold60dByProduct = mergeChunkUnitsSold(chunkResults60);
+        const salesSortedIds = [...salesByProduct.entries()]
+            .sort((a, b) => b[1].netSales - a[1].netSales)
+            .map(([id]) => id);
 
-        // Merge order metrics into all products
-        for (const chunkMap of chunkResults) {
-            for (const [key, item] of chunkMap) {
-                const existing = allProductsMap.get(key);
-                if (existing) {
-                    existing.unitsSold += item.unitsSold;
-                    existing.ordersCount += item.ordersCount;
-                    existing.totalRevenue += item.totalRevenue;
-                    // Prefer order data for title/vendor/image if we have it (more complete)
-                    if (item.title) existing.title = item.title;
-                    if (item.vendor !== undefined) existing.vendor = item.vendor;
-                    if (item.productType !== undefined) existing.productType = item.productType;
-                    if (item.image) existing.image = item.image;
-                } else {
-                    // Product in order but not in allProducts (e.g. deleted product) - add it
-                    allProductsMap.set(key, { ...item });
-                }
+        const products = [];
+        let nextSalesOffset = salesOffset;
+        let walkCatalogCursor = catalogCursor;
+        let catalogTotalCount = null;
+        let catalogHasNextPage = false;
+
+        const salesPageIds = salesSortedIds.slice(salesOffset, salesOffset + pageSize);
+        if (salesPageIds.length) {
+            const nodesById = await fetchProductCatalogNodesByIds(
+                shopUrl,
+                accessToken,
+                salesPageIds
+            );
+            for (const productId of salesPageIds) {
+                products.push(
+                    buildProductPerformanceRow(
+                        productId,
+                        nodesById.get(productId),
+                        salesByProduct,
+                        unitsSold60dByProduct
+                    )
+                );
             }
+            nextSalesOffset = salesOffset + salesPageIds.length;
         }
 
-        let result = Array.from(allProductsMap.values()).map(p => {
-            const unitsSold60d = unitsSold60dByProduct.get(p.productId) ?? 0;
-            const inventoryStock = null;
-            const inventoryValue = null;
+        let slotsLeft = pageSize - products.length;
+        if (slotsLeft > 0) {
+            let scanningCatalog = true;
+            while (slotsLeft > 0 && scanningCatalog) {
+                const catalog = await fetchProductsCatalogPage(shopUrl, accessToken, {
+                    first: Math.min(Math.max(slotsLeft * 3, 50), 250),
+                    after: walkCatalogCursor,
+                });
+                if (catalogTotalCount == null && catalog.totalCount != null) {
+                    catalogTotalCount = catalog.totalCount;
+                }
+                for (const node of catalog.nodes) {
+                    if (salesByProduct.has(node.id)) continue;
+                    products.push(
+                        buildProductPerformanceRow(
+                            node.id,
+                            node,
+                            salesByProduct,
+                            unitsSold60dByProduct
+                        )
+                    );
+                    slotsLeft -= 1;
+                    if (slotsLeft <= 0) break;
+                }
+                walkCatalogCursor = catalog.pageInfo?.endCursor ?? null;
+                catalogHasNextPage = Boolean(catalog.pageInfo?.hasNextPage);
+                if (!catalogHasNextPage) scanningCatalog = false;
+                if (!catalog.nodes.length) scanningCatalog = false;
+            }
+        } else if (catalogTotalCount == null) {
+            const countProbe = await fetchProductsCatalogPage(shopUrl, accessToken, {
+                first: 1,
+                after: null,
+            });
+            catalogTotalCount = countProbe.totalCount;
+        }
+
+        const hasMoreSales = nextSalesOffset < salesSortedIds.length;
+        let hasNextPage = hasMoreSales || catalogHasNextPage;
+        if (
+            !hasNextPage &&
+            catalogTotalCount != null &&
+            nextSalesOffset >= salesSortedIds.length &&
+            catalogTotalCount > salesSortedIds.length
+        ) {
+            hasNextPage = true;
+        }
+
+        if (catalogTotalCount == null && isFirstCatalogPage) {
+            const countProbe = await fetchProductsCatalogPage(shopUrl, accessToken, {
+                first: 1,
+                after: null,
+            });
+            catalogTotalCount = countProbe.totalCount;
+        }
+
+        return {
+            products: sortProductsByNetSales(products),
+            periodSummary,
+            catalogPageInfo: {
+                hasNextPage,
+                endCursor: walkCatalogCursor,
+                salesOffset: nextSalesOffset,
+            },
+            catalogTotalCount,
+        };
+    } catch (err) {
+        console.error('fetchShopifyProductPerformancePage error:', err);
+        throw err;
+    }
+}
+
+/** @deprecated Prefer fetchShopifyProductPerformancePage */
+export async function fetchShopifyProductMetrics(settings, startDate, endDate, options = {}) {
+    const { fast = false, ...pageOpts } = options;
+    const page = await fetchShopifyProductPerformancePage(settings, startDate, endDate, pageOpts);
+    let products = page.products;
+    if (!fast && products.length) {
+        const fromCode = settings?.customerStoreValutaCode || 'DKK';
+        const currencyData = (await getCurrencyConversionTable()).data;
+        const conversionRate = conversionRateToDkk(fromCode, currencyData);
+        const productIds = products.map((p) => p.productId).filter(Boolean);
+        const inventoryByProduct = await fetchProductInventory(
+            settings.shopifyUrl,
+            settings.shopifyApiPassword,
+            productIds,
+            conversionRate
+        );
+        products = products.map((p) => {
+            const inv = inventoryByProduct[p.productId];
+            const inventoryStock = inv?.inventoryStock ?? null;
             return {
                 ...p,
-                avgPrice: p.unitsSold > 0 ? p.totalRevenue / p.unitsSold : 0,
-                unitsSold60d,
-                avgDaysToSoldOut: computeAvgDaysToSoldOut(inventoryStock, unitsSold60d),
+                inventoryStock,
+                inventoryValue: inv?.inventoryValue ?? null,
+                incomingQuantity: inv?.incomingQuantity ?? null,
+                expectedArrivalDate: inv?.expectedArrivalDate ?? null,
+                avgDaysToSoldOut: computeAvgDaysToSoldOut(inventoryStock, p.unitsSold60d),
             };
-        }).sort((a, b) => b.totalRevenue - a.totalRevenue);
-
-        if (!fast) {
-            const productIds = result
-                .map(p => p.productId)
-                .filter(id => id && typeof id === 'string' && id.includes('Product'));
-            const inventoryByProduct = await fetchProductInventory(shopUrl, accessToken, productIds, conversionRate);
-            result = result.map(p => {
-                const inventoryStock = inventoryByProduct[p.productId]?.inventoryStock ?? null;
-                const inventoryValue = inventoryByProduct[p.productId]?.inventoryValue ?? null;
-                return {
-                    ...p,
-                    inventoryStock,
-                    inventoryValue,
-                    avgDaysToSoldOut: computeAvgDaysToSoldOut(inventoryStock, p.unitsSold60d),
-                };
-            });
-        } else {
-            result = result.map(p => ({
-                ...p,
-                inventoryStock: null,
-                inventoryValue: null,
-                avgDaysToSoldOut: null,
-            }));
-        }
-
-        return result;
-    } catch (err) {
-        console.error('fetchShopifyProductMetrics error:', err);
-        return [];
+        });
     }
+    return products;
 }
 
 /**
  * Fetch inventory only for given product IDs.
  * @param {object} settings - customer settings
  * @param {string[]} productIds - Shopify product GIDs
- * @returns {Promise<Record<string, { inventoryStock: number, inventoryValue: number }>>}
+ * @returns {Promise<Record<string, {
+ *   inventoryStock: number,
+ *   inventoryValue: number,
+ *   incomingQuantity: number,
+ *   expectedArrivalDate: string|null,
+ *   variants: object[],
+ * }>>}
  */
-export async function fetchProductInventoryOnly(settings, productIds) {
-    if (!settings?.shopifyUrl || !settings?.shopifyApiPassword || !productIds?.length) return {};
+/** Paginate entire catalog — product GIDs only (for store-wide inventory totals). */
+async function fetchAllShopifyProductIds(shopUrl, accessToken) {
+    const ids = [];
+    let cursor = null;
+    let hasNext = true;
+    const query = `query AllProductIds($first: Int!, $after: String) {
+        products(first: $first, after: $after) {
+            nodes { id }
+            pageInfo { hasNextPage endCursor }
+        }
+    }`;
+
+    while (hasNext) {
+        const { res, json } = await shopifyAdminGraphqlPost(shopUrl, accessToken, {
+            query,
+            variables: { first: 250, after: cursor },
+        });
+        if (!res.ok) {
+            console.warn(`[Shopify products] list ids HTTP ${res.status}`);
+            break;
+        }
+        const connection = json?.data?.products;
+        for (const node of connection?.nodes || []) {
+            if (node?.id) ids.push(node.id);
+        }
+        hasNext = Boolean(connection?.pageInfo?.hasNextPage);
+        cursor = connection?.pageInfo?.endCursor || null;
+        if (!hasNext) break;
+    }
+    return ids;
+}
+
+/**
+ * Aggregate inventory stock, value (DKK), and incoming units across the full catalog.
+ */
+export async function fetchStoreInventoryTotals(settings) {
+    const empty = {
+        inventoryStock: 0,
+        inventoryValue: 0,
+        incomingQuantity: 0,
+        productCount: 0,
+    };
+    if (!settings?.shopifyUrl || !settings?.shopifyApiPassword) return empty;
+
+    const shopUrl = settings.shopifyUrl;
+    const accessToken = settings.shopifyApiPassword;
     const fromCode = settings?.customerStoreValutaCode || 'DKK';
     const currencyData = (await getCurrencyConversionTable()).data;
     const conversionRate = conversionRateToDkk(fromCode, currencyData);
-    return fetchProductInventory(settings.shopifyUrl, settings.shopifyApiPassword, productIds, conversionRate);
+
+    const productIds = await fetchAllShopifyProductIds(shopUrl, accessToken);
+    if (!productIds.length) return empty;
+
+    let inventoryStock = 0;
+    let inventoryValue = 0;
+    let incomingQuantity = 0;
+    const chunkSize = 400;
+
+    for (let i = 0; i < productIds.length; i += chunkSize) {
+        const ids = productIds.slice(i, i + chunkSize);
+        const [stockMap, incomingMap] = await Promise.all([
+            fetchProductsStockValueDetails(shopUrl, accessToken, ids),
+            fetchProductsInventoryDetails(shopUrl, accessToken, ids, {
+                includeVariantDetails: false,
+            }),
+        ]);
+
+        for (const productId of ids) {
+            const stock = stockMap.get(productId);
+            if (!stock?.fetched) continue;
+            const incoming = incomingMap.get(productId);
+            const availableFromLevels = incoming?.availableQuantity ?? 0;
+            const productStock =
+                availableFromLevels > 0
+                    ? Math.max(stock.inventoryStock, availableFromLevels)
+                    : stock.inventoryStock;
+            inventoryStock += productStock;
+            inventoryValue += stock.inventoryValue * conversionRate;
+            incomingQuantity += incoming?.incomingQuantity ?? 0;
+        }
+    }
+
+    return {
+        inventoryStock,
+        inventoryValue,
+        incomingQuantity,
+        productCount: productIds.length,
+    };
+}
+
+export async function fetchProductInventoryOnly(settings, productIds, options = {}) {
+    if (!settings?.shopifyUrl || !settings?.shopifyApiPassword || !productIds?.length) return {};
+    const shopUrl = settings.shopifyUrl;
+    const accessToken = settings.shopifyApiPassword;
+
+    if (options.arrivalsOnly) {
+        const maxProducts =
+            options.maxProducts ?? SHOPIFY_INVENTORY_MAX_PRODUCTS_PER_REQUEST;
+        const ids = productIds.filter(Boolean).slice(0, maxProducts);
+        return fetchExpectedArrivalByProduct(shopUrl, accessToken, ids);
+    }
+
+    const fromCode = settings?.customerStoreValutaCode || 'DKK';
+    const currencyData = (await getCurrencyConversionTable()).data;
+    const conversionRate = conversionRateToDkk(fromCode, currencyData);
+    return fetchProductInventory(shopUrl, accessToken, productIds, conversionRate, options);
 }

@@ -11,6 +11,7 @@ import {
     FiRotateCcw,
     FiTrendingUp,
     FiLayers,
+    FiLink2,
 } from "react-icons/fi";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
@@ -26,6 +27,13 @@ import {
     matchCountryOption,
 } from "@/lib/countrySelectOptions";
 import { shareOfSearchBrandColor } from "@/lib/shareOfSearchBrandColors";
+import {
+    buildDisplayRowsFromBrandGroups,
+    brandToGroupIdMap,
+    newBrandGroupId,
+    normalizeBrandGroups,
+    remapSelectedChartKeys,
+} from "@/lib/shareOfSearchBrandGroups";
 
 const MONTH_OF_YEAR = {
     JANUARY: 1,
@@ -208,10 +216,15 @@ function getShareOfSearchDatePresets() {
     ];
 }
 
+function rowChartKey(row) {
+    return String(row.key ?? row.brand);
+}
+
 function getDefaultChartKeys(rows, mode) {
     if (!rows?.length) return [];
-    if (mode === "share") return rows.map((r) => r.brand);
-    return ["__total__", ...rows.map((r) => r.brand)];
+    const keys = rows.map(rowChartKey);
+    if (mode === "share") return keys;
+    return ["__total__", ...keys];
 }
 
 export default function ShareOfSearchClient() {
@@ -247,6 +260,10 @@ export default function ShareOfSearchClient() {
     /** stacked area (default) vs overlapping lines */
     const [chartVisualMode, setChartVisualMode] = useState("stacked");
     const [comparisonRanges, setComparisonRanges] = useState(null);
+    const [brandGroups, setBrandGroups] = useState([]);
+    const [groupsSaving, setGroupsSaving] = useState(false);
+    const [selectedForGroup, setSelectedForGroup] = useState(() => new Set());
+    const [groupNameDraft, setGroupNameDraft] = useState("");
 
     const countryValue = useMemo(() => {
         return (
@@ -255,6 +272,26 @@ export default function ShareOfSearchClient() {
             countryOptions[0]
         );
     }, [countryOptions, geoLabel]);
+
+    const loadBrandGroups = useCallback(async () => {
+        if (!customerId) return;
+        try {
+            const res = await fetch(`/api/share-of-search/${customerId}/brand-groups`);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Could not load brand groups");
+            const loaded = normalizeBrandGroups(data.brandGroups || []);
+            setBrandGroups(loaded);
+            setBrands((prev) => {
+                const merged = new Set(prev);
+                for (const g of loaded) {
+                    for (const b of g.brands) merged.add(b);
+                }
+                return [...merged];
+            });
+        } catch (e) {
+            console.error(e);
+        }
+    }, [customerId]);
 
     const loadHistory = useCallback(async () => {
         if (!customerId) return;
@@ -273,7 +310,63 @@ export default function ShareOfSearchClient() {
 
     useEffect(() => {
         loadHistory();
-    }, [loadHistory]);
+        loadBrandGroups();
+    }, [loadHistory, loadBrandGroups]);
+
+    const saveBrandGroups = useCallback(
+        async (groups) => {
+            if (!customerId) return;
+            const normalized = normalizeBrandGroups(groups);
+            setGroupsSaving(true);
+            try {
+                const res = await fetch(`/api/share-of-search/${customerId}/brand-groups`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ brandGroups: normalized }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Could not save groups");
+                const saved = normalizeBrandGroups(data.brandGroups || normalized);
+                setBrandGroups(saved);
+                setSelectedChartKeys((prev) =>
+                    remapSelectedChartKeys(
+                        prev,
+                        metricsRows,
+                        saved,
+                        saved.length > 0
+                    )
+                );
+            } catch (e) {
+                setError(e.message || "Could not save brand groups");
+            } finally {
+                setGroupsSaving(false);
+            }
+        },
+        [customerId, metricsRows]
+    );
+
+    const normalizedGroups = useMemo(() => normalizeBrandGroups(brandGroups), [brandGroups]);
+    const applyBrandGroupsInCharts = normalizedGroups.length > 0;
+    const assignedBrandMap = useMemo(() => brandToGroupIdMap(normalizedGroups), [normalizedGroups]);
+    const ungroupedBrands = useMemo(
+        () => brands.filter((b) => !assignedBrandMap.has(b)),
+        [brands, assignedBrandMap]
+    );
+
+    const persistBrandGroups = useCallback(
+        (groups) => {
+            saveBrandGroups(normalizeBrandGroups(groups));
+        },
+        [saveBrandGroups]
+    );
+
+    const displayRows = useMemo(
+        () =>
+            buildDisplayRowsFromBrandGroups(metricsRows, brandGroups, {
+                applyGroups: applyBrandGroupsInCharts,
+            }),
+        [metricsRows, brandGroups, applyBrandGroupsInCharts]
+    );
 
     const handleApplyRange = ({ startDate, endDate }) => {
         setAppliedRange({ startDate, endDate });
@@ -287,25 +380,114 @@ export default function ShareOfSearchClient() {
     };
 
     const removeBrand = (b) => {
-        setBrands((prev) => prev.filter((x) => x !== b));
+        setSelectedForGroup((prev) => {
+            const n = new Set(prev);
+            n.delete(b);
+            return n;
+        });
+        setBrands((prevBrands) => {
+            const nextBrands = prevBrands.filter((x) => x !== b);
+            setBrandGroups((prevGroups) => {
+                const allowed = new Set(nextBrands);
+                const next = normalizeBrandGroups(
+                    prevGroups
+                        .map((g) => ({
+                            ...g,
+                            brands: g.brands.filter((x) => allowed.has(x)),
+                        }))
+                        .filter((g) => g.brands.length > 0)
+                );
+                persistBrandGroups(next);
+                return next;
+            });
+            return nextBrands;
+        });
     };
 
     const clearBrands = () => {
         setBrands([]);
+        setBrandGroups([]);
+        persistBrandGroups([]);
         setDraft("");
+        setGroupNameDraft("");
+        setSelectedForGroup(new Set());
         setMetricsRows(null);
         setSelectedChartKeys([]);
         setComparisonRanges(null);
         setError(null);
     };
 
+    const toggleBrandSelectedForGroup = (b) => {
+        if (assignedBrandMap.has(b)) return;
+        setSelectedForGroup((prev) => {
+            const next = new Set(prev);
+            if (next.has(b)) next.delete(b);
+            else next.add(b);
+            return next;
+        });
+    };
+
+    const commitBrandGroups = (next) => {
+        const normalized = normalizeBrandGroups(next);
+        setBrandGroups(normalized);
+        persistBrandGroups(normalized);
+        setSelectedChartKeys((prev) =>
+            remapSelectedChartKeys(prev, metricsRows, normalized, normalized.length > 0)
+        );
+    };
+
+    const selectedUngroupedKeywords = () =>
+        [...selectedForGroup].filter((b) => brands.includes(b) && !assignedBrandMap.has(b));
+
+    const addKeywordsToGroup = (groupId, keywordsToAdd) => {
+        const toAdd = [...new Set(keywordsToAdd.filter((b) => brands.includes(b)))];
+        if (!toAdd.length) return;
+        const next = normalizedGroups.map((g) => {
+            if (g.id === groupId) {
+                return { ...g, brands: [...new Set([...g.brands, ...toAdd])] };
+            }
+            return { ...g, brands: g.brands.filter((b) => !toAdd.includes(b)) };
+        });
+        commitBrandGroups(next);
+        setSelectedForGroup(new Set());
+        setGroupNameDraft("");
+    };
+
+    const addSelectionToGroup = (groupId) => {
+        addKeywordsToGroup(groupId, selectedUngroupedKeywords());
+    };
+
+    const createGroupFromSelection = () => {
+        const members = selectedUngroupedKeywords();
+        if (members.length < 2) return;
+        const name = groupNameDraft.trim() || members[0];
+        const stripped = normalizedGroups
+            .map((g) => ({
+                ...g,
+                brands: g.brands.filter((x) => !members.includes(x)),
+            }))
+            .filter((g) => g.brands.length > 0);
+        commitBrandGroups([
+            ...stripped,
+            { id: newBrandGroupId(), name, brands: members },
+        ]);
+        setSelectedForGroup(new Set());
+        setGroupNameDraft("");
+    };
+
+    const dissolveGroup = (groupId) => {
+        commitBrandGroups(normalizedGroups.filter((g) => g.id !== groupId));
+    };
+
+    const hasKeywordSelection = selectedForGroup.size > 0;
+
     const handleChartModeChange = (mode) => {
         setChartDisplayMode(mode);
         if (mode === "share") {
             setSelectedChartKeys((prev) => {
                 const next = prev.filter((k) => k !== "__total__");
-                if (next.length === 0 && metricsRows?.length) {
-                    return metricsRows.map((r) => r.brand);
+                if (next.length === 0 && displayRows?.length) {
+                    return displayRows.map(rowChartKey);
                 }
                 return next.length ? next : prev;
             });
@@ -344,7 +526,14 @@ export default function ShareOfSearchClient() {
             const rows = data.metrics?.rows || [];
             setMetricsRows(rows);
             setComparisonRanges(data.metrics?.comparisonRanges || null);
-            setSelectedChartKeys(getDefaultChartKeys(rows, chartDisplayMode));
+            setSelectedChartKeys(
+                getDefaultChartKeys(
+                    buildDisplayRowsFromBrandGroups(rows, brandGroups, {
+                        applyGroups: normalizeBrandGroups(brandGroups).length > 0,
+                    }),
+                    chartDisplayMode
+                )
+            );
             await loadHistory();
         } catch (e) {
             setError(e.message || "Something went wrong");
@@ -364,7 +553,14 @@ export default function ShareOfSearchClient() {
         setAppliedRange(r);
         setMetricsRows(h.rows || []);
         setComparisonRanges(null);
-        setSelectedChartKeys(getDefaultChartKeys(h.rows || [], chartDisplayMode));
+        setSelectedChartKeys(
+            getDefaultChartKeys(
+                buildDisplayRowsFromBrandGroups(h.rows || [], brandGroups, {
+                    applyGroups: normalizeBrandGroups(brandGroups).length > 0,
+                }),
+                chartDisplayMode
+            )
+        );
         setError(null);
     };
 
@@ -403,20 +599,21 @@ export default function ShareOfSearchClient() {
     const categories = useMemo(() => monthKeys.map(categoryLabel), [monthKeys]);
 
     const brandLineSeries = useMemo(() => {
-        if (!metricsRows?.length || !monthKeys.length) return [];
-        return metricsRows.map((row) => ({
-            name: row.brand,
+        if (!displayRows?.length || !monthKeys.length) return [];
+        return displayRows.map((row) => ({
+            name: rowChartKey(row),
+            label: row.label || row.brand,
             data: seriesForBrand(row, monthKeys),
         }));
-    }, [metricsRows, monthKeys]);
+    }, [displayRows, monthKeys]);
 
-    const brandColorByBrand = useMemo(() => {
+    const brandColorByKey = useMemo(() => {
         const m = new Map();
-        (metricsRows || []).forEach((r, i) => {
-            m.set(r.brand, shareOfSearchBrandColor(i));
+        (displayRows || []).forEach((r, i) => {
+            m.set(rowChartKey(r), shareOfSearchBrandColor(i));
         });
         return m;
-    }, [metricsRows]);
+    }, [displayRows]);
 
     const { chartSeries, chartOptions, chartTitle } = useMemo(() => {
         if (!categories.length) {
@@ -432,13 +629,22 @@ export default function ShareOfSearchClient() {
         }
         for (const s of brandLineSeries) {
             if (selectedChartKeys.includes(s.name)) {
-                volumeSeries.push({ name: s.name, data: [...s.data] });
+                volumeSeries.push({
+                    chartKey: s.name,
+                    name: s.label || s.name,
+                    data: [...s.data],
+                });
             }
         }
 
         let series = volumeSeries;
         if (chartDisplayMode === "share") {
-            series = toSharePercentSeries(volumeSeries.filter((s) => s.name !== "Total"));
+            series = toSharePercentSeries(volumeSeries.filter((s) => s.name !== "Total")).map(
+                (s, i) => ({
+                    ...s,
+                    chartKey: volumeSeries.filter((v) => v.name !== "Total")[i]?.chartKey,
+                })
+            );
         }
 
         const isShare = chartDisplayMode === "share";
@@ -452,7 +658,9 @@ export default function ShareOfSearchClient() {
 
         const seriesColors = series.map((s) => {
             if (s.name === "Total") return "#94a3b8";
-            const idx = metricsRows?.findIndex((r) => r.brand === s.name) ?? -1;
+            const idx = brandLineSeries.findIndex(
+                (bs) => bs.name === (s.chartKey || s.name)
+            );
             return shareOfSearchBrandColor(idx >= 0 ? idx : 0);
         });
 
@@ -519,11 +727,11 @@ export default function ShareOfSearchClient() {
             chartOptions: options,
             chartTitle: title,
         };
-    }, [categories, brandLineSeries, selectedChartKeys, chartDisplayMode, chartVisualMode, metricsRows]);
+    }, [categories, brandLineSeries, selectedChartKeys, chartDisplayMode, chartVisualMode, displayRows]);
 
     const totalVolume = useMemo(
-        () => (metricsRows || []).reduce((s, r) => s + Number(r.volumeInRange || 0), 0),
-        [metricsRows]
+        () => (displayRows || []).reduce((s, r) => s + Number(r.volumeInRange || 0), 0),
+        [displayRows]
     );
 
     const shareOfSearchAiSnapshot = useMemo(() => {
@@ -548,13 +756,22 @@ export default function ShareOfSearchClient() {
                     ? "Share of search (percentage of compared brands)"
                     : "Search volume (absolute)",
             totalSearchVolumeInPeriod: totalVolume,
-            brandsAnalyzed: metricsRows.map((r) => ({
-                brand: r.brand,
+            groupedView: applyBrandGroupsInCharts,
+            brandGroups: brandGroups.map((g) => ({ name: g.name, brands: g.brands })),
+            brandsAnalyzed: displayRows.map((r) => ({
+                brand: r.label || r.brand,
+                isGroup: Boolean(r.isGroup),
+                memberBrands: r.memberBrands,
                 keywordPlanText: r.apiKeywordText,
                 shareOfSearchPercent: r.sharePct,
                 volumeInPeriod: r.volumeInRange,
                 sharePctPreviousPeriod: r.sharePctPreviousPeriod,
                 sharePctLastYear: r.sharePctLastYear,
+            })),
+            keywordsFetched: (metricsRows || []).map((r) => ({
+                brand: r.brand,
+                keywordPlanText: r.apiKeywordText,
+                volumeInPeriod: r.volumeInRange,
             })),
             fieldGuide: {
                 shareOfSearchPercent:
@@ -565,6 +782,9 @@ export default function ShareOfSearchClient() {
         };
     }, [
         metricsRows,
+        displayRows,
+        brandGroups,
+        applyBrandGroupsInCharts,
         appliedRange.startDate,
         appliedRange.endDate,
         chartDisplayMode,
@@ -605,28 +825,176 @@ export default function ShareOfSearchClient() {
             />
 
             <section className="apex-sos-setup">
-                <div>
-                    <label className="apex-sos-field__label">Brands</label>
-                    <div className="apex-sos-brand-list">
-                        {brands.map((b) => (
-                            <span key={b} className="apex-sos-brand-chip">
+                <div className="apex-sos-keywords-block">
+                    <div className="apex-sos-keywords-block__head">
+                        <label className="apex-sos-field__label mb-0">Keywords</label>
+                        {groupsSaving && (
+                            <span className="text-xs text-[var(--color-muted)]">Saving…</span>
+                        )}
+                    </div>
+
+                    <div className="apex-sos-brand-list apex-sos-brand-list--stack">
+                        {normalizedGroups.map((g) => (
+                            <div key={g.id} className="apex-sos-brand-cluster">
+                                {hasKeywordSelection ? (
+                                    <button
+                                        type="button"
+                                        className={cn(
+                                            "apex-sos-brand-chip apex-sos-brand-chip--group",
+                                            "apex-sos-brand-chip--group-add"
+                                        )}
+                                        onClick={() => addSelectionToGroup(g.id)}
+                                        title={`Add selected keyword(s) to ${g.name}`}
+                                    >
+                                        <FiPlus className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                                        <FiLayers className="w-3.5 h-3.5 shrink-0 opacity-70" aria-hidden />
+                                        {g.name}
+                                    </button>
+                                ) : (
+                                    <span className="apex-sos-brand-chip apex-sos-brand-chip--group">
+                                        <FiLayers className="w-3.5 h-3.5 shrink-0 opacity-70" aria-hidden />
+                                        {g.name}
+                                        <button
+                                            type="button"
+                                            className="apex-sos-brand-chip__remove"
+                                            onClick={() => dissolveGroup(g.id)}
+                                            aria-label={`Ungroup ${g.name}`}
+                                            title="Ungroup"
+                                        >
+                                            <FiTrash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                    </span>
+                                )}
+                                <div className="apex-sos-brand-cluster__members">
+                                    {g.brands.map((b) => (
+                                        <span key={b} className="apex-sos-brand-chip apex-sos-brand-chip--nested">
+                                            {b}
+                                            <button
+                                                type="button"
+                                                className="apex-sos-brand-chip__remove"
+                                                onClick={() => removeBrand(b)}
+                                                aria-label={`Remove ${b}`}
+                                            >
+                                                <FiTrash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </span>
+                                    ))}
+                                    {!hasKeywordSelection &&
+                                        ungroupedBrands.map((b) => (
+                                            <button
+                                                key={`${g.id}-add-${b}`}
+                                                type="button"
+                                                className="apex-sos-brand-chip apex-sos-brand-chip--nested apex-sos-brand-chip--add-member"
+                                                onClick={() => addKeywordsToGroup(g.id, [b])}
+                                                title={`Add ${b} to ${g.name}`}
+                                            >
+                                                <FiPlus className="w-3 h-3 shrink-0" aria-hidden />
+                                                {b}
+                                            </button>
+                                        ))}
+                                </div>
+                            </div>
+                        ))}
+                        {ungroupedBrands.map((b) => (
+                            <button
+                                key={b}
+                                type="button"
+                                className={cn(
+                                    "apex-sos-brand-chip apex-sos-brand-chip--selectable",
+                                    selectedForGroup.has(b) && "is-selected"
+                                )}
+                                onClick={() => toggleBrandSelectedForGroup(b)}
+                                title="Click to select for grouping"
+                                aria-label={`${b}. Click to select for grouping.`}
+                            >
+                                <FiLink2
+                                    className="apex-sos-brand-chip__group-hint w-3 h-3 shrink-0 opacity-55"
+                                    aria-hidden
+                                />
                                 {b}
-                                <button
-                                    type="button"
+                                <span
+                                    role="button"
+                                    tabIndex={0}
                                     className="apex-sos-brand-chip__remove"
-                                    onClick={() => removeBrand(b)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        removeBrand(b);
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                            e.stopPropagation();
+                                            removeBrand(b);
+                                        }
+                                    }}
                                     aria-label={`Remove ${b}`}
                                 >
                                     <FiTrash2 className="w-3.5 h-3.5" />
-                                </button>
-                            </span>
+                                </span>
+                            </button>
                         ))}
                     </div>
+
+                    {hasKeywordSelection && (
+                        <div className="apex-sos-group-bar">
+                            {normalizedGroups.length > 0 && (
+                                <div className="apex-sos-group-bar__existing">
+                                    <span className="text-xs font-medium text-[var(--color-muted)] shrink-0">
+                                        Add to:
+                                    </span>
+                                    {normalizedGroups.map((g) => (
+                                        <button
+                                            key={g.id}
+                                            type="button"
+                                            className="apex-sos-btn apex-sos-btn--sm"
+                                            onClick={() => addSelectionToGroup(g.id)}
+                                        >
+                                            {g.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            {selectedForGroup.size >= 2 && (
+                                <div className="apex-sos-group-bar__new flex flex-wrap items-center gap-2 w-full">
+                                    <input
+                                        type="text"
+                                        className="apex-sos-input flex-1 min-w-[10rem]"
+                                        placeholder="New group name (optional)"
+                                        value={groupNameDraft}
+                                        onChange={(e) => setGroupNameDraft(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                e.preventDefault();
+                                                createGroupFromSelection();
+                                            }
+                                        }}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="apex-sos-btn apex-sos-btn--primary"
+                                        onClick={createGroupFromSelection}
+                                    >
+                                        New group ({selectedForGroup.size})
+                                    </button>
+                                </div>
+                            )}
+                            <button
+                                type="button"
+                                className="apex-sos-btn apex-sos-btn--sm ml-auto"
+                                onClick={() => {
+                                    setSelectedForGroup(new Set());
+                                    setGroupNameDraft("");
+                                }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    )}
+
                     <div className="apex-sos-add-row">
                         <input
                             type="text"
                             className="apex-sos-input"
-                            placeholder="Add brand name…"
+                            placeholder="Type a keyword and press Enter…"
                             value={draft}
                             onChange={(e) => setDraft(e.target.value)}
                             onKeyDown={(e) => {
@@ -640,11 +1008,15 @@ export default function ShareOfSearchClient() {
                             type="button"
                             className="apex-sos-btn apex-sos-btn--primary apex-sos-btn--icon"
                             onClick={addBrand}
-                            aria-label="Add brand"
+                            aria-label="Add keyword"
                         >
                             <FiPlus className="w-4 h-4" />
                         </button>
                     </div>
+                    <p className="text-xs text-[var(--color-muted)] mt-2">
+                        Select keywords (link icon) to add them to an existing group or create a new one.
+                        You can also use the + chips on a group. Each keyword is still fetched separately.
+                    </p>
                 </div>
 
                 <div className="apex-sos-setup__row">
@@ -766,14 +1138,16 @@ export default function ShareOfSearchClient() {
                                 />
                             </div>
                         )}
-                        {metricsRows.map((row) => (
+                        {displayRows.map((row) => {
+                            const chartKey = rowChartKey(row);
+                            return (
                             <div
-                                key={row.brand}
+                                key={chartKey}
                                 role="button"
                                 tabIndex={0}
-                                onClick={() => toggleChartKey(row.brand)}
+                                onClick={() => toggleChartKey(chartKey)}
                                 onKeyDown={(e) =>
-                                    (e.key === "Enter" || e.key === " ") && toggleChartKey(row.brand)
+                                    (e.key === "Enter" || e.key === " ") && toggleChartKey(chartKey)
                                 }
                                 className="apex-sos-kpi-card"
                             >
@@ -785,17 +1159,22 @@ export default function ShareOfSearchClient() {
                                                 className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/10"
                                                 style={{
                                                     backgroundColor:
-                                                        brandColorByBrand.get(row.brand) ??
+                                                        brandColorByKey.get(chartKey) ??
                                                         shareOfSearchBrandColor(0),
                                                 }}
                                                 aria-hidden
                                             />
-                                            <span className="truncate">{row.brand}</span>
+                                            <span className="truncate">{row.label || row.brand}</span>
                                         </span>
                                     }
                                     value={`${row.sharePct}%`}
                                     subCaption={
                                         <div className="flex flex-col gap-1 leading-snug">
+                                            {row.isGroup && (
+                                                <span className="text-[var(--color-muted)]">
+                                                    {row.memberBrands?.length || 0} keywords grouped
+                                                </span>
+                                            )}
                                             <span>
                                                 volume:{" "}
                                                 {Number(row.volumeInRange || 0).toLocaleString()}
@@ -813,13 +1192,14 @@ export default function ShareOfSearchClient() {
                                         </div>
                                     }
                                     icon={<FiTrendingUp />}
-                                    isActive={selectedChartKeys.includes(row.brand)}
+                                    isActive={selectedChartKeys.includes(chartKey)}
                                     comparisonMethod={null}
                                     hideIconBackdrop
                                     className="h-full"
                                 />
                             </div>
-                        ))}
+                            );
+                        })}
                         </div>
                     </section>
 
@@ -882,9 +1262,13 @@ export default function ShareOfSearchClient() {
 
                     <section className="apex-sos-table-panel">
                         <div className="apex-sos-table-panel__head">
-                            <h3 className="apex-sos-table-panel__title">Results</h3>
+                            <h3 className="apex-sos-table-panel__title">
+                                {applyBrandGroupsInCharts ? "Grouped results" : "Results"}
+                            </h3>
                             <p className="apex-sos-table-panel__subtitle">
-                                Keyword Planner volumes and share for the selected period.
+                                {applyBrandGroupsInCharts
+                                    ? "Combined volumes and share % per brand group."
+                                    : "Keyword Planner volumes and share for the selected period."}
                             </p>
                         </div>
                         <div className="apex-sos-table-wrap">
@@ -892,9 +1276,46 @@ export default function ShareOfSearchClient() {
                             <thead>
                                 <tr>
                                     <th>Brand</th>
-                                    <th>Keyword (API)</th>
+                                    <th>Keywords</th>
                                     <th className="is-num">Volume in range</th>
                                     <th className="is-num">Share</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {displayRows.map((r) => (
+                                    <tr key={rowChartKey(r)}>
+                                        <td className="is-brand">{r.label || r.brand}</td>
+                                        <td className="is-muted">
+                                            {r.isGroup
+                                                ? (r.memberBrands || []).join(", ")
+                                                : r.apiKeywordText}
+                                        </td>
+                                        <td className="is-num">
+                                            {Number(r.volumeInRange || 0).toLocaleString()}
+                                        </td>
+                                        <td className="is-num">{r.sharePct}%</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        </div>
+                    </section>
+
+                    <section className="apex-sos-table-panel">
+                        <div className="apex-sos-table-panel__head">
+                            <h3 className="apex-sos-table-panel__title">All keywords fetched</h3>
+                            <p className="apex-sos-table-panel__subtitle">
+                                One row per search term sent to Keyword Planner (before grouping).
+                            </p>
+                        </div>
+                        <div className="apex-sos-table-wrap">
+                        <table className="apex-sos-table">
+                            <thead>
+                                <tr>
+                                    <th>Keyword</th>
+                                    <th>Matched in API</th>
+                                    <th className="is-num">Volume in range</th>
+                                    <th className="is-num">Share (ungrouped)</th>
                                 </tr>
                             </thead>
                             <tbody>

@@ -6,6 +6,7 @@ import GraphCard from "@/components/dashboard/GraphCard";
 import { formatComparisonPeriodDates, COMPARISON_METHOD } from "@/lib/dateRangeComparison";
 import SeoInsightsTable from "./SeoInsightsTable";
 import SeoAppliedFilterBadges from "@/components/seo/SeoAppliedFilterBadges";
+import { getChartSeriesPalette } from "@/lib/charts/chartSeriesColors";
 
 const VOLUME_COLUMNS = [
     { key: "keyword", label: "Keyword", align: "left" },
@@ -184,7 +185,7 @@ export default function SeoInsightsTab({
                             Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 }),
                     },
                 },
-                colors: ["#406969", "#C6ED62"],
+                colors: getChartSeriesPalette(2),
                 legend: { position: "bottom" },
                 dataLabels: { enabled: false },
             },

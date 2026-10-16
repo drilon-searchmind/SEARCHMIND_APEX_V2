@@ -23,6 +23,7 @@ import {
     toParts,
 } from "./kpiFormulaUtils";
 import CobaltLoader from "@/components/ui/CobaltLoader";
+import { colorsForCurrentComparisonSeries } from "@/components/dashboard/chartColors";
 import { pushGTMEvent, GTM_EVENTS } from "@root/lib/gtmFunctions";
 import { aggregateShopifyAndAdSpendByPeriodFromRows } from "@/lib/mergeAdSpendDaily";
 import {
@@ -502,20 +503,22 @@ export default function Custom({
                 theme: "light",
                 y: { formatter: formatChartValue },
             },
-            colors: [
-                chartColors.lime || "#C6ED62",
-                "#94a3b8",
-                chartColors.primaryLighter || "#406969",
-                "#cbd5e1",
-                chartColors.green || "#213834",
-                "#f1f5f9",
-            ],
+            colors: colorsForCurrentComparisonSeries(series),
             stroke: {
-                width: series.map((_, i) => (i % 2 === 0 ? 2 : 1)),
+                width: series.map((s) =>
+                    String(s.name || "").includes("(Current)") ? 2 : 1
+                ),
                 curve: "smooth",
-                dashArray: series.map((_, i) => (i % 2 === 1 ? 5 : 0)),
+                dashArray: series.map((s) =>
+                    String(s.name || "").includes("(Current)") ? 0 : 5
+                ),
             },
-            fill: { type: "solid", opacity: [1, 0.5] },
+            fill: {
+                type: "solid",
+                opacity: series.map((s) =>
+                    String(s.name || "").includes("(Current)") ? 1 : 0.45
+                ),
+            },
             grid: {
                 borderColor: "#e5e7eb",
                 strokeDashArray: 0,

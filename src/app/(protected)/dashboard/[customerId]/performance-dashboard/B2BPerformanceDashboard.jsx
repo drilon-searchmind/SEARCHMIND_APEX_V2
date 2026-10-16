@@ -35,7 +35,7 @@ import {
 } from "@/lib/dateRangeComparison";
 import { useAdSpendPlatformsFilter } from "@/hooks/useAdSpendPlatformsFilter";
 import { adSpendChannelsForDashboard } from "@/lib/mergeAdSpendDaily";
-import { getChartColors } from "@/components/dashboard/chartColors";
+import { getChartColors, chartSeriesColor } from "@/components/dashboard/chartColors";
 import {
     buildB2BStandardOverviewSections,
     getB2BOverviewKpiCardKeys,
@@ -339,10 +339,7 @@ export default function B2BPerformanceDashboard({ customer: customerProp }) {
                 if (opt.key === "engagement_rate") return row.engagement_rate ?? 0;
                 return row[opt.key] ?? 0;
             }),
-            color:
-                i === 0
-                    ? chartColors.primaryLighter || "#406969"
-                    : chartColors.lime || "#C6ED62",
+            color: chartSeriesColor(i),
         }));
 
         return {

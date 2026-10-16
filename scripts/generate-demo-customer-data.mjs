@@ -401,8 +401,18 @@ const shopifyProducts = {
 
 const shopifyInventory = {
     inventory: {
-        "gid://shopify/Product/1": { inventoryStock: 120, inventoryValue: 8000 },
-        "gid://shopify/Product/2": { inventoryStock: 340, inventoryValue: 10200 },
+        "gid://shopify/Product/1": {
+            inventoryStock: 120,
+            inventoryValue: 8000,
+            incomingQuantity: 40,
+            expectedArrivalDate: "2026-04-01T00:00:00Z",
+        },
+        "gid://shopify/Product/2": {
+            inventoryStock: 340,
+            inventoryValue: 10200,
+            incomingQuantity: 0,
+            expectedArrivalDate: null,
+        },
     },
 };
 

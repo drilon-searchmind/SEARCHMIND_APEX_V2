@@ -13,7 +13,12 @@ import GraphCard from "@/components/dashboard/GraphCard";
 // import { revenueData, spendAllocationData, roasData, aovData } from "@/data/dashboardCharts";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import dayjs from "dayjs";
-import { getChartColors } from "@/components/dashboard/chartColors";
+import {
+    getChartColors,
+    chartSeriesColor,
+    chartComparisonColor,
+    colorsForCurrentComparisonSeries,
+} from "@/components/dashboard/chartColors";
 import CobaltLoader from "@/components/ui/CobaltLoader";
 import Custom from "./components/Custom";
 import ReturnsOverrideModal from "./components/ReturnsOverrideModal";
@@ -857,7 +862,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
             xaxis: { categories, labels: { style: { colors: '#6b6b6b' } }, axisTicks: { show: true }, axisBorder: { show: true, color: '#e7e5e2' } },
             yaxis: { labels: { style: { colors: '#6b6b6b' }, formatter: formatChartValue } },
             tooltip: { theme: 'light', y: { formatter: formatChartValue } },
-            colors: ['#131313', '#c6ed62', '#3a3a3a', '#6b6b6b'],
+            colors: colorsForCurrentComparisonSeries(series),
             stroke: { width: series.map((s) => isCurrentSeries(s) ? 2.5 : 1.5), curve: 'smooth', dashArray: series.map((s) => isCurrentSeries(s) ? 0 : 5) },
             fill: { type: 'solid', opacity: series.map((s) => isCurrentSeries(s) ? 1 : 0.35) },
             grid: { borderColor: '#e7e5e2', strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
@@ -908,7 +913,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
         chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, sans-serif' },
         xaxis: { categories: revenueCategories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
         yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' } } },
-        colors: [chartColors.lime || '#C6ED62', '#94a3b8'],
+        colors: [chartSeriesColor(0), chartComparisonColor(0)],
         stroke: { width: [2, 1], curve: 'smooth', dashArray: [0, 5] },
         fill: { type: 'solid', opacity: [1, 0.5] },
         grid: { borderColor: '#e5e7eb', strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
@@ -957,20 +962,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
     const spendDashPattern = spendAllocationSeries.map((s) => (String(s.name).includes("(Current)") ? 0 : 5));
     const spendStrokeWidth = spendAllocationSeries.map((s) => (String(s.name).includes("(Current)") ? 2 : 1));
     const spendFillOpacity = spendAllocationSeries.map((s) => (String(s.name).includes("(Current)") ? 1 : 0.45));
-    const spendPalette = [
-        "#406969",
-        "#94a3b8",
-        "#C6ED62",
-        "#cbd5e1",
-        "#0d9488",
-        "#99f6e4",
-        "#2563eb",
-        "#93c5fd",
-        "#7c3aed",
-        "#c4b5fd",
-        "#ea580c",
-        "#fdba74",
-    ];
+    const spendSeriesColors = colorsForCurrentComparisonSeries(spendAllocationSeries);
     const spendOptions = {
         chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "Inter, sans-serif" },
         xaxis: {
@@ -980,7 +972,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
             axisBorder: { show: true },
         },
         yaxis: { labels: { style: { colors: chartColors.primary || "#1E2B2B" } } },
-        colors: spendPalette.slice(0, spendAllocationSeries.length),
+        colors: spendSeriesColors,
         stroke: { width: spendStrokeWidth, curve: "smooth", dashArray: spendDashPattern },
         fill: { type: "solid", opacity: spendFillOpacity },
         grid: {
@@ -1086,7 +1078,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
         chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, sans-serif' },
         xaxis: { categories: metricCategories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
         yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' } } },
-        colors: [chartColors.green || '#213834', '#94a3b8'],
+        colors: [chartSeriesColor(1), chartComparisonColor(1)],
         stroke: { width: [2, 1], curve: 'smooth', dashArray: [0, 5] },
         fill: { type: 'solid', opacity: [1, 0.5] },
         grid: { borderColor: '#e5e7eb', strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
@@ -1132,7 +1124,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
         chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, sans-serif' },
         xaxis: { categories: aovCategories, labels: { style: { colors: chartColors.primaryLighter || '#406969' } }, axisTicks: { show: true }, axisBorder: { show: true } },
         yaxis: { labels: { style: { colors: chartColors.primary || '#1E2B2B' } } },
-        colors: [chartColors.secondary || '#D6CDB6', '#94a3b8'],
+        colors: [chartSeriesColor(2), chartComparisonColor(2)],
         stroke: { width: [2, 1], curve: 'smooth', dashArray: [0, 5] },
         fill: { type: 'solid', opacity: [1, 0.5] },
         grid: { borderColor: '#e5e7eb', strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },

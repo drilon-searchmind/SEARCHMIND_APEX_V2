@@ -93,4 +93,69 @@ export async function shopifyAdminGraphqlPost(shopDomain, accessToken, payload, 
     return last;
 }
 
+/** @param {object} json */
+export function shopifyGraphqlTopLevelErrors(json) {
+    return Array.isArray(json?.errors) ? json.errors : [];
+}
+
+/** @param {object} json */
+export function shopifyGraphqlIsThrottled(json) {
+    return shopifyGraphqlTopLevelErrors(json).some(
+        (e) =>
+            e?.extensions?.code === "THROTTLED" ||
+            /throttled/i.test(String(e?.message ?? ""))
+    );
+}
+
+/**
+ * @param {object} json
+ * @param {number} attempt
+ */
+export function shopifyGraphqlThrottleWaitMs(json, attempt) {
+    const ts = json?.extensions?.cost?.throttleStatus;
+    const currentlyAvailable = ts?.currentlyAvailable;
+    const restoreRate = ts?.restoreRate ?? 50;
+    if (Number.isFinite(currentlyAvailable) && currentlyAvailable < 100) {
+        const deficit = 100 - currentlyAvailable;
+        return Math.min(20000, Math.ceil((deficit / restoreRate) * 1000) + 200);
+    }
+    return Math.min(20000, 500 * 2 ** attempt);
+}
+
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * GraphQL POST with THROTTLED / 429 / 5xx backoff (uses extensions.cost.throttleStatus when present).
+ * @param {object} [options]
+ * @param {number} [options.maxAttempts]
+ */
+export async function shopifyAdminGraphqlPostWithRetry(
+    shopDomain,
+    accessToken,
+    payload,
+    options = {}
+) {
+    const maxAttempts = options.maxAttempts ?? 8;
+    let last = null;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        last = await shopifyAdminGraphqlPost(shopDomain, accessToken, payload, options);
+        const throttled = shopifyGraphqlIsThrottled(last.json);
+        const retryHttp = last.res.status === 429 || last.res.status >= 500;
+
+        if (!throttled && !retryHttp) {
+            return last;
+        }
+
+        const waitMs = throttled
+            ? shopifyGraphqlThrottleWaitMs(last.json, attempt)
+            : Math.min(20000, 500 * 2 ** attempt);
+        await sleep(waitMs);
+    }
+
+    return last;
+}
+
 export { normalizeShopifyShopDomain, shopifyAdminGraphqlEndpoint, getShopifyAdminApiVersion };

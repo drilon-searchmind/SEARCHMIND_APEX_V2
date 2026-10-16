@@ -1,3 +1,5 @@
+import { getChartSeriesPalette } from "@/lib/charts/chartSeriesColors";
+
 export function buildCostBudgetChartData(costData, paceAnalysis, appliedDateRange) {
 	const chartCategories = costData.map((d) => d.period);
 	// Chart starts from range startDate (no "day before"); first point shows 0
@@ -90,7 +92,7 @@ export const BASE_CHART_OPTIONS = {
 	yaxis: {
 		labels: { style: { colors: '#1E2B2B' } },
 	},
-	colors: ['#213834', '#C6ED62'],
+	colors: getChartSeriesPalette(2),
 	stroke: { width: 2, curve: 'smooth' },
 	fill: { type: 'solid', opacity: 1 },
 	grid: {

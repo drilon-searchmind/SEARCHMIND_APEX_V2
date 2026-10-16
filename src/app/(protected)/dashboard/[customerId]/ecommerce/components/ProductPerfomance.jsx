@@ -4,13 +4,47 @@ import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
 import CobaltLoader from '@/components/ui/CobaltLoader';
 import MetricCard from '@/components/dashboard/MetricCard';
-import { FiPackage, FiDollarSign } from 'react-icons/fi';
+import { FiPackage, FiDollarSign, FiTruck } from 'react-icons/fi';
 import {
     formatAvgDaysToSoldOutDisplay,
     SHOPIFY_PRODUCT_SOLD_OUT_LOOKBACK_DAYS,
 } from '@/lib/shopifyProductsApi';
 
-export default function ProductPerfomance({ products = [], loading = false, inventoryLoading = false }) {
+function EcomInlineSpinner({ className = '', label = 'Loading' }) {
+    return (
+        <span
+            className={`apex-ecom-inline-spinner${className ? ` ${className}` : ''}`}
+            role="status"
+            aria-label={label}
+        />
+    );
+}
+
+function EcomLoadingCell({ pending, children }) {
+    if (pending) {
+        return (
+            <span className="apex-ecom-loading-cell">
+                <EcomInlineSpinner label="Loading" />
+            </span>
+        );
+    }
+    return children;
+}
+
+export default function ProductPerfomance({
+    products = [],
+    loading = false,
+    inventoryLoading = false,
+    periodSummary = null,
+    catalogTotalCount = null,
+    catalogHasMore = false,
+    catalogLoadingMore = false,
+    catalogLoadingAll = false,
+    onLoadMoreCatalog,
+    onLoadAllCatalog,
+    inventoryTotals = null,
+    inventoryTotalsLoading = false,
+}) {
     const [query, setQuery] = useState('');
     const [sortKey, setSortKey] = useState('totalRevenue');
     const [sortDir, setSortDir] = useState('desc');
@@ -18,6 +52,27 @@ export default function ProductPerfomance({ products = [], loading = false, inve
     const formatCurrency = (v) => (v === undefined ? '—' : `${Number(v).toLocaleString()} kr`);
     const formatCurrencyNoDecimals = (v) => (v === undefined ? '—' : `${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 })} kr`);
     const formatNumber = (n) => (n === undefined ? '—' : Number(n).toLocaleString());
+
+    const formatExpectedArrival = (iso) => {
+        if (!iso) return '—';
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return '—';
+        return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    };
+
+    const inventoryRowPending = (p) => inventoryLoading && p.inventoryStock == null;
+
+    const incomingArrivalTitle = (p) => {
+        if (inventoryRowPending(p)) return 'Loading inventory…';
+        const incoming = Number(p.incomingQuantity) || 0;
+        if (incoming <= 0) {
+            return 'No incoming units in Shopify (incoming appears when transfers or purchase orders are in progress).';
+        }
+        if (p.expectedArrivalDate) {
+            return `${incoming.toLocaleString()} units incoming · expected ${formatExpectedArrival(p.expectedArrivalDate)}`;
+        }
+        return `${incoming.toLocaleString()} units incoming · no expected arrival date in Shopify shipments`;
+    };
 
     const enrichedProducts = useMemo(
         () =>
@@ -63,26 +118,36 @@ export default function ProductPerfomance({ products = [], loading = false, inve
     }, [enrichedProducts, query, sortKey, sortDir]);
 
     const summary = useMemo(() => {
-        const totalRevenue = filteredProducts.reduce((s, p) => s + (Number(p.totalRevenue) || 0), 0);
-        const totalUnits = filteredProducts.reduce((s, p) => s + (Number(p.unitsSold) || 0), 0);
-        const totalOrders = filteredProducts.reduce((s, p) => s + (Number(p.ordersCount) || 0), 0);
+        const loadedCount = products.length;
+        const productNetSales = filteredProducts.reduce(
+            (s, p) => s + (Number(p.totalRevenue) || 0),
+            0
+        );
+        const usePeriod = periodSummary && !query.trim();
         return {
-            count: filteredProducts.length,
-            totalRevenue,
-            totalUnits,
-            totalOrders,
+            loadedCount,
+            filteredCount: filteredProducts.length,
+            totalSalesExVat: usePeriod
+                ? Number(periodSummary.totalSalesExVat) || 0
+                : productNetSales,
+            totalUnits: usePeriod
+                ? Number(periodSummary.netItemsSold) || 0
+                : filteredProducts.reduce((s, p) => s + (Number(p.unitsSold) || 0), 0),
+            totalOrders: usePeriod
+                ? Number(periodSummary.orders) || 0
+                : filteredProducts.reduce((s, p) => s + (Number(p.ordersCount) || 0), 0),
+            productNetSalesSum: productNetSales,
+            periodNetSales: periodSummary ? Number(periodSummary.netSales) || 0 : null,
         };
-    }, [filteredProducts]);
+    }, [filteredProducts, products.length, periodSummary, query]);
 
-    const inventoryStockTotal = filteredProducts.reduce(
-        (s, p) => s + ((p.inventoryStock != null && !isNaN(p.inventoryStock)) ? p.inventoryStock : 0),
-        0
-    );
-    const inventoryValueTotal = filteredProducts.reduce(
-        (s, p) => s + ((p.inventoryValue != null && !isNaN(p.inventoryValue)) ? p.inventoryValue : 0),
-        0
-    );
-    const inventoryPending = inventoryLoading && filteredProducts.every(p => p.inventoryStock == null);
+    const storeInventoryStock =
+        inventoryTotals != null ? Number(inventoryTotals.inventoryStock) || 0 : null;
+    const storeInventoryValue =
+        inventoryTotals != null ? Number(inventoryTotals.inventoryValue) || 0 : null;
+    const storeIncomingQuantity =
+        inventoryTotals != null ? Number(inventoryTotals.incomingQuantity) || 0 : null;
+    const storeInventoryPending = inventoryTotalsLoading && inventoryTotals == null;
 
     const toggleSort = (key) => {
         if (sortKey === key) {
@@ -100,7 +165,7 @@ export default function ProductPerfomance({ products = [], loading = false, inve
             { key: 'avgPrice', label: 'Avg. price', sortable: true, numeric: true },
             { key: 'unitsSold', label: 'Units sold', sortable: true, numeric: true },
             { key: 'ordersCount', label: 'Orders', sortable: true, numeric: true },
-            { key: 'totalRevenue', label: 'Revenue', sortable: true, numeric: true },
+            { key: 'totalRevenue', label: 'Net sales', sortable: true, numeric: true },
         ],
         velocity: [
             { key: 'unitsSold60d', label: `Units (${SHOPIFY_PRODUCT_SOLD_OUT_LOOKBACK_DAYS}d)`, sortable: true, numeric: true },
@@ -109,6 +174,8 @@ export default function ProductPerfomance({ products = [], loading = false, inve
         inventory: [
             { key: 'inventoryStock', label: 'Stock', sortable: true, numeric: true },
             { key: 'inventoryValue', label: 'Value', sortable: true, numeric: true },
+            { key: 'incomingQuantity', label: 'Incoming', sortable: true, numeric: true },
+            { key: 'expectedArrivalDate', label: 'Expected arrival', sortable: true, numeric: false },
         ],
     };
 
@@ -134,9 +201,11 @@ export default function ProductPerfomance({ products = [], loading = false, inve
                 <div>
                     <h2 className="apex-ecom-panel__title">Product Performance</h2>
                     <p className="apex-ecom-panel__subtitle">
-                        Units sold and revenue follow your selected date range. Avg. days to sold out always
-                        uses the last {SHOPIFY_PRODUCT_SOLD_OUT_LOOKBACK_DAYS} days of sales velocity and current
-                        inventory stock.
+                        Full Shopify catalog with sales for your date range (ShopifyQL, same filters as Overview).
+                        Store totals match Overview total sales excl. VAT; per-product net sales exclude shipping.
+                        Avg. days to sold out uses the last {SHOPIFY_PRODUCT_SOLD_OUT_LOOKBACK_DAYS} days of velocity.
+                        Products load highest net sales first, then the rest of the catalog. Inventory
+                        totals reflect your full store; per-row stock loads with each page.
                     </p>
                 </div>
             </div>
@@ -151,10 +220,13 @@ export default function ProductPerfomance({ products = [], loading = false, inve
                         className="apex-ecom-search"
                         aria-label="Search products"
                     />
-                    {!loading && filteredProducts.length > 0 ? (
+                    {!loading && products.length > 0 ? (
                         <span className="apex-ecom-result-count">
-                            {filteredProducts.length.toLocaleString()} product
-                            {filteredProducts.length === 1 ? '' : 's'}
+                            {query.trim()
+                                ? `${filteredProducts.length.toLocaleString()} matching`
+                                : catalogTotalCount != null
+                                  ? `${summary.loadedCount.toLocaleString()} of ${catalogTotalCount.toLocaleString()} loaded`
+                                  : `${summary.loadedCount.toLocaleString()} loaded`}
                         </span>
                     ) : null}
                 </div>
@@ -191,18 +263,31 @@ export default function ProductPerfomance({ products = [], loading = false, inve
                         request="GET /api/shopify-products"
                     />
                 </div>
+            ) : products.length === 0 ? (
+                <div className="apex-ecom-empty">No products in this Shopify store</div>
             ) : filteredProducts.length === 0 ? (
-                <div className="apex-ecom-empty">No product data for the selected range</div>
+                <div className="apex-ecom-empty">No products match your search</div>
             ) : (
                 <>
                     <div className="apex-ecom-summary">
                         <div className="apex-ecom-summary__item">
-                            <span className="apex-ecom-summary__label">Products</span>
-                            <span className="apex-ecom-summary__value">{summary.count.toLocaleString()}</span>
+                            <span className="apex-ecom-summary__label">Products in catalog</span>
+                            <span className="apex-ecom-summary__value">
+                                {catalogTotalCount != null
+                                    ? catalogTotalCount.toLocaleString()
+                                    : summary.loadedCount.toLocaleString()}
+                            </span>
                         </div>
                         <div className="apex-ecom-summary__item">
-                            <span className="apex-ecom-summary__label">Total revenue</span>
-                            <span className="apex-ecom-summary__value">{formatCurrencyNoDecimals(summary.totalRevenue)}</span>
+                            <span
+                                className="apex-ecom-summary__label"
+                                title="Same as Overview: net sales + shipping income, excluding VAT"
+                            >
+                                Total sales excl. VAT
+                            </span>
+                            <span className="apex-ecom-summary__value">
+                                {formatCurrencyNoDecimals(summary.totalSalesExVat)}
+                            </span>
                         </div>
                         <div className="apex-ecom-summary__item">
                             <span className="apex-ecom-summary__label">Units sold</span>
@@ -214,23 +299,41 @@ export default function ProductPerfomance({ products = [], loading = false, inve
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                         <MetricCard
                             variant="cobalt"
                             label="Inventory Stock"
-                            value={inventoryPending
-                                ? '…'
-                                : inventoryStockTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                            subCaption="Full catalog"
+                            value={storeInventoryPending
+                                ? <EcomInlineSpinner label="Loading inventory stock" />
+                                : (storeInventoryStock ?? 0).toLocaleString(undefined, {
+                                      maximumFractionDigits: 0,
+                                  })}
                             icon={<FiPackage />}
                         />
                         <MetricCard
                             variant="cobalt"
                             label="Inventory Value"
-                            value={inventoryPending
-                                ? '…'
-                                : inventoryValueTotal.toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 })}
-                            unit={inventoryPending ? undefined : 'kr'}
+                            subCaption="Full catalog"
+                            value={storeInventoryPending
+                                ? <EcomInlineSpinner label="Loading inventory value" />
+                                : (storeInventoryValue ?? 0).toLocaleString(undefined, {
+                                      maximumFractionDigits: 0,
+                                      minimumFractionDigits: 0,
+                                  })}
+                            unit={storeInventoryPending ? undefined : 'kr'}
                             icon={<FiDollarSign />}
+                        />
+                        <MetricCard
+                            variant="cobalt"
+                            label="Incoming Stock"
+                            subCaption="Full catalog"
+                            value={storeInventoryPending
+                                ? <EcomInlineSpinner label="Loading incoming stock" />
+                                : (storeIncomingQuantity ?? 0).toLocaleString(undefined, {
+                                      maximumFractionDigits: 0,
+                                  })}
+                            icon={<FiTruck />}
                         />
                     </div>
 
@@ -325,19 +428,36 @@ export default function ProductPerfomance({ products = [], loading = false, inve
                                                 }
                                             >
                                                 {inventoryLoading && p.inventoryStock == null
-                                                    ? '…'
+                                                    ? <EcomInlineSpinner label="Loading days to sold out" />
                                                     : p.soldOutLabel}
                                             </span>
                                         </td>
                                         <td className="is-num td-group-start">
-                                            {inventoryLoading && p.inventoryStock == null
-                                                ? '…'
-                                                : (p.inventoryStock != null ? formatNumber(p.inventoryStock) : '—')}
+                                            <EcomLoadingCell pending={inventoryLoading && p.inventoryStock == null}>
+                                                {p.inventoryStock != null ? formatNumber(p.inventoryStock) : '—'}
+                                            </EcomLoadingCell>
                                         </td>
                                         <td className="is-num">
-                                            {inventoryLoading && p.inventoryValue == null
-                                                ? '…'
-                                                : (p.inventoryValue != null ? formatCurrencyNoDecimals(p.inventoryValue) : '—')}
+                                            <EcomLoadingCell pending={inventoryLoading && p.inventoryValue == null}>
+                                                {p.inventoryValue != null
+                                                    ? formatCurrencyNoDecimals(p.inventoryValue)
+                                                    : '—'}
+                                            </EcomLoadingCell>
+                                        </td>
+                                        <td className="is-num" title={incomingArrivalTitle(p)}>
+                                            <EcomLoadingCell pending={inventoryRowPending(p)}>
+                                                {p.incomingQuantity != null ? formatNumber(p.incomingQuantity) : '—'}
+                                            </EcomLoadingCell>
+                                        </td>
+                                        <td
+                                            className="is-num apex-ecom-table__arrival"
+                                            title={incomingArrivalTitle(p)}
+                                        >
+                                            <EcomLoadingCell pending={inventoryRowPending(p)}>
+                                                {Number(p.incomingQuantity) > 0
+                                                    ? formatExpectedArrival(p.expectedArrivalDate)
+                                                    : '—'}
+                                            </EcomLoadingCell>
                                         </td>
                                     </tr>
                                 ))}
@@ -345,24 +465,83 @@ export default function ProductPerfomance({ products = [], loading = false, inve
                             <tfoot>
                                 <tr>
                                     <td colSpan={6} className="is-muted is-sticky-product">
-                                        Total · filtered
+                                        Inventory · all products
                                     </td>
                                     <td className="is-num td-group-start">—</td>
                                     <td className="is-num">—</td>
                                     <td className="is-num td-group-start">
-                                        {inventoryPending
-                                            ? '…'
-                                            : inventoryStockTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                        {storeInventoryPending ? (
+                                            <EcomInlineSpinner label="Loading inventory stock total" />
+                                        ) : (
+                                            (storeInventoryStock ?? 0).toLocaleString(undefined, {
+                                                maximumFractionDigits: 0,
+                                            })
+                                        )}
                                     </td>
                                     <td className="is-num">
-                                        {inventoryPending
-                                            ? '…'
-                                            : formatCurrencyNoDecimals(inventoryValueTotal)}
+                                        {storeInventoryPending ? (
+                                            <EcomInlineSpinner label="Loading inventory value total" />
+                                        ) : (
+                                            formatCurrencyNoDecimals(storeInventoryValue ?? 0)
+                                        )}
                                     </td>
+                                    <td className="is-num">
+                                        {storeInventoryPending ? (
+                                            <EcomInlineSpinner label="Loading incoming stock total" />
+                                        ) : (
+                                            (storeIncomingQuantity ?? 0).toLocaleString(undefined, {
+                                                maximumFractionDigits: 0,
+                                            })
+                                        )}
+                                    </td>
+                                    <td className="is-num">—</td>
                                 </tr>
                             </tfoot>
                         </table>
                     </div>
+
+                    {catalogHasMore ? (
+                        <div className="apex-ecom-panel__toolbar mt-4 justify-center apex-ecom-catalog-actions">
+                            <button
+                                type="button"
+                                className="apex-perf-btn"
+                                disabled={catalogLoadingMore || catalogLoadingAll || loading}
+                                onClick={() => onLoadMoreCatalog?.()}
+                            >
+                                {catalogLoadingMore && !catalogLoadingAll ? (
+                                    <>
+                                        <EcomInlineSpinner className="apex-ecom-inline-spinner--btn" label="Loading" />
+                                        Loading more…
+                                    </>
+                                ) : (
+                                    `Load more (${summary.loadedCount.toLocaleString()} loaded${
+                                        catalogTotalCount != null
+                                            ? ` of ${catalogTotalCount.toLocaleString()}`
+                                            : ''
+                                    })`
+                                )}
+                            </button>
+                            <button
+                                type="button"
+                                className="apex-perf-btn apex-perf-btn--secondary"
+                                disabled={catalogLoadingMore || catalogLoadingAll || loading}
+                                onClick={() => onLoadAllCatalog?.()}
+                            >
+                                {catalogLoadingAll ? (
+                                    <>
+                                        <EcomInlineSpinner className="apex-ecom-inline-spinner--btn" label="Loading" />
+                                        Loading all products…
+                                    </>
+                                ) : (
+                                    `Load all${
+                                        catalogTotalCount != null
+                                            ? ` (${catalogTotalCount.toLocaleString()})`
+                                            : ''
+                                    }`
+                                )}
+                            </button>
+                        </div>
+                    ) : null}
                 </>
             )}
         </section>

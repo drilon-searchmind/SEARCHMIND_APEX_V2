@@ -52,3 +52,38 @@ export function combineShopifyOrderSearchQuery(baseQuery, settings) {
     if (!channelClause) return baseQuery;
     return `${baseQuery} AND ${channelClause}`;
 }
+
+/**
+ * ShopifyQL WHERE parts aligned with Overview / markets (online store + optional billing country).
+ * @param {Record<string, unknown> | null | undefined} settings
+ * @returns {string[]}
+ */
+export function buildShopifySalesWhereParts(settings) {
+    const whereParts = [];
+    const parseCountries = (s) =>
+        typeof s === "string" ? s.split(",").map((c) => c.trim()).filter(Boolean) : [];
+    const includeCountries = parseCountries(settings?.changeCurrencyShopifyBillingCountryName);
+    const excludeCountries = parseCountries(settings?.changeCurrencyShopifyBillingCountryExclude);
+    const hasInclude = includeCountries.length > 0;
+    const hasExclude = excludeCountries.length > 0;
+    const hasBillingFilter =
+        settings?.changeCurrency === true &&
+        settings?.customerStoreValutaCode &&
+        (hasInclude || hasExclude);
+
+    if (hasBillingFilter) {
+        if (hasInclude) {
+            whereParts.push(
+                `(${includeCountries.map((c) => `billing_country = '${escapeShopifyQlString(c)}'`).join(" OR ")})`
+            );
+        }
+        if (hasExclude) {
+            whereParts.push(
+                `NOT (${excludeCountries.map((c) => `billing_country = '${escapeShopifyQlString(c)}'`).join(" OR ")})`
+            );
+        }
+    }
+
+    appendShopifyOnlineStoreFilter(whereParts, settings);
+    return whereParts;
+}

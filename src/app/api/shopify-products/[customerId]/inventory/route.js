@@ -1,5 +1,7 @@
-import { fetchProductInventoryOnly } from '@/lib/shopifyProductsApi';
+import { fetchProductInventoryOnlyCached } from '@/lib/shopifyProductsInventoryCache.server';
 import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
+
+export const maxDuration = 300;
 
 export async function POST(request, { params }) {
     const resolvedParams = await params;
@@ -26,8 +28,34 @@ export async function POST(request, { params }) {
         const data = await res.json();
         const settings = data.CustomerSettings || {};
 
-        const inventory = await fetchProductInventoryOnly(settings, productIds);
-        return Response.json({ inventory });
+        const arrivalsOnly = body?.arrivalsOnly === true;
+        const includeArrivals = body?.includeArrivals === true;
+        const startDate = body?.startDate || '';
+        const endDate = body?.endDate || '';
+        const salesFingerprint = body?.salesFingerprint || null;
+        const customerType = data.customerType || data.CustomerSettings?.customerType || 'Shopify';
+
+        const { inventory, fromCache, fetchedCount, salesFingerprint: resolvedFingerprint } =
+            await fetchProductInventoryOnlyCached(
+            settings,
+            customerId,
+            productIds,
+            {
+                arrivalsOnly,
+                includeArrivals,
+                includeVariantDetails: false,
+                startDate,
+                endDate,
+                customerType,
+                salesFingerprint,
+            }
+            );
+        return Response.json({
+            inventory,
+            fromCache,
+            fetchedCount,
+            salesFingerprint: resolvedFingerprint,
+        });
     } catch (error) {
         console.error('Error fetching product inventory:', error);
         return Response.json({ error: error.message }, { status: 500 });

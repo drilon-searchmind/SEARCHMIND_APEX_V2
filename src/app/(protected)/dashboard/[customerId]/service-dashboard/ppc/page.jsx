@@ -22,6 +22,7 @@ import {
     pickTermWinnersLosers,
     PPC_CHART_METRIC_LABELS,
 } from "@/lib/googlePpcDashboardUtils";
+import { getChartSeriesPalette } from "@/lib/charts/chartSeriesColors";
 import PsSortableMetricsTable from "../ps/components/PsSortableMetricsTable";
 import {
     CHART_TOGGLE_METRICS,
@@ -329,19 +330,7 @@ export default function GoogleAdsPPCPage() {
                 max: 100,
                 labels: { formatter: (v) => `${Math.round(v)}%` },
             },
-            colors: [
-                "#406969",
-                "#1E2B2B",
-                "#4F46E5",
-                "#06B6D4",
-                "#C6ED62",
-                "#D6CDB6",
-                "#F59E0B",
-                "#EF4444",
-                "#8B5CF6",
-                "#EC4899",
-                "#10B981",
-            ],
+            colors: getChartSeriesPalette(),
             stroke: { width: strokeWidths, curve: "smooth", dashArray: strokeDashArrays },
             fill: { type: "solid", opacity: fillOpacities },
             grid: {
@@ -394,7 +383,7 @@ export default function GoogleAdsPPCPage() {
                             `${Number(v).toLocaleString("da-DK", { maximumFractionDigits: 0 })} kr.`,
                     },
                 },
-                colors: ["#406969", "#C6ED62", "#94a3b8"],
+                colors: getChartSeriesPalette(3),
                 legend: { position: "top" },
                 dataLabels: { enabled: false },
                 stroke: { curve: "smooth", width: 1 },

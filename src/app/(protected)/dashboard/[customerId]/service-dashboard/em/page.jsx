@@ -23,6 +23,7 @@ import {
     formatEmKpiValue,
     EM_CHART_METRIC_LABELS,
 } from "@/lib/emDashboardUtils";
+import { chartSeriesColor, getChartSeriesPalette } from "@/lib/charts/chartSeriesColors";
 import PsSortableMetricsTable from "../ps/components/PsSortableMetricsTable";
 import {
     KPI_ROW1,
@@ -408,7 +409,7 @@ export default function EmailDashboardPage() {
                 max: 100,
                 labels: { formatter: (v) => `${Math.round(v)}%` },
             },
-            colors: ["#406969", "#1E2B2B", "#4F46E5", "#06B6D4", "#C6ED62"],
+            colors: getChartSeriesPalette(5),
             stroke: {
                 width: [...Array(selectedMetricsCount).fill(2), ...Array(compCount).fill(1)],
                 curve: "smooth",
@@ -458,7 +459,7 @@ export default function EmailDashboardPage() {
                             `${Number(v).toLocaleString("da-DK", { maximumFractionDigits: 0 })} kr.`,
                     },
                 },
-                colors: ["#406969"],
+                colors: [chartSeriesColor(0)],
                 dataLabels: { enabled: false },
                 grid: { borderColor: "#e5e7eb" },
             },

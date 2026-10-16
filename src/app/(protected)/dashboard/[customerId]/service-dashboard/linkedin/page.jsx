@@ -25,6 +25,7 @@ import {
     AD_TABLE_COLUMNS,
 } from "./components/linkedinDashboardConfig";
 import "./linkedin-dashboard.css";
+import { getChartSeriesPalette } from "@/lib/charts/chartSeriesColors";
 
 function aggregateMetric(key, data) {
     if (!data?.length) return null;
@@ -284,19 +285,7 @@ export default function LinkedInServiceDashboardPage() {
                 chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "Outfit, sans-serif" },
                 xaxis: { categories: chartCategories, labels: { rotate: -45 } },
                 yaxis: {},
-                colors: [
-                    "#406969",
-                    "#1E2B2B",
-                    "#4F46E5",
-                    "#06B6D4",
-                    "#C6ED62",
-                    "#D6CDB6",
-                    "#F59E0B",
-                    "#EF4444",
-                    "#8B5CF6",
-                    "#EC4899",
-                    "#10B981",
-                ],
+                colors: getChartSeriesPalette(),
                 stroke: { width: strokeWidths, curve: "smooth", dashArray: strokeDashArrays },
                 fill: { type: "solid", opacity: fillOpacities },
                 grid: {

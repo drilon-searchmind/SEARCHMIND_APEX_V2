@@ -1,3 +1,8 @@
+import {
+    chartComparisonColor,
+    chartSeriesColor,
+} from "./chartSeriesColors.js";
+
 /**
  * Dashboard chart styling (minimal / Apex design).
  * File name retained for imports; reads tokens from `.apex-perf` when available.
@@ -126,10 +131,6 @@ export function getCobaltChartBaseOptions() {
 
 /** Apply minimal palette + current/comparison stroke styling to series. */
 export function applyCobaltSeriesStyle(series, options) {
-    const t = getCobaltChartTokens();
-    const currentColors = [t.ink, t.accentLight, t.ink2, t.neutral];
-    const comparisonColors = [t.muted, t.rule2, "#b8b5b0", t.muted];
-
     let metricIndex = 0;
     const colors = [];
     const strokeWidths = [];
@@ -140,7 +141,7 @@ export function applyCobaltSeriesStyle(series, options) {
         const comparison = isComparisonSeries(s.name);
 
         if (comparison) {
-            const color = comparisonColors[metricIndex % comparisonColors.length];
+            const color = chartComparisonColor(Math.max(0, metricIndex - 1));
             colors.push(color);
             strokeWidths.push(1.5);
             dashArrays.push(5);
@@ -148,7 +149,7 @@ export function applyCobaltSeriesStyle(series, options) {
             return { ...s, color };
         }
 
-        const color = currentColors[metricIndex % currentColors.length];
+        const color = chartSeriesColor(metricIndex);
         metricIndex += 1;
         colors.push(color);
         strokeWidths.push(2.5);

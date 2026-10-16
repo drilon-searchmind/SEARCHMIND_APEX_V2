@@ -17,6 +17,7 @@ import {
     normalizeSeriesValues,
     SEO_CHART_METRIC_LABELS,
 } from "@/lib/seoDashboardUtils";
+import { getChartSeriesPalette } from "@/lib/charts/chartSeriesColors";
 import {
     CHART_TOGGLE_ROW1,
     CHART_TOGGLE_ROW2,
@@ -305,7 +306,7 @@ export default function SeoDefaultTab({
                 max: 100,
                 labels: { formatter: (v) => `${Math.round(v)}%` },
             },
-            colors: ["#406969", "#1E2B2B", "#4F46E5", "#06B6D4", "#C6ED62", "#D6CDB6", "#F59E0B", "#EF4444"],
+            colors: getChartSeriesPalette(8),
             stroke: { width: strokeWidths, curve: "smooth", dashArray: strokeDashArrays },
             fill: { type: "solid", opacity: fillOpacities },
             grid: {

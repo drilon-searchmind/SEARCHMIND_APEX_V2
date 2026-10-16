@@ -18,7 +18,7 @@ import {
     FiUserCheck,
 } from "react-icons/fi";
 import dayjs from "dayjs";
-import { getChartColors } from "@/components/dashboard/chartColors";
+import { getChartColors, getChartSeriesPalette } from "@/components/dashboard/chartColors";
 import ParentChildPropertiesTable from "../components/ParentChildPropertiesTable";
 import { parentTotalSpendFromDailyRow } from "@/lib/parentPropertyAdSpend";
 import { POAS_BREAK_EVEN } from "@/lib/poasMetrics";
@@ -387,7 +387,7 @@ export default function ParentOverviewView({ sharedData }) {
             },
             yaxis: { labels: { style: { colors: chartColors.primary || "#1E2B2B" }, formatter: formatChartValue } },
             tooltip: { theme: "light", y: { formatter: formatChartValue } },
-            colors: [chartColors.primaryLighter || "#406969", chartColors.lime || "#C6ED62", "#94a3b8", "#cbd5e1"],
+            colors: getChartSeriesPalette(4),
             stroke: {
                 width: series.map((s) => (isCurrentSeries(s) ? 2 : 1)),
                 curve: "smooth",

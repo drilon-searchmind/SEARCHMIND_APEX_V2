@@ -4,6 +4,7 @@ import {
     applyCobaltSeriesStyle,
     getCobaltChartBaseOptions,
 } from "@/lib/charts/cobaltChartTheme";
+import { getChartSeriesPalette } from "@/lib/charts/chartSeriesColors";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -14,7 +15,7 @@ const DARK_CHART_OVERRIDES = {
     grid: { borderColor: "#2c353b", strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
     tooltip: { theme: "dark" },
     legend: { labels: { colors: "#cbd5e1" } },
-    colors: ["#C6ED62", "#60a5fa", "#94a3b8", "#cbd5e1", "#6ee7b7", "#f1f5f9"],
+    colors: getChartSeriesPalette(8),
 };
 
 function deepMerge(target, source) {
