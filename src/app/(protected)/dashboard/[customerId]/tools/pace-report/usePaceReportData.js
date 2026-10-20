@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { adSpendByPeriodMap } from '@/lib/mergeAdSpendDaily';
 import {
-	buildChannelSpendMapsFromMerged,
+	computePrimarySalesRevenueForShopifyRows,
+	mergedSourcesThroughDate,
 	primarySalesRevenueLabel,
-	shopifyDayPrimarySalesRevenue,
+	shopifyDailyRowsInRange,
 } from '@/lib/performanceDashboard/primarySalesRevenue';
 import { useDashboardDataOptional } from '@/contexts/DashboardDataContext';
 import {
@@ -64,13 +65,21 @@ export function usePaceReportData(
 				]);
 				const customerSettings = customer?.CustomerSettings || {};
 				const customerType = customer?.customerType || 'Shopify';
-				const channelMaps = buildChannelSpendMapsFromMerged(merged);
+				const staticExpenses = customer?.CustomerStaticExpenses || {};
 				setRevenueLabel(
 					primarySalesRevenueLabel(customerSettings, customKpis)
 				);
 
 				const startDateObj = dayjs(appliedDateRange.startDate);
 				const endDateObj = dayjs(appliedDateRange.endDate);
+				const rangeStartYmd = startDateObj.format('YYYY-MM-DD');
+				const rangeEndYmd = endDateObj.format('YYYY-MM-DD');
+				const salesRevenueOpts = {
+					customerSettings,
+					customerType,
+					customKpis,
+					staticExpenses,
+				};
 
 				const costMap = adSpendByPeriodMap(merged);
 				// Generate all days from startDate to endDate for consistent chart display
@@ -168,21 +177,23 @@ export function usePaceReportData(
 					budgetDaily,
 				});
 
-				const revenueMap = {};
-				(merged.shopifyDaily || []).forEach((row) => {
-					const ymd = String(row.period).slice(0, 10);
-					if (!revenueMap[ymd]) revenueMap[ymd] = 0;
-					revenueMap[ymd] += shopifyDayPrimarySalesRevenue(row, {
-						customerSettings,
-						customerType,
-						customKpis,
-						channelMaps,
-					});
-				});
-				let revenueCumulative = 0;
 				const revenueDaily = allPeriods.map((period) => {
-					revenueCumulative += revenueMap[String(period).slice(0, 10)] || 0;
-					return { period, revenue: Number(revenueCumulative.toFixed(2)) };
+					const endYmd = String(period).slice(0, 10);
+					const daysInSlice =
+						dayjs(endYmd).diff(startDateObj, 'day') + 1;
+					const revenue = computePrimarySalesRevenueForShopifyRows(
+						shopifyDailyRowsInRange(
+							merged.shopifyDaily,
+							rangeStartYmd,
+							endYmd
+						),
+						{
+							...salesRevenueOpts,
+							merged: mergedSourcesThroughDate(merged, endYmd),
+							daysInRange: daysInSlice,
+						}
+					);
+					return { period, revenue: Number(revenue.toFixed(2)) };
 				});
 				setConversionValueData(revenueDaily);
 
@@ -204,19 +215,35 @@ export function usePaceReportData(
 					};
 				});
 
-				let revenueUntilLastDay = 0;
-				if (revenueDaily.length > 0) {
-					revenueUntilLastDay = revenueDaily[revenueDaily.length - 1].revenue;
+				let actualEndYmd = rangeEndYmd;
+				if (todayObj.isBefore(startDateObj, 'day')) {
+					actualEndYmd = rangeStartYmd;
+				} else if (
+					!todayObj.isAfter(endDateObj, 'day') &&
+					!todayObj.isBefore(startDateObj, 'day')
+				) {
+					actualEndYmd = todayObj.format('YYYY-MM-DD');
 				}
+				const actualDaysInRange =
+					dayjs(actualEndYmd).diff(startDateObj, 'day') + 1;
+				const actualRevenueToDate = computePrimarySalesRevenueForShopifyRows(
+					shopifyDailyRowsInRange(
+						merged.shopifyDaily,
+						rangeStartYmd,
+						actualEndYmd
+					),
+					{
+						...salesRevenueOpts,
+						merged: mergedSourcesThroughDate(merged, actualEndYmd),
+						daysInRange: Math.max(1, actualDaysInRange),
+					}
+				);
+				const revenueUntilLastDay = actualRevenueToDate;
 
 				const idealRevenueToDate = conversionDailyTarget * c;
 				const conversionPace =
 					idealRevenueToDate > 0
 						? revenueUntilLastDay / idealRevenueToDate
-						: 0;
-				const actualRevenueToDate =
-					revenueDaily.length > 0
-						? revenueDaily[revenueDaily.length - 1].revenue
 						: 0;
 
 				const conversionD = antalDage - 1;
