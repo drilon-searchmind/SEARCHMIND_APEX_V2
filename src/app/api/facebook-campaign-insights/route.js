@@ -3,14 +3,14 @@
 import { fetchFacebookAdsPSDashboardMetrics } from '@/lib/facebookApi';
 import { isDemoCustomerId } from '@/lib/demoCustomer';
 import { getDemoFacebookCampaignInsightsForRange } from '@/lib/demoAdMetrics';
+import { resolveMetaCountryFiltersForCustomerId } from '@/lib/metaDashboardMetaCountryFilter';
+import dbConnect from '@root/lib/mongodb';
 
 export async function GET(req) {
     const FACEBOOK_APP_TOKEN = process.env.FACEBOOK_APP_TOKEN;
     const { searchParams } = new URL(req.url);
     const dashboardCustomerId = searchParams.get('dashboardCustomerId');
     const adAccountId = searchParams.get('adAccountId');
-    const metaIdInclude = searchParams.get('customerMetaID') || searchParams.get('metaIdInclude') || '';
-    const metaIdExclude = searchParams.get('customerMetaIDExclude') || searchParams.get('metaIdExclude') || '';
     const since = searchParams.get('since');
     const until = searchParams.get('until');
 
@@ -23,6 +23,16 @@ export async function GET(req) {
     }
 
     try {
+        let metaIdInclude = searchParams.get('customerMetaID') || searchParams.get('metaIdInclude') || '';
+        let metaIdExclude =
+            searchParams.get('customerMetaIDExclude') || searchParams.get('metaIdExclude') || '';
+        if (dashboardCustomerId && !isDemoCustomerId(dashboardCustomerId)) {
+            await dbConnect();
+            const resolved = await resolveMetaCountryFiltersForCustomerId(dashboardCustomerId);
+            metaIdInclude = resolved.include;
+            metaIdExclude = resolved.exclude;
+        }
+
         const metrics = await fetchFacebookAdsPSDashboardMetrics({
             accessToken: FACEBOOK_APP_TOKEN,
             adAccountId,

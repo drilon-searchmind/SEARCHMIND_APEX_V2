@@ -10,6 +10,10 @@ import {
     fetchAdSpendCountryFiltersForSelectedMarkets,
     appendShopifyMarketBillingCountryFilter,
 } from './shopifyMarketsApi';
+import {
+    resolveGoogleCountryFilterForMergedSources,
+    resolveMetaCountryFilterForMergedSources,
+} from './shopifyMarketsAdSpendFilters';
 import { metricsByDateToSpendDaily } from './mergeAdSpendDaily';
 import { fetchPinterestDashboardMetrics } from './pinterestApi';
 import { fetchSnapchatDashboardMetrics, resolveSnapchatAccessTokenForCustomer } from './snapchatApi';
@@ -429,18 +433,10 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
         }
     }
 
-    const metaIncludeForFetch = marketAdSpendFilters?.metaCountryCodes?.length
-        ? marketAdSpendFilters.metaCountryCodes.join(",")
-        : settings.customerMetaID;
-    const metaExcludeForFetch = marketAdSpendFilters ? "" : settings.customerMetaIDExclude;
-    const googleIncludeForFetch = marketAdSpendFilters?.metaCountryCodes?.length
-        ? marketAdSpendFilters.metaCountryCodes.join(",")
-        : marketAdSpendFilters?.googleCountryNames?.length
-          ? marketAdSpendFilters.googleCountryNames.join(",")
-          : settings.googleAdsCountryFilter || undefined;
-    const googleExcludeForFetch = marketAdSpendFilters
-        ? undefined
-        : settings.googleAdsCountryExclude || undefined;
+    const { include: metaIncludeForFetch, exclude: metaExcludeForFetch } =
+        resolveMetaCountryFilterForMergedSources(settings, marketAdSpendFilters);
+    const { include: googleIncludeForFetch, exclude: googleExcludeForFetch } =
+        resolveGoogleCountryFilterForMergedSources(settings, marketAdSpendFilters);
 
     // Facebook daily
     let facebookDaily = [];

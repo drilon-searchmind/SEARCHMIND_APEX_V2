@@ -243,13 +243,12 @@ export async function fetchFacebookPsDashboardExtended({
     const { effectiveInclude, exclude } = parseMetaIdFilter(includeStr, excludeStr);
     const useBreakdown = exclude.length > 0 && effectiveInclude.length === 0;
 
-    const accountFields = [
+    /** Reach/frequency on account + time_increment can suppress spend/impressions in Graph API responses. */
+    const accountDailyFields = [
         "spend",
         "clicks",
         "impressions",
         "inline_link_clicks",
-        "reach",
-        "frequency",
         "actions",
         "action_values",
         "date_start",
@@ -260,7 +259,7 @@ export async function fetchFacebookPsDashboardExtended({
         apiUrl,
         since: startDate,
         until: endDate,
-        fields: accountFields,
+        fields: accountDailyFields,
         level: "account",
         timeIncrement: 1,
         breakdowns: useBreakdown ? ["country"] : null,
@@ -273,7 +272,7 @@ export async function fetchFacebookPsDashboardExtended({
         accountRows = aggregateAccountDailyWithCountryBreakdown(accountRows, exclude);
     }
 
-    const metrics_by_date = accountRows.map(mapDailyMetricsRow).sort((a, b) => a.date.localeCompare(b.date));
+    let metrics_by_date = accountRows.map(mapDailyMetricsRow).sort((a, b) => a.date.localeCompare(b.date));
 
     const campaignFields = [
         "campaign_name",
@@ -309,6 +308,59 @@ export async function fetchFacebookPsDashboardExtended({
         .map(mapCampaignMetricsRow)
         .filter((r) => r.ad_spend > 0 || r.impressions > 0)
         .sort((a, b) => b.ad_spend - a.ad_spend);
+
+    const dailySpendTotal = metrics_by_date.reduce((s, r) => s + (r.ad_spend || 0), 0);
+    const campaignSpendTotal = campaigns_performance.reduce((s, r) => s + (r.ad_spend || 0), 0);
+    if (dailySpendTotal === 0 && campaignSpendTotal > 0) {
+        try {
+            const rollupUrl = buildBaseParams({
+                accessToken,
+                apiUrl,
+                since: startDate,
+                until: endDate,
+                fields: accountDailyFields,
+                level: "campaign",
+                timeIncrement: 1,
+                breakdowns: useBreakdown ? ["country"] : null,
+                effectiveInclude,
+                useBreakdown,
+            });
+            let rollupRows = await fetchInsightsPages(rollupUrl);
+            if (useBreakdown && rollupRows.length > 0) {
+                rollupRows = aggregateCampaignDailyWithCountryBreakdown(rollupRows, exclude);
+            }
+            const byDate = {};
+            for (const row of rollupRows) {
+                const key = row.date_start || "";
+                if (!key) continue;
+                if (!byDate[key]) {
+                    byDate[key] = {
+                        date_start: key,
+                        spend: 0,
+                        clicks: 0,
+                        impressions: 0,
+                        inline_link_clicks: 0,
+                        actions: [],
+                        action_values: [],
+                    };
+                }
+                byDate[key].spend += parseFloat(row.spend || 0);
+                byDate[key].clicks += parseFloat(row.clicks || 0);
+                byDate[key].impressions += parseFloat(row.impressions || 0);
+                byDate[key].inline_link_clicks += parseFloat(row.inline_link_clicks || row.clicks || 0);
+                if (row.actions) byDate[key].actions.push(...row.actions);
+                if (row.action_values) byDate[key].action_values.push(...(row.action_values || []));
+            }
+            const rebuilt = Object.values(byDate)
+                .map((r) => mapDailyMetricsRow({ ...mergeActions(r), date_start: r.date_start }))
+                .sort((a, b) => a.date.localeCompare(b.date));
+            if (rebuilt.reduce((s, r) => s + (r.ad_spend || 0), 0) > 0) {
+                metrics_by_date = rebuilt;
+            }
+        } catch (e) {
+            console.warn("[Facebook PS] Campaign daily rollup fallback failed:", e.message);
+        }
+    }
 
     const top_campaigns = [...campaigns_performance]
         .sort((a, b) => b.clicks - a.clicks)

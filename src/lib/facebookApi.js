@@ -356,6 +356,60 @@ export async function fetchFacebookAdsInsights(adAccountId, metaIdInclude, metaI
             }];
         }
     }
+
+    const spendSum = (rows || []).reduce((s, r) => s + parseFloat(r.spend || 0), 0);
+    if (options.dailyBreakdown && spendSum === 0 && !forceCampaignQuery) {
+        try {
+            const rollupParams = new URLSearchParams({
+                access_token: accessToken,
+                time_range: JSON.stringify({ since, until }),
+                fields: ['campaign_id', 'campaign_name', 'spend', 'date_start'].join(','),
+                level: 'campaign',
+                time_increment: '1',
+                limit: '500',
+            });
+            if (effectiveInclude.length > 0) {
+                rollupParams.append(
+                    'filtering',
+                    JSON.stringify([{ field: 'country', operator: 'IN', value: effectiveInclude }])
+                );
+            }
+            if (useBreakdown) {
+                rollupParams.append('breakdowns', JSON.stringify(['country']));
+            }
+            let rollupRes = await fetch(`${apiUrl}?${rollupParams.toString()}`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            if (rollupRes.ok) {
+                let rollupData = await rollupRes.json();
+                let campRows = rollupData.data || [];
+                while (rollupData.paging?.next) {
+                    const nextRes = await fetch(rollupData.paging.next);
+                    rollupData = await nextRes.json();
+                    campRows.push(...(rollupData.data || []));
+                }
+                campRows = filterFacebookCampaignInsightRows(
+                    campRows,
+                    excludedCampaignIds,
+                    excludedCampaignNameKeywords
+                );
+                if (useBreakdown && campRows.length > 0) {
+                    campRows = campRows.filter((row) => {
+                        const c = (row.country || '').toUpperCase();
+                        return c && !exclude.includes(c);
+                    });
+                }
+                const rolled = aggregateFacebookCampaignRowsToDaily(campRows);
+                if (rolled.reduce((s, r) => s + parseFloat(r.spend || 0), 0) > 0) {
+                    rows = rolled;
+                }
+            }
+        } catch (e) {
+            console.warn('[Facebook API] Campaign daily spend rollup fallback failed:', e.message);
+        }
+    }
+
     return { ...data, data: rows };
 }
 

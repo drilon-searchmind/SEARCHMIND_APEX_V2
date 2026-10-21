@@ -4,6 +4,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { fetchFacebookAdsAdPerformance } from "@/lib/facebookAdsAdPerformance";
 import { isDemoCustomerId } from "@/lib/demoCustomer";
 import { getDemoFacebookAdsAdPerformanceForRange } from "@/lib/demoAdMetrics";
+import { resolveMetaCountryFiltersForCustomerId } from "@/lib/metaDashboardMetaCountryFilter";
+import dbConnect from "@root/lib/mongodb";
 
 export async function GET(req) {
     const session = await getServerSession(authOptions);
@@ -17,8 +19,9 @@ export async function GET(req) {
     const since = searchParams.get("since");
     const until = searchParams.get("until");
     const dashboardCustomerId = searchParams.get("dashboardCustomerId");
-    const metaIdInclude = searchParams.get("customerMetaID") || searchParams.get("metaIdInclude") || "";
-    const metaIdExclude = searchParams.get("customerMetaIDExclude") || searchParams.get("metaIdExclude") || "";
+    let metaIdInclude = searchParams.get("customerMetaID") || searchParams.get("metaIdInclude") || "";
+    let metaIdExclude =
+        searchParams.get("customerMetaIDExclude") || searchParams.get("metaIdExclude") || "";
 
     if (!adAccountId || !since || !until) {
         return NextResponse.json({ error: "Missing adAccountId, since, or until" }, { status: 400 });
@@ -29,6 +32,13 @@ export async function GET(req) {
     }
 
     try {
+        if (dashboardCustomerId && !isDemoCustomerId(dashboardCustomerId)) {
+            await dbConnect();
+            const resolved = await resolveMetaCountryFiltersForCustomerId(dashboardCustomerId);
+            metaIdInclude = resolved.include;
+            metaIdExclude = resolved.exclude;
+        }
+
         const data = await fetchFacebookAdsAdPerformance({
             accessToken: FACEBOOK_APP_TOKEN,
             adAccountId,
