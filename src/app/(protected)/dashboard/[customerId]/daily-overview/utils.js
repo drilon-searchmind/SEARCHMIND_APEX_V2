@@ -14,37 +14,18 @@ export function formatCurrency(value, options = {}) {
 	});
 }
 
-const HEATMAP_NATURAL_FALLBACK = { r: 214, g: 205, b: 182 };
-
-function parseHexColor(hex) {
-	const normalized = hex.replace("#", "").trim();
-	if (normalized.length !== 6) return null;
-	const n = Number.parseInt(normalized, 16);
-	if (Number.isNaN(n)) return null;
-	return {
-		r: (n >> 16) & 255,
-		g: (n >> 8) & 255,
-		b: n & 255,
-	};
-}
-
-function getDarkNaturalRgb() {
-	if (typeof window === "undefined") return HEATMAP_NATURAL_FALLBACK;
-	const token = getComputedStyle(document.documentElement)
-		.getPropertyValue("--color-dark-natural")
-		.trim();
-	return parseHexColor(token) || HEATMAP_NATURAL_FALLBACK;
-}
+/** Heat cell green (DESIGN.md · Heat cells): rgba(93,187,88, t * 0.35). */
+const HEATMAP_GREEN = { r: 93, g: 187, b: 88 };
 
 /**
  * Get heatmap background style for a cell value.
- * Scales from 10% opacity at the low end to full #D6CDB6 at the max.
+ * Scales from transparent at the low end to 35% green at the max.
  */
 export function getHeatmapStyle(val, maxVal) {
 	if (!maxVal || maxVal === 0 || val == null) return {};
 	const ratio = Math.min(1, Math.max(0, val / maxVal));
-	const alpha = 0.1 + ratio * 0.9;
-	const { r, g, b } = getDarkNaturalRgb();
+	const alpha = ratio * 0.35;
+	const { r, g, b } = HEATMAP_GREEN;
 	return { backgroundColor: `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(2)})` };
 }
 
@@ -53,12 +34,14 @@ export function getHeatmapStyle(val, maxVal) {
  * @param {number} val
  * @param {number} maxVal
  * @param {boolean} isMax
- * @param {{ breakEven?: number }} [options]
+ * @param {{ breakEven?: number, min?: number }} [options] - `min` scales heat from the period's lowest value
  */
 export function getCellStyles(val, maxVal, isMax, options = {}) {
 	const breakEven = Number(options.breakEven) || 0;
-	const adjustedVal = val != null ? val - breakEven : 0;
-	const adjustedMax = maxVal != null ? maxVal - breakEven : 0;
+	const min = Number(options.min);
+	const floor = Number.isFinite(min) ? Math.max(breakEven, min) : breakEven;
+	const adjustedVal = val != null ? val - floor : 0;
+	const adjustedMax = maxVal != null ? maxVal - floor : 0;
 	const heatmap =
 		adjustedVal > 0 && adjustedMax > 0
 			? getHeatmapStyle(adjustedVal, adjustedMax)
@@ -81,8 +64,10 @@ export function computeRowMax(rows) {
 		bingCost: Math.max(...rows.map((r) => r.bingCost ?? 0)),
 		redditCost: Math.max(...rows.map((r) => r.redditCost ?? 0)),
 		roas: Math.max(...rows.map((r) => r.roas ?? 0)),
+		roasMin: Math.min(...rows.map((r) => r.roas ?? 0)),
 		spendshare: Math.max(...rows.map((r) => r.spendshare ?? 0)),
 		poas: Math.max(...rows.map((r) => r.poas ?? 0)),
+		poasMin: Math.min(...rows.map((r) => r.poas ?? 0)),
 		aov: Math.max(...rows.map((r) => r.aov ?? 0)),
 	};
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import dayjs from 'dayjs';
 import { POAS_BREAK_EVEN } from '@/lib/poasMetrics';
 import { formatCurrency, getCellStyles, computeRowYoYPercentMap } from './utils';
 import { METRIC_COLUMNS } from './metricConfig';
@@ -8,6 +9,12 @@ import {
 	dailyRowClass,
 	getGroupStartFlag,
 } from './dailyTableUi';
+
+/** "2026-10-09" -> "Fri, 9 Oct" (DESIGN.md · Daily overview); full date stays in the title. */
+function formatDayLabel(date) {
+	const d = dayjs(String(date).slice(0, 10));
+	return d.isValid() ? d.format('ddd, D MMM') : date;
+}
 
 function MetricCellContent({ value, yoyPercent }) {
 	if (!yoyPercent) {
@@ -79,11 +86,6 @@ export default function DailyMetricsDataRow({
 					<td
 						key={key}
 						className={cls}
-						style={getCellStyles(
-							row.orders,
-							max.orders,
-							row.orders === max.orders
-						)}
 					>
 						<MetricCellContent value={row.orders} yoyPercent={yoyPercent} />
 					</td>
@@ -93,11 +95,6 @@ export default function DailyMetricsDataRow({
 					<td
 						key={key}
 						className={cls}
-						style={getCellStyles(
-							row.netRevenue,
-							max.netRevenue,
-							row.netRevenue === max.netRevenue
-						)}
 					>
 						<MetricCellContent
 							value={formatCurrency(row.netRevenue, { maximumFractionDigits: 0 })}
@@ -119,7 +116,6 @@ export default function DailyMetricsDataRow({
 					<td
 						key={key}
 						className={cls}
-						style={getCellStyles(row.aov, max.aov, row.aov === max.aov)}
 					>
 						<MetricCellContent
 							value={
@@ -136,11 +132,6 @@ export default function DailyMetricsDataRow({
 					<td
 						key={key}
 						className={cls}
-						style={getCellStyles(
-							row.ppcCost,
-							max.ppcCost,
-							row.ppcCost === max.ppcCost
-						)}
 					>
 						<MetricCellContent
 							value={formatCurrency(row.ppcCost, { maximumFractionDigits: 0 })}
@@ -153,7 +144,6 @@ export default function DailyMetricsDataRow({
 					<td
 						key={key}
 						className={cls}
-						style={getCellStyles(row.psCost, max.psCost, row.psCost === max.psCost)}
 					>
 						<MetricCellContent
 							value={formatCurrency(row.psCost, { maximumFractionDigits: 0 })}
@@ -169,11 +159,6 @@ export default function DailyMetricsDataRow({
 					<td
 						key={key}
 						className={cls}
-						style={getCellStyles(
-							row[key] ?? 0,
-							max[key] ?? 0,
-							row[key] === max[key]
-						)}
 					>
 						<MetricCellContent
 							value={formatCurrency(row[key] ?? 0, { maximumFractionDigits: 0 })}
@@ -186,7 +171,7 @@ export default function DailyMetricsDataRow({
 					<td
 						key={key}
 						className={cls}
-						style={getCellStyles(row.roas, max.roas, row.roas === max.roas)}
+						style={getCellStyles(row.roas, max.roas, row.roas === max.roas, { min: max.roasMin })}
 					>
 						<MetricCellContent
 							value={row.roas != null ? row.roas.toFixed(2) : '-'}
@@ -220,6 +205,7 @@ export default function DailyMetricsDataRow({
 						key={key}
 						className={cls}
 						style={getCellStyles(row.poas, max.poas, row.poas === max.poas, {
+							min: max.poasMin,
 							breakEven: POAS_BREAK_EVEN,
 						})}
 					>
@@ -249,7 +235,9 @@ export default function DailyMetricsDataRow({
 			onMouseEnter={handleMouseEnter}
 			onMouseLeave={handleMouseLeave}
 		>
-			<td className={dailyCellClass(variant)}>{row.date}</td>
+			<td className={dailyCellClass(variant)} title={String(row.date).slice(0, 10)}>
+				{formatDayLabel(row.date)}
+			</td>
 			{visibleCols.map((m) => getCellFor(m.key))}
 		</tr>
 	);

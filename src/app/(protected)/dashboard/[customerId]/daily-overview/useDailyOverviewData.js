@@ -164,6 +164,7 @@ export function useDailyOverviewData(
 	const [error, setError] = useState(null);
 	const [rowsPrev, setRowsPrev] = useState([]);
 	const [rowsLastYear, setRowsLastYear] = useState([]);
+	const [rowsWeekAgo, setRowsWeekAgo] = useState([]);
 	const [loadingLastYear, setLoadingLastYear] = useState(false);
 	const [visibleMarketingColumnKeys, setVisibleMarketingColumnKeys] = useState(null);
 	const [customKpis, setCustomKpis] = useState([]);
@@ -209,12 +210,30 @@ export function useDailyOverviewData(
 						endDate: appliedDateRange.endDate,
 					});
 
-				const mergedPrev = await fetchPeriodData(
-					customer._id,
-					prevStartStr,
-					prevEndStr,
-					mergedSourcesQuerySuffix,
-					fetchMergedSources
+				// Same range shifted back 7 days: "same weekday last week" comparisons
+				const weekAgoStart = dayjs(appliedDateRange.startDate).subtract(7, 'day').format('YYYY-MM-DD');
+				const weekAgoEnd = dayjs(appliedDateRange.endDate).subtract(7, 'day').format('YYYY-MM-DD');
+				const [mergedPrev, mergedWeekAgo] = await Promise.all([
+					fetchPeriodData(
+						customer._id,
+						prevStartStr,
+						prevEndStr,
+						mergedSourcesQuerySuffix,
+						fetchMergedSources
+					),
+					fetchPeriodData(
+						customer._id,
+						weekAgoStart,
+						weekAgoEnd,
+						mergedSourcesQuerySuffix,
+						fetchMergedSources
+					).catch((err) => {
+						console.error('Error fetching week-ago data:', err);
+						return null;
+					}),
+				]);
+				setRowsWeekAgo(
+					mergedWeekAgo ? buildDailyRows(mergedWeekAgo, customer, revenueType, kpis) : []
 				);
 				const dailyRowsPrev = buildPrevPeriodRows(
 					mergedPrev,
@@ -284,6 +303,7 @@ export function useDailyOverviewData(
 		rows,
 		rowsPrev,
 		rowsLastYear,
+		rowsWeekAgo,
 		loading,
 		loadingLastYear,
 		error,

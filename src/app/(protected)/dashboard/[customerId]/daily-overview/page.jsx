@@ -11,6 +11,7 @@ import { useDailyOverviewData } from './useDailyOverviewData';
 import DailyMetricsTable from './DailyMetricsTable';
 import LastYearPeriodTable from './LastYearPeriodTable';
 import MetricToggleBar from './MetricToggleBar';
+import DailySummary, { dailyLede } from './DailySummary';
 import { DEFAULT_VISIBLE_METRICS, METRIC_COLUMNS } from './metricConfig';
 import { applyCustomKpiLabelsToMetricColumns } from '@/lib/performanceDashboard/dailyOverviewCustomKpis';
 import { AD_SPEND_DAILY_COLUMN_KEYS } from '@/lib/mergeAdSpendDaily';
@@ -124,6 +125,7 @@ function EcommerceDailyOverview({ customer: customerProp }) {
         rows,
         rowsPrev,
         rowsLastYear,
+        rowsWeekAgo,
         loading,
         loadingLastYear,
         error,
@@ -229,7 +231,8 @@ function EcommerceDailyOverview({ customer: customerProp }) {
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}
-                title="Daily Overview"
+                title="Daily overview"
+                subtitle={!loading ? dailyLede(rows, revenueColumnLabel) : null}
                 label={customer ? customer.customerName : ''}
                 customerId={params.customerId}
                 dateRange={resolvedAppliedDateRange}
@@ -256,8 +259,23 @@ function EcommerceDailyOverview({ customer: customerProp }) {
                 }
             />
 
+            {!loading && !error && rows?.length > 0 && (
+                <DailySummary
+                    rows={rows}
+                    rowsWeekAgo={rowsWeekAgo}
+                    metricColumns={metricColumns}
+                    revenueLabel={revenueColumnLabel}
+                />
+            )}
+
             <div className="apex-daily-panel">
                 <div className="apex-daily-panel__head">
+                    <div className="apex-daily-panel__title-row">
+                        <h3 className="apex-daily-panel__title">Day by day</h3>
+                        <span className="apex-daily-panel__subtitle">
+                            Heat shading runs from the lowest to the highest value in the period.
+                        </span>
+                    </div>
                     <MetricToggleBar
                         variant="cobalt"
                         visibleMetrics={visibleMetrics}
@@ -268,7 +286,6 @@ function EcommerceDailyOverview({ customer: customerProp }) {
                         onLastYearTableToggle={() => setShowLastYearTable((v) => !v)}
                         metricColumns={metricColumns}
                     />
-                    <h3 className="apex-daily-panel__title">Daily Metrics</h3>
                 </div>
                 {showTrendChart && rows?.length > 0 && (
                     <div className="mb-6">
@@ -296,8 +313,8 @@ function EcommerceDailyOverview({ customer: customerProp }) {
 
             {showLastYearTable && (
                 <div className="apex-daily-panel apex-daily-panel--muted">
-                    <h3 className="apex-daily-panel__title">Last Year Period</h3>
-                    <p className="apex-daily-panel__subtitle">Full month — raw daily data</p>
+                    <h3 className="apex-daily-panel__title">Last year period</h3>
+                    <p className="apex-daily-panel__subtitle">Full month, raw daily data</p>
                     <LastYearPeriodTable
                         variant="cobalt"
                         rowsLastYear={rowsLastYear}

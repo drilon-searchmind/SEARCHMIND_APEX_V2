@@ -185,6 +185,10 @@ Tooltip: `--cd-dark` background, 10px radius, 12px text, rows of colour dot + la
 
 Apex keeps its own page content; the templates guide where the dark hero goes and which component styles to use.
 
+Channel colours in Apex charts (ad spend by channel): Meta `#2563EB`, Google `#EA580C`, Pinterest `#DB2777`, Snapchat `#CA8A04`, Microsoft (Bing) `#0891B2`, Reddit `#7C3AED`. Like metric charts, these stay away from the brand greens so channels are easy to tell apart.
+
+**Dev note:** Turbopack can keep serving an old copy of `performance-dashboard.css` to pages that `@import` it. If a style change to that file doesn't show, restart the dev server (clearing `.next/dev/cache` if needed). Page-specific rules can live in the page's own CSS file.
+
 ---
 
 ## 8. Copy
@@ -213,6 +217,8 @@ Plain English, sentence case, short captions. No em or en dashes, no emojis, no 
 | `src/lib/charts/cobaltChartTheme.js` | Shared ApexCharts base options (font, dark tooltip, solid guide line, white hover dots, line legend markers) merged into every dashboard chart |
 | `src/components/dashboard/ComparisonPeriodPopover.jsx` | Hover popover on metrics, styled as the dark tooltip (`.apex-cmp-pop`) |
 | `performance-dashboard/components/OverviewKeyMetrics.jsx` | Overview key metrics: dark hero row, Costs card with split bars, Key ratios tiles |
+| `daily-overview/DailySummary.jsx` | Daily: hero row (last day vs same weekday last week), stacked daily ad spend, daily revenue vs same day last week |
+| `daily-overview/daily-overview.css` | Daily: day-by-day table card, column toggles, heat cells (ROAS and POAS only, scaled lowest to highest) |
 
 Because the old pages reference `--apex-*` variables, remapping them inside `.apex-dashboard` gives unmigrated pages the new palette automatically. Migrating a page means checking its specific components against this spec and fixing what the remap does not cover.
 
@@ -222,7 +228,7 @@ Because the old pages reference `--apex-*` variables, remapping them inside `.ap
 |---|---|
 | Dashboard shell (sidebar + topbar) | Migrated |
 | `dashboard/[customerId]/performance-dashboard` (Overview) | Migrated |
-| `dashboard/[customerId]/daily-overview` | Pending |
+| `dashboard/[customerId]/daily-overview` | Migrated |
 | `dashboard/[customerId]/tools/pace-report` | Pending |
 | `dashboard/[customerId]/tools/pnl` | Pending |
 | `dashboard/[customerId]/ecommerce` | Pending |
