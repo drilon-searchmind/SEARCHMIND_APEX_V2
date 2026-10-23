@@ -11,7 +11,6 @@ const KLAVIYO_BASE = 'https://a.klaviyo.com/api';
 const REVISION = '2024-10-15';
 
 const RATE_LIMIT_DELAY_MS = 500;
-const REPORT_DELAY_MS = 65000;
 
 const FLOW_SERIES_GROUP_BY = ['flow_id', 'flow_message_id', 'send_channel'];
 
@@ -264,23 +263,27 @@ async function fetchCampaignNamesById(apiKey, campaignIds) {
     /** @type {Record<string, string>} */
     const names = {};
     const ids = [...new Set(campaignIds.filter(Boolean))].slice(0, 60);
-    for (const id of ids) {
-        await sleep(RATE_LIMIT_DELAY_MS);
-        try {
-            const res = await klaviyoFetch(`${KLAVIYO_BASE}/campaigns/${encodeURIComponent(id)}/`, {
-                headers: {
-                    Authorization: `Klaviyo-API-Key ${apiKey}`,
-                    Accept: 'application/json',
-                    revision: REVISION,
-                },
-            });
-            if (!res.ok) continue;
-            const json = await res.json();
-            const name = json?.data?.attributes?.name;
-            if (name) names[id] = name;
-        } catch {
-            /* skip */
-        }
+    const BATCH = 6;
+    for (let i = 0; i < ids.length; i += BATCH) {
+        await Promise.all(
+            ids.slice(i, i + BATCH).map(async (id) => {
+                try {
+                    const res = await klaviyoFetch(`${KLAVIYO_BASE}/campaigns/${encodeURIComponent(id)}/`, {
+                        headers: {
+                            Authorization: `Klaviyo-API-Key ${apiKey}`,
+                            Accept: 'application/json',
+                            revision: REVISION,
+                        },
+                    });
+                    if (!res.ok) return;
+                    const json = await res.json();
+                    const name = json?.data?.attributes?.name;
+                    if (name) names[id] = name;
+                } catch {
+                    /* skip */
+                }
+            })
+        );
     }
     return names;
 }
@@ -499,6 +502,37 @@ export async function fetchKlaviyoDashboardSummary({ apiKey, startDate, endDate 
 }
 
 /**
+ * Per-flow totals for the period (flow-values-reports, one report call).
+ * Messages are grouped by flow so the dashboard can rank flows and total the automation slice.
+ */
+export async function fetchKlaviyoDashboardFlowsSummary({ apiKey, startDate, endDate }) {
+    if (!apiKey?.trim()) throw new Error('Klaviyo Private API Key is required');
+    const conversionMetricId = await getPlacedOrderMetricId(apiKey);
+    if (!conversionMetricId) throw new Error('Placed Order metric not found in Klaviyo account.');
+
+    const results = await fetchFlowValuesReport(apiKey.trim(), conversionMetricId, startDate, endDate, null);
+    const flowMap = {};
+    for (const row of results || []) {
+        const g = row.groupings || {};
+        const id = g.flow_id;
+        if (!id) continue;
+        if (!flowMap[id]) {
+            flowMap[id] = { ...emptyDailyRow('flow'), flow_id: id, flow_name: g.flow_name || campaignDisplayId(id), messages: 0 };
+        }
+        addStatsToRow(flowMap[id], row.statistics || {});
+        flowMap[id].messages += 1;
+    }
+    const top_flows = Object.values(flowMap)
+        .map((f) => {
+            const { date, ...rest } = finalizeDailyRow(f);
+            return rest;
+        })
+        .sort((a, b) => (b.conversion_value ?? 0) - (a.conversion_value ?? 0));
+    const flow_totals = finalizeDailyRow({ ...sumDailyRows(Object.values(flowMap)), date: startDate });
+    return { flow_totals, top_flows };
+}
+
+/**
  * Daily trend from flow-series (automation). Klaviyo has no campaign-series API.
  */
 export async function fetchKlaviyoDashboardDailySeries({ apiKey, startDate, endDate }) {
@@ -529,7 +563,6 @@ export async function fetchKlaviyoDashboardMetricsBothPeriods({
         const current = await fetchKlaviyoDashboardSummary({ apiKey, startDate, endDate });
         let metrics_by_date_prev = [];
         if (prevStartDate && prevEndDate) {
-            await sleep(REPORT_DELAY_MS);
             try {
                 const prev = await fetchKlaviyoDashboardSummary({
                     apiKey,
@@ -550,11 +583,14 @@ export async function fetchKlaviyoDashboardMetricsBothPeriods({
         };
     }
 
+    if (part === 'flows') {
+        return fetchKlaviyoDashboardFlowsSummary({ apiKey, startDate, endDate });
+    }
+
     if (part === 'daily') {
         const { flow_daily } = await fetchKlaviyoDashboardDailySeries({ apiKey, startDate, endDate });
         let flow_daily_prev = [];
         if (prevStartDate && prevEndDate) {
-            await sleep(REPORT_DELAY_MS);
             try {
                 const prev = await fetchKlaviyoDashboardDailySeries({
                     apiKey,
@@ -583,7 +619,6 @@ export async function fetchKlaviyoDashboardMetricsBothPeriods({
             prevEndDate,
             part: 'summary',
         });
-        await sleep(REPORT_DELAY_MS);
         const daily = await fetchKlaviyoDashboardMetricsBothPeriods({
             apiKey,
             startDate,

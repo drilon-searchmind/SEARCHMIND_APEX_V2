@@ -15,7 +15,14 @@ function dayIndex(date) {
 
 /** 0..1 from a string seed */
 function rnd(seed) {
-    return (numHash(seed) % 10000) / 10000;
+    // numHash alone barely changes between neighbouring dates, so scramble it before use
+    let h = numHash(seed);
+    h ^= h >>> 16;
+    h = Math.imul(h, 0x45d9f3b);
+    h ^= h >>> 16;
+    h = Math.imul(h, 0x45d9f3b);
+    h ^= h >>> 16;
+    return ((h >>> 0) % 10000) / 10000;
 }
 
 /** 1 +/- spread, seeded */
