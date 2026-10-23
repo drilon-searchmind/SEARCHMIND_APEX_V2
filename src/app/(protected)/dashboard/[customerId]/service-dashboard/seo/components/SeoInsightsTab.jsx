@@ -1,92 +1,33 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
+import dayjs from "dayjs";
 import CobaltLoader from "@/components/ui/CobaltLoader";
 import GraphCard from "@/components/dashboard/GraphCard";
-import { formatComparisonPeriodDates, COMPARISON_METHOD } from "@/lib/dateRangeComparison";
-import SeoInsightsTable from "./SeoInsightsTable";
 import SeoAppliedFilterBadges from "@/components/seo/SeoAppliedFilterBadges";
-import { getChartSeriesPalette } from "@/lib/charts/chartSeriesColors";
-
-const VOLUME_COLUMNS = [
-    { key: "keyword", label: "Keyword", align: "left" },
-    { key: "position", label: "Pos.", align: "right", format: "number", numDigits: 2 },
-    { key: "volume", label: "Volume", align: "right", format: "number" },
-    { key: "clicks_now", label: "Clicks now", align: "right", format: "number" },
-    { key: "potential_clicks", label: "Potential", align: "right", format: "number" },
-    { key: "uplift", label: "Uplift", align: "right", format: "uplift" },
-    { key: "value_now", label: "Value now", align: "right", format: "money" },
-    {
-        key: "value_potential",
-        label: "Value (potential)",
-        align: "right",
-        type: "valuePotential",
-    },
-    { key: "spend_saved", label: "Spend saved", align: "right", format: "money" },
-];
+import { COMMERCE_CHART_CHROME } from "@/components/dashboard/chartColors";
+import SeoInsightsTable from "./SeoInsightsTable";
+import { useSeoInsightsData } from "./useSeoInsightsData";
+import { SEO_COLORS, compact, fmtInt, fmtShare } from "./SeoParts";
 
 const LANDING_COLUMNS = [
     { key: "url", label: "URL", align: "left" },
-    { key: "clicks", label: "Clicks (vs YoY)", align: "right", format: "number", yoyKey: "clicks_yoy_pct" },
-    {
-        key: "impressions",
-        label: "Impr. (vs YoY)",
-        align: "right",
-        format: "number",
-        yoyKey: "impressions_yoy_pct",
-    },
-    { key: "ctr", label: "CTR (vs YoY)", align: "right", format: "percent", yoyKey: "ctr_yoy_pct", pctDigits: 2 },
-    {
-        key: "position",
-        label: "Pos. (vs YoY)",
-        align: "right",
-        type: "positionWithYoY",
-        yoyKey: "position_yoy",
-    },
+    { key: "clicks", label: "Clicks", align: "right", format: "number", yoyKey: "clicks_yoy_pct" },
+    { key: "impressions", label: "Impressions", align: "right", format: "number", yoyKey: "impressions_yoy_pct" },
+    { key: "ctr", label: "CTR", align: "right", format: "percent", yoyKey: "ctr_yoy_pct", pctDigits: 2 },
+    { key: "position", label: "Position", align: "right", type: "positionWithYoY", yoyKey: "position_yoy" },
     { key: "value", label: "Value", align: "right", format: "money" },
     { key: "spend_saved", label: "Spend saved", align: "right", format: "money" },
 ];
 
 const KEYWORD_COLUMNS = [
     { key: "keyword", label: "Keyword", align: "left" },
-    { key: "volume", label: "Volume (vs YoY)", align: "right", format: "number", yoyKey: "volume_yoy_pct" },
-    {
-        key: "position",
-        label: "Pos. (vs YoY)",
-        align: "right",
-        type: "positionWithYoY",
-        yoyKey: "position_yoy",
-    },
-    { key: "clicks", label: "Clicks (vs YoY)", align: "right", format: "number", yoyKey: "clicks_yoy_pct" },
-    {
-        key: "ctr",
-        label: "CTR (vs YoY)",
-        align: "right",
-        format: "percent",
-        yoyKey: "ctr_yoy_pp",
-        pctDigits: 1,
-    },
+    { key: "volume", label: "Volume", align: "right", format: "number", yoyKey: "volume_yoy_pct" },
+    { key: "position", label: "Position", align: "right", type: "positionWithYoY", yoyKey: "position_yoy" },
+    { key: "clicks", label: "Clicks", align: "right", format: "number", yoyKey: "clicks_yoy_pct" },
+    { key: "ctr", label: "CTR", align: "right", format: "percent", yoyKey: "ctr_yoy_pp", pctDigits: 1 },
     { key: "spend_saved", label: "Spend saved", align: "right", format: "money" },
 ];
-
-const CANNIBAL_COLUMNS = [
-    { key: "keyword", label: "Keyword", align: "left" },
-    { key: "url_count", label: "URLs", align: "right", format: "number" },
-    { key: "strongest_url", label: "Strongest URL", align: "left" },
-    {
-        key: "position_spread_label",
-        label: "Position spread (pos 1 → 20)",
-        align: "right",
-        type: "positionSpread",
-    },
-    { key: "clicks", label: "Clicks", align: "right", format: "number" },
-];
-
-function formatChartDate(dateStr) {
-    if (!dateStr) return "";
-    const [, m, d] = dateStr.split("-");
-    return `${Number(m)}/${Number(d)}`;
-}
 
 export default function SeoInsightsTab({
     siteUrl,
@@ -96,98 +37,56 @@ export default function SeoInsightsTab({
     appliedCompareRange,
     comparisonMethod,
     keywordSettingsVersion = 0,
+    onLedeChange,
 }) {
-    const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-
-    useEffect(() => {
-        if (!siteUrl || !startDate || !endDate) {
-            setData(null);
-            setLoading(false);
-            return;
-        }
-
-        const compDates = formatComparisonPeriodDates({
-            comparisonMethod,
-            startDate,
-            endDate,
-            compareStartDate: appliedCompareRange?.startDate,
-            compareEndDate: appliedCompareRange?.endDate,
-        });
-
-        let cancelled = false;
-        (async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const res = await fetch("/api/seo-dashboard/insights", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        siteUrl,
-                        startDate,
-                        endDate,
-                        customerId,
-                        compareStartDate:
-                            !compDates.skip && comparisonMethod !== COMPARISON_METHOD.NONE
-                                ? compDates.startDate
-                                : undefined,
-                        compareEndDate:
-                            !compDates.skip && comparisonMethod !== COMPARISON_METHOD.NONE
-                                ? compDates.endDate
-                                : undefined,
-                    }),
-                });
-                const json = await res.json();
-                if (!res.ok) throw new Error(json.error || "Failed to load organic insights");
-                if (!cancelled) setData(json);
-            } catch (e) {
-                if (!cancelled) {
-                    setError(e.message);
-                    setData(null);
-                }
-            } finally {
-                if (!cancelled) setLoading(false);
-            }
-        })();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [
+    const { data, loading, error } = useSeoInsightsData({
         siteUrl,
+        customerId,
         startDate,
         endDate,
-        customerId,
-        appliedCompareRange?.startDate,
-        appliedCompareRange?.endDate,
+        appliedCompareRange,
         comparisonMethod,
         keywordSettingsVersion,
-    ]);
+    });
 
-    const brandChart = useMemo(() => {
+    const brand = useMemo(() => {
         const daily = data?.brandClicksDaily || [];
-        const categories = daily.map((d) => formatChartDate(d.date));
+        const categories = daily.map((d) => d.date);
+        const branded = daily.reduce((s, d) => s + (d.branded || 0), 0);
+        const nonBranded = daily.reduce((s, d) => s + (d.nonBranded || 0), 0);
+        const colors = [SEO_COLORS.nonBrand, SEO_COLORS.brand];
         return {
+            share: branded + nonBranded > 0 ? branded / (branded + nonBranded) : null,
             options: {
-                chart: {
-                    stacked: true,
-                    stackType: "normal",
-                    toolbar: { show: false },
-                    fontFamily: "Outfit, sans-serif",
-                },
-                plotOptions: { bar: { borderRadius: 2, columnWidth: "70%" } },
-                xaxis: { categories },
-                yaxis: {
+                chart: { stacked: true, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: COMMERCE_CHART_CHROME.fontFamily },
+                colors,
+                plotOptions: { bar: { columnWidth: "62%", borderRadius: 2, borderRadiusApplication: "end", borderRadiusWhenStacked: "last" } },
+                stroke: { width: 0 },
+                fill: { opacity: 1 },
+                states: { hover: { filter: { type: "none" } } },
+                xaxis: {
+                    categories,
+                    tickAmount: 8,
                     labels: {
-                        formatter: (v) =>
-                            Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 }),
+                        rotate: 0,
+                        hideOverlappingLabels: true,
+                        style: { colors: COMMERCE_CHART_CHROME.axisLabel },
+                        formatter: (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? dayjs(v).format("D MMM") : v),
                     },
+                    axisTicks: { show: false },
+                    tooltip: { enabled: false },
                 },
-                colors: getChartSeriesPalette(2),
-                legend: { position: "bottom" },
+                yaxis: { min: 0, tickAmount: 4, forceNiceScale: true, labels: { formatter: (v) => compact(v) } },
+                grid: { borderColor: COMMERCE_CHART_CHROME.grid, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
                 dataLabels: { enabled: false },
+                legend: { show: true, position: "top", horizontalAlign: "left" },
+                tooltip: {
+                    theme: "dark",
+                    shared: true,
+                    intersect: false,
+                    x: { formatter: (v, o) => (categories[o?.dataPointIndex] ? dayjs(categories[o.dataPointIndex]).format("ddd, D MMM") : v) },
+                    y: { formatter: (v) => `${fmtInt(v)} clicks` },
+                },
             },
             series: [
                 { name: "Non-branded", data: daily.map((d) => d.nonBranded) },
@@ -196,14 +95,23 @@ export default function SeoInsightsTab({
         };
     }, [data?.brandClicksDaily]);
 
-    if (!siteUrl) {
-        return (
-            <div className="apex-seo-alert">
-                Add a Google Search Console property in Property Settings to load organic insights.
-            </div>
+    useEffect(() => {
+        if (!data) {
+            onLedeChange?.(null);
+            return;
+        }
+        const pages = data.topLandingPages?.length || 0;
+        const kws = data.keywordOverview?.length || 0;
+        onLedeChange?.(
+            `${fmtInt(kws)} keywords and ${fmtInt(pages)} landing pages with clicks${
+                brand.share != null && brand.share > 0 ? `, ${fmtShare(brand.share)} of clicks from branded searches` : ""
+            }.`
         );
-    }
+    }, [data, brand.share, onLedeChange]);
 
+    if (!siteUrl) {
+        return <div className="apex-seo-alert">Add a Google Search Console property in Property Settings to load organic insights.</div>;
+    }
     if (loading) {
         return (
             <div className="apex-perf-loading">
@@ -211,67 +119,50 @@ export default function SeoInsightsTab({
             </div>
         );
     }
-
-    if (error) {
-        return <div className="apex-seo-error">{error}</div>;
-    }
-
+    if (error) return <div className="apex-seo-error">{error}</div>;
     if (!data) return null;
 
-    return (
-        <div className="space-y-0">
-            <SeoInsightsTable
-                title="Volume potential"
-                subtitle="Keywords in position 4–10 — reach top 3 for fast growth"
-                columns={VOLUME_COLUMNS}
-                rows={data.volumePotential || []}
-                pageSize={10}
-                filterSectionId="volume-potential"
-                appliedFilters={data.appliedFilters || []}
-            />
+    const appliedFilters = data.appliedFilters || [];
 
-            <div className="apex-seo-chart-block mb-6">
-                <div className="mb-3">
-                    <SeoAppliedFilterBadges sectionId="brand-chart" appliedFilters={data.appliedFilters || []} />
+    return (
+        <div className="apex-sx-stack">
+            <section className="apex-ov-card">
+                <div className="apex-ov-card__head">
+                    <h3>Branded vs non-branded clicks</h3>
+                    {brand.share != null && brand.share > 0 ? <span className="apex-ov-sub">{fmtShare(brand.share)} branded</span> : <span className="apex-ov-sub">Add brand terms in the keyword settings below to split the two</span>}
                 </div>
+                <SeoAppliedFilterBadges sectionId="brand-chart" appliedFilters={appliedFilters} />
                 <GraphCard
                     variant="cobalt"
-                    title="Branded vs non-branded clicks"
-                    chartOptions={brandChart.options}
-                    chartSeries={brandChart.series}
-                    chartType="bar"
                     hideChartToggle
+                    title=""
+                    chartType="bar"
+                    height={280}
+                    chartOptions={brand.options}
+                    chartSeries={brand.series}
                 />
-            </div>
+            </section>
 
             <SeoInsightsTable
                 title="Top landing pages"
+                subtitle="The change next to each value is against the comparison period you selected."
                 columns={LANDING_COLUMNS}
                 rows={data.topLandingPages || []}
                 pageSize={10}
                 filterSectionId="top-landing-pages"
-                appliedFilters={data.appliedFilters || []}
+                defaultSortKey="clicks"
+                appliedFilters={appliedFilters}
             />
 
             <SeoInsightsTable
                 title="Keyword overview"
+                subtitle="The change next to each value is against the comparison period you selected. For position it shows places gained or lost."
                 columns={KEYWORD_COLUMNS}
                 rows={data.keywordOverview || []}
                 pageSize={10}
                 filterSectionId="keyword-overview"
-                appliedFilters={data.appliedFilters || []}
-            />
-
-            <SeoInsightsTable
-                title="Keyword cannibalization"
-                subtitle="Keywords where multiple URLs from your site compete with each other"
-                columns={CANNIBAL_COLUMNS}
-                rows={data.cannibalization || []}
-                pageSize={10}
-                expandable
-                expandField="urls"
-                filterSectionId="cannibalization"
-                appliedFilters={data.appliedFilters || []}
+                defaultSortKey="clicks"
+                appliedFilters={appliedFilters}
             />
         </div>
     );

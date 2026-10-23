@@ -1,323 +1,808 @@
-/* Apex · page: seo-dashboard · theme: minimal (DESIGN.md) */
+/* Apex · page: seo-dashboard · theme: commerce (DESIGN.md · SEO) */
 
 @import "../../performance-dashboard/performance-dashboard.css";
-@import "../service-dashboard-minimal.css";
 
-/* ── Tabs ── */
+/* ── Tabs (segmented control) ── */
 
-.apex-seo-tabs {
-  display: flex;
+.apex-sx-tabs {
+  display: inline-flex;
   flex-wrap: wrap;
-  gap: var(--space-xs);
-  padding: var(--space-xs);
-  margin-top: var(--space-md);
-  background: var(--perf-raised);
-  border: var(--rule-hair) solid var(--color-rule);
-  border-radius: var(--radius-card);
+  gap: 2px;
+  padding: 3px;
+  margin: 0 0 var(--cd-gap);
+  background: var(--cd-sunk);
+  border: 1px solid var(--cd-line);
+  border-radius: var(--cd-r-sm);
 }
 
-.apex-seo-tabs__btn {
+.apex-sx-tabs__btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-xs);
-  flex: 1;
-  min-width: 10rem;
-  min-height: 2.5rem;
-  padding: var(--space-xs) var(--space-md);
+  gap: 8px;
+  min-height: 2.25rem;
+  padding: 6px 16px;
   font-family: var(--font-body);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--cd-muted);
   background: transparent;
-  border: var(--rule-hair) solid transparent;
-  border-radius: var(--radius-input);
+  border: 1px solid transparent;
+  border-radius: 8px;
   cursor: pointer;
   transition:
     background-color var(--dur-micro) var(--ease-out),
-    color var(--dur-micro) var(--ease-out),
-    border-color var(--dur-micro) var(--ease-out);
+    color var(--dur-micro) var(--ease-out);
 }
 
-.apex-seo-tabs__btn:hover:not(.is-active) {
-  color: var(--color-ink);
-  background: var(--perf-canvas);
-  border-color: var(--color-rule);
+.apex-sx-tabs__btn:hover:not(.is-active) {
+  color: var(--cd-ink);
 }
 
-.apex-seo-tabs__btn.is-active {
-  color: var(--color-accent-ink);
-  background: var(--perf-accent);
-  border-color: var(--perf-accent);
+.apex-sx-tabs__btn:focus-visible {
+  outline: 2px solid var(--cd-green);
+  outline-offset: 2px;
 }
 
-/* ── Panels & sections ── */
+.apex-sx-tabs__btn.is-active {
+  color: var(--cd-ink);
+  background: var(--cd-card);
+  border-color: var(--cd-line);
+}
+
+.apex-sx-tabs__btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (max-width: 520px) {
+  .apex-sx-tabs {
+    display: flex;
+    width: 100%;
+    overflow-x: auto;
+  }
+}
+
+/* ── Layout ── */
 
 .apex-seo-panel {
-  margin-top: var(--space-md);
+  margin-top: 0;
 }
 
-.apex-seo-section {
-  margin-bottom: var(--space-md);
-}
-
-.apex-seo-section__label {
-  margin: 0 0 var(--space-sm);
-  font-family: var(--font-label);
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-
-.apex-seo-kpi-grid {
-  display: grid;
-  gap: var(--space-sm);
-}
-
-.apex-seo-kpi-grid--4 {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-@media (min-width: 768px) {
-  .apex-seo-kpi-grid--4 {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-.apex-seo-kpi-grid--6 {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-@media (min-width: 768px) {
-  .apex-seo-kpi-grid--6 {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (min-width: 1280px) {
-  .apex-seo-kpi-grid--6 {
-    grid-template-columns: repeat(6, 1fr);
-  }
-}
-
-.apex-seo-kpi-grid--2 {
-  grid-template-columns: 1fr;
-}
-
-@media (min-width: 768px) {
-  .apex-seo-kpi-grid--2 {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.apex-seo-kpi-card {
-  cursor: pointer;
-}
-
-.apex-seo-chart-block {
-  padding: var(--space-md) var(--space-lg);
-  background: var(--perf-raised);
-  border: var(--rule-hair) solid var(--color-rule);
-  border-radius: var(--radius-card);
-}
-
-@media (min-width: 768px) {
-  .apex-seo-chart-block {
-    padding: var(--space-lg) var(--space-xl);
-  }
-}
-
-.apex-seo-chart-note {
-  margin: var(--space-sm) 0 0;
-  font-size: 0.65rem;
-  line-height: 1.45;
-  color: var(--color-muted);
-}
-
-/* ── Insights tables ── */
-
-.apex-seo-table-panel {
-  margin-bottom: var(--space-lg);
-  padding: var(--space-md) var(--space-lg);
-  background: var(--perf-raised);
-  border: var(--rule-hair) solid var(--color-rule);
-  border-radius: var(--radius-card);
-  min-width: 0;
-  max-width: 100%;
-}
-
-@media (min-width: 768px) {
-  .apex-seo-table-panel {
-    padding: var(--space-lg) var(--space-xl);
-  }
-}
-
-.apex-seo-table-panel__head {
+.apex-sx-stack {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2xs);
-  margin-bottom: var(--space-md);
+  gap: var(--cd-gap);
+  min-width: 0;
 }
 
-@media (min-width: 640px) {
-  .apex-seo-table-panel__head {
-    flex-direction: row;
-    align-items: flex-start;
-    justify-content: space-between;
+.apex-sx-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-gap);
+  min-width: 0;
+}
+
+.apex-sx-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.apex-sx-split {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.apex-sx-split-even {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 1180px) {
+  .apex-sx-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .apex-sx-split,
+  .apex-sx-split-even {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
-.apex-seo-table-panel__title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--text-md);
-  color: var(--color-ink);
+@media (max-width: 480px) {
+  .apex-sx-grid-4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
-.apex-seo-table-panel__subtitle {
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--color-muted);
-  max-width: 24rem;
+.apex-sx-kpi {
+  cursor: default;
 }
 
-.apex-seo-table-wrap {
+.apex-ov-delta.is-compact {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+/* Shared small bits (same pattern as Markets, Pace and Ecommerce) */
+.apex-mk-tbl-wrap {
   overflow-x: auto;
-  border: var(--rule-hair) solid var(--color-rule);
-  border-radius: var(--radius-input);
+  margin: 0 -24px;
+  padding: 0 24px;
 }
 
-.apex-seo-table {
-  width: 100%;
-  min-width: 40rem;
-  border-collapse: collapse;
-  font-size: 0.7rem;
-  line-height: 1.35;
-  color: var(--color-ink-2);
-  font-variant-numeric: tabular-nums;
+.apex-mk-note {
+  margin: 14px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--cd-muted);
 }
 
-.apex-seo-table th {
-  padding: var(--space-xs) var(--space-sm);
-  font-family: var(--font-label);
-  font-size: 0.58rem;
+.apex-sx-empty-note {
+  margin-top: 4px;
+}
+
+.apex-sx-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  text-align: left;
-  color: var(--color-accent-ink);
-  background: var(--perf-accent);
-  border-bottom: var(--rule-hair) solid var(--color-rule);
+  white-space: nowrap;
+  border-radius: 999px;
+}
+
+.apex-sx-tag.is-ok {
+  color: var(--cd-pos);
+  background: var(--cd-pos-soft);
+}
+
+.apex-sx-tag.is-bad {
+  color: var(--cd-neg);
+  background: var(--cd-neg-soft);
+}
+
+.apex-sx-tag.is-neutral {
+  color: var(--cd-ink-2);
+  background: var(--cd-sunk);
+}
+
+/* ── Trend chart ── */
+
+.apex-sx-chartcard .apex-perf-graph {
+  min-height: 0;
+  border: 0;
+  background: transparent;
+}
+
+.apex-sx-chartcard .apex-perf-graph__head {
+  display: none;
+}
+
+.apex-sx-chartcard .apex-perf-graph__body {
+  padding: 0;
+}
+
+.apex-sx-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ── Rank bands ── */
+
+.apex-sx-bands {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.apex-sx-band__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 13.5px;
+  color: var(--cd-ink-2);
+}
+
+.apex-sx-band__top b {
+  font-weight: 700;
+  color: var(--cd-ink);
+}
+
+.apex-sx-band__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 600;
+  color: var(--cd-ink);
+}
+
+.apex-sx-band__name i {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+.apex-sx-band__cap {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--cd-muted);
+}
+
+/* ── Brand mix donut ── */
+
+.apex-sx-mix {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.apex-sx-donut {
+  position: relative;
+  flex: none;
+  width: 150px;
+  height: 150px;
+}
+
+.apex-sx-donut svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.apex-sx-donut circle[stroke] {
+  cursor: pointer;
+  transition: opacity var(--dur-short) var(--ease-out);
+}
+
+.apex-sx-donut__c {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  padding: 36px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.apex-sx-donut__c small {
+  font-size: 11px;
+  color: var(--cd-muted);
+}
+
+.apex-sx-donut__c b {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--cd-ink);
+}
+
+.apex-sx-mix__list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.apex-sx-mix__row {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--cd-line);
+}
+
+.apex-sx-mix__row:last-child {
+  border-bottom: 0;
+}
+
+.apex-sx-mix__row i {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+/* ── Authority ── */
+
+.apex-sx-auth {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.apex-sx-auth__tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px;
+  background: var(--cd-sunk);
+  border: 1px solid var(--cd-line);
+  border-radius: var(--cd-r-sm);
+}
+
+.apex-sx-auth__tile small {
+  font-size: 12px;
+  color: var(--cd-ink-2);
+}
+
+.apex-sx-auth__tile b {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--cd-ink);
+}
+
+/* ── Winners and losers ── */
+
+.apex-sx-movers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+
+@media (max-width: 760px) {
+  .apex-sx-movers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.apex-sx-movers__title {
+  margin-bottom: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--cd-muted);
+}
+
+.apex-sx-mover {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 4.5rem;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--cd-line);
+}
+
+.apex-sx-mover:last-child {
+  border-bottom: 0;
+}
+
+.apex-sx-mover__kw {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 500;
+  color: var(--cd-ink);
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.apex-seo-table th.is-sortable {
+.apex-sx-mover__kw em {
+  margin-left: 8px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--cd-green-2);
+  background: var(--cd-mint-soft);
+  border-radius: 999px;
+}
+
+.apex-sx-mover__now {
+  font-variant-numeric: tabular-nums;
+  color: var(--cd-ink-2);
+}
+
+.apex-sx-mover__delta {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.apex-sx-mover__delta.is-up {
+  color: var(--cd-pos);
+}
+
+.apex-sx-mover__delta.is-down {
+  color: var(--cd-neg);
+}
+
+/* ── Weekly rhythm ── */
+
+.apex-sx-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  align-items: end;
+  height: 150px;
+}
+
+.apex-sx-week__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  height: 100%;
+}
+
+.apex-sx-week__val {
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--cd-ink-2);
+}
+
+.apex-sx-week__bar {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  width: 100%;
+  min-height: 0;
+}
+
+.apex-sx-week__bar i {
+  display: block;
+  width: 100%;
+  background: var(--cd-line-2);
+  border-radius: 6px 6px 2px 2px;
+  transition: background-color var(--dur-micro) var(--ease-out);
+}
+
+.apex-sx-week__day.is-best .apex-sx-week__bar i {
+  background: var(--cd-green);
+}
+
+.apex-sx-week__day:hover .apex-sx-week__bar i {
+  background: var(--cd-green-2);
+}
+
+.apex-sx-week__lbl {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--cd-muted);
+}
+
+.apex-sx-week__day.is-best .apex-sx-week__lbl {
+  font-weight: 700;
+  color: var(--cd-ink);
+}
+
+.apex-sx-notable {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--cd-line);
+}
+
+.apex-sx-notable__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--cd-ink-2);
+}
+
+/* ── Tables (keywords, pages, opportunities) ── */
+
+.apex-sx-tblcard__head {
+  align-items: flex-start;
+}
+
+.apex-sx-tblcard__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.apex-sx-tblcard__main h3 {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--cd-ink);
+}
+
+.apex-sx-tblcard__sub {
+  max-width: 80ch;
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--cd-muted);
+}
+
+.apex-sx-tblcard__filters {
+  margin-top: 6px;
+}
+
+.apex-sx-tblwrap {
+  overflow-x: auto;
+  margin: 0 -24px;
+  padding: 0 24px;
+}
+
+.apex-sx-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.apex-sx-tbl th {
+  padding: 9px 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--cd-muted);
+  border-bottom: 1px solid var(--cd-line);
+}
+
+/* Sortable (numeric) headers stay right-aligned; text columns in the full tables read left */
+.apex-sx-tblwrap .apex-sx-tbl th:not(.is-sortable) {
+  text-align: left;
+}
+
+.apex-sx-tbl th.is-sortable {
   cursor: pointer;
   user-select: none;
 }
 
-.apex-seo-table th.is-sortable:hover {
-  background: var(--color-accent-hover);
+.apex-sx-tbl th.is-sortable:hover {
+  color: var(--cd-ink);
 }
 
-.apex-seo-table th.is-num,
-.apex-seo-table td.is-num {
+.apex-sx-sort {
+  color: var(--cd-green-2);
+}
+
+.apex-sx-tbl td {
+  padding: 11px 10px;
   text-align: right;
-}
-
-.apex-seo-table td {
-  padding: var(--space-xs) var(--space-sm);
-  border-bottom: var(--rule-hair) solid var(--color-rule);
+  white-space: nowrap;
+  color: var(--cd-ink);
+  border-bottom: 1px solid var(--cd-line);
   vertical-align: middle;
 }
 
-.apex-seo-table tbody tr:hover {
-  background: var(--perf-canvas);
-}
-
-.apex-seo-table td.is-left {
+.apex-sx-tbl th:first-child,
+.apex-sx-tbl td:first-child {
+  padding-left: 0;
   text-align: left;
-  max-width: 18rem;
+}
+
+.apex-sx-tbl th:last-child,
+.apex-sx-tbl td:last-child {
+  padding-right: 0;
+}
+
+.apex-sx-tbl td:first-child,
+.apex-sx-tbl td.is-left {
+  max-width: 20rem;
   overflow: hidden;
+  font-weight: 500;
+  text-align: left;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--color-ink);
 }
 
-.apex-seo-table__expand-row td {
-  background: var(--perf-canvas);
-  color: var(--color-muted);
-  font-size: 0.65rem;
+.apex-sx-tbl td.is-neg {
+  color: var(--cd-neg);
 }
 
-.apex-seo-table__pager {
+.apex-sx-tbl tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.apex-sx-tbl tbody tr:hover td {
+  background: var(--cd-sunk);
+}
+
+.apex-sx-tbl__expcol {
+  width: 2rem;
+}
+
+.apex-sx-tbl__empty {
+  padding: 24px 10px !important;
+  text-align: center !important;
+  font-size: 13px;
+  color: var(--cd-muted);
+}
+
+.apex-sx-tbl__expand td {
+  padding: 8px 10px 8px 2rem;
+  font-size: 12.5px;
+  color: var(--cd-ink-2);
+  background: var(--cd-sunk);
+}
+
+.apex-sx-tbl__expand-meta {
+  float: right;
+  color: var(--cd-muted);
+}
+
+.apex-sx-cellwrap {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.apex-sx-yoy {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.apex-sx-yoy.is-up {
+  color: var(--cd-pos);
+}
+
+.apex-sx-yoy.is-down {
+  color: var(--cd-neg);
+}
+
+.apex-sx-yoy.is-neutral {
+  color: var(--cd-muted);
+}
+
+.apex-sx-strong {
+  font-weight: 600;
+}
+
+.apex-sx-uplift {
+  font-weight: 700;
+  color: var(--cd-pos);
+}
+
+.apex-sx-uplift--sub {
+  display: block;
+  font-size: 11.5px;
+}
+
+.apex-sx-spread-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.apex-sx-spread-cell__label {
+  font-size: 12px;
+  color: var(--cd-muted);
+}
+
+.apex-sx-spread {
+  display: flex;
+  align-items: center;
+  min-width: 140px;
+}
+
+.apex-sx-spread__track {
+  position: relative;
+  flex: 1;
+  height: 8px;
+  overflow: hidden;
+  background: var(--cd-sunk);
+  border: 1px solid var(--cd-line);
+  border-radius: 999px;
+}
+
+.apex-sx-spread__bar {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.apex-sx-spread__bar.is-low {
+  background: var(--cd-green);
+}
+
+.apex-sx-spread__bar.is-mid {
+  background: #CA8A04;
+}
+
+.apex-sx-spread__bar.is-high {
+  background: var(--cd-neg);
+}
+
+.apex-sx-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  color: var(--cd-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.apex-sx-iconbtn:hover {
+  color: var(--cd-ink);
+  background: var(--cd-sunk);
+}
+
+.apex-sx-pager {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-sm);
-  margin-top: var(--space-md);
-  font-size: var(--text-xs);
-  color: var(--color-muted);
+  margin-top: 14px;
+  font-size: 12.5px;
+  color: var(--cd-muted);
 }
 
-.apex-seo-yoy.is-up {
-  color: oklch(32% 0.1 145);
+.apex-sx-pager__btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.apex-seo-yoy.is-down {
-  color: var(--color-error, oklch(50% 0.15 25));
+@media (max-width: 900px) {
+  .apex-mk-tbl-wrap,
+  .apex-sx-tblwrap {
+    margin: 0 -18px;
+    padding: 0 18px;
+  }
+
+  .apex-sx-mix {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .apex-sx-donut {
+    align-self: center;
+  }
 }
 
-.apex-seo-yoy.is-neutral {
-  color: var(--color-muted);
+/* ── Filter badges ── */
+
+.apex-seo-filter-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.apex-seo-uplift {
-  color: oklch(32% 0.1 145);
+.apex-seo-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font-size: 12px;
   font-weight: 600;
+  color: var(--cd-ink-2);
+  background: var(--cd-sunk);
+  border: 1px solid var(--cd-line);
+  border-radius: 999px;
 }
 
-.apex-seo-spread-track {
-  position: relative;
-  flex: 1;
-  height: 0.5rem;
-  background: var(--perf-canvas);
-  border: var(--rule-hair) solid var(--color-rule);
-  border-radius: var(--radius-pill);
-  overflow: hidden;
+.apex-seo-filter-badge.is-brand {
+  color: var(--cd-green-2);
+  background: var(--cd-mint-soft);
+  border-color: var(--cd-mint-soft);
 }
 
-.apex-seo-spread-bar {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  border-radius: var(--radius-pill);
+.apex-seo-filter-badge.is-exact {
+  color: #1D4ED8;
+  background: #E3ECFD;
+  border-color: #E3ECFD;
 }
 
-.apex-seo-spread-bar.is-low {
-  background: oklch(55% 0.12 145);
+.apex-seo-filter-badge.is-partial {
+  color: var(--cd-warn);
+  background: var(--cd-warn-bg);
+  border-color: var(--cd-warn-bg);
 }
 
-.apex-seo-spread-bar.is-mid {
-  background: oklch(65% 0.14 85);
-}
-
-.apex-seo-spread-bar.is-high {
-  background: oklch(55% 0.15 25);
-}
-
-/* ── Keyword settings ── */
+/* ── Keyword settings (shared component) ── */
 
 .apex-seo-keywords {
-  margin-top: var(--space-xl);
-  margin-bottom: 0;
+  margin-top: var(--cd-gap);
   padding: 0;
-  background: var(--perf-raised);
-  border: var(--rule-hair) solid var(--color-rule);
-  border-radius: var(--radius-card);
+  background: var(--cd-card);
+  border: 1px solid var(--cd-line);
+  border-radius: var(--cd-r-lg);
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -327,26 +812,25 @@
   justify-content: space-between;
   gap: var(--space-md);
   width: 100%;
-  padding: var(--space-md) var(--space-lg);
+  padding: 18px 24px;
   text-align: left;
   background: transparent;
-  border: none;
+  border: 0;
   cursor: pointer;
 }
 
-@media (min-width: 768px) {
-  .apex-seo-keywords__toggle {
-    padding: var(--space-lg) var(--space-xl);
-  }
+.apex-seo-keywords__toggle:hover {
+  background: var(--cd-sunk);
 }
 
-.apex-seo-keywords__toggle:hover {
-  background: var(--perf-canvas);
+.apex-seo-keywords__toggle:focus-visible {
+  outline: 2px solid var(--cd-green);
+  outline-offset: -2px;
 }
 
 .apex-seo-keywords__toggle-icon {
   flex-shrink: 0;
-  color: var(--color-muted);
+  color: var(--cd-muted);
   transition: transform var(--dur-micro) var(--ease-out);
 }
 
@@ -355,17 +839,25 @@
 }
 
 .apex-seo-keywords__body {
-  padding: 0 var(--space-lg) var(--space-lg);
-}
-
-@media (min-width: 768px) {
-  .apex-seo-keywords__body {
-    padding: 0 var(--space-xl) var(--space-xl);
-  }
+  padding: 4px 24px 24px;
 }
 
 .apex-seo-keywords__head {
   margin-bottom: 0;
+}
+
+.apex-seo-keywords__title {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 15.5px;
+  color: var(--cd-ink);
+}
+
+.apex-seo-keywords__subtitle {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--cd-muted);
 }
 
 .apex-seo-keywords__enable-row {
@@ -373,50 +865,55 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-sm);
-  margin-top: var(--space-sm);
-  padding-top: var(--space-sm);
-  border-top: var(--rule-hair) solid var(--color-rule);
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--cd-line);
 }
 
 .apex-seo-keywords__enable-label {
-  font-size: var(--text-xs);
-  color: var(--color-ink-2);
+  font-size: 12.5px;
+  color: var(--cd-ink-2);
 }
 
 .apex-seo-keywords__enable-label.is-off {
-  color: var(--color-muted);
+  color: var(--cd-muted);
 }
 
 .apex-seo-keywords__switch {
   position: relative;
-  width: 2.25rem;
-  height: 1.25rem;
+  width: 2.5rem;
+  height: 1.4rem;
   flex-shrink: 0;
-  background: var(--color-rule);
-  border: none;
+  background: var(--cd-line-2);
+  border: 0;
   border-radius: 999px;
   cursor: pointer;
   transition: background-color var(--dur-micro) var(--ease-out);
 }
 
 .apex-seo-keywords__switch.is-on {
-  background: var(--perf-accent);
+  background: var(--cd-green);
 }
 
 .apex-seo-keywords__switch::after {
   content: "";
   position: absolute;
-  top: 0.125rem;
-  left: 0.125rem;
-  width: 1rem;
-  height: 1rem;
-  background: #fff;
+  top: 0.15rem;
+  left: 0.15rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  background: var(--cd-card);
   border-radius: 50%;
   transition: transform var(--dur-micro) var(--ease-out);
 }
 
 .apex-seo-keywords__switch.is-on::after {
-  transform: translateX(1rem);
+  transform: translateX(1.1rem);
+}
+
+.apex-seo-keywords__switch:focus-visible {
+  outline: 2px solid var(--cd-green);
+  outline-offset: 2px;
 }
 
 .apex-seo-keywords__group.is-disabled {
@@ -426,93 +923,25 @@
 .apex-seo-keywords__status {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  margin-top: var(--space-2xs);
-  font-size: 0.62rem;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .apex-seo-keywords__status.is-active {
-  color: oklch(45% 0.12 145);
+  color: var(--cd-pos);
 }
 
 .apex-seo-keywords__status.is-inactive {
-  color: var(--color-muted);
-}
-
-.apex-seo-filter-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2xs);
-  margin-top: var(--space-xs);
-  padding-bottom: var(--space-sm);
-}
-
-.apex-seo-filter-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.15rem 0.45rem;
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--color-accent-ink);
-  background: var(--perf-accent);
-  border: var(--rule-hair) solid var(--color-rule);
-  border-radius: 999px;
-}
-
-.apex-seo-filter-badge.is-brand {
-  background: oklch(95% 0.04 145);
-  color: oklch(35% 0.08 145);
-}
-
-.apex-seo-filter-badge.is-exact {
-  background: oklch(95% 0.04 250);
-  color: oklch(35% 0.08 250);
-}
-
-.apex-seo-filter-badge.is-partial {
-  background: oklch(96% 0.03 85);
-  color: oklch(38% 0.08 85);
-}
-
-.apex-seo-table-panel__filters {
-  flex: 1;
-  min-width: 0;
-}
-
-@media (min-width: 640px) {
-  .apex-seo-table-panel__head {
-    align-items: flex-start;
-  }
-
-  .apex-seo-table-panel__head-main {
-    flex: 1;
-    min-width: 0;
-  }
-}
-
-.apex-seo-keywords__title {
-  margin: 0 0 var(--space-2xs);
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--text-md);
-  color: var(--color-ink);
-}
-
-.apex-seo-keywords__subtitle {
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--color-muted);
+  color: var(--cd-muted);
 }
 
 .apex-seo-keywords__grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: var(--space-md);
+  gap: var(--cd-gap);
+  margin-top: 16px;
 }
 
 @media (min-width: 1024px) {
@@ -522,36 +951,36 @@
 }
 
 .apex-seo-keywords__card {
-  padding: var(--space-md);
-  background: var(--perf-canvas);
-  border: var(--rule-hair) solid var(--color-rule);
-  border-radius: var(--radius-input);
+  padding: 16px;
+  background: var(--cd-sunk);
+  border: 1px solid var(--cd-line);
+  border-radius: var(--cd-r-md);
 }
 
 .apex-seo-keywords__card-title {
-  margin: 0 0 var(--space-xs);
+  margin: 0 0 6px;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: var(--text-sm);
-  color: var(--color-ink);
+  font-size: 14px;
+  color: var(--cd-ink);
 }
 
 .apex-seo-keywords__card-lede {
-  margin: 0 0 var(--space-sm);
-  font-size: var(--text-xs);
+  margin: 0 0 12px;
+  font-size: 12.5px;
   line-height: 1.45;
-  color: var(--color-muted);
+  color: var(--cd-muted);
 }
 
 .apex-seo-input,
 .apex-seo-textarea {
   width: 100%;
-  padding: var(--space-xs) var(--space-sm);
-  font-size: var(--text-xs);
-  color: var(--color-ink);
-  background: var(--perf-raised);
-  border: var(--rule-hair) solid var(--color-rule-2);
-  border-radius: var(--radius-input);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--cd-ink);
+  background: var(--cd-card);
+  border: 1px solid var(--cd-line-2);
+  border-radius: var(--cd-r-sm);
   transition: border-color var(--dur-micro) var(--ease-out);
 }
 
@@ -563,80 +992,82 @@
 .apex-seo-input:focus,
 .apex-seo-textarea:focus {
   outline: none;
-  border-color: var(--color-accent);
+  border-color: var(--cd-green);
+  box-shadow: 0 0 0 2px rgba(58, 155, 63, 0.35);
 }
 
 .apex-seo-keywords__group {
-  padding: var(--space-sm);
-  background: var(--perf-raised);
-  border: var(--rule-hair) solid var(--color-rule);
-  border-radius: var(--radius-input);
+  padding: 12px;
+  background: var(--cd-card);
+  border: 1px solid var(--cd-line);
+  border-radius: var(--cd-r-sm);
 }
 
 .apex-seo-keywords__group-name {
-  margin: 0 0 var(--space-2xs);
+  margin: 0 0 4px;
   font-weight: 600;
-  font-size: var(--text-xs);
-  color: var(--color-ink);
+  font-size: 13px;
+  color: var(--cd-ink);
 }
 
 .apex-seo-keywords__group-meta {
-  margin: var(--space-2xs) 0 0;
-  font-size: 0.62rem;
-  color: var(--color-muted);
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--cd-muted);
 }
 
 .apex-seo-keywords__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-xs);
-  margin-top: var(--space-sm);
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .apex-seo-icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-2xs);
-  color: var(--color-muted);
+  padding: 4px;
+  color: var(--cd-muted);
   background: transparent;
-  border: none;
-  border-radius: var(--radius-input);
+  border: 0;
+  border-radius: 6px;
   cursor: pointer;
   transition: color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out);
 }
 
 .apex-seo-icon-btn:hover {
-  color: var(--color-ink);
-  background: var(--perf-canvas);
+  color: var(--cd-ink);
+  background: var(--cd-sunk);
 }
 
 .apex-seo-icon-btn.is-danger:hover {
-  color: var(--color-error, oklch(50% 0.15 25));
+  color: var(--cd-neg);
 }
 
 /* ── States ── */
 
 .apex-seo-alert {
-  padding: var(--space-md) var(--space-lg);
-  font-size: var(--text-sm);
+  padding: 16px 20px;
+  font-size: 13.5px;
   line-height: 1.45;
-  color: oklch(45% 0.12 75);
-  background: oklch(97% 0.03 95);
-  border: var(--rule-hair) solid oklch(88% 0.08 95);
-  border-radius: var(--radius-card);
+  color: var(--cd-warn);
+  background: var(--cd-warn-bg);
+  border: 0;
+  border-radius: var(--cd-r-md);
 }
 
 .apex-seo-error {
-  padding: var(--space-lg);
-  text-align: center;
-  font-size: var(--text-sm);
-  color: var(--color-error, oklch(50% 0.15 25));
+  padding: 16px 20px;
+  font-size: 13.5px;
+  color: var(--cd-neg);
+  background: var(--cd-neg-soft);
+  border-radius: var(--cd-r-md);
 }
 
-.apex-seo-empty {
-  padding: var(--space-md);
-  text-align: center;
-  font-size: var(--text-xs);
-  color: var(--color-muted);
+/* Date picker panel is portaled outside .apex-perf and defaults to white */
+.apex-perf-date-panel {
+  --perf-raised: var(--cd-card);
+  --perf-canvas: var(--cd-sunk);
+  background: var(--cd-card) !important;
 }

@@ -4,12 +4,11 @@
 
 import {
     buildVolumePotentialRows,
-    buildDemoVolumePotentialRows,
     fetchAhrefsVolumeByKeyword,
     TOP3_ORGANIC_CTR,
 } from "@/lib/seoVolumePotential";
-import { getDemoPayload, isDemoCustomerId } from "@/lib/demoCustomer";
-import { numHash } from "@/lib/demoAdMetrics";
+import { isDemoCustomerId } from "@/lib/demoCustomer";
+import { buildDemoSeoInsights } from "@/lib/demoSeo";
 import { computeBrandKeywordMetrics } from "@/lib/seoDashboardUtils";
 import {
     filterGscQueryRows,
@@ -243,94 +242,6 @@ export function buildBrandClicksDaily(dateQueryRows, brandTerms) {
         }));
 }
 
-export function buildDemoInsightsBundle() {
-    const template = getDemoPayload("seoInsights") || {};
-    if (template.volumePotential) {
-        return template;
-    }
-
-    const volumePotential = buildDemoVolumePotentialRows().map((r) => ({
-        ...r,
-        clicks_now: r.clicks_now,
-        potential_clicks: r.potential_clicks,
-    }));
-
-    const keywordOverview = [
-        ["product photography prices", 2297, 4, 123, 5.4, -7.8, -1],
-        ["video production copenhagen", 1532, 5, 98, 4.8, -5.2, 2],
-        ["packshots", 980, 6, 72, 3.9, 1.1, -0.5],
-    ].map(([keyword, volume, position, clicks, ctr, volYoy, posDelta], i) => ({
-        id: `demo-kw-${i}`,
-        keyword,
-        volume,
-        volume_yoy_pct: volYoy,
-        position,
-        position_yoy: posDelta,
-        clicks,
-        clicks_yoy_pct: -12.8,
-        ctr,
-        ctr_yoy_pp: -5.1,
-        spend_saved: clicks * 14.2,
-    }));
-
-    const topLandingPages = [
-        ["/product-photography", 312, 17633, 1.77, 5.3, 44194, 5595],
-        ["/video-production", 198, 11200, 1.77, 6.1, 28000, 3550],
-    ].map(([url, clicks, impressions, ctr, position, value, spend_saved], i) => ({
-        id: `demo-url-${i}`,
-        url,
-        clicks,
-        clicks_yoy_pct: -7.9,
-        impressions,
-        impressions_yoy_pct: -6.2,
-        ctr,
-        ctr_yoy_pct: -4.1,
-        position,
-        position_yoy: -0.42,
-        value,
-        spend_saved,
-    }));
-
-    const cannibalization = [
-        {
-            id: "demo-can-1",
-            keyword: "product photography",
-            url_count: 3,
-            strongest_url: "/product-photography",
-            position_min: 4.2,
-            position_max: 18.6,
-            position_spread_label: "4.2–18.6",
-            clicks: 245,
-            urls: [
-                { url: "/product-photography", position: 4.2, clicks: 180 },
-                { url: "/services/photo", position: 12.1, clicks: 45 },
-                { url: "/blog/product-photos", position: 18.6, clicks: 20 },
-            ],
-        },
-    ];
-
-    const days = 26;
-    const brandClicksDaily = Array.from({ length: days }, (_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() - (days - 1 - i));
-        const date = d.toISOString().slice(0, 10);
-        const h = numHash(`brand-${date}`);
-        return {
-            date,
-            nonBranded: 35 + (h % 25),
-            branded: 12 + (h % 15),
-        };
-    });
-
-    return {
-        volumePotential,
-        keywordOverview,
-        topLandingPages,
-        cannibalization,
-        brandClicksDaily,
-    };
-}
-
 export async function buildSeoInsightsBundle({
     customerId,
     siteUrl,
@@ -349,7 +260,7 @@ export async function buildSeoInsightsBundle({
     filterConfig,
 }) {
     if (customerId && isDemoCustomerId(customerId)) {
-        return buildDemoInsightsBundle();
+        return buildDemoSeoInsights(startDate, endDate, brandTerms);
     }
 
     const groupFiltersActive = hasActiveKeywordGroupFilters(filterConfig);

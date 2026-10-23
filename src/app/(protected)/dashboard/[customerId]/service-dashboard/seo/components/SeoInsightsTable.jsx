@@ -6,7 +6,7 @@ import SeoAppliedFilterBadges from "@/components/seo/SeoAppliedFilterBadges";
 
 const fmtNum = (n, digits = 0) =>
     typeof n === "number" && !Number.isNaN(n)
-        ? n.toLocaleString("en-US", {
+        ? n.toLocaleString("da-DK", {
               maximumFractionDigits: digits,
               minimumFractionDigits: digits,
           })
@@ -25,7 +25,7 @@ function YoYPill({ pct, invert = false }) {
     const cls = improved ? "is-up" : worse ? "is-down" : "is-neutral";
     const sign = pct > 0 ? "+" : "";
     return (
-        <span className={`apex-seo-yoy ml-1.5 text-[0.65rem] tabular-nums ${cls}`}>
+        <span className={`apex-sx-yoy ${cls}`}>
             {sign}
             {fmtNum(pct, 1)}%
         </span>
@@ -33,14 +33,14 @@ function YoYPill({ pct, invert = false }) {
 }
 
 function PositionYoY({ delta }) {
-    if (delta == null || Number.isNaN(delta) || delta === 0) return null;
+    if (delta == null || Number.isNaN(delta) || Math.abs(delta) < 0.05) return null;
     const improved = delta > 0;
     const cls = improved ? "is-up" : "is-down";
     const sign = delta > 0 ? "+" : "";
     return (
-        <span className={`apex-seo-yoy ml-1.5 text-[0.65rem] font-medium tabular-nums ${cls}`}>
+        <span className={`apex-sx-yoy ${cls}`}>
             {sign}
-            {fmtNum(delta, 0)}
+            {fmtNum(delta, Number.isInteger(delta) ? 0 : 1)}
         </span>
     );
 }
@@ -54,10 +54,10 @@ function PositionSpreadBar({ min, max }) {
     const colorClass = spread > 10 ? "is-high" : spread > 6 ? "is-mid" : "is-low";
 
     return (
-        <div className="flex items-center gap-2 min-w-[140px]">
-            <div className="apex-seo-spread-track">
+        <div className="apex-sx-spread">
+            <div className="apex-sx-spread__track">
                 <div
-                    className={`apex-seo-spread-bar ${colorClass}`}
+                    className={`apex-sx-spread__bar ${colorClass}`}
                     style={{ left: `${left}%`, width: `${width}%` }}
                 />
             </div>
@@ -69,18 +69,18 @@ function renderCell(col, row) {
     const val = row[col.key];
     if (col.type === "positionSpread") {
         return (
-            <div className="flex flex-col items-end gap-1">
+            <div className="apex-sx-spread-cell">
                 <PositionSpreadBar min={row.position_min} max={row.position_max} />
-                <span className="text-[0.65rem] text-[var(--color-muted)] tabular-nums">{row.position_spread_label}</span>
+                <span className="apex-sx-spread-cell__label">{row.position_spread_label}</span>
             </div>
         );
     }
     if (col.type === "valuePotential") {
         return (
             <div className="text-right">
-                <span className="font-semibold tabular-nums">{fmtMoney(row.value_potential)}</span>
+                <span className="apex-sx-strong">{fmtMoney(row.value_potential)}</span>
                 {typeof row.value_uplift === "number" && row.value_uplift > 0 ? (
-                    <span className="block apex-seo-uplift text-[0.65rem] tabular-nums">
+                    <span className="apex-sx-uplift apex-sx-uplift--sub">
                         +{fmtMoney(row.value_uplift)}
                     </span>
                 ) : null}
@@ -89,7 +89,7 @@ function renderCell(col, row) {
     }
     if (col.type === "positionWithYoY") {
         return (
-            <span className="tabular-nums">
+            <span className="apex-sx-cellwrap">
                 {fmtNum(val, 1)}
                 <PositionYoY delta={row.position_yoy} />
             </span>
@@ -100,7 +100,7 @@ function renderCell(col, row) {
     if (col.format === "number") return fmtNum(val, col.numDigits ?? 0);
     if (col.format === "uplift") {
         return typeof val === "number" ? (
-            <span className="apex-seo-uplift">+{fmtNum(val)}</span>
+            <span className="apex-sx-uplift">+{fmtNum(val)}</span>
         ) : (
             "—"
         );
@@ -116,11 +116,11 @@ function renderPrimaryWithYoY(col, row) {
     const yoyPct = col.yoyKey ? row[col.yoyKey] : null;
     const invert = col.yoyInvert === true;
     return (
-        <span className="tabular-nums">
+        <span className="apex-sx-cellwrap">
             {renderCell(col, row)}
             {col.yoyKey?.includes("_pp") ? (
                 yoyPct != null ? (
-                    <span className={`apex-seo-yoy ml-1.5 text-[0.65rem] ${yoyPct >= 0 ? "is-up" : "is-down"}`}>
+                    <span className={`apex-sx-yoy ${yoyPct >= 0 ? "is-up" : "is-down"}`}>
                         {yoyPct >= 0 ? "+" : ""}
                         {fmtNum(yoyPct, 1)}%
                     </span>
@@ -142,9 +142,10 @@ export default function SeoInsightsTable({
     expandField = "urls",
     filterSectionId,
     appliedFilters = [],
+    defaultSortKey,
 }) {
     const [page, setPage] = useState(1);
-    const [sortKey, setSortKey] = useState(columns.find((c) => c.align !== "left")?.key || columns[0]?.key);
+    const [sortKey, setSortKey] = useState(defaultSortKey || columns.find((c) => c.align !== "left")?.key || columns[0]?.key);
     const [sortDir, setSortDir] = useState("desc");
     const [expanded, setExpanded] = useState({});
 
@@ -177,13 +178,13 @@ export default function SeoInsightsTable({
     }, [rows, pageSize]);
 
     return (
-        <section className="apex-seo-table-panel">
-            <div className="apex-seo-table-panel__head">
-                <div className="apex-seo-table-panel__head-main">
-                    <h3 className="apex-seo-table-panel__title">{title}</h3>
-                    {subtitle ? <p className="apex-seo-table-panel__subtitle">{subtitle}</p> : null}
+        <section className="apex-ov-card apex-sx-tblcard">
+            <div className="apex-ov-card__head apex-sx-tblcard__head">
+                <div className="apex-sx-tblcard__main">
+                    <h3>{title}</h3>
+                    {subtitle ? <p className="apex-sx-tblcard__sub">{subtitle}</p> : null}
                     {filterSectionId ? (
-                        <div className="apex-seo-table-panel__filters">
+                        <div className="apex-sx-tblcard__filters">
                             <SeoAppliedFilterBadges
                                 sectionId={filterSectionId}
                                 appliedFilters={appliedFilters}
@@ -193,18 +194,20 @@ export default function SeoInsightsTable({
                 </div>
             </div>
 
-            <div className="apex-seo-table-wrap">
-                <table className="apex-seo-table">
+            <div className="apex-sx-tblwrap">
+                <table className="apex-sx-tbl">
                     <thead>
                         <tr>
-                            {expandable ? <th className="w-8" /> : null}
+                            {expandable ? <th className="apex-sx-tbl__expcol" /> : null}
                             {columns.map((col) => (
                                 <th
                                     key={col.key}
-                                    className={`${col.align !== "left" ? "is-num is-sortable" : ""}`}
+                                    className={col.align !== "left" ? "is-sortable" : undefined}
                                     onClick={() => col.align !== "left" && toggleSort(col.key)}
+                                    aria-sort={sortKey === col.key ? (sortDir === "desc" ? "descending" : "ascending") : undefined}
                                 >
                                     {col.label}
+                                    {sortKey === col.key ? <span className="apex-sx-sort">{sortDir === "desc" ? " \u2193" : " \u2191"}</span> : null}
                                 </th>
                             ))}
                         </tr>
@@ -212,7 +215,7 @@ export default function SeoInsightsTable({
                     <tbody>
                         {pageRows.length === 0 ? (
                             <tr>
-                                <td colSpan={columns.length + (expandable ? 1 : 0)} className="apex-seo-empty">
+                                <td colSpan={columns.length + (expandable ? 1 : 0)} className="apex-sx-tbl__empty">
                                     No data for the selected period.
                                 </td>
                             </tr>
@@ -234,7 +237,7 @@ export default function SeoInsightsTable({
                                                                     [row.id]: !e[row.id],
                                                                 }))
                                                             }
-                                                            className="apex-seo-icon-btn"
+                                                            className="apex-sx-iconbtn"
                                                             aria-expanded={isOpen}
                                                         >
                                                             {isOpen ? <FiChevronUp /> : <FiChevronDown />}
@@ -256,11 +259,11 @@ export default function SeoInsightsTable({
                                         </tr>
                                         {expandable && isOpen && Array.isArray(children)
                                             ? children.map((u) => (
-                                                  <tr key={`${row.id}-${u.url}`} className="apex-seo-table__expand-row">
+                                                  <tr key={`${row.id}-${u.url}`} className="apex-sx-tbl__expand">
                                                       <td colSpan={columns.length + 1}>
-                                                          <span className="pl-4">{u.url}</span>
-                                                          <span className="float-right tabular-nums">
-                                                              pos {fmtNum(u.position, 1)} · {fmtNum(u.clicks)} clicks
+                                                          <span className="apex-sx-tbl__expand-url">{u.url}</span>
+                                                          <span className="apex-sx-tbl__expand-meta">
+                                                              position {fmtNum(u.position, 1)}, {fmtNum(u.clicks)} clicks
                                                           </span>
                                                       </td>
                                                   </tr>
@@ -275,12 +278,12 @@ export default function SeoInsightsTable({
             </div>
 
             {sorted.length > 0 && (
-                <div className="apex-seo-table__pager">
+                <div className="apex-sx-pager">
                     <span>
-                        Page {safePage} of {totalPages} · {sorted.length}{" "}
+                        Page {safePage} of {totalPages}, {sorted.length}{" "}
                         {sorted.length === 1 ? "row" : "rows"}
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="apex-sx-pager__btns">
                         <button
                             type="button"
                             disabled={safePage <= 1}

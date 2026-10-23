@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSearchConsoleClient } from '@/lib/searchConsoleClient';
-import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
-import { eachDayInclusive, numHash } from '@/lib/demoAdMetrics';
-import {
-    buildDemoSeoSupplemental,
-    fetchSeoDashboardSupplemental,
-} from '@/lib/seoDashboardBundle';
+import { isDemoCustomerId } from '@/lib/demoCustomer';
+import { buildDemoSeoMetricsPayload } from '@/lib/demoSeo';
+import { fetchSeoDashboardSupplemental } from '@/lib/seoDashboardBundle';
 import { loadSeoKeywordFilterConfigForCustomer } from '@/lib/seoKeywordSettingsLoader';
 import {
     filterGscQueryRows,
@@ -18,33 +15,12 @@ function gscClicksFromRows(rows) {
     return (rows || []).reduce((s, r) => s + (r.clicks || 0), 0);
 }
 
-function buildDemoSeoMetricsForRange(startDate, endDate) {
-    const template = getDemoPayload('seoDashboardMetrics') || {};
-    const rows = eachDayInclusive(startDate, endDate).map((date) => {
-        const h = numHash(`seo-${date}`);
-        return {
-            keys: [date],
-            clicks: 20 + (h % 15),
-            impressions: 800 + (h % 200),
-            ctr: 0.03,
-            position: 12 + (h % 8),
-        };
-    });
-    return {
-        metrics: { rows },
-        keywords: template.keywords || { rows: [] },
-        urls: template.urls || { rows: [] },
-        supplemental: buildDemoSeoSupplemental(startDate, endDate),
-        appliedFilters: [],
-    };
-}
-
 export async function POST(req) {
     try {
         const body = await req.json();
         const { siteUrl, startDate, endDate, customerId } = body;
         if (customerId && isDemoCustomerId(customerId)) {
-            return NextResponse.json(buildDemoSeoMetricsForRange(startDate, endDate));
+            return NextResponse.json(buildDemoSeoMetricsPayload(startDate, endDate));
         }
         if (!siteUrl || !startDate || !endDate) {
             return NextResponse.json({ error: 'Missing siteUrl, startDate or endDate' }, { status: 400 });

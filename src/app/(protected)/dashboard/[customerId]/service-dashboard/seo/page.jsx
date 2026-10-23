@@ -4,24 +4,26 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
-import { FiBarChart2, FiLayers } from "react-icons/fi";
+import CobaltLoader from "@/components/ui/CobaltLoader";
+import { FiBarChart2, FiList, FiTarget } from "react-icons/fi";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import SeoDefaultTab from "./components/SeoDefaultTab";
+import SeoOpportunitiesTab from "./components/SeoOpportunitiesTab";
 import SeoInsightsTab from "./components/SeoInsightsTab";
 import SEOKeywordSettings from "@/components/seo/SEOKeywordSettings";
 import "./seo-dashboard.css";
 
 const TABS = [
-    { id: "default", label: "Default", icon: FiBarChart2 },
-    { id: "insights", label: "Organic insights", icon: FiLayers },
+    { id: "default", label: "Overview", icon: FiBarChart2 },
+    { id: "opportunities", label: "Opportunities", icon: FiTarget },
+    { id: "insights", label: "Keywords and pages", icon: FiList },
 ];
 
-const TAB_IDS = [...TABS.map((t) => t.id), "volume-potential"];
-
+/** Older links: ?tab=volume-potential now lives under Opportunities. */
 function normalizeTab(tab) {
-    if (tab === "volume-potential") return "insights";
-    return TAB_IDS.includes(tab) ? tab : "default";
+    if (tab === "volume-potential") return "opportunities";
+    return TABS.some((t) => t.id === tab) ? tab : "default";
 }
 
 export default function SEODashboardPage() {
@@ -35,8 +37,10 @@ export default function SEODashboardPage() {
 
     const [activeTab, setActiveTabState] = useState(() => normalizeTab(tabFromUrl));
     const [siteUrl, setSiteUrl] = useState("");
+    const [customerReady, setCustomerReady] = useState(false);
     const [defaultLoading, setDefaultLoading] = useState(false);
     const [keywordSettingsVersion, setKeywordSettingsVersion] = useState(0);
+    const [lede, setLede] = useState(null);
 
     const {
         setTempDateRange: setTempRange,
@@ -61,6 +65,7 @@ export default function SEODashboardPage() {
     const setActiveTab = (tab) => {
         const normalized = normalizeTab(tab);
         setActiveTabState(normalized);
+        setLede(null);
         const url = new URL(window.location.href);
         url.searchParams.set("tab", normalized);
         router.replace(url.pathname + url.search, { scroll: false });
@@ -88,6 +93,8 @@ export default function SEODashboardPage() {
                 setSiteUrl(customer?.CustomerSettings?.googleSearchConsoleProperty || "");
             } catch {
                 setSiteUrl("");
+            } finally {
+                setCustomerReady(true);
             }
         }
         fetchCustomer();
@@ -104,7 +111,8 @@ export default function SEODashboardPage() {
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}
-                title="SEO Dashboard"
+                title="SEO"
+                subtitle={lede}
                 label={siteUrl || "No property set"}
                 customerId={customerId}
                 dateRange={appliedRange}
@@ -121,7 +129,7 @@ export default function SEODashboardPage() {
                 }
             />
 
-            <nav className="apex-seo-tabs" aria-label="SEO views">
+            <nav className="apex-sx-tabs" aria-label="SEO views">
                 {TABS.map((tab) => {
                     const Icon = tab.icon;
                     return (
@@ -129,7 +137,7 @@ export default function SEODashboardPage() {
                             key={tab.id}
                             type="button"
                             onClick={() => setActiveTab(tab.id)}
-                            className={`apex-seo-tabs__btn${activeTab === tab.id ? " is-active" : ""}`}
+                            className={`apex-sx-tabs__btn${activeTab === tab.id ? " is-active" : ""}`}
                             aria-current={activeTab === tab.id ? "page" : undefined}
                         >
                             <Icon aria-hidden />
@@ -140,7 +148,13 @@ export default function SEODashboardPage() {
             </nav>
 
             <div className="apex-seo-panel">
-                {activeTab === "default" && (
+                {!customerReady ? (
+                    <div className="apex-perf-loading">
+                        <CobaltLoader variant="block" title="Loading property" request="GET /api/customers" />
+                    </div>
+                ) : null}
+
+                {customerReady && activeTab === "default" && (
                     <SeoDefaultTab
                         active
                         siteUrl={siteUrl}
@@ -150,11 +164,25 @@ export default function SEODashboardPage() {
                         comparisonMethod={comparisonMethod}
                         comparisonLabel={comparisonLabel}
                         onLoadingChange={handleDefaultLoadingChange}
+                        onLedeChange={setLede}
                         keywordSettingsVersion={keywordSettingsVersion}
                     />
                 )}
 
-                {activeTab === "insights" && (
+                {customerReady && activeTab === "opportunities" && (
+                    <SeoOpportunitiesTab
+                        siteUrl={siteUrl}
+                        customerId={customerId}
+                        startDate={appliedRange.startDate}
+                        endDate={appliedRange.endDate}
+                        appliedCompareRange={appliedCompareRange}
+                        comparisonMethod={comparisonMethod}
+                        keywordSettingsVersion={keywordSettingsVersion}
+                        onLedeChange={setLede}
+                    />
+                )}
+
+                {customerReady && activeTab === "insights" && (
                     <SeoInsightsTab
                         siteUrl={siteUrl}
                         customerId={customerId}
@@ -163,6 +191,7 @@ export default function SEODashboardPage() {
                         appliedCompareRange={appliedCompareRange}
                         comparisonMethod={comparisonMethod}
                         keywordSettingsVersion={keywordSettingsVersion}
+                        onLedeChange={setLede}
                     />
                 )}
 

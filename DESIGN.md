@@ -226,6 +226,8 @@ Plain English, sentence case, short captions. No em or en dashes, no emojis, no 
 | `tools/pace-report/PaceOverview.jsx` | Pace: hero row (revenue pace, projected month, needed per day, month elapsed), cumulative revenue vs target vs projection, budget pacing bars with time-elapsed marker, targets and pace table. Targets come from property objectives; 1 kr. objectives count as not set and show a set-objectives prompt instead of a fake target |
 | `tools/pnl/PnlOverview.jsx` | P&L: net result hero, net sales, DB1, marketing cost (vs comparison period); waterfall from sales to result whose subtotals come from the P&L itself; DB1/DB2/DB3 margin bars; realized vs break-even ROAS. The statement and static expenses card below keep Apex's detail |
 | `ecommerce/components/ProductOverview.jsx`, `CustomerOverview.jsx` | Ecommerce: per-tab overview on top of Apex's detail. Products: sales hero, orders, AOV, units per order, inventory stock/value/incoming, top products, net sales by category, stock watch (days to sold out). Customers: new customers hero, returning orders, nCAC, LTV/nCAC payback, new vs returning bars, revenue split, LTV ladder with nCAC marker |
+| `service-dashboard/seo/*`, `src/lib/seoAnalytics.js` | SEO: three tabs. **Overview** (clicks hero, impressions, position, CTR, organic revenue, conversions, spend saved, revenue per click, trend chart with metric chips, rank bands, brand mix, authority, winners and losers, weekly rhythm). **Opportunities** (extra clicks within reach, volume potential, striking distance, snippet gaps, cannibalization). **Keywords and pages** (brand split chart, landing pages, keyword overview). Derived views use only Search Console rows already loaded, and compare keywords with the site's own peers, never an outside benchmark. Position is judged lower-is-better and shown as places gained or lost |
+| `src/lib/demoSeo.js` | Demo customers only: seeded, deterministic SEO data (keywords, pages, daily clicks, GA4 and Ahrefs figures, cannibalization) for `/api/seo-dashboard/*` and the preview route |
 
 Because the old pages reference `--apex-*` variables, remapping them inside `.apex-dashboard` gives unmigrated pages the new palette automatically. Migrating a page means checking its specific components against this spec and fixing what the remap does not cover.
 
@@ -240,7 +242,8 @@ Because the old pages reference `--apex-*` variables, remapping them inside `.ap
 | `dashboard/[customerId]/tools/pnl` | Migrated |
 | `dashboard/[customerId]/ecommerce` | Migrated |
 | `dashboard/[customerId]/markets-overview` | Migrated |
-| Service dashboards, config, other tools | Pending |
+| `dashboard/[customerId]/service-dashboard/seo` | Migrated |
+| Other service dashboards, config, other tools | Pending |
 | `/`, `/login`, `/home` | Legacy minimal spec |
 
 ### Checklist per page
