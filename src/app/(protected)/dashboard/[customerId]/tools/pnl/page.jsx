@@ -8,7 +8,7 @@ import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import { usePnlData } from "./usePnlData";
 import PnlLeftSection from "./PnlLeftSection";
 import PnlChartsSidebar from "./PnlChartsSidebar";
-import PnlSummaryStrip from "./PnlSummaryStrip";
+import PnlOverview, { pnlLede } from "./PnlOverview";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import {
@@ -74,7 +74,8 @@ export default function PNLPage() {
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}
-                title="P&L Report"
+                title="P&L"
+                subtitle={pnlLede(pnl)}
                 label={customer ? customer.customerName : ""}
                 customerId={params.customerId}
                 dateRange={appliedDateRange}
@@ -122,12 +123,11 @@ export default function PNLPage() {
                 }
             />
 
-            <PnlSummaryStrip
-                loading={pnl.loading}
-                result={pnl.result}
-                realizedROAS={pnl.realizedROAS}
-                breakEvenROAS={pnl.breakEvenROAS}
-            />
+            {!pnl.loading && !pnl.error ? (
+                <PnlOverview pnl={pnl} comparisonLabel={comparisonLabel} />
+            ) : null}
+
+            <h2 className="apex-pnl-detail-title">P&amp;L statement</h2>
 
             <div className="apex-pnl-layout">
                 <PnlLeftSection
@@ -187,15 +187,8 @@ export default function PNLPage() {
                 />
                 <div className="apex-pnl-layout__aside">
                     <PnlChartsSidebar
-                        appliedDateRange={appliedDateRange}
                         customerId={params.customerId}
                         staticExpenses={pnl.staticExpenses}
-                        db1Pct={pnl.db1Pct}
-                        db2Pct={pnl.db2Pct}
-                        db3Pct={pnl.db3Pct}
-                        db1={pnl.db1}
-                        db2={pnl.db2}
-                        db3={pnl.db3}
                     />
                 </div>
             </div>

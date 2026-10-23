@@ -104,7 +104,7 @@ export default function PnlLeftSection({
                         higherIsBetter: false,
                     },
                     {
-                        label: "Delivery Fees",
+                        label: "Delivery fees",
                         tooltip: "Sum of all shipping charges from Shopify in the period.",
                         prevVal: deliveryFeesPrev,
                         currVal: deliveryFees,
@@ -168,7 +168,7 @@ export default function PnlLeftSection({
                         higherIsBetter: false,
                     },
                     {
-                        label: "Transaction Costs",
+                        label: "Transaction costs",
                         tooltip: `Transaction Costs = Net sales * Transaction cost percentage (${Math.round((staticExpenses.transactionCostPercentage || 0) * 100)}%)`,
                         prevVal: transactionCostsPrev,
                         currVal: transactionCosts,
@@ -212,7 +212,7 @@ export default function PnlLeftSection({
                         higherIsBetter: false,
                     })),
                     {
-                        label: "Marketing Bureau",
+                        label: "Marketing bureau",
                         tooltip: "Marketing Bureau — monthly cost prorated per calendar day in the selected period.",
                         prevVal: marketingBureauPrev,
                         currVal: marketingBureau,
@@ -220,7 +220,7 @@ export default function PnlLeftSection({
                         higherIsBetter: false,
                     },
                     {
-                        label: "Marketing Tooling",
+                        label: "Marketing tooling",
                         tooltip: "Marketing Tooling — monthly cost prorated per calendar day in the selected period.",
                         prevVal: marketingToolingPrev,
                         currVal: marketingTooling,
@@ -246,7 +246,7 @@ export default function PnlLeftSection({
                 hasPrev={hasPrev}
                 rows={[
                     {
-                        label: "Fixed Expenses",
+                        label: "Fixed expenses",
                         tooltip: "Other fixed expenses — monthly cost prorated per calendar day in the selected period.",
                         prevVal: fixedExpensesPrev,
                         currVal: fixedExpenses,

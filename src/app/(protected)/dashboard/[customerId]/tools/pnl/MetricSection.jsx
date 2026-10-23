@@ -48,7 +48,7 @@ export default function MetricSection({
                 <div className="apex-pnl-table__meta">
                     {ctsDisplay !== undefined && (
                         <>
-                            <span>{ctsLabel || "Cost To Sales Ratio"}</span>
+                            <span>{ctsLabel || "Cost to sales ratio"}</span>
                             <span>{ctsDisplay}</span>
                         </>
                     )}
