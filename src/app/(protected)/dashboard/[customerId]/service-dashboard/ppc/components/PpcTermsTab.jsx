@@ -12,22 +12,22 @@ import {
     fmtShare,
     num,
 } from "@/components/dashboard/ServiceParts";
-import PpcTable from "./PpcTable";
+import ServiceTable from "@/components/dashboard/ServiceTable";
 
 const MIN_SPEND = 50;
 
 function TermList({ rows, tone }) {
     if (!rows.length) return <p className="apex-mk-note apex-sx-empty-note">No search terms with enough spend (from {fmtKr(MIN_SPEND)}).</p>;
     return (
-        <div className="apex-px-terms">
+        <div className="apex-sx-terms">
             {rows.map((r, i) => (
-                <div key={`${r.search_term}-${i}`} className="apex-px-term">
-                    <div className="apex-px-term__main">
+                <div key={`${r.search_term}-${i}`} className="apex-sx-term">
+                    <div className="apex-sx-term__main">
                         <b title={r.search_term}>{r.search_term}</b>
                         <small title={r.campaign_name}>{r.campaign_name}</small>
                     </div>
-                    <span className="apex-px-term__spend">{fmtKr(r.spend)}</span>
-                    <span className={`apex-px-term__roas is-${tone}`}>{fmtDec(r.roas, 2)}</span>
+                    <span className="apex-sx-term__spend">{fmtKr(r.spend)}</span>
+                    <span className={`apex-sx-term__roas is-${tone}`}>{fmtDec(r.roas, 2)}</span>
                 </div>
             ))}
         </div>
@@ -162,7 +162,7 @@ export default function PpcTermsTab({ data, onLedeChange }) {
                                                 <b>{w.word}</b>
                                                 <small>{fmtInt(w.terms)} terms</small>
                                                 <span>{fmtKr(w.spend)}</span>
-                                                <span className={`apex-px-term__roas is-${col.tone}`}>{fmtDec(w.roas, 2)}</span>
+                                                <span className={`apex-sx-term__roas is-${col.tone}`}>{fmtDec(w.roas, 2)}</span>
                                             </div>
                                         ))
                                     )}
@@ -173,7 +173,7 @@ export default function PpcTermsTab({ data, onLedeChange }) {
                     <p className="apex-mk-note">Spend and ROAS are summed over every term containing the word. A word that wastes money across several terms is a strong negative keyword candidate.</p>
                 </section>
 
-                <PpcTable
+                <ServiceTable
                     title="Negative keyword candidates"
                     subtitle={`Terms with ${fmtKr(MIN_SPEND)} or more in spend and no conversions. Check intent before excluding.`}
                     columns={wasteColumns}
@@ -184,7 +184,7 @@ export default function PpcTermsTab({ data, onLedeChange }) {
                     emptyText="No search terms spent money without converting."
                     actions={
                         waste.rows.length ? (
-                            <button type="button" className="apex-px-btn" onClick={copyNegatives}>
+                            <button type="button" className="apex-sx-btn" onClick={copyNegatives}>
                                 {copied ? <FiCheck aria-hidden /> : <FiCopy aria-hidden />}
                                 {copied ? "Copied" : "Copy terms"}
                             </button>
@@ -193,7 +193,7 @@ export default function PpcTermsTab({ data, onLedeChange }) {
                 />
             </div>
 
-            <PpcTable
+            <ServiceTable
                 title="All search terms"
                 subtitle="Sort by any column or search for a term."
                 columns={termColumns}

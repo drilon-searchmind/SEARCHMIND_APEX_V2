@@ -146,14 +146,14 @@ export function wordInsights(terms, { minTerms = 2, limit = 6 } = {}) {
 }
 
 /** Average spend, revenue and ROAS per weekday. Needs two weeks for a fair average. */
-export function weekdayEfficiency(rows) {
+export function weekdayEfficiency(rows, { spendKey = "ad_spend", revenueKey = "conversions_value" } = {}) {
     const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     if (!rows?.length || rows.length < 14) return { enough: false, days: [] };
     const buckets = labels.map((label) => ({ label, spend: 0, revenue: 0, count: 0 }));
     for (const r of rows) {
         const idx = (new Date(`${r.date}T12:00:00Z`).getUTCDay() + 6) % 7;
-        buckets[idx].spend += n(r.ad_spend);
-        buckets[idx].revenue += n(r.conversions_value);
+        buckets[idx].spend += n(r[spendKey]);
+        buckets[idx].revenue += n(r[revenueKey]);
         buckets[idx].count += 1;
     }
     const days = buckets.map((b) => ({

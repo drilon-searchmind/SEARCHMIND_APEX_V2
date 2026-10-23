@@ -19,7 +19,7 @@ import {
     vsCaption,
 } from "@/components/dashboard/ServiceParts";
 import { FiAward, FiAlertTriangle } from "react-icons/fi";
-import PpcTable from "./PpcTable";
+import ServiceTable from "@/components/dashboard/ServiceTable";
 
 const MAP_LIMIT = 10;
 
@@ -153,7 +153,7 @@ export default function PpcCampaignsTab({ data, comparisonMethod, comparisonLabe
             label: "Share of spend",
             sortValue: (r) => r.spendShare,
             render: (r) => (
-                <span className="apex-px-share">
+                <span className="apex-sx-share">
                     <span className="apex-ov-bar">
                         <i style={{ width: `${Math.min(100, r.spendShare * 100)}%` }} />
                     </span>
@@ -167,7 +167,7 @@ export default function PpcCampaignsTab({ data, comparisonMethod, comparisonLabe
             label: "ROAS",
             sortValue: (r) => num(r.roas),
             render: (r) => (
-                <span className="apex-px-cell">
+                <span className="apex-sx-cell">
                     {fmtDec(r.roas, 2)}
                     {hasPrev && r.prev ? <DeltaChip cur={r.roas} prev={r.prev.roas} compactSize /> : null}
                 </span>
@@ -236,14 +236,14 @@ export default function PpcCampaignsTab({ data, comparisonMethod, comparisonLabe
                         <h3>By campaign type</h3>
                         <span className="apex-ov-sub">Grouped by campaign name</span>
                     </div>
-                    <div className="apex-px-types">
+                    <div className="apex-sx-types">
                         {types.map((t) => (
-                            <div key={t.id} className="apex-px-type">
-                                <div className="apex-px-type__top">
+                            <div key={t.id} className="apex-sx-type">
+                                <div className="apex-sx-type__top">
                                     <b>{t.label}</b>
                                     <span>{fmtInt(t.campaigns)} {t.campaigns === 1 ? "campaign" : "campaigns"}</span>
                                 </div>
-                                <div className="apex-px-type__grid">
+                                <div className="apex-sx-type__grid">
                                     <div>
                                         <small>Spend</small>
                                         <b>{fmtKr(t.spend)}</b>
@@ -260,7 +260,7 @@ export default function PpcCampaignsTab({ data, comparisonMethod, comparisonLabe
                                 <div className="apex-ov-bar">
                                     <i style={{ width: `${totalSpend > 0 ? (t.spend / totalSpend) * 100 : 0}%` }} />
                                 </div>
-                                <div className="apex-px-type__cap">{fmtShare(totalSpend > 0 ? t.spend / totalSpend : 0, 0)} of spend</div>
+                                <div className="apex-sx-type__cap">{fmtShare(totalSpend > 0 ? t.spend / totalSpend : 0, 0)} of spend</div>
                             </div>
                         ))}
                     </div>
@@ -268,7 +268,7 @@ export default function PpcCampaignsTab({ data, comparisonMethod, comparisonLabe
                 </section>
             </div>
 
-            <PpcTable
+            <ServiceTable
                 title="Campaign scorecard"
                 subtitle={`Status compares each campaign's ROAS with the account average (${fmtDec(accountRoas, 2)}): Scale at 1,25x or more, Healthy from 0,85x, Watch from 0,5x, Cut back below. Campaigns under 1% of spend are Low volume.${hasPrev ? ` ROAS arrows compare ${vs}.` : ""}`}
                 columns={columns}

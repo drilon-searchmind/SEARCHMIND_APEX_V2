@@ -2,7 +2,7 @@
 
 import { fetchFacebookAdsPSDashboardMetrics } from '@/lib/facebookApi';
 import { isDemoCustomerId } from '@/lib/demoCustomer';
-import { getDemoFacebookCampaignInsightsForRange } from '@/lib/demoAdMetrics';
+import { getDemoPsDashboardForRange } from '@/lib/demoPs';
 import { resolveMetaCountryFiltersForCustomerId } from '@/lib/metaDashboardMetaCountryFilter';
 import dbConnect from '@root/lib/mongodb';
 
@@ -19,7 +19,7 @@ export async function GET(req) {
     }
 
     if (dashboardCustomerId && isDemoCustomerId(dashboardCustomerId)) {
-        return new Response(JSON.stringify(getDemoFacebookCampaignInsightsForRange(since, until)), { status: 200 });
+        return new Response(JSON.stringify(getDemoPsDashboardForRange(since, until).insights), { status: 200 });
     }
 
     try {

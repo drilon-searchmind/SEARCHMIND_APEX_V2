@@ -4,10 +4,10 @@ import React, { useMemo, useState } from "react";
 import { FiSearch } from "react-icons/fi";
 
 /**
- * Sortable table card for the PPC dashboard.
+ * Sortable table card for the service dashboards.
  * columns: [{ key, label, left?, sortValue(row), render(row), className?(row) }]
  */
-export default function PpcTable({
+export default function ServiceTable({
     title,
     subtitle,
     columns,
@@ -62,7 +62,7 @@ export default function PpcTable({
             </div>
 
             {searchKey ? (
-                <label className="apex-px-search">
+                <label className="apex-sx-search">
                     <FiSearch aria-hidden />
                     <input
                         type="search"
@@ -122,10 +122,10 @@ export default function PpcTable({
                         {safePage * pageSize + 1} to {Math.min(sorted.length, (safePage + 1) * pageSize)} of {sorted.length}
                     </span>
                     <div className="apex-sx-pager__btns">
-                        <button type="button" className="apex-px-btn" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
+                        <button type="button" className="apex-sx-btn" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
                             Previous
                         </button>
-                        <button type="button" className="apex-px-btn" disabled={safePage >= pages - 1} onClick={() => setPage(safePage + 1)}>
+                        <button type="button" className="apex-sx-btn" disabled={safePage >= pages - 1} onClick={() => setPage(safePage + 1)}>
                             Next
                         </button>
                     </div>

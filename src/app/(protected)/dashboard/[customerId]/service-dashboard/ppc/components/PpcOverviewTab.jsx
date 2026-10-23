@@ -433,7 +433,7 @@ export default function PpcOverviewTab({
                                     />
                                 </div>
                             ) : null}
-                            <p className="apex-px-callout">
+                            <p className="apex-sx-callout">
                                 {isBreakdown.dominant === "budget" && isBreakdown.budget >= 5 ? (
                                     <>
                                         Budget is your bigger leak. Winning the budget-lost share at today&apos;s yield would add roughly{" "}
@@ -521,14 +521,14 @@ export default function PpcOverviewTab({
                     {attention.length === 0 ? (
                         <p className="apex-mk-note apex-sx-empty-note">Nothing stands out in this period. Spend, return and search terms look in balance.</p>
                     ) : (
-                        <ul className="apex-px-attn">
+                        <ul className="apex-sx-attn">
                             {attention.map((item) => (
-                                <li key={item.id} className={`apex-px-attn__item is-${item.tone}`}>
+                                <li key={item.id} className={`apex-sx-attn__item is-${item.tone}`}>
                                     <i aria-hidden />
                                     <div>
                                         <p>{item.text}</p>
                                         {item.action ? (
-                                            <button type="button" className="apex-px-link" onClick={() => onGoTo?.(item.action.tab)}>
+                                            <button type="button" className="apex-sx-link" onClick={() => onGoTo?.(item.action.tab)}>
                                                 {item.action.label}
                                                 <FiArrowRight aria-hidden />
                                             </button>
@@ -547,19 +547,19 @@ export default function PpcOverviewTab({
                     </div>
                     {weekdays.enough ? (
                         <>
-                            <div className="apex-px-week">
+                            <div className="apex-sx-week">
                                 {weekdays.days.map((d) => (
                                     <div
                                         key={d.label}
-                                        className={`apex-px-week__day${d.isBest ? " is-best" : ""}`}
+                                        className={`apex-sx-week__day${d.isBest ? " is-best" : ""}`}
                                         title={`${d.label}: ${fmtInt(d.avgRevenue)} kr. revenue, ROAS ${fmtDec(d.roas, 2)}`}
                                     >
-                                        <span className="apex-px-week__val">{compact(d.avgRevenue)}</span>
-                                        <div className="apex-px-week__bar">
+                                        <span className="apex-sx-week__val">{compact(d.avgRevenue)}</span>
+                                        <div className="apex-sx-week__bar">
                                             <i style={{ height: `${Math.max(4, d.index * 100)}%` }} />
                                         </div>
-                                        <span className="apex-px-week__lbl">{d.label}</span>
-                                        <span className="apex-px-week__roas">{fmtDec(d.roas, 1)}</span>
+                                        <span className="apex-sx-week__lbl">{d.label}</span>
+                                        <span className="apex-sx-week__roas">{fmtDec(d.roas, 1)}</span>
                                     </div>
                                 ))}
                             </div>

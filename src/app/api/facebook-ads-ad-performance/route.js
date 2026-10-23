@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { fetchFacebookAdsAdPerformance } from "@/lib/facebookAdsAdPerformance";
 import { isDemoCustomerId } from "@/lib/demoCustomer";
-import { getDemoFacebookAdsAdPerformanceForRange } from "@/lib/demoAdMetrics";
+import { getDemoPsDashboardForRange } from "@/lib/demoPs";
 import { resolveMetaCountryFiltersForCustomerId } from "@/lib/metaDashboardMetaCountryFilter";
 import dbConnect from "@root/lib/mongodb";
 
@@ -28,7 +28,7 @@ export async function GET(req) {
     }
 
     if (dashboardCustomerId && isDemoCustomerId(dashboardCustomerId)) {
-        return NextResponse.json(getDemoFacebookAdsAdPerformanceForRange(since, until));
+        return NextResponse.json(getDemoPsDashboardForRange(since, until).ads);
     }
 
     try {
