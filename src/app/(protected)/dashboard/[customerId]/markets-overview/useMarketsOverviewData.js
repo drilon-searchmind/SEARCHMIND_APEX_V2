@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { adSpendChannelsForShopifyMarketsFilterUi } from "@/lib/mergeAdSpendDaily";
 import { useDashboardDataOptional } from "@/contexts/DashboardDataContext";
 import { fetchMarketsOverviewJson } from "@/lib/dashboard/fetchMergedSources";
+import { formatComparisonPeriodDates, COMPARISON_METHOD } from "@/lib/dateRangeComparison";
 
 async function fetchMarketsOverview(
     customerId,
@@ -43,6 +44,9 @@ export function useMarketsOverviewData(
     const [error, setError] = useState(null);
     const [featureDisabled, setFeatureDisabled] = useState(false);
     const [visibleMarketingColumnKeys, setVisibleMarketingColumnKeys] = useState(null);
+    /** Previous period rows (same length, right before the range); loads after the main data. */
+    const [rowsPrev, setRowsPrev] = useState([]);
+    const [loadingPrev, setLoadingPrev] = useState(false);
 
     useEffect(() => {
         if (!customer || !appliedDateRange?.startDate || !appliedDateRange?.endDate) {
@@ -68,6 +72,7 @@ export function useMarketsOverviewData(
         }
         setError(null);
         setVisibleMarketingColumnKeys(null);
+        setRowsPrev([]);
 
         let cancelled = false;
 
@@ -108,6 +113,30 @@ export function useMarketsOverviewData(
                               .map((c) => c.dailyOverviewColumnKey);
 
                 setVisibleMarketingColumnKeys(cols);
+                if (!isHubMode) setLoading(false);
+
+                // Previous period for per-market growth; never blocks the main view
+                setLoadingPrev(true);
+                try {
+                    const { startDate: prevStart, endDate: prevEnd } = formatComparisonPeriodDates({
+                        comparisonMethod: COMPARISON_METHOD.LAST_PERIOD,
+                        startDate: appliedDateRange.startDate,
+                        endDate: appliedDateRange.endDate,
+                    });
+                    const prevBody = await fetchMarketsOverview(
+                        customer._id,
+                        prevStart,
+                        prevEnd,
+                        querySuffix,
+                        fetchMarketsOverviewCached
+                    );
+                    if (!cancelled) setRowsPrev(Array.isArray(prevBody?.rows) ? prevBody.rows : []);
+                } catch (prevErr) {
+                    console.error("Error fetching previous period markets:", prevErr);
+                    if (!cancelled) setRowsPrev([]);
+                } finally {
+                    if (!cancelled) setLoadingPrev(false);
+                }
             } catch (err) {
                 if (!cancelled) {
                     setError(err?.message || "Failed to load markets");
@@ -127,6 +156,8 @@ export function useMarketsOverviewData(
 
     return {
         rows,
+        rowsPrev,
+        loadingPrev,
         storeTotalRow,
         loading,
         error,

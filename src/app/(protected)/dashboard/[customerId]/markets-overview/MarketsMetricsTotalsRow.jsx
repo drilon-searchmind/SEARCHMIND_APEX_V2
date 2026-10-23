@@ -78,7 +78,7 @@ export default function MarketsMetricsTotalsRow({
                     <td key={key} className={cellClass}>
                         {t.aov != null
                             ? formatCurrency(t.aov, { maximumFractionDigits: 0 })
-                            : '—'}
+                            : '-'}
                     </td>
                 );
             case 'ppcCost':
@@ -95,7 +95,7 @@ export default function MarketsMetricsTotalsRow({
             case 'roas':
                 return (
                     <td key={key} className={cellClass}>
-                        {t.roas != null ? t.roas.toFixed(2) : '—'}
+                        {t.roas != null ? t.roas.toFixed(2) : '-'}
                     </td>
                 );
             case 'variableExpense':
@@ -113,7 +113,7 @@ export default function MarketsMetricsTotalsRow({
             case 'poas':
                 return (
                     <td key={key} className={cellClass}>
-                        {t.poas != null ? t.poas.toFixed(2) : '—'}
+                        {t.poas != null ? t.poas.toFixed(2) : '-'}
                     </td>
                 );
             case 'netProfit':

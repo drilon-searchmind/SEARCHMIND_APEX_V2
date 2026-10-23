@@ -7,6 +7,8 @@ import {
     visibleMarketingColumnKeysForMarkets,
 } from "@/lib/marketsOverviewApi";
 import { adSpendChannelsForShopifyMarketsFilterUi } from "@/lib/mergeAdSpendDaily";
+import { getDemoPayload, isDemoCustomerId, mergeDemoCustomerDocument } from "@/lib/demoCustomer";
+import { getDemoMarketsOverview } from "@/lib/demoMarketsOverview";
 
 export async function GET(request, { params }) {
     const resolvedParams = await params;
@@ -22,6 +24,23 @@ export async function GET(request, { params }) {
             { error: "Missing startDate or endDate" },
             { status: 400 }
         );
+    }
+
+    // Demo customers: seeded per-market split of the demo store data (no Shopify calls)
+    if (isDemoCustomerId(customerId)) {
+        let customer = getDemoPayload("customer");
+        try {
+            const doc = await getCustomerById(customerId);
+            const plain = doc?.toObject ? doc.toObject() : doc;
+            if (plain) customer = mergeDemoCustomerDocument(plain);
+        } catch {
+            // fall back to the bundled demo customer
+        }
+        const cs = customer?.CustomerSettings || {};
+        return NextResponse.json({
+            ...getDemoMarketsOverview(startDate, endDate, customer, { excludeAdSpendPlatforms }),
+            visibleMarketingColumnKeys: visibleMarketingColumnKeysForMarkets(cs, excludeAdSpendPlatforms),
+        });
     }
 
     try {

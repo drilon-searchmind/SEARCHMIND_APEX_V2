@@ -13,7 +13,7 @@ import {
 export function marketRowLabel(row) {
     if (row.isStoreTotal) return 'Store total';
     if (row.isUnassigned) return 'Unassigned';
-    return row.marketName || row.marketId || '—';
+    return row.marketName || row.marketId || '-';
 }
 
 export default function MarketsMetricsDataRow({
@@ -59,7 +59,6 @@ export default function MarketsMetricsDataRow({
                     <td
                         key={key}
                         className={cellClass}
-                        style={getCellStyles(row.orders, max.orders, row.orders === max.orders)}
                     >
                         {row.orders}
                     </td>
@@ -69,11 +68,6 @@ export default function MarketsMetricsDataRow({
                     <td
                         key={key}
                         className={cellClass}
-                        style={getCellStyles(
-                            row.netRevenue,
-                            max.netRevenue,
-                            row.netRevenue === max.netRevenue
-                        )}
                     >
                         {formatCurrency(row.netRevenue, { maximumFractionDigits: 0 })}
                     </td>
@@ -99,11 +93,10 @@ export default function MarketsMetricsDataRow({
                     <td
                         key={key}
                         className={cellClass}
-                        style={getCellStyles(row.aov, max.aov, row.aov === max.aov)}
                     >
                         {row.aov != null
                             ? formatCurrency(row.aov, { maximumFractionDigits: 0 })
-                            : '—'}
+                            : '-'}
                     </td>
                 );
             case 'ppcCost':
@@ -116,11 +109,6 @@ export default function MarketsMetricsDataRow({
                     <td
                         key={key}
                         className={cellClass}
-                        style={getCellStyles(
-                            row[key] ?? 0,
-                            max[key] ?? 0,
-                            row[key] === max[key]
-                        )}
                     >
                         {formatCurrency(row[key] ?? 0, { maximumFractionDigits: 0 })}
                     </td>
@@ -130,9 +118,9 @@ export default function MarketsMetricsDataRow({
                     <td
                         key={key}
                         className={cellClass}
-                        style={getCellStyles(row.roas, max.roas, row.roas === max.roas)}
+                        style={getCellStyles(row.roas, max.roas, row.roas === max.roas, { min: max.roasMin })}
                     >
-                        {row.roas != null ? row.roas.toFixed(2) : '—'}
+                        {row.roas != null ? row.roas.toFixed(2) : '-'}
                     </td>
                 );
             case 'variableExpense':
@@ -155,10 +143,11 @@ export default function MarketsMetricsDataRow({
                         key={key}
                         className={cellClass}
                         style={getCellStyles(row.poas, max.poas, row.poas === max.poas, {
+                            min: max.poasMin,
                             breakEven: POAS_BREAK_EVEN,
                         })}
                     >
-                        {row.poas != null ? row.poas.toFixed(2) : '—'}
+                        {row.poas != null ? row.poas.toFixed(2) : '-'}
                     </td>
                 );
             case 'netProfit':

@@ -185,6 +185,8 @@ Tooltip: `--cd-dark` background, 10px radius, 12px text, rows of colour dot + la
 
 Apex keeps its own page content; the templates guide where the dark hero goes and which component styles to use.
 
+Market colours: each market keeps one colour across the whole Markets page, assigned from `METRIC_CHART_PALETTE` by net revenue rank.
+
 Channel colours in Apex charts (ad spend by channel): Meta `#2563EB`, Google `#EA580C`, Pinterest `#DB2777`, Snapchat `#CA8A04`, Microsoft (Bing) `#0891B2`, Reddit `#7C3AED`. Like metric charts, these stay away from the brand greens so channels are easy to tell apart.
 
 **Dev note:** Turbopack can keep serving an old copy of `performance-dashboard.css` to pages that `@import` it. If a style change to that file doesn't show, restart the dev server (clearing `.next/dev/cache` if needed). Page-specific rules can live in the page's own CSS file.
@@ -219,6 +221,8 @@ Plain English, sentence case, short captions. No em or en dashes, no emojis, no 
 | `performance-dashboard/components/OverviewKeyMetrics.jsx` | Overview key metrics: dark hero row, Costs card with split bars, Key ratios tiles |
 | `daily-overview/DailySummary.jsx` | Daily: hero row (last day vs same weekday last week), stacked daily ad spend, daily revenue vs same day last week |
 | `daily-overview/daily-overview.css` | Daily: day-by-day table card, column toggles, heat cells (ROAS and POAS only, scaled lowest to highest) |
+| `markets-overview/MarketsInsights.jsx` | Markets: top market hero, markets in profit, best ROAS, weakest POAS, revenue share vs spend share (efficiency index), revenue donut, market scorecard with status tags and growth vs last period |
+| `src/lib/demoMarketsOverview.js` | Demo customers only: seeded per-market split of the demo store data for `/api/markets-overview` and `/preview/.../markets-overview` |
 
 Because the old pages reference `--apex-*` variables, remapping them inside `.apex-dashboard` gives unmigrated pages the new palette automatically. Migrating a page means checking its specific components against this spec and fixing what the remap does not cover.
 
@@ -232,7 +236,7 @@ Because the old pages reference `--apex-*` variables, remapping them inside `.ap
 | `dashboard/[customerId]/tools/pace-report` | Pending |
 | `dashboard/[customerId]/tools/pnl` | Pending |
 | `dashboard/[customerId]/ecommerce` | Pending |
-| `dashboard/[customerId]/markets-overview` | Pending |
+| `dashboard/[customerId]/markets-overview` | Migrated |
 | Service dashboards, config, other tools | Pending |
 | `/`, `/login`, `/home` | Legacy minimal spec |
 

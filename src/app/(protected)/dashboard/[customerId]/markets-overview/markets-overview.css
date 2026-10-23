@@ -1,4 +1,4 @@
-/* Apex · page: markets-overview · theme: minimal (DESIGN.md) */
+/* Apex · page: markets-overview · theme: commerce (DESIGN.md) */
 
 @import "../performance-dashboard/performance-dashboard.css";
 @import "../daily-overview/daily-overview.css";
@@ -6,23 +6,34 @@
 .apex-markets-stack {
   display: flex;
   flex-direction: column;
-  gap: var(--apex-space-grid);
+  gap: var(--cd-gap);
 }
 
+/* Rows inside the stack already get the gap */
+.apex-markets-stack .apex-perf-heading {
+  margin-bottom: 0;
+}
+
+.apex-mk-row {
+  margin: 0;
+}
+
+/* ── Cards / panels ── */
+
 .apex-markets-panel {
-  padding: var(--apex-space-card);
-  background: var(--perf-raised);
-  border: none;
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
   min-width: 0;
+  padding: 22px 24px;
+  background: var(--cd-card);
+  border: 1px solid var(--cd-line);
+  border-radius: var(--cd-r-lg);
+  box-shadow: none;
 }
 
 .apex-markets-panel__toolbar {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  margin-bottom: var(--space-md);
+  margin-bottom: 14px;
 }
 
 @media (min-width: 768px) {
@@ -38,44 +49,337 @@
   margin: 0;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: var(--text-md);
-  color: var(--color-ink);
+  font-size: 15.5px;
+  color: var(--cd-ink);
 }
 
 .apex-markets-panel__subtitle {
-  margin: var(--space-2xs) 0 0;
-  font-size: var(--text-xs);
+  margin: 4px 0 0;
+  font-size: 12.5px;
   line-height: 1.5;
-  color: var(--color-muted);
+  color: var(--cd-muted);
 }
 
-.apex-markets-summary {
+/* ── Hero row ── */
+
+.apex-mk-kpi {
+  cursor: default;
+}
+
+.apex-mk-hero-name {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-xs);
+  gap: 10px;
+  margin-top: 18px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
 }
 
-.apex-markets-summary__chip {
+.apex-ov-kpi.is-hero .apex-mk-hero-name + .apex-ov-kpi__value {
+  margin-top: 6px;
+}
+
+.apex-mk-swatch {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+.apex-ov-kpi.is-hero .apex-mk-swatch {
+  box-shadow: 0 0 0 2px var(--cd-dark-2);
+}
+
+/* ── Revenue share vs spend share + donut ── */
+
+.apex-mk-split {
+  display: grid;
+  gap: var(--cd-gap);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+@media (max-width: 1180px) {
+  .apex-mk-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.apex-mk-share {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.apex-mk-share__row {
+  margin: 0 -10px;
+  padding: 12px 10px;
+  border-radius: var(--cd-r-md);
+  transition: background-color var(--dur-micro) var(--ease-out);
+}
+
+.apex-mk-share__row.is-hover {
+  background: var(--cd-sunk);
+}
+
+.apex-mk-share__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.apex-mk-share__name {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2xs);
-  padding: var(--space-2xs) var(--space-sm);
-  font-family: var(--font-body);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--color-muted);
-  background: var(--perf-raised);
-  border: var(--rule-hair) solid var(--color-rule-2);
-  border-radius: var(--radius-pill);
+  gap: 9px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--cd-ink);
+  white-space: nowrap;
 }
 
-.apex-markets-summary__chip strong {
-  color: var(--color-ink);
-  font-weight: 700;
+.apex-mk-share__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
 }
+
+.apex-mk-share__meta b {
+  font-weight: 700;
+  color: var(--cd-ink);
+}
+
+.apex-mk-share__bars {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 56px;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 7px;
+}
+
+.apex-mk-share__lbl {
+  font-size: 12px;
+  color: var(--cd-muted);
+}
+
+.apex-mk-share__val {
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: right;
+  color: var(--cd-ink-2);
+}
+
+.apex-mk-share__row.is-hover .apex-ov-bar {
+  background: var(--cd-card);
+}
+
+/* Spend bar: neutral ink at reduced strength so the market colour carries revenue */
+.apex-ov-bar > i.is-spend {
+  background: var(--cd-ink);
+  opacity: 0.32;
+}
+
+.apex-mk-note {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: var(--cd-muted);
+}
+
+.apex-mk-donut-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.apex-mk-donut {
+  position: relative;
+  width: 200px;
+  height: 200px;
+}
+
+.apex-mk-donut svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.apex-mk-donut circle[stroke] {
+  cursor: pointer;
+  transition: opacity var(--dur-short) var(--ease-out);
+}
+
+.apex-mk-donut__c {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  padding: 50px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.apex-mk-donut__c small {
+  font-size: 11.5px;
+  color: var(--cd-muted);
+}
+
+.apex-mk-donut__c b {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--cd-ink);
+}
+
+.apex-mk-list {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.apex-mk-li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto 44px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 6px;
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--cd-line);
+  border-radius: 8px;
+  transition: background-color var(--dur-micro) var(--ease-out);
+}
+
+.apex-mk-li:last-child {
+  border-bottom: 0;
+}
+
+.apex-mk-li.is-hover {
+  background: var(--cd-sunk);
+}
+
+.apex-mk-li .apex-mk-swatch {
+  justify-self: center;
+}
+
+.apex-mk-li__name {
+  overflow: hidden;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.apex-mk-li__amt {
+  font-weight: 500;
+}
+
+.apex-mk-li__pc {
+  text-align: right;
+  color: var(--cd-muted);
+}
+
+/* ── Tags (DESIGN.md · Tags) ── */
+
+.apex-mk-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: 999px;
+}
+
+.apex-mk-tag.is-ok {
+  color: var(--cd-pos);
+  background: var(--cd-pos-soft);
+}
+
+.apex-mk-tag.is-warn {
+  color: var(--cd-warn);
+  background: var(--cd-warn-bg);
+}
+
+.apex-mk-tag.is-bad {
+  color: var(--cd-neg);
+  background: var(--cd-neg-soft);
+}
+
+.apex-mk-tag.is-neutral {
+  color: var(--cd-ink-2);
+  background: var(--cd-sunk);
+}
+
+/* ── Market scorecard table ── */
+
+.apex-mk-tbl-wrap {
+  overflow-x: auto;
+  margin: 0 -24px;
+  padding: 0 24px;
+}
+
+.apex-mk-tbl {
+  width: 100%;
+  font-size: 13.5px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.apex-mk-tbl th {
+  padding: 9px 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--cd-muted);
+  border-bottom: 1px solid var(--cd-line);
+}
+
+.apex-mk-tbl td {
+  padding: 12px 10px;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--cd-ink);
+  border-bottom: 1px solid var(--cd-line);
+}
+
+.apex-mk-tbl th:first-child,
+.apex-mk-tbl td:first-child {
+  padding-left: 0;
+  text-align: left;
+}
+
+.apex-mk-tbl th:last-child,
+.apex-mk-tbl td:last-child {
+  padding-right: 0;
+}
+
+.apex-mk-tbl tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.apex-mk-tbl tbody tr:hover td {
+  background: var(--cd-sunk);
+}
+
+.apex-mk-tbl td.is-neg {
+  color: var(--cd-neg);
+}
+
+.apex-mk-tbl .apex-ov-delta.is-compact {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.apex-mk-muted {
+  color: var(--cd-muted);
+}
+
+/* ── Market comparison chart ── */
 
 .apex-markets-chart-head {
   display: flex;
@@ -83,42 +387,51 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-md);
-  margin-bottom: var(--space-md);
+  margin-bottom: 8px;
+}
+
+.apex-markets-chart {
+  min-width: 0;
+  margin: 0 -6px;
 }
 
 .apex-markets-field {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2xs);
+  gap: 4px;
   min-width: 12rem;
 }
 
 .apex-markets-field__label {
   font-family: var(--font-body);
-  font-size: var(--text-xs);
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--color-muted);
+  color: var(--cd-muted);
 }
 
 .apex-markets-select {
   min-height: 2.25rem;
-  padding: var(--space-2xs) var(--space-sm);
+  padding: 6px 34px 6px 12px;
   font-family: var(--font-body);
-  font-size: var(--text-xs);
+  font-size: 13px;
   font-weight: 500;
-  color: var(--color-ink-2);
-  background: var(--perf-raised);
-  border: var(--rule-hair) solid var(--color-rule-2);
-  border-radius: var(--radius-input);
+  color: var(--cd-ink);
+  background: var(--cd-card)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23121A13' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 12px center;
+  border: 1px solid var(--cd-line-2);
+  border-radius: var(--cd-r-sm);
   outline: none;
+  appearance: none;
+  cursor: pointer;
 }
 
-.apex-markets-select:focus {
-  border-color: var(--color-ink);
-  box-shadow: 0 0 0 2px oklch(27.5% 0.038 165 / 0.1);
+.apex-markets-select:focus-visible {
+  border-color: var(--cd-green);
+  box-shadow: 0 0 0 2px rgba(58, 155, 63, 0.35);
 }
+
+/* ── All metrics table (shares the daily table styles) ── */
 
 .apex-markets-table__head-include,
 .apex-markets-table__cell-include {
@@ -132,28 +445,27 @@
 
 .apex-markets-table__head-include {
   background: transparent;
-  color: var(--color-muted);
+  color: var(--cd-muted);
   border-right: none;
 }
 
 .apex-markets-table__head-market {
-  padding: var(--space-xs) var(--space-sm);
+  padding: 9px 10px;
   font-family: var(--font-body);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: 0;
-  text-transform: none;
+  font-size: 12.5px;
+  font-weight: 500;
   text-align: left;
   vertical-align: middle;
-  color: var(--color-muted);
+  color: var(--cd-muted);
   background: transparent;
   border-right: none;
 }
 
 .apex-markets-table__cell-market {
-  padding: var(--space-xs) var(--space-sm);
+  padding: 11px 10px;
   font-weight: 600;
-  color: var(--color-ink);
+  text-align: left !important;
+  color: var(--cd-ink);
   white-space: nowrap;
 }
 
@@ -162,13 +474,13 @@
 }
 
 .apex-markets-table__row.is-special {
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .apex-markets-checkbox {
-  width: 0.9rem;
-  height: 0.9rem;
-  accent-color: var(--color-ink);
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--cd-green);
   cursor: pointer;
 }
 
@@ -177,11 +489,10 @@
   padding: var(--space-xl);
   text-align: center;
   font-size: var(--text-sm);
-  color: var(--color-muted);
-  background: var(--perf-raised);
-  border: none;
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
+  color: var(--cd-muted);
+  background: var(--cd-card);
+  border: 1px solid var(--cd-line);
+  border-radius: var(--cd-r-lg);
 }
 
 .apex-markets-loader-panel {
@@ -189,25 +500,22 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-2xl);
-  background: var(--perf-raised);
-  border: none;
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
+  background: var(--cd-card);
+  border: 1px solid var(--cd-line);
+  border-radius: var(--cd-r-lg);
 }
 
 .apex-markets-panel .apex-daily-toggle-bar {
   margin-bottom: var(--space-md);
 }
 
-.apex-markets-panel .apex-perf-graph {
-  box-shadow: none;
-  border-radius: var(--radius-input);
-}
+@media (max-width: 900px) {
+  .apex-markets-panel {
+    padding: 18px;
+  }
 
-.apex-markets-panel .apex-perf-graph__head {
-  display: none;
-}
-
-.apex-markets-panel .apex-perf-graph__body {
-  padding: 0;
+  .apex-mk-tbl-wrap {
+    margin: 0 -18px;
+    padding: 0 18px;
+  }
 }

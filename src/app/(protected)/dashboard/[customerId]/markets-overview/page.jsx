@@ -6,7 +6,10 @@ import { useParams, useRouter } from 'next/navigation';
 import DateRangePicker from '@/components/dashboard/DateRangePicker';
 import CobaltLoader from '@/components/ui/CobaltLoader';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import GraphCard from '@/components/dashboard/GraphCard';
+import dynamic from 'next/dynamic';
+import { getCobaltChartBaseOptions } from '@/lib/charts/cobaltChartTheme';
+import { COMMERCE_CHART_CHROME, METRIC_CHART_PALETTE } from '@/components/dashboard/chartColors';
+import MarketsInsights, { marketsLede } from './MarketsInsights';
 import MetricToggleBar from '../daily-overview/MetricToggleBar';
 import {
     MARKETS_DEFAULT_VISIBLE_METRICS,
@@ -25,6 +28,8 @@ import { isShopifyMarketsCustomer } from '@/lib/customerPlatformDisplay';
 import { revenueVatDisplayLabelSuffix } from '@/lib/revenueVatDisplay';
 import { useDashboardDataOptional } from '@/contexts/DashboardDataContext';
 import './markets-overview.css';
+
+const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false });
 
 const MarketsOverviewPage = () => {
     const params = useParams();
@@ -92,7 +97,7 @@ const MarketsOverviewPage = () => {
         setTempDateRange(shared.tempDateRange);
     }, [shared, shared?.appliedDateRange, shared?.tempDateRange]);
 
-    const { rows, storeTotalRow, loading, error, featureDisabled, visibleMarketingColumnKeys } =
+    const { rows, rowsPrev, loadingPrev, storeTotalRow, loading, error, featureDisabled, visibleMarketingColumnKeys } =
         useMarketsOverviewData(
             customer,
             resolvedAppliedDateRange,
@@ -207,12 +212,30 @@ const MarketsOverviewPage = () => {
         };
     }, [includedRows, allMarketsIncluded, storeTotalRow]);
 
-    const chartRows = includedRows;
-
-    const chartCategories = useMemo(
-        () => chartRows.map((r) => r.marketName || r.marketId || '—'),
-        [chartRows]
+    // One colour per market for the whole page (ranked by net revenue), distinct non-brand hues
+    const marketColors = useMemo(() => {
+        const ranked = [...(rows || [])].sort(
+            (a, b) => (Number(b.netRevenue) || 0) - (Number(a.netRevenue) || 0)
+        );
+        return new Map(
+            ranked.map((r, i) => [String(r.marketId), METRIC_CHART_PALETTE[i % METRIC_CHART_PALETTE.length]])
+        );
+    }, [rows]);
+    const colorFor = useCallback(
+        (marketId) => marketColors.get(String(marketId)) || METRIC_CHART_PALETTE[0],
+        [marketColors]
     );
+
+    // Comparison chart: included markets, ranked high to low on the chosen metric
+    const chartRows = useMemo(
+        () =>
+            [...includedRows].sort(
+                (a, b) => (Number(b?.[chartMetricKey]) || 0) - (Number(a?.[chartMetricKey]) || 0)
+            ),
+        [includedRows, chartMetricKey]
+    );
+    const isRatioMetric = chartMetricKey === 'roas' || chartMetricKey === 'poas';
+    const isCountMetric = chartMetricKey === 'orders';
 
     const chartSeries = useMemo(() => {
         const selected = chartMetricOptions.find((o) => o.key === chartMetricKey);
@@ -227,31 +250,76 @@ const MarketsOverviewPage = () => {
         ];
     }, [chartRows, chartMetricKey, chartMetricOptions]);
 
-    const chartOptions = useMemo(
-        () => ({
-            xaxis: { categories: chartCategories, labels: { rotate: -35 } },
-            yaxis: {
-                labels: {
-                    formatter: (v) => String(Math.round(Number(v) || 0)),
+    const chartOptions = useMemo(() => {
+        const formatValue = (v) => {
+            const n = Number(v) || 0;
+            if (isRatioMetric) return n.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (isCountMetric) return Math.round(n).toLocaleString('da-DK');
+            return `${Math.round(n).toLocaleString('da-DK')} kr.`;
+        };
+        const compactAxis = (v) => {
+            const n = Number(v) || 0;
+            if (isRatioMetric) return n.toLocaleString('da-DK', { maximumFractionDigits: 1 });
+            const abs = Math.abs(n);
+            if (abs >= 1e6) return `${(n / 1e6).toLocaleString('da-DK', { maximumFractionDigits: 1 })}m`;
+            if (abs >= 1e3) return `${Math.round(n / 1e3).toLocaleString('da-DK')}k`;
+            return Math.round(n).toLocaleString('da-DK');
+        };
+        const base = getCobaltChartBaseOptions();
+        return {
+            ...base,
+            chart: { ...base.chart, type: 'bar', toolbar: { show: false }, zoom: { enabled: false } },
+            colors: chartRows.map((r) => colorFor(r.marketId)),
+            plotOptions: {
+                bar: {
+                    horizontal: true,
+                    distributed: true,
+                    borderRadius: 6,
+                    borderRadiusApplication: 'end',
+                    barHeight: '62%',
+                    dataLabels: { position: 'top' },
                 },
             },
-            tooltip: {
-                shared: false,
-                intersect: true,
-                y: { formatter: (v) => String(Math.round(Number(v) || 0)) },
+            // Value sits just past the end of each bar, in ink, so it reads on any bar colour
+            dataLabels: {
+                enabled: true,
+                formatter: formatValue,
+                textAnchor: 'start',
+                offsetX: 10,
+                style: { fontSize: '12px', fontWeight: 600, colors: [COMMERCE_CHART_CHROME.legend] },
+                background: { enabled: false },
+                dropShadow: { enabled: false },
             },
-        }),
-        [chartCategories]
-    );
+            legend: { show: false },
+            grid: {
+                ...base.grid,
+                padding: { ...(base.grid?.padding || {}), right: 90 },
+                xaxis: { lines: { show: true } },
+                yaxis: { lines: { show: false } },
+            },
+            xaxis: {
+                ...base.xaxis,
+                categories: chartRows.map((r) => r.marketName || r.marketId || '-'),
+                labels: { ...base.xaxis.labels, formatter: compactAxis },
+                axisBorder: { show: false },
+            },
+            // Horizontal bars take their value scale from yaxis; 20% headroom keeps the end label clear
+            yaxis: {
+                max: (dataMax) => (dataMax > 0 ? dataMax * 1.2 : undefined),
+                labels: { style: { colors: COMMERCE_CHART_CHROME.legend, fontSize: '13px', fontWeight: 500 } },
+            },
+            tooltip: { ...base.tooltip, theme: 'dark', shared: false, intersect: true, y: { formatter: formatValue } },
+            states: { hover: { filter: { type: 'none' } } },
+        };
+    }, [chartRows, colorFor, isRatioMetric, isCountMetric]);
 
     const chartRemountKey = useMemo(
-        () => `${chartMetricKey}:${chartCategories.join('\u0001')}`,
-        [chartMetricKey, chartCategories]
+        () => `${chartMetricKey}:${chartRows.map((r) => r.marketId).join('|')}`,
+        [chartMetricKey, chartRows]
     );
+    const chartHeight = Math.max(200, chartRows.length * 56 + 60);
 
-    const marketCount = rows?.length ?? 0;
-    const includedCount = includedRows.length;
-    const headingSubtitle = `${appliedDateRange.startDate} to ${appliedDateRange.endDate} · Compare ROAS and POAS per Shopify market`;
+    const headingSubtitle = !loading ? marketsLede(includedRows) : null;
 
     if (!customer || !marketsEnabled) {
         return (
@@ -278,7 +346,7 @@ const MarketsOverviewPage = () => {
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}
-                title="Markets Overview"
+                title="Markets overview"
                 label={customer.customerName}
                 subtitle={headingSubtitle}
                 customerId={params.customerId}
@@ -314,28 +382,68 @@ const MarketsOverviewPage = () => {
                 }
             />
 
-            <div className="apex-markets-summary">
-                <span className="apex-markets-summary__chip">
-                    <strong>{marketCount}</strong> markets
-                </span>
-                <span className="apex-markets-summary__chip">
-                    <strong>{includedCount}</strong> in chart
-                </span>
-                {!allMarketsIncluded ? (
-                    <span className="apex-markets-summary__chip">
-                        Totals reflect selection
-                    </span>
-                ) : null}
+            {!loading && !error && includedRows.length > 0 ? (
+                <MarketsInsights
+                    rows={includedRows}
+                    rowsPrev={rowsPrev}
+                    loadingPrev={loadingPrev}
+                    colorFor={colorFor}
+                />
+            ) : null}
+
+            <div className="apex-markets-panel">
+                <div className="apex-markets-chart-head">
+                    <div>
+                        <h3 className="apex-markets-panel__title">Market comparison</h3>
+                        <p className="apex-markets-panel__subtitle">Included markets, ranked high to low</p>
+                    </div>
+                    <div className="apex-markets-field">
+                        <label htmlFor="markets-chart-metric" className="apex-markets-field__label">
+                            Metric
+                        </label>
+                        <select
+                            id="markets-chart-metric"
+                            className="apex-markets-select"
+                            value={chartMetricKey}
+                            onChange={(e) => setChartMetricKey(e.target.value)}
+                        >
+                            {chartMetricOptions.map((opt) => (
+                                <option key={opt.key} value={opt.key}>
+                                    {opt.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+                {chartRows.length > 0 ? (
+                    <div className="apex-markets-chart">
+                        <ReactApexChart
+                            key={chartRemountKey}
+                            options={chartOptions}
+                            series={chartSeries}
+                            type="bar"
+                            height={chartHeight}
+                            width="100%"
+                        />
+                    </div>
+                ) : (
+                    <p className="apex-markets-panel__subtitle mb-0">
+                        Include at least one market to render the comparison chart.
+                    </p>
+                )}
             </div>
 
             <div className="apex-markets-panel">
                 <div className="apex-markets-panel__toolbar">
                     <div>
-                        <h3 className="apex-markets-panel__title">Blended ROAS / POAS by market</h3>
+                        <h3 className="apex-markets-panel__title">All metrics by market</h3>
                         <p className="apex-markets-panel__subtitle">
-                            Toggle columns or exclude markets with the checkboxes — chart and totals follow your selection.
+                            Toggle columns, or untick a market to leave it out. Everything above follows your selection.
                         </p>
                     </div>
+                    {!allMarketsIncluded ? (
+                        <span className="apex-mk-tag is-warn">Totals reflect selection</span>
+                    ) : null}
                 </div>
                 <MetricToggleBar
                     variant="cobalt"
@@ -354,50 +462,6 @@ const MarketsOverviewPage = () => {
                     hiddenMarkets={hiddenMarkets}
                     onToggleMarket={toggleMarketRow}
                 />
-            </div>
-
-            <div className="apex-markets-panel">
-                <div className="apex-markets-chart-head">
-                    <div>
-                        <h3 className="apex-markets-panel__title">Market comparison</h3>
-                        <p className="apex-markets-panel__subtitle">
-                            Bar chart for included markets only
-                        </p>
-                    </div>
-                    <div className="apex-markets-field">
-                        <label htmlFor="markets-chart-metric" className="apex-markets-field__label">
-                            Chart metric
-                        </label>
-                        <select
-                            id="markets-chart-metric"
-                            className="apex-markets-select"
-                            value={chartMetricKey}
-                            onChange={(e) => setChartMetricKey(e.target.value)}
-                        >
-                            {chartMetricOptions.map((opt) => (
-                                <option key={opt.key} value={opt.key}>
-                                    {opt.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-                {chartRows.length > 0 ? (
-                    <GraphCard
-                        key={chartRemountKey}
-                        variant="cobalt"
-                        title={chartMetricOptions.find((o) => o.key === chartMetricKey)?.label || 'Metric'}
-                        chartOptions={chartOptions}
-                        chartSeries={chartSeries}
-                        chartType="bar"
-                        height={360}
-                        hideChartToggle
-                    />
-                ) : (
-                    <p className="apex-markets-panel__subtitle mb-0">
-                        Include at least one market to render the comparison chart.
-                    </p>
-                )}
             </div>
         </div>
     );
