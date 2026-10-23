@@ -86,52 +86,24 @@ export default function ComparisonPeriodPopover({
             onMouseEnter={handleEnter}
             onMouseLeave={handleLeave}
         >
-            <div className="relative rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-lg">
-                {openUpward && (
-                    <>
-                        <div className="pointer-events-none absolute -bottom-2 right-8 h-0 w-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-white" />
-                        <div className="pointer-events-none absolute -bottom-2.5 right-8 h-0 w-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-gray-200" />
-                    </>
+            <div className={`apex-cmp-pop${openUpward ? " is-up" : ""}`}>
+                {hasComparisonBlock && (
+                    <div className="apex-cmp-pop__block">
+                        <div className="apex-cmp-pop__label">{comparisonMethod} value</div>
+                        <div className="apex-cmp-pop__value">{hasPrev ? changePrevValue : "-"}</div>
+                        {hasDiff && (
+                            <>
+                                <div className="apex-cmp-pop__label">Difference</div>
+                                <div className="apex-cmp-pop__value is-strong">{changeAbsolute}</div>
+                            </>
+                        )}
+                    </div>
                 )}
-                {!openUpward && (
-                    <>
-                        <div className="pointer-events-none absolute -top-2 right-8 h-0 w-0 border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-white" />
-                        <div className="pointer-events-none absolute -top-2.5 right-8 h-0 w-0 border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-gray-200" />
-                    </>
+                {extraContent && (
+                    <div className={`apex-cmp-pop__extra${hasComparisonBlock ? " has-divider" : ""}`}>
+                        {extraContent}
+                    </div>
                 )}
-                <div className="space-y-2 text-xs text-gray-700">
-                    {hasComparisonBlock && (
-                        <div className="space-y-1">
-                            <div className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
-                                {comparisonMethod} value
-                            </div>
-                            <div className="font-medium">
-                                {hasPrev ? changePrevValue : "—"}
-                            </div>
-                            {hasDiff && (
-                                <>
-                                    <div className="pt-1 text-[10px] font-medium uppercase tracking-wide text-gray-500">
-                                        Difference
-                                    </div>
-                                    <div className="font-semibold">
-                                        {changeAbsolute}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    )}
-                    {extraContent && (
-                        <div
-                            className={`whitespace-pre-line ${
-                                hasComparisonBlock
-                                    ? "border-t border-gray-100 pt-2"
-                                    : ""
-                            }`}
-                        >
-                            {extraContent}
-                        </div>
-                    )}
-                </div>
             </div>
         </div>
     );

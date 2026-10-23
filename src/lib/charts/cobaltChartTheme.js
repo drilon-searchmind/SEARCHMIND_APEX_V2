@@ -4,7 +4,7 @@ import {
 } from "./chartSeriesColors.js";
 
 /**
- * Dashboard chart styling (minimal / Apex design).
+ * Dashboard chart styling (commerce design, DESIGN.md · Charts).
  * File name retained for imports; reads tokens from `.apex-perf` when available.
  */
 
@@ -28,6 +28,7 @@ export function getCobaltChartTokens() {
         rule: readToken("--color-rule", "#e7e5e2"),
         rule2: readToken("--color-rule-2", "#d8d5d0"),
         paper2: readToken("--color-paper-2", "#f4f3f1"),
+        font: readToken("--font-body", "'Plus Jakarta Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif"),
     };
 }
 
@@ -43,7 +44,7 @@ export function getCobaltChartBaseOptions() {
     return {
         chart: {
             background: "transparent",
-            fontFamily: "AcidGrotesk, ui-sans-serif, system-ui, sans-serif",
+            fontFamily: t.font,
             foreColor: t.muted,
             animations: {
                 enabled: true,
@@ -63,13 +64,13 @@ export function getCobaltChartBaseOptions() {
             axisTicks: { show: false },
             crosshairs: {
                 show: true,
-                stroke: { color: t.rule2, width: 1, dashArray: 4 },
+                stroke: { color: t.rule2, width: 1, dashArray: 0 },
             },
             labels: {
                 style: {
                     colors: t.muted,
                     fontSize: "11px",
-                    fontFamily: "AcidGrotesk, ui-sans-serif, system-ui, sans-serif",
+                    fontFamily: t.font,
                     fontWeight: 500,
                 },
             },
@@ -79,7 +80,7 @@ export function getCobaltChartBaseOptions() {
                 style: {
                     colors: t.muted,
                     fontSize: "11px",
-                    fontFamily: "AcidGrotesk, ui-sans-serif, system-ui, sans-serif",
+                    fontFamily: t.font,
                     fontWeight: 500,
                 },
             },
@@ -90,8 +91,8 @@ export function getCobaltChartBaseOptions() {
         },
         markers: {
             size: 0,
-            strokeWidth: 0,
-            hover: { size: 4, sizeOffset: 2 },
+            strokeWidth: 2,
+            hover: { size: 5 },
         },
         legend: {
             show: true,
@@ -99,23 +100,22 @@ export function getCobaltChartBaseOptions() {
             horizontalAlign: "left",
             offsetY: 0,
             fontSize: "12px",
-            fontFamily: "AcidGrotesk, ui-sans-serif, system-ui, sans-serif",
+            fontFamily: t.font,
             fontWeight: 500,
             labels: { colors: t.ink2 },
             markers: {
-                width: 12,
-                height: 3,
-                radius: 2,
+                size: 7,
+                shape: "line",
+                strokeWidth: 3,
                 offsetX: -3,
-                strokeWidth: 0,
             },
             itemMargin: { horizontal: 16, vertical: 6 },
         },
         tooltip: {
-            theme: "light",
+            theme: "dark",
             style: {
                 fontSize: "12px",
-                fontFamily: "AcidGrotesk, ui-sans-serif, system-ui, sans-serif",
+                fontFamily: t.font,
             },
             x: { show: true },
         },

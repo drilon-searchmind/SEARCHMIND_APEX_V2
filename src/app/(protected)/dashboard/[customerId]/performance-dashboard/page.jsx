@@ -7,7 +7,6 @@ import { useBusinessCategory } from "@/hooks/useBusinessCategory";
 import B2BPerformanceDashboard from "./B2BPerformanceDashboard";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
-import MetricCard from "@/components/dashboard/MetricCard";
 import { FiDollarSign, FiTrendingUp, FiShoppingCart, FiCreditCard, FiBarChart2, FiPieChart, FiShoppingBag, FiUserCheck } from "react-icons/fi";
 import GraphCard from "@/components/dashboard/GraphCard";
 // import { revenueData, spendAllocationData, roasData, aovData } from "@/data/dashboardCharts";
@@ -39,6 +38,7 @@ import {
 } from "@/lib/performanceDashboard/resolveOverviewChartMetricValue";
 import { buildPerformanceMetricsCards } from "./components/buildPerformanceMetricsCards";
 import PerformanceDashboardStandardSections from "./components/PerformanceDashboardStandardSections";
+import OverviewKeyMetrics from "./components/OverviewKeyMetrics";
 import {
     buildStandardOverviewSections,
     collectSectionMetricKeys,
@@ -858,19 +858,50 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
         });
 
         const formatChartValue = (v) => (typeof v === 'number' && !isNaN(v) ? v.toLocaleString('da-DK', { maximumFractionDigits: 2, minimumFractionDigits: 0 }) : v);
+        // Compact axis labels (150k, 1,5m) per DESIGN.md · Charts; small ratios keep their decimals
+        const formatAxisValue = (v) => {
+            if (typeof v !== 'number' || isNaN(v)) return v;
+            const abs = Math.abs(v);
+            if (abs >= 1e6) return `${(v / 1e6).toLocaleString('da-DK', { maximumFractionDigits: 1 })}m`;
+            if (abs >= 1e3) return `${Math.round(v / 1e3).toLocaleString('da-DK')}k`;
+            return v.toLocaleString('da-DK', { maximumFractionDigits: 2 });
+        };
         const isCurrentSeries = (s) => s.name && s.name.includes('(Current)');
+        const seriesColors = colorsForCurrentComparisonSeries(series, { palette: COMMERCE_CHART_PALETTE });
+        // Only the first current series gets the 10% area fill; the rest stay plain lines
+        const firstCurrentIdx = series.findIndex(isCurrentSeries);
+        series.forEach((s, i) => {
+            s.type = i === firstCurrentIdx ? 'area' : 'line';
+        });
         const options = {
             chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: COMMERCE_CHART_CHROME.fontFamily },
-            xaxis: { categories, labels: { style: { colors: COMMERCE_CHART_CHROME.axisLabel } }, axisTicks: { show: false }, axisBorder: { show: true, color: COMMERCE_CHART_CHROME.grid } },
-            yaxis: { labels: { style: { colors: COMMERCE_CHART_CHROME.axisLabel }, formatter: formatChartValue } },
-            tooltip: { theme: 'dark', y: { formatter: formatChartValue } },
-            colors: colorsForCurrentComparisonSeries(series, { palette: COMMERCE_CHART_PALETTE }),
-            stroke: { width: series.map((s) => isCurrentSeries(s) ? 2.5 : 1.5), curve: 'smooth', dashArray: series.map((s) => isCurrentSeries(s) ? 0 : 4) },
-            fill: { type: 'solid', opacity: series.map((s) => isCurrentSeries(s) ? 1 : 0.35) },
+            xaxis: {
+                categories,
+                tickAmount: Math.min(categories.length, 10),
+                labels: {
+                    rotate: 0,
+                    hideOverlappingLabels: true,
+                    style: { colors: COMMERCE_CHART_CHROME.axisLabel },
+                    // "2026-10-05" -> "5 Oct", "2026-10" -> "Oct 2026"
+                    formatter: (v) => {
+                        if (/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return dayjs(v).format('D MMM');
+                        if (/^\d{4}-\d{2}$/.test(String(v))) return dayjs(`${v}-01`).format('MMM YYYY');
+                        return v;
+                    },
+                },
+                axisTicks: { show: false },
+                axisBorder: { show: true, color: COMMERCE_CHART_CHROME.grid },
+                tooltip: { enabled: false },
+            },
+            yaxis: { tickAmount: 4, forceNiceScale: true, labels: { style: { colors: COMMERCE_CHART_CHROME.axisLabel }, formatter: formatAxisValue } },
+            tooltip: { theme: 'dark', shared: true, intersect: false, y: { formatter: formatChartValue } },
+            colors: seriesColors,
+            stroke: { width: series.map((s) => isCurrentSeries(s) ? 2.2 : 1.6), curve: 'smooth', dashArray: series.map((s) => isCurrentSeries(s) ? 0 : 4) },
+            fill: { type: 'solid', opacity: series.map((_, i) => (i === firstCurrentIdx ? 0.1 : 1)) },
             grid: { borderColor: COMMERCE_CHART_CHROME.grid, strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
-            markers: { size: 0, hover: { size: 5 }, strokeColors: '#ffffff', strokeWidth: 2 },
+            markers: { size: 0, hover: { size: 5 }, colors: series.map(() => '#ffffff'), strokeColors: seriesColors, strokeWidth: 2 },
             dataLabels: { enabled: false },
-            legend: { show: true, position: 'top', horizontalAlign: 'left', labels: { colors: COMMERCE_CHART_CHROME.legend }, markers: { size: 5 } },
+            legend: { show: true, position: 'top', horizontalAlign: 'left', labels: { colors: COMMERCE_CHART_CHROME.legend } },
         };
 
         return { series, options };
@@ -1280,39 +1311,13 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
                 )}
 
                 {!loading && !error && overviewKpiMetrics.length > 0 && (
-                    <div className="mt-6">
-                        <h3 className="apex-perf-section-label">Key metrics</h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-                            {overviewKpiMetrics.map((metric) => (
-                                <div
-                                    key={metric.key}
-                                    role="button"
-                                    tabIndex={0}
-                                    className="min-w-0 cursor-pointer"
-                                    onClick={() => toggleMetricSelection(metric.key)}
-                                    onKeyDown={(e) =>
-                                        (e.key === "Enter" || e.key === " ") &&
-                                        toggleMetricSelection(metric.key)
-                                    }
-                                >
-                                    <MetricCard
-                                        variant="cobalt"
-                                        label={metric.label}
-                                        value={metric.value}
-                                        change={metric.change}
-                                        changeType={metric.changeType}
-                                        changeAbsolute={metric.changeAbsolute}
-                                        changePrevValue={metric.changePrevValue}
-                                        comparisonMethod={comparisonMethodForUi}
-                                        popOverContent={metric.popOverContent}
-                                        icon={metric.icon}
-                                        isActive={selectedMetrics.includes(metric.key)}
-                                        className="min-w-0"
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    <OverviewKeyMetrics
+                        metrics={overviewKpiMetrics}
+                        metricsData={metricsData}
+                        selectedMetrics={selectedMetrics}
+                        onToggleMetric={toggleMetricSelection}
+                        comparisonMethod={comparisonMethodForUi}
+                    />
                 )}
             </div>
             )}

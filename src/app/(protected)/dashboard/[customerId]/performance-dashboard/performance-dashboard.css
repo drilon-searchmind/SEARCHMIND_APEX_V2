@@ -1516,3 +1516,567 @@
 .group:hover .apex-perf-custom__hover-actions {
   opacity: 1;
 }
+
+/* ── Overview key metrics (DESIGN.md · Dashboard overview: hero row, costs split, key ratios) ── */
+
+.apex-ov {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-gap);
+  margin-top: var(--cd-gap);
+}
+
+.apex-ov__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: -6px;
+}
+
+.apex-ov__head .apex-perf-section-label {
+  margin: 0;
+}
+
+.apex-ov-sub {
+  font-size: 12.5px;
+  color: var(--cd-muted);
+}
+
+.apex-ov-grid {
+  display: grid;
+  gap: var(--cd-gap);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.apex-ov-grid--hero {
+  grid-template-columns: minmax(0, 1.9fr) repeat(3, minmax(0, 1fr));
+}
+
+.apex-ov-grid--kpis {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.apex-ov-grid--2-1 {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.apex-ov-card {
+  min-width: 0;
+  height: 100%;
+  padding: 22px 24px;
+  background: var(--cd-card);
+  border: 1px solid var(--cd-line);
+  border-radius: var(--cd-r-lg);
+}
+
+.apex-ov-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.apex-ov-card__head h3 {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--cd-ink);
+}
+
+/* Clickable metric surfaces */
+.apex-ov-kpi,
+.apex-ov-costs__total,
+.apex-ov-split__row,
+.apex-ov-tile {
+  cursor: pointer;
+  transition:
+    border-color var(--dur-micro) var(--ease-out),
+    background-color var(--dur-micro) var(--ease-out),
+    box-shadow var(--dur-micro) var(--ease-out);
+}
+
+.apex-ov-kpi:focus-visible,
+.apex-ov-costs__total:focus-visible,
+.apex-ov-split__row:focus-visible,
+.apex-ov-tile:focus-visible {
+  outline: 2px solid var(--cd-green);
+  outline-offset: 2px;
+}
+
+/* KPI card */
+.apex-ov-kpi:hover {
+  border-color: var(--cd-line-2);
+}
+
+.apex-ov-kpi.is-active {
+  background: var(--cd-mint-soft);
+  border-color: var(--cd-green);
+  box-shadow: inset 0 0 0 1px var(--cd-green);
+}
+
+.apex-ov-kpi__label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--cd-ink);
+}
+
+.apex-ov-ic {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--cd-mint-soft);
+  color: var(--cd-green-2);
+}
+
+.apex-ov-ic svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2;
+}
+
+.apex-ov-ic.is-cost {
+  background: var(--cd-neg-soft);
+  color: var(--cd-neg);
+}
+
+.apex-ov-kpi.is-active .apex-ov-ic {
+  background: var(--cd-card);
+}
+
+.apex-ov-kpi__value {
+  margin: 14px 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--cd-ink);
+  white-space: nowrap;
+}
+
+.apex-ov-kpi__value small {
+  margin-left: 3px;
+  font-size: 0.58em;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--cd-muted);
+}
+
+.apex-ov-kpi__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.apex-ov-vs {
+  font-size: 12px;
+  color: var(--cd-ink-2);
+}
+
+.apex-ov-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  border: 1px solid var(--cd-line);
+  border-radius: 8px;
+  background: var(--cd-card);
+  color: var(--cd-ink-2);
+}
+
+.apex-ov-delta svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2;
+}
+
+.apex-ov-delta.is-up {
+  color: var(--cd-pos);
+}
+
+.apex-ov-delta.is-down {
+  color: var(--cd-neg);
+}
+
+/* Hero (dark) */
+.apex-ov-kpi.is-hero {
+  background: var(--cd-dark);
+  border-color: var(--cd-dark);
+  color: #ffffff;
+}
+
+.apex-ov-kpi.is-hero:hover {
+  border-color: var(--cd-dark-line);
+}
+
+.apex-ov-kpi.is-hero.is-active {
+  box-shadow: inset 0 0 0 2px var(--cd-green);
+}
+
+.apex-ov-kpi.is-hero .apex-ov-kpi__label {
+  font-size: 15px;
+  color: #ffffff;
+}
+
+.apex-ov-kpi__eye {
+  width: 16px;
+  height: 16px;
+  opacity: 0.7;
+}
+
+.apex-ov-kpi.is-hero .apex-ov-kpi__value {
+  margin: 22px 0 20px;
+  font-size: 44px;
+  color: #ffffff;
+}
+
+.apex-ov-kpi.is-hero .apex-ov-kpi__value small {
+  color: var(--cd-on-dark-muted);
+}
+
+.apex-ov-kpi.is-hero .apex-ov-delta {
+  background: var(--cd-dark-2);
+  border-color: var(--cd-dark-line);
+  color: var(--cd-on-dark-2);
+}
+
+.apex-ov-kpi.is-hero .apex-ov-delta.is-up {
+  color: var(--cd-mint);
+}
+
+.apex-ov-kpi.is-hero .apex-ov-delta.is-down {
+  color: var(--cd-neg-on-dark);
+}
+
+.apex-ov-kpi.is-hero .apex-ov-vs {
+  color: var(--cd-on-dark-2);
+}
+
+/* Costs card: total + split bars */
+.apex-ov-costs__total {
+  margin: -6px -10px 8px;
+  padding: 6px 10px 12px;
+  border-radius: var(--cd-r-md);
+  border: 1px solid transparent;
+}
+
+.apex-ov-costs__total-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12.5px;
+  color: var(--cd-muted);
+}
+
+.apex-ov-costs__total .apex-ov-kpi__value {
+  margin: 6px 0 12px;
+}
+
+.apex-ov-split {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.apex-ov-split__row {
+  padding: 12px 10px;
+  margin: 0 -10px;
+  border-radius: var(--cd-r-md);
+  border: 1px solid transparent;
+}
+
+.apex-ov-costs__total:hover,
+.apex-ov-split__row:hover {
+  background: var(--cd-sunk);
+}
+
+.apex-ov-costs__total.is-active,
+.apex-ov-split__row.is-active {
+  background: var(--cd-mint-soft);
+  border-color: var(--cd-green);
+}
+
+.apex-ov-split__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13.5px;
+  flex-wrap: wrap;
+}
+
+.apex-ov-split__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 500;
+  color: var(--cd-ink);
+}
+
+.apex-ov-split__val {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.apex-ov-split__val b {
+  font-weight: 600;
+  color: var(--cd-ink);
+}
+
+.apex-ov-split__val b small {
+  margin-left: 3px;
+  font-size: 0.8em;
+  font-weight: 500;
+  color: var(--cd-muted);
+}
+
+.apex-ov-split__val .apex-ov-delta {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.apex-ov-bar {
+  position: relative;
+  height: 10px;
+  border-radius: 6px;
+  background: var(--cd-sunk);
+}
+
+.apex-ov-split__row.is-active .apex-ov-bar,
+.apex-ov-split__row:hover .apex-ov-bar {
+  background: var(--cd-card);
+}
+
+.apex-ov-bar > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 6px;
+  background: var(--cd-green);
+}
+
+.apex-ov-split__cap {
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--cd-ink-2);
+}
+
+/* Key ratio tiles */
+.apex-ov-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.apex-ov-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 14px 10px;
+  text-align: center;
+  background: var(--cd-sunk);
+  border: 1px solid var(--cd-line);
+  border-radius: var(--cd-r-sm);
+}
+
+.apex-ov-tile:hover {
+  border-color: var(--cd-line-2);
+}
+
+.apex-ov-tile.is-active {
+  background: var(--cd-mint-soft);
+  border-color: var(--cd-green);
+}
+
+.apex-ov-tile__ic {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--cd-card);
+  border: 1px solid var(--cd-line);
+  color: var(--cd-green-2);
+}
+
+.apex-ov-tile__ic svg {
+  width: 16px;
+  height: 16px;
+}
+
+.apex-ov-tile b {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--cd-ink);
+}
+
+.apex-ov-tile b small {
+  margin-left: 2px;
+  font-size: 0.8em;
+  font-weight: 500;
+  color: var(--cd-muted);
+}
+
+.apex-ov-tile small {
+  font-size: 11.5px;
+  color: var(--cd-ink-2);
+}
+
+.apex-ov-tile .apex-ov-delta {
+  margin-top: 2px;
+  padding: 2px 8px;
+  font-size: 11.5px;
+}
+
+@media (max-width: 1180px) {
+  .apex-ov-grid--hero {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .apex-ov-grid--hero > :first-child {
+    grid-column: 1 / -1;
+  }
+
+  .apex-ov-grid--2-1 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .apex-ov-grid--hero {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .apex-ov-card {
+    padding: 18px;
+  }
+
+  .apex-ov-kpi.is-hero .apex-ov-kpi__value {
+    font-size: 34px;
+  }
+}
+
+@media (max-width: 480px) {
+  .apex-ov-grid--hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .apex-ov-kpi__value {
+    font-size: 22px;
+  }
+}
+
+/* ── Comparison popover (portaled to body) · dark tooltip per DESIGN.md · Charts ── */
+
+.apex-cmp-pop {
+  position: relative;
+  padding: 10px 12px;
+  font-family: var(--cd-sans);
+  font-size: 12px;
+  line-height: 1.55;
+  font-feature-settings: "tnum" 1;
+  color: #ffffff;
+  background: var(--cd-dark);
+  border-radius: var(--cd-r-sm);
+}
+
+.apex-cmp-pop::before {
+  content: "";
+  position: absolute;
+  right: 2rem;
+  top: -6px;
+  border: 6px solid transparent;
+  border-top: 0;
+  border-bottom-color: var(--cd-dark);
+}
+
+.apex-cmp-pop.is-up::before {
+  top: auto;
+  bottom: -6px;
+  border-bottom: 0;
+  border-top: 6px solid var(--cd-dark);
+}
+
+.apex-cmp-pop__block {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: 16px;
+  row-gap: 2px;
+}
+
+.apex-cmp-pop__label {
+  color: #B6C1B6;
+}
+
+.apex-cmp-pop__value {
+  text-align: right;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.apex-cmp-pop__value.is-strong {
+  font-weight: 700;
+}
+
+.apex-cmp-pop__extra {
+  white-space: pre-line;
+  color: var(--cd-on-dark-2);
+}
+
+.apex-cmp-pop__extra.has-divider {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--cd-dark-line);
+}
+
+/* Overview chart: legend + hover marker polish */
+.apex-perf-graph .apexcharts-legend {
+  padding: 0 0 6px !important;
+}
+
+.apex-perf-graph .apexcharts-legend-series {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Series dots on the dark tooltip: ink-coloured series would vanish, so ring them */
+.apex-perf .apexcharts-tooltip-marker {
+  width: 9px !important;
+  height: 9px !important;
+  margin-right: 6px !important;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 1.5px #DCE5DC;
+}
+
+.apex-perf .apexcharts-tooltip-marker::before {
+  display: none;
+}
+
+.apex-perf .apexcharts-tooltip-series-group.apexcharts-active,
+.apex-perf .apexcharts-tooltip-series-group:last-child {
+  padding-bottom: 2px !important;
+}
+
+.apex-perf .apexcharts-tooltip-text-y-value {
+  margin-left: 14px !important;
+}

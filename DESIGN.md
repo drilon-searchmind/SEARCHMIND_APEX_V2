@@ -206,6 +206,9 @@ Plain English, sentence case, short captions. No em or en dashes, no emojis, no 
 | `src/app/(protected)/dashboard/dashboard-shell.css` | Shell: remaps `--apex-*` to `--cd-*` inside `.apex-dashboard`, sidebar, header strip |
 | `src/app/(protected)/dashboard/[customerId]/performance-dashboard/performance-dashboard.css` | Shared `apex-perf-*` components (sections, KPI cards, graph card, buttons, chips, date picker) used by most dashboard views |
 | `src/lib/charts/chartSeriesColors.js` | `COMMERCE_CHART_PALETTE` and helpers for ApexCharts |
+| `src/lib/charts/cobaltChartTheme.js` | Shared ApexCharts base options (font, dark tooltip, solid guide line, white hover dots, line legend markers) merged into every dashboard chart |
+| `src/components/dashboard/ComparisonPeriodPopover.jsx` | Hover popover on metrics, styled as the dark tooltip (`.apex-cmp-pop`) |
+| `performance-dashboard/components/OverviewKeyMetrics.jsx` | Overview key metrics: dark hero row, Costs card with split bars, Key ratios tiles |
 
 Because the old pages reference `--apex-*` variables, remapping them inside `.apex-dashboard` gives unmigrated pages the new palette automatically. Migrating a page means checking its specific components against this spec and fixing what the remap does not cover.
 
