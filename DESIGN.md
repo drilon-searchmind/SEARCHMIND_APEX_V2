@@ -201,7 +201,8 @@ Plain English, sentence case, short captions. No em or en dashes, no emojis, no 
 
 | File | Role |
 |---|---|
-| `src/styles/commerce-design-tokens.css` | `--cd-*` tokens + Plus Jakarta Sans import |
+| `src/styles/commerce-design-tokens.css` | `--cd-*` tokens (no remote `@import` here: it breaks when the file is inlined via nested page imports) |
+| `src/app/globals.css` | Loads Plus Jakarta Sans from Google Fonts at the top of the root stylesheet |
 | `src/app/(protected)/dashboard/dashboard-shell.css` | Shell: remaps `--apex-*` to `--cd-*` inside `.apex-dashboard`, sidebar, header strip |
 | `src/app/(protected)/dashboard/[customerId]/performance-dashboard/performance-dashboard.css` | Shared `apex-perf-*` components (sections, KPI cards, graph card, buttons, chips, date picker) used by most dashboard views |
 | `src/lib/charts/chartSeriesColors.js` | `COMMERCE_CHART_PALETTE` and helpers for ApexCharts |

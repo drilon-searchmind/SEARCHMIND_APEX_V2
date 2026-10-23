@@ -1,6 +1,6 @@
 /* Apex · commerce dashboard design tokens (DESIGN.md) */
-
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
+/* Plus Jakarta Sans is loaded once at the top of src/app/globals.css: a remote @import here
+   ends up mid-file when this sheet is inlined through nested page imports. */
 
 :root {
   /* Surfaces */
