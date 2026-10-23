@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import GraphCard from '@/components/dashboard/GraphCard';
+import CustomerOverview from './CustomerOverview';
 import MetricCard from '@/components/dashboard/MetricCard';
 import CobaltLoader from '@/components/ui/CobaltLoader';
 import { FiDollarSign, FiTrendingUp, FiPackage } from 'react-icons/fi';
@@ -101,37 +101,6 @@ export default function CustomerPerformance({
         Boolean(data.adSpendByChannel || loading) &&
         (loading || visibleAdSpendChannels == null || visibleAdSpendChannels.length > 0);
 
-    const categories = data?.dailySeries?.map(d => d.period) || [];
-    const newSeriesData = data?.dailySeries?.map(d => d.newCustomers || 0) || [];
-    const returningSeriesData = data?.dailySeries?.map(d => d.returningCustomers || 0) || [];
-
-    const timeSeriesChartOptions = {
-        chart: {
-            id: 'segmentation-timeseries',
-            toolbar: { show: false },
-            stacked: true,
-        },
-        stroke: { curve: 'smooth', width: 2 },
-        fill: {
-            type: 'solid',
-            opacity: 0.92,
-        },
-        xaxis: { categories, labels: { rotate: -45 } },
-        yaxis: {
-            labels: {
-                formatter: (v) => Math.round(v).toLocaleString('da-DK'),
-            },
-        },
-        legend: { position: 'top', horizontalAlign: 'left' },
-        tooltip: { shared: true, y: { formatter: (v) => formatNumber(v) } },
-        dataLabels: { enabled: false },
-    };
-
-    const timeSeriesChartSeries = [
-        { name: 'New', data: newSeriesData },
-        { name: 'Returning', data: returningSeriesData },
-    ];
-
     const firstOrders = data.firstOrdersCount ?? 0;
     const adSpend = data.adSpend ?? 0;
     const nCAC = firstOrders > 0 && adSpend > 0 ? adSpend / firstOrders : null;
@@ -150,11 +119,15 @@ export default function CustomerPerformance({
     };
 
     return (
+        <>
+        {!loading && segmentation ? (
+            <CustomerOverview segmentation={segmentation} ltvLoading={ltvLoading} />
+        ) : null}
         <section className="apex-ecom-panel">
             <div className="apex-ecom-panel__head">
                 <div>
-                    <h2 className="apex-ecom-panel__title">Customer Segmentation</h2>
-                    <p className="apex-ecom-panel__subtitle">New vs returning customers, LTV, and acquisition efficiency</p>
+                    <h2 className="apex-ecom-panel__title">Customer metrics</h2>
+                    <p className="apex-ecom-panel__subtitle">Orders, revenue, lifetime value and acquisition efficiency, with the calculations behind them</p>
                 </div>
                 {!loading && segmentation && (
                     <button
@@ -179,18 +152,6 @@ export default function CustomerPerformance({
                 </div>
             ) : (
                 <>
-                    <div className="apex-ecom-chart-block">
-                        <GraphCard
-                            variant="cobalt"
-                            hideChartToggle
-                            title="New vs Returning customers over time"
-                            chartOptions={timeSeriesChartOptions}
-                            chartSeries={timeSeriesChartSeries}
-                            chartType="area"
-                            height={320}
-                        />
-                    </div>
-
                     <MetricGroup label="Orders">
                         <MetricWithCalc showCalcs={showCalcs}
                             label="New customer orders"
@@ -322,5 +283,6 @@ export default function CustomerPerformance({
                 </>
             )}
         </section>
+        </>
     );
 }

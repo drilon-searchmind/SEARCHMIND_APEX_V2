@@ -31,8 +31,8 @@ import { useDashboardDataOptional } from '@/contexts/DashboardDataContext';
 import './ecommerce.css';
 
 const TABS = [
-    { id: 'products', label: 'Product Performance', icon: FiPackage },
-    { id: 'customers', label: 'Customer Performance', icon: FiUsers },
+    { id: 'products', label: 'Product performance', icon: FiPackage },
+    { id: 'customers', label: 'Customer performance', icon: FiUsers },
 ];
 
 const defaultRange = () => {

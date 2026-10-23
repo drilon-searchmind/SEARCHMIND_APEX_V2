@@ -3,8 +3,8 @@
 import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
 import CobaltLoader from '@/components/ui/CobaltLoader';
-import MetricCard from '@/components/dashboard/MetricCard';
-import { FiPackage, FiDollarSign, FiTruck } from 'react-icons/fi';
+import { FiPackage } from 'react-icons/fi';
+import ProductOverview from './ProductOverview';
 import {
     formatAvgDaysToSoldOutDisplay,
     SHOPIFY_PRODUCT_SOLD_OUT_LOOKBACK_DAYS,
@@ -141,6 +141,19 @@ export default function ProductPerfomance({
         };
     }, [filteredProducts, products.length, periodSummary, query]);
 
+    // Overview always describes the whole store for the period, independent of the search box
+    const overviewSummary = useMemo(() => ({
+        totalSalesExVat: periodSummary
+            ? Number(periodSummary.totalSalesExVat) || 0
+            : enrichedProducts.reduce((s, p) => s + (Number(p.totalRevenue) || 0), 0),
+        totalUnits: periodSummary
+            ? Number(periodSummary.netItemsSold) || 0
+            : enrichedProducts.reduce((s, p) => s + (Number(p.unitsSold) || 0), 0),
+        totalOrders: periodSummary
+            ? Number(periodSummary.orders) || 0
+            : enrichedProducts.reduce((s, p) => s + (Number(p.ordersCount) || 0), 0),
+    }), [periodSummary, enrichedProducts]);
+    // Store-wide inventory totals (catalog table footer)
     const storeInventoryStock =
         inventoryTotals != null ? Number(inventoryTotals.inventoryStock) || 0 : null;
     const storeInventoryValue =
@@ -196,10 +209,21 @@ export default function ProductPerfomance({
     };
 
     return (
+        <>
+        {!loading && products.length > 0 ? (
+            <ProductOverview
+                summary={overviewSummary}
+                products={enrichedProducts}
+                catalogTotalCount={catalogTotalCount}
+                inventoryTotals={inventoryTotals}
+                inventoryPending={storeInventoryPending}
+                inventoryLoading={inventoryLoading}
+            />
+        ) : null}
         <section className="apex-ecom-panel">
             <div className="apex-ecom-panel__head">
                 <div>
-                    <h2 className="apex-ecom-panel__title">Product Performance</h2>
+                    <h2 className="apex-ecom-panel__title">Product catalog</h2>
                     <p className="apex-ecom-panel__subtitle">
                         Full Shopify catalog with sales for your date range (ShopifyQL, same filters as Overview).
                         Store totals match Overview total sales excl. VAT; per-product net sales exclude shipping.
@@ -269,74 +293,6 @@ export default function ProductPerfomance({
                 <div className="apex-ecom-empty">No products match your search</div>
             ) : (
                 <>
-                    <div className="apex-ecom-summary">
-                        <div className="apex-ecom-summary__item">
-                            <span className="apex-ecom-summary__label">Products in catalog</span>
-                            <span className="apex-ecom-summary__value">
-                                {catalogTotalCount != null
-                                    ? catalogTotalCount.toLocaleString()
-                                    : summary.loadedCount.toLocaleString()}
-                            </span>
-                        </div>
-                        <div className="apex-ecom-summary__item">
-                            <span
-                                className="apex-ecom-summary__label"
-                                title="Same as Overview: net sales + shipping income, excluding VAT"
-                            >
-                                Total sales excl. VAT
-                            </span>
-                            <span className="apex-ecom-summary__value">
-                                {formatCurrencyNoDecimals(summary.totalSalesExVat)}
-                            </span>
-                        </div>
-                        <div className="apex-ecom-summary__item">
-                            <span className="apex-ecom-summary__label">Units sold</span>
-                            <span className="apex-ecom-summary__value">{summary.totalUnits.toLocaleString()}</span>
-                        </div>
-                        <div className="apex-ecom-summary__item">
-                            <span className="apex-ecom-summary__label">Orders</span>
-                            <span className="apex-ecom-summary__value">{summary.totalOrders.toLocaleString()}</span>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                        <MetricCard
-                            variant="cobalt"
-                            label="Inventory Stock"
-                            subCaption="Full catalog"
-                            value={storeInventoryPending
-                                ? <EcomInlineSpinner label="Loading inventory stock" />
-                                : (storeInventoryStock ?? 0).toLocaleString(undefined, {
-                                      maximumFractionDigits: 0,
-                                  })}
-                            icon={<FiPackage />}
-                        />
-                        <MetricCard
-                            variant="cobalt"
-                            label="Inventory Value"
-                            subCaption="Full catalog"
-                            value={storeInventoryPending
-                                ? <EcomInlineSpinner label="Loading inventory value" />
-                                : (storeInventoryValue ?? 0).toLocaleString(undefined, {
-                                      maximumFractionDigits: 0,
-                                      minimumFractionDigits: 0,
-                                  })}
-                            unit={storeInventoryPending ? undefined : 'kr'}
-                            icon={<FiDollarSign />}
-                        />
-                        <MetricCard
-                            variant="cobalt"
-                            label="Incoming Stock"
-                            subCaption="Full catalog"
-                            value={storeInventoryPending
-                                ? <EcomInlineSpinner label="Loading incoming stock" />
-                                : (storeIncomingQuantity ?? 0).toLocaleString(undefined, {
-                                      maximumFractionDigits: 0,
-                                  })}
-                            icon={<FiTruck />}
-                        />
-                    </div>
-
                     <div className="apex-ecom-table-wrap apex-ecom-table-wrap--products">
                         <table className="apex-ecom-table">
                             <thead>
@@ -545,5 +501,6 @@ export default function ProductPerfomance({
                 </>
             )}
         </section>
+        </>
     );
 }

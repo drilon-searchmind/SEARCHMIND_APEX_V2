@@ -225,6 +225,7 @@ Plain English, sentence case, short captions. No em or en dashes, no emojis, no 
 | `src/lib/demoMarketsOverview.js` | Demo customers only: seeded per-market split of the demo store data for `/api/markets-overview` and `/preview/.../markets-overview` |
 | `tools/pace-report/PaceOverview.jsx` | Pace: hero row (revenue pace, projected month, needed per day, month elapsed), cumulative revenue vs target vs projection, budget pacing bars with time-elapsed marker, targets and pace table. Targets come from property objectives; 1 kr. objectives count as not set and show a set-objectives prompt instead of a fake target |
 | `tools/pnl/PnlOverview.jsx` | P&L: net result hero, net sales, DB1, marketing cost (vs comparison period); waterfall from sales to result whose subtotals come from the P&L itself; DB1/DB2/DB3 margin bars; realized vs break-even ROAS. The statement and static expenses card below keep Apex's detail |
+| `ecommerce/components/ProductOverview.jsx`, `CustomerOverview.jsx` | Ecommerce: per-tab overview on top of Apex's detail. Products: sales hero, orders, AOV, units per order, inventory stock/value/incoming, top products, net sales by category, stock watch (days to sold out). Customers: new customers hero, returning orders, nCAC, LTV/nCAC payback, new vs returning bars, revenue split, LTV ladder with nCAC marker |
 
 Because the old pages reference `--apex-*` variables, remapping them inside `.apex-dashboard` gives unmigrated pages the new palette automatically. Migrating a page means checking its specific components against this spec and fixing what the remap does not cover.
 
@@ -237,7 +238,7 @@ Because the old pages reference `--apex-*` variables, remapping them inside `.ap
 | `dashboard/[customerId]/daily-overview` | Migrated |
 | `dashboard/[customerId]/tools/pace-report` | Migrated |
 | `dashboard/[customerId]/tools/pnl` | Migrated |
-| `dashboard/[customerId]/ecommerce` | Pending |
+| `dashboard/[customerId]/ecommerce` | Migrated |
 | `dashboard/[customerId]/markets-overview` | Migrated |
 | Service dashboards, config, other tools | Pending |
 | `/`, `/login`, `/home` | Legacy minimal spec |
