@@ -1,0 +1,56 @@
+/* Apex · commerce dashboard design tokens (DESIGN.md) */
+
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
+
+:root {
+  /* Surfaces */
+  --cd-frame: #F3F8F1;
+  --cd-canvas: #E6ECE4;
+  --cd-card: #F6FAF4;
+  --cd-sunk: #EAF0E8;
+  --cd-line: #E0E7DE;
+  --cd-line-2: #D2DBD0;
+
+  /* Text */
+  --cd-ink: #121A13;
+  --cd-ink-2: #4C564D;
+  --cd-muted: #859085;
+
+  /* Dark surface */
+  --cd-dark: #111A12;
+  --cd-dark-2: #1C271D;
+  --cd-dark-line: #2A362B;
+  --cd-on-dark: #F6FAF4;
+  --cd-on-dark-2: #C9D2C9;
+  --cd-on-dark-muted: #9AA79B;
+  --cd-neg-on-dark: #F2A49E;
+
+  /* Accent */
+  --cd-green: #3A9B3F;
+  --cd-green-2: #2F8434;
+  --cd-mint: #A9EDA2;
+  --cd-mint-soft: #DFF3DB;
+
+  /* Channels */
+  --cd-meta: #2F8434;
+  --cd-meta-soft: #DCEFD9;
+  --cd-google: #93D88C;
+  --cd-google-soft: #EAF6E3;
+  --cd-google-ink: #4D8A47;
+
+  /* Semantic */
+  --cd-pos: #2F8434;
+  --cd-pos-soft: #DFF0DB;
+  --cd-neg: #C2423B;
+  --cd-neg-soft: #F8E1DF;
+  --cd-warn-bg: #F7EED8;
+  --cd-warn: #8A6416;
+
+  /* Shape */
+  --cd-r-lg: 20px;
+  --cd-r-md: 14px;
+  --cd-r-sm: 10px;
+  --cd-gap: 18px;
+
+  --cd-sans: "Plus Jakarta Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}

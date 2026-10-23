@@ -1,234 +1,233 @@
-# Design — Searchmind Apex
+# Design · Searchmind Apex (Commerce dashboard)
 
-This replaces the previous **Cobalt** spec (`#213b34` forest green as the primary UI colour, Space Grotesk, `tokens.css`). Apex moves to a **minimal, mostly black-and-white dashboard** — brand colour (dark green / lime) is a *restrained accent*, not a background colour.
+This is the design system for the Apex dashboard. It replaces the previous "minimal" black and white spec, which now lives in `docs/design/DESIGN-minimal-legacy.md` (still in use on `/`, `/login` and pages that are not migrated yet).
 
-**The core rule of this document:** grayscale carries the interface. Colour is spent only where it does a job — a button, a link, an active state, a positive/negative delta, or a heatmap cell that encodes performance. If a color isn't doing one of those jobs, it shouldn't be there.
+The look in one line: a full-screen, calm sage and mint workspace, a near-black surface for the most important number on each page, and green used to highlight.
 
-Layout direction (radius, whitespace, table interaction, KPI hierarchy) comes from a moodboard the team collected — treat those choices as direction to iterate on, not fixed law.
-
-**Status:** **`/` (marketing landing) and `/login` are migrated** to this spec with AcidGrotesk. Cobalt is still live on most feature dashboards. `design-preview.html` is the static reference mockup.
+**Scope rule for the redesign:** keep Apex's data, metrics, logic and page layout. Only the visual layer changes (tokens, type, surfaces, components, chart colours). Pages are migrated one at a time; see the status table at the end.
 
 ---
 
-## 0. Moodboard alignment
+## 1. Principles
 
-The reference boards (Veritas, Obisoft, AETHER, TWISTY) share a family look that this spec encodes:
-
-| Pattern | What the boards do | Apex rule |
-|---|---|---|
-| Canvas | Off-white / warm gray page background | `--apex-canvas` `#fafaf9` |
-| Cards | White surfaces, **no visible border**, soft drop shadow | Shadow-only elevation, 20px radius |
-| Radius | Large, friendly corners (20–30px on cards) | 20px cards, 14px inputs, 100px pills |
-| Sidebar | Either near-black rail **or** white sidebar with pill active state | Dashboard shell: near-black + lime bar; standalone pages: light top nav |
-| Active nav | Pill highlight (white on gray) or left lime bar — not full green wash | One accent mechanism per context |
-| KPI tiles | Bold black number, muted label, optional thin sparkline | Black value, gray label, lime sparkline only |
-| Status | Small coloured dot + gray text | No filled status pill backgrounds |
-| Tables | Borderless rows, hairline header, hover gray fill | Match `design-preview.html` row hover + selection outline |
-| Search | Centered pill with ⌘ hint (AETHER-style) | Pill search on workspace home |
-| Charts | Thin strokes, minimal grid, one accent line colour | Lime or ink — not multi-colour decoration |
-| Segmented control | Pill toggle (Full stats / Summary) | Use for view switches, not coloured tabs |
-
-**Explicitly not copying from the boards:** pastel card backgrounds, purple/black marketing accents, decorative gradient hero blocks, or status badges with saturated fill backgrounds.
+1. **Soft and calm.** Mint-white sidebar and header, a light sage canvas, pale mint cards. No pure white, no pure black.
+2. **Green is the accent.** Green marks the active state, the primary button, positive change and chart highlights.
+3. **One dark card per page.** The page's main number sits on a near-black `#111A12` surface. Everything else stays light.
+4. **Full screen.** No outer padding, no floating frame. Sidebar on the left, header strip on top, content on the canvas.
+5. **Numbers carry the design.** Large values with a smaller muted unit, tabular figures everywhere.
+6. **Honest data.** Apex shows live data. If a view ever shows sample data it must carry a "Demo data" chip, and placeholder targets must be labelled.
 
 ---
 
-## 1. Visual Theme & Atmosphere
+## 2. Colour tokens
 
-Apex is a **working tool**, not a marketing hero. The interface is built from **white, near-black, and gray** — the same restraint as the reference boards: white/near-white canvas, black or near-black ink, light gray hairlines. Colour shows up in exactly four places:
+Defined in `src/styles/commerce-design-tokens.css` as `--cd-*` and mapped onto the existing `--apex-*` / `--color-*` variables inside `.apex-dashboard`, so existing class names keep working.
 
-1. **Buttons** — primary action fill
-2. **Links / interactive text**
-3. **Positive or negative deltas** (small, text-only — a green "+8.2%", a red "-4pt")
-4. **Table heatmaps** — a cell's background tints toward the brand green (good) or red (bad) to encode a value at a glance
+```css
+:root{
+  /* Surfaces */
+  --cd-frame:#F3F8F1;    /* sidebar + header strip */
+  --cd-canvas:#E6ECE4;   /* page background behind cards */
+  --cd-card:#F6FAF4;     /* cards */
+  --cd-sunk:#EAF0E8;     /* tiles, bar tracks, inset areas, hover */
+  --cd-line:#E0E7DE;     /* card borders, dividers */
+  --cd-line-2:#D2DBD0;   /* stronger borders, inputs, total rows */
 
-Everything else — cards, icons, labels, sidebar, borders — stays grayscale.
+  /* Text */
+  --cd-ink:#121A13;      /* headings, body, values */
+  --cd-ink-2:#4C564D;    /* secondary text */
+  --cd-muted:#859085;    /* captions, axis labels, units */
 
-**Key characteristics:**
-- White/near-white canvas and cards; near-black text; light gray hairlines
-- Dark sidebar in near-black (not dark green) — a single lime bar marks the active nav item, everything else in the sidebar is grayscale
-- Generous whitespace, consistent card alignment — cards line up to a shared grid
-- Rounder corners than the app's current default (20px cards vs. today's `rounded-xl` ≈ 12px)
-- Depth from soft shadows and tonal shifts, not borders — cards default to no visible outline
-- KPI numbers are bold and black, not brand-coloured — colour only touches the delta chip next to them
-- One font family throughout — hierarchy from weight and size, not from mixing typefaces or from colour
+  /* Dark surface */
+  --cd-dark:#111A12;     /* hero card, active nav, avatar, tooltip */
+  --cd-dark-2:#1C271D;   /* chips on dark */
+  --cd-dark-line:#2A362B;/* borders on dark */
 
-## 2. Color Palette & Roles
+  /* Accent */
+  --cd-green:#3A9B3F;    /* primary button, live dot, accents */
+  --cd-green-2:#2F8434;  /* hover, icons, darker green */
+  --cd-mint:#A9EDA2;     /* highlight on dark, light series */
+  --cd-mint-soft:#DFF3DB;/* icon bubbles, chips */
 
-### Grayscale (does the heavy lifting)
+  /* Channels */
+  --cd-meta:#2F8434;   --cd-meta-soft:#DCEFD9;
+  --cd-google:#93D88C; --cd-google-soft:#EAF6E3;
 
-| Role | Token | Use |
-|---|---|---|
-| Canvas | `--apex-canvas` `#fafaf9` | Page background |
-| Card | `--apex-card` `#ffffff` | Elevated surface |
-| Ink | `--apex-ink` `#131313` | Primary text, KPI values, headings |
-| Muted ink | `--apex-ink-muted` `#6b6b6b` | Labels, captions, secondary text |
-| Hairline | `--apex-hairline` `#e7e5e2` | Table header underline, dividers — not card borders |
-| Sidebar | `--apex-sidebar` `#101010` | Nav shell background (dashboard layout) |
-| Sidebar text (idle) | `#ffffff` at ~55% opacity | Idle nav items |
-| Sidebar text (active) | `#ffffff` at 100% | Active nav item |
+  /* Semantic */
+  --cd-pos:#2F8434;  --cd-pos-soft:#DFF0DB;
+  --cd-neg:#C2423B;  --cd-neg-soft:#F8E1DF;
+  --cd-warn-bg:#F7EED8; --cd-warn:#8A6416;
+}
+```
 
-### Brand accent — the only colour, used only in the four slots from §1
+### Where each colour goes
 
-| Token | Value | Slot |
-|---|---|---|
-| `--apex-dark-green` | `#1E2928` | Links, focus rings, occasionally a primary button fill |
-| `--apex-lime` | `#C6ED62` | Active nav indicator bar, positive heatmap end, sparkline stroke |
-| `--apex-ok` | `#6A8F4D` | Positive delta text, heatmap "good" anchor |
-| `--apex-bad` | `#EE6251` | Negative delta text, heatmap "bad" anchor |
-| `--apex-warn` | `#C5A75C` | Warning status dot only |
+| Element | Colour |
+|---|---|
+| Page background | `--cd-canvas` |
+| Sidebar, header strip | `--cd-frame` |
+| Cards | `--cd-card` with `--cd-line` border |
+| Hero card, active nav item, avatar, chart tooltip | `--cd-dark` |
+| Active nav marker (4px left bar) | `--cd-green`; active icon `--cd-mint` |
+| Primary button | `--cd-green` bg, white text, hover `--cd-green-2` |
+| Positive delta on light | `--cd-pos` text in a card-coloured chip |
+| Positive delta on dark | `--cd-mint` text in a `--cd-dark-2` chip |
+| Negative delta | `--cd-neg` (on dark: `#F2A49E`) |
+| KPI icon bubble | `--cd-mint-soft` bg, `--cd-green-2` icon |
+| Selected KPI / selected row | `--cd-mint-soft` fill, `--cd-green` marker |
+| Live status dot | `--cd-green` with a 3px `--cd-mint-soft` ring |
 
-Also exposed in `globals.css` as `--color-dark-green`, `--color-lime`, `--color-light-green`, `--color-black` for legacy Tailwind usage. Add `--color-coral: #EE6251` before reusing the bad accent elsewhere.
+### Chart palette
 
-### Table heatmap — the one place a color *fill* is allowed on a surface
+Charts stay on ApexCharts (the existing stack). Colours come from `COMMERCE_CHART_PALETTE` in `src/lib/charts/chartSeriesColors.js`.
 
-A metric column (e.g. ROAS, conversion rate) can shade its cell background along a two-stop scale: `white → light-green tint` for above-target values, `white → coral tint` for below-target, both capped around 12–15% opacity so text stays legible. Daily overview heatmaps keep this behaviour when migrating off Cobalt.
+| Series | Colour |
+|---|---|
+| Revenue / first series | `--cd-ink` |
+| Meta Ads | `#2F8434` |
+| Google Ads | `#93D88C` |
+| Comparison / prior period | same hue at 45% opacity, dashed `4 3` |
+| Projection | `--cd-green`, dotted `2 4` |
+| Single positive metric bars | `--cd-green` |
+| Second stacked series | `--cd-mint` |
+| Waterfall | subtotals ink, costs `#E9B1AC`, gains `--cd-pos` |
 
-### Prohibited
-- Coloured icon-chip backgrounds (beige/lime tints behind icons) — icons sit in a plain light-gray or bordered circle, or have no chip at all
-- Brand colour as a card, sidebar-section, or full-page background wash
-- Lime as body text on white (contrast failure)
-- Cobalt `#213b34` as a UI background — retired
-- Any hex not listed above — no invented accents
+Categorical sequence: `#111A12, #2F8434, #5DBB58, #A9EDA2, #7D877D, #C5CFC4, #3F4C40, #DDF2D8`
+
+Funnel steps: `#111A12, #2F8434, #5DBB58, #93D88C, #A9EDA2`
+
+Heat cells: `rgba(93,187,88, t * 0.35)` where `t` runs 0 to 1 across the period.
+
+Tooltip: `--cd-dark` background, 10px radius, 12px text, rows of colour dot + label + bold value.
+
+---
 
 ## 3. Typography
 
-**Target font: AcidGrotesk** (searchmind.dk). Files live in `src/font/` and load via `src/styles/acid-grotesk.css`. **Outfit** remains as fallback in `globals.css`.
+- **Font:** Plus Jakarta Sans (Google Fonts, 400/500/600/700). Fallback `'Helvetica Neue',Helvetica,Arial,sans-serif`.
+- Tabular figures on everything numeric: `font-feature-settings:"tnum" 1`.
+- Danish number format (`4.019.640`, `2,23%`, `4,87`), DKK shown as `kr.`
 
-- **500 (Medium)** — page and section headings (H1, H2), body, labels, table cells
-- **700 (Bold)** — KPI values only
-- **600 (Semibold)** — card titles and sub-section headings inside a panel
-
-**Do not use `text-transform: uppercase`** for labels, eyebrows, pills, or marketing copy — sentence case only (e.g. "Ét dashboard. Al din data.", not "ÉT DASHBOARD. AL DIN DATA."). Hierarchy comes from size, weight, and colour — not from shouting with caps.
-
-### KPI value
-32–36px, weight 700, in `--apex-ink`. The delta next to it is text-only (no background fill): `+8.2%` in `--apex-ok`, `-4pt` in `--apex-bad`.
-
-### Numerals
-`font-variant-numeric: tabular-nums` on every KPI value and table number column. Danish number formatting (`toLocaleString("da-DK", …)`) already used elsewhere in the app — keep using it.
-
-## 4. Component Styling
-
-### Cards
-- White on `#fafaf9` canvas — radius 20px, no border by default
-- Shadow: `--apex-shadow-low`
-- **Internal padding:** `--apex-space-card` (32px) on all sides — same on every card type
-- Cards align to a shared grid — flush top/bottom edges across a row
-
-### KPI tile
-- Icon: plain, in a thin-bordered gray circle or no chip — **no coloured background**
-- Bold black value + muted gray label
-- Optional sparkline: thin single-stroke line in `--apex-lime`
-- Delta: text-only, colored, no pill background
-
-### Tables
-- Header row: muted gray, 13–14px/500, hairline underneath
-- Default row: no border, no tint
-- Hover: light gray background (`#f4f3f1`)
-- Shift-click range select: light gray fill + black outline around selection block
-- Heatmap column (see §2): the one place a coloured cell background is correct
-
-### Buttons
-- Primary: `--apex-ink` or `--apex-dark-green` fill, white text, 100px pill
-- Secondary/outline: transparent, black text, 1px gray border
-- Links: `--apex-dark-green`, underline on hover
-
-### Sidebar (dashboard shell)
-- Near-black (`--apex-sidebar`) background
-- Idle nav item: white text at reduced opacity
-- Active nav item: full-opacity white text + **lime** left-indicator bar — the only colour in the sidebar
-
-### Workspace home (`/home`)
-- Light top nav (white card bar, hairline bottom) — not the dark dashboard sidebar
-- Property groups as white shadow cards, not bordered green-accent panels
-- Shortcuts column: stacked white cards, not dark graphite/code aesthetic
-
-## 5. Layout Principles
-
-- **Generous, consistent air:** use the spacing scale — don't mix one-off pixel values
-  - Between sections: `--apex-space-3xl` (80px) vertical padding
-  - Between cards in a grid: `--apex-space-grid` (28px)
-  - Inside cards: `--apex-space-card` (32px) padding on all sides
-  - Between a heading and its body: `--apex-space-md` (16px) minimum
-- Cards in a row align: same height, same top edge, consistent gutter
-- Section headings at **weight 500**, black ink — clearly larger than body, not lighter/thinner
-- Radius: 8px tags, 20px cards/panels, 14px inputs, 100px pills, 50% avatars
-
-## 6. Depth & Elevation
-
-| Level | Token | Use |
-|---|---|---|
-| Flat | none | Table rows at rest |
-| Low | `--apex-shadow-low` | Default card |
-| Mid | `--apex-shadow-mid` | Hover/active card, open dropdown |
-| High | `--apex-shadow-high` | Modal, popover |
-
-Hairlines are for dividers only — not for wrapping cards or charts.
-
-## 7. Do's and Don'ts
-
-### Do
-- Default everything to grayscale; ask "does this color do a job?" before adding it
-- Reserve brand colour for buttons, links, deltas, sparkline/chart strokes, and heatmap cells
-- Keep KPI values black, not brand-coloured
-- Use a single lime bar for the active nav item in the dashboard shell
-
-### Don't
-- Don't tint icon-chip backgrounds, card backgrounds, or full sections in beige/lime
-- Don't use Cobalt green backgrounds anywhere in dashboard UI
-- Don't use a coloured pill fill for status — prefer a small coloured dot + gray text
-- Don't invent a new hex for the coral "bad" accent
-- **Don't use `text-transform: uppercase`** on eyebrows, badges, pills, or section labels — sentence case only
-
-## 8. Responsive Behavior
-
-| Breakpoint | Width | Behavior |
-|---|---|---|
-| Mobile | <640px | Sidebar collapses to icon rail or bottom sheet; KPI grid stacks to 1 column; tables scroll horizontally |
-| Tablet | 640–1024px | KPI grid at 2 columns; sidebar collapses to icon rail (56px) |
-| Desktop | >1024px | Full sidebar (220px); KPI grid at 3–4 columns |
-
-## 9. Agent Prompt Guide
-
-- Default surface is white/near-white + black ink + gray hairline — brand colour is the exception, not the base
-- Before adding a colour, name which of the four sanctioned slots it belongs to (button / link / delta / heatmap-or-chart-stroke). If it doesn't fit one, it's grayscale instead
-- KPI tiles: black bold number, gray label, optional lime sparkline, text-only colored delta — no tinted chip backgrounds
-- Status: small colored dot + gray text, not a colored pill fill
-- Sidebar: black background, white text, one lime bar for the active item — nothing else colored
-- Shared tokens live in `src/styles/apex-design-tokens.css`; static mockup in `design-preview.html`
-- Section headings: weight **500**, sentence case — never uppercase for marketing labels
-- Card padding: always `--apex-space-card`; section gaps: `--apex-space-3xl` / `--apex-space-grid`
+| Role | Size / weight |
+|---|---|
+| Page title | 22px / 600, tracking -0.015em |
+| Card title | 15.5px / 600 |
+| Body, table cells | 13.5 to 14px / 400 to 500 |
+| Captions, axis, subtext | 11 to 12.5px, `--cd-muted` |
+| Sidebar section labels | 11.5px / 600, uppercase, tracking 0.04em |
+| KPI value | 24px / 700, tracking -0.02em |
+| Hero value | 44px / 700 (34px on mobile) |
+| Unit after a value | 0.58em / 500, `--cd-muted` (on dark `#9AA79B`) |
 
 ---
 
-## Migration tracker
+## 4. Shape and spacing
 
-| # | Area | Route / path | Status |
+- Radius: cards **20px**, medium elements **14px**, tiles, buttons, selects **10px**, tags and chips **999px**.
+- Card border `1px solid var(--cd-line)`. **No shadows, no gradients.**
+- Card padding `22px 24px` (18px on mobile). Grid gap **18px**.
+- Content padding `24px 30px 40px` (mobile `18px 16px 32px`).
+
+---
+
+## 5. Layout
+
+```
++------------+---------------------------------------------------+
+| SIDEBAR    | HEADER STRIP (frame): search, actions, user       |
+| frame      +---------------------------------------------------+
+| sticky     | Page title + filters                              |
+|            | [ DARK HERO ][ card ][ card ][ card ]             |
+| sections   | [ chart card                                   ]  |
+|  items     | [ KPI grid                                     ]  |
++------------+---------------------------------------------------+
+```
+
+- Sidebar and header strip use `--cd-frame`; content uses `--cd-canvas`.
+- Row patterns from the reference: `row-hero` = `1.9fr repeat(3,1fr)`, `cols-2-1` = `2fr 1fr`, `cols-2` = `1fr 1fr`. In Apex we keep each page's existing grid and only restyle it.
+- Responsive: test at 390, 768, 1024 and 1400px. Tables scroll inside their card; the page never scrolls sideways.
+
+---
+
+## 6. Components
+
+**Sidebar.** Brand row with a 32px `--cd-card` logo tile. Section labels 11.5px/600 uppercase with a `--cd-line` top divider. Nav item: icon + label, `padding:10px 14px`, radius 10px, `--cd-ink-2`, hover `--cd-sunk`. Active: `--cd-dark` background, white text, mint icon, 4px green bar on the left edge.
+
+**Header strip.** `--cd-frame` background, `--cd-line` bottom border, no shadow. Buttons are 10px radius on `--cd-card`.
+
+**KPI card.** Icon bubble (24px circle, `--cd-mint-soft` bg, `--cd-green-2` icon) + label, value 24px/700 with muted unit, delta chip (`--cd-card`, `--cd-line` border, 8px radius, arrow + signed %). Delta colour follows good or bad.
+
+**Hero KPI card (dark).** Same structure on `--cd-dark`, value 44px, unit `#9AA79B`, delta chip on `--cd-dark-2` with mint (up) or `#F2A49E` (down), caption `#C9D2C9`.
+
+**Segmented control.** `--cd-sunk` track, 10px radius; active segment `--cd-card` with `--cd-line` border.
+
+**Chips / tags.** Pill, 12px/600. Good `--cd-pos-soft` + `--cd-pos`, watch `--cd-warn-bg` + `--cd-warn`, bad `--cd-neg-soft` + `--cd-neg`, Meta `--cd-meta-soft` + `--cd-meta`, Google `--cd-google-soft` + `#4D8A47`.
+
+**Tables.** Header 12.5px `--cd-muted`, numbers right-aligned, `--cd-line` row dividers, total row 700 with `--cd-line-2` top border.
+
+**Pacing bars.** 10px `--cd-sunk` track, 2px ink marker at month elapsed.
+
+---
+
+## 7. Page templates (reference)
+
+| Page | Hero KPI | Other KPIs | Body |
 |---|---|---|---|
-| — | Marketing landing | `/` | **Migrated** |
-| 1 | Dashboard shell (sidebar + topbar) | `/dashboard/*`, parent-property layout | **Migrated** |
-| 2 | Performance dashboard | `/dashboard/[id]/performance-dashboard` | **Migrated** |
-| 3 | Daily overview | `/dashboard/[id]/daily-overview` | **Migrated** |
-| 4 | Login | `/login` | **Migrated** |
-| 5 | Workspace home | `/home` | **Migrated** |
-| 6 | Analytics | `/dashboard/[id]/analytics` | **Migrated** |
-| 7 | Ecommerce | `/dashboard/[id]/ecommerce` | **Migrated** |
-| 8 | Markets overview | `/dashboard/[id]/markets-overview` | **Migrated** |
-| 9 | Pace report | `/dashboard/[id]/tools/pace-report` | **Migrated** |
-| 10 | P&L | `/dashboard/[id]/tools/pnl` | **Migrated** |
-| 11 | Data wrapped | `/dashboard/[id]/data-wrapped` | **Migrated** |
-| 12 | Share of search | `/dashboard/[id]/share-of-search` | **Migrated** |
-| 13 | Campaign planner v2 | `/dashboard/[id]/campaign-planner-v2` | **Migrated** |
-| 14 | Config | `/dashboard/[id]/config` | **Migrated** |
-| 15 | Service dashboards | `/dashboard/[id]/service-dashboard/*` (SEO, PPC, Meta, Pinterest, Snapchat, Reddit, Bing, Bing Webmaster, EM) | **Migrated** |
-| 16 | Parent property home | `/parent-property/[id]/home` | **Migrated** |
-| 17 | Apex Radar | `/apex-radar/*` | **Migrated** |
-| 18 | Standalone pages | `/profile`, `/news`, `/notifications`, `/our-tools`, `/lib/guides`, `/admin/*` | **Migrated** |
-| 19 | Shared components | `DashboardHeading`, `DateRangePicker`, `MetricCard`, `GraphCard`, `CobaltLoader`, chart theme | **Migrated** |
+| Dashboard overview | Total revenue | Orders, Ad spend, MER | Spend donut, insight card, key ratio tiles, revenue vs spend, channel rows, tables |
+| Daily overview | Revenue yesterday | Orders, Ad spend, CPA | Stacked daily spend, revenue vs same day last week, day-by-day table with MER heat cell |
+| Pace report | Revenue pace % | Projected month, Needed per day, Month elapsed | Cumulative actual vs target vs projection, pacing bars, targets table |
+| P&L | Contribution margin | Net revenue, Gross profit, Marketing cost | Waterfall, margin vs marketing, monthly P&L table |
+| Ecommerce view | Conversion rate | Sessions, AOV, New customer CAC | Funnel, new vs returning, top products, revenue by category |
 
-## Known issue (tracked separately, not a design item)
+Apex keeps its own page content; the templates guide where the dark hero goes and which component styles to use.
 
-The notes mention the Pace Report peaking at the start of the period — that's a data/logic bug in the reporting code, not a visual design question.
+---
 
-## Preview
+## 8. Copy
 
-A static, standalone mockup of this direction lives at `design-preview.html` in the project root — inline CSS/JS, no build step. Open directly in a browser without starting the dev server.
+Plain English, sentence case, short captions. No em or en dashes, no emojis, no decorative labels. Caveats go in a quiet note under the card.
+
+---
+
+## 9. Do and don't
+
+**Do:** one dark card per page, green as the accent, units smaller and muted, tabular numbers.
+
+**Don't:** pure `#fff` surfaces or `#000` text, shadows, gradients, outer frames, emojis, invented numbers.
+
+---
+
+## 10. Implementation in Apex
+
+| File | Role |
+|---|---|
+| `src/styles/commerce-design-tokens.css` | `--cd-*` tokens + Plus Jakarta Sans import |
+| `src/app/(protected)/dashboard/dashboard-shell.css` | Shell: remaps `--apex-*` to `--cd-*` inside `.apex-dashboard`, sidebar, header strip |
+| `src/app/(protected)/dashboard/[customerId]/performance-dashboard/performance-dashboard.css` | Shared `apex-perf-*` components (sections, KPI cards, graph card, buttons, chips, date picker) used by most dashboard views |
+| `src/lib/charts/chartSeriesColors.js` | `COMMERCE_CHART_PALETTE` and helpers for ApexCharts |
+
+Because the old pages reference `--apex-*` variables, remapping them inside `.apex-dashboard` gives unmigrated pages the new palette automatically. Migrating a page means checking its specific components against this spec and fixing what the remap does not cover.
+
+### Migration status
+
+| Page (`src/app`) | Status |
+|---|---|
+| Dashboard shell (sidebar + topbar) | Migrated |
+| `dashboard/[customerId]/performance-dashboard` (Overview) | Migrated |
+| `dashboard/[customerId]/daily-overview` | Pending |
+| `dashboard/[customerId]/tools/pace-report` | Pending |
+| `dashboard/[customerId]/tools/pnl` | Pending |
+| `dashboard/[customerId]/ecommerce` | Pending |
+| `dashboard/[customerId]/markets-overview` | Pending |
+| Service dashboards, config, other tools | Pending |
+| `/`, `/login`, `/home` | Legacy minimal spec |
+
+### Checklist per page
+
+- [ ] Plus Jakarta Sans applied
+- [ ] Canvas `#E6ECE4`, frame `#F3F8F1`, cards `#F6FAF4` with `#E0E7DE` border, 20px radius, no shadows
+- [ ] Exactly one dark `#111A12` hero card
+- [ ] Green for active, primary and positive; mint for highlights on dark
+- [ ] Danish number format, units muted and smaller
+- [ ] No horizontal page scroll at 390px; tables scroll in their card
+- [ ] No em or en dashes in any text

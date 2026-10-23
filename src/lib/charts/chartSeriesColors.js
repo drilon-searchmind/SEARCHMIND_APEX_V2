@@ -27,6 +27,29 @@ export const CHART_SERIES_PALETTE = [
 ];
 
 /**
+ * Commerce dashboard categorical sequence (DESIGN.md · Chart palette).
+ * Ink first, then greens from dark to mint, then sage neutrals.
+ */
+export const COMMERCE_CHART_PALETTE = [
+    "#111A12",
+    "#2F8434",
+    "#5DBB58",
+    "#A9EDA2",
+    "#7D877D",
+    "#C5CFC4",
+    "#3F4C40",
+    "#DDF2D8",
+];
+
+/** Axis, grid and label colours for ApexCharts on commerce pages. */
+export const COMMERCE_CHART_CHROME = {
+    axisLabel: "#859085",
+    grid: "#E0E7DE",
+    legend: "#4C564D",
+    fontFamily: "'Plus Jakarta Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif",
+};
+
+/**
  * @param {number} index
  */
 export function chartSeriesColor(index) {
@@ -67,21 +90,25 @@ export function getChartSeriesPalette(count = CHART_SERIES_PALETTE.length) {
 /**
  * Colors for series named "Metric (Current)" + "Metric (LY)" pairs.
  * @param {{ name?: string }[]} series
- * @param {{ isCurrentSeries?: (s: { name?: string }) => boolean }} [opts]
+ * @param {{ isCurrentSeries?: (s: { name?: string }) => boolean, palette?: string[] }} [opts]
  */
 export function colorsForCurrentComparisonSeries(
     series,
-    { isCurrentSeries = (s) => String(s?.name || "").includes("(Current)") } = {}
+    {
+        isCurrentSeries = (s) => String(s?.name || "").includes("(Current)"),
+        palette = CHART_SERIES_PALETTE,
+    } = {}
 ) {
+    const colorAt = (i) => palette[i % palette.length];
     /** @type {string[]} */
     const colors = [];
     let metricIndex = 0;
     for (const s of series || []) {
         if (isCurrentSeries(s)) {
-            colors.push(chartSeriesColor(metricIndex));
+            colors.push(colorAt(metricIndex));
             metricIndex += 1;
         } else {
-            colors.push(chartComparisonColor(Math.max(0, metricIndex - 1)));
+            colors.push(hexWithAlpha(colorAt(Math.max(0, metricIndex - 1)), 0.45));
         }
     }
     return colors;

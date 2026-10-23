@@ -18,6 +18,8 @@ import {
     chartSeriesColor,
     chartComparisonColor,
     colorsForCurrentComparisonSeries,
+    COMMERCE_CHART_PALETTE,
+    COMMERCE_CHART_CHROME,
 } from "@/components/dashboard/chartColors";
 import CobaltLoader from "@/components/ui/CobaltLoader";
 import Custom from "./components/Custom";
@@ -858,16 +860,17 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
         const formatChartValue = (v) => (typeof v === 'number' && !isNaN(v) ? v.toLocaleString('da-DK', { maximumFractionDigits: 2, minimumFractionDigits: 0 }) : v);
         const isCurrentSeries = (s) => s.name && s.name.includes('(Current)');
         const options = {
-            chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'AcidGrotesk, ui-sans-serif, system-ui, sans-serif' },
-            xaxis: { categories, labels: { style: { colors: '#6b6b6b' } }, axisTicks: { show: true }, axisBorder: { show: true, color: '#e7e5e2' } },
-            yaxis: { labels: { style: { colors: '#6b6b6b' }, formatter: formatChartValue } },
-            tooltip: { theme: 'light', y: { formatter: formatChartValue } },
-            colors: colorsForCurrentComparisonSeries(series),
-            stroke: { width: series.map((s) => isCurrentSeries(s) ? 2.5 : 1.5), curve: 'smooth', dashArray: series.map((s) => isCurrentSeries(s) ? 0 : 5) },
+            chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: COMMERCE_CHART_CHROME.fontFamily },
+            xaxis: { categories, labels: { style: { colors: COMMERCE_CHART_CHROME.axisLabel } }, axisTicks: { show: false }, axisBorder: { show: true, color: COMMERCE_CHART_CHROME.grid } },
+            yaxis: { labels: { style: { colors: COMMERCE_CHART_CHROME.axisLabel }, formatter: formatChartValue } },
+            tooltip: { theme: 'dark', y: { formatter: formatChartValue } },
+            colors: colorsForCurrentComparisonSeries(series, { palette: COMMERCE_CHART_PALETTE }),
+            stroke: { width: series.map((s) => isCurrentSeries(s) ? 2.5 : 1.5), curve: 'smooth', dashArray: series.map((s) => isCurrentSeries(s) ? 0 : 4) },
             fill: { type: 'solid', opacity: series.map((s) => isCurrentSeries(s) ? 1 : 0.35) },
-            grid: { borderColor: '#e7e5e2', strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
+            grid: { borderColor: COMMERCE_CHART_CHROME.grid, strokeDashArray: 0, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } } },
+            markers: { size: 0, hover: { size: 5 }, strokeColors: '#ffffff', strokeWidth: 2 },
             dataLabels: { enabled: false },
-            legend: { show: true, position: 'top', labels: { colors: '#131313' } },
+            legend: { show: true, position: 'top', horizontalAlign: 'left', labels: { colors: COMMERCE_CHART_CHROME.legend }, markers: { size: 5 } },
         };
 
         return { series, options };

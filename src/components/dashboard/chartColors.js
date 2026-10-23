@@ -5,6 +5,8 @@ export {
   chartComparisonColor,
   getChartSeriesPalette,
   colorsForCurrentComparisonSeries,
+  COMMERCE_CHART_PALETTE,
+  COMMERCE_CHART_CHROME,
 } from "@/lib/charts/chartSeriesColors";
 
 export function getChartColors() {
