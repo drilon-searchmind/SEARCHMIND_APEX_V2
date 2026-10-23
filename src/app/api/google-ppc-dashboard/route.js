@@ -1,6 +1,6 @@
 import { fetchGoogleAdsPPCDashboardMetrics } from '@/lib/googleAdsPpcDashboard';
 import { isDemoCustomerId } from '@/lib/demoCustomer';
-import { getDemoGooglePpcDashboardForRange } from '@/lib/demoAdMetrics';
+import { getDemoPpcDashboardForRange } from '@/lib/demoPpc';
 
 export async function GET(req) {
     const GOOGLE_ADS_DEVELOPER_TOKEN = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
@@ -21,7 +21,7 @@ export async function GET(req) {
     }
 
     if (dashboardCustomerId && isDemoCustomerId(dashboardCustomerId)) {
-        return new Response(JSON.stringify(getDemoGooglePpcDashboardForRange(startDate, endDate)), { status: 200 });
+        return new Response(JSON.stringify(getDemoPpcDashboardForRange(startDate, endDate)), { status: 200 });
     }
 
     try {

@@ -1,0 +1,469 @@
+/* Shared styles for the service dashboards (SEO, PPC, ...) · commerce design (DESIGN.md) */
+
+/* ── Tabs (segmented control) ── */
+
+.apex-sx-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  margin: 0 0 var(--cd-gap);
+  background: var(--cd-sunk);
+  border: 1px solid var(--cd-line);
+  border-radius: var(--cd-r-sm);
+}
+
+.apex-sx-tabs__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 2.25rem;
+  padding: 6px 16px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--cd-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-micro) var(--ease-out),
+    color var(--dur-micro) var(--ease-out);
+}
+
+.apex-sx-tabs__btn:hover:not(.is-active) {
+  color: var(--cd-ink);
+}
+
+.apex-sx-tabs__btn:focus-visible {
+  outline: 2px solid var(--cd-green);
+  outline-offset: 2px;
+}
+
+.apex-sx-tabs__btn.is-active {
+  color: var(--cd-ink);
+  background: var(--cd-card);
+  border-color: var(--cd-line);
+}
+
+.apex-sx-tabs__btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (max-width: 520px) {
+  .apex-sx-tabs {
+    display: flex;
+    width: 100%;
+    overflow-x: auto;
+  }
+}
+
+/* ── Layout ── */
+
+.apex-sx-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-gap);
+  min-width: 0;
+}
+
+.apex-sx-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-gap);
+  min-width: 0;
+}
+
+.apex-ov-grid.apex-sx-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.apex-ov-grid.apex-sx-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.apex-ov-grid.apex-sx-split {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.apex-ov-grid.apex-sx-split-even {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 1180px) {
+  .apex-ov-grid.apex-sx-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .apex-ov-grid.apex-sx-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .apex-ov-grid.apex-sx-split,
+  .apex-ov-grid.apex-sx-split-even {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .apex-ov-grid.apex-sx-grid-3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .apex-ov-grid.apex-sx-grid-4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.apex-sx-kpi {
+  cursor: default;
+}
+
+.apex-ov-delta.is-compact {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.apex-ov-delta.is-flat {
+  color: var(--cd-ink-2);
+}
+
+.apex-mk-tbl-wrap {
+  overflow-x: auto;
+  margin: 0 -24px;
+  padding: 0 24px;
+}
+
+.apex-mk-note {
+  margin: 14px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--cd-muted);
+}
+
+.apex-sx-empty-note {
+  margin-top: 4px;
+}
+
+.apex-sx-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: 999px;
+}
+
+.apex-sx-tag.is-ok {
+  color: var(--cd-pos);
+  background: var(--cd-pos-soft);
+}
+
+.apex-sx-tag.is-warn {
+  color: var(--cd-warn);
+  background: var(--cd-warn-bg);
+}
+
+.apex-sx-tag.is-bad {
+  color: var(--cd-neg);
+  background: var(--cd-neg-soft);
+}
+
+.apex-sx-tag.is-neutral {
+  color: var(--cd-ink-2);
+  background: var(--cd-sunk);
+}
+
+/* ── Trend chart card and metric chips ── */
+
+.apex-sx-chartcard .apex-perf-graph {
+  min-height: 0;
+  border: 0;
+  background: transparent;
+}
+
+.apex-sx-chartcard .apex-perf-graph__head {
+  display: none;
+}
+
+.apex-sx-chartcard .apex-perf-graph__body {
+  padding: 0;
+}
+
+.apex-sx-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ── Donut ── */
+
+.apex-sx-donut {
+  position: relative;
+  flex: none;
+  width: 150px;
+  height: 150px;
+}
+
+.apex-sx-donut svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.apex-sx-donut circle[stroke] {
+  cursor: pointer;
+  transition: opacity var(--dur-short) var(--ease-out);
+}
+
+.apex-sx-donut__c {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  padding: 36px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.apex-sx-donut__c small {
+  font-size: 11px;
+  color: var(--cd-muted);
+}
+
+.apex-sx-donut__c b {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--cd-ink);
+}
+
+/* ── Tables ── */
+
+.apex-sx-tblcard__head {
+  align-items: flex-start;
+}
+
+.apex-sx-tblcard__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.apex-sx-tblcard__main h3 {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--cd-ink);
+}
+
+.apex-sx-tblcard__sub {
+  max-width: 80ch;
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--cd-muted);
+}
+
+.apex-sx-tblwrap {
+  overflow-x: auto;
+  margin: 0 -24px;
+  padding: 0 24px;
+}
+
+.apex-sx-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.apex-sx-tbl th {
+  padding: 9px 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--cd-muted);
+  border-bottom: 1px solid var(--cd-line);
+}
+
+/* Sortable (numeric) headers stay right-aligned; text columns read left */
+.apex-sx-tblwrap .apex-sx-tbl th:not(.is-sortable) {
+  text-align: left;
+}
+
+.apex-sx-tbl th.is-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.apex-sx-tbl th.is-sortable:hover {
+  color: var(--cd-ink);
+}
+
+.apex-sx-sort {
+  color: var(--cd-green-2);
+}
+
+.apex-sx-tbl td {
+  padding: 11px 10px;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--cd-ink);
+  border-bottom: 1px solid var(--cd-line);
+  vertical-align: middle;
+}
+
+.apex-sx-tbl th:first-child,
+.apex-sx-tbl td:first-child {
+  padding-left: 0;
+  text-align: left;
+}
+
+.apex-sx-tbl th:last-child,
+.apex-sx-tbl td:last-child {
+  padding-right: 0;
+}
+
+.apex-sx-tbl td:first-child,
+.apex-sx-tbl td.is-left {
+  max-width: 20rem;
+  overflow: hidden;
+  font-weight: 500;
+  text-align: left;
+  text-overflow: ellipsis;
+}
+
+.apex-sx-tbl td.is-neg {
+  color: var(--cd-neg);
+}
+
+.apex-sx-tbl td.is-pos {
+  color: var(--cd-pos);
+}
+
+.apex-sx-tbl td.is-muted {
+  color: var(--cd-ink-2);
+}
+
+.apex-sx-tbl tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.apex-sx-tbl tbody tr:hover td {
+  background: var(--cd-sunk);
+}
+
+.apex-sx-tbl__empty {
+  padding: 24px 10px !important;
+  text-align: center !important;
+  font-size: 13px;
+  color: var(--cd-muted);
+}
+
+.apex-sx-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: 14px;
+  font-size: 12.5px;
+  color: var(--cd-muted);
+}
+
+.apex-sx-pager__btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
+  .apex-mk-tbl-wrap,
+  .apex-sx-tblwrap {
+    margin: 0 -18px;
+    padding: 0 18px;
+  }
+}
+
+/* ── States ── */
+
+.apex-sx-alert {
+  padding: 16px 20px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--cd-warn);
+  background: var(--cd-warn-bg);
+  border-radius: var(--cd-r-md);
+}
+
+.apex-sx-error {
+  padding: 16px 20px;
+  font-size: 13.5px;
+  color: var(--cd-neg);
+  background: var(--cd-neg-soft);
+  border-radius: var(--cd-r-md);
+}
+
+/* Date picker panel is portaled outside .apex-perf and defaults to white */
+.apex-perf-date-panel {
+  --perf-raised: var(--cd-card);
+  --perf-canvas: var(--cd-sunk);
+  background: var(--cd-card) !important;
+}
+
+/* ── Donut with legend list ── */
+
+.apex-sx-mix {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.apex-sx-mix__list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.apex-sx-mix__row {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--cd-line);
+}
+
+.apex-sx-mix__row:last-child {
+  border-bottom: 0;
+}
+
+.apex-sx-mix__row i {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+.apex-sx-mix__row b {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 420px) {
+  .apex-sx-mix {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .apex-sx-mix .apex-sx-donut {
+    align-self: center;
+  }
+}
