@@ -55,7 +55,7 @@ export default function RevenuePaceSection({
 						<GraphCard
 							variant="cobalt"
 							hideChartToggle
-							title="Revenue vs Budget"
+							title="Revenue vs target"
 							chartOptions={chartOptions}
 							chartSeries={chartSeries}
 							chartType="line"

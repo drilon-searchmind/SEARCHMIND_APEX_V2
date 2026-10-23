@@ -1,4 +1,14 @@
-import { getChartSeriesPalette } from "@/lib/charts/chartSeriesColors";
+import dayjs from "dayjs";
+import { COMMERCE_CHART_CHROME, METRIC_CHART_PALETTE } from "@/components/dashboard/chartColors";
+
+/** Compact axis labels (150k, 1,5m) per DESIGN.md · Charts. */
+function compactAxis(v) {
+	const n = Number(v) || 0;
+	const abs = Math.abs(n);
+	if (abs >= 1e6) return `${(n / 1e6).toLocaleString("da-DK", { maximumFractionDigits: 1 })}m`;
+	if (abs >= 1e3) return `${Math.round(n / 1e3).toLocaleString("da-DK")}k`;
+	return Math.round(n).toLocaleString("da-DK");
+}
 
 export function buildCostBudgetChartData(costData, paceAnalysis, appliedDateRange) {
 	const chartCategories = costData.map((d) => d.period);
@@ -67,7 +77,7 @@ export function buildRevenueTargetChartData(
 
 	const revenueSeries = [{ name: 'Revenue', data: revenueSeriesData }];
 	const conversionBudgetSeries = [
-		{ name: 'Revenue Target', data: conversionBudgetSeriesData },
+		{ name: 'Revenue target', data: conversionBudgetSeriesData },
 	];
 
 	return {
@@ -76,32 +86,47 @@ export function buildRevenueTargetChartData(
 	};
 }
 
+/** Detailed pacing charts: actual (blue, light area) vs cumulative target (muted, dashed). */
 export const BASE_CHART_OPTIONS = {
 	chart: {
 		toolbar: { show: false },
 		zoom: { enabled: false },
-		fontFamily: 'Outfit, sans-serif',
+		fontFamily: COMMERCE_CHART_CHROME.fontFamily,
 	},
 	xaxis: {
-		axisTicks: { show: true },
-		axisBorder: { show: true },
+		tickAmount: 8,
+		axisTicks: { show: false },
+		axisBorder: { show: true, color: COMMERCE_CHART_CHROME.grid },
+		tooltip: { enabled: false },
 		labels: {
-			style: { colors: '#406969' },
+			rotate: 0,
+			hideOverlappingLabels: true,
+			style: { colors: COMMERCE_CHART_CHROME.axisLabel },
+			formatter: (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? dayjs(v).format('D MMM') : v),
 		},
 	},
 	yaxis: {
-		labels: { style: { colors: '#1E2B2B' } },
+		min: 0,
+		tickAmount: 4,
+		forceNiceScale: true,
+		labels: { formatter: compactAxis },
 	},
-	colors: getChartSeriesPalette(2),
-	stroke: { width: 2, curve: 'smooth' },
-	fill: { type: 'solid', opacity: 1 },
+	colors: [METRIC_CHART_PALETTE[0], '#859085'],
+	stroke: { width: [2.4, 1.6], curve: 'straight', dashArray: [0, 4] },
+	fill: { type: 'solid', opacity: [1, 1] },
+	markers: { size: 0, hover: { size: 5 }, colors: ['#ffffff', '#ffffff'], strokeColors: [METRIC_CHART_PALETTE[0], '#859085'], strokeWidth: 2 },
 	grid: {
-		borderColor: '#e5e7eb',
+		borderColor: COMMERCE_CHART_CHROME.grid,
 		strokeDashArray: 0,
 		xaxis: { lines: { show: false } },
 		yaxis: { lines: { show: true } },
 	},
 	dataLabels: { enabled: false },
-	tooltip: { theme: 'light' },
-	legend: { show: true, position: 'top', labels: { colors: '#1E2B2B' } },
+	tooltip: {
+		theme: 'dark',
+		shared: true,
+		intersect: false,
+		y: { formatter: (v) => (v == null ? '-' : `${Math.round(Number(v) || 0).toLocaleString('da-DK')} kr.`) },
+	},
+	legend: { show: true, position: 'top', horizontalAlign: 'left' },
 };

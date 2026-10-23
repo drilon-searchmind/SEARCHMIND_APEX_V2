@@ -59,7 +59,7 @@ export default function CostPaceSection({
 						<GraphCard
 							variant="cobalt"
 							hideChartToggle
-							title="Cost vs Budget"
+							title="Ad spend vs budget"
 							chartOptions={chartOptions}
 							chartSeries={chartSeries}
 							chartType="line"
@@ -67,7 +67,7 @@ export default function CostPaceSection({
 					)}
 				</div>
 				<PaceAnalysisCard
-					title="Spend Pace"
+					title="Spend pace"
 					analysis={paceAnalysis}
 					loading={loading}
 					error={error}

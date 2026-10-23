@@ -223,6 +223,7 @@ Plain English, sentence case, short captions. No em or en dashes, no emojis, no 
 | `daily-overview/daily-overview.css` | Daily: day-by-day table card, column toggles, heat cells (ROAS and POAS only, scaled lowest to highest) |
 | `markets-overview/MarketsInsights.jsx` | Markets: top market hero, markets in profit, best ROAS, weakest POAS, revenue share vs spend share (efficiency index), revenue donut, market scorecard with status tags and growth vs last period |
 | `src/lib/demoMarketsOverview.js` | Demo customers only: seeded per-market split of the demo store data for `/api/markets-overview` and `/preview/.../markets-overview` |
+| `tools/pace-report/PaceOverview.jsx` | Pace: hero row (revenue pace, projected month, needed per day, month elapsed), cumulative revenue vs target vs projection, budget pacing bars with time-elapsed marker, targets and pace table. Targets come from property objectives; 1 kr. objectives count as not set and show a set-objectives prompt instead of a fake target |
 
 Because the old pages reference `--apex-*` variables, remapping them inside `.apex-dashboard` gives unmigrated pages the new palette automatically. Migrating a page means checking its specific components against this spec and fixing what the remap does not cover.
 
@@ -233,7 +234,7 @@ Because the old pages reference `--apex-*` variables, remapping them inside `.ap
 | Dashboard shell (sidebar + topbar) | Migrated |
 | `dashboard/[customerId]/performance-dashboard` (Overview) | Migrated |
 | `dashboard/[customerId]/daily-overview` | Migrated |
-| `dashboard/[customerId]/tools/pace-report` | Pending |
+| `dashboard/[customerId]/tools/pace-report` | Migrated |
 | `dashboard/[customerId]/tools/pnl` | Pending |
 | `dashboard/[customerId]/ecommerce` | Pending |
 | `dashboard/[customerId]/markets-overview` | Migrated |

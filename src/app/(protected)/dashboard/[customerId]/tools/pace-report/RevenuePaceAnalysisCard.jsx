@@ -21,7 +21,7 @@ export default function RevenuePaceAnalysisCard({
 	revenueLabel = 'Total Sales',
 	objectivesScopeLabel,
 }) {
-	const title = 'Revenue Pace';
+	const title = 'Revenue pace';
 
 	if (loading) {
 		return (
@@ -87,19 +87,19 @@ export default function RevenuePaceAnalysisCard({
 					<dd>{analysis.pace.toFixed(2)}</dd>
 				</div>
 				<div className="apex-pace-analysis__stat">
-					<dt>Revenue Target (Conversion Budget)</dt>
+					<dt>Revenue target</dt>
 					<dd>{formatCurrency(analysis.budget)}</dd>
 				</div>
 				<div className="apex-pace-analysis__stat">
-					<dt>Actual Revenue to Date</dt>
+					<dt>Actual revenue to date</dt>
 					<dd>{formatCurrency(analysis.actualValueToDate)}</dd>
 				</div>
 				<div className="apex-pace-analysis__stat">
-					<dt>Ideal Revenue to Date</dt>
+					<dt>Ideal revenue to date</dt>
 					<dd>{formatCurrency(analysis.idealValueToDate)}</dd>
 				</div>
 				<div className="apex-pace-analysis__stat">
-					<dt>Total Days</dt>
+					<dt>Total days</dt>
 					<dd>{analysis.totalDays}</dd>
 				</div>
 			</dl>

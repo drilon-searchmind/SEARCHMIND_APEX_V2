@@ -10,6 +10,7 @@ import { usePaceReportData } from './usePaceReportData';
 import PropertyObjectivesSidebar from './PropertyObjectivesSidebar';
 import CostPaceSection from './CostPaceSection';
 import RevenuePaceSection from './RevenuePaceSection';
+import PaceOverview, { paceLede } from './PaceOverview';
 import './pace-report.css';
 import { pushDashboardDateRangeApplied, pushGTMEvent, GTM_EVENTS } from '@root/lib/gtmFunctions';
 import {
@@ -160,6 +161,7 @@ export default function PaceReportPage() {
 		conversionBudget,
 		conversionPaceAnalysis,
 		revenueLabel,
+		paceMeta,
 	} = usePaceReportData(customer, objectives, resolvedAppliedDateRange, mergedSourcesQuerySuffix);
 
 	const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -274,7 +276,8 @@ export default function PaceReportPage() {
 			<DashboardHeading
 				variant="cobalt"
 				showRunAudit={false}
-				title="Marketing Pace Report"
+				title="Pace report"
+				subtitle={!loading ? paceLede({ paceMeta, conversionPaceAnalysis, revenueLabel }) : null}
 				label={customer ? customer.customerName : ''}
 				customerId={params.customerId}
 				dateRange={resolvedAppliedDateRange}
@@ -301,6 +304,17 @@ export default function PaceReportPage() {
 					/>
 				}
 			/>
+			{!loading && !error ? (
+				<PaceOverview
+					paceMeta={paceMeta}
+					paceAnalysis={paceAnalysis}
+					conversionPaceAnalysis={conversionPaceAnalysis}
+					conversionValueData={conversionValueData}
+					revenueLabel={revenueLabel}
+					onOpenSettings={() => setSidebarOpen(true)}
+				/>
+			) : null}
+			<h2 className="apex-pace-detail-title">Detailed pacing</h2>
 			<CostPaceSection
 				costData={costData}
 				paceAnalysis={paceAnalysis}

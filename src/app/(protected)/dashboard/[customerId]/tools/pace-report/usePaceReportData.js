@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
-import { adSpendByPeriodMap } from '@/lib/mergeAdSpendDaily';
+import { adSpendByPeriodMap, AD_SPEND_CHANNELS, channelSpendTotalsFromMerged } from '@/lib/mergeAdSpendDaily';
 import {
 	computePrimarySalesRevenueForShopifyRows,
 	mergedSourcesThroughDate,
@@ -33,6 +33,8 @@ export function usePaceReportData(
 	const [conversionBudget, setConversionBudget] = useState(0);
 	const [conversionPaceAnalysis, setConversionPaceAnalysis] = useState(null);
 	const [revenueLabel, setRevenueLabel] = useState('Total Sales');
+	/** Month context for the pace overview (days in the month(s), targets set, spend per channel). */
+	const [paceMeta, setPaceMeta] = useState(null);
 
 	useEffect(() => {
 		if (!customer || !appliedDateRange) return;
@@ -112,6 +114,8 @@ export function usePaceReportData(
 					const obj = objectives[month] || {};
 					return sum + (typeof obj.marketingBudget === 'number' ? obj.marketingBudget : 0);
 				}, 0);
+				// 1 kr. is the stored "not set" placeholder for objectives
+				const hasBudget = budgetValue > 1;
 				if (!budgetValue || budgetValue === 0) budgetValue = 1;
 				setBudget(budgetValue);
 
@@ -201,6 +205,7 @@ export function usePaceReportData(
 					const obj = objectives[month] || {};
 					return sum + (typeof obj.revenueTarget === 'number' ? obj.revenueTarget : 0);
 				}, 0);
+				const hasRevenueTarget = conversionBudgetValue > 1;
 				if (!conversionBudgetValue || conversionBudgetValue === 0)
 					conversionBudgetValue = 1;
 				setConversionBudget(conversionBudgetValue);
@@ -267,6 +272,21 @@ export function usePaceReportData(
 					suggestedDailyAdjustment: suggestedConversionDailyAdjustment,
 					budgetDaily: conversionBudgetDaily,
 				});
+
+				const channelTotals = channelSpendTotalsFromMerged(merged);
+				setPaceMeta({
+					daysInMonths: antalDage,
+					daysPassed: c,
+					monthsStart: startDateObj.startOf('month').format('YYYY-MM-DD'),
+					monthsEnd: endDateObj.endOf('month').format('YYYY-MM-DD'),
+					hasBudget,
+					hasRevenueTarget,
+					channelSpend: AD_SPEND_CHANNELS.map((ch) => ({
+						id: ch.id,
+						label: ch.label,
+						spend: Number(channelTotals[ch.metricsDataKey]) || 0,
+					})).filter((ch) => ch.spend > 0),
+				});
 			} catch (err) {
 				setError(err.message);
 			} finally {
@@ -285,5 +305,6 @@ export function usePaceReportData(
 		conversionBudget,
 		conversionPaceAnalysis,
 		revenueLabel,
+		paceMeta,
 	};
 }

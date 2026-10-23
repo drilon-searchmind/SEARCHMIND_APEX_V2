@@ -96,19 +96,19 @@ export default function PaceAnalysisCard({
 					<dd>{formatCurrency(analysis.budget)}</dd>
 				</div>
 				<div className="apex-pace-analysis__stat">
-					<dt>Actual Spend to Date</dt>
+					<dt>Actual spend to date</dt>
 					<dd>{formatCurrency(analysis.actualSpendToDate)}</dd>
 				</div>
 				<div className="apex-pace-analysis__stat">
-					<dt>Ideal Spend to Date</dt>
+					<dt>Ideal spend to date</dt>
 					<dd>{formatCurrency(analysis.idealSpendToDate)}</dd>
 				</div>
 				<div className="apex-pace-analysis__stat">
-					<dt>Suggested Daily Adjustment</dt>
+					<dt>Suggested daily adjustment</dt>
 					<dd>{formatCurrency(analysis.suggestedDailyAdjustment)}</dd>
 				</div>
 				<div className="apex-pace-analysis__stat">
-					<dt>Total Days</dt>
+					<dt>Total days</dt>
 					<dd>{analysis.totalDays}</dd>
 				</div>
 			</dl>

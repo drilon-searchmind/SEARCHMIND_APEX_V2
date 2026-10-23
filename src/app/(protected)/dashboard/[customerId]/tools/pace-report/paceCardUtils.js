@@ -30,7 +30,7 @@ export function getPaceRadialChartOptions(progressPercent) {
 						offsetY: 12,
 						fontSize: '28px',
 						fontWeight: 700,
-						fontFamily: 'AcidGrotesk, ui-sans-serif, system-ui, sans-serif',
+						fontFamily: t.font,
 						color: t.ink,
 						formatter: (val) => `${val}%`,
 					},
@@ -38,7 +38,8 @@ export function getPaceRadialChartOptions(progressPercent) {
 			},
 		},
 		stroke: { lineCap: 'round' },
-		fill: { colors: [t.accentLight] },
+		// Progress in the design green (DESIGN.md · Accent)
+		fill: { colors: ['#3A9B3F'] },
 		labels: ['Progress'],
 	};
 }
