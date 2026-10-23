@@ -319,7 +319,7 @@
 }
 
 .apex-perf-section__head {
-  padding: 20px 22px 18px;
+  padding: 22px 22px 20px;
   background: var(--perf-raised);
   border-bottom: var(--rule-hair) solid var(--color-rule);
 }
@@ -437,31 +437,59 @@
   box-shadow: inset 4px 0 0 var(--cd-green);
 }
 
+/* Row = label | numbers. Numbers are a fixed two-column grid (value, chip) so values
+   right-align and chips share one width down every column, whatever the customer's data. */
 .apex-perf-section__row-inner {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  padding: 10px 18px 10px 14px;
+  column-gap: 14px;
+  min-height: 46px;
+  padding: 10px 18px 10px 12px;
 }
 
 .apex-perf-section__row-inner.is-nested {
-  padding-left: 2rem;
+  padding-left: 32px;
 }
 
 .apex-perf-section__row-inner.is-group {
-  padding-left: 14px;
+  padding-left: 12px;
 }
 
 .apex-perf-section__row-label {
   display: flex;
   align-items: center;
-  gap: var(--space-2xs);
+  gap: 6px;
   min-width: 0;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.35;
   color: var(--color-ink);
+}
+
+/* Long labels wrap to a second line instead of being cut off */
+.apex-perf-section__row-label .truncate {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+/* Chevron and its placeholder share one slot so labels line up with or without children */
+.apex-perf-section .apex-perf-section__chev {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+}
+
+.apex-perf-section__row-nums {
+  display: grid;
+  grid-template-columns: auto var(--perf-chip-w, 4.75rem);
+  align-items: center;
+  justify-items: end;
+  column-gap: 10px;
 }
 
 .apex-perf-section__row-label.is-nested {
@@ -475,17 +503,26 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--color-ink);
-  min-width: 4.5rem;
+  white-space: nowrap;
   text-align: right;
 }
 
-/* Change badges inside section rows: compact soft pills */
+/* Change badges inside section rows: compact soft pills, one fixed width */
 .apex-perf-section .apex-perf-change {
-  min-width: 3.25rem;
-  padding: 2px 7px;
+  width: var(--perf-chip-w, 4.75rem);
+  min-width: 0;
+  justify-content: center;
+  gap: 3px;
+  padding: 3px 6px;
   font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
   border: none;
   border-radius: 999px;
+}
+
+.apex-perf-section .apex-perf-change.is-empty {
+  visibility: hidden;
 }
 
 .apex-perf-section .apex-perf-change.is-up {
@@ -511,7 +548,8 @@
 
 /* Header delta keeps the bordered chip from the KPI card spec */
 .apex-perf-section .apex-perf-section__head .apex-perf-change {
-  padding: 3px 8px;
+  width: auto;
+  padding: 4px 9px;
   font-size: 12px;
   border: var(--rule-hair) solid var(--color-rule);
   border-radius: 8px;

@@ -17,7 +17,7 @@ import {
     chartSeriesColor,
     chartComparisonColor,
     colorsForCurrentComparisonSeries,
-    COMMERCE_CHART_PALETTE,
+    METRIC_CHART_PALETTE,
     COMMERCE_CHART_CHROME,
 } from "@/components/dashboard/chartColors";
 import CobaltLoader from "@/components/ui/CobaltLoader";
@@ -804,9 +804,13 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
             getFixedForPeriod,
         };
 
-        const metricLabel = (key) =>
-            METRIC_OPTIONS.find((o) => o.key === key)?.label ||
-            overviewChartMetricLabel(key, visibleAdSpendChannels);
+        const metricLabel = (key) => {
+            const label =
+                METRIC_OPTIONS.find((o) => o.key === key)?.label ||
+                overviewChartMetricLabel(key, visibleAdSpendChannels);
+            // Fall back to the card label when the chart helpers only know the raw key (e.g. gross_sales)
+            return label && label !== key ? label : metrics.find((m) => m.key === key)?.label || label;
+        };
 
         selectedMetrics.forEach((metric) => {
             if (metric === 'cost') {
@@ -867,7 +871,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
             return v.toLocaleString('da-DK', { maximumFractionDigits: 2 });
         };
         const isCurrentSeries = (s) => s.name && s.name.includes('(Current)');
-        const seriesColors = colorsForCurrentComparisonSeries(series, { palette: COMMERCE_CHART_PALETTE });
+        const seriesColors = colorsForCurrentComparisonSeries(series, { palette: METRIC_CHART_PALETTE });
         // Only the first current series gets the 10% area fill; the rest stay plain lines
         const firstCurrentIdx = series.findIndex(isCurrentSeries);
         series.forEach((s, i) => {
@@ -1251,7 +1255,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
 
             {viewMode === 'standard' ? (
             <>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 w-full mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-[18px] w-full mb-8">
                 <PerformanceDashboardStandardSections
                     variant="cobalt"
                     sections={STANDARD_SECTIONS}

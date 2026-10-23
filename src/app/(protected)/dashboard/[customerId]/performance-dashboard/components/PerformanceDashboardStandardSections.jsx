@@ -61,10 +61,14 @@ function flattenVisibleRows(breakdown, expandedGroups) {
 
 function MetricChangeBadge({ metric, variant = "default" }) {
     if (metric.change === undefined) {
-        return <span className="inline-block w-14" />;
+        return variant === "cobalt"
+            ? <span className="apex-perf-change is-empty" aria-hidden />
+            : <span className="inline-block w-14" />;
     }
 
     if (variant === "cobalt") {
+        // Danish decimal comma to match the values next to it
+        const changeText = String(metric.change).replace(".", ",");
         return (
             <span
                 className={`apex-perf-change ${
@@ -80,7 +84,7 @@ function MetricChangeBadge({ metric, variant = "default" }) {
                 ) : metric.changeType === "down" ? (
                     <FiTrendingDown className="text-xs" aria-hidden />
                 ) : null}
-                {metric.change}%
+                {changeText}%
             </span>
         );
     }
@@ -376,7 +380,7 @@ export default function PerformanceDashboardStandardSections({
                                             {row.hasChildren ? (
                                                 <button
                                                     type="button"
-                                                    className={isCobalt ? "apex-perf-icon-btn shrink-0" : "shrink-0 p-0.5 text-gray-400 hover:text-gray-700"}
+                                                    className={isCobalt ? "apex-perf-icon-btn apex-perf-section__chev shrink-0" : "shrink-0 p-0.5 text-gray-400 hover:text-gray-700"}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         toggleGroup(row.key);
@@ -390,7 +394,7 @@ export default function PerformanceDashboardStandardSections({
                                                     )}
                                                 </button>
                                             ) : (
-                                                <span className="w-4 shrink-0" aria-hidden />
+                                                <span className={isCobalt ? "apex-perf-section__chev shrink-0" : "w-4 shrink-0"} aria-hidden />
                                             )}
                                             <span className="truncate">{label}</span>
                                             {row.returnsSettings && (
@@ -457,7 +461,7 @@ export default function PerformanceDashboardStandardSections({
                                                 </span>
                                             )}
                                         </span>
-                                        <div className="flex items-center gap-2 shrink-0">
+                                        <div className={isCobalt ? "apex-perf-section__row-nums" : "flex items-center gap-2 shrink-0"}>
                                             <span className={isCobalt ? "apex-perf-section__row-value" : "text-sm font-semibold tabular-nums text-gray-900 min-w-[80px] text-right"}>
                                                 {metric.value}
                                             </span>

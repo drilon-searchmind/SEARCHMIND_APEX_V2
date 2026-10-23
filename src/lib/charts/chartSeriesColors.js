@@ -41,6 +41,22 @@ export const COMMERCE_CHART_PALETTE = [
     "#DDF2D8",
 ];
 
+/**
+ * Metric comparison lines (overview chart): high-contrast hues kept away from the brand
+ * greens so several selected metrics stay easy to tell apart. Comparison series reuse
+ * the same hue at 45% opacity, dashed.
+ */
+export const METRIC_CHART_PALETTE = [
+    "#2563EB", // blue
+    "#EA580C", // orange
+    "#7C3AED", // violet
+    "#DB2777", // pink
+    "#0891B2", // cyan
+    "#CA8A04", // amber
+    "#475569", // slate
+    "#DC2626", // red
+];
+
 /** Axis, grid and label colours for ApexCharts on commerce pages. */
 export const COMMERCE_CHART_CHROME = {
     axisLabel: "#859085",

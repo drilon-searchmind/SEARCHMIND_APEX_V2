@@ -94,6 +94,8 @@ Charts stay on ApexCharts (the existing stack). Colours come from `COMMERCE_CHAR
 
 Categorical sequence: `#111A12, #2F8434, #5DBB58, #A9EDA2, #7D877D, #C5CFC4, #3F4C40, #DDF2D8`
 
+**Metric comparison charts** (for example the overview "metrics over time" chart, where the user picks any number of metrics) do **not** use the brand greens. Use `METRIC_CHART_PALETTE` so each metric is easy to tell apart: `#2563EB` blue, `#EA580C` orange, `#7C3AED` violet, `#DB2777` pink, `#0891B2` cyan, `#CA8A04` amber, `#475569` slate, `#DC2626` red. The first selected metric gets a 10% area fill; comparison periods reuse the same hue at 45% opacity, dashed.
+
 Funnel steps: `#111A12, #2F8434, #5DBB58, #93D88C, #A9EDA2`
 
 Heat cells: `rgba(93,187,88, t * 0.35)` where `t` runs 0 to 1 across the period.
@@ -164,6 +166,8 @@ Tooltip: `--cd-dark` background, 10px radius, 12px text, rows of colour dot + la
 **Chips / tags.** Pill, 12px/600. Good `--cd-pos-soft` + `--cd-pos`, watch `--cd-warn-bg` + `--cd-warn`, bad `--cd-neg-soft` + `--cd-neg`, Meta `--cd-meta-soft` + `--cd-meta`, Google `--cd-google-soft` + `#4D8A47`.
 
 **Tables.** Header 12.5px `--cd-muted`, numbers right-aligned, `--cd-line` row dividers, total row 700 with `--cd-line-2` top border.
+
+**Metric breakdown rows (overview columns).** Each row is a grid: label | value | change chip. Values right-align; every chip in a column has the same fixed width (`--perf-chip-w`, 4.75rem) so they line up whatever the customer's numbers are. Rows without a chip keep an invisible placeholder of the same width. Chevrons and their placeholders share one 20px slot so labels align. Long labels wrap to a second line rather than being cut off. Percent changes use a decimal comma.
 
 **Pacing bars.** 10px `--cd-sunk` track, 2px ink marker at month elapsed.
 

@@ -22,6 +22,8 @@ const HERO_KEY = "revenue";
 const TOP_KEYS = ["roas", "poas", "ebit_pct"];
 const COST_KEYS = ["total_expenses", "variable_costs", "spendshare"];
 const TILE_KEYS = ["aov", "cac"];
+/** Overview KPIs intentionally left out of this block. */
+const HIDDEN_KEYS = new Set(["additional_fees"]);
 
 /** Cost metrics use the red icon bubble. */
 const COST_METRIC_KEYS = new Set(["total_expenses", "variable_costs", "additional_fees", "transaction_fee"]);
@@ -140,10 +142,10 @@ export default function OverviewKeyMetrics({ metrics, metricsData, selectedMetri
     const top = TOP_KEYS.map((k) => byKey.get(k)).filter(Boolean);
     const costs = COST_KEYS.map((k) => byKey.get(k)).filter(Boolean);
     const placed = new Set([HERO_KEY, ...TOP_KEYS, ...COST_KEYS]);
-    // Anything not slotted above (e.g. Additional Fees, Transaction Fee) still shows, as a ratio tile
+    // Anything not slotted above (e.g. Transaction Fee) still shows, as a ratio tile
     const tiles = [
         ...TILE_KEYS.map((k) => byKey.get(k)).filter(Boolean),
-        ...metrics.filter((m) => !placed.has(m.key) && !TILE_KEYS.includes(m.key)),
+        ...metrics.filter((m) => !placed.has(m.key) && !TILE_KEYS.includes(m.key) && !HIDDEN_KEYS.has(m.key)),
     ];
 
     const totalExpenses = byKey.get("total_expenses");

@@ -7,6 +7,7 @@ export {
   colorsForCurrentComparisonSeries,
   COMMERCE_CHART_PALETTE,
   COMMERCE_CHART_CHROME,
+  METRIC_CHART_PALETTE,
 } from "@/lib/charts/chartSeriesColors";
 
 export function getChartColors() {
