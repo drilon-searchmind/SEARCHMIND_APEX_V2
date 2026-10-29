@@ -1,0 +1,59 @@
+{
+  "schema": "searchmind.session-state/v1",
+  "source": "handoff",
+  "created_at": "2026-10-23T09:51:52.981Z",
+  "session_id": "70b0071f-cf2f-47b5-ae27-6d3ce5548c37",
+  "goal": "Redesign the Apex Next.js dashboard frontend page by page in the commerce design (sage/mint/green), keeping Apex data and layout, on branch redesign/commerce-dashboard",
+  "current_focus": "Ecommerce view is done and pushed (6e64049); waiting for the user to pick the next page",
+  "next_step": "Ask the user which page to do next (e.g. service dashboards, config, home, parent-property, apex-radar) and redesign it the same way",
+  "completed": [
+    "Dashboard shell (sidebar + topbar), tokens and new DESIGN.md (old spec moved to docs/design/DESIGN-minimal-legacy.md)",
+    "Overview (performance-dashboard): key metrics block, aligned section rows, distinct chart colours, dark tooltip and popovers",
+    "Daily overview: hero row vs same weekday last week, spend/revenue charts, restyled day-by-day table",
+    "Markets overview: insights, share vs spend, donut, scorecard, comparison chart; demo API and preview route for demo IDs",
+    "Pace report: reference pace overview plus Apex detailed pacing",
+    "P&L: hero, waterfall, margins card plus Apex statement and static expenses",
+    "Ecommerce: per-tab overviews (ProductOverview, CustomerOverview) plus Apex catalog and customer metrics",
+    "All commits pushed to origin/redesign/commerce-dashboard; main untouched at eec8596"
+  ],
+  "open_tasks": [
+    "Remaining pages in DESIGN.md migration table: service dashboards, config, other tools, /home, parent-property, apex-radar",
+    "Not yet verified with a real logged-in customer (only demo preview routes)",
+    "Possible P&L data issue to confirm: static expenses show bureau/tooling/fixed but statement shows 0 kr. for the demo period"
+  ],
+  "decisions": [
+    "Never commit or push to main; commit to redesign/commerce-dashboard and push only when the user asks",
+    "Do not deploy; do not start or restart the dev server (user runs npm run dev in Cursor); verify on localhost:3000",
+    "Verify via /preview/dashboard/69c5097c84057563ba331cd2/<page> (demo, no login) at 1600px and 390px",
+    "Multi-metric/channel charts use METRIC_CHART_PALETTE (non-brand distinct colours), not brand greens",
+    "Keep Apex data and functionality; add reference-style overview on top, restyle Apex detail below",
+    "Heat shading only on ROAS/POAS, scaled lowest to highest; 1 kr. objectives count as not set",
+    "No em/en dashes in UI text or docs; sentence case labels; Danish number format",
+    "Turbopack may serve stale imported CSS (performance-dashboard.css); put page-specific rules in the page CSS"
+  ],
+  "active_files": [
+    "src/app/(protected)/dashboard/[customerId]/ecommerce/components/ProductPerfomance.jsx",
+    "src/app/(protected)/dashboard/[customerId]/ecommerce/ecommerce.css",
+    "src/app/(protected)/dashboard/[customerId]/ecommerce/components/CustomerOverview.jsx",
+    "src/app/(protected)/dashboard/[customerId]/ecommerce/components/ProductOverview.jsx",
+    "C:/Users/Searchmind/Downloads/ecommerce-dashboard_1.html",
+    "src/app/(protected)/dashboard/[customerId]/tools/pnl/PnlOverview.jsx",
+    "src/app/(protected)/dashboard/[customerId]/tools/pnl/pnl.css",
+    "src/app/(protected)/dashboard/[customerId]/tools/pnl/page.jsx"
+  ],
+  "references": [
+    "http://localhost:3000/preview/dashboard/69c5097c84057563ba331cd2/ecommerce?tab=products",
+    "http://localhost:3000/api/customer-segmentation-shopifyql/69c5097c84057563ba331cd2?startDate=2026-10-01&endDate=2026-10-22&full=true",
+    "http://localhost:3000/preview/dashboard/69c5097c84057563ba331cd2/ecommerce?tab=customers",
+    "http://localhost:3000/preview/dashboard/69c5097c84057563ba331cd2/ecommerce",
+    "http://localhost:3000/preview/dashboard/69c5097c84057563ba331cd2/tools/pnl",
+    "http://localhost:3000/preview/dashboard/69c5097c84057563ba331cd2/tools/pace-report",
+    "http://localhost:3000/api/customers/69c5097c84057563ba331cd2",
+    "DESIGN.md (design spec + migration status table)",
+    "C:/Users/Searchmind/Downloads/commerce-dashboard-design_1/commerce-dashboard-design/SKILL.md",
+    "C:/Users/Searchmind/Downloads/commerce-dashboard-design_1/commerce-dashboard-design/references/DESIGN.md"
+  ],
+  "blockers": [
+    "Which page the user wants redesigned next"
+  ]
+}
