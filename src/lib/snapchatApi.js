@@ -679,7 +679,7 @@ function extractCampaignTotals(statsJson) {
  *   spendByDateOnly?: boolean — when true, skip campaign TOTAL breakdown (merged-sources spend rollup)
  * }} args — when snapCredentials is set, 401 responses retry once via refresh_token
  */
-export async function fetchSnapchatDashboardMetrics({
+async function fetchSnapchatDashboardMetricsWindow({
     accessToken,
     adAccountId,
     startDate,
@@ -731,6 +731,244 @@ export async function fetchSnapchatDashboardMetrics({
             spendByDateOnly,
         });
     }
+}
+
+/** Snapchat rejects DAY-granularity stats over more than 32 days, so longer ranges run in 31-day windows. */
+const SNAP_MAX_WINDOW_DAYS = 31;
+
+function snapWindows(startDate, endDate, maxDays = SNAP_MAX_WINDOW_DAYS) {
+    const out = [];
+    let cur = dayjs(startDate);
+    const end = dayjs(endDate);
+    if (cur.isAfter(end)) return [{ startDate, endDate }];
+    while (!cur.isAfter(end)) {
+        const winEnd = cur.add(maxDays - 1, "day");
+        const stop = winEnd.isAfter(end) ? end : winEnd;
+        out.push({ startDate: cur.format("YYYY-MM-DD"), endDate: stop.format("YYYY-MM-DD") });
+        cur = stop.add(1, "day");
+    }
+    return out;
+}
+
+function mergeCampaignTotals(lists) {
+    const map = new Map();
+    for (const list of lists) {
+        for (const c of list || []) {
+            const key = c.campaign_id || c.campaign_name;
+            const cur = map.get(key) || { ...c, clicks: 0, impressions: 0, saves: 0, ad_spend: 0, purchases: 0, adds_to_cart: 0, purchase_value: 0 };
+            cur.clicks += num(c.clicks);
+            cur.impressions += num(c.impressions);
+            cur.saves += num(c.saves);
+            cur.ad_spend += num(c.ad_spend);
+            cur.purchases += num(c.purchases);
+            cur.adds_to_cart += num(c.adds_to_cart);
+            cur.purchase_value += num(c.purchase_value);
+            map.set(key, cur);
+        }
+    }
+    return [...map.values()]
+        .map((c) => ({ ...c, ctr: c.impressions > 0 ? c.clicks / c.impressions : 0 }))
+        .sort((a, b) => (b.ad_spend || 0) - (a.ad_spend || 0))
+        .slice(0, 20);
+}
+
+/**
+ * Public entry. One window when the range fits, otherwise 31-day windows that are fetched in order
+ * and merged (daily rows are concatenated, campaign totals and country spend are summed).
+ */
+export async function fetchSnapchatDashboardMetrics(args) {
+    const windows = snapWindows(args.startDate, args.endDate);
+    if (windows.length === 1) return fetchSnapchatDashboardMetricsWindow(args);
+
+    const parts = [];
+    for (const w of windows) {
+        parts.push(await fetchSnapchatDashboardMetricsWindow({ ...args, startDate: w.startDate, endDate: w.endDate }));
+    }
+    const merged = {
+        metrics_by_date: parts.flatMap((x) => x.metrics_by_date || []),
+        top_campaigns: mergeCampaignTotals(parts.map((x) => x.top_campaigns)),
+        campaigns_by_date: [],
+    };
+    if (parts.some((x) => x.spend_by_iso2 instanceof Map)) {
+        const iso = new Map();
+        for (const x of parts) {
+            if (!(x.spend_by_iso2 instanceof Map)) continue;
+            for (const [k, v] of x.spend_by_iso2) iso.set(k, (iso.get(k) || 0) + v);
+        }
+        merged.spend_by_iso2 = iso;
+    }
+    return merged;
+}
+
+/**
+ * Extras for the dashboard (best-effort, each part may fail on its own and returns a warning):
+ *  - campaign detail: reach and frequency, video views and completion, shares, saves, story opens
+ *  - audience breakdowns through `report_dimension` (gender, age, country, region, OS, device make). At ad
+ *    account level these only allow `fields=spend`, so they are requested with `breakdown=campaign` and summed
+ * Windows are 31 days like the main fetch. Reach and frequency are not additive, so they are only
+ * returned when the whole range fits in one window.
+ */
+const DETAIL_FIELDS_FULL =
+    "impressions,swipes,spend,uniques,frequency,video_views,view_completion,quartile_1,quartile_2,quartile_3,shares,saves,story_opens,conversion_purchases,conversion_purchases_value";
+const DETAIL_FIELDS_SAFE = "impressions,swipes,spend,video_views,view_completion,shares,saves,story_opens";
+
+const SNAP_DIMENSIONS = [
+    { key: "gender", dim: "gender" },
+    { key: "age", dim: "age", rowKey: "age_bucket" },
+    { key: "country", dim: "country" },
+    { key: "region", dim: "region" },
+    { key: "os", dim: "os", rowKey: "operating_system" },
+    { key: "device_make", dim: "make", rowKey: "make" },
+];
+
+const DIMENSION_FIELDS = "impressions,swipes,spend,conversion_purchases,conversion_purchases_value";
+
+function dimensionLabel(key, raw) {
+    const v = String(raw ?? "").trim();
+    if (!v) return "Unknown";
+    if (key === "country" && v.length === 2) {
+        try {
+            return new Intl.DisplayNames(["en"], { type: "region" }).of(v.toUpperCase()) || v.toUpperCase();
+        } catch {
+            return v.toUpperCase();
+        }
+    }
+    if (key === "region") {
+        const [cc, ...rest] = v.split("/");
+        const place = rest.join("/").replace(/\s+-\s+/g, "-");
+        let country = cc.toUpperCase();
+        try {
+            country = new Intl.DisplayNames(["en"], { type: "region" }).of(cc.toUpperCase()) || country;
+        } catch {
+            /* keep the code */
+        }
+        return place ? `${place}, ${country}` : country;
+    }
+    if (key === "device_make") return v.charAt(0).toUpperCase() + v.slice(1).toLowerCase();
+    if (key === "gender") return v.charAt(0).toUpperCase() + v.slice(1).toLowerCase();
+    if (key === "os") return v.toUpperCase() === "IOS" ? "iOS" : v.charAt(0).toUpperCase() + v.slice(1).toLowerCase();
+    return v.replace(/_/g, " ");
+}
+
+/** Walk the response and collect flat dimension rows: objects that carry the dimension key plus metrics. */
+function collectDimensionRows(statsJson, rowKey) {
+    const rows = [];
+    function walk(obj, depth) {
+        if (!obj || typeof obj !== "object" || depth > 14) return;
+        if (Array.isArray(obj)) {
+            for (const x of obj) walk(x, depth + 1);
+            return;
+        }
+        if (obj[rowKey] !== undefined && (obj.impressions !== undefined || obj.spend !== undefined || obj.swipes !== undefined)) rows.push(obj);
+        for (const k of Object.keys(obj)) walk(obj[k], depth + 1);
+    }
+    walk(statsJson, 0);
+    return rows;
+}
+
+async function fetchSnapchatDimension({ accessToken, adAccountId, windows, accountTz, def }) {
+    const map = new Map();
+    for (const w of windows) {
+        const { start_time, end_time } = statsWindowUtcIso(w.startDate, w.endDate, accountTz);
+        const json = await snapFetchJson(`/adaccounts/${encodeURIComponent(adAccountId)}/stats`, accessToken, {
+            granularity: "TOTAL",
+            start_time,
+            end_time,
+            report_dimension: def.dim,
+            breakdown: "campaign",
+            limit: 50,
+            fields: DIMENSION_FIELDS,
+            swipe_up_attribution_window: "28_DAY",
+            view_attribution_window: "1_DAY",
+        });
+        const rowKey = def.rowKey || def.dim;
+        for (const r of collectDimensionRows(json, rowKey)) {
+            const raw = String(r[rowKey]);
+            const cur = map.get(raw) || { id: raw, name: dimensionLabel(def.key, raw), impressions: 0, clicks: 0, ad_spend: 0, purchases: 0, purchase_value: 0 };
+            cur.impressions += num(r.impressions);
+            cur.clicks += num(r.swipes);
+            cur.ad_spend += spendMajor(r.spend);
+            cur.purchases += num(r.conversion_purchases);
+            cur.purchase_value += spendMajor(r.conversion_purchases_value);
+            map.set(raw, cur);
+        }
+    }
+    return [...map.values()]
+        .map((r) => ({ ...r, ctr: r.impressions > 0 ? r.clicks / r.impressions : 0, roas: r.ad_spend > 0 ? r.purchase_value / r.ad_spend : 0 }))
+        .sort((a, b) => b.ad_spend - a.ad_spend)
+        .slice(0, 30);
+}
+
+async function fetchSnapchatCampaignDetail({ accessToken, adAccountId, windows, accountTz }) {
+    const single = windows.length === 1;
+    const map = new Map();
+    for (const w of windows) {
+        const { start_time, end_time } = statsWindowUtcIso(w.startDate, w.endDate, accountTz);
+        const base = {
+            granularity: "TOTAL",
+            start_time,
+            end_time,
+            breakdown: "campaign",
+            limit: 50,
+            swipe_up_attribution_window: "28_DAY",
+            view_attribution_window: "1_DAY",
+        };
+        let json;
+        try {
+            json = await snapFetchJson(`/adaccounts/${encodeURIComponent(adAccountId)}/stats`, accessToken, { ...base, fields: DETAIL_FIELDS_FULL });
+        } catch (e1) {
+            dbg("Campaign detail full fields failed, retrying safe fields", e1?.message || e1);
+            json = await snapFetchJson(`/adaccounts/${encodeURIComponent(adAccountId)}/stats`, accessToken, { ...base, fields: DETAIL_FIELDS_SAFE });
+        }
+        for (const item of json?.total_stats || []) {
+            const campaigns = item?.total_stat?.breakdown_stats?.campaign || [];
+            for (const c of campaigns) {
+                const st = c?.stats || {};
+                const id = c.id || c.entity_id;
+                if (!id) continue;
+                const cur = map.get(id) || { campaign_id: id, video_views: 0, video_completes: 0, quartile_1: 0, quartile_2: 0, quartile_3: 0, shares: 0, saves_total: 0, story_opens: 0, uniques: null, frequency: null };
+                cur.video_views += num(st.video_views);
+                cur.video_completes += num(st.view_completion);
+                cur.quartile_1 += num(st.quartile_1);
+                cur.quartile_2 += num(st.quartile_2);
+                cur.quartile_3 += num(st.quartile_3);
+                cur.shares += num(st.shares);
+                cur.saves_total += num(st.saves);
+                cur.story_opens += num(st.story_opens);
+                if (single) {
+                    cur.uniques = st.uniques != null ? num(st.uniques) : null;
+                    cur.frequency = st.frequency != null ? num(st.frequency) : null;
+                }
+                map.set(id, cur);
+            }
+        }
+    }
+    return [...map.values()];
+}
+
+export async function fetchSnapchatDashboardExtras({ accessToken, adAccountId, startDate, endDate }) {
+    const trimmed = String(adAccountId || "").trim();
+    const accountTz = await fetchAdAccountTimezone(accessToken, trimmed);
+    const windows = snapWindows(startDate, endDate);
+    const warnings = [];
+
+    const [detail, ...dims] = await Promise.allSettled([
+        fetchSnapchatCampaignDetail({ accessToken, adAccountId: trimmed, windows, accountTz }),
+        ...SNAP_DIMENSIONS.map((def) => fetchSnapchatDimension({ accessToken, adAccountId: trimmed, windows, accountTz, def })),
+    ]);
+
+    const result = { campaign_detail: [], audience: {}, warnings };
+    if (detail.status === "fulfilled") result.campaign_detail = detail.value;
+    else warnings.push({ part: "campaign_detail", message: detail.reason?.message || "Campaign detail failed" });
+    SNAP_DIMENSIONS.forEach((def, i) => {
+        const r = dims[i];
+        if (r.status === "fulfilled") result.audience[def.key] = r.value;
+        else {
+            result.audience[def.key] = [];
+            warnings.push({ part: def.key, message: r.reason?.message || `${def.dim} breakdown failed` });
+        }
+    });
+    return result;
 }
 
 async function fetchSnapchatDashboardMetricsInner({

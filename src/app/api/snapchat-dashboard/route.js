@@ -1,11 +1,12 @@
 import {
+    fetchSnapchatDashboardExtras,
     fetchSnapchatDashboardMetrics,
     resolveSnapchatAccessTokenForCustomer,
 } from "@/lib/snapchatApi";
 import { getCustomerById } from "../../../../lib/customerOperations";
 import { isDemoCustomerId } from "@/lib/demoCustomer";
 import { normalizeSnapchatSettings } from "@/lib/snapchatCustomerSettings";
-import { getDemoSnapchatDashboardForRange } from "@/lib/demoAdMetrics";
+import { getDemoSnapDashboardForRange } from "@/lib/demoSnap";
 
 /**
  * GET /api/snapchat-dashboard?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&dashboardCustomerId=...
@@ -28,7 +29,7 @@ export async function GET(req) {
     }
 
     if (isDemoCustomerId(dashboardCustomerId)) {
-        return new Response(JSON.stringify(getDemoSnapchatDashboardForRange(startDate, endDate)), {
+        return new Response(JSON.stringify(getDemoSnapDashboardForRange(startDate, endDate)), {
             status: 200,
             headers: { "Content-Type": "application/json" },
         });
@@ -107,6 +108,22 @@ export async function GET(req) {
                 totalAdSpend: spend,
                 topCampaigns: (metrics.top_campaigns || []).length,
             });
+        }
+        // Audience breakdowns and video, reach and engagement detail are best-effort extras for the dashboard
+        if (searchParams.get("extras") !== "0") {
+            try {
+                const extras = await fetchSnapchatDashboardExtras({ accessToken, adAccountId, startDate, endDate });
+                const detailById = new Map(extras.campaign_detail.map((d) => [String(d.campaign_id), d]));
+                metrics.top_campaigns = (metrics.top_campaigns || []).map((c) => {
+                    const d = detailById.get(String(c.campaign_id));
+                    return d ? { ...c, ...d, campaign_id: c.campaign_id } : c;
+                });
+                metrics.audience = extras.audience;
+                metrics.warnings = extras.warnings;
+            } catch (eExtras) {
+                metrics.audience = {};
+                metrics.warnings = [{ part: "extras", message: eExtras?.message || "Extra reports failed" }];
+            }
         }
         return new Response(JSON.stringify(metrics), {
             status: 200,
