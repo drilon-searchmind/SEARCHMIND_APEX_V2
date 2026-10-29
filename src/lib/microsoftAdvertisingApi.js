@@ -153,39 +153,56 @@ function pollSoapHeaders({ accessToken, developerToken, customerId, accountId })
   </s:Header>`;
 }
 
-function buildCampaignPerformanceReportRequestXml({ accountId, startDate, endDate, reportTimeZone }) {
+/**
+ * Report definitions. Element order matters to Microsoft's WCF parser (alphabetical after the base fields).
+ * The campaign report is the original request; the others are best-effort extras that may fail on their own.
+ */
+const REPORT_SPECS = {
+    campaignDaily: {
+        type: "CampaignPerformanceReport",
+        aggregation: "Daily",
+        columns: ["TimePeriod", "CampaignId", "CampaignName", "Impressions", "Clicks", "Spend", "Conversions", "Revenue"],
+    },
+    searchQueries: {
+        type: "SearchQueryPerformanceReport",
+        aggregation: "Summary",
+        columns: ["SearchQuery", "CampaignName", "Impressions", "Clicks", "Spend", "Conversions", "Revenue"],
+    },
+    segments: {
+        type: "CampaignPerformanceReport",
+        aggregation: "Summary",
+        columns: ["DeviceType", "Network", "Impressions", "Clicks", "Spend", "Conversions", "Revenue"],
+    },
+    impressionShare: {
+        type: "CampaignPerformanceReport",
+        aggregation: "Summary",
+        columns: ["CampaignName", "Impressions", "ImpressionSharePercent", "ImpressionLostToBudgetPercent", "ImpressionLostToRankAggPercent"],
+    },
+};
+
+function buildReportRequestXml({ spec, accountId, startDate, endDate, reportTimeZone }) {
     const s = parseYmd(startDate);
     const e = parseYmd(endDate);
-    const cols = [
-        "TimePeriod",
-        "CampaignId",
-        "CampaignName",
-        "Impressions",
-        "Clicks",
-        "Spend",
-        "Conversions",
-        "Revenue",
-    ];
-    const columnXml = cols.map((c) => `<CampaignPerformanceReportColumn>${c}</CampaignPerformanceReportColumn>`).join("\n          ");
+    const columnXml = spec.columns.map((c) => `<${spec.type}Column>${c}</${spec.type}Column>`).join("\n          ");
+    const campaignsNil = spec.type === "CampaignPerformanceReport" ? `\n          <Campaigns i:nil="true" xmlns:i="http://www.w3.org/2001/XMLSchema-instance" />` : "";
 
     return `<SubmitGenerateReportRequest xmlns="${REPORTING_NS}">
-      <ReportRequest xmlns:i="http://www.w3.org/2001/XMLSchema-instance" i:type="CampaignPerformanceReportRequest">
+      <ReportRequest xmlns:i="http://www.w3.org/2001/XMLSchema-instance" i:type="${spec.type}Request">
         <ExcludeColumnHeaders i:nil="false">false</ExcludeColumnHeaders>
         <ExcludeReportFooter i:nil="false">true</ExcludeReportFooter>
         <ExcludeReportHeader i:nil="false">true</ExcludeReportHeader>
         <Format i:nil="false">Csv</Format>
         <FormatVersion>2.0</FormatVersion>
-        <ReportName i:nil="false">ApexCampaignPerformance</ReportName>
+        <ReportName i:nil="false">Apex${spec.type}</ReportName>
         <ReturnOnlyCompleteData i:nil="false">false</ReturnOnlyCompleteData>
-        <Aggregation>Daily</Aggregation>
+        <Aggregation>${spec.aggregation}</Aggregation>
         <Columns i:nil="false">
           ${columnXml}
         </Columns>
         <Scope i:nil="false">
           <AccountIds i:nil="false" xmlns:a1="${SERIALIZATION_NS}">
             <a1:long>${xmlEscape(accountId)}</a1:long>
-          </AccountIds>
-          <Campaigns i:nil="true" xmlns:i="http://www.w3.org/2001/XMLSchema-instance" />
+          </AccountIds>${campaignsNil}
         </Scope>
         <Time i:nil="false">
           <CustomDateRangeEnd i:nil="false">
@@ -266,13 +283,13 @@ async function postReportingSoap({ soapAction, soapBody }) {
     return text;
 }
 
-async function submitGenerateReport({ accessToken, developerToken, customerId, accountId, startDate, endDate }) {
+async function submitGenerateReport({ accessToken, developerToken, customerId, accountId, startDate, endDate, spec }) {
     const reportTimeZone = getReportTimeZone();
     const envelope = `<?xml version="1.0" encoding="utf-8"?>
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
   ${reportingSoapHeaders({ accessToken, developerToken, customerId, accountId })}
   <s:Body>
-    ${buildCampaignPerformanceReportRequestXml({ accountId, startDate, endDate, reportTimeZone })}
+    ${buildReportRequestXml({ spec, accountId, startDate, endDate, reportTimeZone })}
   </s:Body>
 </s:Envelope>`;
 
@@ -447,13 +464,14 @@ function aggregateToDashboard(rows) {
 
         const cname = row.campaignName || "Campaign";
         if (!byCampaign.has(cname)) {
-            byCampaign.set(cname, { impressions: 0, clicks: 0, spend: 0, conversions: 0 });
+            byCampaign.set(cname, { impressions: 0, clicks: 0, spend: 0, conversions: 0, revenue: 0 });
         }
         const cagg = byCampaign.get(cname);
         cagg.impressions += row.impressions;
         cagg.clicks += row.clicks;
         cagg.spend += row.spend;
         cagg.conversions += row.conversions;
+        cagg.revenue += row.revenue;
     }
 
     const dates = [...byDay.keys()].sort();
@@ -481,12 +499,24 @@ function aggregateToDashboard(rows) {
             clicks: Math.round(v.clicks),
             impressions: Math.round(v.impressions),
             conversions: Math.round(v.conversions * 100) / 100,
+            ad_spend: Math.round(v.spend * 100) / 100,
+            conversion_value: Math.round(v.revenue * 100) / 100,
+            roas: v.spend > 0 ? v.revenue / v.spend : 0,
             ctr: v.impressions > 0 ? v.clicks / v.impressions : 0,
         }))
         .sort((a, b) => b.clicks - a.clicks)
-        .slice(0, 10);
+        .slice(0, 50);
 
-    return { metrics_by_date, top_campaigns, campaigns_by_date: [] };
+    const campaigns_by_date = rows.map((r) => ({
+        date: r.date,
+        campaign_name: r.campaignName || "Campaign",
+        ad_spend: r.spend,
+        clicks: r.clicks,
+        impressions: r.impressions,
+        conversions: r.conversions,
+    }));
+
+    return { metrics_by_date, top_campaigns, campaigns_by_date };
 }
 
 function eachDateInclusiveYmd(startYmd, endYmd) {
@@ -543,10 +573,132 @@ function assertMicrosoftNumericId(fieldLabel, value) {
     }
 }
 
+function parseCsvObjects(csvText) {
+    const normalized = String(csvText ?? "").replace(/^﻿/, "");
+    const lines = normalized.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (lines.length < 2) return [];
+    const header = parseCsvLine(lines[0]).map((h) => h.trim());
+    return lines.slice(1).map((line) => {
+        const cells = parseCsvLine(line);
+        const obj = {};
+        header.forEach((h, i) => {
+            obj[h] = cells[i] ?? "";
+        });
+        return obj;
+    });
+}
+
+/** Microsoft prints "--" when a value is not available and may add a percent sign. */
+function parseMetric(v) {
+    const t = String(v ?? "").replace(/[%\s]/g, "").replace(/,/g, "");
+    if (!t || t === "--") return null;
+    const n = parseFloat(t);
+    return Number.isFinite(n) ? n : null;
+}
+
+async function runReport({ accessToken, developerToken, customerId, accountId, startDate, endDate, spec }) {
+    const reportRequestId = await submitGenerateReport({ accessToken, developerToken, customerId, accountId, startDate, endDate, spec });
+    let downloadUrl = "";
+    let lastPollStatus = "";
+    let resolvedSuccess = false;
+    for (let attempt = 0; attempt < 36; attempt++) {
+        const poll = await pollGenerateReport({ accessToken, developerToken, customerId, accountId, reportRequestId });
+        lastPollStatus = poll.status || lastPollStatus;
+        const st = (poll.status || "").toLowerCase();
+        /** Microsoft: Status can be Success while ReportDownloadUrl is nil (no rows for the request). */
+        if (st.includes("success")) {
+            resolvedSuccess = true;
+            downloadUrl = poll.downloadUrl || "";
+            break;
+        }
+        if (st.includes("error") || st.includes("fail")) {
+            throw new Error(`Report generation failed: ${poll.status}`);
+        }
+        await sleep(2000);
+    }
+    if (!resolvedSuccess) {
+        const hint = lastPollStatus ? ` Last status: ${lastPollStatus}.` : "";
+        throw new Error(`Timed out waiting for Microsoft Advertising report (PollGenerateReport).${hint} Try a shorter date range or retry.`);
+    }
+    return downloadUrl ? downloadReportCsv(downloadUrl) : "";
+}
+
+function aggregateSearchTerms(csv) {
+    const map = new Map();
+    for (const r of parseCsvObjects(csv)) {
+        const term = (r.SearchQuery || "").trim();
+        if (!term) continue;
+        const campaign = (r.CampaignName || "").trim();
+        const key = `${term}|${campaign}`;
+        const cur = map.get(key) || { search_term: term, campaign_name: campaign || "-", spend: 0, clicks: 0, impressions: 0, conversions: 0, revenue: 0 };
+        cur.spend += parseMetric(r.Spend) || 0;
+        cur.clicks += parseMetric(r.Clicks) || 0;
+        cur.impressions += parseMetric(r.Impressions) || 0;
+        cur.conversions += parseMetric(r.Conversions) || 0;
+        cur.revenue += parseMetric(r.Revenue) || 0;
+        map.set(key, cur);
+    }
+    return [...map.values()]
+        .map((t) => ({ ...t, roas: t.spend > 0 ? t.revenue / t.spend : 0 }))
+        .sort((a, b) => b.spend - a.spend)
+        .slice(0, 500);
+}
+
+function aggregateSegments(csv) {
+    const device = new Map();
+    const network = new Map();
+    const add = (map, key, r) => {
+        const k = (key || "Unknown").trim() || "Unknown";
+        const cur = map.get(k) || { name: k, ad_spend: 0, clicks: 0, impressions: 0, conversions: 0, conversion_value: 0 };
+        cur.ad_spend += parseMetric(r.Spend) || 0;
+        cur.clicks += parseMetric(r.Clicks) || 0;
+        cur.impressions += parseMetric(r.Impressions) || 0;
+        cur.conversions += parseMetric(r.Conversions) || 0;
+        cur.conversion_value += parseMetric(r.Revenue) || 0;
+        map.set(k, cur);
+    };
+    for (const r of parseCsvObjects(csv)) {
+        add(device, r.DeviceType, r);
+        add(network, r.Network, r);
+    }
+    const finish = (map) =>
+        [...map.values()]
+            .map((v) => ({
+                ...v,
+                roas: v.ad_spend > 0 ? v.conversion_value / v.ad_spend : 0,
+                ctr: v.impressions > 0 ? v.clicks / v.impressions : 0,
+                cpc: v.clicks > 0 ? v.ad_spend / v.clicks : 0,
+            }))
+            .sort((a, b) => b.ad_spend - a.ad_spend);
+    return { device_split: finish(device), network_split: finish(network) };
+}
+
+/** Impression-weighted account share from the per-campaign summary (percent values). */
+function aggregateImpressionShare(csv) {
+    let weight = 0;
+    let won = 0;
+    let budget = 0;
+    let rank = 0;
+    for (const r of parseCsvObjects(csv)) {
+        const imp = parseMetric(r.Impressions) || 0;
+        const is = parseMetric(r.ImpressionSharePercent);
+        if (is == null || imp <= 0) continue;
+        weight += imp;
+        won += is * imp;
+        budget += (parseMetric(r.ImpressionLostToBudgetPercent) || 0) * imp;
+        rank += (parseMetric(r.ImpressionLostToRankAggPercent) || 0) * imp;
+    }
+    if (weight <= 0) return null;
+    return { impression_share: won / weight, is_lost_budget: budget / weight, is_lost_rank: rank / weight };
+}
+
 /**
- * Fetches campaign performance (daily) and returns the same JSON shape as the Bing demo dashboard.
+ * Fetches campaign performance (daily) and returns the dashboard JSON. The daily campaign report is
+ * required; search queries, device and network split and impression share are separate best-effort
+ * reports run in parallel (only when `includeExtras` is set, so merged-source spend lookups stay a single
+ * report), so a failure in one of them is reported in `warnings` and nothing else breaks.
  */
-export async function fetchBingAdsDashboardMetrics({ customerId, accountId, startDate, endDate }) {
+export async function fetchBingAdsDashboardMetrics({ customerId, accountId, startDate, endDate, includeExtras = false }) {
     assertMicrosoftNumericId("Microsoft Advertising Customer ID (bingAdsCustomerId)", customerId);
     assertMicrosoftNumericId("Microsoft Advertising Account ID (bingAdsAccountId)", accountId);
 
@@ -561,55 +713,43 @@ export async function fetchBingAdsDashboardMetrics({ customerId, accountId, star
     let startUse = String(startDate ?? "").trim();
     if (startUse > endClamped) startUse = endClamped;
 
-    const reportRequestId = await submitGenerateReport({
+    const base = {
         accessToken,
         developerToken,
         customerId: String(customerId),
         accountId: String(accountId),
         startDate: startUse,
         endDate: endClamped,
-    });
+    };
 
-    let downloadUrl = "";
-    let lastPollStatus = "";
-    let resolvedSuccess = false;
-    for (let attempt = 0; attempt < 36; attempt++) {
-        const poll = await pollGenerateReport({
-            accessToken,
-            developerToken,
-            customerId: String(customerId),
-            accountId: String(accountId),
-            reportRequestId,
-        });
-        lastPollStatus = poll.status || lastPollStatus;
-        const st = (poll.status || "").toLowerCase();
-        /** Microsoft: Status can be Success while ReportDownloadUrl is nil (no rows for the request). */
-        if (st.includes("success")) {
-            resolvedSuccess = true;
-            downloadUrl = poll.downloadUrl || "";
-            break;
-        }
-        if (st.includes("error") || st.includes("fail")) {
-            throw new Error(`Report generation failed: ${poll.status}`);
-        }
-        await sleep(2000);
-    }
+    const skipped = Promise.resolve(null);
+    const [daily, terms, segments, share] = await Promise.allSettled([
+        runReport({ ...base, spec: REPORT_SPECS.campaignDaily }),
+        includeExtras ? runReport({ ...base, spec: REPORT_SPECS.searchQueries }) : skipped,
+        includeExtras ? runReport({ ...base, spec: REPORT_SPECS.segments }) : skipped,
+        includeExtras ? runReport({ ...base, spec: REPORT_SPECS.impressionShare }) : skipped,
+    ]);
 
-    if (!resolvedSuccess) {
-        const hint = lastPollStatus ? ` Last status: ${lastPollStatus}.` : "";
-        throw new Error(
-            `Timed out waiting for Microsoft Advertising report (PollGenerateReport).${hint} Try a shorter date range or retry.`
-        );
-    }
+    if (daily.status === "rejected") throw daily.reason;
 
-    let result;
-    if (!downloadUrl) {
-        result = aggregateToDashboard([]);
-    } else {
-        const csv = await downloadReportCsv(downloadUrl);
-        const parsed = parseCampaignPerformanceCsv(csv);
-        result = aggregateToDashboard(parsed);
-    }
+    const result = aggregateToDashboard(daily.value ? parseCampaignPerformanceCsv(daily.value) : []);
     result.metrics_by_date = fillMetricsByDateRange(startUse, endClamped, result.metrics_by_date);
+    if (!includeExtras) return result;
+
+    const warnings = [];
+    result.search_terms = [];
+    if (terms.status === "fulfilled") result.search_terms = aggregateSearchTerms(terms.value);
+    else warnings.push({ part: "search_terms", message: terms.reason?.message || "Search query report failed" });
+
+    result.device_split = [];
+    result.network_split = [];
+    if (segments.status === "fulfilled") Object.assign(result, aggregateSegments(segments.value));
+    else warnings.push({ part: "segments", message: segments.reason?.message || "Device and network report failed" });
+
+    result.impression_share = null;
+    if (share.status === "fulfilled") result.impression_share = aggregateImpressionShare(share.value);
+    else warnings.push({ part: "impression_share", message: share.reason?.message || "Impression share report failed" });
+
+    result.warnings = warnings;
     return result;
 }

@@ -1,5 +1,5 @@
 import { isDemoCustomerId } from "@/lib/demoCustomer";
-import { getDemoBingDashboardForRange } from "@/lib/demoAdMetrics";
+import { getDemoBingDashboardForRange } from "@/lib/demoBing";
 import {
     fetchBingAdsDashboardMetrics,
     isMicrosoftAdvertisingConfigured,
@@ -77,6 +77,7 @@ export async function GET(req) {
             accountId,
             startDate,
             endDate,
+            includeExtras: true,
         });
 
         return new Response(JSON.stringify(payload), {

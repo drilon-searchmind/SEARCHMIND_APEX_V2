@@ -83,6 +83,9 @@ function axisFormat(key, v) {
 }
 
 export default function PpcOverviewTab({
+    platform = "Google Ads",
+    impressionShare = null,
+    extra = null,
     data,
     appliedRange,
     comparisonMethod,
@@ -107,13 +110,13 @@ export default function PpcOverviewTab({
             onLedeChange?.(null);
             return;
         }
-        let text = `Google Ads turned ${fmtKr(cur.spend)} of spend into ${fmtKr(cur.revenue)} of revenue at a ROAS of ${fmtDec(cur.roas, 2)}`;
+        let text = `${platform} turned ${fmtKr(cur.spend)} of spend into ${fmtKr(cur.revenue)} of revenue at a ROAS of ${fmtDec(cur.roas, 2)}`;
         if (prev && num(prev.roas) > 0) {
             const pct = ((cur.roas - prev.roas) / prev.roas) * 100;
             text += ` (${pct > 0 ? "+" : ""}${fmtDec(pct, 1)}% ${vs})`;
         }
         onLedeChange?.(`${text}.`);
-    }, [cur, prev, vs, onLedeChange]);
+    }, [cur, prev, vs, platform, onLedeChange]);
 
     // ── Trend chart ──
     const single = selectedMetrics.length === 1;
@@ -253,7 +256,7 @@ export default function PpcOverviewTab({
     }, [metrics]);
 
     // ── Insights ──
-    const isBreakdown = useMemo(() => impressionShareBreakdown(cur), [cur]);
+    const isBreakdown = useMemo(() => impressionShareBreakdown(impressionShare && cur ? { ...cur, ...impressionShare } : cur), [cur, impressionShare]);
     const waste = useMemo(() => wastedTerms(searchTerms), [searchTerms]);
     const weekdays = useMemo(() => weekdayEfficiency(metrics), [metrics]);
     const totalSpend = num(cur?.spend);
@@ -342,7 +345,7 @@ export default function PpcOverviewTab({
     return (
         <div className="apex-sx-stack">
             <div className="apex-ov-grid apex-ov-grid--hero">
-                <ServiceKpi hero neutral label="Ad spend" value={fmtInt(cur.spend)} unit="kr." cur={cur.spend} prev={pv("spend")} vs={vs} caption="Google Ads" />
+                <ServiceKpi hero neutral label="Ad spend" value={fmtInt(cur.spend)} unit="kr." cur={cur.spend} prev={pv("spend")} vs={vs} caption={platform} />
                 <ServiceKpi label="Revenue" icon={FiBarChart2} value={fmtInt(cur.revenue)} unit="kr." cur={cur.revenue} prev={pv("revenue")} vs={vs} caption="Conversion value" />
                 <ServiceKpi label="ROAS" icon={FiTrendingUp} value={fmtDec(cur.roas, 2)} cur={cur.roas} prev={pv("roas")} vs={vs} caption="Revenue per kr. spent" />
                 <ServiceKpi label="Conversions" icon={FiShoppingCart} value={fmtInt(cur.conversions)} cur={cur.conversions} prev={pv("conversions")} vs={vs} caption={isNum(cur.aov) ? `Avg. order ${fmtInt(cur.aov)} kr.` : "Completed goals"} />
@@ -450,7 +453,7 @@ export default function PpcOverviewTab({
                             </p>
                         </>
                     ) : (
-                        <p className="apex-mk-note apex-sx-empty-note">Google Ads did not return impression share for this period.</p>
+                        <p className="apex-mk-note apex-sx-empty-note">{platform} did not return impression share for this period.</p>
                     )}
                 </section>
 
@@ -511,6 +514,8 @@ export default function PpcOverviewTab({
                     ) : null}
                 </div>
             </div>
+
+            {extra}
 
             <div className="apex-ov-grid apex-sx-split-even">
                 <section className="apex-ov-card">
