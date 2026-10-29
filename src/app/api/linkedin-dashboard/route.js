@@ -1,6 +1,6 @@
 import { fetchLinkedInDashboardMetrics, resolveLinkedInAccessToken } from "@/lib/linkedinApi";
 import { isDemoCustomerId } from "@/lib/demoCustomer";
-import { getDemoLinkedInDashboardForRange } from "@/lib/demoAdMetrics";
+import { getDemoLiDashboardForRange } from "@/lib/demoLi";
 
 /**
  * GET /api/linkedin-dashboard?adAccountId=...&startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
@@ -21,7 +21,7 @@ export async function GET(req) {
     }
 
     if (dashboardCustomerId && isDemoCustomerId(dashboardCustomerId)) {
-        return new Response(JSON.stringify(getDemoLinkedInDashboardForRange(startDate, endDate)), {
+        return new Response(JSON.stringify(getDemoLiDashboardForRange(startDate, endDate)), {
             status: 200,
             headers: { "Content-Type": "application/json" },
         });
@@ -45,6 +45,7 @@ export async function GET(req) {
             adAccountId: adAccountId.trim(),
             startDate,
             endDate,
+            includeExtras: searchParams.get("extras") !== "0",
         });
         if (log) {
             const m = metrics.metrics_by_date || [];

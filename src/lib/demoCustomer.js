@@ -91,7 +91,10 @@ export function mergeDemoCustomerDocument(plain) {
         ...plain,
         CustomerSettings: {
             ...(demoTemplate.CustomerSettings || {}),
-            ...(plain.CustomerSettings || {}),
+            // Empty values (schema defaults for integrations added later) must not hide the demo template
+            ...Object.fromEntries(
+                Object.entries(plain.CustomerSettings || {}).filter(([, v]) => v !== "" && v !== null && v !== undefined)
+            ),
         },
         CustomerStaticExpenses: mergeDemoStaticExpenses(
             demoTemplate.CustomerStaticExpenses || {},

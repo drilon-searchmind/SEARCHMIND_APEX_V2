@@ -144,6 +144,7 @@ const customer = {
         },
         bingAdsCustomerId: "251234567",
         bingAdsAccountId: "1234567890",
+        linkedinAdAccountId: "1234567890",
         googleSearchConsoleProperty: "https://demo.example.com/",
         ga4PropertyId: "460732795",
         klaviyoPrivateApiKey: "demo-klaviyo-key",

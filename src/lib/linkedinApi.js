@@ -190,8 +190,9 @@ function isVersionError(status, body) {
     return status === 426 || /nonexistent version|unsupported version|Invalid version/i.test(message);
 }
 
-async function linkedInGetRaw(url, accessToken, version) {
+async function linkedInGetRaw(url, accessToken, version, timeoutMs = 0) {
     return fetch(url, {
+        ...(timeoutMs > 0 ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
         headers: {
             Authorization: `Bearer ${accessToken}`,
             "X-Restli-Protocol-Version": "2.0.0",
@@ -201,9 +202,9 @@ async function linkedInGetRaw(url, accessToken, version) {
     });
 }
 
-async function linkedInGet(url, accessToken, version, allowRefresh = true) {
+async function linkedInGet(url, accessToken, version, allowRefresh = true, timeoutMs = 0) {
     let token = accessToken;
-    let response = await linkedInGetRaw(url, token, version);
+    let response = await linkedInGetRaw(url, token, version, timeoutMs);
     let payload = await readJson(response);
 
     if (response.status === 401 && allowRefresh) {
@@ -211,7 +212,7 @@ async function linkedInGet(url, accessToken, version, allowRefresh = true) {
         if (creds.refreshToken && creds.clientId && creds.clientSecret) {
             dbg("Access token rejected; refreshing…");
             token = await refreshAccessToken(creds);
-            response = await linkedInGetRaw(url, token, version);
+            response = await linkedInGetRaw(url, token, version, timeoutMs);
             payload = await readJson(response);
         }
     }
@@ -604,35 +605,200 @@ async function fetchTopAds(accessToken, version, adAccountId, startDate, endDate
     });
 }
 
+/** Demographic pivots the analytics API supports for ad accounts (checked against a live account). */
+const DEMOGRAPHIC_PIVOTS = [
+    { key: "job_function", pivot: "MEMBER_JOB_FUNCTION", resource: "functions" },
+    { key: "seniority", pivot: "MEMBER_SENIORITY", resource: "seniorities" },
+    { key: "company_size", pivot: "MEMBER_COMPANY_SIZE", resource: null },
+    { key: "industry", pivot: "MEMBER_INDUSTRY", resource: "industries", limit: 15 },
+];
+
+const DEMOGRAPHIC_FIELDS = [
+    "impressions",
+    "clicks",
+    "landingPageClicks",
+    "costInLocalCurrency",
+    "oneClickLeads",
+    "externalWebsiteConversions",
+    "pivotValues",
+].join(",");
+
+const nameCache = new Map();
+/** Some industry ids never answer; a lookup that takes longer than this just falls back to a generic label. */
+const NAME_LOOKUP_TIMEOUT_MS = 4000;
+
+/** Standardized names (function, seniority, industry) come from /rest/{resource}/{id}; they never change, so cache them. */
+async function fetchStandardizedName(accessToken, version, resource, id) {
+    const key = `${resource}:${id}`;
+    if (nameCache.has(key)) return nameCache.get(key);
+    let name = null;
+    try {
+        const { payload } = await linkedInGet(
+            `${API_ROOT}/rest/${resource}/${encodeURIComponent(id)}?locale=(language:en,country:US)`,
+            accessToken,
+            version,
+            true,
+            NAME_LOOKUP_TIMEOUT_MS
+        );
+        name = payload?.name?.localized?.en_US || Object.values(payload?.name?.localized || {})[0] || null;
+    } catch {
+        name = null;
+    }
+    if (name) nameCache.set(key, name);
+    return name;
+}
+
+/** "SIZE_11_TO_50" -> "11 to 50 employees", "SIZE_10001_OR_MORE" -> "10.001 or more employees" */
+function companySizeLabel(value) {
+    const v = String(value || "");
+    let m = v.match(/^SIZE_(\d+)_TO_(\d+)$/);
+    if (m) return `${m[1]} to ${m[2]} employees`;
+    m = v.match(/^SIZE_(\d+)_OR_MORE$/);
+    if (m) return `${Number(m[1]).toLocaleString("da-DK")} or more employees`;
+    if (v === "SIZE_1") return "Self-employed";
+    return v.replace(/^SIZE_/, "").replace(/_/g, " ").toLowerCase();
+}
+
+async function fetchDemographicPivot(accessToken, version, adAccountId, startDate, endDate, def) {
+    const chunks = splitDateRangeIntoChunks(startDate, endDate);
+    const agg = new Map();
+    for (const chunk of chunks) {
+        // Member demographic pivots ignore start/count and always return the whole set, so asking for
+        // "the next page" would return the same rows again. One request per chunk is the complete answer.
+        const payload = await fetchAnalyticsPage({
+            accessToken,
+            version,
+            adAccountId,
+            pivot: def.pivot,
+            timeGranularity: "ALL",
+            startDate: chunk.start,
+            endDate: chunk.end,
+            fields: DEMOGRAPHIC_FIELDS,
+        });
+        const elements = Array.isArray(payload.elements) ? payload.elements : [];
+        for (const row of elements) {
+            const raw = (row?.pivotValues || [])[0];
+            if (!raw) continue;
+            const cur = agg.get(raw) || { raw, impressions: 0, clicks: 0, ad_spend: 0, leads: 0, conversions: 0 };
+            const counts = aggregateAnalyticsCounts(row);
+            cur.impressions += counts.impressions;
+            cur.clicks += counts.clicks;
+            cur.ad_spend += counts.ad_spend;
+            cur.leads += counts.leads;
+            cur.conversions += counts.conversions;
+            agg.set(raw, cur);
+        }
+    }
+
+    let rows = [...agg.values()].sort((a, b) => b.impressions - a.impressions);
+    if (def.limit) rows = rows.slice(0, def.limit);
+
+    const named = await mapPool(rows, CREATIVE_FETCH_CONCURRENCY, async (r) => {
+        const idMatch = String(r.raw).match(/:(\d+)$/);
+        let name;
+        if (def.resource && idMatch) name = await fetchStandardizedName(accessToken, version, def.resource, idMatch[1]);
+        else if (!def.resource) name = companySizeLabel(r.raw);
+        return {
+            id: String(r.raw),
+            name: name || `${def.key.replace("_", " ")} ${idMatch ? idMatch[1] : r.raw}`,
+            impressions: r.impressions,
+            clicks: r.clicks,
+            ad_spend: r.ad_spend,
+            leads: r.leads,
+            conversions: r.conversions,
+            ctr: r.impressions > 0 ? r.clicks / r.impressions : 0,
+        };
+    });
+    return named;
+}
+
+/**
+ * Reach and engagement for the whole period. Unique reach cannot be added up across windows, so it is
+ * only returned for ranges inside one analytics window (92 days).
+ */
+async function fetchAccountReach(accessToken, version, adAccountId, startDate, endDate) {
+    if (splitDateRangeIntoChunks(startDate, endDate).length !== 1) return null;
+    const payload = await fetchAnalyticsPage({
+        accessToken,
+        version,
+        adAccountId,
+        pivot: "ACCOUNT",
+        timeGranularity: "ALL",
+        startDate,
+        endDate,
+        fields: "impressions,approximateMemberReach,totalEngagements",
+    });
+    const row = (Array.isArray(payload.elements) ? payload.elements : [])[0];
+    if (!row) return null;
+    const reach = num(row.approximateMemberReach);
+    const impressions = num(row.impressions);
+    return {
+        reach,
+        total_engagements: num(row.totalEngagements),
+        frequency: reach > 0 ? impressions / reach : null,
+    };
+}
+
 /**
  * @param {Object} config
  * @param {string} config.adAccountId — numeric sponsored account id
  * @param {string} config.startDate — YYYY-MM-DD
  * @param {string} config.endDate — YYYY-MM-DD
  * @param {string} [config.accessToken]
+ * @param {boolean} [config.includeExtras] — demographics, reach and engagement (dashboard only); failures return as warnings
  */
-export async function fetchLinkedInDashboardMetrics({ adAccountId, startDate, endDate, accessToken }) {
+export async function fetchLinkedInDashboardMetrics({ adAccountId, startDate, endDate, accessToken, includeExtras = false }) {
     if (!adAccountId) throw new Error("Missing LinkedIn ad account id");
     if (!startDate || !endDate) throw new Error("Missing date range");
 
     const token = accessToken || (await resolveLinkedInAccessToken());
     const version = await ensureApiVersion(token);
 
-    dbg("fetchLinkedInDashboardMetrics", { adAccountId, startDate, endDate, version });
+    dbg("fetchLinkedInDashboardMetrics", { adAccountId, startDate, endDate, version, includeExtras });
 
-    const [metrics_by_date, top_campaigns, top_ads] = await Promise.all([
+    const skipped = Promise.resolve(null);
+    const [daily, campaigns, ads, reach, ...demos] = await Promise.allSettled([
         fetchAccountDailyMetrics(token, version, adAccountId, startDate, endDate),
         fetchTopCampaigns(token, version, adAccountId, startDate, endDate),
         fetchTopAds(token, version, adAccountId, startDate, endDate),
+        includeExtras ? fetchAccountReach(token, version, adAccountId, startDate, endDate) : skipped,
+        ...DEMOGRAPHIC_PIVOTS.map((def) =>
+            includeExtras ? fetchDemographicPivot(token, version, adAccountId, startDate, endDate, def) : skipped
+        ),
     ]);
 
-    return {
-        metrics_by_date,
-        top_campaigns,
-        top_ads,
+    // The daily account series and the campaign table are required; creatives and the extras are not
+    if (daily.status === "rejected") throw daily.reason;
+    if (campaigns.status === "rejected") throw campaigns.reason;
+
+    const result = {
+        metrics_by_date: daily.value,
+        top_campaigns: campaigns.value,
+        top_ads: ads.status === "fulfilled" ? ads.value : [],
         campaigns_by_date: [],
         metrics_definitions: LINKEDIN_METRICS_DEFINITIONS,
     };
+    if (!includeExtras) {
+        if (ads.status === "rejected") throw ads.reason;
+        return result;
+    }
+
+    const warnings = [];
+    if (ads.status === "rejected") warnings.push({ part: "ads", message: ads.reason?.message || "Ad-level report failed" });
+    result.reach = reach.status === "fulfilled" ? reach.value : null;
+    if (reach.status === "rejected") warnings.push({ part: "reach", message: reach.reason?.message || "Reach report failed" });
+
+    result.demographics = {};
+    DEMOGRAPHIC_PIVOTS.forEach((def, i) => {
+        const r = demos[i];
+        if (r.status === "fulfilled") result.demographics[def.key] = r.value || [];
+        else {
+            result.demographics[def.key] = [];
+            warnings.push({ part: def.key, message: r.reason?.message || `${def.pivot} report failed` });
+        }
+    });
+    result.warnings = warnings;
+    return result;
 }
 
 /**
