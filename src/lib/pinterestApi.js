@@ -40,6 +40,19 @@ const CAMPAIGN_ANALYTICS_COLUMNS = [
     "REPIN_1",
 ].join(",");
 
+/**
+ * Spend and checkout columns are valid on campaign analytics too. They are requested first and the
+ * basic set is used as a fallback, so an account or API version that rejects them still loads.
+ */
+const CAMPAIGN_ANALYTICS_COLUMNS_EXTENDED = [
+    CAMPAIGN_ANALYTICS_COLUMNS,
+    "SPEND_IN_DOLLAR",
+    "SPEND_IN_MICRO_DOLLAR",
+    "TOTAL_CHECKOUT",
+    "TOTAL_CONVERSIONS",
+    "TOTAL_CHECKOUT_VALUE_IN_MICRO_DOLLAR",
+].join(",");
+
 function num(v) {
     if (v === undefined || v === null || v === "") return 0;
     const n = Number(v);
@@ -326,21 +339,28 @@ async function fetchTopCampaignsTotals(accessToken, adAccountId, startDate, endD
     if (!campaignIds.length) return [];
 
     const rows = [];
+    let columns = CAMPAIGN_ANALYTICS_COLUMNS_EXTENDED;
     for (let i = 0; i < campaignIds.length; i += CAMPAIGN_ID_BATCH) {
         const batch = campaignIds.slice(i, i + CAMPAIGN_ID_BATCH);
-        const data = await pinterestFetch(
-            `/ad_accounts/${encodeURIComponent(adAccountId)}/campaigns/analytics`,
-            accessToken,
-            {
+        const request = (cols) =>
+            pinterestFetch(`/ad_accounts/${encodeURIComponent(adAccountId)}/campaigns/analytics`, accessToken, {
                 start_date: startDate,
                 end_date: endDate,
                 campaign_ids: batch,
-                columns: CAMPAIGN_ANALYTICS_COLUMNS,
+                columns: cols,
                 granularity: "TOTAL",
-            }
-        );
+            });
+        let data;
+        try {
+            data = await request(columns);
+        } catch (err) {
+            if (columns === CAMPAIGN_ANALYTICS_COLUMNS) throw err;
+            dbg("campaigns/analytics extended columns rejected, falling back", err?.message);
+            columns = CAMPAIGN_ANALYTICS_COLUMNS;
+            data = await request(columns);
+        }
         const part = unwrapAnalyticsArray(data);
-        dbg("campaigns/analytics batch", { startDate, endDate, batchSize: batch.length, rowCount: part.length });
+        dbg("campaigns/analytics batch", { startDate, endDate, batchSize: batch.length, rowCount: part.length, extended: columns !== CAMPAIGN_ANALYTICS_COLUMNS });
         rows.push(...part);
     }
 
@@ -353,13 +373,20 @@ async function fetchTopCampaignsTotals(accessToken, adAccountId, startDate, endD
         const saves = num(pick(row, "REPIN_1", "repin_1"));
         const ctr = impressions > 0 ? clicks / impressions : 0;
         const name = pick(row, "CAMPAIGN_NAME", "campaign_name", "campaignName") || "Campaign";
-        return {
-            campaign_name: name,
-            clicks,
-            impressions,
-            ctr,
-            saves,
-        };
+        const out = { campaign_name: name, campaign_id: pick(row, "CAMPAIGN_ID", "campaign_id") ?? null, clicks, impressions, ctr, saves };
+        const spendDollar = pick(row, "SPEND_IN_DOLLAR", "spend_in_dollar");
+        const spendMicro = pick(row, "SPEND_IN_MICRO_DOLLAR", "spend_in_micro_dollar");
+        if (spendDollar !== undefined || spendMicro !== undefined) {
+            const spend = num(spendDollar) || num(spendMicro) / 1_000_000;
+            const checkout = num(pick(row, "TOTAL_CHECKOUT", "total_checkout"));
+            const conversions = checkout > 0 ? checkout : num(pick(row, "TOTAL_CONVERSIONS", "total_conversions"));
+            const value = num(pick(row, "TOTAL_CHECKOUT_VALUE_IN_MICRO_DOLLAR", "total_checkout_value_in_micro_dollar")) / 1_000_000;
+            out.ad_spend = spend;
+            out.conversions = conversions;
+            out.conversion_value = value;
+            out.roas = spend > 0 ? value / spend : 0;
+        }
+        return out;
     });
 
     normalized.sort((a, b) => b.clicks - a.clicks);
@@ -397,6 +424,11 @@ export async function fetchPinterestDashboardMetrics({ accessToken, adAccountId,
         metrics_by_date,
         top_campaigns,
         campaigns_by_date: [],
+        // Sync analytics only cover the last 90 days; outside that the rows above are zero-filled
+        analytics_window: {
+            rangeAllowed: isPinterestSyncAnalyticsRangeAllowed(startDate, endDate),
+            earliest: earliestAllowedPinterestSyncAnalyticsDateYmd(),
+        },
     };
 }
 

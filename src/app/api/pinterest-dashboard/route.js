@@ -1,6 +1,6 @@
 import { fetchPinterestDashboardMetrics } from "@/lib/pinterestApi";
 import { isDemoCustomerId } from "@/lib/demoCustomer";
-import { getDemoPinterestDashboardForRange } from "@/lib/demoAdMetrics";
+import { getDemoPinDashboardForRange } from "@/lib/demoPin";
 
 /**
  * GET /api/pinterest-dashboard?adAccountId=...&startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
@@ -22,7 +22,7 @@ export async function GET(req) {
     }
 
     if (dashboardCustomerId && isDemoCustomerId(dashboardCustomerId)) {
-        return new Response(JSON.stringify(getDemoPinterestDashboardForRange(startDate, endDate)), {
+        return new Response(JSON.stringify(getDemoPinDashboardForRange(startDate, endDate)), {
             status: 200,
             headers: { "Content-Type": "application/json" },
         });

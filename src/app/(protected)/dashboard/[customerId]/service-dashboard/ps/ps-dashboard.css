@@ -52,40 +52,6 @@
 
 /* ── Audience tiles ── */
 
-.apex-sp-tiles {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.apex-sp-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  padding: 14px;
-  background: var(--cd-sunk);
-  border-radius: var(--cd-r-md);
-}
-
-.apex-sp-tile small {
-  font-size: 12px;
-  color: var(--cd-muted);
-}
-
-.apex-sp-tile b {
-  font-size: 19px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--cd-ink);
-}
-
-@media (max-width: 480px) {
-  .apex-sp-tiles {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 /* ── Frequency bands ── */
 
 .apex-sp-bands {
@@ -129,3 +95,4 @@
 }
 
 /* ── Placement delivery ── */
+
