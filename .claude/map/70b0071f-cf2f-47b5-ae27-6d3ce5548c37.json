@@ -1,0 +1,111 @@
+{
+  "schema": "searchmind.session-state/v2",
+  "session_id": "70b0071f-cf2f-47b5-ae27-6d3ce5548c37",
+  "updated_at": "2026-10-30T08:34:27.677Z",
+  "intent_at": "",
+  "confirmed": {
+    "goal": "",
+    "current_focus": "",
+    "next_step": "",
+    "completed": [],
+    "open_tasks": [],
+    "decisions": [],
+    "questions": [],
+    "active_files": [
+      "src/app/(protected)/dashboard/[customerId]/service-dashboard/snapchat/snapchat-dashboard.css",
+      "src/app/(protected)/dashboard/[customerId]/service-dashboard/snapchat/page.jsx",
+      "src/app/(protected)/dashboard/[customerId]/service-dashboard/snapchat/components/SnapCampaignsTab.jsx",
+      "src/app/(protected)/dashboard/[customerId]/service-dashboard/snapchat/components/SnapAudienceTab.jsx",
+      "src/app/(protected)/dashboard/[customerId]/service-dashboard/snapchat/components/SnapOverviewTab.jsx",
+      "src/app/(protected)/dashboard/[customerId]/service-dashboard/snapchat/components/useSnapDashboardData.js",
+      "src/lib/snapAnalytics.js",
+      "src/lib/demoSnap.js",
+      "src/lib/snapchatApi.js",
+      "src/app/(protected)/dashboard/[customerId]/service-dashboard/linkedin/linkedin-dashboard.css",
+      "src/app/(protected)/dashboard/[customerId]/service-dashboard/linkedin/page.jsx",
+      "src/app/(protected)/dashboard/[customerId]/service-dashboard/linkedin/components/LiCreativesTab.jsx"
+    ],
+    "references": [
+      "https://docs.google.com/spreadsheets/d/",
+      "https://docs.google.com/spreadsheets/d/1X0OeAZ2JthvHBT6wIoBivGB7aDAZNlrCk51-lG5TKjo/edit?gid=274745886#gid=274745886",
+      "http://localhost:3000/preview/dashboard/69c5097c84057563ba331cd2/service-dashboard/snapchat?startDate=2026-09-29&endDate=2026-10-28&tab=audience",
+      "http://localhost:3000/preview/dashboard/69c5097c84057563ba331cd2/service-dashboard/snapchat?startDate=2026-06-27&endDate=2026-07-27&liveAs=6a0186bebf71e0efde00c15d&tab=overview",
+      "http://localhost:3000/preview/dashboard/69c5097c84057563ba331cd2/service-dashboard/snapchat?startDate=2026-09-29&endDate=2026-10-28",
+      "http://localhost:3000",
+      "http://localhost:3000/api/snapchat-dashboard?dashboardCustomerId=6a0186bebf71e0efde00c15d&startDate=2026-06-27&endDate=2026-07-27",
+      "http://localhost:3000/api/tmp-snap-probe",
+      "https://adsapi.snapchat.com/v1${path.replace(",
+      "http://localhost:3000/api/snapchat-dashboard?dashboardCustomerId=6a0186bebf71e0efde00c15d&startDate={s",
+      "http://localhost:3000/api/snapchat-dashboard?dashboardCustomerId=6a0186bebf71e0efde00c15d&startDate={start",
+      "http://localhost:3000/"
+    ]
+  },
+  "suggested": {
+    "goal": "Redesign Apex (Next.js 15, React 19, Tailwind v4, ApexCharts) side for side i commerce-dashboard-designet (spec i DESIGN.md), så hver service-dashboard-side også får nye relevante features og demodata, der matcher det, API'et faktisk kan l…",
+    "current_focus": "LinkedIn Ads er færdig, committet (25e8f63) og pushet. Brugeren spurgte, hvilken kunde LinkedIn kan testes på. Svaret er givet: ingen kunde har LinkedIn forbundet, kun demo-kontoen virker, og serverens token kan se to annoncekonti. Den næs…",
+    "next_step": "Afvent brugerens næste side. De resterende migrationspunkter i DESIGN.md er Snapchat, Reddit, Bing Webmaster, config, øvrige tools, /home, parent-property og apex-radar.",
+    "completed": [
+      "Migreret og pushet: shell, Overview, Daily, Markets, Pace, P&L, Ecommerce, SEO",
+      "Migreret og pushet: PPC, PS (Meta), Email (Klaviyo, med trinvis indlæsning), Pinterest, Bing Ads (Microsoft)",
+      "LinkedIn Ads: Overview, Audience, Campaigns, Ads (commit 25e8f63, pushet)",
+      "Delte dele i src/components/dashboard: ServiceParts, ServiceTable, service-parts.css",
+      "Hver side har en seedet demomodul (src/lib/demo*.js) og en preview-rute under src/app/preview/dashboard/[customerId]/service-dashboard/",
+      "LinkedIn-fetcheren er verificeret mod en rigtig konto; demografisk paginering er rettet (4 s i stedet for over 70 s)",
+      "Dashboard shell (sidebar + topbar), tokens and new DESIGN.md (old spec moved to docs/design/DESIGN-minimal-legacy.md)",
+      "Overview (performance-dashboard): key metrics block, aligned section rows, distinct chart colours, dark tooltip and popovers",
+      "Daily overview: hero row vs same weekday last week, spend/revenue charts, restyled day-by-day table",
+      "Markets overview: insights, share vs spend, donut, scorecard, comparison chart; demo API and preview route for demo IDs",
+      "Pace report: reference pace overview plus Apex detailed pacing",
+      "P&L: hero, waterfall, margins card plus Apex statement and static expenses"
+    ],
+    "open_tasks": [
+      "Snapchat, Reddit og Bing Webmaster mangler stadig redesign",
+      "Config, øvrige tools, /home, parent-property og apex-radar mangler migrering",
+      "Rigtige kunder er kun delvist testet: Pinterest- og Microsoft-tokens er udløbet, og to Bing-kunder har fejlkonfigurerede ID'er",
+      "Remaining pages in DESIGN.md migration table: service dashboards, config, other tools, /home, parent-property, apex-radar",
+      "Not yet verified with a real logged-in customer (only demo preview routes)",
+      "Possible P&L data issue to confirm: static expenses show bureau/tooling/fixed but statement shows 0 kr. for the demo period"
+    ],
+    "decisions": [
+      "Arbejd kun på branchen redesign/commerce-dashboard; aldrig commit eller push til main, og deploy ikke",
+      "Push kun, når brugeren beder om det",
+      "Start eller genstart ikke dev-serveren; verificér mod brugerens server på localhost:3000 via demo-preview-ruter, og spørg brugeren, hvis den er nede",
+      "Brug ikke \"—\" eller \"–\" i tekst; brug komma, punktum, parentes eller kolon",
+      "Opfind ikke tal eller kilder; estimater skal mærkes tydeligt, og status vurderes kun mod kontoens egen reference",
+      "Undgå persondata og kundenavne i svar; brug kun ID'er og strukturer fra rigtige konti",
+      "Flerkanals-diagrammer bruger METRIC_CHART_PALETTE, ikke brandgrøn",
+      "Hver side får en lille eller seedet demomodul, en preview-rute, en mobilcheck ved 390 px, opdateret DESIGN.md og en commit med Co-Authored-By-linje",
+      "Never commit or push to main; commit to redesign/commerce-dashboard and push only when the user asks",
+      "Do not deploy; do not start or restart the dev server (user runs npm run dev in Cursor); verify on localhost:3000",
+      "Verify via /preview/dashboard/69c5097c84057563ba331cd2/<page> (demo, no login) at 1600px and 390px",
+      "Multi-metric/channel charts use METRIC_CHART_PALETTE (non-brand distinct colours), not brand greens"
+    ],
+    "questions": [
+      "Dev-serveren er kun oppe, når brugeren starter den i Cursor",
+      "Næste side er ikke valgt af brugeren endnu",
+      "Which page the user wants redesigned next"
+    ],
+    "active_files": [
+      "src/lib/demoCustomer.js",
+      "src/data/demo-customer-data.json",
+      "src/app/(protected)/dashboard/[customerId]/service-dashboard/linkedin/",
+      "DESIGN.md",
+      "src/components/dashboard/service-parts.css",
+      "src/styles/commerce-design-tokens.css",
+      "src/app/(protected)/dashboard/dashboard-shell.css",
+      "src/app/(protected)/dashboard/[customerId]/performance-dashboard/performance-dashboard.css",
+      "src/lib/charts/chartSeriesColors.js",
+      "src/lib/charts/cobaltChartTheme.js"
+    ],
+    "references": [
+      "Branch: redesign/commerce-dashboard (sidst pushet: 25e8f63)",
+      "Demo-kunde: /preview/dashboard/69c5097c84057563ba331cd2/service-dashboard/<side>?startDate=...&endDate=...",
+      "Designspec: DESIGN.md i projektroden",
+      "Test-ID for LinkedIn med forbrug: annoncekonto 507014643 (kan sættes som linkedinAdAccountId i en kundes Property Settings)",
+      "https://github.com/drilon-searchmind/SEARCHMIND_APEX_V2/tree/redesign/commerce-dashboard",
+      "C:/Users/Searchmind/Downloads/ecommerce-dashboard_1.html (reference layout per page)",
+      "C:/Users/Searchmind/Downloads/commerce-dashboard-design_1/commerce-dashboard-design/SKILL.md and references/DESIGN.md",
+      "http://localhost:3000/preview/dashboard/69c5097c84057563ba331cd2/<page>"
+    ]
+  }
+}

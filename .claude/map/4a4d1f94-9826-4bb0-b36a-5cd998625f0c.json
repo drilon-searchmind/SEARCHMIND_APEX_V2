@@ -1,0 +1,37 @@
+{
+  "schema": "searchmind.session-state/v2",
+  "session_id": "4a4d1f94-9826-4bb0-b36a-5cd998625f0c",
+  "updated_at": "2026-10-30T08:50:28.259Z",
+  "intent_at": "",
+  "confirmed": {
+    "goal": "",
+    "current_focus": "",
+    "next_step": "",
+    "completed": [],
+    "open_tasks": [],
+    "decisions": [],
+    "questions": [],
+    "active_files": [
+      "src/app/(protected)/dashboard/[customerId]/custom-dashboards/aura/AuraPerformanceDashboard.jsx"
+    ],
+    "references": [
+      "http://localhost:3000/dashboard/6a2beefcbe106fcd31646dcb/config",
+      "http://localhost:3000/dashboard/6a2beefcbe106fcd31646dcb/custom/performance",
+      "https://docs.google.com/spreadsheets/d/1X0OeAZ2JthvHBT6wIoBivGB7aDAZNlrCk51-lG5TKjo/htmlview",
+      "https://docs.google.com/spreadsheets/d/1X0OeAZ2JthvHBT6wIoBivGB7aDAZNlrCk51-lG5TKjo/export?format=csv&gid=274745886",
+      "https://docs.google.com/spreadsheets/d/",
+      "https://docs.google.com/spreadsheets/d/1X0OeAZ2JthvHBT6wIoBivGB7aDAZNlrCk51-lG5TKjo/edit?gid=274745886#gid=274745886"
+    ]
+  },
+  "suggested": {
+    "goal": "",
+    "current_focus": "",
+    "next_step": "",
+    "completed": [],
+    "open_tasks": [],
+    "decisions": [],
+    "questions": [],
+    "active_files": [],
+    "references": []
+  }
+}
