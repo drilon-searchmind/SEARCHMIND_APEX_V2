@@ -115,6 +115,71 @@ function PropertyCard({ customer, favorited, favoriteLoading, isAdmin, onToggleF
     );
 }
 
+function PropertyRow({ customer, groupLabel, groupHref, showGroup, favorited, favoriteLoading, isAdmin, onToggleFavorite, onCopy }) {
+    const label = getCustomerPlatformLabel(customer);
+    const href = `/dashboard/${customer._id}/performance-dashboard`;
+    return (
+        <tr className="apex-hm__row">
+            <td className="apex-hm__col-name">
+                <Link href={href} className="apex-hm__row-main">
+                    <span className="apex-hm__prop-icon" aria-hidden>
+                        <PlatformIcon type={customer.customerType} />
+                    </span>
+                    <span className="apex-hm__row-text">
+                        <span className="apex-hm__prop-name" title={customer.customerName}>
+                            {customer.customerName}
+                        </span>
+                        <span className="apex-hm__row-sub">{label}</span>
+                    </span>
+                </Link>
+            </td>
+            {showGroup && (
+                <td className="apex-hm__col-group">
+                    {groupHref ? (
+                        <Link href={groupHref} className="apex-hm__row-group">
+                            {groupLabel}
+                        </Link>
+                    ) : (
+                        <span className="apex-hm__row-group apex-hm__row-group--plain">{groupLabel}</span>
+                    )}
+                </td>
+            )}
+            <td className="apex-hm__col-platform">
+                <span className="apex-hm__pill">{label}</span>
+            </td>
+            <td className="apex-hm__col-actions">
+                <div className="apex-hm__row-actions">
+                    <button
+                        type="button"
+                        onClick={() => onToggleFavorite(customer._id)}
+                        disabled={favoriteLoading}
+                        title={favorited ? "Remove from pinned" : "Pin property"}
+                        className={`apex-hm__icon-btn${favorited ? " is-on" : ""}`}
+                        aria-label={favorited ? `Unpin ${customer.customerName}` : `Pin ${customer.customerName}`}
+                        aria-pressed={favorited}
+                    >
+                        <FiStar aria-hidden />
+                    </button>
+                    {isAdmin && (
+                        <button
+                            type="button"
+                            onClick={() => onCopy(customer)}
+                            title="Copy settings to a new property"
+                            className="apex-hm__icon-btn"
+                            aria-label={`Copy settings from ${customer.customerName}`}
+                        >
+                            <FiCopy aria-hidden />
+                        </button>
+                    )}
+                    <Link href={href} className="apex-hm__open-link" aria-label={`Open ${customer.customerName}`}>
+                        <span className="apex-hm__open-text">Open</span> <FiArrowRight aria-hidden />
+                    </Link>
+                </div>
+            </td>
+        </tr>
+    );
+}
+
 function NavLinkItem({ href, icon: Icon, children, badge }) {
     return (
         <li>
@@ -271,6 +336,7 @@ export default function CustomerTable({ showLatestNews = true }) {
     const [query, setQuery] = useState("");
     const [platformFilter, setPlatformFilter] = useState("all");
     const [collapsed, setCollapsed] = useState({});
+    const [groupBy, setGroupBy] = useState(true);
     const searchRef = useRef(null);
     const user = useUser();
     const { customers, loading, error } = useCustomers(refreshKey);
@@ -487,6 +553,28 @@ export default function CustomerTable({ showLatestNews = true }) {
 
     const visibleCount = visibleGroups.reduce((n, g) => n + g.items.length, 0);
 
+    const groupLabelOf = (parentId) => (parentId !== "none" ? parentNames[parentId] || parentId : "Unassigned");
+    const groupHrefOf = (parentId) => (parentId !== "none" ? `/parent-property/${parentId}/home` : null);
+
+    const flatRows = useMemo(() => {
+        if (groupBy) return [];
+        const rows = visibleGroups.flatMap(({ parentId, items }) => items.map((customer) => ({ customer, parentId })));
+        const label = (parentId) => (parentId !== "none" ? parentNames[parentId] || parentId : "Unassigned");
+        const value = ({ customer, parentId }) =>
+            sortKey === "platform"
+                ? getCustomerPlatformLabel(customer).toLowerCase()
+                : sortKey === "group"
+                  ? label(parentId).toLowerCase()
+                  : (customer.customerName || "").toLowerCase();
+        rows.sort((a, b) => {
+            const cmp = value(a).localeCompare(value(b), undefined, { sensitivity: "base" });
+            return sortDir === "asc" ? cmp : -cmp;
+        });
+        return rows;
+    }, [groupBy, visibleGroups, parentNames, sortKey, sortDir]);
+
+    const ariaSort = (key) => (sortKey === key ? (sortDir === "asc" ? "ascending" : "descending") : "none");
+
     const clearFilters = () => {
         setQuery("");
         setPlatformFilter("all");
@@ -655,16 +743,12 @@ export default function CustomerTable({ showLatestNews = true }) {
                                                 </button>
                                             ))}
                                         </div>
-                                        <div className="apex-hm__sort" role="group" aria-label="Sort properties">
-                                            <button type="button" className={`apex-hm__sort-btn${sortKey === "name" ? " is-active" : ""}`} onClick={() => handleSort("name")} aria-pressed={sortKey === "name"}>
-                                                Name
-                                                <SortIcon column="name" />
-                                            </button>
-                                            <button type="button" className={`apex-hm__sort-btn${sortKey === "platform" ? " is-active" : ""}`} onClick={() => handleSort("platform")} aria-pressed={sortKey === "platform"}>
-                                                Platform
-                                                <SortIcon column="platform" />
-                                            </button>
-                                        </div>
+                                        <button type="button" className={`apex-hm__switch${groupBy ? " is-on" : ""}`} onClick={() => setGroupBy((v) => !v)} aria-pressed={groupBy}>
+                                            <span className="apex-hm__switch-track" aria-hidden>
+                                                <span className="apex-hm__switch-thumb" />
+                                            </span>
+                                            Group by parent
+                                        </button>
                                     </div>
 
                                     {accessibleCustomers.length === 0 ? (
@@ -677,40 +761,93 @@ export default function CustomerTable({ showLatestNews = true }) {
                                             </button>
                                         </p>
                                     ) : (
-                                        <div className="apex-hm__columns">
-                                        {visibleGroups.map(({ parentId, items }) => {
-                                            const isCollapsed = !filterActive && !!collapsed[parentId];
-                                            const panelId = `apex-hm-group-${parentId}`;
-                                            return (
-                                                <div key={parentId} className="apex-hm__group">
-                                                    <div className="apex-hm__group-head">
-                                                        <button
-                                                            type="button"
-                                                            className="apex-hm__group-toggle"
-                                                            aria-expanded={!isCollapsed}
-                                                            aria-controls={panelId}
-                                                            aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${parentId !== "none" ? parentNames[parentId] || parentId : "unassigned"}`}
-                                                            onClick={() => setCollapsed((prev) => ({ ...prev, [parentId]: !prev[parentId] }))}
-                                                            disabled={filterActive}
-                                                        >
-                                                            {isCollapsed ? <FiChevronDown aria-hidden /> : <FiChevronUp aria-hidden />}
-                                                        </button>
-                                                        {parentId !== "none" ? (
-                                                            <Link href={`/parent-property/${parentId}/home`} className="apex-hm__group-name">
-                                                                {parentNames[parentId] || parentId} <FiArrowRight aria-hidden />
-                                                            </Link>
-                                                        ) : (
-                                                            <span className="apex-hm__group-name apex-hm__group-name--plain">Unassigned</span>
+                                        <div className="apex-hm__table-wrap">
+                                            <table className={`apex-hm__table${groupBy ? " is-grouped" : ""}`}>
+                                                <thead>
+                                                    <tr>
+                                                        <th scope="col" aria-sort={ariaSort("name")}>
+                                                            <button type="button" className="apex-hm__th-btn" onClick={() => handleSort("name")}>
+                                                                Property
+                                                                <SortIcon column="name" />
+                                                            </button>
+                                                        </th>
+                                                        {!groupBy && (
+                                                            <th scope="col" className="apex-hm__col-group" aria-sort={ariaSort("group")}>
+                                                                <button type="button" className="apex-hm__th-btn" onClick={() => handleSort("group")}>
+                                                                    Group
+                                                                    <SortIcon column="group" />
+                                                                </button>
+                                                            </th>
                                                         )}
-                                                        <span className="apex-hm__group-count">
-                                                            {items.length} {items.length === 1 ? "property" : "properties"}
-                                                        </span>
-                                                    </div>
-                                                    <ul id={panelId} className="apex-hm__list" hidden={isCollapsed}>
-                                                        {items.map((customer) => (
-                                                            <PropertyCard
+                                                        <th scope="col" className="apex-hm__col-platform" aria-sort={ariaSort("platform")}>
+                                                            <button type="button" className="apex-hm__th-btn" onClick={() => handleSort("platform")}>
+                                                                Platform
+                                                                <SortIcon column="platform" />
+                                                            </button>
+                                                        </th>
+                                                        <th scope="col" className="apex-hm__col-actions">
+                                                            <span className="apex-hm__sr">Actions</span>
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                {groupBy ? (
+                                                    visibleGroups.map(({ parentId, items }) => {
+                                                        const isCollapsed = !filterActive && !!collapsed[parentId];
+                                                        const label = groupLabelOf(parentId);
+                                                        const href = groupHrefOf(parentId);
+                                                        return (
+                                                            <tbody key={parentId}>
+                                                                <tr className="apex-hm__group-row">
+                                                                    <td colSpan={3}>
+                                                                        <div className="apex-hm__group-head">
+                                                                            <button
+                                                                                type="button"
+                                                                                className="apex-hm__group-toggle"
+                                                                                aria-expanded={!isCollapsed}
+                                                                                aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${label}`}
+                                                                                onClick={() => setCollapsed((prev) => ({ ...prev, [parentId]: !prev[parentId] }))}
+                                                                                disabled={filterActive}
+                                                                            >
+                                                                                {isCollapsed ? <FiChevronDown aria-hidden /> : <FiChevronUp aria-hidden />}
+                                                                            </button>
+                                                                            {href ? (
+                                                                                <Link href={href} className="apex-hm__group-name">
+                                                                                    {label} <FiArrowRight aria-hidden />
+                                                                                </Link>
+                                                                            ) : (
+                                                                                <span className="apex-hm__group-name apex-hm__group-name--plain">{label}</span>
+                                                                            )}
+                                                                            <span className="apex-hm__group-count">
+                                                                                {items.length} {items.length === 1 ? "property" : "properties"}
+                                                                            </span>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                                {!isCollapsed &&
+                                                                    items.map((customer) => (
+                                                                        <PropertyRow
+                                                                            key={customer._id}
+                                                                            customer={customer}
+                                                                            showGroup={false}
+                                                                            favorited={isFavorited(customer._id)}
+                                                                            favoriteLoading={!!loadingFavorites[customer._id]}
+                                                                            isAdmin={!!user?.isAdmin}
+                                                                            onToggleFavorite={handleToggleFavorite}
+                                                                            onCopy={setCustomerToCopy}
+                                                                        />
+                                                                    ))}
+                                                            </tbody>
+                                                        );
+                                                    })
+                                                ) : (
+                                                    <tbody>
+                                                        {flatRows.map(({ customer, parentId }) => (
+                                                            <PropertyRow
                                                                 key={customer._id}
                                                                 customer={customer}
+                                                                groupLabel={groupLabelOf(parentId)}
+                                                                groupHref={groupHrefOf(parentId)}
+                                                                showGroup
                                                                 favorited={isFavorited(customer._id)}
                                                                 favoriteLoading={!!loadingFavorites[customer._id]}
                                                                 isAdmin={!!user?.isAdmin}
@@ -718,10 +855,9 @@ export default function CustomerTable({ showLatestNews = true }) {
                                                                 onCopy={setCustomerToCopy}
                                                             />
                                                         ))}
-                                                    </ul>
-                                                </div>
-                                            );
-                                        })}
+                                                    </tbody>
+                                                )}
+                                            </table>
                                         </div>
                                     )}
                                 </section>
