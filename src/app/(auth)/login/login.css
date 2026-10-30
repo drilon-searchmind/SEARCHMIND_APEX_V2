@@ -1,20 +1,37 @@
-/* Apex · page: login · theme: minimal (DESIGN.md) · macrostructure: Split Studio */
+/* Apex · page: login · theme: commerce (DESIGN.md) · macrostructure: Split Studio */
 
 @import "../../../styles/apex-design-tokens.css";
-@import "../../../styles/acid-grotesk.css";
+@import "../../../styles/commerce-design-tokens.css";
 
 .apex-login {
-  --font-body: "AcidGrotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "AcidGrotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-label: "AcidGrotesk", ui-sans-serif, system-ui, sans-serif;
+  /* Commerce palette, scoped to the login page so the legacy --apex-* tokens stay untouched elsewhere */
+  --apex-ink: var(--cd-ink);
+  --apex-ink-muted: #5a655b;
+  --apex-canvas: var(--cd-canvas);
+  --apex-card: var(--cd-card);
+  --apex-hairline: var(--cd-line);
+  --apex-hairline-strong: var(--cd-line-2);
+  --apex-sidebar: var(--cd-dark);
+  --apex-dark-green: var(--cd-green-2);
+  --apex-lime: var(--cd-mint);
+  --apex-ok: var(--cd-pos);
+  --apex-bad: var(--cd-neg);
+  --apex-shadow-low: none;
+  --apex-shadow-mid: none;
+  --apex-radius-card: var(--cd-r-lg);
+  --apex-radius-input: var(--cd-r-md);
+
+  --font-body: var(--cd-sans);
+  --font-display: var(--cd-sans);
+  --font-label: var(--cd-sans);
   --font-mono: ui-monospace, "Cascadia Code", "Segoe UI Mono", monospace;
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-md: 1rem;
   --text-display-s: clamp(1.75rem, 3vw, 2.25rem);
-  --display-weight: 500;
-  --heading-weight: 500;
-  --tracking-display: -0.02em;
+  --display-weight: 700;
+  --heading-weight: 700;
+  --tracking-display: -0.03em;
   --tracking-tight: -0.01em;
   --tracking-label: 0.01em;
   --lh-tight: 1.15;
@@ -33,20 +50,20 @@
   --ease-out: var(--apex-ease);
 
   --color-paper: var(--apex-canvas);
-  --color-paper-2: #f4f3f1;
+  --color-paper-2: var(--cd-sunk);
   --color-ink: var(--apex-ink);
-  --color-ink-2: #3a3a3a;
+  --color-ink-2: var(--cd-ink-2);
   --color-muted: var(--apex-ink-muted);
   --color-rule: var(--apex-hairline);
   --color-rule-2: var(--apex-hairline-strong);
-  --color-accent: var(--apex-ink);
+  --color-accent: var(--cd-green);
   --color-accent-ink: #ffffff;
-  --color-accent-hover: #2a2a2a;
+  --color-accent-hover: var(--cd-green-2);
   --color-accent-light: var(--apex-lime);
   --color-success: var(--apex-ok);
   --color-error: var(--apex-bad);
-  --color-error-bg: oklch(97% 0.02 25 / 0.45);
-  --color-focus: oklch(45% 0.04 165 / 0.35);
+  --color-error-bg: var(--cd-neg-soft);
+  --color-focus: rgba(58, 155, 63, 0.4);
   --color-graphite: var(--apex-sidebar);
   --color-code-bg: var(--apex-card);
   --color-code-bar: var(--apex-canvas);
@@ -660,5 +677,302 @@
   .apex-login__btn,
   .apex-login__input {
     transition-duration: 0.01ms;
+  }
+}
+
+/* ═══ Commerce overrides: sage canvas, a light form card, a black brand slab with mint ═══ */
+
+.apex-login {
+  --dark: var(--cd-dark);
+  --dark-2: var(--cd-dark-2);
+  --dark-line: var(--cd-dark-line);
+  --on-dark: var(--cd-on-dark);
+  --on-dark-2: var(--cd-on-dark-2);
+  --on-dark-muted: var(--cd-on-dark-muted);
+  --slab-radius: 36px;
+  --gutter: 14px;
+
+  padding: var(--gutter);
+  gap: var(--gutter);
+  background: var(--cd-canvas);
+  font-feature-settings: "tnum" 1;
+}
+
+/* ── Form: a light card on the sage canvas ── */
+.apex-login__form-panel {
+  background: var(--cd-card);
+  border: 1px solid var(--cd-line);
+  border-radius: var(--slab-radius);
+}
+
+.apex-login__wordmark-text {
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.apex-login__headline {
+  font-size: clamp(2rem, 3.4vw, 2.75rem);
+  line-height: 1.02;
+  text-wrap: balance;
+}
+
+.apex-login__subhead {
+  text-wrap: pretty;
+}
+
+.apex-login__label {
+  font-weight: 600;
+}
+
+.apex-login__input {
+  background: var(--cd-frame);
+  border-color: var(--cd-line-2);
+}
+
+@media (hover: hover) {
+  .apex-login__input:hover {
+    background: var(--cd-frame);
+    border-color: var(--cd-green);
+  }
+}
+
+.apex-login__input:focus-visible {
+  border-color: var(--cd-green);
+  background: #fff;
+}
+
+.apex-login__btn {
+  font-weight: 600;
+  min-height: 3rem;
+}
+
+.apex-login__btn--primary {
+  background: var(--dark);
+  border-color: var(--dark);
+  color: var(--cd-mint);
+}
+
+@media (hover: hover) {
+  .apex-login__btn--primary:hover {
+    background: var(--cd-green-2);
+    border-color: var(--cd-green-2);
+    color: #fff;
+  }
+}
+
+.apex-login__btn--primary:active:not(:disabled),
+.apex-login__btn--secondary:active {
+  transform: translateY(1px);
+}
+
+.apex-login__btn--secondary {
+  background: var(--cd-frame);
+  border-color: var(--cd-line-2);
+}
+
+@media (hover: hover) {
+  .apex-login__btn--secondary:hover {
+    background: #fff;
+    border-color: var(--cd-green);
+  }
+}
+
+.apex-login__error {
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.apex-login__note strong {
+  font-weight: 700;
+}
+
+/* ── Brand panel: black slab with a faint grid and a mint glow ── */
+.apex-login__brand-panel {
+  position: relative;
+  background: var(--dark);
+  border-radius: var(--slab-radius);
+  overflow: hidden;
+  isolation: isolate;
+  padding: var(--space-2xl) clamp(1.5rem, 4vw, 4rem);
+}
+
+.apex-login__brand-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(169, 237, 162, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(169, 237, 162, 0.06) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 60% 70%, #000 15%, transparent 75%);
+  mask-image: radial-gradient(ellipse 80% 70% at 60% 70%, #000 15%, transparent 75%);
+}
+
+.apex-login__brand-panel::after {
+  content: "";
+  position: absolute;
+  width: 32rem;
+  height: 32rem;
+  right: -10rem;
+  bottom: -12rem;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(169, 237, 162, 0.2), transparent 72%);
+  filter: blur(20px);
+}
+
+.apex-login__brand-eyebrow {
+  color: var(--cd-mint);
+  font-weight: 600;
+}
+
+.apex-login__brand-display {
+  font-size: clamp(2.2rem, 4vw, 3.4rem);
+  line-height: 1.02;
+  color: var(--on-dark);
+  text-wrap: balance;
+}
+
+.apex-login__brand-copy {
+  color: var(--on-dark-2);
+  text-wrap: pretty;
+}
+
+.apex-login__channel {
+  background: var(--dark-2);
+  border: 1px solid var(--dark-line);
+  color: var(--on-dark-2);
+  font-weight: 600;
+}
+
+.apex-login__channel-dot {
+  background: var(--cd-mint);
+  box-shadow: 0 0 0 3px rgba(169, 237, 162, 0.16);
+}
+
+/* Preview mirrors the new dashboard: light sidebar, dark hero metric, green bars */
+.apex-login__preview {
+  background: var(--cd-canvas);
+  border: 1px solid var(--dark-line);
+  box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.7);
+}
+
+.apex-login__preview-sidebar {
+  background: var(--cd-frame);
+  border-right: 1px solid var(--cd-line);
+}
+
+.apex-login__preview-sidebar img {
+  filter: none;
+  opacity: 1;
+}
+
+.apex-login__preview-nav-active {
+  background: var(--dark);
+  border-left: 3px solid var(--cd-green);
+}
+
+.apex-login__preview-nav-dot {
+  background: var(--cd-line-2);
+}
+
+.apex-login__preview-tag {
+  background: var(--cd-card);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.apex-login__preview-title {
+  font-weight: 700;
+}
+
+.apex-login__preview-metric,
+.apex-login__preview-chart,
+.apex-login__preview-heatmap {
+  background: var(--cd-card);
+  border: 1px solid var(--cd-line);
+  border-radius: var(--cd-r-md);
+}
+
+.apex-login__preview-metric--hero {
+  background: var(--dark);
+  border-color: var(--dark);
+}
+
+.apex-login__preview-metric--hero .apex-login__preview-metric-label {
+  color: var(--on-dark-muted);
+}
+
+.apex-login__preview-metric--hero .apex-login__preview-metric-val {
+  color: var(--on-dark);
+}
+
+.apex-login__preview-metric--hero .apex-login__preview-delta--up {
+  color: var(--cd-mint);
+}
+
+.apex-login__preview-bar {
+  background: var(--cd-mint-soft);
+}
+
+.apex-login__preview-bar--peak {
+  background: var(--cd-green);
+}
+
+.apex-login__preview-badge {
+  background: var(--dark-2);
+  border: 1px solid var(--dark-line);
+  color: var(--on-dark-2);
+  font-weight: 600;
+}
+
+.apex-login__preview-badge-dot {
+  background: var(--cd-mint);
+}
+
+/* One orchestrated moment: the preview rises into place on load */
+@keyframes apex-login-rise {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
+}
+
+.apex-login__preview-wrap {
+  animation: apex-login-rise 0.9s var(--ease-out) 0.15s backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apex-login__preview-wrap {
+    animation: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .apex-login {
+    --slab-radius: 28px;
+    --gutter: 10px;
+  }
+
+  .apex-login__brand-panel {
+    padding: var(--space-2xl) var(--space-lg);
+  }
+
+  .apex-login__form-panel {
+    padding: var(--space-2xl) var(--space-lg);
+  }
+}
+
+.apex-login {
+  box-sizing: border-box;
+}
+
+/* Phones: sign-in first, brand slab below it */
+@media (max-width: 768px) {
+  .apex-login__form-panel {
+    order: 0;
+  }
+
+  .apex-login__brand-panel {
+    order: 1;
   }
 }

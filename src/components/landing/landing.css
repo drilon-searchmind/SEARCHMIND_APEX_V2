@@ -2579,7 +2579,7 @@
 }
 
 .apex-landing__mock-wrap {
-	animation: apex-landing-rise 0.9s var(--ease-out) 0.15s both;
+	animation: apex-landing-rise 0.9s var(--ease-out) 0.15s backwards;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -65,7 +65,6 @@ export default function LoginPage() {
                         <span className="apex-login__wordmark-text">Searchmind Apex</span>
                     </div>
 
-                    <p className="apex-login__eyebrow">Authentication</p>
                     <h1 id="login-heading" className="apex-login__headline">
                         Sign in to Apex
                     </h1>
@@ -169,7 +168,7 @@ export default function LoginPage() {
                     One dashboard. Every channel.
                 </p>
                 <p className="apex-login__brand-copy">
-                    Google Ads, Meta, analytics, and reporting — unified for your team.
+                    Google Ads, Meta, analytics, and reporting, unified for your team.
                 </p>
 
                 <div className="apex-login__preview-wrap">
@@ -206,7 +205,7 @@ export default function LoginPage() {
                             </div>
 
                             <div className="apex-login__preview-metrics">
-                                <div className="apex-login__preview-metric">
+                                <div className="apex-login__preview-metric apex-login__preview-metric--hero">
                                     <span className="apex-login__preview-metric-label">Revenue</span>
                                     <span className="apex-login__preview-metric-row">
                                         <span className="apex-login__preview-metric-val">€124k</span>
