@@ -1,7 +1,8 @@
 /* Apex · page: /home · theme: commerce (DESIGN.md)
    Layered on top of home.css, which stays because the dashboard command palette, the standalone topbar
    and the property create form share its classes. New markup uses the apex-hm__ prefix.
-   Light cards on the sage canvas, one dark KPI tile, green for actions. No gradients. */
+   Full width, light cards on the sage canvas, one dark KPI tile, neutral controls and a single green
+   primary action. No gradients. */
 
 @import "../../../styles/commerce-design-tokens.css";
 
@@ -28,8 +29,8 @@
   --color-rule: var(--cd-line);
   --color-rule-2: var(--cd-line-2);
 
-  --hm-measure: 80rem;
-  --hm-gutter: clamp(1rem, 3vw, 2.5rem);
+  --hm-gutter: clamp(1rem, 2.5vw, 2rem);
+  --hm-star: #b7791f;
 
   background: var(--cd-canvas);
   font-family: var(--cd-sans);
@@ -111,7 +112,7 @@
 }
 
 .apex-hm__btn:hover {
-  border-color: var(--cd-green);
+  border-color: var(--cd-ink-2);
 }
 
 .apex-hm__btn:active {
@@ -147,9 +148,8 @@
 
 /* ── Page frame ── */
 .apex-hm__page {
-  max-width: calc(var(--hm-measure) + 2 * var(--hm-gutter));
-  margin: 0 auto;
-  padding: clamp(1.5rem, 3vw, 2.25rem) var(--hm-gutter) clamp(3rem, 6vw, 5rem);
+  width: 100%;
+  padding: clamp(1.25rem, 2.5vw, 2rem) var(--hm-gutter) clamp(3rem, 6vw, 5rem);
 }
 
 .apex-hm__head {
@@ -182,7 +182,7 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  flex: 0 1 26rem;
+  flex: 0 1 32rem;
   min-width: min(100%, 16rem);
   min-height: 3rem;
   padding: 0 1rem;
@@ -195,7 +195,7 @@
 
 .apex-hm__search:hover,
 .apex-hm__search:focus-within {
-  border-color: var(--cd-green);
+  border-color: var(--cd-ink-2);
 }
 
 .apex-hm__search:focus-within {
@@ -204,7 +204,7 @@
 
 .apex-hm__search svg {
   flex-shrink: 0;
-  color: var(--cd-green-2);
+  color: var(--cd-ink-2);
 }
 
 .apex-hm__search input {
@@ -269,8 +269,8 @@
   height: 2.75rem;
   flex-shrink: 0;
   border-radius: 14px;
-  background: var(--cd-mint-soft);
-  color: var(--cd-green-2);
+  background: var(--cd-sunk);
+  color: var(--cd-ink-2);
 }
 
 .apex-hm__kpi-icon svg {
@@ -327,7 +327,7 @@
 /* ── Layout and cards ── */
 .apex-hm__layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 21rem;
+  grid-template-columns: minmax(0, 1fr) 20rem;
   gap: 1rem;
   align-items: start;
 }
@@ -372,8 +372,8 @@
   align-items: center;
   padding: 0.1rem 0.6rem;
   border-radius: 999px;
-  background: var(--cd-mint-soft);
-  color: var(--cd-green-2);
+  background: var(--cd-sunk);
+  color: var(--cd-ink-2);
   font-size: 0.78rem;
   font-weight: 700;
 }
@@ -386,7 +386,7 @@
   font-family: inherit;
   font-size: 0.82rem;
   font-weight: 700;
-  color: var(--cd-green-2);
+  color: var(--cd-ink);
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
@@ -399,7 +399,7 @@
 /* ── Property cards ── */
 .apex-hm__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
   gap: 0.6rem;
   margin: 0;
   padding: 0;
@@ -423,7 +423,7 @@
 
 .apex-hm__prop:hover,
 .apex-hm__prop:focus-within {
-  border-color: var(--cd-green);
+  border-color: var(--cd-line-2);
   background: #fff;
 }
 
@@ -446,8 +446,8 @@
   height: 2.5rem;
   flex-shrink: 0;
   border-radius: 12px;
-  background: var(--cd-mint-soft);
-  color: var(--cd-green-2);
+  background: var(--cd-sunk);
+  color: var(--cd-ink-2);
 }
 
 .apex-hm__prop-icon svg {
@@ -508,7 +508,7 @@
 }
 
 .apex-hm__icon-btn.is-on {
-  color: var(--cd-green-2);
+  color: var(--hm-star);
 }
 
 .apex-hm__icon-btn.is-on svg {
@@ -543,8 +543,8 @@
   height: 2.1rem;
   margin-left: 0.1rem;
   border-radius: 50%;
-  background: var(--cd-mint-soft);
-  color: var(--cd-green-2);
+  background: var(--cd-sunk);
+  color: var(--cd-ink-2);
   text-decoration: none;
   transition: background-color 160ms ease, color 160ms ease;
 }
@@ -556,7 +556,7 @@
 
 .apex-hm__prop:hover .apex-hm__open,
 .apex-hm__open:hover {
-  background: var(--cd-green);
+  background: var(--cd-ink);
   color: #fff;
 }
 
@@ -599,17 +599,18 @@
 }
 
 .apex-hm__chip:hover {
-  border-color: var(--cd-green);
+  border-color: var(--cd-ink-2);
 }
 
 .apex-hm__chip.is-active {
-  background: var(--cd-mint-soft);
-  border-color: var(--cd-green);
-  color: var(--cd-green-2);
+  background: #fff;
+  border-color: var(--cd-ink);
+  color: var(--cd-ink);
+  font-weight: 700;
 }
 
 .apex-hm__chip.is-active span {
-  color: var(--cd-green-2);
+  color: var(--cd-ink-2);
 }
 
 .apex-hm__sort {
@@ -646,25 +647,36 @@
   height: 0.9rem;
 }
 
-/* ── Groups ── */
-.apex-hm__group + .apex-hm__group {
-  margin-top: 1.5rem;
+/* ── Groups: one column card per group, compact one-line rows ── */
+.apex-hm__columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr));
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.apex-hm__group {
+  padding: 0.85rem;
+  border-radius: 20px;
+  background: var(--cd-frame);
+  border: 1px solid var(--cd-line);
+  min-width: 0;
 }
 
 .apex-hm__group-head {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 0.7rem;
-  padding-bottom: 0.6rem;
-  border-bottom: 1px solid var(--cd-line);
+  margin: 0 0 0.5rem;
+  padding: 0 0.15rem 0.1rem;
 }
 
 .apex-hm__group-toggle {
   display: grid;
   place-items: center;
-  width: 1.9rem;
-  height: 1.9rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
   border: 0;
   border-radius: 50%;
   background: var(--cd-sunk);
@@ -673,8 +685,8 @@
 }
 
 .apex-hm__group-toggle:hover:not(:disabled) {
-  background: var(--cd-mint-soft);
-  color: var(--cd-green-2);
+  background: var(--cd-line-2);
+  color: var(--cd-ink);
 }
 
 .apex-hm__group-toggle:disabled {
@@ -691,22 +703,28 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  min-width: 0;
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: -0.015em;
   color: var(--cd-ink);
   text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .apex-hm__group-name svg {
   width: 0.95rem;
   height: 0.95rem;
-  color: var(--cd-green-2);
+  flex-shrink: 0;
+  color: var(--cd-muted);
   transition: transform 160ms ease;
 }
 
 a.apex-hm__group-name:hover svg {
   transform: translateX(3px);
+  color: var(--cd-ink);
 }
 
 .apex-hm__group-name--plain {
@@ -715,10 +733,95 @@ a.apex-hm__group-name:hover svg {
 
 .apex-hm__group-count {
   margin-left: auto;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--cd-muted);
   white-space: nowrap;
+}
+
+.apex-hm__list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.apex-hm__list[hidden] {
+  display: none;
+}
+
+.apex-hm__list .apex-hm__prop {
+  padding: 0.1rem 0.3rem 0.1rem 0.15rem;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+}
+
+.apex-hm__list .apex-hm__prop:hover,
+.apex-hm__list .apex-hm__prop:focus-within {
+  background: #fff;
+}
+
+.apex-hm__list .apex-hm__prop-main {
+  gap: 0.6rem;
+  padding: 0.25rem 0.2rem;
+}
+
+.apex-hm__list .apex-hm__prop-icon {
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 9px;
+}
+
+.apex-hm__list .apex-hm__prop-icon svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.apex-hm__list .apex-hm__prop-text {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.apex-hm__list .apex-hm__prop-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+}
+
+.apex-hm__list .apex-hm__prop-platform {
+  flex-shrink: 0;
+  max-width: 7.5rem;
+  font-size: 0.74rem;
+}
+
+.apex-hm__list .apex-hm__icon-btn,
+.apex-hm__list .apex-hm__open {
+  width: 1.85rem;
+  height: 1.85rem;
+}
+
+.apex-hm__list .apex-hm__open {
+  background: transparent;
+}
+
+.apex-hm__list .apex-hm__prop:hover .apex-hm__open {
+  background: var(--cd-ink);
+}
+
+/* Unpinned stars stay out of the way until the row is hovered or focused */
+@media (hover: hover) {
+  .apex-hm__list .apex-hm__icon-btn:not(.is-on) {
+    opacity: 0;
+  }
+
+  .apex-hm__list .apex-hm__prop:hover .apex-hm__icon-btn,
+  .apex-hm__list .apex-hm__prop:focus-within .apex-hm__icon-btn {
+    opacity: 1;
+  }
 }
 
 .apex-hm__empty {
@@ -736,7 +839,7 @@ a.apex-hm__group-name:hover svg {
 }
 
 .apex-hm__empty svg {
-  color: var(--cd-green-2);
+  color: var(--cd-muted);
 }
 
 /* ── Rail: Jump to ── */
@@ -771,8 +874,8 @@ a.apex-hm__group-name:hover svg {
   width: 2rem;
   height: 2rem;
   border-radius: 10px;
-  background: var(--cd-mint-soft);
-  color: var(--cd-green-2);
+  background: var(--cd-sunk);
+  color: var(--cd-ink-2);
   flex-shrink: 0;
 }
 
@@ -798,8 +901,8 @@ a.apex-hm__group-name:hover svg {
 }
 
 .apex-hm__tag--green {
-  background: var(--cd-mint-soft);
-  color: var(--cd-green-2);
+  background: var(--cd-sunk);
+  color: var(--cd-ink-2);
   font-size: 0.7rem;
 }
 
@@ -811,7 +914,7 @@ a.apex-hm__group-name:hover svg {
 }
 
 .apex-hm__nav-link:hover .apex-hm__nav-arrow {
-  color: var(--cd-green-2);
+  color: var(--cd-ink);
   transform: translateX(3px);
 }
 
@@ -850,7 +953,7 @@ a.apex-hm__group-name:hover svg {
 }
 
 a.apex-hm__news:hover {
-  border-color: var(--cd-green);
+  border-color: var(--cd-line-2);
 }
 
 .apex-hm__news-media {
@@ -868,7 +971,7 @@ a.apex-hm__news:hover {
   inset: 0;
   display: grid;
   place-items: center;
-  color: var(--cd-green-2);
+  color: var(--cd-muted);
 }
 
 .apex-hm__news-placeholder svg {
@@ -919,7 +1022,7 @@ a.apex-hm__news:hover {
   margin-top: 0.15rem;
   font-size: 0.85rem;
   font-weight: 700;
-  color: var(--cd-green-2);
+  color: var(--cd-ink);
 }
 
 .apex-hm__news-more svg {
@@ -1038,7 +1141,8 @@ a.apex-hm__news:hover {
     flex-basis: 100%;
   }
 
-  .apex-hm__grid {
+  .apex-hm__grid,
+  .apex-hm__columns {
     grid-template-columns: minmax(0, 1fr);
   }
 

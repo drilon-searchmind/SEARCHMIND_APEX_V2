@@ -677,7 +677,8 @@ export default function CustomerTable({ showLatestNews = true }) {
                                             </button>
                                         </p>
                                     ) : (
-                                        visibleGroups.map(({ parentId, items }) => {
+                                        <div className="apex-hm__columns">
+                                        {visibleGroups.map(({ parentId, items }) => {
                                             const isCollapsed = !filterActive && !!collapsed[parentId];
                                             const panelId = `apex-hm-group-${parentId}`;
                                             return (
@@ -705,7 +706,7 @@ export default function CustomerTable({ showLatestNews = true }) {
                                                             {items.length} {items.length === 1 ? "property" : "properties"}
                                                         </span>
                                                     </div>
-                                                    <ul id={panelId} className="apex-hm__grid" hidden={isCollapsed}>
+                                                    <ul id={panelId} className="apex-hm__list" hidden={isCollapsed}>
                                                         {items.map((customer) => (
                                                             <PropertyCard
                                                                 key={customer._id}
@@ -720,7 +721,8 @@ export default function CustomerTable({ showLatestNews = true }) {
                                                     </ul>
                                                 </div>
                                             );
-                                        })
+                                        })}
+                                        </div>
                                     )}
                                 </section>
                             </main>
