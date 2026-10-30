@@ -1,5 +1,7 @@
 "use client"
 
+import { MarketFlags } from "@/components/ui/CountryFlag";
+import ChannelLogo from "@/components/ui/ChannelLogo";
 import React, { useState, useRef, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { FiDownload, FiClipboard, FiChevronDown } from "react-icons/fi";
@@ -291,6 +293,7 @@ export default function DashboardHeading({
                                                                             ? "rounded border-gray-300 accent-[var(--color-ink)] shrink-0"
                                                                             : "rounded border-gray-300 text-[var(--color-primary-searchmind)] focus:ring-[var(--color-primary-searchmind)] shrink-0"}
                                                                     />
+                                                                    <MarketFlags codes={m.countryCodes} size={20} />
                                                                     <span className="text-sm text-gray-800 truncate">
                                                                         {m.name}
                                                                     </span>
@@ -410,6 +413,7 @@ export default function DashboardHeading({
                                                                         ? "rounded border-gray-300 accent-[var(--color-ink)] shrink-0"
                                                                         : "rounded border-gray-300 text-[var(--color-primary-searchmind)] focus:ring-[var(--color-primary-searchmind)] shrink-0"}
                                                                 />
+                                                                <ChannelLogo channel={c.id} size={20} />
                                                                 <span className="text-sm text-gray-800 truncate">
                                                                     {c.label}
                                                                 </span>

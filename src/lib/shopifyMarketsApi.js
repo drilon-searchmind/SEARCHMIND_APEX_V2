@@ -269,6 +269,55 @@ query MarketRegionCountries($id: ID!, $after: String) {
     return arr;
 }
 
+/** Markets and their countries change rarely, so the whole catalog is cached per shop for this long. */
+const MARKETS_WITH_COUNTRIES_TTL_MS = 12 * 60 * 60 * 1000;
+
+/** @type {Map<string, { at: number, value: { markets: Array<object>, graphqlErrors?: string[] } }>} */
+const marketsWithCountriesCache = new Map();
+
+/**
+ * Markets catalog plus the ISO country codes of each market (for flags). Shopify has no flag images,
+ * only country codes, so the UI maps codes to static flag files. One cached lookup per shop.
+ *
+ * @param {string} shopDomain
+ * @param {string} accessToken
+ * @returns {Promise<{ markets: Array<{ gid: string, shopifyqlMarketId: string, name: string, handle: string, countryCodes: string[] }>, graphqlErrors?: string[] }>}
+ */
+export async function fetchShopifyMarketsCatalogWithCountries(shopDomain, accessToken) {
+    const domain = normalizeShopifyShopDomain(shopDomain);
+    const hit = domain ? marketsWithCountriesCache.get(domain) : null;
+    if (hit && Date.now() - hit.at < MARKETS_WITH_COUNTRIES_TTL_MS) {
+        return hit.value;
+    }
+
+    const catalog = await fetchShopifyMarketsCatalog(shopDomain, accessToken);
+    const markets = [];
+    const batchSize = 4;
+    for (let i = 0; i < catalog.markets.length; i += batchSize) {
+        const batch = catalog.markets.slice(i, i + batchSize);
+        const withCodes = await Promise.all(
+            batch.map(async (m) => {
+                let countries = [];
+                try {
+                    countries = await fetchMarketRegionCountries(shopDomain, accessToken, m.shopifyqlMarketId);
+                } catch {
+                    countries = [];
+                }
+                const countryCodes = countries.map((c) => c.code).filter((c) => /^[A-Z]{2}$/.test(String(c || "")));
+                return { ...m, countryCodes };
+            })
+        );
+        markets.push(...withCodes);
+    }
+
+    const value = { markets, graphqlErrors: catalog.graphqlErrors };
+    // Do not cache an empty catalog: that usually means a missing scope or a transient error.
+    if (domain && markets.length > 0) {
+        marketsWithCountriesCache.set(domain, { at: Date.now(), value });
+    }
+    return value;
+}
+
 /**
  * Union of billing-country display names for the given market ids (Shopify Markets region countries).
  * Used with ShopifyQL `WHERE billing_country = '…' OR …`.

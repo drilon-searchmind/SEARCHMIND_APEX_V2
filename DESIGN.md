@@ -17,6 +17,7 @@ The look in one line: a full-screen, calm sage and mint workspace, a near-black 
 5. **Numbers carry the design.** Large values with a smaller muted unit, tabular figures everywhere.
 6. **Honest data.** Apex shows live data. If a view ever shows sample data it must carry a "Demo data" chip, and placeholder targets must be labelled.
 7. **Grid texture fades out from the left.** Where a dark surface carries the faint grid (landing hero, login panel, the home Properties tile) it is a flat mint line colour masked so it is strongest on the right and gone at the left edge. No glows or colour gradients.
+8. **Flags and channel logos are local.** Market flags are static SVGs in `public/images/flags` (copied once from the MIT `country-flag-icons` set, see `README.txt` there), shown through `CountryFlag` and `MarketFlags` in `src/components/ui/CountryFlag.jsx`. Shopify only provides country codes, so the markets endpoint returns `countryCodes` per market, cached 12 hours per shop on the server and 24 hours in the browser. Paid channels use `ChannelLogo` tiles (`src/components/ui/ChannelLogo.jsx`) in the sidebar and the Adspend filter. No flag or logo is ever fetched from an API.
 
 ---
 

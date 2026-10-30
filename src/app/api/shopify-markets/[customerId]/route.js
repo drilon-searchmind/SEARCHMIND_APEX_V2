@@ -3,8 +3,19 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import connectToDatabase from "@root/lib/mongodb";
 import Customer from "@/models/Customer";
-import { fetchShopifyMarketsCatalog } from "@/lib/shopifyMarketsApi";
+import { fetchShopifyMarketsCatalogWithCountries } from "@/lib/shopifyMarketsApi";
 import { getDemoPayload, getDemoShopifyMarkets, isDemoCustomerId, mergeDemoCustomerDocument } from "@/lib/demoCustomer";
+
+/** Demo markets carry a two letter handle (dk, se, no) that doubles as the country code. */
+function demoMarketRow(m) {
+    const fromHandle = /^[a-z]{2}$/i.test(String(m.handle || "")) ? [String(m.handle).toUpperCase()] : [];
+    return {
+        shopifyqlMarketId: m.shopifyqlMarketId,
+        name: m.name,
+        handle: m.handle,
+        countryCodes: Array.isArray(m.countryCodes) ? m.countryCodes : fromHandle,
+    };
+}
 
 /**
  * Lists Shopify Markets for customers with `CustomerSettings.shopifyMarketsEnabled` and Shopify credentials.
@@ -34,11 +45,7 @@ export async function GET(_request, { params }) {
                     return NextResponse.json({ markets: [], featureDisabled: true });
                 }
                 return NextResponse.json({
-                    markets: getDemoShopifyMarkets().map((m) => ({
-                        shopifyqlMarketId: m.shopifyqlMarketId,
-                        name: m.name,
-                        handle: m.handle,
-                    })),
+                    markets: getDemoShopifyMarkets().map(demoMarketRow),
                 });
             }
             return NextResponse.json({ error: "Customer not found" }, { status: 404 });
@@ -61,11 +68,7 @@ export async function GET(_request, { params }) {
 
         if (isDemoCustomerId(customerId)) {
             return NextResponse.json({
-                markets: getDemoShopifyMarkets().map((m) => ({
-                    shopifyqlMarketId: m.shopifyqlMarketId,
-                    name: m.name,
-                    handle: m.handle,
-                })),
+                markets: getDemoShopifyMarkets().map(demoMarketRow),
             });
         }
 
@@ -78,11 +81,12 @@ export async function GET(_request, { params }) {
             );
         }
 
-        const { markets, graphqlErrors } = await fetchShopifyMarketsCatalog(shop, token);
+        const { markets, graphqlErrors } = await fetchShopifyMarketsCatalogWithCountries(shop, token);
         return NextResponse.json({
             markets: markets.map((m) => ({
                 shopifyqlMarketId: m.shopifyqlMarketId,
                 name: m.name,
+                countryCodes: m.countryCodes,
             })),
             graphqlErrors: graphqlErrors || undefined,
         });

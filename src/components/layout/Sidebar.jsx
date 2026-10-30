@@ -25,6 +25,7 @@ import {
 } from "react-icons/fi";
 import Image from "next/image";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
+import ChannelLogo from "@/components/ui/ChannelLogo";
 import { useCustomers } from "@/hooks/useCustomers";
 import { getServiceDashboardConfigWarnings, getPriceShaperConfigWarning } from "@/lib/customerServiceIntegrations";
 import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
@@ -41,14 +42,15 @@ const getIconForRoute = (href) => {
     if (href.includes("data-wrapped")) return <FiGift className="w-4 h-4" />;
     if (href.includes("analytics")) return <FiBarChart className="w-4 h-4" />;
     if (href.includes("service-dashboard/seo")) return <FiTrendingUp className="w-4 h-4" />;
-    if (href.includes("service-dashboard/ppc")) return <FiDollarSign className="w-4 h-4" />;
-    if (href.includes("service-dashboard/ps")) return <FiShoppingCart className="w-4 h-4" />;
-    if (href.includes("service-dashboard/pinterest")) return <FiImage className="w-4 h-4" />;
-    if (href.includes("service-dashboard/linkedin")) return <FiBriefcase className="w-4 h-4" />;
-    if (href.includes("service-dashboard/snapchat")) return <FiZap className="w-4 h-4" />;
-    if (href.includes("service-dashboard/reddit")) return <FiMessageCircle className="w-4 h-4" />;
+    // Paid channels show their brand logo tile instead of a generic icon
+    if (href.includes("service-dashboard/ppc")) return <ChannelLogo channel="google" size={18} />;
+    if (href.includes("service-dashboard/ps")) return <ChannelLogo channel="meta" size={18} />;
+    if (href.includes("service-dashboard/pinterest")) return <ChannelLogo channel="pinterest" size={18} />;
+    if (href.includes("service-dashboard/linkedin")) return <ChannelLogo channel="linkedin" size={18} />;
+    if (href.includes("service-dashboard/snapchat")) return <ChannelLogo channel="snapchat" size={18} />;
+    if (href.includes("service-dashboard/reddit")) return <ChannelLogo channel="reddit" size={18} />;
     if (href.includes("service-dashboard/bing-webmaster")) return <FiGlobe className="w-4 h-4" />;
-    if (href.includes("service-dashboard/bing")) return <FiLayers className="w-4 h-4" />;
+    if (href.includes("service-dashboard/bing")) return <ChannelLogo channel="bing" size={18} />;
     if (href.includes("campaign-planner")) return <FiCalendar className="w-4 h-4" />;
     if (href.includes("share-of-search")) return <FiPieChart className="w-4 h-4" />;
     if (href.includes("price-index") || href.includes("price-shaper")) return <FiTag className="w-4 h-4" />;

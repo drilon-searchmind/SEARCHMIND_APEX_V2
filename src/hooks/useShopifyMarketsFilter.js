@@ -5,6 +5,38 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { showToast } from "@/components/ui/ToastProvider";
 
+const MARKETS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const MARKETS_CACHE_PREFIX = "apex.shopifyMarkets.v1:";
+
+/** @type {Map<string, { at: number, markets: Array<object> }>} */
+const marketsMemoryCache = new Map();
+
+/** Markets (with country codes for flags) change rarely: keep them in memory and in localStorage for a day. */
+function readMarketsCache(customerId) {
+    const mem = marketsMemoryCache.get(customerId);
+    if (mem && Date.now() - mem.at < MARKETS_CACHE_TTL_MS) return mem.markets;
+    try {
+        const raw = window.localStorage.getItem(MARKETS_CACHE_PREFIX + customerId);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.markets) || Date.now() - parsed.at >= MARKETS_CACHE_TTL_MS) return null;
+        marketsMemoryCache.set(customerId, parsed);
+        return parsed.markets;
+    } catch {
+        return null;
+    }
+}
+
+function writeMarketsCache(customerId, markets) {
+    const entry = { at: Date.now(), markets };
+    marketsMemoryCache.set(customerId, entry);
+    try {
+        window.localStorage.setItem(MARKETS_CACHE_PREFIX + customerId, JSON.stringify(entry));
+    } catch {
+        /* storage may be unavailable (private mode, quota); the memory cache still works */
+    }
+}
+
 /**
  * Shopify Markets multi-select + query suffix for merged-sources APIs.
  * Draft exclusions in the dropdown; Apply commits to `appliedExcludedMarkets` and updates fetches.
@@ -37,6 +69,12 @@ export function useShopifyMarketsFilter(customer, customerIdFromParams, options 
             setShopifyMarketsLoading(false);
             return undefined;
         }
+        const cached = readMarketsCache(String(id));
+        if (cached) {
+            setShopifyMarkets(cached);
+            setShopifyMarketsLoading(false);
+            return undefined;
+        }
         let cancelled = false;
         setShopifyMarketsLoading(true);
         fetch(`/api/shopify-markets/${id}`, { credentials: "same-origin" })
@@ -62,7 +100,10 @@ export function useShopifyMarketsFilter(customer, customerIdFromParams, options 
             })
             .then((body) => {
                 if (cancelled || !body) return;
-                setShopifyMarkets(Array.isArray(body.markets) ? body.markets : []);
+                const list = Array.isArray(body.markets) ? body.markets : [];
+                setShopifyMarkets(list);
+                // Only remember a real catalog, never an empty or failed one.
+                if (list.length > 0 && !body.graphqlErrors?.length) writeMarketsCache(String(id), list);
             })
             .catch((err) => {
                 if (!cancelled) {

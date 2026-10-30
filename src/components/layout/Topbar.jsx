@@ -87,6 +87,9 @@ function getParentCustomerId(customer) {
     return id || null;
 }
 
+/** Market Overview is hidden for now. Flip to true to bring the link back (desktop and mobile). */
+const SHOW_MARKET_OVERVIEW_LINK = false;
+
 const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true, isParentProperty = false }) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const [bellMenuOpen, setBellMenuOpen] = useState(false);
@@ -497,7 +500,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                         {showPropertySection && (
                             <>
                                 <div className="apex-dash-topbar__actions">
-                                    {parentCustomerId ? (
+                                    {SHOW_MARKET_OVERVIEW_LINK && (parentCustomerId ? (
                                         <Link
                                             href={`/parent-property/${parentCustomerId}/home`}
                                             className="apex-dash-topbar__btn"
@@ -522,7 +525,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                                 No other markets added
                                             </span>
                                         </span>
-                                    )}
+                                    ))}
 
                                     {!user?.isExternal && (
                                         <button
@@ -755,7 +758,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                         {showPropertySection && (
                             <div className="apex-dash-topbar__mobile-section">
                                 <p className="apex-dash-topbar__mobile-label">Property</p>
-                                {parentCustomerId ? (
+                                {SHOW_MARKET_OVERVIEW_LINK && (parentCustomerId ? (
                                     <Link
                                         href={`/parent-property/${parentCustomerId}/home`}
                                         onClick={() => setMobileMenuOpen(false)}
@@ -777,7 +780,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                             No other markets added
                                         </p>
                                     </div>
-                                )}
+                                ))}
                                         {activeCustomerId && (() => {
                                             const lastMonthPeriod = getLastMonthPeriod();
                                             const opened = getOpenedPeriodsForCustomer(user?.openedWrappedPeriods, activeCustomerId);
