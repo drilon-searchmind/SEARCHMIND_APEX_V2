@@ -1,6 +1,6 @@
 import { FiMail } from "react-icons/fi";
 import { RiMicrosoftFill } from "react-icons/ri";
-import { SiGoogleads, SiLinkedin, SiMeta, SiPinterest, SiReddit, SiSnapchat, SiTiktok } from "react-icons/si";
+import { SiGoogle, SiGoogleads, SiLinkedin, SiMeta, SiPinterest, SiReddit, SiSnapchat, SiTiktok } from "react-icons/si";
 
 /**
  * Brand logo tiles for ad channels: the brand colour as a rounded square with the mark on top, so the
@@ -17,7 +17,12 @@ const CHANNELS = {
     reddit: { Icon: SiReddit, bg: "#FF4500", fg: "#fff", label: "Reddit" },
     linkedin: { Icon: SiLinkedin, bg: "#0A66C2", fg: "#fff", label: "LinkedIn" },
     tiktok: { Icon: SiTiktok, bg: "#111A12", fg: "#fff", label: "TikTok" },
-    email: { Icon: FiMail, bg: "#953995", fg: "#fff", label: "Email" },
+    // SEO uses the Google "G" on a white tile so it reads differently from the Google Ads tile
+    seo: { Icon: SiGoogle, bg: "#fff", fg: "#4285F4", label: "Google Search", border: "1px solid #D2DBD0" },
+    // Klaviyo: placeholder mark (mail glyph on Klaviyo's near-black). The official logo is not in the
+    // repo yet; once it is, point `src` at it and it replaces the glyph.
+    klaviyo: { Icon: FiMail, bg: "#232426", fg: "#fff", label: "Klaviyo" },
+    email: { Icon: FiMail, bg: "#232426", fg: "#fff", label: "Klaviyo" },
 };
 
 /**
@@ -26,7 +31,7 @@ const CHANNELS = {
 export default function ChannelLogo({ channel, size = 20, title }) {
     const entry = CHANNELS[String(channel || "").toLowerCase()];
     if (!entry) return null;
-    const { Icon, bg, fg, label } = entry;
+    const { Icon, bg, fg, label, border } = entry;
     const glyph = Math.round(size * 0.58);
     return (
         <span
@@ -40,6 +45,8 @@ export default function ChannelLogo({ channel, size = 20, title }) {
                 borderRadius: Math.max(4, Math.round(size * 0.28)),
                 background: bg,
                 color: fg,
+                border,
+                boxSizing: "border-box",
                 flexShrink: 0,
             }}
         >

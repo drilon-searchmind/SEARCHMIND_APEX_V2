@@ -41,7 +41,8 @@ const getIconForRoute = (href) => {
     if (href.includes("ecommerce")) return <FiShoppingCart className="w-4 h-4" />;
     if (href.includes("data-wrapped")) return <FiGift className="w-4 h-4" />;
     if (href.includes("analytics")) return <FiBarChart className="w-4 h-4" />;
-    if (href.includes("service-dashboard/seo")) return <FiTrendingUp className="w-4 h-4" />;
+    if (href.includes("service-dashboard/seo")) return <ChannelLogo channel="seo" size={18} />;
+    if (href.includes("service-dashboard/em")) return <ChannelLogo channel="klaviyo" size={18} />;
     // Paid channels show their brand logo tile instead of a generic icon
     if (href.includes("service-dashboard/ppc")) return <ChannelLogo channel="google" size={18} />;
     if (href.includes("service-dashboard/ps")) return <ChannelLogo channel="meta" size={18} />;
