@@ -2894,3 +2894,22 @@
 		min-height: 20rem;
 	}
 }
+
+/* Header content shares the hero's gutters and 75rem measure so brand and CTA line up with the page content */
+.apex-landing__header {
+	padding-inline: var(--space-xl);
+}
+
+.apex-landing__header-inner {
+	padding-inline: 0;
+}
+
+@media (min-width: 768px) {
+	.apex-landing__header {
+		padding-inline: var(--space-2xl);
+	}
+
+	.apex-landing__header-inner {
+		padding-inline: 0;
+	}
+}
