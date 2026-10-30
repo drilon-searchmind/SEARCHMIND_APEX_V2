@@ -1,213 +1,611 @@
-/* Apex · page: profile · theme: minimal (DESIGN.md) */
+/* Apex · page: profile · theme: commerce (DESIGN.md)
+   One dark identity card, light section cards, calm inputs, green for the primary action and focus. */
 
 @import "../dashboard/[customerId]/performance-dashboard/performance-dashboard.css";
-@import "../standalone-minimal.css";
+@import "../../../styles/commerce-design-tokens.css";
 
-.apex-profile-stack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
-}
-
-.apex-profile-card {
-  padding: var(--space-lg);
-  background: var(--perf-raised);
-  border: var(--rule-hair) solid var(--color-rule);
-  border-radius: var(--radius-card);
-}
-
-@media (min-width: 768px) {
-  .apex-profile-card {
-    padding: var(--space-lg) var(--space-xl);
-  }
-}
-
-.apex-profile-card__title {
-  margin: 0 0 var(--space-xs);
-  font-family: var(--font-display);
-  font-size: var(--text-md);
-  font-weight: 600;
-  color: var(--color-ink);
-}
-
-.apex-profile-card__subtitle {
-  margin: 0 0 var(--space-md);
-  font-size: 0.75rem;
-  line-height: 1.5;
-  color: var(--color-muted);
-}
-
-.apex-profile-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-.apex-profile-form label {
-  display: block;
-  font-family: var(--font-label);
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-
-.apex-profile-form label .text-red-500,
-.apex-profile-form label span.text-red-500 {
-  color: var(--color-error, oklch(55% 0.18 25)) !important;
-}
-
-.apex-profile-form input:not([type="checkbox"]),
-.apex-profile-form select,
-.apex-profile-form textarea,
-.apex-profile-form .mt-2.shadow-none {
-  margin-top: var(--space-2xs);
-  min-height: 2.5rem;
-  width: 100%;
-  padding: var(--space-xs) var(--space-sm);
-  font-size: 0.75rem;
-  line-height: 1.4;
-  color: var(--color-ink);
-  background: #ffffff;
-  border: var(--rule-hair) solid var(--color-rule);
-  border-radius: var(--radius-input);
-  box-shadow: none;
-  outline: none;
-  appearance: none;
-}
-
-.apex-profile-form input:not([type="checkbox"]):focus,
-.apex-profile-form select:focus,
-.apex-profile-form textarea:focus,
-.apex-profile-form .mt-2.shadow-none:focus {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 18%, transparent);
-}
-
-.apex-profile-field-hint {
-  margin: var(--space-2xs) 0 0;
-  font-size: 0.65rem;
-  line-height: 1.45;
-  color: var(--color-muted);
-}
-
-.apex-profile-grid {
+.apex-pf {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-md);
+  gap: 1.25rem;
+  min-width: 0;
 }
 
-@media (min-width: 768px) {
-  .apex-profile-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.apex-profile-split {
+.apex-pf__layout {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-lg);
+  grid-template-columns: 22rem minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
 }
 
-@media (min-width: 768px) {
-  .apex-profile-split {
-    grid-template-columns: 1fr 1fr;
-  }
+.apex-pf__rail {
+  position: sticky;
+  top: 1rem;
 }
 
-.apex-profile-hero {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  margin-bottom: var(--space-sm);
+.apex-pf__main {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
 }
 
-@media (min-width: 640px) {
-  .apex-profile-hero {
-    flex-direction: row;
-    align-items: flex-start;
-    gap: var(--space-lg);
-  }
-}
-
-.apex-profile-avatar {
+/* ── Avatar ── */
+.apex-pf__avatar {
+  display: inline-grid;
+  place-items: center;
   flex-shrink: 0;
-  width: 4.5rem;
-  height: 4.5rem;
   overflow: hidden;
-  border: var(--rule-hair) solid var(--color-rule);
-  border-radius: 999px;
-  background: var(--perf-canvas);
+  border-radius: 50%;
+  background: var(--cd-mint-soft);
+  color: var(--cd-green-2);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
 }
 
-.apex-profile-avatar img {
+.apex-pf__avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.apex-profile-hero__fields {
+/* ── Identity card (the one dark card) ── */
+.apex-pf__hero {
+  position: relative;
+  display: grid;
+  gap: 1.1rem;
+  overflow: hidden;
+  padding: 1.5rem;
+  border-radius: var(--cd-r-lg);
+  background-color: var(--cd-dark);
+  color: var(--cd-on-dark);
+}
+
+.apex-pf__hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(169, 237, 162, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(169, 237, 162, 0.08) 1px, transparent 1px);
+  background-size: 32px 32px;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.2) 30%, #000 85%);
+  mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.2) 30%, #000 85%);
+}
+
+.apex-pf__hero > * {
+  position: relative;
+}
+
+.apex-pf__avatar--hero {
+  background: var(--cd-mint);
+  color: var(--cd-dark);
+  box-shadow: 0 0 0 4px var(--cd-dark-2);
+}
+
+.apex-pf__hero-text {
+  min-width: 0;
+}
+
+.apex-pf__hero-name {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.apex-pf__hero-email {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  color: var(--cd-on-dark-2);
+  overflow-wrap: anywhere;
+}
+
+.apex-pf__roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.apex-pf__roles li {
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  background: var(--cd-dark-2);
+  border: 1px solid var(--cd-dark-line);
+  color: var(--cd-mint);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.apex-pf__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.apex-pf__stats > div {
+  padding: 0.8rem 0.9rem;
+  border-radius: 16px;
+  background: var(--cd-dark-2);
+  border: 1px solid var(--cd-dark-line);
+}
+
+.apex-pf__stats dt {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--cd-on-dark-muted);
+}
+
+.apex-pf__stats dt svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.apex-pf__stats dd {
+  margin: 0.25rem 0 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--cd-mint);
+}
+
+.apex-pf__hero-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--cd-on-dark-muted);
+}
+
+.apex-pf__logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.2rem;
+  padding: 0 0.9rem;
+  border: 1px solid var(--cd-dark-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cd-on-dark);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.apex-pf__logout svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.apex-pf__logout:hover {
+  background: var(--cd-dark-2);
+  border-color: #f2a49e;
+  color: #f2a49e;
+}
+
+/* ── Cards ── */
+.apex-pf__card {
+  display: grid;
+  gap: 1.1rem;
+  padding: 1.25rem 1.4rem;
+  border-radius: var(--cd-r-lg);
+  background: var(--cd-card);
+  border: 1px solid var(--cd-line);
+}
+
+.apex-pf__card-head {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.apex-pf__card-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.apex-pf__card-desc {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--cd-ink-2);
+}
+
+.apex-pf__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.apex-pf__identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.apex-pf__identity .apex-pf__field {
   flex: 1;
   min-width: 0;
 }
 
-.apex-profile-label-row {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
+.apex-pf__field {
+  min-width: 0;
 }
 
-.apex-profile-label-row svg {
-  flex-shrink: 0;
+.apex-pf__label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--cd-ink-2);
 }
 
-.apex-profile-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: var(--space-sm);
-  padding-top: var(--space-md);
-  border-top: var(--rule-hair) solid var(--color-rule);
+.apex-pf__label span {
+  color: var(--cd-neg);
 }
 
-.apex-profile-actions .apex-perf-btn {
-  min-width: 9rem;
-}
-
-.apex-profile-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-}
-
-.apex-profile-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--space-2xs) var(--space-sm);
-  font-size: 0.68rem;
+.apex-pf__input {
+  display: block;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0 0.95rem;
+  border: 1px solid var(--cd-line-2);
+  border-radius: 14px;
+  background: var(--cd-frame);
+  color: var(--cd-ink);
+  font-family: inherit;
+  font-size: 0.92rem;
   font-weight: 500;
-  color: var(--color-ink-2);
-  background: var(--perf-canvas);
-  border: var(--rule-hair) solid var(--color-rule);
-  border-radius: 999px;
+  outline: 0;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
 }
 
-.apex-profile-empty {
-  font-size: 0.75rem;
-  color: var(--color-muted);
+.apex-pf__input::placeholder {
+  color: var(--cd-muted);
 }
 
-.apex-profile-meta {
-  margin: 0 0 var(--space-md);
-  padding: var(--space-sm) var(--space-md);
-  font-size: 0.68rem;
-  color: var(--color-muted);
-  background: var(--perf-canvas);
-  border: var(--rule-hair) solid var(--color-rule);
-  border-radius: var(--radius-input);
+.apex-pf__input:hover {
+  border-color: var(--cd-ink-2);
 }
 
-.apex-profile-meta strong {
-  color: var(--color-ink-2);
+.apex-pf__input:focus {
+  border-color: var(--cd-green);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(58, 155, 63, 0.18);
+}
+
+.apex-pf__input[aria-invalid="true"] {
+  border-color: var(--cd-neg);
+}
+
+.apex-pf__hint,
+.apex-pf__error {
+  margin: 0.4rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.apex-pf__hint {
+  color: var(--cd-muted);
+}
+
+.apex-pf__error {
+  color: var(--cd-neg);
   font-weight: 600;
+}
+
+.apex-pf__password {
+  position: relative;
+}
+
+.apex-pf__password .apex-pf__input {
+  padding-right: 3rem;
+}
+
+.apex-pf__eye {
+  position: absolute;
+  right: 0.35rem;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--cd-ink-2);
+  cursor: pointer;
+}
+
+.apex-pf__eye:hover {
+  background: var(--cd-sunk);
+}
+
+.apex-pf__eye svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+/* ── Save row ── */
+.apex-pf__save {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--cd-line);
+}
+
+.apex-pf__dirty {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--cd-muted);
+}
+
+.apex-pf__dirty.is-on {
+  color: var(--cd-warn);
+}
+
+.apex-pf__save-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.apex-pf__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.6rem;
+  padding: 0 1.2rem;
+  border: 1px solid var(--cd-line-2);
+  border-radius: 999px;
+  background: var(--cd-card);
+  color: var(--cd-ink);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.apex-pf__btn:hover:not(:disabled) {
+  border-color: var(--cd-ink-2);
+}
+
+.apex-pf__btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.apex-pf__btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.apex-pf__btn--primary {
+  background: var(--cd-green);
+  border-color: var(--cd-green);
+  color: #fff;
+}
+
+.apex-pf__btn--primary:hover:not(:disabled) {
+  background: var(--cd-green-2);
+  border-color: var(--cd-green-2);
+}
+
+.apex-pf__btn:focus-visible,
+.apex-pf__logout:focus-visible,
+.apex-pf__eye:focus-visible,
+.apex-pf__plink:focus-visible {
+  outline: 2px solid var(--cd-green);
+  outline-offset: 2px;
+}
+
+/* ── Connections ── */
+.apex-pf__connections {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.apex-pf__connection {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.9rem;
+  padding: 0.9rem;
+  border-radius: 18px;
+  background: var(--cd-frame);
+  border: 1px solid var(--cd-line);
+}
+
+.apex-pf__brand {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-top: 1.45rem;
+  border-radius: 14px;
+  color: #fff;
+}
+
+.apex-pf__brand svg {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+.apex-pf__status {
+  margin-top: 1.55rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: var(--cd-sunk);
+  color: var(--cd-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.apex-pf__status.is-on {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--cd-mint-soft);
+  color: var(--cd-green-2);
+}
+
+.apex-pf__status svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+/* ── Properties ── */
+.apex-pf__plists {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+}
+
+.apex-pf__plist-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.6rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.apex-pf__plist-title span {
+  padding: 0.05rem 0.55rem;
+  border-radius: 999px;
+  background: var(--cd-mint-soft);
+  color: var(--cd-green-2);
+  font-size: 0.74rem;
+}
+
+.apex-pf__plist ul {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.apex-pf__plink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 14px;
+  background: var(--cd-frame);
+  border: 1px solid var(--cd-line);
+  color: var(--cd-ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.apex-pf__plink span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apex-pf__plink svg {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  color: var(--cd-muted);
+}
+
+.apex-pf__plink:hover {
+  background: #fff;
+  border-color: var(--cd-line-2);
+}
+
+.apex-pf__plist-empty {
+  margin: 0;
+  padding: 0.9rem;
+  border: 1px dashed var(--cd-line-2);
+  border-radius: 14px;
+  font-size: 0.85rem;
+  color: var(--cd-ink-2);
+}
+
+/* ── Responsive ── */
+@media (max-width: 1000px) {
+  .apex-pf__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .apex-pf__rail {
+    position: static;
+  }
+
+  .apex-pf__hero {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .apex-pf__stats,
+  .apex-pf__hero-foot {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .apex-pf__grid,
+  .apex-pf__plists {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .apex-pf__card {
+    padding: 1rem;
+  }
+
+  .apex-pf__connection {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .apex-pf__status {
+    grid-column: 2;
+    justify-self: start;
+    margin-top: 0;
+  }
+
+  .apex-pf__save {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .apex-pf__save-actions .apex-pf__btn {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apex-pf__btn,
+  .apex-pf__input,
+  .apex-pf__plink,
+  .apex-pf__logout {
+    transition: none;
+  }
 }
