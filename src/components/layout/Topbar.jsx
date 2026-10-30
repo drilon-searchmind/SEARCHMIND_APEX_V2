@@ -20,7 +20,8 @@ import Link from "next/link";
 import { LuRadar } from "react-icons/lu";
 import { RiToolsFill } from "react-icons/ri";
 import { getDemoCustomerIds } from "@/lib/demoCustomerId";
-import { normalizeInternalNotificationHref } from "@/lib/notificationLink";
+import { CategoryBadge, NotificationLink } from "@/components/notifications/NotificationParts";
+import { NOTIFICATIONS_READ_EVENT, formatRelativeTime } from "@/components/notifications/notificationUtils";
 import { canAccessApexRadar } from "@/lib/apexRadarAccess";
 import { addRecentCustomerId } from "@/lib/recentCustomers";
 
@@ -59,17 +60,6 @@ function getOpenedPeriodsForCustomer(openedWrappedPeriods, customerId) {
     return Array.isArray(raw) ? raw.map((p) => String(p).trim()).filter((p) => /^\d{4}-\d{2}$/.test(p)) : [];
 }
 
-function formatNotificationTime(iso) {
-    const d = new Date(iso);
-    const diff = Date.now() - d.getTime();
-    const m = Math.floor(diff / 60000);
-    if (m < 1) return "Just now";
-    if (m < 60) return `${m}m ago`;
-    const h = Math.floor(m / 60);
-    if (h < 48) return `${h}h ago`;
-    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
 function parseUnreadCount(raw) {
     const n = Number(raw);
     if (!Number.isFinite(n) || n < 0) return 0;
@@ -99,6 +89,10 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
     const user = useUser();
     const [notifPreview, setNotifPreview] = useState([]);
     const [notifUnreadCount, setNotifUnreadCount] = useState(0);
+    const [notifLoading, setNotifLoading] = useState(false);
+    /** Ids that were unread when the bell opened, so they stay highlighted while the badge clears. */
+    const [notifNewIds, setNotifNewIds] = useState([]);
+    const bellButtonRef = useRef(null);
     const [theme, setTheme] = useState(getInitialTheme);
     const { customers } = useCustomers();
     const params = useParams();
@@ -318,8 +312,8 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
     }, [bellMenuOpen]);
 
     useEffect(() => {
-        if (!user?.email) return;
-        fetch("/api/notifications?limit=5")
+        if (!user?.email) return undefined;
+        fetch("/api/notifications?limit=8")
             .then((r) => (r.ok ? r.json() : null))
             .then((d) => {
                 if (d) {
@@ -328,24 +322,73 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                 }
             })
             .catch(() => { });
+
+        // Keep the badge fresh without polling hard: when the tab becomes visible again, and every two minutes
+        const refreshBadge = () => {
+            if (document.visibilityState !== "visible") return;
+            fetch("/api/notifications?limit=1")
+                .then((r) => (r.ok ? r.json() : null))
+                .then((d) => {
+                    if (d) setNotifUnreadCount(parseUnreadCount(d.unreadCount));
+                })
+                .catch(() => { });
+        };
+        const interval = setInterval(refreshBadge, 120000);
+        document.addEventListener("visibilitychange", refreshBadge);
+        // The notifications page can mark everything read itself
+        const onRead = () => setNotifUnreadCount(0);
+        window.addEventListener(NOTIFICATIONS_READ_EVENT, onRead);
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener("visibilitychange", refreshBadge);
+            window.removeEventListener(NOTIFICATIONS_READ_EVENT, onRead);
+        };
     }, [user?.email]);
 
-    const toggleBellMenu = async () => {
-        const willOpen = !bellMenuOpen;
-        if (willOpen && user) {
-            try {
-                await fetch("/api/notifications/mark-read", { method: "POST" });
-                const r = await fetch("/api/notifications?limit=5");
-                const d = await r.json();
-                if (r.ok) {
-                    setNotifPreview(Array.isArray(d.notifications) ? d.notifications : []);
-                    setNotifUnreadCount(parseUnreadCount(d.unreadCount));
-                }
-            } catch (_) {
-                /* ignore */
+    useEffect(() => {
+        if (!bellMenuOpen) return undefined;
+        const onKey = (e) => {
+            if (e.key === "Escape") {
+                setBellMenuOpen(false);
+                bellButtonRef.current?.focus();
             }
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [bellMenuOpen]);
+
+    const toggleBellMenu = async () => {
+        if (bellMenuOpen) {
+            setBellMenuOpen(false);
+            return;
         }
-        setBellMenuOpen(willOpen);
+        // Open straight away with what is already loaded, then refresh once in the background
+        setBellMenuOpen(true);
+        if (!user) return;
+        setNotifLoading(true);
+        try {
+            const r = await fetch("/api/notifications?limit=8");
+            const d = await r.json();
+            if (r.ok) {
+                const list = Array.isArray(d.notifications) ? d.notifications : [];
+                const unread = parseUnreadCount(d.unreadCount);
+                setNotifPreview(list);
+                setNotifNewIds(list.filter((n) => !n.readAt).map((n) => n.id));
+                if (unread > 0) {
+                    // Read state is saved after the list is shown, so the new items stay highlighted
+                    fetch("/api/notifications/mark-read", { method: "POST" })
+                        .then(() => {
+                            setNotifUnreadCount(0);
+                            window.dispatchEvent(new Event(NOTIFICATIONS_READ_EVENT));
+                        })
+                        .catch(() => { });
+                }
+            }
+        } catch (_) {
+            /* keep what is already shown */
+        } finally {
+            setNotifLoading(false);
+        }
     };
 
     // Close mobile menu on outside click
@@ -368,7 +411,8 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                 type="button"
                 onClick={toggleBellMenu}
                 aria-expanded={bellMenuOpen}
-                aria-haspopup="true"
+                aria-haspopup="dialog"
+                ref={bellButtonRef}
                 aria-label={
                     notifUnreadCount > 0
                         ? `Notifications, ${notifUnreadCount} unread`
@@ -385,61 +429,63 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
             </button>
 
             {bellMenuOpen && (
-                <div className="apex-dash-topbar__notif-panel">
-                    <div className="px-4 pb-2 border-b border-[var(--color-rule)] shrink-0">
-                        <p className="font-semibold text-[var(--color-ink)] text-sm">Notifications</p>
-                        <p className="text-xs text-[var(--color-muted)] mt-0.5">
-                            {notifPreview.length ? `Latest ${notifPreview.length}` : "No recent items"}
-                        </p>
-                    </div>
-                    <div className="overflow-y-auto flex-1 px-2 py-1">
-                        {notifPreview.length === 0 ? (
-                            <p className="text-xs text-[var(--color-muted)] text-center py-6 px-2">You&apos;re all caught up.</p>
-                        ) : (
-                            <ul className="space-y-0">
-                                {notifPreview.map((n) => (
-                                    <li key={n.id} className="border-b border-[var(--color-rule)] last:border-0">
-                                        {n.linkUrl?.startsWith("http") ? (
-                                            <a
-                                                href={n.linkUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="block px-2 py-2.5 rounded-lg hover:bg-[var(--color-paper-2)] text-left"
-                                            >
-                                                <p className="text-xs font-semibold text-[var(--color-ink)] line-clamp-1">{n.title}</p>
-                                                <p className="text-xs text-[var(--color-ink-2)] line-clamp-2 mt-0.5">{n.body}</p>
-                                                <p className="text-[0.65rem] text-[var(--color-muted)] mt-1">{formatNotificationTime(n.createdAt)}</p>
-                                            </a>
-                                        ) : n.linkUrl ? (
-                                            <Link
-                                                href={normalizeInternalNotificationHref(n.linkUrl)}
-                                                className="block px-2 py-2.5 rounded-lg hover:bg-[var(--color-paper-2)] text-left"
-                                                onClick={() => setBellMenuOpen(false)}
-                                            >
-                                                <p className="text-xs font-semibold text-[var(--color-ink)] line-clamp-1">{n.title}</p>
-                                                <p className="text-xs text-[var(--color-ink-2)] line-clamp-2 mt-0.5">{n.body}</p>
-                                                <p className="text-[0.65rem] text-[var(--color-muted)] mt-1">{formatNotificationTime(n.createdAt)}</p>
-                                            </Link>
-                                        ) : (
-                                            <div className="px-2 py-2.5">
-                                                <p className="text-xs font-semibold text-[var(--color-ink)] line-clamp-1">{n.title}</p>
-                                                <p className="text-xs text-[var(--color-ink-2)] line-clamp-2 mt-0.5">{n.body}</p>
-                                                <p className="text-[0.65rem] text-[var(--color-muted)] mt-1">{formatNotificationTime(n.createdAt)}</p>
-                                            </div>
-                                        )}
-                                    </li>
+                <div className="apex-notif" role="dialog" aria-label="Notifications">
+                    <header className="apex-notif__head">
+                        <div>
+                            <h2 className="apex-notif__title">Notifications</h2>
+                            <p className={`apex-notif__sub${notifNewIds.length > 0 ? " is-new" : ""}`}>
+                                {notifLoading && notifPreview.length === 0
+                                    ? "Loading"
+                                    : notifNewIds.length > 0
+                                      ? `${notifNewIds.length} new`
+                                      : notifPreview.length > 0
+                                        ? "You are up to date"
+                                        : "Nothing yet"}
+                            </p>
+                        </div>
+                        <Link href="/notifications" className="apex-notif__all" onClick={() => setBellMenuOpen(false)}>
+                            View all
+                        </Link>
+                    </header>
+                    <div className="apex-notif__body">
+                        {notifLoading && notifPreview.length === 0 ? (
+                            <div aria-hidden>
+                                {[0, 1, 2].map((i) => (
+                                    <div key={i} className="apex-notif__skeleton">
+                                        <i />
+                                        <div>
+                                            <i />
+                                            <i />
+                                        </div>
+                                    </div>
                                 ))}
+                            </div>
+                        ) : notifPreview.length === 0 ? (
+                            <div className="apex-notif__empty">
+                                <CategoryBadge category="system" />
+                                <p>You are all caught up</p>
+                                <small>New updates from Searchmind show up here.</small>
+                            </div>
+                        ) : (
+                            <ul className="apex-notif__list">
+                                {notifPreview.map((n) => {
+                                    const isNew = notifNewIds.includes(n.id);
+                                    return (
+                                        <li key={n.id}>
+                                            <NotificationLink n={n} className={`apex-notif__item${isNew ? " is-new" : ""}`} onNavigate={() => setBellMenuOpen(false)}>
+                                                <CategoryBadge category={n.category} size="sm" />
+                                                <div className="apex-notif__text">
+                                                    <p className="apex-notif__item-title">{n.title}</p>
+                                                    <p className="apex-notif__item-body">{n.body}</p>
+                                                    <span className="apex-notif__time">{formatRelativeTime(n.createdAt)}</span>
+                                                </div>
+                                                {isNew ? <span className="apex-notif__dot" aria-label="New" /> : null}
+                                            </NotificationLink>
+                                        </li>
+                                    );
+                                })}
                             </ul>
                         )}
-                    </div>
-                    <div className="px-3 pt-2 border-t border-[var(--color-rule)] shrink-0">
-                        <Link
-                            href="/notifications"
-                            className="block text-center text-xs font-semibold text-[var(--color-accent-light)] py-2 rounded-lg hover:bg-[var(--color-paper-2)]"
-                            onClick={() => setBellMenuOpen(false)}
-                        >
-                            Show all
-                        </Link>
                     </div>
                 </div>
             )}

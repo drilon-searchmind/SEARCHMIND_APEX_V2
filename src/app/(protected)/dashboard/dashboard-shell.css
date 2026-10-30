@@ -921,22 +921,6 @@
   border: none;
 }
 
-.apex-dash-topbar__notif-panel {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 0.5rem);
-  width: min(22rem, calc(100vw - 2rem));
-  max-height: min(70vh, 24rem);
-  display: flex;
-  flex-direction: column;
-  background: var(--color-paper);
-  border: var(--rule-hair) solid var(--color-rule);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  z-index: 50;
-  overflow: hidden;
-}
-
 .apex-dash-topbar__mobile-menu {
   position: fixed;
   top: 3.25rem;
