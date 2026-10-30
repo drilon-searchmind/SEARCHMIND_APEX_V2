@@ -3,30 +3,23 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import dayjs from "dayjs";
-import Select from "react-select";
-import {
-    FiPlus,
-    FiRefreshCw,
-    FiTrash2,
-    FiRotateCcw,
-    FiTrendingUp,
-    FiLayers,
-    FiLink2,
-} from "react-icons/fi";
+import { FiBarChart2, FiRefreshCw, FiSearch, FiSliders } from "react-icons/fi";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import GraphCard from "@/components/dashboard/GraphCard";
-import MetricCard from "@/components/dashboard/MetricCard";
 import CobaltLoader from "@/components/ui/CobaltLoader";
 import { useCustomers } from "@/hooks/useCustomers";
 import { getCobaltChartBaseOptions } from "@/lib/charts/cobaltChartTheme";
-import { cn } from "@/lib/utils";
 import {
     getCountrySelectOptions,
     isWorldwideGeoValue,
     matchCountryOption,
 } from "@/lib/countrySelectOptions";
 import { shareOfSearchBrandColor } from "@/lib/shareOfSearchBrandColors";
+import SosSetup from "./SosSetup";
+import SosResults from "./SosResults";
+import SosHistory from "./SosHistory";
+import { buildInsights } from "./sosAnalytics";
 import {
     buildDisplayRowsFromBrandGroups,
     brandToGroupIdMap,
@@ -48,32 +41,6 @@ const MONTH_OF_YEAR = {
     OCTOBER: 10,
     NOVEMBER: 11,
     DECEMBER: 12,
-};
-
-const COUNTRY_SELECT_STYLES = {
-    control: (base, state) => ({
-        ...base,
-        minHeight: 40,
-        borderRadius: 14,
-        borderColor: state.isFocused ? "#131313" : "#d8d5d0",
-        boxShadow: state.isFocused ? "0 0 0 1px #131313" : "none",
-        fontSize: "0.875rem",
-        backgroundColor: "#ffffff",
-        "&:hover": { borderColor: "#131313" },
-    }),
-    menu: (base) => ({ ...base, zIndex: 50, backgroundColor: "#ffffff" }),
-    option: (base, state) => ({
-        ...base,
-        fontSize: "0.875rem",
-        backgroundColor: state.isSelected
-            ? "#131313"
-            : state.isFocused
-              ? "#f4f3f1"
-              : "#ffffff",
-        color: state.isSelected ? "#ffffff" : "#131313",
-    }),
-    singleValue: (base) => ({ ...base, color: "#131313" }),
-    input: (base) => ({ ...base, color: "#131313" }),
 };
 
 function parseMonthKey(m) {
@@ -149,11 +116,6 @@ function toSharePercentSeries(series) {
 }
 
 
-function formatSharePctValue(val) {
-    if (val == null || val === "" || Number.isNaN(Number(val))) return "—";
-    return `${Number(val).toFixed(2)}%`;
-}
-
 /** Google Ads Keyword Planner language code from country / market selection. */
 function languageCodeForGeo(geoValue) {
     if (isWorldwideGeoValue(geoValue)) return "en";
@@ -179,11 +141,6 @@ function languageCodeForGeo(geoValue) {
         IE: "en",
     };
     return map[code] || "en";
-}
-
-function formatComparisonRange(range) {
-    if (!range?.startDate || !range?.endDate) return null;
-    return `${range.startDate} → ${range.endDate}`;
 }
 
 /** DateRangePicker presets only for Share of Search */
@@ -727,7 +684,7 @@ export default function ShareOfSearchClient() {
             chartOptions: options,
             chartTitle: title,
         };
-    }, [categories, brandLineSeries, selectedChartKeys, chartDisplayMode, chartVisualMode, displayRows]);
+    }, [categories, brandLineSeries, selectedChartKeys, chartDisplayMode, chartVisualMode]);
 
     const totalVolume = useMemo(
         () => (displayRows || []).reduce((s, r) => s + Number(r.volumeInRange || 0), 0),
@@ -793,8 +750,35 @@ export default function ShareOfSearchClient() {
         totalVolume,
     ]);
 
+    const colorFor = useCallback((key) => brandColorByKey.get(key) ?? shareOfSearchBrandColor(0), [brandColorByKey]);
+
+    const sparkByKey = useMemo(() => new Map(brandLineSeries.map((s) => [s.name, s.data])), [brandLineSeries]);
+
+    const insights = useMemo(() => buildInsights(displayRows, brandLineSeries, categories), [displayRows, brandLineSeries, categories]);
+
+    const hasResults = Boolean(metricsRows && metricsRows.length > 0);
+
+    const chartNode = loading ? (
+        <div className="apex-sos-chart-empty">
+            <CobaltLoader variant="inline" title="Loading chart data" />
+        </div>
+    ) : chartSeries.length > 0 ? (
+        <GraphCard
+            variant="cobalt"
+            key={`sos-chart-${chartVisualMode}`}
+            title={chartTitle}
+            chartType={chartVisualMode === "stacked" ? "area" : "line"}
+            chartOptions={chartOptions}
+            chartSeries={chartSeries}
+            height={360}
+            hideChartToggle
+        />
+    ) : (
+        <p className="apex-sos-chart-empty">Select at least one row in the scoreboard to show the chart.</p>
+    );
+
     return (
-        <div id="ShareOfSearchPage" className="apex-perf w-full apex-sos-stack">
+        <div id="ShareOfSearchPage" className="apex-perf w-full apex-sos">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}
@@ -824,588 +808,97 @@ export default function ShareOfSearchClient() {
                 }
             />
 
-            <section className="apex-sos-setup">
-                <div className="apex-sos-keywords-block">
-                    <div className="apex-sos-keywords-block__head">
-                        <label className="apex-sos-field__label mb-0">Keywords</label>
-                        {groupsSaving && (
-                            <span className="text-xs text-[var(--color-muted)]">Saving…</span>
-                        )}
-                    </div>
-
-                    <div className="apex-sos-brand-list apex-sos-brand-list--stack">
-                        {normalizedGroups.map((g) => (
-                            <div key={g.id} className="apex-sos-brand-cluster">
-                                {hasKeywordSelection ? (
-                                    <button
-                                        type="button"
-                                        className={cn(
-                                            "apex-sos-brand-chip apex-sos-brand-chip--group",
-                                            "apex-sos-brand-chip--group-add"
-                                        )}
-                                        onClick={() => addSelectionToGroup(g.id)}
-                                        title={`Add selected keyword(s) to ${g.name}`}
-                                    >
-                                        <FiPlus className="w-3.5 h-3.5 shrink-0" aria-hidden />
-                                        <FiLayers className="w-3.5 h-3.5 shrink-0 opacity-70" aria-hidden />
-                                        {g.name}
-                                    </button>
-                                ) : (
-                                    <span className="apex-sos-brand-chip apex-sos-brand-chip--group">
-                                        <FiLayers className="w-3.5 h-3.5 shrink-0 opacity-70" aria-hidden />
-                                        {g.name}
-                                        <button
-                                            type="button"
-                                            className="apex-sos-brand-chip__remove"
-                                            onClick={() => dissolveGroup(g.id)}
-                                            aria-label={`Ungroup ${g.name}`}
-                                            title="Ungroup"
-                                        >
-                                            <FiTrash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                    </span>
-                                )}
-                                <div className="apex-sos-brand-cluster__members">
-                                    {g.brands.map((b) => (
-                                        <span key={b} className="apex-sos-brand-chip apex-sos-brand-chip--nested">
-                                            {b}
-                                            <button
-                                                type="button"
-                                                className="apex-sos-brand-chip__remove"
-                                                onClick={() => removeBrand(b)}
-                                                aria-label={`Remove ${b}`}
-                                            >
-                                                <FiTrash2 className="w-3.5 h-3.5" />
-                                            </button>
-                                        </span>
-                                    ))}
-                                    {!hasKeywordSelection &&
-                                        ungroupedBrands.map((b) => (
-                                            <button
-                                                key={`${g.id}-add-${b}`}
-                                                type="button"
-                                                className="apex-sos-brand-chip apex-sos-brand-chip--nested apex-sos-brand-chip--add-member"
-                                                onClick={() => addKeywordsToGroup(g.id, [b])}
-                                                title={`Add ${b} to ${g.name}`}
-                                            >
-                                                <FiPlus className="w-3 h-3 shrink-0" aria-hidden />
-                                                {b}
-                                            </button>
-                                        ))}
-                                </div>
-                            </div>
-                        ))}
-                        {ungroupedBrands.map((b) => (
-                            <button
-                                key={b}
-                                type="button"
-                                className={cn(
-                                    "apex-sos-brand-chip apex-sos-brand-chip--selectable",
-                                    selectedForGroup.has(b) && "is-selected"
-                                )}
-                                onClick={() => toggleBrandSelectedForGroup(b)}
-                                title="Click to select for grouping"
-                                aria-label={`${b}. Click to select for grouping.`}
-                            >
-                                <FiLink2
-                                    className="apex-sos-brand-chip__group-hint w-3 h-3 shrink-0 opacity-55"
-                                    aria-hidden
-                                />
-                                {b}
-                                <span
-                                    role="button"
-                                    tabIndex={0}
-                                    className="apex-sos-brand-chip__remove"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        removeBrand(b);
-                                    }}
-                                    onKeyDown={(e) => {
-                                        if (e.key === "Enter" || e.key === " ") {
-                                            e.stopPropagation();
-                                            removeBrand(b);
-                                        }
-                                    }}
-                                    aria-label={`Remove ${b}`}
-                                >
-                                    <FiTrash2 className="w-3.5 h-3.5" />
-                                </span>
-                            </button>
-                        ))}
-                    </div>
-
-                    {hasKeywordSelection && (
-                        <div className="apex-sos-group-bar">
-                            {normalizedGroups.length > 0 && (
-                                <div className="apex-sos-group-bar__existing">
-                                    <span className="text-xs font-medium text-[var(--color-muted)] shrink-0">
-                                        Add to:
-                                    </span>
-                                    {normalizedGroups.map((g) => (
-                                        <button
-                                            key={g.id}
-                                            type="button"
-                                            className="apex-sos-btn apex-sos-btn--sm"
-                                            onClick={() => addSelectionToGroup(g.id)}
-                                        >
-                                            {g.name}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                            {selectedForGroup.size >= 2 && (
-                                <div className="apex-sos-group-bar__new flex flex-wrap items-center gap-2 w-full">
-                                    <input
-                                        type="text"
-                                        className="apex-sos-input flex-1 min-w-[10rem]"
-                                        placeholder="New group name (optional)"
-                                        value={groupNameDraft}
-                                        onChange={(e) => setGroupNameDraft(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
-                                                e.preventDefault();
-                                                createGroupFromSelection();
-                                            }
-                                        }}
-                                    />
-                                    <button
-                                        type="button"
-                                        className="apex-sos-btn apex-sos-btn--primary"
-                                        onClick={createGroupFromSelection}
-                                    >
-                                        New group ({selectedForGroup.size})
-                                    </button>
-                                </div>
-                            )}
-                            <button
-                                type="button"
-                                className="apex-sos-btn apex-sos-btn--sm ml-auto"
-                                onClick={() => {
-                                    setSelectedForGroup(new Set());
-                                    setGroupNameDraft("");
-                                }}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    )}
-
-                    <div className="apex-sos-add-row">
-                        <input
-                            type="text"
-                            className="apex-sos-input"
-                            placeholder="Type a keyword and press Enter…"
-                            value={draft}
-                            onChange={(e) => setDraft(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    addBrand();
-                                }
-                            }}
-                        />
-                        <button
-                            type="button"
-                            className="apex-sos-btn apex-sos-btn--primary apex-sos-btn--icon"
-                            onClick={addBrand}
-                            aria-label="Add keyword"
-                        >
-                            <FiPlus className="w-4 h-4" />
-                        </button>
-                    </div>
-                    <p className="text-xs text-[var(--color-muted)] mt-2">
-                        Select keywords (link icon) to add them to an existing group or create a new one.
-                        You can also use the + chips on a group. Each keyword is still fetched separately.
-                    </p>
-                </div>
-
-                <div className="apex-sos-setup__row">
-                    <div className="flex-1 min-w-0">
-                        <label className="apex-sos-field__label" htmlFor="sos-country">
-                            Country
-                        </label>
-                        <Select
-                            inputId="sos-country"
-                            instanceId="sos-country"
-                            options={countryOptions}
-                            value={countryValue}
-                            onChange={(opt) => setGeoLabel(opt?.value ?? "DK")}
-                            isSearchable
-                            isClearable={false}
-                            placeholder="Search country…"
-                            styles={COUNTRY_SELECT_STYLES}
-                            className="text-sm"
-                        />
-                    </div>
-                    <div className="apex-sos-setup__actions">
-                        <button
-                            type="button"
-                            className="apex-sos-btn"
-                            disabled={loading || (brands.length === 0 && !draft.trim())}
-                            onClick={clearBrands}
-                        >
-                            Clear
-                        </button>
-                        <button
-                            type="button"
-                            className="apex-sos-btn apex-sos-btn--primary"
-                            disabled={loading || brands.length === 0}
-                            onClick={fetchMetrics}
-                        >
-                            <FiRefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
-                            Fetch data
-                        </button>
-                    </div>
-                </div>
-
-                {error && <p className="apex-sos-alert">{error}</p>}
-
-                <p className="apex-sos-help text-sm text-[var(--color-muted)] leading-relaxed mt-3">
-                    Data comes from{" "}
-                    <strong className="font-medium text-[var(--color-ink)]">
-                        Google Ads Keyword Planner
-                    </strong>{" "}
-                    (Google Search network). Each brand is sent as a keyword; we use the matched
-                    idea’s monthly search volumes in your selected country and date range. Share of
-                    Search is each brand’s % of the <em>sum of the brands you listed</em> — not the
-                    whole market.
-                </p>
-            </section>
+            <SosSetup
+                brands={brands}
+                groups={normalizedGroups}
+                ungroupedBrands={ungroupedBrands}
+                selectedForGroup={selectedForGroup}
+                draft={draft}
+                setDraft={setDraft}
+                addBrand={addBrand}
+                removeBrand={removeBrand}
+                toggleSelected={toggleBrandSelectedForGroup}
+                addSelectionToGroup={addSelectionToGroup}
+                createGroupFromSelection={createGroupFromSelection}
+                dissolveGroup={dissolveGroup}
+                groupNameDraft={groupNameDraft}
+                setGroupNameDraft={setGroupNameDraft}
+                clearSelection={() => {
+                    setSelectedForGroup(new Set());
+                    setGroupNameDraft("");
+                }}
+                groupsSaving={groupsSaving}
+                countryOptions={countryOptions}
+                countryValue={countryValue}
+                onCountryChange={(opt) => setGeoLabel(opt?.value ?? "DK")}
+                loading={loading}
+                onFetch={fetchMetrics}
+                onClear={clearBrands}
+                error={error}
+            />
 
             {loadedFromHistoryWithoutComparisons && (
-                <p className="apex-sos-alert">
-                    Loaded from history — click <strong>Fetch data</strong> again to refresh period
-                    comparisons (last period / last year).
+                <p className="apex-sos-alert apex-sos-alert--info">
+                    Loaded from history. Click <strong>Fetch data</strong> again to refresh the prior period and last year comparisons.
                 </p>
             )}
 
-            {metricsRows && metricsRows.length > 0 && (
-                <>
-                    <section>
-                        <h3 className="apex-sos-section__label">Brand metrics</h3>
-                        {comparisonRanges?.note && (
-                            <p className="text-sm text-[var(--color-muted)] mb-3 leading-relaxed">
-                                {comparisonRanges.note}
-                            </p>
-                        )}
-                        {(comparisonRanges?.previousPeriod?.ok ||
-                            comparisonRanges?.lastYear?.ok) && (
-                            <p className="text-xs text-[var(--color-muted)] mb-3 leading-relaxed">
-                                {comparisonRanges?.previousPeriod?.ok && (
-                                    <>
-                                        <span className="font-medium text-[var(--color-ink)]">
-                                            Prior period:{" "}
-                                        </span>
-                                        {formatComparisonRange(comparisonRanges.previousPeriod)}
-                                    </>
-                                )}
-                                {comparisonRanges?.previousPeriod?.ok &&
-                                    comparisonRanges?.lastYear?.ok &&
-                                    !comparisonRanges?.rangesEqual && (
-                                        <span className="mx-2">·</span>
-                                    )}
-                                {comparisonRanges?.lastYear?.ok &&
-                                    !comparisonRanges?.rangesEqual && (
-                                        <>
-                                            <span className="font-medium text-[var(--color-ink)]">
-                                                Last year:{" "}
-                                            </span>
-                                            {formatComparisonRange(comparisonRanges.lastYear)}
-                                        </>
-                                    )}
-                            </p>
-                        )}
-                        <div className="apex-sos-kpi-grid">
-                        {chartDisplayMode === "volume" && (
-                            <div
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => toggleChartKey("__total__")}
-                                onKeyDown={(e) =>
-                                    (e.key === "Enter" || e.key === " ") && toggleChartKey("__total__")
-                                }
-                                className="apex-sos-kpi-card"
-                            >
-                                <MetricCard
-                                    variant="cobalt"
-                                    label="Total search volume"
-                                    value={totalVolume.toLocaleString()}
-                                    icon={<FiLayers />}
-                                    isActive={selectedChartKeys.includes("__total__")}
-                                    comparisonMethod={null}
-                                    hideIconBackdrop
-                                    className="h-full"
-                                />
+            {hasResults ? (
+                <SosResults
+                    rows={displayRows}
+                    keywordRows={metricsRows}
+                    colorFor={colorFor}
+                    sparkByKey={sparkByKey}
+                    selectedKeys={selectedChartKeys}
+                    onToggleKey={toggleChartKey}
+                    mode={chartDisplayMode}
+                    onModeChange={handleChartModeChange}
+                    visualMode={chartVisualMode}
+                    onVisualChange={setChartVisualMode}
+                    chartNode={chartNode}
+                    totalVolume={totalVolume}
+                    comparisonRanges={comparisonRanges}
+                    insights={insights}
+                    grouped={applyBrandGroupsInCharts}
+                    range={appliedRange}
+                    countryLabel={countryValue?.label || geoLabel}
+                />
+            ) : !loading ? (
+                <section className="apex-sos-card apex-sos-onboard" aria-label="How it works">
+                    <h2 className="apex-sos-card__title">Your results will appear here</h2>
+                    <ol>
+                        <li>
+                            <span aria-hidden>
+                                <FiSearch />
+                            </span>
+                            <div>
+                                <b>Add brands</b>
+                                <p>Your own brand and the competitors you want to compare.</p>
                             </div>
-                        )}
-                        {displayRows.map((row) => {
-                            const chartKey = rowChartKey(row);
-                            return (
-                            <div
-                                key={chartKey}
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => toggleChartKey(chartKey)}
-                                onKeyDown={(e) =>
-                                    (e.key === "Enter" || e.key === " ") && toggleChartKey(chartKey)
-                                }
-                                className="apex-sos-kpi-card"
-                            >
-                                <MetricCard
-                                    variant="cobalt"
-                                    label={
-                                        <span className="flex items-center gap-2 min-w-0">
-                                            <span
-                                                className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/10"
-                                                style={{
-                                                    backgroundColor:
-                                                        brandColorByKey.get(chartKey) ??
-                                                        shareOfSearchBrandColor(0),
-                                                }}
-                                                aria-hidden
-                                            />
-                                            <span className="truncate">{row.label || row.brand}</span>
-                                        </span>
-                                    }
-                                    value={`${row.sharePct}%`}
-                                    subCaption={
-                                        <div className="flex flex-col gap-1 leading-snug">
-                                            {row.isGroup && (
-                                                <span className="text-[var(--color-muted)]">
-                                                    {row.memberBrands?.length || 0} keywords grouped
-                                                </span>
-                                            )}
-                                            <span>
-                                                volume:{" "}
-                                                {Number(row.volumeInRange || 0).toLocaleString()}
-                                            </span>
-                                            <span>
-                                                SoS % prior period:{" "}
-                                                {formatSharePctValue(row.sharePctPreviousPeriod)}
-                                            </span>
-                                            {!comparisonRanges?.rangesEqual && (
-                                                <span>
-                                                    SoS % YoY (last year):{" "}
-                                                    {formatSharePctValue(row.sharePctLastYear)}
-                                                </span>
-                                            )}
-                                        </div>
-                                    }
-                                    icon={<FiTrendingUp />}
-                                    isActive={selectedChartKeys.includes(chartKey)}
-                                    comparisonMethod={null}
-                                    hideIconBackdrop
-                                    className="h-full"
-                                />
+                        </li>
+                        <li>
+                            <span aria-hidden>
+                                <FiSliders />
+                            </span>
+                            <div>
+                                <b>Pick country and dates</b>
+                                <p>Search volumes are for one country and a date range.</p>
                             </div>
-                            );
-                        })}
-                        </div>
-                    </section>
-
-                    <section>
-                        <h3 className="apex-sos-section__label">Trend chart</h3>
-                        <div className="apex-sos-chart-block">
-                        <div className="apex-sos-tab-group">
-                            <button
-                                type="button"
-                                className={cn("apex-sos-tab", chartDisplayMode === "share" && "is-active")}
-                                onClick={() => handleChartModeChange("share")}
-                            >
-                                Share of search
-                            </button>
-                            <button
-                                type="button"
-                                className={cn("apex-sos-tab", chartDisplayMode === "volume" && "is-active")}
-                                onClick={() => handleChartModeChange("volume")}
-                            >
-                                Search volume
-                            </button>
-                            <span className="apex-sos-tab-divider hidden sm:block" aria-hidden />
-                            <button
-                                type="button"
-                                className={cn("apex-sos-tab", chartVisualMode === "stacked" && "is-active")}
-                                onClick={() => setChartVisualMode("stacked")}
-                            >
-                                Stacked
-                            </button>
-                            <button
-                                type="button"
-                                className={cn("apex-sos-tab", chartVisualMode === "lines" && "is-active")}
-                                onClick={() => setChartVisualMode("lines")}
-                            >
-                                Lines
-                            </button>
-                        </div>
-                        {loading ? (
-                            <div className="apex-sos-chart-empty">
-                                <CobaltLoader variant="inline" title="Loading chart data" />
+                        </li>
+                        <li>
+                            <span aria-hidden>
+                                <FiBarChart2 />
+                            </span>
+                            <div>
+                                <b>Fetch data</b>
+                                <p>See who leads, who is gaining and how it moved over time.</p>
                             </div>
-                        ) : chartSeries.length > 0 ? (
-                            <GraphCard
-                                variant="cobalt"
-                                key={`sos-chart-${chartVisualMode}`}
-                                title={chartTitle}
-                                chartType={chartVisualMode === "stacked" ? "area" : "line"}
-                                chartOptions={chartOptions}
-                                chartSeries={chartSeries}
-                                height={360}
-                                hideChartToggle
-                            />
-                        ) : (
-                            <p className="apex-sos-chart-empty">
-                                Select at least one metric to show the chart.
-                            </p>
-                        )}
-                        </div>
-                    </section>
+                        </li>
+                    </ol>
+                </section>
+            ) : null}
 
-                    <section className="apex-sos-table-panel">
-                        <div className="apex-sos-table-panel__head">
-                            <h3 className="apex-sos-table-panel__title">
-                                {applyBrandGroupsInCharts ? "Grouped results" : "Results"}
-                            </h3>
-                            <p className="apex-sos-table-panel__subtitle">
-                                {applyBrandGroupsInCharts
-                                    ? "Combined volumes and share % per brand group."
-                                    : "Keyword Planner volumes and share for the selected period."}
-                            </p>
-                        </div>
-                        <div className="apex-sos-table-wrap">
-                        <table className="apex-sos-table">
-                            <thead>
-                                <tr>
-                                    <th>Brand</th>
-                                    <th>Keywords</th>
-                                    <th className="is-num">Volume in range</th>
-                                    <th className="is-num">Share</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {displayRows.map((r) => (
-                                    <tr key={rowChartKey(r)}>
-                                        <td className="is-brand">{r.label || r.brand}</td>
-                                        <td className="is-muted">
-                                            {r.isGroup
-                                                ? (r.memberBrands || []).join(", ")
-                                                : r.apiKeywordText}
-                                        </td>
-                                        <td className="is-num">
-                                            {Number(r.volumeInRange || 0).toLocaleString()}
-                                        </td>
-                                        <td className="is-num">{r.sharePct}%</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        </div>
-                    </section>
-
-                    <section className="apex-sos-table-panel">
-                        <div className="apex-sos-table-panel__head">
-                            <h3 className="apex-sos-table-panel__title">All keywords fetched</h3>
-                            <p className="apex-sos-table-panel__subtitle">
-                                One row per search term sent to Keyword Planner (before grouping).
-                            </p>
-                        </div>
-                        <div className="apex-sos-table-wrap">
-                        <table className="apex-sos-table">
-                            <thead>
-                                <tr>
-                                    <th>Keyword</th>
-                                    <th>Matched in API</th>
-                                    <th className="is-num">Volume in range</th>
-                                    <th className="is-num">Share (ungrouped)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {metricsRows.map((r) => (
-                                    <tr key={r.brand}>
-                                        <td className="is-brand">{r.brand}</td>
-                                        <td className="is-muted">{r.apiKeywordText}</td>
-                                        <td className="is-num">
-                                            {Number(r.volumeInRange || 0).toLocaleString()}
-                                        </td>
-                                        <td className="is-num">{r.sharePct}%</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        </div>
-                    </section>
-                </>
-            )}
-
-            <section className="apex-sos-table-panel">
-                <div className="apex-sos-table-panel__head">
-                    <h2 className="apex-sos-table-panel__title">History</h2>
-                    <p className="apex-sos-table-panel__subtitle">
-                        Previously saved searches. Load one to restore settings and results, or delete it.
-                    </p>
-                </div>
-                {historyLoading ? (
-                    <div className="apex-sos-loading">
-                        <CobaltLoader variant="inline" title="Loading history" />
-                    </div>
-                ) : history.length === 0 ? (
-                    <p className="apex-sos-empty">No saved searches yet. Fetch data to create one.</p>
-                ) : (
-                    <div className="apex-sos-table-wrap">
-                        <table className="apex-sos-table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Brands</th>
-                                    <th>Country</th>
-                                    <th>Period</th>
-                                    <th className="is-num">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {history.map((h) => (
-                                    <tr key={String(h._id)}>
-                                        <td className="whitespace-nowrap">
-                                            {h.createdAt
-                                                ? dayjs(h.createdAt).format("YYYY-MM-DD HH:mm")
-                                                : "—"}
-                                        </td>
-                                        <td>{(h.brands || []).join(", ")}</td>
-                                        <td>{h.geoLabel}</td>
-                                        <td className="is-muted whitespace-nowrap">
-                                            {h.startDate} → {h.endDate}
-                                        </td>
-                                        <td className="is-num">
-                                            <div className="apex-sos-table__actions">
-                                                <button
-                                                    type="button"
-                                                    className="apex-sos-btn apex-sos-btn--sm"
-                                                    onClick={() => reuseSnapshot(h)}
-                                                >
-                                                    <FiRotateCcw className="w-3.5 h-3.5" />
-                                                    Load
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className="apex-sos-btn apex-sos-btn--sm apex-sos-btn--danger"
-                                                    disabled={deletingId === String(h._id)}
-                                                    onClick={() => deleteSnapshot(h._id)}
-                                                >
-                                                    {deletingId === String(h._id) ? (
-                                                        <FiRefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                                    ) : (
-                                                        <FiTrash2 className="w-3.5 h-3.5" />
-                                                    )}
-                                                    Delete
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </section>
+            <SosHistory history={history} loading={historyLoading} deletingId={deletingId} onLoad={reuseSnapshot} onDelete={deleteSnapshot} />
         </div>
     );
 }
