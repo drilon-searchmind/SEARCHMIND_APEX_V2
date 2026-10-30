@@ -6,9 +6,10 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { useSetUser } from "@/contexts/UserContext";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import CobaltLoader from "@/components/ui/CobaltLoader";
-import DataWrappedCobaltModal from "./components/DataWrappedCobaltModal";
-import { FiGift, FiCalendar, FiChevronRight } from "react-icons/fi";
+import WrappedStory from "./components/WrappedStory";
+import { FiPlay, FiLock } from "react-icons/fi";
 import { pushGTMEvent, GTM_EVENTS } from "@root/lib/gtmFunctions";
+import { getPeriodLabel } from "@/lib/dataWrapped";
 import "./data-wrapped.css";
 
 function getCurrentPeriod() {
@@ -18,9 +19,7 @@ function getCurrentPeriod() {
 
 function isLastDayOfMonth() {
     const d = new Date();
-    const year = d.getFullYear();
-    const month = d.getMonth();
-    const lastDay = new Date(year, month + 1, 0).getDate();
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
     return d.getDate() === lastDay;
 }
 
@@ -30,21 +29,9 @@ function getLastMonthPeriod() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-const getLatestAvailablePeriod = () =>
-    isLastDayOfMonth() ? getCurrentPeriod() : getLastMonthPeriod();
+const getLatestAvailablePeriod = () => (isLastDayOfMonth() ? getCurrentPeriod() : getLastMonthPeriod());
 
-const MONTH_NAMES = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
-];
-
-function getPeriodLabel(period) {
-    if (!period || !/^\d{4}-\d{2}$/.test(period)) return "";
-    const [y, m] = period.split("-").map(Number);
-    return `${MONTH_NAMES[m - 1]} ${y}`;
-}
-
-const WRAPPED_TOPICS = ["Revenue", "Orders", "ROAS & POAS", "Ad spend", "Team"];
+const TILE_TONES = ["mint", "green", "sage", "dark"];
 
 export default function DataWrappedPage() {
     const params = useParams();
@@ -56,32 +43,10 @@ export default function DataWrappedPage() {
     const [reports, setReports] = useState({ monthly: [], quarterly: [], yearly: [] });
     const [reportsLoading, setReportsLoading] = useState(true);
 
-    const latestReportType = reports.monthly?.length > 0 ? "monthly" : "monthly";
-
-    const copyByType = {
-        monthly: {
-            title: "Your monthly ecommerce wrapped",
-            description:
-                "A personalized summary of your store's performance — revenue, orders, ROAS, team, and more.",
-        },
-        quarterly: {
-            title: "Your quarterly ecommerce wrapped",
-            description:
-                "A personalized summary of your store's performance this quarter — revenue, orders, ROAS, and more.",
-        },
-        yearly: {
-            title: "Your annual ecommerce wrapped",
-            description:
-                "A personalized summary of your store's performance this year — revenue, orders, ROAS, and more.",
-        },
-    };
-
-    const copy = copyByType[latestReportType] || copyByType.monthly;
     const latestPeriod = getLatestAvailablePeriod();
-    const latestReport =
-        reports.monthly?.find((r) => r.period === latestPeriod) || reports.monthly?.[0];
-    const latestPeriodLabel =
-        latestReport?.periodLabel || getPeriodLabel(latestPeriod) || "Latest month";
+    const latestReport = reports.monthly?.find((r) => r.period === latestPeriod) || reports.monthly?.[0];
+    const latestLabel = latestReport?.periodLabel || getPeriodLabel(latestPeriod) || "Latest month";
+    const latestMonthName = latestLabel.split(" ")[0];
     const savedReportCount = reports.monthly?.length ?? 0;
 
     const fetchReports = () => {
@@ -91,11 +56,7 @@ export default function DataWrappedPage() {
             .then((res) => (res.ok ? res.json() : { monthly: [], quarterly: [], yearly: [] }))
             .then((data) => {
                 setReports(data);
-                const allPeriods = [
-                    ...(data.monthly || []).map((r) => r.period),
-                    ...(data.quarterly || []).map((r) => r.period),
-                    ...(data.yearly || []).map((r) => r.period),
-                ].filter(Boolean);
+                const allPeriods = [...(data.monthly || []), ...(data.quarterly || []), ...(data.yearly || [])].map((r) => r.period).filter(Boolean);
                 if (allPeriods.length > 0 && params.customerId) {
                     fetch("/api/data-wrapped/mark-opened", {
                         method: "POST",
@@ -104,17 +65,9 @@ export default function DataWrappedPage() {
                     })
                         .then(() => {
                             setUser((prev) => {
-                                const prevObj =
-                                    prev?.openedWrappedPeriods && !Array.isArray(prev.openedWrappedPeriods)
-                                        ? prev.openedWrappedPeriods
-                                        : {};
-                                const customerPeriods = [
-                                    ...new Set([...(prevObj[params.customerId] || []), ...allPeriods]),
-                                ];
-                                return {
-                                    ...prev,
-                                    openedWrappedPeriods: { ...prevObj, [params.customerId]: customerPeriods },
-                                };
+                                const prevObj = prev?.openedWrappedPeriods && !Array.isArray(prev.openedWrappedPeriods) ? prev.openedWrappedPeriods : {};
+                                const customerPeriods = [...new Set([...(prevObj[params.customerId] || []), ...allPeriods])];
+                                return { ...prev, openedWrappedPeriods: { ...prevObj, [params.customerId]: customerPeriods } };
                             });
                         })
                         .catch(() => {});
@@ -128,24 +81,9 @@ export default function DataWrappedPage() {
         fetchReports();
     }, [params.customerId]);
 
-    const openLatest = () => {
-        const period = getLatestAvailablePeriod();
-        pushGTMEvent(GTM_EVENTS.DATA_WRAPPED_MODAL_OPENED, {
-            eventData: {
-                customerId: params.customerId ? String(params.customerId) : "",
-                period,
-            },
-        });
-        setModalPeriod(period);
-        setShowWrapped(true);
-    };
-
     const openPeriod = (period) => {
         pushGTMEvent(GTM_EVENTS.DATA_WRAPPED_MODAL_OPENED, {
-            eventData: {
-                customerId: params.customerId ? String(params.customerId) : "",
-                period: period != null ? String(period) : "",
-            },
+            eventData: { customerId: params.customerId ? String(params.customerId) : "", period: period != null ? String(period) : "" },
         });
         setModalPeriod(period);
         setShowWrapped(true);
@@ -158,134 +96,98 @@ export default function DataWrappedPage() {
     };
 
     return (
-        <div id="DataWrappedPage" className="apex-perf w-full apex-dw-stack">
+        <div id="DataWrappedPage" className="apex-perf w-full apex-dwp">
             <DashboardHeading
                 variant="cobalt"
                 showRunAudit={false}
                 title="Data Wrapped"
                 label={customer?.customerName || ""}
-                subtitle="Monthly performance stories for your store — swipe through full-screen chapters."
+                subtitle="Your month as a story. Tap through revenue, orders, ad spend and what it all returned."
                 showAnalyzeWithAi={false}
                 showPdfExport={false}
             />
 
-            <section className="apex-dw-spotlight" aria-labelledby="dw-spotlight-title">
-                <div className="apex-dw-spotlight__body">
-                    <p className="apex-dw-spotlight__eyebrow">Monthly wrapped</p>
-                    <h2 id="dw-spotlight-title" className="apex-dw-spotlight__title">
-                        {copy.title}
+            <section className="apex-dwp__hero" aria-labelledby="dwp-hero-title">
+                <div className="apex-dwp__hero-copy">
+                    <p className="apex-dwp__eyebrow">{reportsLoading ? "Loading" : latestLabel}</p>
+                    <h2 id="dwp-hero-title" className="apex-dwp__title">
+                        Your {latestMonthName} wrapped is ready
                     </h2>
-                    <p className="apex-dw-spotlight__desc">{copy.description}</p>
-                    <ul className="apex-dw-spotlight__topics" aria-label="Included in each report">
-                        {WRAPPED_TOPICS.map((topic) => (
-                            <li key={topic} className="apex-dw-spotlight__topic">
-                                {topic}
-                            </li>
-                        ))}
-                    </ul>
+                    <p className="apex-dwp__lede">A full-screen story with your numbers, your best days and how every channel did. About a minute.</p>
+                    <div className="apex-dwp__cta-row">
+                        <button type="button" className="apex-dwp__play" onClick={() => openPeriod(latestPeriod)} disabled={reportsLoading}>
+                            <FiPlay aria-hidden /> Play wrapped
+                        </button>
+                        {!reportsLoading && savedReportCount > 0 ? (
+                            <span className="apex-dwp__meta">
+                                {savedReportCount} saved {savedReportCount === 1 ? "month" : "months"}
+                            </span>
+                        ) : null}
+                    </div>
                 </div>
 
-                <aside className="apex-dw-spotlight__aside">
-                    <div className="apex-dw-spotlight__card">
-                        <div className="apex-dw-spotlight__card-head">
-                            <span className="apex-dw-spotlight__card-label">Latest period</span>
-                            {reportsLoading ? (
-                                <span className="apex-dw-spotlight__card-period is-loading">Loading…</span>
-                            ) : (
-                                <span className="apex-dw-spotlight__card-period">{latestPeriodLabel}</span>
-                            )}
-                        </div>
-
-                        {!reportsLoading && savedReportCount > 0 ? (
-                            <p className="apex-dw-spotlight__card-meta">
-                                <strong>{savedReportCount}</strong> saved report
-                                {savedReportCount === 1 ? "" : "s"}
-                            </p>
-                        ) : null}
-
-                        <button
-                            type="button"
-                            onClick={openLatest}
-                            className="apex-perf-btn apex-perf-btn--primary apex-dw-spotlight__cta"
-                            disabled={reportsLoading}
-                        >
-                            <FiGift aria-hidden />
-                            View latest wrapped
-                        </button>
-
-                        <p className="apex-dw-spotlight__hint">
-                            Opens full-screen · swipe through 12 chapters
-                        </p>
-                    </div>
-                </aside>
+                <div className="apex-dwp__deck" aria-hidden>
+                    <span className="apex-dwp__card apex-dwp__card--1">
+                        <b>{latestMonthName}</b>
+                        <i>Revenue</i>
+                    </span>
+                    <span className="apex-dwp__card apex-dwp__card--2">
+                        <b>Orders</b>
+                        <i>Every minute counts</i>
+                    </span>
+                    <span className="apex-dwp__card apex-dwp__card--3">
+                        <b>ROAS</b>
+                        <i>What ads returned</i>
+                    </span>
+                </div>
             </section>
 
-            <div className="apex-dw-history">
-                <div className="apex-dw-history__head">
-                    <h3 className="apex-dw-history__title">Historical overview</h3>
-                    <p className="apex-dw-history__subtitle">Open previous wrapped reports</p>
+            <section className="apex-dwp__history" aria-labelledby="dwp-history-title">
+                <div className="apex-dwp__history-head">
+                    <h3 id="dwp-history-title">Previous months</h3>
+                    <p>Replay any saved wrapped.</p>
                 </div>
 
                 {reportsLoading ? (
-                    <div className="apex-dw-loader-panel">
+                    <div className="apex-dwp__loader">
                         <CobaltLoader variant="block" title="Loading reports" />
                     </div>
                 ) : (
-                    <div className="apex-dw-history__grid">
-                        <div className="apex-dw-history__col">
-                            <div className="apex-dw-history__col-head">
-                                <FiCalendar aria-hidden />
-                                <h4 className="apex-dw-history__col-title">Monthly</h4>
-                            </div>
-                            {reports.monthly?.length > 0 ? (
-                                <div className="apex-dw-period-list">
-                                    {reports.monthly.map((r) => (
-                                        <button
-                                            key={r.period}
-                                            type="button"
-                                            onClick={() => openPeriod(r.period)}
-                                            className="apex-dw-period-btn"
-                                        >
-                                            <span>{r.periodLabel}</span>
-                                            <FiChevronRight aria-hidden />
+                    <ul className="apex-dwp__tiles">
+                        {reports.monthly?.length > 0 ? (
+                            reports.monthly.map((r, i) => {
+                                const [name, year] = String(r.periodLabel || "").split(" ");
+                                return (
+                                    <li key={r.period}>
+                                        <button type="button" className={`apex-dwp__tile apex-dwp__tile--${TILE_TONES[i % TILE_TONES.length]}`} onClick={() => openPeriod(r.period)} aria-label={`Play ${r.periodLabel}`}>
+                                            <span className="apex-dwp__tile-year">{year}</span>
+                                            <span className="apex-dwp__tile-month">{name}</span>
+                                            <span className="apex-dwp__tile-play" aria-hidden>
+                                                <FiPlay />
+                                            </span>
                                         </button>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="apex-dw-empty-note">
-                                    No monthly reports yet. View your latest wrapped to create one.
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="apex-dw-history__col">
-                            <div className="apex-dw-history__col-head">
-                                <FiCalendar aria-hidden className="opacity-40" />
-                                <h4 className="apex-dw-history__col-title is-muted">Quarterly</h4>
-                                <span className="apex-dw-badge">Coming later</span>
-                            </div>
-                            <p className="apex-dw-empty-note">Quarterly reports will be available soon.</p>
-                        </div>
-
-                        <div className="apex-dw-history__col">
-                            <div className="apex-dw-history__col-head">
-                                <FiCalendar aria-hidden className="opacity-40" />
-                                <h4 className="apex-dw-history__col-title is-muted">Yearly</h4>
-                                <span className="apex-dw-badge">Coming later</span>
-                            </div>
-                            <p className="apex-dw-empty-note">Yearly reports will be available soon.</p>
-                        </div>
-                    </div>
+                                    </li>
+                                );
+                            })
+                        ) : (
+                            <li className="apex-dwp__empty">No saved months yet. Play your latest wrapped to create the first one.</li>
+                        )}
+                        <li className="apex-dwp__soon">
+                            <FiLock aria-hidden />
+                            <span>Quarterly</span>
+                            <small>Coming later</small>
+                        </li>
+                        <li className="apex-dwp__soon">
+                            <FiLock aria-hidden />
+                            <span>Yearly</span>
+                            <small>Coming later</small>
+                        </li>
+                    </ul>
                 )}
-            </div>
+            </section>
 
             {showWrapped ? (
-                <DataWrappedCobaltModal
-                    onClose={closeWrapped}
-                    customerId={params.customerId}
-                    customerName={customer?.customerName}
-                    period={modalPeriod ?? getLatestAvailablePeriod()}
-                />
+                <WrappedStory onClose={closeWrapped} customerId={params.customerId} customerName={customer?.customerName} period={modalPeriod ?? latestPeriod} />
             ) : null}
         </div>
     );

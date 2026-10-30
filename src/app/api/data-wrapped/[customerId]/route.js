@@ -6,13 +6,36 @@ import DataWrappedReport from '@/models/DataWrappedReport';
 import { getCustomerById } from '../../../../../lib/customerOperations';
 import { getDemoPayload, isDemoCustomerId } from '@/lib/demoCustomer';
 import { getDemoMergedSourcesForRange } from '@/lib/demoMergedSources';
+import { buildWrappedData, getMonthRange, previousPeriod, summarizeMerged } from '@/lib/dataWrapped';
 
-function getMonthRange(period) {
-    const [year, month] = period.split('-').map(Number);
-    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-    const lastDay = new Date(year, month, 0).getDate();
-    const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-    return { startDate, endDate };
+/**
+ * Headline numbers of the previous month for the comparison slide. A saved report is reused when there
+ * is one; otherwise the month is fetched once. Any failure just means the comparison slide is skipped.
+ */
+async function loadPreviousSummary(customerId, period, settings) {
+    const prevPeriod = previousPeriod(period);
+    try {
+        const saved = await DataWrappedReport.findOne({ customerId, period: prevPeriod }).lean();
+        const d = saved?.data;
+        if (d && Number.isFinite(Number(d.netRevenue))) {
+            return {
+                period: prevPeriod,
+                netRevenue: Number(d.netRevenue) || 0,
+                orders: Number(d.orders) || 0,
+                netAov: Number(d.netAov) || 0,
+                totalSpend: Number(d.totalSpend) || 0,
+                roas: Number(d.roas) || 0,
+                poas: Number(d.poas) || 0,
+            };
+        }
+        const { startDate, endDate } = getMonthRange(prevPeriod);
+        const merged = await fetchMergedSources(settings, startDate, endDate, {});
+        const summary = summarizeMerged(merged);
+        return summary.netRevenue > 0 || summary.orders > 0 ? { period: prevPeriod, ...summary } : null;
+    } catch (err) {
+        console.error('Data wrapped previous month error:', err);
+        return null;
+    }
 }
 
 function isLastDayOfMonth() {
@@ -27,51 +50,6 @@ function isCurrentMonth(period) {
     const d = new Date();
     const current = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     return period === current;
-}
-
-function buildWrappedData(merged, customer, period) {
-    const [year, month] = period.split('-').map(Number);
-    const { shopifyDaily, facebookDaily, googleDaily, grossProfitNetSales } = merged;
-
-    const netRevenue = shopifyDaily.reduce((sum, d) => sum + (d.net_sales || 0), 0);
-    const totalSales = shopifyDaily.reduce((sum, d) => sum + (d.total_sales || 0), 0);
-    const orders = shopifyDaily.reduce((sum, d) => sum + (d.orders || 0), 0);
-    const fbAdspend = facebookDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
-    const googleAdspend = googleDaily.reduce((sum, d) => sum + (d.spend || 0), 0);
-    const totalAdspend = fbAdspend + googleAdspend;
-
-    const roas = totalAdspend > 0 ? totalSales / totalAdspend : 0;
-    const poas = totalAdspend > 0 ? grossProfitNetSales / totalAdspend : 0;
-    const netAov = orders > 0 ? netRevenue / orders : 0;
-
-    const topChannel = fbAdspend >= googleAdspend ? 'Facebook' : 'Google';
-    const topChannelShare = totalAdspend > 0
-        ? Math.round(((fbAdspend >= googleAdspend ? fbAdspend : googleAdspend) / totalAdspend) * 100)
-        : 0;
-
-    const settings = customer?.CustomerSettings || {};
-    const services = [];
-    if (settings.facebookAdAccountId) services.push('PS');
-    if (settings.googleAdsCustomerId) services.push('PPC');
-    if (settings.googleSearchConsoleProperty) services.push('SEO');
-    if (settings.shopifyUrl || settings.wooCommerceApiUrl) services.push('EM');
-    if (services.length === 0) services.push('Ecommerce');
-
-    return {
-        customerName: customer?.customerName || 'Your Store',
-        period,
-        year,
-        month,
-        netRevenue,
-        orders,
-        roas,
-        poas,
-        totalSpend: totalAdspend,
-        netAov,
-        topChannel,
-        topChannelShare,
-        services,
-    };
 }
 
 export async function GET(request, { params }) {
@@ -99,7 +77,12 @@ export async function GET(request, { params }) {
             customer = getDemoPayload('customer');
         }
         const merged = getDemoMergedSourcesForRange(startDate, endDate, customer);
-        const wrappedData = buildWrappedData(merged, customer, period);
+        const prevPeriod = previousPeriod(period);
+        const prevRange = getMonthRange(prevPeriod);
+        const prevMerged = getDemoMergedSourcesForRange(prevRange.startDate, prevRange.endDate, customer);
+        const prevSummary = summarizeMerged(prevMerged);
+        const prev = prevSummary.netRevenue > 0 ? { period: prevPeriod, ...prevSummary } : null;
+        const wrappedData = buildWrappedData(merged, customer, period, prev);
         return Response.json({ data: wrappedData, fromCache: true });
     }
 
@@ -138,7 +121,8 @@ export async function GET(request, { params }) {
         };
 
         const merged = await fetchMergedSources(settings, startDate, endDate, {});
-        const wrappedData = buildWrappedData(merged, customer, period);
+        const prev = await loadPreviousSummary(customerId, period, settings);
+        const wrappedData = buildWrappedData(merged, customer, period, prev);
 
         const report = new DataWrappedReport({
             customerId,
