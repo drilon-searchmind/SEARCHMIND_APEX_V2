@@ -1,0 +1,62 @@
+{
+  "schema": "searchmind.session-state/v1",
+  "source": "handoff",
+  "created_at": "2026-10-29T14:11:13.908Z",
+  "session_id": "70b0071f-cf2f-47b5-ae27-6d3ce5548c37",
+  "goal": "Redesign Apex (Next.js 15, React 19, Tailwind v4, ApexCharts) side for side i commerce-dashboard-designet (spec i DESIGN.md), så hver service-dashboard-side også får nye relevante features og demodata, der matcher det, API'et faktisk kan l…",
+  "current_focus": "LinkedIn Ads er færdig, committet (25e8f63) og pushet. Brugeren spurgte, hvilken kunde LinkedIn kan testes på. Svaret er givet: ingen kunde har LinkedIn forbundet, kun demo-kontoen virker, og serverens token kan se to annoncekonti. Den næs…",
+  "next_step": "Afvent brugerens næste side. De resterende migrationspunkter i DESIGN.md er Snapchat, Reddit, Bing Webmaster, config, øvrige tools, /home, parent-property og apex-radar.",
+  "completed": [
+    "Migreret og pushet: shell, Overview, Daily, Markets, Pace, P&L, Ecommerce, SEO",
+    "Migreret og pushet: PPC, PS (Meta), Email (Klaviyo, med trinvis indlæsning), Pinterest, Bing Ads (Microsoft)",
+    "LinkedIn Ads: Overview, Audience, Campaigns, Ads (commit 25e8f63, pushet)",
+    "Delte dele i src/components/dashboard: ServiceParts, ServiceTable, service-parts.css",
+    "Hver side har en seedet demomodul (src/lib/demo*.js) og en preview-rute under src/app/preview/dashboard/[customerId]/service-dashboard/",
+    "LinkedIn-fetcheren er verificeret mod en rigtig konto; demografisk paginering er rettet (4 s i stedet for over 70 s)",
+    "Dashboard shell (sidebar + topbar), tokens and new DESIGN.md (old spec moved to docs/design/DESIGN-minimal-legacy.md)",
+    "Overview (performance-dashboard): key metrics block, aligned section rows, distinct chart colours, dark tooltip and popovers"
+  ],
+  "open_tasks": [
+    "Snapchat, Reddit og Bing Webmaster mangler stadig redesign",
+    "Config, øvrige tools, /home, parent-property og apex-radar mangler migrering (se migrationstabellen i DESIGN.md)",
+    "Rigtige kunder er kun delvist testet: Pinterest- og Microsoft-tokens er udløbet (401 og invalid_grant), og de to kunder med Bing har alfanumeriske konto-id'er, som API'et afviser. De nye live-kald til Pinterest (kampagne-spend) og Microsoft (søgeforespørgsler, enhed og netværk, impression share) er derfor ikke kørt mod API'erne",
+    "Ingen kunde har LinkedIn forbundet i Apex; kun demo-kontoen virker. Serverens LinkedIn-token kan se to annoncekonti (id'er er i DESIGN.md-testhistorikken i chatten, ikke her)",
+    "Siderne er ikke verificeret med en rigtig logget-ind kunde, kun demo-preview-ruter",
+    "Mulig P&L-datafejl at bekræfte: statiske udgifter viser bureau, værktøjer og faste, men opgørelsen viser 0 kr. for demoperioden"
+  ],
+  "decisions": [
+    "Arbejd kun på branchen redesign/commerce-dashboard; aldrig commit eller push til main, og deploy ikke",
+    "Push kun, når brugeren beder om det",
+    "Start eller genstart ikke dev-serveren; verificér mod brugerens server på localhost:3000 via demo-preview-ruter, og spørg brugeren, hvis den er nede",
+    "Brug ikke \"—\" eller \"–\" i tekst; brug komma, punktum, parentes eller kolon",
+    "Opfind ikke tal eller kilder; estimater skal mærkes tydeligt, og status vurderes kun mod kontoens egen reference",
+    "Undgå persondata og kundenavne i svar; brug kun ID'er og strukturer fra rigtige konti",
+    "Flerkanals-diagrammer bruger METRIC_CHART_PALETTE, ikke brandgrøn",
+    "Hver side får en lille eller seedet demomodul, en preview-rute, en mobilcheck ved 390 px, opdateret DESIGN.md og en commit med Co-Authored-By-linje",
+    "Demo-kontoens gemte indstillinger i databasen må ikke skjule demoskabelonen: tomme værdier ignoreres i mergeDemoCustomerDocument (src/lib/demoCustomer.js)",
+    "Ekstra API-kald (demografi, søgetermer, enhed og netværk) kører kun for dashboardet bag includeExtras, så fletningskald til samme fetcher forbliver små, og fejl i dem returneres som warnings"
+  ],
+  "active_files": [
+    "src/app/(protected)/dashboard/[customerId]/service-dashboard/linkedin/linkedin-dashboard.css",
+    "src/app/(protected)/dashboard/[customerId]/service-dashboard/linkedin/page.jsx",
+    "src/app/(protected)/dashboard/[customerId]/service-dashboard/linkedin/components/LiCreativesTab.jsx",
+    "src/app/(protected)/dashboard/[customerId]/service-dashboard/linkedin/components/LiCampaignsTab.jsx",
+    "src/app/(protected)/dashboard/[customerId]/service-dashboard/linkedin/components/LiAudienceTab.jsx",
+    "src/app/(protected)/dashboard/[customerId]/service-dashboard/linkedin/components/LiOverviewTab.jsx",
+    "src/app/(protected)/dashboard/[customerId]/service-dashboard/linkedin/components/useLiDashboardData.js",
+    "src/lib/liAnalytics.js"
+  ],
+  "references": [
+    "https://api.linkedin.com/rest/adAnalytics",
+    "https://api.linkedin.com/rest/adAccountUsers?q=authenticatedUser",
+    "https://api.linkedin.com/rest/industries/{id}?locale=(language:en,country:US)",
+    "https://api.linkedin.com/rest/functions/{id}?locale=(language:en,country:US)",
+    "http://localhost:3000/preview/dashboard/69c5097c84057563ba331cd2/service-dashboard/<side>?startDate=2026-09-29&endDate=2026-10-28 (demo-preview, ingen login)",
+    "DESIGN.md i repo-roden: designspec og migrationstabel",
+    "Branch: redesign/commerce-dashboard (origin/redesign/commerce-dashboard = 25e8f63; origin/main = f9aac56 og er ikke rørt)"
+  ],
+  "blockers": [
+    "Dev-serveren er kun oppe, når brugeren starter den i Cursor",
+    "Næste side er ikke valgt af brugeren endnu"
+  ]
+}

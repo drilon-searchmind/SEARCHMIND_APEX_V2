@@ -1,57 +1,62 @@
 {
   "schema": "searchmind.session-state/v1",
   "source": "handoff",
-  "created_at": "2026-10-23T09:51:52.981Z",
+  "created_at": "2026-10-29T14:11:13.908Z",
   "session_id": "70b0071f-cf2f-47b5-ae27-6d3ce5548c37",
-  "goal": "Redesign the Apex Next.js dashboard frontend page by page in the commerce design (sage/mint/green), keeping Apex data and layout, on branch redesign/commerce-dashboard",
-  "current_focus": "Ecommerce view is done and pushed (6e64049); waiting for the user to pick the next page",
-  "next_step": "Ask the user which page to do next (e.g. service dashboards, config, home, parent-property, apex-radar) and redesign it the same way",
+  "goal": "Redesign Apex (Next.js 15, React 19, Tailwind v4, ApexCharts) side for side i commerce-dashboard-designet (spec i DESIGN.md), så hver service-dashboard-side også får nye relevante features og demodata, der matcher det, API'et faktisk kan l…",
+  "current_focus": "LinkedIn Ads er færdig, committet (25e8f63) og pushet. Brugeren spurgte, hvilken kunde LinkedIn kan testes på. Svaret er givet: ingen kunde har LinkedIn forbundet, kun demo-kontoen virker, og serverens token kan se to annoncekonti. Den næs…",
+  "next_step": "Afvent brugerens næste side. De resterende migrationspunkter i DESIGN.md er Snapchat, Reddit, Bing Webmaster, config, øvrige tools, /home, parent-property og apex-radar.",
   "completed": [
+    "Migreret og pushet: shell, Overview, Daily, Markets, Pace, P&L, Ecommerce, SEO",
+    "Migreret og pushet: PPC, PS (Meta), Email (Klaviyo, med trinvis indlæsning), Pinterest, Bing Ads (Microsoft)",
+    "LinkedIn Ads: Overview, Audience, Campaigns, Ads (commit 25e8f63, pushet)",
+    "Delte dele i src/components/dashboard: ServiceParts, ServiceTable, service-parts.css",
+    "Hver side har en seedet demomodul (src/lib/demo*.js) og en preview-rute under src/app/preview/dashboard/[customerId]/service-dashboard/",
+    "LinkedIn-fetcheren er verificeret mod en rigtig konto; demografisk paginering er rettet (4 s i stedet for over 70 s)",
     "Dashboard shell (sidebar + topbar), tokens and new DESIGN.md (old spec moved to docs/design/DESIGN-minimal-legacy.md)",
-    "Overview (performance-dashboard): key metrics block, aligned section rows, distinct chart colours, dark tooltip and popovers",
-    "Daily overview: hero row vs same weekday last week, spend/revenue charts, restyled day-by-day table",
-    "Markets overview: insights, share vs spend, donut, scorecard, comparison chart; demo API and preview route for demo IDs",
-    "Pace report: reference pace overview plus Apex detailed pacing",
-    "P&L: hero, waterfall, margins card plus Apex statement and static expenses",
-    "Ecommerce: per-tab overviews (ProductOverview, CustomerOverview) plus Apex catalog and customer metrics",
-    "All commits pushed to origin/redesign/commerce-dashboard; main untouched at eec8596"
+    "Overview (performance-dashboard): key metrics block, aligned section rows, distinct chart colours, dark tooltip and popovers"
   ],
   "open_tasks": [
+    "Snapchat, Reddit og Bing Webmaster mangler stadig redesign",
+    "Config, øvrige tools, /home, parent-property og apex-radar mangler migrering",
+    "Rigtige kunder er kun delvist testet: Pinterest- og Microsoft-tokens er udløbet, og to Bing-kunder har fejlkonfigurerede ID'er",
     "Remaining pages in DESIGN.md migration table: service dashboards, config, other tools, /home, parent-property, apex-radar",
     "Not yet verified with a real logged-in customer (only demo preview routes)",
     "Possible P&L data issue to confirm: static expenses show bureau/tooling/fixed but statement shows 0 kr. for the demo period"
   ],
   "decisions": [
-    "Never commit or push to main; commit to redesign/commerce-dashboard and push only when the user asks",
-    "Do not deploy; do not start or restart the dev server (user runs npm run dev in Cursor); verify on localhost:3000",
-    "Verify via /preview/dashboard/69c5097c84057563ba331cd2/<page> (demo, no login) at 1600px and 390px",
-    "Multi-metric/channel charts use METRIC_CHART_PALETTE (non-brand distinct colours), not brand greens",
-    "Keep Apex data and functionality; add reference-style overview on top, restyle Apex detail below",
-    "Heat shading only on ROAS/POAS, scaled lowest to highest; 1 kr. objectives count as not set",
-    "No em/en dashes in UI text or docs; sentence case labels; Danish number format",
-    "Turbopack may serve stale imported CSS (performance-dashboard.css); put page-specific rules in the page CSS"
+    "Arbejd kun på branchen redesign/commerce-dashboard; aldrig commit eller push til main, og deploy ikke",
+    "Push kun, når brugeren beder om det",
+    "Start eller genstart ikke dev-serveren; verificér mod brugerens server på localhost:3000 via demo-preview-ruter, og spørg brugeren, hvis den er nede",
+    "Brug ikke \"—\" eller \"–\" i tekst; brug komma, punktum, parentes eller kolon",
+    "Opfind ikke tal eller kilder; estimater skal mærkes tydeligt, og status vurderes kun mod kontoens egen reference",
+    "Undgå persondata og kundenavne i svar; brug kun ID'er og strukturer fra rigtige konti",
+    "Flerkanals-diagrammer bruger METRIC_CHART_PALETTE, ikke brandgrøn",
+    "Hver side får en lille eller seedet demomodul, en preview-rute, en mobilcheck ved 390 px, opdateret DESIGN.md og en commit med Co-Authored-By-linje"
   ],
   "active_files": [
-    "src/app/(protected)/dashboard/[customerId]/ecommerce/components/ProductPerfomance.jsx",
-    "src/app/(protected)/dashboard/[customerId]/ecommerce/ecommerce.css",
-    "src/app/(protected)/dashboard/[customerId]/ecommerce/components/CustomerOverview.jsx",
-    "src/app/(protected)/dashboard/[customerId]/ecommerce/components/ProductOverview.jsx",
-    "C:/Users/Searchmind/Downloads/ecommerce-dashboard_1.html",
-    "src/app/(protected)/dashboard/[customerId]/tools/pnl/PnlOverview.jsx",
-    "src/app/(protected)/dashboard/[customerId]/tools/pnl/pnl.css",
-    "src/app/(protected)/dashboard/[customerId]/tools/pnl/page.jsx"
+    "src/app/(protected)/dashboard/[customerId]/service-dashboard/linkedin/linkedin-dashboard.css",
+    "src/app/(protected)/dashboard/[customerId]/service-dashboard/linkedin/page.jsx",
+    "src/app/(protected)/dashboard/[customerId]/service-dashboard/linkedin/components/LiCreativesTab.jsx",
+    "src/app/(protected)/dashboard/[customerId]/service-dashboard/linkedin/components/LiCampaignsTab.jsx",
+    "src/app/(protected)/dashboard/[customerId]/service-dashboard/linkedin/components/LiAudienceTab.jsx",
+    "src/app/(protected)/dashboard/[customerId]/service-dashboard/linkedin/components/LiOverviewTab.jsx",
+    "src/app/(protected)/dashboard/[customerId]/service-dashboard/linkedin/components/useLiDashboardData.js",
+    "src/lib/liAnalytics.js"
   ],
   "references": [
-    "http://localhost:3000/preview/dashboard/69c5097c84057563ba331cd2/ecommerce?tab=products",
-    "http://localhost:3000/api/customer-segmentation-shopifyql/69c5097c84057563ba331cd2?startDate=2026-10-01&endDate=2026-10-22&full=true",
-    "http://localhost:3000/preview/dashboard/69c5097c84057563ba331cd2/ecommerce?tab=customers",
-    "http://localhost:3000/preview/dashboard/69c5097c84057563ba331cd2/ecommerce",
-    "http://localhost:3000/preview/dashboard/69c5097c84057563ba331cd2/tools/pnl",
-    "http://localhost:3000/preview/dashboard/69c5097c84057563ba331cd2/tools/pace-report",
-    "http://localhost:3000/api/customers/69c5097c84057563ba331cd2",
-    "http://www.w3.org/2000/svg"
+    "https://api.linkedin.com/rest/adAnalytics",
+    "https://api.linkedin.com/rest/adAccountUsers?q=authenticatedUser&start=0&count=100",
+    "http://localhost:3000/preview/dashboard/69c5097c84057563ba331cd2/service-dashboard/linkedin?startDate=2026-09-29&endDate=2026-10-28&tab=audience",
+    "http://localhost:3000/preview/dashboard/69c5097c84057563ba331cd2/service-dashboard/linkedin?startDate=2026-09-29&endDate=2026-10-28",
+    "http://localhost:3000/",
+    "https://api.linkedin.com/rest/industries/11?locale=(language:en,country:US",
+    "https://api.linkedin.com/rest/functions/25?locale=(language:en,country:US",
+    "http://localhost:3000/api/linkedin-dashboard"
   ],
   "blockers": [
+    "Dev-serveren er kun oppe, når brugeren starter den i Cursor",
+    "Næste side er ikke valgt af brugeren endnu",
     "Which page the user wants redesigned next"
   ]
 }
