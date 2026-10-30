@@ -26,6 +26,7 @@ import { LuRadar } from "react-icons/lu";
 import { RiToolsFill } from "react-icons/ri";
 import { SiShopify, SiWordpress, SiMagento } from "react-icons/si";
 import { canAccessApexRadar } from "@/lib/apexRadarAccess";
+import { NAV_VISIBILITY } from "@/lib/navVisibility";
 import { useUser } from "@/contexts/UserContext";
 import { signOut } from "next-auth/react";
 import { useCustomers } from "@/hooks/useCustomers";
@@ -207,19 +208,23 @@ function JumpCard({ user, onLogout }) {
                 <NavLinkItem href="/profile" icon={FiUser}>
                     My account
                 </NavLinkItem>
-                <NavLinkItem href="/lib/guides" icon={FiBookOpen}>
-                    Guides
-                </NavLinkItem>
-                <NavLinkItem href="/news" icon={FiFileText}>
-                    News
-                </NavLinkItem>
+                {NAV_VISIBILITY.guides && (
+                    <NavLinkItem href="/lib/guides" icon={FiBookOpen}>
+                        Guides
+                    </NavLinkItem>
+                )}
+                {NAV_VISIBILITY.news && (
+                    <NavLinkItem href="/news" icon={FiFileText}>
+                        News
+                    </NavLinkItem>
+                )}
                 <NavLinkItem href="/notifications" icon={FiBell}>
                     Notifications
                 </NavLinkItem>
                 <NavLinkItem href="/our-tools" icon={RiToolsFill}>
                     Our tools
                 </NavLinkItem>
-                {canAccessApexRadar(user) && (
+                {NAV_VISIBILITY.apexRadar && canAccessApexRadar(user) && (
                     <NavLinkItem href="/apex-radar" icon={LuRadar} badge="WIP">
                         Apex Radar
                     </NavLinkItem>
@@ -321,7 +326,9 @@ function HomeLoading() {
     );
 }
 
-export default function CustomerTable({ showLatestNews = true }) {
+export default function CustomerTable({ showLatestNews: showLatestNewsProp = true }) {
+    // News is hidden for now (see src/lib/navVisibility.js), so the card is not shown and no news is fetched
+    const showLatestNews = showLatestNewsProp && NAV_VISIBILITY.news;
     const router = useRouter();
     const [showCreate, setShowCreate] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);

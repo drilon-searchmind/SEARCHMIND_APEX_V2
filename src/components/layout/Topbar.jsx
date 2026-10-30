@@ -23,6 +23,7 @@ import { getDemoCustomerIds } from "@/lib/demoCustomerId";
 import { CategoryBadge, NotificationLink } from "@/components/notifications/NotificationParts";
 import { NOTIFICATIONS_READ_EVENT, formatRelativeTime } from "@/components/notifications/notificationUtils";
 import { canAccessApexRadar } from "@/lib/apexRadarAccess";
+import { NAV_VISIBILITY } from "@/lib/navVisibility";
 import { addRecentCustomerId } from "@/lib/recentCustomers";
 
 /** Set true to restore the topbar dark/light mode switcher. */
@@ -692,18 +693,22 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                         <li className="hidden">
                                             <Link href="/my-campaigns"><FiBarChart2 aria-hidden /> My Campaigns</Link>
                                         </li>
-                                        <li>
-                                            <Link href="/lib/guides" onClick={() => setMenuOpen(false)}>
-                                                <span className="apex-dash__icon-box apex-dash__icon-box--menu"><FiBookOpen aria-hidden /></span>
-                                                Guides
-                                            </Link>
-                                        </li>
-                                        <li>
-                                            <Link href="/news" onClick={() => setMenuOpen(false)}>
-                                                <span className="apex-dash__icon-box apex-dash__icon-box--menu"><FiFileText aria-hidden /></span>
-                                                News
-                                            </Link>
-                                        </li>
+                                        {NAV_VISIBILITY.guides && (
+                                            <li>
+                                                <Link href="/lib/guides" onClick={() => setMenuOpen(false)}>
+                                                    <span className="apex-dash__icon-box apex-dash__icon-box--menu"><FiBookOpen aria-hidden /></span>
+                                                    Guides
+                                                </Link>
+                                            </li>
+                                        )}
+                                        {NAV_VISIBILITY.news && (
+                                            <li>
+                                                <Link href="/news" onClick={() => setMenuOpen(false)}>
+                                                    <span className="apex-dash__icon-box apex-dash__icon-box--menu"><FiFileText aria-hidden /></span>
+                                                    News
+                                                </Link>
+                                            </li>
+                                        )}
                                         <li>
                                             <Link href="/notifications" onClick={() => setMenuOpen(false)}>
                                                 <span className="apex-dash__icon-box apex-dash__icon-box--menu"><FiBell aria-hidden /></span>
@@ -726,7 +731,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                                 </Link>
                                             </li>
                                         )}
-                                        {canAccessApexRadar(user) && (
+                                        {NAV_VISIBILITY.apexRadar && canAccessApexRadar(user) && (
                                             <li>
                                                 <Link href="/apex-radar" onClick={() => setMenuOpen(false)} className="apex-dash-topbar__menu-radar-link">
                                                     <span className="apex-dash__icon-box apex-dash__icon-box--menu"><LuRadar aria-hidden /></span>
@@ -891,12 +896,16 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                             <Link href="/profile" onClick={() => setMobileMenuOpen(false)} className="apex-dash-topbar__mobile-link">
                                 <FiUser aria-hidden /> <span>User Profile</span>
                             </Link>
-                            <Link href="/lib/guides" onClick={() => setMobileMenuOpen(false)} className="apex-dash-topbar__mobile-link">
-                                <FiBookOpen aria-hidden /> <span>Guides</span>
-                            </Link>
-                            <Link href="/news" onClick={() => setMobileMenuOpen(false)} className="apex-dash-topbar__mobile-link">
-                                <FiFileText aria-hidden /> <span>News</span>
-                            </Link>
+                            {NAV_VISIBILITY.guides && (
+                                <Link href="/lib/guides" onClick={() => setMobileMenuOpen(false)} className="apex-dash-topbar__mobile-link">
+                                    <FiBookOpen aria-hidden /> <span>Guides</span>
+                                </Link>
+                            )}
+                            {NAV_VISIBILITY.news && (
+                                <Link href="/news" onClick={() => setMobileMenuOpen(false)} className="apex-dash-topbar__mobile-link">
+                                    <FiFileText aria-hidden /> <span>News</span>
+                                </Link>
+                            )}
                             <Link href="/notifications" onClick={() => setMobileMenuOpen(false)} className="apex-dash-topbar__mobile-link">
                                 <FiBell aria-hidden /> <span>Notifications</span>
                             </Link>
@@ -910,7 +919,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                                     <FiSettings aria-hidden /> <span>Admin</span>
                                 </Link>
                             )}
-                            {canAccessApexRadar(user) && (
+                            {NAV_VISIBILITY.apexRadar && canAccessApexRadar(user) && (
                                 <Link href="/apex-radar" onClick={() => setMobileMenuOpen(false)} className="apex-dash-topbar__mobile-link">
                                     <LuRadar aria-hidden /> <span>Apex Radar</span>
                                     <span className="apex-dash-nav__badge">BETA</span>
