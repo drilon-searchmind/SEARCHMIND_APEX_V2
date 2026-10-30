@@ -7,6 +7,7 @@ import { useUser, useSetUser } from "@/contexts/UserContext";
 import ProfileForm from "./components/ProfileForm";
 import ProfileIntegrations from "./components/ProfileIntegrations";
 import SharedCustomersCard from "./components/SharedCustomersCard";
+import ProfileSummary from "./components/ProfileSummary";
 import { useSession } from "next-auth/react";
 import { pushGTMEvent, GTM_EVENTS } from "@root/lib/gtmFunctions";
 import "./profile.css";
@@ -22,7 +23,7 @@ export default function ProfilePage() {
         email: sessionUser?.email || "",
         password: "",
         image: sessionUser?.image || "",
-        createdAt: sessionUser?.createdAt ? new Date(sessionUser.createdAt).toLocaleString() : "",
+        createdAt: sessionUser?.createdAt ? new Date(sessionUser.createdAt).toISOString() : "",
     }), [sessionUser]);
 
     const initialIntegrations = useMemo(() => ({
@@ -42,6 +43,15 @@ export default function ProfilePage() {
     useEffect(() => {
         setIntegrations(initialIntegrations);
     }, [initialIntegrations]);
+
+    const formDirty =
+        form.name !== initialForm.name ||
+        form.email !== initialForm.email ||
+        form.image !== initialForm.image ||
+        Boolean(form.password);
+    const integrationsDirty =
+        (integrations.slackId || "") !== (initialIntegrations.slackId || "") ||
+        (integrations.clickupId || "") !== (initialIntegrations.clickupId || "");
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -92,7 +102,7 @@ export default function ProfilePage() {
                     name: data?.name ?? prev.name,
                     email: data?.email ?? prev.email,
                     image: data?.image ?? prev.image,
-                    createdAt: data?.createdAt ? new Date(data.createdAt).toLocaleString() : prev.createdAt,
+                    createdAt: data?.createdAt ? new Date(data.createdAt).toISOString() : prev.createdAt,
                 }));
                 try {
                     await updateSession({
@@ -170,6 +180,9 @@ export default function ProfilePage() {
         }
     };
 
+    const resetForm = () => setForm(initialForm);
+    const resetIntegrations = () => setIntegrations(initialIntegrations);
+
     const sharedCustomers = Array.isArray(sessionUser?.sharedCustomers) ? sessionUser.sharedCustomers : [];
 
     return (
@@ -182,16 +195,33 @@ export default function ProfilePage() {
                 label={form.name || "My Profile"}
             />
 
-            <ProfileForm form={form} onChange={handleChange} onSubmit={handleSubmit} saving={saving} />
-
-            <div className="apex-profile-split">
-                <ProfileIntegrations
-                    form={integrations}
-                    onChange={handleIntegrationsChange}
-                    onSubmit={handleIntegrationsSubmit}
-                    saving={savingIntegrations}
+            <div className="apex-profile-layout">
+                <ProfileSummary
+                    form={form}
+                    integrations={initialIntegrations}
+                    sharedCount={sharedCustomers.length}
+                    loading={!sessionUser}
                 />
-                <SharedCustomersCard sharedCustomers={sharedCustomers} />
+                <div className="apex-profile-main">
+                    <ProfileForm
+                        form={form}
+                        onChange={handleChange}
+                        onSubmit={handleSubmit}
+                        onReset={resetForm}
+                        saving={saving}
+                        dirty={formDirty}
+                    />
+                    <ProfileIntegrations
+                        form={integrations}
+                        savedForm={initialIntegrations}
+                        onChange={handleIntegrationsChange}
+                        onSubmit={handleIntegrationsSubmit}
+                        onReset={resetIntegrations}
+                        saving={savingIntegrations}
+                        dirty={integrationsDirty}
+                    />
+                    <SharedCustomersCard sharedCustomers={sharedCustomers} />
+                </div>
             </div>
         </div>
     );
