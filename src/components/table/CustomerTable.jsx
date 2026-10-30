@@ -41,48 +41,17 @@ function PlatformIcon({ type }) {
     return <FiServer className={iconClass} aria-hidden />;
 }
 
-function HomeAsideAccordionItem({ id, title, count, isOpen, onToggle, children, scrollable = false }) {
-    const panelId = `apex-home-aside-${id}`;
-
-    return (
-        <div className={`apex-home__accordion-item${isOpen ? " is-open" : ""}`}>
-            <button
-                type="button"
-                className="apex-home__accordion-trigger"
-                aria-expanded={isOpen}
-                aria-controls={panelId}
-                onClick={onToggle}
-            >
-                <span className="apex-home__accordion-title">{title}</span>
-                {count != null && (
-                    <span className="apex-home__accordion-count">{count}</span>
-                )}
-                <span className="apex-home__accordion-chevron" aria-hidden>
-                    {isOpen ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
-                </span>
-            </button>
-            <div
-                id={panelId}
-                className={`apex-home__accordion-panel${scrollable ? " apex-home__accordion-panel--scroll" : ""}`}
-                hidden={!isOpen}
-            >
-                {children}
-            </div>
-        </div>
-    );
-}
-
-function HomeLatestNewsSpotlight({ post, loading }) {
+function HomeNewsSpotlight({ post, loading }) {
     if (loading) {
         return (
-            <div className="apex-home__news-spotlight apex-home__news-spotlight--loading" aria-hidden>
-                <div className="apex-home__news-spotlight-media">
-                    <div className="apex-home__news-spotlight-skeleton" />
+            <div className="apex-hm__news apex-hm__news--loading" aria-hidden>
+                <div className="apex-hm__news-media">
+                    <div className="apex-hm__skeleton apex-hm__skeleton--fill" />
                 </div>
-                <div className="apex-home__news-spotlight-body">
-                    <div className="apex-home__skeleton-line apex-home__skeleton-line--xs" />
-                    <div className="apex-home__skeleton-line apex-home__skeleton-line--title" />
-                    <div className="apex-home__skeleton-line apex-home__skeleton-line--copy" />
+                <div className="apex-hm__news-body">
+                    <div className="apex-hm__skeleton apex-hm__skeleton--xs" />
+                    <div className="apex-hm__skeleton apex-hm__skeleton--title" />
+                    <div className="apex-hm__skeleton apex-hm__skeleton--copy" />
                 </div>
             </div>
         );
@@ -91,25 +60,25 @@ function HomeLatestNewsSpotlight({ post, loading }) {
     if (!post) return null;
 
     return (
-        <Link href={`/news/${post.slug}`} className="apex-home__news-spotlight">
-            <div className="apex-home__news-spotlight-media">
+        <Link href={`/news/${post.slug}`} className="apex-hm__news">
+            <div className="apex-hm__news-media">
                 {post.coverImageUrl ? (
                     <Image
                         src={post.coverImageUrl}
                         alt=""
                         fill
-                        className="apex-home__news-spotlight-image"
-                        sizes="(min-width: 1280px) 320px, 40vw"
+                        className="apex-hm__news-image"
+                        sizes="(min-width: 1280px) 340px, 40vw"
                         unoptimized
                     />
                 ) : (
-                    <div className="apex-home__news-spotlight-fallback" aria-hidden />
+                    <div className="apex-hm__news-fallback" aria-hidden />
                 )}
-                <span className="apex-home__news-spotlight-badge">NEW</span>
+                <span className="apex-hm__news-badge">New</span>
             </div>
-            <div className="apex-home__news-spotlight-body">
+            <div className="apex-hm__news-body">
                 {post.publishedAt ? (
-                    <time dateTime={post.publishedAt} className="apex-home__news-spotlight-date">
+                    <time dateTime={post.publishedAt} className="apex-hm__news-date">
                         {new Date(post.publishedAt).toLocaleDateString(undefined, {
                             year: "numeric",
                             month: "short",
@@ -117,268 +86,149 @@ function HomeLatestNewsSpotlight({ post, loading }) {
                         })}
                     </time>
                 ) : null}
-                <h3 className="apex-home__news-spotlight-title">{post.title}</h3>
-                {post.excerpt ? (
-                    <p className="apex-home__news-spotlight-excerpt">{post.excerpt}</p>
-                ) : null}
+                <h3 className="apex-hm__news-title">{post.title}</h3>
+                {post.excerpt ? <p className="apex-hm__news-excerpt">{post.excerpt}</p> : null}
             </div>
         </Link>
     );
 }
 
-function HomeShortcutsPanel({ user, favoriteCustomers, onLogout }) {
-    const [asideOpen, setAsideOpen] = useState({
-        favorites: true,
-        navigate: false,
-    });
-
-    const toggleAsideSection = (key) => {
-        setAsideOpen((prev) => ({ ...prev, [key]: !prev[key] }));
-    };
-
+function HomeNavCard({ user, onLogout }) {
     return (
-        <aside className="apex-home__shortcuts" aria-label="Shortcuts and updates">
-            <div className="apex-home__aside-card">
-                <div className="apex-home__aside-hero">
-                    <p className="apex-home__panel-eyebrow">Apex · Marketing ops</p>
-                    <p className="apex-home__panel-display">Shortcuts & updates</p>
-                    <p className="apex-home__panel-copy">
-                        Pinned properties, team links, and the latest from Searchmind.
-                    </p>
-                </div>
-
-                <div className="apex-home__accordion">
-                    <HomeAsideAccordionItem
-                        id="favorites"
-                        title="Favorites"
-                        count={favoriteCustomers.length || null}
-                        isOpen={asideOpen.favorites}
-                        onToggle={() => toggleAsideSection("favorites")}
-                        scrollable
-                    >
-                        {favoriteCustomers.length === 0 ? (
-                            <p className="apex-home__aside-empty apex-home__aside-empty--compact">
-                                Pin properties with the star in the list.
-                            </p>
-                        ) : (
-                            <ul className="apex-home__rail apex-home__rail--compact">
-                                {favoriteCustomers.map((customer) => (
-                                    <li key={customer._id}>
-                                        <Link
-                                            href={`/dashboard/${customer._id}/performance-dashboard`}
-                                            className="apex-home__rail-link"
-                                        >
-                                            <span
-                                                className="apex-home__rail-icon apex-home__rail-icon--star apex-home__rail-icon--compact"
-                                                aria-hidden
-                                            >
-                                                <FiStar className="w-3 h-3 apex-home__rail-star" />
-                                            </span>
-                                            <span className="apex-home__rail-text">
-                                                {customer.customerName}
-                                            </span>
-                                            <FiArrowRight className="apex-home__rail-arrow" aria-hidden />
-                                        </Link>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </HomeAsideAccordionItem>
-
-                    {!user?.isExternal && (
-                        <HomeAsideAccordionItem
-                            id="navigate"
-                            title="Navigate"
-                            isOpen={asideOpen.navigate}
-                            onToggle={() => toggleAsideSection("navigate")}
-                        >
-                            <ul className="apex-home__rail">
-                                <RailLink href="/profile" icon={FiUser}>
-                                    My account
-                                </RailLink>
-                                <RailLink href="/lib/guides" icon={FiBookOpen}>
-                                    Guides
-                                </RailLink>
-                                <RailLink href="/news" icon={FiFileText}>
-                                    News
-                                </RailLink>
-                                <RailLink href="/notifications" icon={FiBell}>
-                                    Notifications
-                                </RailLink>
-                                <RailLink href="/our-tools" icon={RiToolsFill}>
-                                    Our tools
-                                </RailLink>
-                                {canAccessApexRadar(user) && (
-                                    <RailLink href="/apex-radar" icon={LuRadar} badge="WIP">
-                                        Apex Radar
-                                    </RailLink>
-                                )}
-                            </ul>
-                            <button
-                                type="button"
-                                onClick={onLogout}
-                                className="apex-home__rail-logout"
-                            >
-                                <FiLogOut aria-hidden />
-                                Log out
-                            </button>
-                        </HomeAsideAccordionItem>
-                    )}
-                </div>
-            </div>
-        </aside>
+        <div className="apex-hm__nav-card">
+            <p className="apex-hm__nav-title">Jump to</p>
+            <ul className="apex-hm__nav-list">
+                <NavLinkItem href="/profile" icon={FiUser}>
+                    My account
+                </NavLinkItem>
+                <NavLinkItem href="/lib/guides" icon={FiBookOpen}>
+                    Guides
+                </NavLinkItem>
+                <NavLinkItem href="/news" icon={FiFileText}>
+                    News
+                </NavLinkItem>
+                <NavLinkItem href="/notifications" icon={FiBell}>
+                    Notifications
+                </NavLinkItem>
+                <NavLinkItem href="/our-tools" icon={RiToolsFill}>
+                    Our tools
+                </NavLinkItem>
+                {canAccessApexRadar(user) && (
+                    <NavLinkItem href="/apex-radar" icon={LuRadar} badge="WIP">
+                        Apex Radar
+                    </NavLinkItem>
+                )}
+            </ul>
+            <button type="button" onClick={onLogout} className="apex-hm__logout">
+                <FiLogOut aria-hidden />
+                Log out
+            </button>
+        </div>
     );
 }
 
-function HomeNewsPanel({ showLatestNews, latestNewsPost, newsLoading }) {
-    if (!showLatestNews) return null;
-
-    return (
-        <aside className="apex-home__news" aria-label="Latest news">
-            <div className="apex-home__aside-card apex-home__aside-card--news">
-                <HomeLatestNewsSpotlight post={latestNewsPost} loading={newsLoading} />
-                {!newsLoading && latestNewsPost ? (
-                    <Link href="/news" className="apex-home__aside-more apex-home__aside-more--news">
-                        All news →
-                    </Link>
-                ) : null}
-            </div>
-        </aside>
-    );
-}
-
-function HomeShortcutsPanelSkeleton() {
-    return (
-        <aside className="apex-home__shortcuts" aria-hidden>
-            <div className="apex-home__aside-card">
-                <div className="apex-home__aside-hero">
-                    <p className="apex-home__panel-eyebrow">Apex · Marketing ops</p>
-                    <p className="apex-home__panel-display">Shortcuts & updates</p>
-                    <p className="apex-home__panel-copy">
-                        Pinned properties, team links, and the latest from Searchmind.
-                    </p>
-                </div>
-                <div className="apex-home__accordion">
-                    <div className="apex-home__accordion-item is-open">
-                        <div className="apex-home__accordion-trigger apex-home__accordion-trigger--skeleton" />
-                        <div className="apex-home__skeleton-rail">
-                            <div className="apex-home__skeleton-line apex-home__skeleton-line--rail" />
-                            <div className="apex-home__skeleton-line apex-home__skeleton-line--rail" />
-                            <div className="apex-home__skeleton-line apex-home__skeleton-line--rail" />
-                        </div>
-                    </div>
-                    <div className="apex-home__accordion-item">
-                        <div className="apex-home__accordion-trigger apex-home__accordion-trigger--skeleton" />
-                    </div>
-                </div>
-            </div>
-        </aside>
-    );
-}
-
-function HomeNewsPanelSkeleton() {
-    return (
-        <aside className="apex-home__news" aria-hidden>
-            <div className="apex-home__aside-card apex-home__aside-card--news">
-                <HomeLatestNewsSpotlight loading />
-            </div>
-        </aside>
-    );
-}
-
-function RailLink({ href, icon: Icon, children, badge }) {
+function NavLinkItem({ href, icon: Icon, children, badge }) {
     return (
         <li>
-            <Link href={href} className="apex-home__rail-link">
-                <span className="apex-home__rail-icon" aria-hidden>
-                    <Icon className="w-4 h-4" />
+            <Link href={href} className="apex-hm__nav-link">
+                <span className="apex-hm__nav-icon" aria-hidden>
+                    <Icon />
                 </span>
-                <span className="apex-home__rail-text">
+                <span className="apex-hm__nav-text">
                     {children}
-                    {badge && <span className="apex-home__badge">{badge}</span>}
+                    {badge && <span className="apex-hm__chip-badge">{badge}</span>}
                 </span>
-                <FiArrowRight className="apex-home__rail-arrow" aria-hidden />
+                <FiArrowRight className="apex-hm__nav-arrow" aria-hidden />
             </Link>
         </li>
     );
 }
 
-const SKELETON_GROUPS = [
-    { key: "a", rows: 5 },
-    { key: "b", rows: 3 },
-];
+function PropertyCard({ customer, pinned, favorited, favoriteLoading, isAdmin, onToggleFavorite, onCopy }) {
+    const label = getCustomerPlatformLabel(customer);
+    const href = `/dashboard/${customer._id}/performance-dashboard`;
+    return (
+        <li className={`apex-hm__prop${pinned ? " apex-hm__prop--pinned" : ""}`}>
+            <Link href={href} className="apex-hm__prop-main">
+                <span className="apex-hm__prop-icon" aria-hidden>
+                    <PlatformIcon type={customer.customerType} />
+                </span>
+                <span className="apex-hm__prop-text">
+                    <span className="apex-hm__prop-name">{customer.customerName}</span>
+                    <span className="apex-hm__prop-platform">{label}</span>
+                </span>
+            </Link>
+            <div className="apex-hm__prop-actions">
+                <button
+                    type="button"
+                    onClick={() => onToggleFavorite(customer._id)}
+                    disabled={favoriteLoading}
+                    title={favorited ? "Remove favorite" : "Add favorite"}
+                    className={`apex-hm__icon-btn${favorited ? " is-on" : ""}`}
+                    aria-label={favorited ? `Remove ${customer.customerName} from favorites` : `Add ${customer.customerName} to favorites`}
+                    aria-pressed={favorited}
+                >
+                    <FiStar aria-hidden />
+                </button>
+                {isAdmin && (
+                    <button
+                        type="button"
+                        onClick={() => onCopy(customer)}
+                        title="Copy settings"
+                        className="apex-hm__icon-btn apex-hm__icon-btn--reveal"
+                        aria-label={`Copy settings from ${customer.customerName}`}
+                    >
+                        <FiCopy aria-hidden />
+                    </button>
+                )}
+                <Link href={href} className="apex-hm__open" aria-label={`Open ${customer.customerName}`} title="Open dashboard">
+                    <FiArrowRight aria-hidden />
+                </Link>
+            </div>
+        </li>
+    );
+}
+
+function HomeBar({ children }) {
+    return (
+        <header className="apex-hm__bar">
+            <Link href="/home" className="apex-hm__brand">
+                <Image src="/images/icons/apex-icon-svg.svg" alt="" width={32} height={32} aria-hidden />
+                <span className="apex-hm__brand-text">Searchmind Apex</span>
+            </Link>
+            {children}
+        </header>
+    );
+}
 
 function HomeLoading() {
     return (
         <>
-            <header className="apex-home__nav">
-                <Link href="/home" className="apex-home__brand">
-                    <Image
-                        src="/images/icons/apex-icon-svg.svg"
-                        alt=""
-                        width={32}
-                        height={32}
-                        aria-hidden
-                    />
-                    <span className="apex-home__brand-text">Searchmind Apex</span>
-                </Link>
-                <div className="apex-home__search">
-                    <div className="apex-home__search-btn apex-home__search-btn--skeleton" aria-hidden>
-                        <FiSearch aria-hidden />
-                        <span>Search properties…</span>
-                    </div>
+            <HomeBar />
+            <div className="apex-hm__hero apex-hm__hero--loading" role="status" aria-live="polite" aria-label="Loading properties">
+                <div className="apex-hm__hero-copy">
+                    <p className="apex-hm__eyebrow">Workspace</p>
+                    <h1 className="apex-hm__title">Loading properties</h1>
+                    <p className="apex-hm__lede">Fetching your workspace…</p>
                 </div>
-            </header>
-
-            <div className="apex-home__intro">
-                <p className="apex-home__eyebrow">Workspace</p>
-                <h1 className="apex-home__headline">Loading properties</h1>
-                <p className="apex-home__lede">
-                    Fetching your workspace
-                    <span className="apex-home__load-dots" aria-hidden>
-                        <span>.</span>
-                        <span>.</span>
-                        <span>.</span>
-                    </span>
-                </p>
             </div>
-
-            <div className="apex-home" role="status" aria-live="polite" aria-label="Loading properties">
-                <div className="apex-home__layout">
-                    <main className="apex-home__index">
-                        {SKELETON_GROUPS.map((group, groupIndex) => (
-                            <section
-                                key={group.key}
-                                className="apex-home__skeleton-group"
-                                style={{ animationDelay: `${groupIndex * 120}ms` }}
-                            >
-                                <div className="apex-home__skeleton-line apex-home__skeleton-line--group" />
-                                <div className="apex-home__skeleton-table">
-                                    <div className="apex-home__skeleton-row apex-home__skeleton-row--head">
-                                        <span className="apex-home__skeleton-line apex-home__skeleton-line--th" />
-                                        <span className="apex-home__skeleton-line apex-home__skeleton-line--th apex-home__skeleton-line--short" />
-                                        <span className="apex-home__skeleton-line apex-home__skeleton-line--th apex-home__skeleton-line--xs" />
-                                    </div>
-                                    {Array.from({ length: group.rows }).map((_, rowIndex) => (
-                                        <div
-                                            key={rowIndex}
-                                            className="apex-home__skeleton-row"
-                                            style={{
-                                                animationDelay: `${groupIndex * 120 + rowIndex * 80}ms`,
-                                            }}
-                                        >
-                                            <span className="apex-home__skeleton-line apex-home__skeleton-line--name" />
-                                            <span className="apex-home__skeleton-line apex-home__skeleton-line--platform" />
-                                            <span className="apex-home__skeleton-line apex-home__skeleton-line--action" />
-                                        </div>
+            <div className="apex-hm__page" aria-hidden>
+                <div className="apex-hm__layout">
+                    <div className="apex-hm__main">
+                        {[0, 1].map((i) => (
+                            <div key={i} className="apex-hm__group">
+                                <div className="apex-hm__skeleton apex-hm__skeleton--title" />
+                                <div className="apex-hm__grid">
+                                    {Array.from({ length: i === 0 ? 6 : 3 }).map((_, j) => (
+                                        <div key={j} className="apex-hm__skeleton apex-hm__skeleton--card" />
                                     ))}
                                 </div>
-                            </section>
+                            </div>
                         ))}
-                    </main>
-
-                    <HomeShortcutsPanelSkeleton />
-                    <HomeNewsPanelSkeleton />
+                    </div>
+                    <div className="apex-hm__rail">
+                        <div className="apex-hm__skeleton apex-hm__skeleton--rail" />
+                    </div>
                 </div>
             </div>
         </>
@@ -655,278 +505,275 @@ export default function CustomerTable({ showLatestNews = true }) {
         [favoritedCustomers, customers]
     );
 
+    const [query, setQuery] = useState("");
+    const [platformFilter, setPlatformFilter] = useState("all");
+
+    const platformOptions = useMemo(() => {
+        const counts = new Map();
+        accessibleCustomers.forEach((c) => {
+            const label = getCustomerPlatformLabel(c);
+            counts.set(label, (counts.get(label) || 0) + 1);
+        });
+        return Array.from(counts.entries())
+            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+            .map(([label, count]) => ({ label, count }));
+    }, [accessibleCustomers]);
+
+    const filterActive = query.trim() !== "" || platformFilter !== "all";
+
+    const visibleGroups = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        const match = (c) =>
+            (platformFilter === "all" || getCustomerPlatformLabel(c) === platformFilter) &&
+            (!q || (c.customerName || "").toLowerCase().includes(q));
+        return groupKeys
+            .map((parentId) => ({ parentId, items: groups[parentId].filter(match) }))
+            .filter((g) => g.items.length > 0);
+    }, [groups, groupKeys, query, platformFilter]);
+
+    const visibleCount = visibleGroups.reduce((n, g) => n + g.items.length, 0);
+
     if (loading) {
         return <HomeLoading />;
     }
 
     if (error) {
         return (
-            <div className="apex-home__center">
-                <div className="apex-home__panel" style={{ textAlign: "center" }}>
-                    <p className="apex-home__headline">Could not load properties</p>
-                    <p className="apex-home__error">{error}</p>
-                    <button
-                        type="button"
-                        onClick={() => window.location.reload()}
-                        className="apex-home__btn apex-home__btn--primary"
-                        style={{ marginTop: "var(--space-md)" }}
-                    >
-                        Retry
-                    </button>
+            <>
+                <HomeBar />
+                <div className="apex-hm__page">
+                    <div className="apex-hm__error-card" role="alert">
+                        <h1 className="apex-hm__error-title">Could not load properties</h1>
+                        <p className="apex-hm__error-text">{error}</p>
+                        <button type="button" onClick={() => window.location.reload()} className="apex-hm__btn apex-hm__btn--dark">
+                            Retry
+                        </button>
+                    </div>
                 </div>
-            </div>
+            </>
         );
     }
 
     return (
         <>
-            <header className="apex-home__nav">
-                <Link href="/home" className="apex-home__brand">
-                    <Image
-                        src="/images/icons/apex-icon-svg.svg"
-                        alt=""
-                        width={32}
-                        height={32}
-                        aria-hidden
-                    />
-                    <span className="apex-home__brand-text">Searchmind Apex</span>
-                </Link>
-
-                {!showCreate && (
-                    <div className="apex-home__search">
-                        <button
-                            type="button"
-                            className="apex-home__search-btn"
-                            onClick={openCmdk}
-                            aria-label="Search properties (Ctrl+K)"
-                        >
-                            <FiSearch aria-hidden />
-                            <span>Search properties…</span>
-                            <span className="apex-home__search-kbd">
-                                <kbd>Ctrl</kbd>
-                                <kbd>K</kbd>
-                            </span>
-                        </button>
-                    </div>
-                )}
-
-                <div className="apex-home__nav-actions">
+            <HomeBar>
+                <div className="apex-hm__bar-actions">
                     {!user?.isExternal && (
-                        <Link href="/profile" className="apex-home__nav-link">
+                        <Link href="/profile" className="apex-hm__bar-link">
                             Account
                         </Link>
                     )}
                     {user?.isAdmin && !showCreate && (
-                        <button
-                            type="button"
-                            onClick={() => setShowCreate(true)}
-                            className="apex-home__btn apex-home__btn--primary"
-                        >
+                        <button type="button" onClick={() => setShowCreate(true)} className="apex-hm__btn apex-hm__btn--dark">
                             New property
                         </button>
                     )}
                     {showCreate && (
-                        <button
-                            type="button"
-                            onClick={() => setShowCreate(false)}
-                            className="apex-home__btn"
-                        >
+                        <button type="button" onClick={() => setShowCreate(false)} className="apex-hm__btn">
                             ← Back
                         </button>
                     )}
                 </div>
-            </header>
+            </HomeBar>
 
-            {!showCreate && (
-                <div className="apex-home__intro">
-                    <p className="apex-home__eyebrow">Workspace</p>
-                    <h1 className="apex-home__headline">Select a property</h1>
-                    <p className="apex-home__lede">
-                        {accessibleCustomers.length}{" "}
-                        {accessibleCustomers.length === 1 ? "property" : "properties"} loaded
-                        {groupKeys.length > 1 ? ` · ${groupKeys.length} groups` : ""}.
-                        Open a dashboard or pin favorites for quick access.
-                    </p>
-                </div>
-            )}
-
-            <div className="apex-home">
-                {showCreate ? (
-                    <>
-                        <div className="apex-home__intro">
-                            <p className="apex-home__eyebrow">Admin</p>
-                            <h1 className="apex-home__headline">Create new property</h1>
-                            <p className="apex-home__lede">
-                                Add a customer and connect their platforms. Ad account IDs can be filled in now or later in config.
-                            </p>
-                        </div>
-                        <div className="apex-home__create">
-                            <div className="apex-home__panel apex-home__panel--create">
-                                <CustomerCreateForm
-                                    variant="apex-home"
-                                    hideHeading
-                                    onSuccess={handleCreated}
-                                />
-                            </div>
-                        </div>
-                    </>
-                ) : (
-                    <div className="apex-home__layout">
-                        <main className="apex-home__index">
-                            {accessibleCustomers.length === 0 ? (
-                                <div className="apex-home__empty">No properties available.</div>
-                            ) : (
-                                groupKeys.map((parentId) => (
-                                    <section key={parentId} className="apex-home__group">
-                                        <div className="apex-home__group-head">
-                                            <h2 className="apex-home__group-label">
-                                                <span className="apex-home__group-prefix">Group:</span>
-                                                {parentId !== "none" ? (
-                                                    <Link
-                                                        href={`/parent-property/${parentId}/home`}
-                                                        className="apex-home__group-name"
-                                                    >
-                                                        {parentNames[parentId] || parentId}
-                                                    </Link>
-                                                ) : (
-                                                    <span className="apex-home__group-name">Unassigned</span>
-                                                )}
-                                            </h2>
-                                            <span className="apex-home__group-count">
-                                                {groups[parentId].length}{" "}
-                                                {groups[parentId].length === 1 ? "property" : "properties"}
-                                            </span>
-                                        </div>
-                                        <table className="apex-home__spec">
-                                            <thead>
-                                                <tr>
-                                                    <th scope="col" className="apex-home__spec-col-name">
-                                                        <button
-                                                            type="button"
-                                                            className="apex-home__sort-btn"
-                                                            onClick={() => handleSort("name")}
-                                                            aria-sort={
-                                                                sortKey === "name"
-                                                                    ? sortDir === "asc"
-                                                                        ? "ascending"
-                                                                        : "descending"
-                                                                    : "none"
-                                                            }
-                                                        >
-                                                            Property
-                                                            <SortIcon column="name" />
-                                                        </button>
-                                                    </th>
-                                                    <th scope="col" className="apex-home__spec-col-platform">
-                                                        <button
-                                                            type="button"
-                                                            className="apex-home__sort-btn"
-                                                            onClick={() => handleSort("platform")}
-                                                            aria-sort={
-                                                                sortKey === "platform"
-                                                                    ? sortDir === "asc"
-                                                                        ? "ascending"
-                                                                        : "descending"
-                                                                    : "none"
-                                                            }
-                                                        >
-                                                            Platform
-                                                            <SortIcon column="platform" />
-                                                        </button>
-                                                    </th>
-                                                    <th scope="col" className="apex-home__spec-col-action">
-                                                        Action
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {groups[parentId].map((customer) => (
-                                                    <tr key={customer._id}>
-                                                        <td>
-                                                            <span className="apex-home__spec-name">
-                                                                {customer.customerName}
-                                                            </span>
-                                                        </td>
-                                                        <td className="apex-home__spec-col-platform">
-                                                            <span className="apex-home__spec-platform">
-                                                                <span className="apex-home__spec-platform-inner">
-                                                                    <PlatformIcon type={customer.customerType} />
-                                                                    {getCustomerPlatformLabel(customer)}
-                                                                </span>
-                                                            </span>
-                                                        </td>
-                                                        <td className="apex-home__spec-col-action">
-                                                            <div className="apex-home__spec-actions">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() =>
-                                                                        handleToggleFavorite(customer._id)
-                                                                    }
-                                                                    disabled={loadingFavorites[customer._id]}
-                                                                    title={
-                                                                        isFavorited(customer._id)
-                                                                            ? "Remove favorite"
-                                                                            : "Add favorite"
-                                                                    }
-                                                                    className="apex-home__btn apex-home__btn--ghost"
-                                                                    aria-label={
-                                                                        isFavorited(customer._id)
-                                                                            ? "Remove favorite"
-                                                                            : "Add favorite"
-                                                                    }
-                                                                >
-                                                                    <FiStar
-                                                                        className={`w-4 h-4 ${
-                                                                            isFavorited(customer._id)
-                                                                                ? "apex-home__star--on"
-                                                                                : "apex-home__star--off"
-                                                                        }`}
-                                                                    />
-                                                                </button>
-                                                                {user?.isAdmin && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            setCustomerToCopy(customer)
-                                                                        }
-                                                                        title="Copy settings"
-                                                                        className="apex-home__btn apex-home__btn--ghost"
-                                                                        aria-label="Copy property settings"
-                                                                    >
-                                                                        <FiCopy className="w-3.5 h-3.5" />
-                                                                    </button>
-                                                                )}
-                                                                <Link
-                                                                    href={`/dashboard/${customer._id}/performance-dashboard`}
-                                                                    className="apex-home__row-link"
-                                                                >
-                                                                    Open <FiArrowRight className="w-3.5 h-3.5" />
-                                                                </Link>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </section>
-                                ))
-                            )}
-                        </main>
-
-                        <HomeShortcutsPanel
-                            user={user}
-                            favoriteCustomers={favoriteCustomers}
-                            onLogout={handleLogout}
-                        />
-
-                        <HomeNewsPanel
-                            showLatestNews={showLatestNews}
-                            latestNewsPost={newsPosts[0] ?? null}
-                            newsLoading={newsLoading}
-                        />
+            {showCreate ? (
+                <div className="apex-hm__page">
+                    <div className="apex-hm__create-head">
+                        <p className="apex-hm__eyebrow apex-hm__eyebrow--light">Admin</p>
+                        <h1 className="apex-hm__title apex-hm__title--light">Create new property</h1>
+                        <p className="apex-hm__lede apex-hm__lede--light">
+                            Add a customer and connect their platforms. Ad account IDs can be filled in now or later in config.
+                        </p>
                     </div>
-                )}
-            </div>
+                    <div className="apex-home__create">
+                        <div className="apex-home__panel apex-home__panel--create">
+                            <CustomerCreateForm variant="apex-home" hideHeading onSuccess={handleCreated} />
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <>
+                    <section className="apex-hm__hero" aria-labelledby="home-heading">
+                        <div className="apex-hm__hero-copy">
+                            <p className="apex-hm__eyebrow">Workspace</p>
+                            <h1 id="home-heading" className="apex-hm__title">
+                                Select a property
+                            </h1>
+                            <p className="apex-hm__lede">Open a dashboard, or pin the properties you use most.</p>
+                        </div>
+                        <div className="apex-hm__hero-side">
+                            <button type="button" className="apex-hm__command" onClick={openCmdk} aria-label="Search properties (Ctrl+K)">
+                                <FiSearch aria-hidden />
+                                <span>Search properties</span>
+                                <span className="apex-hm__kbd">
+                                    <kbd>Ctrl</kbd>
+                                    <kbd>K</kbd>
+                                </span>
+                            </button>
+                            <dl className="apex-hm__stats">
+                                <div>
+                                    <dt>Properties</dt>
+                                    <dd>{accessibleCustomers.length}</dd>
+                                </div>
+                                <div>
+                                    <dt>Groups</dt>
+                                    <dd>{groupKeys.length}</dd>
+                                </div>
+                                <div>
+                                    <dt>Pinned</dt>
+                                    <dd>{favoriteCustomers.length}</dd>
+                                </div>
+                            </dl>
+                        </div>
+                    </section>
+
+                    <div className="apex-hm__page">
+                        <div className="apex-hm__layout">
+                            <main className="apex-hm__main">
+                                <section className="apex-hm__section" aria-labelledby="pinned-heading">
+                                    <div className="apex-hm__section-head">
+                                        <h2 id="pinned-heading" className="apex-hm__h2">
+                                            Pinned
+                                        </h2>
+                                        {favoriteCustomers.length > 0 && <span className="apex-hm__count">{favoriteCustomers.length}</span>}
+                                    </div>
+                                    {favoriteCustomers.length === 0 ? (
+                                        <p className="apex-hm__empty">
+                                            <FiStar aria-hidden /> Nothing pinned yet. Use the star on any property below to keep it here.
+                                        </p>
+                                    ) : (
+                                        <ul className="apex-hm__grid apex-hm__grid--pinned">
+                                            {favoriteCustomers.map((customer) => (
+                                                <PropertyCard
+                                                    key={customer._id}
+                                                    customer={customer}
+                                                    pinned
+                                                    favorited
+                                                    favoriteLoading={!!loadingFavorites[customer._id]}
+                                                    isAdmin={!!user?.isAdmin}
+                                                    onToggleFavorite={handleToggleFavorite}
+                                                    onCopy={setCustomerToCopy}
+                                                />
+                                            ))}
+                                        </ul>
+                                    )}
+                                </section>
+
+                                <section className="apex-hm__section" aria-labelledby="all-heading">
+                                    <div className="apex-hm__section-head">
+                                        <h2 id="all-heading" className="apex-hm__h2">
+                                            All properties
+                                        </h2>
+                                        <span className="apex-hm__count">{filterActive ? `${visibleCount} of ${accessibleCustomers.length}` : accessibleCustomers.length}</span>
+                                    </div>
+
+                                    <div className="apex-hm__toolbar">
+                                        <label className="apex-hm__filter">
+                                            <FiSearch aria-hidden />
+                                            <input
+                                                type="search"
+                                                value={query}
+                                                onChange={(e) => setQuery(e.target.value)}
+                                                placeholder="Filter by name"
+                                                aria-label="Filter properties by name"
+                                            />
+                                        </label>
+                                        <div className="apex-hm__chips" role="group" aria-label="Filter by platform">
+                                            <button type="button" className={`apex-hm__chip${platformFilter === "all" ? " is-active" : ""}`} onClick={() => setPlatformFilter("all")} aria-pressed={platformFilter === "all"}>
+                                                All
+                                            </button>
+                                            {platformOptions.map((opt) => (
+                                                <button
+                                                    key={opt.label}
+                                                    type="button"
+                                                    className={`apex-hm__chip${platformFilter === opt.label ? " is-active" : ""}`}
+                                                    onClick={() => setPlatformFilter(platformFilter === opt.label ? "all" : opt.label)}
+                                                    aria-pressed={platformFilter === opt.label}
+                                                >
+                                                    {opt.label}
+                                                    <span>{opt.count}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="apex-hm__sort" role="group" aria-label="Sort properties">
+                                            <button type="button" className={`apex-hm__sort-btn${sortKey === "name" ? " is-active" : ""}`} onClick={() => handleSort("name")} aria-pressed={sortKey === "name"}>
+                                                Name
+                                                <SortIcon column="name" />
+                                            </button>
+                                            <button type="button" className={`apex-hm__sort-btn${sortKey === "platform" ? " is-active" : ""}`} onClick={() => handleSort("platform")} aria-pressed={sortKey === "platform"}>
+                                                Platform
+                                                <SortIcon column="platform" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {accessibleCustomers.length === 0 ? (
+                                        <p className="apex-hm__empty">No properties available.</p>
+                                    ) : visibleGroups.length === 0 ? (
+                                        <p className="apex-hm__empty">
+                                            No property matches this filter.
+                                            <button
+                                                type="button"
+                                                className="apex-hm__link-btn"
+                                                onClick={() => {
+                                                    setQuery("");
+                                                    setPlatformFilter("all");
+                                                }}
+                                            >
+                                                Clear filter
+                                            </button>
+                                        </p>
+                                    ) : (
+                                        visibleGroups.map(({ parentId, items }) => (
+                                            <div key={parentId} className="apex-hm__group">
+                                                <div className="apex-hm__group-head">
+                                                    {parentId !== "none" ? (
+                                                        <Link href={`/parent-property/${parentId}/home`} className="apex-hm__group-name">
+                                                            {parentNames[parentId] || parentId} <FiArrowRight aria-hidden />
+                                                        </Link>
+                                                    ) : (
+                                                        <span className="apex-hm__group-name apex-hm__group-name--plain">Unassigned</span>
+                                                    )}
+                                                    <span className="apex-hm__group-count">
+                                                        {items.length} {items.length === 1 ? "property" : "properties"}
+                                                    </span>
+                                                </div>
+                                                <ul className="apex-hm__grid">
+                                                    {items.map((customer) => (
+                                                        <PropertyCard
+                                                            key={customer._id}
+                                                            customer={customer}
+                                                            favorited={isFavorited(customer._id)}
+                                                            favoriteLoading={!!loadingFavorites[customer._id]}
+                                                            isAdmin={!!user?.isAdmin}
+                                                            onToggleFavorite={handleToggleFavorite}
+                                                            onCopy={setCustomerToCopy}
+                                                        />
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        ))
+                                    )}
+                                </section>
+                            </main>
+
+                            <aside className="apex-hm__rail" aria-label="Shortcuts and news">
+                                {!user?.isExternal && <HomeNavCard user={user} onLogout={handleLogout} />}
+                                {showLatestNews && (
+                                    <div className="apex-hm__news-wrap">
+                                        <HomeNewsSpotlight post={newsPosts[0] ?? null} loading={newsLoading} />
+                                        {!newsLoading && newsPosts[0] ? (
+                                            <Link href="/news" className="apex-hm__news-more">
+                                                All news <FiArrowRight aria-hidden />
+                                            </Link>
+                                        ) : null}
+                                    </div>
+                                )}
+                            </aside>
+                        </div>
+                    </div>
+                </>
+            )}
 
             <div
                 className={`apex-home__cmdk${cmdkOpen ? " is-open" : ""}`}

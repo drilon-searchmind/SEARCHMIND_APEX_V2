@@ -2,7 +2,7 @@
 import { useSession } from "next-auth/react";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-const UserContext = createContext(null);
+export const UserContext = createContext(null);
 const UserUpdateContext = createContext(() => { });
 
 export function UserProvider({ children }) {

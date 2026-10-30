@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import PasswordDisplayModal from '@/components/auth/PasswordDisplayModal'
 import './home.css'
+import './home-v2.css'
 
 const HomePage = () => {
     const [showPasswordModal, setShowPasswordModal] = useState(false);
