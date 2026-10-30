@@ -178,20 +178,29 @@ function redditAdsUnauthorizedHint() {
     return " Use a user OAuth access token for the Reddit account that has access to this ad account (authorization-code flow; include scope adsread; store access + refresh token on the customer). App-only client_credentials tokens often return 401 on reporting. Docs: https://ads-api.reddit.com/docs/v3/";
 }
 
-async function redditAdsFetch(accessToken, path, { method = "GET", body: jsonBody, redditUsername } = {}) {
-    const url = `${REDDIT_ADS_API}${path.startsWith("/") ? path : `/${path}`}`;
+async function redditAdsFetch(accessToken, path, { method = "GET", body: jsonBody, redditUsername, full = false } = {}) {
+    const url = path.startsWith("http") ? path : `${REDDIT_ADS_API}${path.startsWith("/") ? path : `/${path}`}`;
     const ua = buildRedditUserAgent(redditUsername);
     dbg(method, url);
-    const res = await fetch(url, {
-        method,
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-            "User-Agent": ua,
-        },
-        body: jsonBody ? JSON.stringify(jsonBody) : undefined,
-        cache: "no-store",
-    });
+    let res;
+    // Reddit rate-limits bursts of report calls with 429, so wait briefly and retry a couple of times.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+        res = await fetch(url, {
+            method,
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "Content-Type": "application/json",
+                "User-Agent": ua,
+            },
+            body: jsonBody ? JSON.stringify(jsonBody) : undefined,
+            cache: "no-store",
+        });
+        if (res.status !== 429 || attempt === 2) break;
+        const retryAfter = Number(res.headers.get("retry-after"));
+        const waitMs = Math.min(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1500 * (attempt + 1), 5000);
+        dbg("429, retrying in", waitMs);
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
     const text = await res.text();
     let data = {};
     try {
@@ -215,6 +224,7 @@ async function redditAdsFetch(accessToken, path, { method = "GET", body: jsonBod
         }
         throw new Error(`Reddit Ads API ${res.status}: ${msg || "Error"}`);
     }
+    if (full) return data;
     return data.data !== undefined ? data.data : data;
 }
 
@@ -356,17 +366,24 @@ function applyRedditSpendConversionToDkk(payload, rate) {
         const ad_spend = Math.round(num(row.ad_spend) * rate * 100) / 100;
         const clicks = num(row.clicks);
         const impressions = num(row.impressions);
+        const conversion_value = Math.round(num(row.conversion_value) * rate * 100) / 100;
+        const purchases = num(row.purchases);
         return {
             ...row,
             ad_spend,
+            conversion_value,
+            purchase_value: conversion_value,
             cpc: clicks > 0 ? ad_spend / clicks : 0,
             cpm: impressions > 0 ? (ad_spend / impressions) * 1000 : 0,
+            roas: ad_spend > 0 ? conversion_value / ad_spend : 0,
+            aov: purchases > 0 ? conversion_value / purchases : 0,
         };
     });
 
     const top_campaigns = (payload.top_campaigns || []).map((row) => ({
         ...row,
         ad_spend: num(row.ad_spend) * rate,
+        purchase_value: num(row.purchase_value) * rate,
     }));
 
     const spend_by_iso2 =
@@ -513,7 +530,8 @@ function normalizeDayRow(dateStr, agg) {
     const impressions = num(agg.impressions);
     const clicks = num(agg.clicks);
     const ad_spend = Math.round(num(agg.spend) * 100) / 100;
-    const conversions = num(agg.conversions);
+    const purchases = num(agg.purchases ?? agg.conversions);
+    const conversion_value = Math.round(num(agg.value) * 100) / 100;
     const ctr = impressions > 0 ? clicks / impressions : 0;
     const cpc = clicks > 0 ? ad_spend / clicks : 0;
     const cpm = impressions > 0 ? (ad_spend / impressions) * 1000 : 0;
@@ -523,14 +541,83 @@ function normalizeDayRow(dateStr, agg) {
         impressions,
         clicks,
         saves: 0,
-        conversions,
-        conversion_value: 0,
+        conversions: purchases,
+        purchases,
+        adds_to_cart: num(agg.adds),
+        conversion_value,
+        purchase_value: conversion_value,
         ctr,
         cpc,
         cpm,
-        roas: 0,
-        aov: 0,
+        roas: ad_spend > 0 ? conversion_value / ad_spend : 0,
+        aov: purchases > 0 ? conversion_value / purchases : 0,
     };
+}
+
+/**
+ * Reddit pages every response (50 rows by default), which silently cut daily series at 50 days and
+ * campaign tables at 50 rows. Ask for the largest page (`page.size`) and follow `pagination.next_url`.
+ */
+async function redditReportAllRows(accessToken, accountId, spec, uaOpt) {
+    const body = redditReportPostBody(spec);
+    const rows = [];
+    let url = `/ad_accounts/${encodeURIComponent(accountId)}/reports?page.size=1000`;
+    for (let page = 0; page < 25 && url; page += 1) {
+        const full = await redditAdsFetch(accessToken, url, { method: "POST", body, full: true, ...uaOpt });
+        rows.push(...extractReportRows(full?.data !== undefined ? full.data : full));
+        url = full?.pagination?.next_url || null;
+    }
+    return rows;
+}
+
+async function redditListAll(accessToken, accountId, path, uaOpt) {
+    const out = [];
+    let url = `/ad_accounts/${encodeURIComponent(accountId)}${path}?page.size=1000`;
+    for (let page = 0; page < 25 && url; page += 1) {
+        const full = await redditAdsFetch(accessToken, url, { full: true, ...uaOpt });
+        if (Array.isArray(full?.data)) out.push(...full.data);
+        url = full?.pagination?.next_url || null;
+    }
+    return out;
+}
+
+/** id -> entity (name and parents) for campaigns, ad groups or ads; empty on failure so names fall back to ids */
+async function redditEntityMap(accessToken, accountId, path, uaOpt) {
+    try {
+        const list = await redditListAll(accessToken, accountId, path, uaOpt);
+        return new Map(list.map((e) => [String(e.id), e]));
+    } catch (e) {
+        if (String(e?.message || "").includes("Reddit Ads API 401")) throw e;
+        dbgErr(`entity list ${path} failed`, e?.message || e);
+        return new Map();
+    }
+}
+
+/** Purchase and add to cart fields. They are accepted by the reporting API but optional, so they fall back. */
+const CONVERSION_FIELDS = ["CONVERSION_PURCHASE_TOTAL_ITEMS", "CONVERSION_PURCHASE_TOTAL_VALUE", "CONVERSION_ADD_TO_CART_TOTAL_ITEMS"];
+
+/** Run a report with the conversion fields first and the plain fields as a fallback. */
+async function redditReportWithConversions(accessToken, accountId, spec, uaOpt) {
+    try {
+        return await redditReportAllRows(accessToken, accountId, { ...spec, fields: [...spec.fields, ...CONVERSION_FIELDS] }, uaOpt);
+    } catch (e) {
+        if (String(e?.message || "").includes("Reddit Ads API 401")) throw e;
+        dbgErr("report with conversion fields failed, retrying plain", e?.message || e);
+        return redditReportAllRows(accessToken, accountId, spec, uaOpt);
+    }
+}
+
+/** Purchase value is reported in micro-currency like spend. */
+function valueToMajor(row) {
+    return num(row.conversion_purchase_total_value ?? row.CONVERSION_PURCHASE_TOTAL_VALUE) / 1_000_000;
+}
+
+function rowPurchases(row) {
+    return num(row.conversion_purchase_total_items ?? row.CONVERSION_PURCHASE_TOTAL_ITEMS);
+}
+
+function rowAddsToCart(row) {
+    return num(row.conversion_add_to_cart_total_items ?? row.CONVERSION_ADD_TO_CART_TOTAL_ITEMS);
 }
 
 function campaignLabel(row) {
@@ -634,6 +721,212 @@ export async function fetchRedditDashboardMetrics({
     }
 }
 
+/**
+ * Extras for the dashboard (best-effort, each part may fail on its own and returns a warning):
+ *  - audience breakdowns: communities (subreddits), interests, keywords, gender, country, region, placement
+ *  - ad groups and ads with names
+ *  - account totals: unique reach, frequency and the video funnel
+ * Spend and purchase value are converted to DKK like the rest of the module.
+ */
+const BREAKDOWN_FIELDS = ["IMPRESSIONS", "CLICKS", "SPEND"];
+
+const AUDIENCE_BREAKDOWNS = [
+    { key: "community", breakdown: "COMMUNITY", rowKey: "community", limit: 40 },
+    { key: "interest", breakdown: "INTEREST", rowKey: "interest", limit: 30 },
+    { key: "keyword", breakdown: "KEYWORD", rowKey: "keyword", limit: 30 },
+    { key: "gender", breakdown: "GENDER", rowKey: "gender", limit: 10 },
+    { key: "country", breakdown: "COUNTRY", rowKey: "country", limit: 30 },
+    { key: "region", breakdown: "REGION", rowKey: "region", limit: 30 },
+    { key: "placement", breakdown: "PLACEMENT", rowKey: "placement", limit: 10 },
+];
+
+function titleCase(v) {
+    return String(v)
+        .replace(/_/g, " ")
+        .toLowerCase()
+        .replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+}
+
+function breakdownLabel(key, raw) {
+    const v = String(raw ?? "").trim();
+    if (!v) return "Unknown";
+    if (key === "country" && v.length === 2) {
+        try {
+            return new Intl.DisplayNames(["en"], { type: "region" }).of(v.toUpperCase()) || v.toUpperCase();
+        } catch {
+            return v.toUpperCase();
+        }
+    }
+    if (key === "placement") return titleCase(v);
+    if (key === "community") return `r/${v.replace(/^r\//i, "")}`;
+    return v;
+}
+
+function withMetrics(base, agg, rate) {
+    const ad_spend = agg.spend * rate;
+    const purchase_value = agg.value * rate;
+    return {
+        ...base,
+        impressions: agg.impressions,
+        clicks: agg.clicks,
+        ad_spend,
+        purchases: agg.purchases,
+        adds_to_cart: agg.adds,
+        purchase_value,
+        ctr: agg.impressions > 0 ? agg.clicks / agg.impressions : 0,
+        roas: ad_spend > 0 && purchase_value > 0 ? purchase_value / ad_spend : 0,
+    };
+}
+
+function emptyAgg() {
+    return { impressions: 0, clicks: 0, spend: 0, purchases: 0, adds: 0, value: 0 };
+}
+
+function addRow(agg, row) {
+    agg.impressions += rowImpressions(row);
+    agg.clicks += rowClicks(row);
+    agg.spend += spendToMajor(row);
+    agg.purchases += rowPurchases(row);
+    agg.adds += rowAddsToCart(row);
+    agg.value += valueToMajor(row);
+}
+
+async function redditBreakdownRows(accessToken, acc, startDate, endDate, breakdown, uaOpt) {
+    return redditReportWithConversions(
+        accessToken,
+        acc,
+        { ...redditReportTimeRange(startDate, endDate), fields: BREAKDOWN_FIELDS, breakdowns: [breakdown] },
+        uaOpt
+    );
+}
+
+async function redditAudienceBreakdown({ accessToken, acc, startDate, endDate, uaOpt, rate, def }) {
+    const rows = await redditBreakdownRows(accessToken, acc, startDate, endDate, def.breakdown, uaOpt);
+    const map = new Map();
+    for (const r of rows) {
+        const raw = String(r[def.rowKey] ?? r[def.rowKey.toUpperCase()] ?? "");
+        if (!raw) continue;
+        const cur = map.get(raw) || emptyAgg();
+        addRow(cur, r);
+        map.set(raw, cur);
+    }
+    return [...map.entries()]
+        .map(([raw, agg]) => withMetrics({ id: raw, name: breakdownLabel(def.key, raw) }, agg, rate))
+        .sort((a, b) => b.ad_spend - a.ad_spend)
+        .slice(0, def.limit);
+}
+
+async function redditEntityBreakdown({ accessToken, acc, startDate, endDate, uaOpt, rate, kind }) {
+    const isAd = kind === "ad";
+    const [rows, entities, campaigns, adGroups] = await Promise.all([
+        redditBreakdownRows(accessToken, acc, startDate, endDate, isAd ? "AD_ID" : "AD_GROUP_ID", uaOpt),
+        redditEntityMap(accessToken, acc, isAd ? "/ads" : "/ad_groups", uaOpt),
+        redditEntityMap(accessToken, acc, "/campaigns", uaOpt),
+        isAd ? redditEntityMap(accessToken, acc, "/ad_groups", uaOpt) : Promise.resolve(new Map()),
+    ]);
+    const idKey = isAd ? "ad_id" : "ad_group_id";
+    const map = new Map();
+    for (const r of rows) {
+        const id = String(r[idKey] ?? "");
+        if (!id) continue;
+        const cur = map.get(id) || emptyAgg();
+        addRow(cur, r);
+        map.set(id, cur);
+    }
+    return [...map.entries()]
+        .map(([id, agg]) => {
+            const e = entities.get(id) || {};
+            const camp = campaigns.get(String(e.campaign_id)) || {};
+            return withMetrics(
+                {
+                    id,
+                    name: e.name || `${isAd ? "Ad" : "Ad group"} ${id}`,
+                    campaign_id: e.campaign_id || null,
+                    campaign_name: camp.name || null,
+                    ad_group_name: isAd ? adGroups.get(String(e.ad_group_id))?.name || null : null,
+                    status: e.effective_status || null,
+                    objective: camp.objective || null,
+                },
+                agg,
+                rate
+            );
+        })
+        .sort((a, b) => b.ad_spend - a.ad_spend)
+        .slice(0, 50);
+}
+
+const ACCOUNT_TOTAL_FIELDS = [
+    "IMPRESSIONS",
+    "REACH",
+    "FREQUENCY",
+    "VIDEO_STARTED",
+    "VIDEO_WATCHED_25_PERCENT",
+    "VIDEO_WATCHED_50_PERCENT",
+    "VIDEO_WATCHED_75_PERCENT",
+    "VIDEO_WATCHED_100_PERCENT",
+    "VIDEO_PLAYS_WITH_SOUND",
+];
+
+async function redditAccountTotals({ accessToken, acc, startDate, endDate, uaOpt }) {
+    const rows = await redditReportAllRows(
+        accessToken,
+        acc,
+        { ...redditReportTimeRange(startDate, endDate), fields: ACCOUNT_TOTAL_FIELDS, breakdowns: [] },
+        uaOpt
+    );
+    const r = rows[0] || {};
+    const started = num(r.video_started);
+    return {
+        reach: num(r.reach),
+        frequency: num(r.frequency),
+        video_started: started,
+        video_25: num(r.video_watched_25_percent),
+        video_50: num(r.video_watched_50_percent),
+        video_75: num(r.video_watched_75_percent),
+        video_100: num(r.video_watched_100_percent),
+        video_with_sound: num(r.video_plays_with_sound),
+    };
+}
+
+export async function fetchRedditDashboardExtras({ accessToken, accountId, startDate, endDate, redditUsername }) {
+    const acc = String(accountId || "").trim();
+    const uaOpt = { redditUsername };
+    const rate = await redditSpendConversionRateToDkk();
+    const ctx = { accessToken, acc, startDate, endDate, uaOpt, rate };
+
+    const settled = await Promise.allSettled([
+        redditAccountTotals(ctx),
+        redditEntityBreakdown({ ...ctx, kind: "ad_group" }),
+        redditEntityBreakdown({ ...ctx, kind: "ad" }),
+        ...AUDIENCE_BREAKDOWNS.map((def) => redditAudienceBreakdown({ ...ctx, def })),
+    ]);
+    const [totals, adGroups, ads, ...audiences] = settled;
+
+    const warnings = [];
+    const fail = (part, r) => warnings.push({ part, message: r.reason?.message || `${part} failed` });
+    if (totals.status === "rejected") fail("account", totals);
+    if (adGroups.status === "rejected") fail("ad_groups", adGroups);
+    if (ads.status === "rejected") fail("ads", ads);
+
+    const audience = {};
+    AUDIENCE_BREAKDOWNS.forEach((def, i) => {
+        const r = audiences[i];
+        if (r.status === "fulfilled") audience[def.key] = r.value;
+        else {
+            audience[def.key] = [];
+            fail(def.key, r);
+        }
+    });
+
+    return {
+        account: totals.status === "fulfilled" ? totals.value : null,
+        ad_groups: adGroups.status === "fulfilled" ? adGroups.value : [],
+        ads: ads.status === "fulfilled" ? ads.value : [],
+        audience,
+        warnings,
+    };
+}
+
 async function fetchRedditDashboardMetricsInner({
     accessToken,
     accountId,
@@ -669,17 +962,13 @@ async function fetchRedditDashboardMetricsInner({
 
     if (aggregateSpendByCountry) {
         try {
-            const body = redditReportPostBody({
-                ...redditReportTimeRange(startDate, endDate),
-                fields: ["SPEND"],
-                breakdowns: ["DATE", "COUNTRY"],
-            });
-            const payload = await redditAdsFetch(
+            const rowsAll = await redditReportAllRows(
                 accessToken,
-                `/ad_accounts/${encodeURIComponent(acc)}/reports`,
-                { method: "POST", body, ...uaOpt }
+                acc,
+                { ...redditReportTimeRange(startDate, endDate), fields: ["SPEND"], breakdowns: ["DATE", "COUNTRY"] },
+                uaOpt
             );
-            for (const row of extractReportRows(payload)) {
+            for (const row of rowsAll) {
                 const cc = rowCountryCode(row);
                 if (!cc) continue;
                 spendByIso2.set(cc, (spendByIso2.get(cc) || 0) + spendToMajor(row));
@@ -699,18 +988,9 @@ async function fetchRedditDashboardMetricsInner({
     let dailyRows = [];
     if (marketCountryFilter) {
         try {
-            const body = redditReportPostBody({
-                ...redditReportTimeRange(startDate, endDate),
-                fields: ["SPEND"],
-                breakdowns: ["DATE", "COUNTRY"],
-            });
-            dbg("reports try (DATE+COUNTRY)", body);
-            const payload = await redditAdsFetch(
-                accessToken,
-                `/ad_accounts/${encodeURIComponent(acc)}/reports`,
-                { method: "POST", body, ...uaOpt }
-            );
-            dailyRows = extractReportRows(payload);
+            const spec = { ...redditReportTimeRange(startDate, endDate), fields: ["SPEND"], breakdowns: ["DATE", "COUNTRY"] };
+            dbg("reports try (DATE+COUNTRY)", spec);
+            dailyRows = await redditReportAllRows(accessToken, acc, spec, uaOpt);
             if (dailyRows.length === 0) dbg("DATE+COUNTRY reports empty rows");
         } catch (e) {
             if (String(e?.message || "").includes("Reddit Ads API 401")) throw e;
@@ -718,21 +998,16 @@ async function fetchRedditDashboardMetricsInner({
         }
     } else {
         try {
-            const body = redditReportPostBody({
-                ...redditReportTimeRange(startDate, endDate),
-                fields: reportFields,
-                breakdowns: ["DATE"],
-            });
-            dbg("reports try", body);
-            const payload = await redditAdsFetch(
-                accessToken,
-                `/ad_accounts/${encodeURIComponent(acc)}/reports`,
-                { method: "POST", body, ...uaOpt }
-            );
-            dailyRows = extractReportRows(payload);
+            const spec = { ...redditReportTimeRange(startDate, endDate), fields: reportFields, breakdowns: ["DATE"] };
+            dbg("reports try", spec);
+            dailyRows = spendByDateOnly
+                ? await redditReportAllRows(accessToken, acc, spec, uaOpt)
+                : await redditReportWithConversions(accessToken, acc, spec, uaOpt);
             if (dailyRows.length === 0) dbg("reports empty rows");
         } catch (e) {
             if (String(e?.message || "").includes("Reddit Ads API 401")) throw e;
+            // A persistent rate limit on the dashboard path is an error, not an account with no spend.
+            if (!spendByDateOnly && String(e?.message || "").includes("Reddit Ads API 429")) throw e;
             dbgErr("reports failed", e?.message || e);
         }
     }
@@ -748,12 +1023,15 @@ async function fetchRedditDashboardMetricsInner({
                 const cc = rowCountryCode(row);
                 if (!cc || !countryAllow.has(cc)) continue;
             }
-            if (!byDate[dk]) byDate[dk] = { impressions: 0, clicks: 0, spend: 0, conversions: 0 };
+            if (!byDate[dk]) byDate[dk] = { impressions: 0, clicks: 0, spend: 0, conversions: 0, purchases: 0, value: 0, adds: 0 };
             const m = byDate[dk];
             m.impressions += rowImpressions(row);
             m.clicks += rowClicks(row);
             m.spend += spendToMajor(row);
             m.conversions += rowConversions(row);
+            m.purchases += rowPurchases(row);
+            m.value += valueToMajor(row);
+            m.adds += rowAddsToCart(row);
         }
     } else if (dailyRows.length && !countryAllow) {
         const total = dailyRows.reduce(
@@ -779,40 +1057,32 @@ async function fetchRedditDashboardMetricsInner({
     }
 
     let metrics_by_date = eachDayInclusive(startDate, endDate).map((d) =>
-        normalizeDayRow(d, byDate[d] || { impressions: 0, clicks: 0, spend: 0, conversions: 0 })
+        normalizeDayRow(d, byDate[d] || { impressions: 0, clicks: 0, spend: 0, conversions: 0, purchases: 0, value: 0, adds: 0 })
     );
     metrics_by_date = metrics_by_date.filter((r) => r.date);
 
     let top_campaigns = [];
     if (!spendByDateOnly) {
     try {
-        const campPayload = await redditAdsFetch(
-            accessToken,
-            `/ad_accounts/${encodeURIComponent(acc)}/reports`,
-            {
-                method: "POST",
-                body: redditReportPostBody({
-                    ...redditReportTimeRange(startDate, endDate),
-                    fields: reportFields,
-                    breakdowns: ["CAMPAIGN_ID"],
-                }),
-                ...uaOpt,
-            }
-        );
-
-        const campRows = extractReportRows(campPayload);
+        const [campRows, campaignMap] = await Promise.all([
+            redditReportWithConversions(
+                accessToken,
+                acc,
+                { ...redditReportTimeRange(startDate, endDate), fields: reportFields, breakdowns: ["CAMPAIGN_ID"] },
+                uaOpt
+            ),
+            redditEntityMap(accessToken, acc, "/campaigns", uaOpt),
+        ]);
         const merged = new Map();
         for (const row of campRows) {
             const cid = campaignKey(row) || "__";
-            const prev = merged.get(cid) || {
-                impressions: 0,
-                clicks: 0,
-                spend: 0,
-                name: campaignLabel(row),
-            };
+            const prev = merged.get(cid) || { impressions: 0, clicks: 0, spend: 0, purchases: 0, adds: 0, value: 0, name: campaignMap.get(cid)?.name || campaignLabel(row) };
             prev.impressions += rowImpressions(row);
             prev.clicks += rowClicks(row);
             prev.spend += spendToMajor(row);
+            prev.purchases += rowPurchases(row);
+            prev.adds += rowAddsToCart(row);
+            prev.value += valueToMajor(row);
             merged.set(cid, prev);
         }
         top_campaigns = [...merged.entries()].map(([id, v]) => {
@@ -827,10 +1097,15 @@ async function fetchRedditDashboardMetricsInner({
                 ctr,
                 saves: clicks,
                 ad_spend: v.spend,
+                purchases: v.purchases,
+                adds_to_cart: v.adds,
+                purchase_value: v.value,
+                objective: campaignMap.get(id)?.objective || null,
+                status: campaignMap.get(id)?.effective_status || null,
             };
         });
         top_campaigns.sort((a, b) => (b.ad_spend || 0) - (a.ad_spend || 0));
-        top_campaigns = top_campaigns.slice(0, 20);
+        top_campaigns = top_campaigns.slice(0, 50);
     } catch (e2) {
         if (String(e2?.message || "").includes("Reddit Ads API 401")) throw e2;
         dbgErr("top campaigns failed", e2?.message || e2);

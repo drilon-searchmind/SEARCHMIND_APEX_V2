@@ -1,11 +1,12 @@
 import {
+    fetchRedditDashboardExtras,
     fetchRedditDashboardMetrics,
     resolveRedditAccessTokenForCustomer,
 } from "@/lib/redditApi";
 import { getCustomerById } from "../../../../lib/customerOperations";
 import { isDemoCustomerId } from "@/lib/demoCustomer";
 import { normalizeRedditSettings } from "@/lib/redditCustomerSettings";
-import { getDemoRedditDashboardForRange } from "@/lib/demoAdMetrics";
+import { getDemoRedditDashboardForRange } from "@/lib/demoReddit";
 
 function mergeRedditServerEnv(red) {
     const r = red || {};
@@ -123,6 +124,26 @@ export async function GET(req) {
                 totalAdSpend: spend,
                 topCampaigns: (metrics.top_campaigns || []).length,
             });
+        }
+        // Audience, ad group, ad and reach detail are best-effort extras for the dashboard
+        if (searchParams.get("extras") !== "0") {
+            try {
+                const freshToken = (await resolveRedditAccessTokenForCustomer(reddit)) || accessToken;
+                const extras = await fetchRedditDashboardExtras({
+                    accessToken: freshToken,
+                    accountId,
+                    startDate,
+                    endDate,
+                    redditUsername: reddit.redditUsername,
+                });
+                metrics.account = extras.account;
+                metrics.ad_groups = extras.ad_groups;
+                metrics.ads = extras.ads;
+                metrics.audience = extras.audience;
+                metrics.warnings = extras.warnings;
+            } catch (eExtras) {
+                metrics.warnings = [{ part: "extras", message: eExtras?.message || "Extra reports failed" }];
+            }
         }
         return new Response(JSON.stringify(metrics), {
             status: 200,
