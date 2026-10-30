@@ -2397,3 +2397,500 @@
 		font-size: var(--text-sm);
 	}
 }
+
+/* ═══ Bolder pass: black slabs against the sage canvas, mint as the one accent on black ═══ */
+
+.apex-landing {
+	--dark: var(--cd-dark);
+	--dark-2: var(--cd-dark-2);
+	--dark-line: var(--cd-dark-line);
+	--on-dark: var(--cd-on-dark);
+	--on-dark-2: var(--cd-on-dark-2);
+	--on-dark-muted: var(--cd-on-dark-muted);
+	--slab-radius: 36px;
+}
+
+/* Type: heavier and tighter, balanced line breaks, sentence case labels */
+.apex-landing__hero-title,
+.apex-landing__section-title,
+.apex-landing__radar-title,
+.apex-landing__pricing-title,
+.apex-landing__faq-title {
+	font-weight: 700;
+	letter-spacing: -0.035em;
+	line-height: 1.04;
+	text-wrap: balance;
+}
+
+.apex-landing__section-title,
+.apex-landing__radar-title,
+.apex-landing__pricing-title {
+	font-size: clamp(2rem, 4.2vw, 3.1rem);
+}
+
+.apex-landing__eyebrow,
+.apex-landing__form-eyebrow {
+	text-transform: none;
+	letter-spacing: -0.005em;
+	font-size: 0.9rem;
+	font-weight: 600;
+	color: var(--cd-green-2);
+}
+
+.apex-landing__lede,
+.apex-landing__hero-lead,
+.apex-landing__radar-lead,
+.apex-landing__pricing-lede {
+	text-wrap: pretty;
+	max-width: 36rem;
+}
+
+/* ── Header: black bar ── */
+.apex-landing__header {
+	background: rgba(17, 26, 18, 0.92);
+	backdrop-filter: blur(10px);
+	border-bottom: 1px solid var(--dark-line);
+}
+
+.apex-landing__brand,
+.apex-landing__brand-name {
+	color: var(--on-dark);
+}
+
+.apex-landing__brand img {
+	filter: brightness(0) invert(1);
+}
+
+.apex-landing__link {
+	color: var(--on-dark-2);
+}
+
+.apex-landing__link:hover {
+	color: var(--cd-mint);
+}
+
+.apex-landing__header .apex-landing__btn--primary,
+.apex-landing__hero .apex-landing__btn--primary,
+.apex-landing__pricing .apex-landing__btn--primary,
+.apex-landing__feature-card--dark .apex-landing__btn--primary {
+	background: var(--cd-mint);
+	border-color: var(--cd-mint);
+	color: var(--dark);
+}
+
+@media (hover: hover) {
+	.apex-landing__header .apex-landing__btn--primary:hover,
+	.apex-landing__hero .apex-landing__btn--primary:hover,
+	.apex-landing__feature-card--dark .apex-landing__btn--primary:hover {
+		background: #fff;
+		border-color: #fff;
+	}
+}
+
+/* ── Hero: a black slab with a mint glow and a faint grid ── */
+.apex-landing__hero {
+	position: relative;
+	background: var(--dark);
+	color: var(--on-dark);
+	border-radius: 0 0 var(--slab-radius) var(--slab-radius);
+	padding-bottom: var(--space-3xl);
+	overflow: hidden;
+	isolation: isolate;
+}
+
+.apex-landing__hero::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	background-image:
+		linear-gradient(rgba(169, 237, 162, 0.06) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(169, 237, 162, 0.06) 1px, transparent 1px);
+	background-size: 56px 56px;
+	-webkit-mask-image: radial-gradient(ellipse 70% 80% at 72% 45%, #000 20%, transparent 75%);
+	mask-image: radial-gradient(ellipse 70% 80% at 72% 45%, #000 20%, transparent 75%);
+}
+
+.apex-landing__hero-title {
+	color: var(--on-dark);
+	font-size: clamp(2.4rem, 5.6vw, 4.5rem);
+	line-height: 1;
+}
+
+.apex-landing__hero-lead {
+	color: var(--on-dark-2);
+}
+
+.apex-landing__hero .apex-landing__pill {
+	background: var(--dark-2);
+	border: 1px solid var(--dark-line);
+	color: var(--cd-mint);
+}
+
+.apex-landing__hero .apex-landing__pill-dot {
+	background: var(--cd-mint);
+	box-shadow: 0 0 0 3px rgba(169, 237, 162, 0.18);
+}
+
+.apex-landing__hero .apex-landing__btn--secondary {
+	background: transparent;
+	border-color: var(--dark-line);
+	color: var(--on-dark);
+}
+
+@media (hover: hover) {
+	.apex-landing__hero .apex-landing__btn--secondary:hover {
+		background: var(--dark-2);
+		border-color: var(--cd-mint);
+	}
+}
+
+.apex-landing__hero-trust {
+	color: var(--on-dark-muted);
+}
+
+.apex-landing__hero .apex-landing__check {
+	color: var(--cd-mint);
+}
+
+.apex-landing__mock-glow {
+	display: block;
+	position: absolute;
+	inset: -12% -8%;
+	z-index: 0;
+	background: radial-gradient(closest-side, rgba(169, 237, 162, 0.22), transparent 72%);
+	filter: blur(24px);
+}
+
+.apex-landing__mock {
+	border-color: var(--dark-line);
+	box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.7);
+}
+
+.apex-landing__tracking-chip {
+	border-color: var(--dark-line);
+	box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.6);
+}
+
+/* One orchestrated moment: the dashboard rises into place on load */
+@keyframes apex-landing-rise {
+	from { opacity: 0; transform: translateY(28px); }
+	to { opacity: 1; transform: none; }
+}
+
+.apex-landing__mock-wrap {
+	animation: apex-landing-rise 0.9s var(--ease-out) 0.15s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.apex-landing__mock-wrap {
+		animation: none;
+	}
+}
+
+/* ── Integrations: sit on the sage, no band ── */
+.apex-landing__integrations {
+	background: transparent;
+	border: none;
+}
+
+.apex-landing__integrations-title {
+	color: var(--cd-ink-2);
+	font-weight: 600;
+}
+
+.apex-landing__integration {
+	color: var(--cd-ink);
+	font-weight: 600;
+}
+
+/* ── Steps: black number tiles, the outcome card goes black ── */
+.apex-landing__step-card {
+	display: flex;
+	flex-direction: column;
+	background: var(--cd-card);
+	min-height: 17rem;
+}
+
+.apex-landing__step-num {
+	width: 52px;
+	height: 52px;
+	border-radius: 16px;
+	background: var(--dark);
+	color: var(--cd-mint);
+	font-size: 1.1rem;
+	font-weight: 700;
+}
+
+.apex-landing__step-title {
+	font-size: 1.4rem;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	margin-top: auto;
+	padding-top: var(--space-xl);
+}
+
+.apex-landing__step-card:last-child {
+	background: var(--dark);
+	border-color: var(--dark);
+}
+
+.apex-landing__step-card:last-child .apex-landing__step-num {
+	background: var(--cd-mint);
+	color: var(--dark);
+}
+
+.apex-landing__step-card:last-child .apex-landing__step-line {
+	background: var(--dark-line);
+}
+
+.apex-landing__step-card:last-child .apex-landing__step-title {
+	color: var(--on-dark);
+}
+
+.apex-landing__step-card:last-child .apex-landing__step-copy {
+	color: var(--on-dark-2);
+}
+
+/* ── Reports: cards flip to black on hover ── */
+.apex-landing__report-card {
+	background: var(--cd-card);
+	transition: background-color 200ms var(--ease-out), border-color 200ms var(--ease-out), transform 200ms var(--ease-out), color 200ms var(--ease-out);
+}
+
+@media (hover: hover) {
+	.apex-landing__report-card:hover {
+		background: var(--dark);
+		border-color: var(--dark);
+		transform: translateY(-4px);
+	}
+
+	.apex-landing__report-card:hover .apex-landing__report-name {
+		color: var(--on-dark);
+	}
+
+	.apex-landing__report-card:hover .apex-landing__report-desc {
+		color: var(--on-dark-muted);
+	}
+
+	.apex-landing__report-card:hover .apex-landing__report-icon {
+		background: var(--cd-mint);
+		color: var(--dark);
+	}
+
+	.apex-landing__report-card:hover .apex-landing__report-cta {
+		color: var(--cd-mint);
+	}
+}
+
+.apex-landing__report-card:focus-visible {
+	outline: 2px solid var(--cd-green);
+	outline-offset: 3px;
+}
+
+/* ── Services: full black panel ── */
+.apex-landing__services-panel {
+	background: var(--dark);
+	border-color: var(--dark);
+	border-radius: var(--slab-radius);
+	padding: clamp(1.5rem, 4vw, 3rem);
+}
+
+.apex-landing__services-panel .apex-landing__section-title {
+	color: var(--on-dark);
+}
+
+.apex-landing__services-panel .apex-landing__muted {
+	color: var(--on-dark-muted);
+}
+
+.apex-landing__service-card {
+	background: var(--dark-2);
+	border: 1px solid var(--dark-line);
+	transition: border-color 160ms var(--ease-out), transform 160ms var(--ease-out);
+}
+
+@media (hover: hover) {
+	.apex-landing__service-card:hover {
+		border-color: var(--cd-mint);
+		transform: translateY(-2px);
+	}
+}
+
+.apex-landing__service-name {
+	color: var(--on-dark);
+}
+
+.apex-landing__services-panel .apex-landing__badge--new {
+	background: rgba(169, 237, 162, 0.14);
+	color: var(--cd-mint);
+}
+
+.apex-landing__services-panel .apex-landing__badge--beta {
+	background: var(--dark);
+	color: var(--on-dark-2);
+	border-color: var(--dark-line);
+}
+
+.apex-landing__services-panel .apex-landing__badge--wip {
+	background: rgba(247, 238, 216, 0.12);
+	color: #E9CF8C;
+}
+
+/* ── Radar: the visual becomes a black panel with a mint sweep ── */
+.apex-landing__radar {
+	background: transparent;
+	border: none;
+}
+
+.apex-landing__radar-visual {
+	background: var(--dark);
+	border-radius: var(--slab-radius);
+	min-height: 25rem;
+	overflow: hidden;
+}
+
+.apex-landing__radar-ring {
+	border-color: var(--dark-line);
+}
+
+.apex-landing__radar-sweep-inner {
+	background: conic-gradient(from 0deg, rgba(169, 237, 162, 0.38), transparent 30%);
+}
+
+.apex-landing__radar-dot--1 { background: var(--cd-mint); }
+.apex-landing__radar-dot--2 { background: #F2A49E; }
+.apex-landing__radar-dot--3 { background: var(--cd-mint); }
+
+.apex-landing__radar-core {
+	background: var(--dark-2);
+	border-color: var(--dark-line);
+}
+
+.apex-landing__radar-core-dot {
+	background: var(--cd-mint);
+}
+
+/* ── Features: AI card goes black, layout leans toward it ── */
+.apex-landing__features-grid {
+	grid-template-columns: 1fr 1.1fr;
+}
+
+.apex-landing__feature-title {
+	font-size: clamp(1.4rem, 2.4vw, 1.85rem);
+	font-weight: 700;
+	letter-spacing: -0.025em;
+}
+
+.apex-landing__feature-card--dark {
+	background: var(--dark);
+	border-color: var(--dark);
+	border-radius: var(--slab-radius);
+}
+
+.apex-landing__feature-card--dark .apex-landing__eyebrow {
+	color: var(--cd-mint);
+}
+
+.apex-landing__feature-card--dark .apex-landing__feature-title {
+	color: var(--on-dark);
+}
+
+.apex-landing__feature-card--dark .apex-landing__feature-copy {
+	color: var(--on-dark-2);
+}
+
+.apex-landing__feature-card--dark .apex-landing__ai-box {
+	background: var(--dark-2);
+	border-color: var(--dark-line);
+}
+
+.apex-landing__feature-card--dark .apex-landing__ai-status {
+	color: var(--on-dark-muted);
+}
+
+.apex-landing__feature-card--dark .apex-landing__ai-status-dot {
+	background: var(--cd-mint);
+}
+
+.apex-landing__feature-card--dark .apex-landing__ai-quote {
+	color: var(--on-dark);
+}
+
+.apex-landing__feature-card--dark .apex-landing__feature-cta {
+	align-self: flex-start;
+	margin-top: var(--space-lg);
+}
+
+.apex-landing__score-bar-fill {
+	background: var(--cd-green);
+}
+
+.apex-landing__score-box {
+	background: var(--cd-sunk);
+	border-color: var(--cd-line);
+}
+
+.apex-landing__score-alert-detail {
+	color: var(--cd-neg);
+}
+
+/* ── Signup: black slab with a light form card ── */
+.apex-landing__pricing-panel {
+	background: var(--dark);
+	border-color: var(--dark);
+	border-radius: var(--slab-radius);
+	padding: clamp(1.5rem, 4vw, 3.5rem);
+}
+
+.apex-landing__pricing-panel .apex-landing__eyebrow {
+	color: var(--cd-mint);
+}
+
+.apex-landing__pricing-title {
+	color: var(--on-dark);
+}
+
+.apex-landing__pricing-lede {
+	color: var(--on-dark-2);
+}
+
+.apex-landing__pricing-feature {
+	color: var(--on-dark);
+}
+
+.apex-landing__pricing-check {
+	color: var(--cd-mint);
+}
+
+.apex-landing__pricing-form {
+	background: var(--cd-card);
+	border-color: var(--cd-card);
+}
+
+/* ── FAQ ── */
+.apex-landing__faq-item {
+	background: var(--cd-card);
+	border: 1px solid var(--cd-line);
+	transition: border-color 160ms var(--ease-out);
+}
+
+@media (hover: hover) {
+	.apex-landing__faq-item:hover {
+		border-color: var(--cd-green);
+	}
+}
+
+@media (max-width: 860px) {
+	.apex-landing {
+		--slab-radius: 28px;
+	}
+
+	.apex-landing__features-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.apex-landing__radar-visual {
+		min-height: 20rem;
+	}
+}

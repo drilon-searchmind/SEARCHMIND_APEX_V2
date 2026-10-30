@@ -271,7 +271,7 @@ Because the old pages reference `--apex-*` variables, remapping them inside `.ap
 | `dashboard/[customerId]/service-dashboard/snapchat` | Migrated |
 | `dashboard/[customerId]/service-dashboard/reddit` | Migrated |
 | Other service dashboards, config, other tools | Pending |
-| `/` (landing page, `src/components/landing/*`) | Migrated (CSS only: tokens remapped to `--cd-*`, dark hero metric in the dashboard mock, green primary buttons; the HubSpot signup form is an iframe and keeps HubSpot's own field colours) |
+| `/` (landing page, `src/components/landing/*`) | Migrated (CSS only: tokens remapped to `--cd-*`; black `#111A12` slabs for the header, hero, services, AI card, radar panel and signup, alternating with sage sections, mint as the accent on black and green on light; unlike dashboards the landing page may use several dark surfaces; the HubSpot signup form is an iframe and keeps HubSpot's own field colours) |
 | `/login`, `/home` | Legacy minimal spec |
 
 ### Checklist per page
