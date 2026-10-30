@@ -87,6 +87,11 @@ const CustomerSchema = new mongoose.Schema({
             enum: ["global", "per_market"],
             default: "global",
         },
+        /** When true: the sidebar shows a "Custom" section with this customer's hardcoded custom dashboards (see custom-dashboards/README.md). */
+        customDashboardsEnabled: {
+            type: Boolean,
+            default: false,
+        },
         /** When true: ShopifyQL sales and order-based fetches only include the Online Store channel (excludes POS, draft orders, etc.). */
         shopifyOnlineStoreOnly: {
             type: Boolean,
