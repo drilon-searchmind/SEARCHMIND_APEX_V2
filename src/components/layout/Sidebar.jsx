@@ -305,7 +305,6 @@ const Sidebar = ({ showLinks = true }) => {
                                                     label={item.label}
                                                     pathname={pathname}
                                                     isSmallScreen={isSmallScreen}
-                                                    subLabel="BETA"
                                                     configWarning={item.configWarning}
                                                 />
                                             ))}
@@ -361,7 +360,6 @@ const Sidebar = ({ showLinks = true }) => {
                                                 label="Bing Webmaster"
                                                 pathname={pathname}
                                                 isSmallScreen={isSmallScreen}
-                                                subLabel={"WIP"}
                                                 configWarning={false}
                                             />
                                             <NavItem
