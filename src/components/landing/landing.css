@@ -2507,8 +2507,8 @@
 		linear-gradient(rgba(169, 237, 162, 0.06) 1px, transparent 1px),
 		linear-gradient(90deg, rgba(169, 237, 162, 0.06) 1px, transparent 1px);
 	background-size: 56px 56px;
-	-webkit-mask-image: radial-gradient(ellipse 70% 80% at 72% 45%, #000 20%, transparent 75%);
-	mask-image: radial-gradient(ellipse 70% 80% at 72% 45%, #000 20%, transparent 75%);
+	-webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.18) 28%, #000 80%);
+	mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.18) 28%, #000 80%);
 }
 
 .apex-landing__hero-title {

@@ -302,11 +302,24 @@
   background-color: var(--cd-dark);
   border-color: var(--cd-dark);
   color: var(--cd-on-dark);
-  /* Plain grid texture in flat colour, no fade or glow */
+}
+
+/* Grid texture in a flat colour that fades out toward the left */
+.apex-hm__kpi--hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
   background-image:
-    linear-gradient(rgba(169, 237, 162, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(169, 237, 162, 0.07) 1px, transparent 1px);
+    linear-gradient(rgba(169, 237, 162, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(169, 237, 162, 0.09) 1px, transparent 1px);
   background-size: 28px 28px;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.2) 30%, #000 85%);
+  mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.2) 30%, #000 85%);
+}
+
+.apex-hm__kpi--hero > * {
+  position: relative;
 }
 
 .apex-hm__kpi--hero .apex-hm__kpi-icon {
@@ -1369,5 +1382,280 @@ a.apex-hm__news:hover {
   .apex-hm__nav-arrow,
   .apex-hm__group-name svg {
     transition-duration: 0.01ms;
+  }
+}
+
+/* ── Create property form: grouped sections, two columns, sticky action bar ── */
+.apex-home-shell .apex-home__create {
+  padding: 0;
+}
+
+.apex-home-shell .apex-home__panel--create {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.apex-home-shell .apex-home__create-form {
+  gap: 1rem;
+}
+
+.apex-cf__section {
+  min-width: 0;
+  padding: 1.25rem;
+  border-radius: var(--cd-r-lg);
+  background: var(--cd-card);
+  border: 1px solid var(--cd-line);
+}
+
+.apex-cf__head {
+  display: grid;
+  gap: 0.2rem;
+  margin-bottom: 1rem;
+}
+
+.apex-cf__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--cd-ink);
+}
+
+.apex-cf__desc {
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--cd-ink-2);
+}
+
+.apex-cf__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem 1rem;
+}
+
+.apex-cf__field {
+  min-width: 0;
+}
+
+.apex-cf__field--wide,
+.apex-cf__check-row {
+  grid-column: 1 / -1;
+}
+
+.apex-cf__check-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.apex-cf__check-row label {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* Collapsible sections (Snapchat, Reddit) */
+.apex-cf__section--details {
+  padding: 0;
+}
+
+.apex-cf__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  border-radius: var(--cd-r-lg);
+  cursor: pointer;
+  list-style: none;
+}
+
+.apex-cf__summary::-webkit-details-marker {
+  display: none;
+}
+
+.apex-cf__summary:focus-visible {
+  outline: 2px solid var(--cd-green);
+  outline-offset: -2px;
+}
+
+.apex-cf__summary-text {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.apex-cf__chevron {
+  flex-shrink: 0;
+  width: 1.2rem;
+  height: 1.2rem;
+  color: var(--cd-ink-2);
+  transition: transform 160ms ease;
+}
+
+.apex-cf__section--details[open] .apex-cf__chevron {
+  transform: rotate(180deg);
+}
+
+.apex-cf__section--details[open] > .apex-cf__summary {
+  margin-bottom: 0.25rem;
+}
+
+.apex-cf__section--details > .apex-cf__grid {
+  padding: 0.5rem 1.25rem 1.25rem;
+}
+
+/* Inputs: calm, consistent, green only on focus */
+.apex-home-shell .apex-cf__field input[type="text"],
+.apex-home-shell .apex-cf__field input[type="password"],
+.apex-home-shell .apex-cf__field select {
+  display: block;
+  width: 100%;
+  height: 2.75rem;
+  margin-top: 0.4rem;
+  padding: 0 0.9rem;
+  border: 1px solid var(--cd-line-2);
+  border-radius: 14px;
+  background: var(--cd-frame);
+  color: var(--cd-ink);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: none;
+  outline: 0;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.apex-home-shell .apex-cf__field input::placeholder {
+  color: var(--cd-muted);
+}
+
+.apex-home-shell .apex-cf__field input[type="text"]:hover,
+.apex-home-shell .apex-cf__field input[type="password"]:hover,
+.apex-home-shell .apex-cf__field select:hover {
+  border-color: var(--cd-ink-2);
+}
+
+.apex-home-shell .apex-cf__field input[type="text"]:focus,
+.apex-home-shell .apex-cf__field input[type="password"]:focus,
+.apex-home-shell .apex-cf__field select:focus {
+  border-color: var(--cd-green);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(58, 155, 63, 0.18);
+}
+
+.apex-home-shell .apex-home__form-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--cd-ink-2);
+}
+
+.apex-home-shell .apex-home__form-check {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+  margin: 0;
+  accent-color: var(--cd-green);
+}
+
+.apex-home-shell .apex-home__form-error {
+  border-color: transparent;
+  background: var(--cd-neg-soft);
+  color: var(--cd-neg);
+  font-weight: 600;
+}
+
+/* Action bar stays in view while scrolling a long form */
+.apex-home-shell .apex-home__form-actions {
+  position: sticky;
+  bottom: 0.75rem;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin-top: 0.25rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--cd-line);
+  border-radius: 18px;
+  background: var(--cd-frame);
+}
+
+.apex-cf__note {
+  margin: 0;
+  max-width: 30rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--cd-ink-2);
+}
+
+.apex-home-shell .apex-home__form-submit {
+  background: var(--cd-green) !important;
+  border-color: var(--cd-green) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  font-weight: 600 !important;
+}
+
+.apex-home-shell .apex-home__form-submit:hover:not(:disabled) {
+  background: var(--cd-green-2) !important;
+  border-color: var(--cd-green-2) !important;
+}
+
+.apex-home-shell .apex-home__modal-panel .apex-home__create-form {
+  max-height: min(70vh, 42rem);
+  padding-right: 0.25rem;
+}
+
+.apex-home-shell .apex-home__modal-panel .apex-home__form-actions {
+  bottom: 0;
+}
+
+@media (max-width: 640px) {
+  .apex-cf__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .apex-cf__section {
+    padding: 1rem;
+  }
+
+  .apex-cf__summary {
+    padding: 1rem;
+  }
+
+  .apex-cf__section--details > .apex-cf__grid {
+    padding: 0.5rem 1rem 1rem;
+  }
+
+  .apex-home-shell .apex-home__form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .apex-cf__note {
+    display: none;
+  }
+
+  .apex-home-shell .apex-home__form-submit {
+    width: 100% !important;
+  }
+}
+
+/* On the create page, pair the sections side by side on wide screens */
+@media (min-width: 1100px) {
+  .apex-home-shell .apex-home__create .apex-home__create-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 1rem;
+  }
+
+  .apex-home-shell .apex-home__create .apex-home__form-actions,
+  .apex-home-shell .apex-home__create .apex-home__form-error,
+  .apex-home-shell .apex-home__create .apex-home__form-heading {
+    grid-column: 1 / -1;
   }
 }

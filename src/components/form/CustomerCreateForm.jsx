@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FiChevronDown } from "react-icons/fi";
 import FormLabel from "@/components/form/FormLabel";
 import FormInputText from "@/components/form/FormInputText";
 import FormButton from "@/components/form/FormButton";
@@ -15,6 +16,40 @@ import {
 function cloneFormState(source) {
     return JSON.parse(JSON.stringify(source));
 }
+
+/** Grouped card on the apex-home variant, plain children everywhere else. */
+function Section({ apex, title, description, collapsible = false, defaultOpen = true, children }) {
+    if (!apex) return <>{children}</>;
+    const header = (
+        <>
+            <span className="apex-cf__title">{title}</span>
+            {description ? <span className="apex-cf__desc">{description}</span> : null}
+        </>
+    );
+    if (collapsible) {
+        return (
+            <details className="apex-cf__section apex-cf__section--details" open={defaultOpen}>
+                <summary className="apex-cf__summary">
+                    <span className="apex-cf__summary-text">{header}</span>
+                    <FiChevronDown className="apex-cf__chevron" aria-hidden />
+                </summary>
+                <div className="apex-cf__grid">{children}</div>
+            </details>
+        );
+    }
+    return (
+        <section className="apex-cf__section">
+            <header className="apex-cf__head">{header}</header>
+            <div className="apex-cf__grid">{children}</div>
+        </section>
+    );
+}
+
+function Field({ apex, wide = false, children }) {
+    return <div className={apex ? `apex-cf__field${wide ? " apex-cf__field--wide" : ""}` : undefined}>{children}</div>;
+}
+
+const hasText = (obj) => Object.values(obj || {}).some((v) => typeof v === "string" && v.trim() !== "");
 
 const APEX_HOME_INPUT =
     "apex-home__form-input mt-2 shadow-none h-11 w-full rounded-[14px] border appearance-none px-4 py-2.5 text-sm bg-white text-[var(--apex-ink)] border-[var(--apex-hairline-strong)] placeholder:text-[var(--apex-ink-muted)] focus:outline-none focus:border-[var(--apex-dark-green)] focus:ring-2 focus:ring-[oklch(45%_0.04_165/0.2)]";
@@ -49,6 +84,8 @@ export default function CustomerCreateForm({
     const [form, setForm] = useState(() =>
         cloneFormState(initialValues ?? getDefaultCustomerCreateFormState())
     );
+    const [openSnapchat] = useState(() => hasText((initialValues ?? getDefaultCustomerCreateFormState()).CustomerSettings?.snapchat));
+    const [openReddit] = useState(() => hasText((initialValues ?? getDefaultCustomerCreateFormState()).CustomerSettings?.reddit));
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
     const router = useRouter();
@@ -182,6 +219,13 @@ export default function CustomerCreateForm({
         }
     };
 
+    const a = isApexHome;
+    const checkRow = a ? "apex-cf__check-row" : "flex items-center gap-2";
+    const isB2b = form.businessCategory === "b2b";
+    const showStoreSection = !isB2b && form.customerType !== "Other";
+    const snapchat = form.CustomerSettings.snapchat || {};
+    const reddit = form.CustomerSettings.reddit || {};
+
     return (
         <form className={formClass} onSubmit={handleSubmit}>
             {!hideHeading && heading && (
@@ -189,310 +233,331 @@ export default function CustomerCreateForm({
                     {heading}
                 </h5>
             )}
-            <div>
-                <FormLabel className={labelClass} htmlFor="customerName" required>Customer Name</FormLabel>
-                <FormInputText id="customerName" name="customerName" value={form.customerName} onChange={handleChange} required className={inputClass} />
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="businessCategory">Business Category</FormLabel>
-                <select id="businessCategory" name="businessCategory" value={form.businessCategory || "ecommerce"} onChange={handleChange} className={selectClass}>
-                    <option value="ecommerce">Ecommerce (Shopify / WooCommerce / Magento)</option>
-                    <option value="b2b">B2B (GA4 analytics)</option>
-                </select>
-            </div>
-            {form.businessCategory !== "b2b" && (
-            <div>
-                <FormLabel className={labelClass} htmlFor="customerType">Customer Type</FormLabel>
-                <select id="customerType" name="customerType" value={form.customerType} onChange={handleChange} className={selectClass}>
-                    <option value="Shopify">Shopify</option>
-                    <option value="WooCommerce">WooCommerce</option>
-                    <option value="Magento">Magento</option>
-                    <option value="DanDomain">DanDomain (HostedShop)</option>
-                    <option value="DanDomainOriginal">DanDomain Original (WEBAPI)</option>
-                    <option value="Other">Other</option>
-                </select>
-            </div>
+
+            <Section apex={a} title="Basics" description="Name the property and pick how its store runs.">
+                <Field apex={a} wide>
+                    <FormLabel className={labelClass} htmlFor="customerName" required>Customer Name</FormLabel>
+                    <FormInputText id="customerName" name="customerName" value={form.customerName} onChange={handleChange} required className={inputClass} />
+                </Field>
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="businessCategory">Business Category</FormLabel>
+                    <select id="businessCategory" name="businessCategory" value={form.businessCategory || "ecommerce"} onChange={handleChange} className={selectClass}>
+                        <option value="ecommerce">Ecommerce (Shopify / WooCommerce / Magento)</option>
+                        <option value="b2b">B2B (GA4 analytics)</option>
+                    </select>
+                </Field>
+                {!isB2b && (
+                    <Field apex={a}>
+                        <FormLabel className={labelClass} htmlFor="customerType">Customer Type</FormLabel>
+                        <select id="customerType" name="customerType" value={form.customerType} onChange={handleChange} className={selectClass}>
+                            <option value="Shopify">Shopify</option>
+                            <option value="WooCommerce">WooCommerce</option>
+                            <option value="Magento">Magento</option>
+                            <option value="DanDomain">DanDomain (HostedShop)</option>
+                            <option value="DanDomainOriginal">DanDomain Original (WEBAPI)</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </Field>
+                )}
+                {isB2b && (
+                    <Field apex={a}>
+                        <FormLabel className={labelClass} htmlFor="ga4PropertyId">GA4 Property ID</FormLabel>
+                        <FormInputText id="ga4PropertyId" name="ga4PropertyId" value={form.CustomerSettings.ga4PropertyId || ""} onChange={handleChange} placeholder="e.g. 123456789" className={inputClass} />
+                    </Field>
+                )}
+            </Section>
+
+            {showStoreSection && (
+                <Section apex={a} title="Store connection" description={`Credentials for ${form.customerType}. These can also be added later in config.`}>
+                    {form.customerType === "Shopify" && (
+                        <>
+                            <Field apex={a}>
+                                <FormLabel className={labelClass} htmlFor="shopifyUrl">Shopify URL</FormLabel>
+                                <FormInputText id="shopifyUrl" name="shopifyUrl" value={form.CustomerSettings.shopifyUrl} onChange={handleChange} className={inputClass} />
+                            </Field>
+                            <Field apex={a}>
+                                <FormLabel className={labelClass} htmlFor="shopifyApiPassword">Shopify API Password</FormLabel>
+                                <FormInputText id="shopifyApiPassword" name="shopifyApiPassword" value={form.CustomerSettings.shopifyApiPassword} onChange={handleChange} className={inputClass} />
+                            </Field>
+                            <div className={checkRow}>
+                                <input
+                                    id="shopifyMarketsEnabled"
+                                    name="shopifyMarketsEnabled"
+                                    type="checkbox"
+                                    checked={form.CustomerSettings.shopifyMarketsEnabled === true}
+                                    onChange={handleChange}
+                                    className={checkClass}
+                                />
+                                <FormLabel className={labelClass} htmlFor="shopifyMarketsEnabled">Enable Shopify Markets (revenue by market; needs read_markets scope)</FormLabel>
+                            </div>
+                            <div className={checkRow}>
+                                <input
+                                    id="shopifyOnlineStoreOnly"
+                                    name="shopifyOnlineStoreOnly"
+                                    type="checkbox"
+                                    checked={form.CustomerSettings.shopifyOnlineStoreOnly === true}
+                                    onChange={handleChange}
+                                    className={checkClass}
+                                />
+                                <FormLabel className={labelClass} htmlFor="shopifyOnlineStoreOnly">Online Store only (exclude POS and other channels)</FormLabel>
+                            </div>
+                        </>
+                    )}
+
+                    {form.customerType === "WooCommerce" && (
+                        <>
+                            <Field apex={a}>
+                                <FormLabel className={labelClass} htmlFor="wooCommerceApiKey">WooCommerce API Key</FormLabel>
+                                <FormInputText id="wooCommerceApiKey" name="wooCommerceApiKey" value={form.CustomerSettings.wooCommerceApiKey} onChange={handleChange} className={inputClass} />
+                            </Field>
+                            <Field apex={a}>
+                                <FormLabel className={labelClass} htmlFor="wooCommerceApiSecret">WooCommerce API Secret</FormLabel>
+                                <FormInputText id="wooCommerceApiSecret" name="wooCommerceApiSecret" value={form.CustomerSettings.wooCommerceApiSecret} onChange={handleChange} className={inputClass} />
+                            </Field>
+                            <Field apex={a} wide>
+                                <FormLabel className={labelClass} htmlFor="wooCommerceApiUrl">WooCommerce API URL</FormLabel>
+                                <FormInputText id="wooCommerceApiUrl" name="wooCommerceApiUrl" value={form.CustomerSettings.wooCommerceApiUrl} onChange={handleChange} placeholder="https://yourdomain.com/wp-json/wc/v3/" className={inputClass} />
+                            </Field>
+                        </>
+                    )}
+
+                    {form.customerType === "Magento" && (
+                        <>
+                            <Field apex={a} wide>
+                                <FormLabel className={labelClass} htmlFor="magentoBaseUrl">Magento Base URL</FormLabel>
+                                <FormInputText id="magentoBaseUrl" name="magentoBaseUrl" value={form.CustomerSettings.magentoBaseUrl} onChange={handleChange} placeholder="https://yourdomain.com" className={inputClass} />
+                            </Field>
+                            <Field apex={a}>
+                                <FormLabel className={labelClass} htmlFor="magentoConsumerKey">Consumer Key</FormLabel>
+                                <FormInputText id="magentoConsumerKey" name="magentoConsumerKey" value={form.CustomerSettings.magentoConsumerKey} onChange={handleChange} type="password" className={inputClass} />
+                            </Field>
+                            <Field apex={a}>
+                                <FormLabel className={labelClass} htmlFor="magentoConsumerSecret">Consumer Secret</FormLabel>
+                                <FormInputText id="magentoConsumerSecret" name="magentoConsumerSecret" value={form.CustomerSettings.magentoConsumerSecret} onChange={handleChange} type="password" className={inputClass} />
+                            </Field>
+                            <Field apex={a}>
+                                <FormLabel className={labelClass} htmlFor="magentoAccessToken">Access Token</FormLabel>
+                                <FormInputText id="magentoAccessToken" name="magentoAccessToken" value={form.CustomerSettings.magentoAccessToken} onChange={handleChange} type="password" className={inputClass} />
+                            </Field>
+                            <Field apex={a}>
+                                <FormLabel className={labelClass} htmlFor="magentoAccessTokenSecret">Access Token Secret</FormLabel>
+                                <FormInputText id="magentoAccessTokenSecret" name="magentoAccessTokenSecret" value={form.CustomerSettings.magentoAccessTokenSecret} onChange={handleChange} type="password" className={inputClass} />
+                            </Field>
+                        </>
+                    )}
+
+                    {form.customerType === "DanDomain" && (
+                        <>
+                            <Field apex={a} wide>
+                                <FormLabel className={labelClass} htmlFor="danDomain.shopHost">Shop host</FormLabel>
+                                <FormInputText
+                                    id="danDomain.shopHost"
+                                    name="danDomain.shopHost"
+                                    value={(form.CustomerSettings.danDomain && form.CustomerSettings.danDomain.shopHost) || ""}
+                                    onChange={handleChange}
+                                    className={inputClass}
+                                    placeholder="e.g. shop99999.mywebshop.io (not webshop.dandomain.dk admin URL)"
+                                />
+                            </Field>
+                            <Field apex={a}>
+                                <FormLabel className={labelClass} htmlFor="danDomain.clientId">Client ID</FormLabel>
+                                <FormInputText
+                                    id="danDomain.clientId"
+                                    name="danDomain.clientId"
+                                    value={(form.CustomerSettings.danDomain && form.CustomerSettings.danDomain.clientId) || ""}
+                                    onChange={handleChange}
+                                    className={inputClass}
+                                    placeholder="HostedShop API client_id"
+                                />
+                            </Field>
+                            <Field apex={a}>
+                                <FormLabel className={labelClass} htmlFor="danDomain.clientSecret">Client Secret</FormLabel>
+                                <FormInputText
+                                    id="danDomain.clientSecret"
+                                    name="danDomain.clientSecret"
+                                    type="password"
+                                    value={(form.CustomerSettings.danDomain && form.CustomerSettings.danDomain.clientSecret) || ""}
+                                    onChange={handleChange}
+                                    className={inputClass}
+                                    placeholder="HostedShop API client_secret"
+                                />
+                            </Field>
+                            <Field apex={a} wide>
+                                <FormLabel className={labelClass} htmlFor="danDomain.accessToken">Access Token</FormLabel>
+                                <FormInputText
+                                    id="danDomain.accessToken"
+                                    name="danDomain.accessToken"
+                                    type="password"
+                                    value={(form.CustomerSettings.danDomain && form.CustomerSettings.danDomain.accessToken) || ""}
+                                    onChange={handleChange}
+                                    className={inputClass}
+                                    placeholder="HostedShop API access_token"
+                                />
+                            </Field>
+                        </>
+                    )}
+
+                    {form.customerType === "DanDomainOriginal" && (
+                        <>
+                            <Field apex={a}>
+                                <FormLabel className={labelClass} htmlFor="danDomainOriginal.shopAdminUrl">Shop admin URL</FormLabel>
+                                <FormInputText
+                                    id="danDomainOriginal.shopAdminUrl"
+                                    name="danDomainOriginal.shopAdminUrl"
+                                    value={(form.CustomerSettings.danDomainOriginal && form.CustomerSettings.danDomainOriginal.shopAdminUrl) || ""}
+                                    onChange={handleChange}
+                                    className={inputClass}
+                                    placeholder="e.g. https://ajengros.dk"
+                                />
+                            </Field>
+                            <Field apex={a}>
+                                <FormLabel className={labelClass} htmlFor="danDomainOriginal.apiKey">WEBAPI key</FormLabel>
+                                <FormInputText
+                                    id="danDomainOriginal.apiKey"
+                                    name="danDomainOriginal.apiKey"
+                                    type="password"
+                                    value={(form.CustomerSettings.danDomainOriginal && form.CustomerSettings.danDomainOriginal.apiKey) || ""}
+                                    onChange={handleChange}
+                                    className={inputClass}
+                                    placeholder="OrderService API key from DanDomain admin"
+                                />
+                            </Field>
+                        </>
+                    )}
+                </Section>
             )}
 
-            {form.businessCategory === "b2b" && (
-                <div>
-                <FormLabel className={labelClass} htmlFor="ga4PropertyId">GA4 Property ID</FormLabel>
-                <FormInputText id="ga4PropertyId" name="ga4PropertyId" value={form.CustomerSettings.ga4PropertyId || ""} onChange={handleChange} placeholder="e.g. 123456789" className={inputClass} />
+            <Section apex={a} title="Currency" description="Store currency and, if needed, which Shopify billing countries to convert.">
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="customerStoreValutaCode">Store Valuta Code</FormLabel>
+                    <FormInputText id="customerStoreValutaCode" name="customerStoreValutaCode" value={form.CustomerSettings.customerStoreValutaCode} onChange={handleChange} className={inputClass} />
+                </Field>
+                <div className={checkRow}>
+                    <input id="changeCurrency" name="changeCurrency" type="checkbox" checked={form.CustomerSettings.changeCurrency} onChange={handleChange} className={checkClass} />
+                    <FormLabel className={labelClass} htmlFor="changeCurrency">Change Currency</FormLabel>
                 </div>
-            )}
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="changeCurrencyShopifyBillingCountryName">Shopify billing country include (optional)</FormLabel>
+                    <FormInputText id="changeCurrencyShopifyBillingCountryName" name="changeCurrencyShopifyBillingCountryName" value={form.CustomerSettings.changeCurrencyShopifyBillingCountryName} onChange={handleChange} placeholder="e.g. Sweden,Denmark,Norway" />
+                </Field>
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="changeCurrencyShopifyBillingCountryExclude">Shopify billing country exclude (optional)</FormLabel>
+                    <FormInputText id="changeCurrencyShopifyBillingCountryExclude" name="changeCurrencyShopifyBillingCountryExclude" value={form.CustomerSettings.changeCurrencyShopifyBillingCountryExclude} onChange={handleChange} placeholder="e.g. France,Spain" />
+                </Field>
+            </Section>
 
-            {/* Conditional fields based on customer type */}
-            {form.businessCategory !== "b2b" && form.customerType === "Shopify" && (
-                <>
-                    <div>
-                        <FormLabel className={labelClass} htmlFor="shopifyUrl">Shopify URL</FormLabel>
-                        <FormInputText id="shopifyUrl" name="shopifyUrl" value={form.CustomerSettings.shopifyUrl} onChange={handleChange} className={inputClass} />
-                    </div>
-                    <div>
-                        <FormLabel className={labelClass} htmlFor="shopifyApiPassword">Shopify API Password</FormLabel>
-                        <FormInputText id="shopifyApiPassword" name="shopifyApiPassword" value={form.CustomerSettings.shopifyApiPassword} onChange={handleChange} className={inputClass} />
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <input
-                            id="shopifyMarketsEnabled"
-                            name="shopifyMarketsEnabled"
-                            type="checkbox"
-                            checked={form.CustomerSettings.shopifyMarketsEnabled === true}
-                            onChange={handleChange}
-                            className={inputClass}
-                            className={checkClass}
-                        />
-                        <FormLabel className={labelClass} htmlFor="shopifyMarketsEnabled">Enable Shopify Markets (revenue by market; needs read_markets scope)</FormLabel>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <input
-                            id="shopifyOnlineStoreOnly"
-                            name="shopifyOnlineStoreOnly"
-                            type="checkbox"
-                            checked={form.CustomerSettings.shopifyOnlineStoreOnly === true}
-                            onChange={handleChange}
-                            className={inputClass}
-                            className={checkClass}
-                        />
-                        <FormLabel className={labelClass} htmlFor="shopifyOnlineStoreOnly">Online Store only (exclude POS and other channels)</FormLabel>
-                    </div>
-                </>
-            )}
+            <Section apex={a} title="Advertising accounts" description="Account IDs for the channels this property runs. Leave blank what does not apply.">
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="customerMetaID">Meta ID</FormLabel>
+                    <FormInputText id="customerMetaID" name="customerMetaID" value={form.CustomerSettings.customerMetaID} onChange={handleChange} className={inputClass} />
+                </Field>
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="facebookAdAccountId">Facebook Ad Account ID</FormLabel>
+                    <FormInputText id="facebookAdAccountId" name="facebookAdAccountId" value={form.CustomerSettings.facebookAdAccountId} onChange={handleChange} className={inputClass} />
+                </Field>
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="customerMetaIDExclude">Meta ID Exclude</FormLabel>
+                    <FormInputText id="customerMetaIDExclude" name="customerMetaIDExclude" value={form.CustomerSettings.customerMetaIDExclude} onChange={handleChange} className={inputClass} />
+                </Field>
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="googleAdsCustomerId">Google Ads Customer ID</FormLabel>
+                    <FormInputText
+                        id="googleAdsCustomerId"
+                        name="googleAdsCustomerId"
+                        value={form.CustomerSettings.googleAdsCustomerId}
+                        onChange={handleChange}
+                        placeholder="e.g. 7969227273 or comma-separated IDs"
+                        className={inputClass}
+                    />
+                </Field>
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="pinterestAdAccountId">Pinterest ad account ID</FormLabel>
+                    <FormInputText id="pinterestAdAccountId" name="pinterestAdAccountId" value={form.CustomerSettings.pinterestAdAccountId} onChange={handleChange} className={inputClass} />
+                </Field>
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="linkedinAdAccountId">LinkedIn ad account ID</FormLabel>
+                    <FormInputText id="linkedinAdAccountId" name="linkedinAdAccountId" value={form.CustomerSettings.linkedinAdAccountId} onChange={handleChange} className={inputClass} />
+                </Field>
+            </Section>
 
-            {form.businessCategory !== "b2b" && form.customerType === "WooCommerce" && (
-                <>
-                    <div>
-                        <FormLabel className={labelClass} htmlFor="wooCommerceApiKey">WooCommerce API Key</FormLabel>
-                        <FormInputText id="wooCommerceApiKey" name="wooCommerceApiKey" value={form.CustomerSettings.wooCommerceApiKey} onChange={handleChange} className={inputClass} />
-                    </div>
-                    <div>
-                        <FormLabel className={labelClass} htmlFor="wooCommerceApiSecret">WooCommerce API Secret</FormLabel>
-                        <FormInputText id="wooCommerceApiSecret" name="wooCommerceApiSecret" value={form.CustomerSettings.wooCommerceApiSecret} onChange={handleChange} className={inputClass} />
-                    </div>
-                    <div>
-                        <FormLabel className={labelClass} htmlFor="wooCommerceApiUrl">WooCommerce API URL</FormLabel>
-                        <FormInputText id="wooCommerceApiUrl" name="wooCommerceApiUrl" value={form.CustomerSettings.wooCommerceApiUrl} onChange={handleChange} placeholder="https://yourdomain.com/wp-json/wc/v3/" className={inputClass} />
-                    </div>
-                </>
-            )}
+            <Section apex={a} title="Snapchat" description="Organization, ad account and API credentials." collapsible defaultOpen={openSnapchat}>
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="snapchat.organizationId">Snapchat organization ID</FormLabel>
+                    <FormInputText
+                        id="snapchat.organizationId"
+                        name="snapchat.organizationId"
+                        value={snapchat.organizationId || ""}
+                        onChange={handleChange}
+                        placeholder="Business organization UUID (not ad account)"
+                        className={inputClass}
+                    />
+                </Field>
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="snapchat.adAccountId">Snapchat ad account UUID</FormLabel>
+                    <FormInputText
+                        id="snapchat.adAccountId"
+                        name="snapchat.adAccountId"
+                        value={snapchat.adAccountId || ""}
+                        onChange={handleChange}
+                        placeholder="Ads Manager ad account UUID (for dashboards)"
+                        className={inputClass}
+                    />
+                </Field>
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="snapchat.clientId">Snapchat OAuth client ID</FormLabel>
+                    <FormInputText id="snapchat.clientId" name="snapchat.clientId" value={snapchat.clientId || ""} onChange={handleChange} className={inputClass} />
+                </Field>
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="snapchat.accessToken">Snapchat Marketing API access token</FormLabel>
+                    <FormInputText id="snapchat.accessToken" name="snapchat.accessToken" type="password" value={snapchat.accessToken || ""} onChange={handleChange} className={inputClass} />
+                </Field>
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="snapchat.clientSecret">Snapchat OAuth client secret (optional)</FormLabel>
+                    <FormInputText id="snapchat.clientSecret" name="snapchat.clientSecret" type="password" value={snapchat.clientSecret || ""} onChange={handleChange} className={inputClass} />
+                </Field>
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="snapchat.refreshToken">Snapchat OAuth refresh token (optional)</FormLabel>
+                    <FormInputText id="snapchat.refreshToken" name="snapchat.refreshToken" type="password" value={snapchat.refreshToken || ""} onChange={handleChange} className={inputClass} />
+                </Field>
+                <Field apex={a} wide>
+                    <FormLabel className={labelClass} htmlFor="snapchat.conversionsApiToken">Snapchat Conversions API token</FormLabel>
+                    <FormInputText id="snapchat.conversionsApiToken" name="snapchat.conversionsApiToken" type="password" value={snapchat.conversionsApiToken || ""} onChange={handleChange} className={inputClass} />
+                </Field>
+            </Section>
 
-            {form.businessCategory !== "b2b" && form.customerType === "Magento" && (
-                <>
-                    <div>
-                        <FormLabel className={labelClass} htmlFor="magentoBaseUrl">Magento Base URL</FormLabel>
-                        <FormInputText id="magentoBaseUrl" name="magentoBaseUrl" value={form.CustomerSettings.magentoBaseUrl} onChange={handleChange} placeholder="https://yourdomain.com" className={inputClass} />
-                    </div>
-                    <div>
-                        <FormLabel className={labelClass} htmlFor="magentoConsumerKey">Consumer Key</FormLabel>
-                        <FormInputText id="magentoConsumerKey" name="magentoConsumerKey" value={form.CustomerSettings.magentoConsumerKey} onChange={handleChange} type="password" className={inputClass} />
-                    </div>
-                    <div>
-                        <FormLabel className={labelClass} htmlFor="magentoConsumerSecret">Consumer Secret</FormLabel>
-                        <FormInputText id="magentoConsumerSecret" name="magentoConsumerSecret" value={form.CustomerSettings.magentoConsumerSecret} onChange={handleChange} type="password" className={inputClass} />
-                    </div>
-                    <div>
-                        <FormLabel className={labelClass} htmlFor="magentoAccessToken">Access Token</FormLabel>
-                        <FormInputText id="magentoAccessToken" name="magentoAccessToken" value={form.CustomerSettings.magentoAccessToken} onChange={handleChange} type="password" className={inputClass} />
-                    </div>
-                    <div>
-                        <FormLabel className={labelClass} htmlFor="magentoAccessTokenSecret">Access Token Secret</FormLabel>
-                        <FormInputText id="magentoAccessTokenSecret" name="magentoAccessTokenSecret" value={form.CustomerSettings.magentoAccessTokenSecret} onChange={handleChange} type="password" className={inputClass} />
-                    </div>
-                </>
-            )}
+            <Section apex={a} title="Reddit" description="App credentials and the Reddit Ads account." collapsible defaultOpen={openReddit}>
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="reddit.appId">Reddit app ID</FormLabel>
+                    <FormInputText id="reddit.appId" name="reddit.appId" value={reddit.appId || ""} onChange={handleChange} className={inputClass} />
+                </Field>
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="reddit.appSecret">Reddit app secret</FormLabel>
+                    <FormInputText id="reddit.appSecret" name="reddit.appSecret" type="password" value={reddit.appSecret || ""} onChange={handleChange} className={inputClass} />
+                </Field>
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="reddit.accountId">Reddit Ads account ID</FormLabel>
+                    <FormInputText id="reddit.accountId" name="reddit.accountId" value={reddit.accountId || ""} onChange={handleChange} placeholder="t2_…" className={inputClass} />
+                </Field>
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="reddit.accessToken">Reddit Ads access token (optional)</FormLabel>
+                    <FormInputText id="reddit.accessToken" name="reddit.accessToken" type="password" value={reddit.accessToken || ""} onChange={handleChange} className={inputClass} />
+                </Field>
+            </Section>
 
-            {form.businessCategory !== "b2b" && form.customerType === "DanDomain" && (
-                <>
-                    <div>
-                        <FormLabel className={labelClass} htmlFor="danDomain.shopHost">Shop host</FormLabel>
-                        <FormInputText
-                            id="danDomain.shopHost"
-                            name="danDomain.shopHost"
-                            value={(form.CustomerSettings.danDomain && form.CustomerSettings.danDomain.shopHost) || ""}
-                            onChange={handleChange}
-                            className={inputClass}
-                            placeholder="e.g. shop99999.mywebshop.io (not webshop.dandomain.dk admin URL)"
-                        />
-                    </div>
-                    <div>
-                        <FormLabel className={labelClass} htmlFor="danDomain.clientId">Client ID</FormLabel>
-                        <FormInputText
-                            id="danDomain.clientId"
-                            name="danDomain.clientId"
-                            value={(form.CustomerSettings.danDomain && form.CustomerSettings.danDomain.clientId) || ""}
-                            onChange={handleChange}
-                            className={inputClass}
-                            placeholder="HostedShop API client_id"
-                        />
-                    </div>
-                    <div>
-                        <FormLabel className={labelClass} htmlFor="danDomain.clientSecret">Client Secret</FormLabel>
-                        <FormInputText
-                            id="danDomain.clientSecret"
-                            name="danDomain.clientSecret"
-                            type="password"
-                            value={(form.CustomerSettings.danDomain && form.CustomerSettings.danDomain.clientSecret) || ""}
-                            onChange={handleChange}
-                            className={inputClass}
-                            placeholder="HostedShop API client_secret"
-                        />
-                    </div>
-                    <div>
-                        <FormLabel className={labelClass} htmlFor="danDomain.accessToken">Access Token</FormLabel>
-                        <FormInputText
-                            id="danDomain.accessToken"
-                            name="danDomain.accessToken"
-                            type="password"
-                            value={(form.CustomerSettings.danDomain && form.CustomerSettings.danDomain.accessToken) || ""}
-                            onChange={handleChange}
-                            className={inputClass}
-                            placeholder="HostedShop API access_token"
-                        />
-                    </div>
-                </>
-            )}
+            <Section apex={a} title="Other">
+                <Field apex={a}>
+                    <FormLabel className={labelClass} htmlFor="customerClickupID">ClickUp ID</FormLabel>
+                    <FormInputText id="customerClickupID" name="customerClickupID" value={form.CustomerSettings.customerClickupID} onChange={handleChange} className={inputClass} />
+                </Field>
+                <div className={checkRow}>
+                    <input id="isArchived" name="isArchived" type="checkbox" checked={form.isArchived} onChange={handleChange} className={checkClass} />
+                    <FormLabel className={labelClass} htmlFor="isArchived">Archived</FormLabel>
+                </div>
+            </Section>
 
-            {form.businessCategory !== "b2b" && form.customerType === "DanDomainOriginal" && (
-                <>
-                    <div>
-                        <FormLabel className={labelClass} htmlFor="danDomainOriginal.shopAdminUrl">Shop admin URL</FormLabel>
-                        <FormInputText
-                            id="danDomainOriginal.shopAdminUrl"
-                            name="danDomainOriginal.shopAdminUrl"
-                            value={(form.CustomerSettings.danDomainOriginal && form.CustomerSettings.danDomainOriginal.shopAdminUrl) || ""}
-                            onChange={handleChange}
-                            className={inputClass}
-                            placeholder="e.g. https://ajengros.dk"
-                        />
-                    </div>
-                    <div>
-                        <FormLabel className={labelClass} htmlFor="danDomainOriginal.apiKey">WEBAPI key</FormLabel>
-                        <FormInputText
-                            id="danDomainOriginal.apiKey"
-                            name="danDomainOriginal.apiKey"
-                            type="password"
-                            value={(form.CustomerSettings.danDomainOriginal && form.CustomerSettings.danDomainOriginal.apiKey) || ""}
-                            onChange={handleChange}
-                            className={inputClass}
-                            placeholder="OrderService API key from DanDomain admin"
-                        />
-                    </div>
-                </>
-            )}
-            <div>
-                <FormLabel className={labelClass} htmlFor="customerStoreValutaCode">Store Valuta Code</FormLabel>
-                <FormInputText id="customerStoreValutaCode" name="customerStoreValutaCode" value={form.CustomerSettings.customerStoreValutaCode} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="customerMetaID">Meta ID</FormLabel>
-                <FormInputText id="customerMetaID" name="customerMetaID" value={form.CustomerSettings.customerMetaID} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="facebookAdAccountId">Facebook Ad Account ID</FormLabel>
-                <FormInputText id="facebookAdAccountId" name="facebookAdAccountId" value={form.CustomerSettings.facebookAdAccountId} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="googleAdsCustomerId">Google Ads Customer ID</FormLabel>
-                <FormInputText
-                    id="googleAdsCustomerId"
-                    name="googleAdsCustomerId"
-                    value={form.CustomerSettings.googleAdsCustomerId}
-                    onChange={handleChange}
-                    placeholder="e.g. 7969227273 or comma-separated IDs"
-                    className={inputClass}
-                />
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="pinterestAdAccountId">Pinterest ad account ID</FormLabel>
-                <FormInputText id="pinterestAdAccountId" name="pinterestAdAccountId" value={form.CustomerSettings.pinterestAdAccountId} onChange={handleChange} className={inputClass} />
-                <FormLabel className={labelClass} htmlFor="linkedinAdAccountId">LinkedIn ad account ID</FormLabel>
-                <FormInputText id="linkedinAdAccountId" name="linkedinAdAccountId" value={form.CustomerSettings.linkedinAdAccountId} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="snapchat.organizationId">Snapchat organization ID</FormLabel>
-                <FormInputText
-                    id="snapchat.organizationId"
-                    name="snapchat.organizationId"
-                    value={(form.CustomerSettings.snapchat && form.CustomerSettings.snapchat.organizationId) || ""}
-                    onChange={handleChange}
-                    placeholder="Business organization UUID (not ad account)"
-                    className={inputClass}
-                />
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="snapchat.adAccountId">Snapchat ad account UUID</FormLabel>
-                <FormInputText
-                    id="snapchat.adAccountId"
-                    name="snapchat.adAccountId"
-                    value={(form.CustomerSettings.snapchat && form.CustomerSettings.snapchat.adAccountId) || ""}
-                    onChange={handleChange}
-                    placeholder="Ads Manager ad account UUID (for dashboards)"
-                    className={inputClass}
-                />
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="snapchat.clientId">Snapchat OAuth client ID</FormLabel>
-                <FormInputText id="snapchat.clientId" name="snapchat.clientId" value={(form.CustomerSettings.snapchat && form.CustomerSettings.snapchat.clientId) || ""} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="snapchat.accessToken">Snapchat Marketing API access token</FormLabel>
-                <FormInputText id="snapchat.accessToken" name="snapchat.accessToken" type="password" value={(form.CustomerSettings.snapchat && form.CustomerSettings.snapchat.accessToken) || ""} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="snapchat.clientSecret">Snapchat OAuth client secret (optional)</FormLabel>
-                <FormInputText id="snapchat.clientSecret" name="snapchat.clientSecret" type="password" value={(form.CustomerSettings.snapchat && form.CustomerSettings.snapchat.clientSecret) || ""} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="snapchat.refreshToken">Snapchat OAuth refresh token (optional)</FormLabel>
-                <FormInputText id="snapchat.refreshToken" name="snapchat.refreshToken" type="password" value={(form.CustomerSettings.snapchat && form.CustomerSettings.snapchat.refreshToken) || ""} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="snapchat.conversionsApiToken">Snapchat Conversions API token</FormLabel>
-                <FormInputText id="snapchat.conversionsApiToken" name="snapchat.conversionsApiToken" type="password" value={(form.CustomerSettings.snapchat && form.CustomerSettings.snapchat.conversionsApiToken) || ""} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="reddit.appId">Reddit app ID</FormLabel>
-                <FormInputText id="reddit.appId" name="reddit.appId" value={(form.CustomerSettings.reddit && form.CustomerSettings.reddit.appId) || ""} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="reddit.appSecret">Reddit app secret</FormLabel>
-                <FormInputText id="reddit.appSecret" name="reddit.appSecret" type="password" value={(form.CustomerSettings.reddit && form.CustomerSettings.reddit.appSecret) || ""} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="reddit.accountId">Reddit Ads account ID</FormLabel>
-                <FormInputText id="reddit.accountId" name="reddit.accountId" value={(form.CustomerSettings.reddit && form.CustomerSettings.reddit.accountId) || ""} onChange={handleChange} placeholder="t2_…" className={inputClass} />
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="reddit.accessToken">Reddit Ads access token (optional)</FormLabel>
-                <FormInputText id="reddit.accessToken" name="reddit.accessToken" type="password" value={(form.CustomerSettings.reddit && form.CustomerSettings.reddit.accessToken) || ""} onChange={handleChange} className={inputClass} />
-            </div>
-            {/* Optional fields */}
-            <div>
-                <FormLabel className={labelClass} htmlFor="customerClickupID">ClickUp ID</FormLabel>
-                <FormInputText id="customerClickupID" name="customerClickupID" value={form.CustomerSettings.customerClickupID} onChange={handleChange} className={inputClass} />
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="customerMetaIDExclude">Meta ID Exclude</FormLabel>
-                <FormInputText id="customerMetaIDExclude" name="customerMetaIDExclude" value={form.CustomerSettings.customerMetaIDExclude} onChange={handleChange} className={inputClass} />
-            </div>
-            <div className="flex items-center gap-2">
-                <input id="changeCurrency" name="changeCurrency" type="checkbox" checked={form.CustomerSettings.changeCurrency} onChange={handleChange} className={checkClass} />
-                <FormLabel className={labelClass} htmlFor="changeCurrency">Change Currency</FormLabel>
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="changeCurrencyShopifyBillingCountryName">Shopify billing country include (optional)</FormLabel>
-                <FormInputText id="changeCurrencyShopifyBillingCountryName" name="changeCurrencyShopifyBillingCountryName" value={form.CustomerSettings.changeCurrencyShopifyBillingCountryName} onChange={handleChange} placeholder="e.g. Sweden,Denmark,Norway" />
-            </div>
-            <div>
-                <FormLabel className={labelClass} htmlFor="changeCurrencyShopifyBillingCountryExclude">Shopify billing country exclude (optional)</FormLabel>
-                <FormInputText id="changeCurrencyShopifyBillingCountryExclude" name="changeCurrencyShopifyBillingCountryExclude" value={form.CustomerSettings.changeCurrencyShopifyBillingCountryExclude} onChange={handleChange} placeholder="e.g. France,Spain" />
-            </div>
-            <div className="flex items-center gap-2">
-                <input id="isArchived" name="isArchived" type="checkbox" checked={form.isArchived} onChange={handleChange} className={checkClass} />
-                <FormLabel className={labelClass} htmlFor="isArchived">Archived</FormLabel>
-            </div>
-            {error && <div className={errorClass}>{error}</div>}
+            {error && <div className={errorClass} role="alert">{error}</div>}
             <div className={isApexHome ? "apex-home__form-actions" : "flex justify-end mt-4"}>
+                {isApexHome && <p className="apex-cf__note">Only the name is required. Platform details can be added now or later in config.</p>}
                 <FormButton type="submit" disabled={saving} className={isApexHome ? "apex-home__form-submit" : ""}>
                     {saving ? submittingLabel : submitLabel}
                 </FormButton>
