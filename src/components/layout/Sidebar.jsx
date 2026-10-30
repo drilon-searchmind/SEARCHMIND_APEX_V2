@@ -331,13 +331,13 @@ const Sidebar = ({ showLinks = true }) => {
                                                 subLabel={"BETA"}
                                                 isSmallScreen={isSmallScreen}
                                             /> */}
-                                            <NavItem
+                                            {/* <NavItem
                                                 href={`/dashboard/${activeCustomerId}/campaign-planner-v2`}
                                                 label="Campaign Planner"
                                                 pathname={pathname}
                                                 subLabel={"WIP"}
                                                 isSmallScreen={isSmallScreen}
-                                            />
+                                            /> */}
                                             <NavItem
                                                 href={`/dashboard/${activeCustomerId}/share-of-search`}
                                                 label="SoS"
@@ -345,14 +345,14 @@ const Sidebar = ({ showLinks = true }) => {
                                                 subLabel={"NEW"}
                                                 isSmallScreen={isSmallScreen}
                                             />
-                                            <NavItem
+                                            {/* <NavItem
                                                 href={`/dashboard/${activeCustomerId}/price-index`}
                                                 label="Price Index"
                                                 pathname={pathname}
                                                 subLabel={"NEW"}
                                                 isSmallScreen={isSmallScreen}
                                                 configWarning={priceShaperConfigWarning}
-                                            />
+                                            /> */}
                                             <NavItem
                                                 href={serviceDashboardHref("bing-webmaster")}
                                                 label="Bing Webmaster"
