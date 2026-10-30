@@ -25,7 +25,7 @@ export default function LandingReports() {
 				</div>
 				<div className="apex-landing__reports-aside">
 					<p className="apex-landing__muted">
-						Fem kernerapporter klar med det samme — bygget til e-commerce og performance marketing.
+						Fem kernerapporter klar med det samme, bygget til e-commerce og performance marketing.
 					</p>
 					<div className="apex-landing__reports-hint">
 						<span className="apex-landing__reports-hint-dot" aria-hidden />

@@ -14,7 +14,7 @@ export default function LandingPricing() {
 							gratis prøve
 						</h2>
 						<p className="apex-landing__pricing-lede">
-							Udfyld formularen og giv adgang til jeres kanaler — så sætter vi Apex op med fuld adgang fra dag ét.
+							Udfyld formularen og giv adgang til jeres kanaler, så sætter vi Apex op med fuld adgang fra dag ét.
 						</p>
 						<div className="apex-landing__pricing-features">
 							{PLAN_FEATURES.map((feature) => (
@@ -28,7 +28,7 @@ export default function LandingPricing() {
 					<div className="apex-landing__pricing-form">
 						<p className="apex-landing__form-eyebrow">Tilmeld dig</p>
 						<h3 className="apex-landing__form-title">Udfyld formularen</h3>
-						<p className="apex-landing__form-lede">Trin 1 — derefter guider vi jer gennem adgang til Shopify, Meta, Google Ads m.fl.</p>
+						<p className="apex-landing__form-lede">Trin 1: derefter guider vi jer gennem adgang til Shopify, Meta, Google Ads m.fl.</p>
 						<HubSpotForm />
 					</div>
 				</div>

@@ -35,7 +35,7 @@ export const STEPS = [
 	{
 		n: "01",
 		t: "Forbind dine platforme",
-		d: "Giv Apex adgang i vores opsætningsflow — Meta, Google Ads, Shopify, Klaviyo, GA4 og flere. Ingen udviklere.",
+		d: "Giv Apex adgang i vores opsætningsflow, Meta, Google Ads, Shopify, Klaviyo, GA4 og flere. Ingen udviklere.",
 	},
 	{
 		n: "02",
@@ -45,7 +45,7 @@ export const STEPS = [
 	{
 		n: "03",
 		t: "Få det fulde overblik",
-		d: "Live dashboards, P&L og AI-audits klar fra dag ét — i ét sandt overblik over hele forretningen.",
+		d: "Live dashboards, P&L og AI-audits klar fra dag ét, i ét sandt overblik over hele forretningen.",
 	},
 ];
 
@@ -55,7 +55,7 @@ export const REPORTS = [
 		path: "performance-dashboard",
 		name: "Overview",
 		desc: "Samlet performance på tværs af salg, marketing og bundlinje.",
-		long: "Hele forretningen på én skærm — fra bruttosalg og rabatter til ad spend og nettoresultat. Skift mellem standard- og custom-visning og bor ned i hver enkelt post.",
+		long: "Hele forretningen på én skærm, fra bruttosalg og rabatter til ad spend og nettoresultat. Skift mellem standard- og custom-visning og bor ned i hver enkelt post.",
 		metrics: [
 			{ label: "Total Sales", val: "1.475.181 kr." },
 			{ label: "Gross Profit", val: "965.217 kr." },
@@ -68,7 +68,7 @@ export const REPORTS = [
 		path: "daily-overview",
 		name: "Daily",
 		desc: "Dagligt overblik over dine vigtigste metrics.",
-		long: "Dag-for-dag udvikling i ordrer, omsætning, ad spend og resultat — med total, sidste års periode og index, så du straks ser om du er på rette kurs.",
+		long: "Dag-for-dag udvikling i ordrer, omsætning, ad spend og resultat, med total, sidste års periode og index, så du straks ser om du er på rette kurs.",
 		metrics: [
 			{ label: "Ordrer (18d)", val: "2.648" },
 			{ label: "Net Revenue", val: "1.749.945 kr." },
@@ -81,7 +81,7 @@ export const REPORTS = [
 		path: "tools/pace-report",
 		name: "Pace Report",
 		desc: "Er du foran eller bagud i forhold til dine mål?",
-		long: "Pace Report holder dine faktiske tal op mod månedens mål og fremskriver, hvor du lander — så du kan justere budget og indsats før måneden er slut.",
+		long: "Pace Report holder dine faktiske tal op mod månedens mål og fremskriver, hvor du lander, så du kan justere budget og indsats før måneden er slut.",
 		metrics: [
 			{ label: "Spend pace", val: "86%" },
 			{ label: "Actual spend", val: "73.135 kr." },
@@ -92,8 +92,8 @@ export const REPORTS = [
 		id: "pnl",
 		path: "tools/pnl",
 		name: "P&L",
-		desc: "Profit & loss — fra bruttosalg til nettoresultat.",
-		long: "En komplet resultatopgørelse der trækker rabatter, returneringer, COGS og ad spend fra bruttosalget — så du ser den reelle bundlinje, ikke kun toplinjen.",
+		desc: "Profit & loss, fra bruttosalg til nettoresultat.",
+		long: "En komplet resultatopgørelse der trækker rabatter, returneringer, COGS og ad spend fra bruttosalget, så du ser den reelle bundlinje, ikke kun toplinjen.",
 		metrics: [
 			{ label: "Bruttosalg", val: "3.888.422 kr." },
 			{ label: "Total sales excl. VAT", val: "1.475.181 kr." },
@@ -105,7 +105,7 @@ export const REPORTS = [
 		path: "ecommerce",
 		name: "Ecommerce",
 		desc: "Product- og customer performance, samlet ét sted.",
-		long: "Se dine bedst sælgende produkter, marginer og kundeadfærd — split på nye vs. tilbagevendende kunder — og find ud af hvad der reelt driver væksten.",
+		long: "Se dine bedst sælgende produkter, marginer og kundeadfærd, split på nye vs. tilbagevendende kunder, og find ud af hvad der reelt driver væksten.",
 		metrics: [
 			{ label: "Inventory stock", val: "77.595" },
 			{ label: "Inventory value", val: "1.758.549 kr." },
@@ -131,7 +131,7 @@ export const SERVICES = [
 export const RADAR_POINTS = [
 	"Performance-rapportering på kampagne-, annoncegruppe- og annonceniveau.",
 	"Automatisk overvågning der fanger udsving i ROAS, spend og konvertering.",
-	"Anomali-alerts direkte til dit team — før små problemer bliver dyre.",
+	"Anomali-alerts direkte til dit team, før små problemer bliver dyre.",
 ];
 
 export const PLAN_FEATURES = [
@@ -160,7 +160,7 @@ export const FAQS = [
 	},
 	{
 		q: "Hvad er Apex Radar?",
-		a: "Apex Radar er performance-rapportering, dybdegående analyse og løbende overvågning af dine Meta- og Google Ads-konti — med automatiske alerts når noget skiller sig ud.",
+		a: "Apex Radar er performance-rapportering, dybdegående analyse og løbende overvågning af dine Meta- og Google Ads-konti, med automatiske alerts når noget skiller sig ud.",
 	},
 	{
 		q: "Hvad er Tracking Score?",
@@ -168,6 +168,6 @@ export const FAQS = [
 	},
 	{
 		q: "Kan jeg dele dashboards med mit team?",
-		a: "Ja. Inviter kolleger, arbejd sammen og del rapporter via link eller eksportér til PDF — alt sammen inkluderet i abonnementet.",
+		a: "Ja. Inviter kolleger, arbejd sammen og del rapporter via link eller eksportér til PDF, alt sammen inkluderet i abonnementet.",
 	},
 ];

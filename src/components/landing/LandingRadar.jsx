@@ -7,7 +7,7 @@ export default function LandingRadar() {
 				<div>
 					<div className="apex-landing__radar-pill">APEX RADAR</div>
 					<h2 className="apex-landing__radar-title">
-						Hold øje med Meta &amp; Google Ads — automatisk.
+						Hold øje med Meta &amp; Google Ads, automatisk.
 					</h2>
 					<p className="apex-landing__radar-lead">
 						Performance-rapportering, dybdegående analyse og løbende overvågning af dine vigtigste annoncekanaler. Apex Radar fanger udsving før de bliver dyre.

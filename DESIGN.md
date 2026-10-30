@@ -1,6 +1,6 @@
 # Design · Searchmind Apex (Commerce dashboard)
 
-This is the design system for the Apex dashboard. It replaces the previous "minimal" black and white spec, which now lives in `docs/design/DESIGN-minimal-legacy.md` (still in use on `/`, `/login` and pages that are not migrated yet).
+This is the design system for the Apex dashboard. It replaces the previous "minimal" black and white spec, which now lives in `docs/design/DESIGN-minimal-legacy.md` (still in use on `/login` and pages that are not migrated yet).
 
 The look in one line: a full-screen, calm sage and mint workspace, a near-black surface for the most important number on each page, and green used to highlight.
 
@@ -271,7 +271,8 @@ Because the old pages reference `--apex-*` variables, remapping them inside `.ap
 | `dashboard/[customerId]/service-dashboard/snapchat` | Migrated |
 | `dashboard/[customerId]/service-dashboard/reddit` | Migrated |
 | Other service dashboards, config, other tools | Pending |
-| `/`, `/login`, `/home` | Legacy minimal spec |
+| `/` (landing page, `src/components/landing/*`) | Migrated (CSS only: tokens remapped to `--cd-*`, dark hero metric in the dashboard mock, green primary buttons; the HubSpot signup form is an iframe and keeps HubSpot's own field colours) |
+| `/login`, `/home` | Legacy minimal spec |
 
 ### Checklist per page
 

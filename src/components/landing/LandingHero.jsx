@@ -18,12 +18,12 @@ export default function LandingHero() {
 					<h1 className="apex-landing__hero-title">
 						Saml al din
 						<br />
-						marketingdata —
+						marketingdata
 						<br />
 						og udnyt den målrettet
 					</h1>
 					<p className="apex-landing__hero-lead">
-						Apex konsoliderer data på tværs af alle dine kanaler i ét levende dashboard — fra daglige tal og P&amp;L til SEO, PPC og e-commerce. Sat op på minutter, ikke uger.
+						Apex konsoliderer data på tværs af alle dine kanaler i ét levende dashboard, fra daglige tal og P&amp;L til SEO, PPC og e-commerce. Sat op på minutter, ikke uger.
 					</p>
 					<div className="apex-landing__hero-cta">
 						<button type="button" className="apex-landing__btn apex-landing__btn--primary" onClick={scrollToSignup}>
@@ -67,8 +67,8 @@ export default function LandingHero() {
 								</div>
 							</div>
 							<div className="apex-landing__mock-metrics">
-								{METRIC_CARDS.map((m) => (
-									<div key={m.label} className="apex-landing__mock-metric">
+								{METRIC_CARDS.map((m, i) => (
+									<div key={m.label} className={`apex-landing__mock-metric${i === 0 ? " apex-landing__mock-metric--hero" : ""}`}>
 										<div className="apex-landing__mock-metric-label">{m.label}</div>
 										<div className="apex-landing__mock-metric-row">
 											<div className="apex-landing__mock-metric-val">{m.val}</div>

@@ -40,7 +40,7 @@ export default function LandingFeatures() {
 					<p className="apex-landing__eyebrow">AI Audit</p>
 					<h3 className="apex-landing__feature-title">Indsigter genereret på dine egne tal</h3>
 					<p className="apex-landing__feature-copy">
-						Indsæt din favorit LLM API KEY og kør en AI-audit og få konkrete anbefalinger baseret på dine Apex-tal — ikke generiske råd. Find lækager, spild og muligheder på sekunder.
+						Indsæt din favorit LLM API KEY og kør en AI-audit og få konkrete anbefalinger baseret på dine Apex-tal, ikke generiske råd. Find lækager, spild og muligheder på sekunder.
 					</p>
 					<div className="apex-landing__ai-box">
 						<div className="apex-landing__ai-status">

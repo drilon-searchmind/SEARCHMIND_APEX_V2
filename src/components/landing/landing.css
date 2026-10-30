@@ -1,15 +1,31 @@
-/* Apex · page: public landing · theme: minimal (DESIGN.md) */
+/* Apex · page: public landing · theme: commerce (DESIGN.md) */
 
 @import "../../styles/apex-design-tokens.css";
-@import "../../styles/acid-grotesk.css";
+@import "../../styles/commerce-design-tokens.css";
 
 .apex-landing {
-	--landing-raised: var(--apex-card);
+	/* Commerce palette, scoped to the landing page so the legacy --apex-* tokens stay untouched elsewhere */
+	--apex-ink: var(--cd-ink);
+	--apex-ink-muted: #5a655b;
+	--apex-canvas: var(--cd-canvas);
+	--apex-card: var(--cd-card);
+	--apex-hairline: var(--cd-line);
+	--apex-hairline-strong: var(--cd-line-2);
+	--apex-sidebar: var(--cd-dark);
+	--apex-dark-green: var(--cd-green-2);
+	--apex-lime: var(--cd-mint);
+	--apex-ok: var(--cd-pos);
+	--apex-bad: var(--cd-neg);
+	--apex-shadow-low: none;
+	--apex-shadow-mid: none;
+	--apex-radius-card: var(--cd-r-lg);
+	--apex-radius-input: var(--cd-r-md);
+	--landing-raised: var(--cd-card);
 
 	/* Remap legacy token names used below → minimal palette */
-	--font-body: "AcidGrotesk", ui-sans-serif, system-ui, sans-serif;
-	--font-display: "AcidGrotesk", ui-sans-serif, system-ui, sans-serif;
-	--font-label: "AcidGrotesk", ui-sans-serif, system-ui, sans-serif;
+	--font-body: var(--cd-sans);
+	--font-display: var(--cd-sans);
+	--font-label: var(--cd-sans);
 	--text-xs: 0.75rem;
 	--text-sm: 0.875rem;
 	--text-md: 1rem;
@@ -18,9 +34,9 @@
 	--text-2xl: 1.5rem;
 	--text-display-s: clamp(1.75rem, 3vw, 2.25rem);
 	--text-display: clamp(2rem, 4.5vw, 3.25rem);
-	--display-weight: 500;
-	--heading-weight: 500;
-	--tracking-display: -0.02em;
+	--display-weight: 600;
+	--heading-weight: 600;
+	--tracking-display: -0.025em;
 	--tracking-tight: -0.01em;
 	--tracking-label: 0.01em;
 	--lh-tight: 1.15;
@@ -43,22 +59,22 @@
 	--ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
 	--color-paper: var(--apex-canvas);
-	--color-paper-2: #f4f3f1;
-	--color-paper-3: #eeede9;
+	--color-paper-2: var(--cd-sunk);
+	--color-paper-3: var(--cd-mint-soft);
 	--color-ink: var(--apex-ink);
-	--color-ink-2: #3a3a3a;
+	--color-ink-2: var(--cd-ink-2);
 	--color-muted: var(--apex-ink-muted);
 	--color-neutral: var(--apex-ink-muted);
 	--color-rule: var(--apex-hairline);
 	--color-rule-2: var(--apex-hairline-strong);
-	--color-accent: var(--apex-ink);
+	--color-accent: var(--cd-green);
 	--color-accent-ink: #ffffff;
-	--color-accent-hover: #2a2a2a;
+	--color-accent-hover: var(--cd-green-2);
 	--color-accent-light: var(--apex-dark-green);
 	--color-success: var(--apex-ok);
 	--color-error: var(--apex-bad);
-	--color-error-bg: oklch(97% 0.02 25 / 0.5);
-	--color-focus: oklch(45% 0.04 165 / 0.3);
+	--color-error-bg: var(--cd-neg-soft);
+	--color-focus: rgba(58, 155, 63, 0.4);
 	--color-graphite: var(--apex-sidebar);
 	--color-code-bg: var(--apex-card);
 	--color-code-bar: var(--apex-canvas);
@@ -78,6 +94,7 @@
 	font-weight: 500;
 	color: var(--apex-ink);
 	line-height: var(--lh-normal);
+	font-feature-settings: "tnum" 1;
 	background: var(--apex-canvas);
 	overflow-x: clip;
 	-webkit-font-smoothing: antialiased;
@@ -2065,5 +2082,318 @@
 	.apex-landing__faq-icon {
 		animation: none;
 		transition-duration: 0.01ms;
+	}
+}
+
+/* ── Commerce design overrides (DESIGN.md): sage canvas, mint-white frame, one dark card, green accent ── */
+
+.apex-landing__header {
+	background: var(--cd-frame);
+	border-bottom: 1px solid var(--cd-line);
+}
+
+.apex-landing__brand-name {
+	font-weight: 700;
+	letter-spacing: -0.015em;
+}
+
+.apex-landing__btn {
+	font-weight: 600;
+}
+
+.apex-landing__btn--primary {
+	color: #fff;
+}
+
+.apex-landing__btn--secondary {
+	background: var(--cd-card);
+	border-color: var(--cd-line-2);
+}
+
+@media (hover: hover) {
+	.apex-landing__btn--secondary:hover {
+		background: var(--cd-sunk);
+		border-color: var(--cd-green);
+	}
+}
+
+.apex-landing__pill,
+.apex-landing__radar-pill {
+	background: var(--cd-mint-soft);
+	border-color: transparent;
+	color: var(--cd-green-2);
+	font-weight: 600;
+}
+
+.apex-landing__pill-dot {
+	background: var(--cd-green);
+	box-shadow: 0 0 0 3px var(--cd-card);
+}
+
+.apex-landing__hero-title {
+	font-weight: 700;
+}
+
+.apex-landing__eyebrow {
+	font-size: 0.75rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--cd-green-2);
+}
+
+/* Cards: light surface with a hairline instead of a shadow */
+.apex-landing__step-card,
+.apex-landing__report-card,
+.apex-landing__services-panel,
+.apex-landing__feature-card--light,
+.apex-landing__feature-card--dark,
+.apex-landing__mock,
+.apex-landing__tracking-chip {
+	border: 1px solid var(--cd-line);
+}
+
+@media (hover: hover) {
+	.apex-landing__report-card:hover {
+		border-color: var(--cd-green);
+	}
+}
+
+.apex-landing__integrations {
+	background: var(--cd-frame);
+}
+
+.apex-landing__step-num,
+.apex-landing__report-icon {
+	background: var(--cd-mint-soft);
+	border-color: transparent;
+	color: var(--cd-green-2);
+}
+
+.apex-landing__service-card {
+	background: var(--cd-sunk);
+}
+
+.apex-landing__badge {
+	border-radius: 999px;
+	padding: 2px 9px;
+}
+
+.apex-landing__badge--new {
+	color: var(--cd-pos);
+	background: var(--cd-pos-soft);
+	border-color: transparent;
+}
+
+.apex-landing__badge--beta {
+	color: var(--cd-ink-2);
+	background: var(--cd-card);
+	border-color: var(--cd-line-2);
+}
+
+.apex-landing__badge--wip {
+	color: var(--cd-warn);
+	background: var(--cd-warn-bg);
+	border-color: transparent;
+}
+
+.apex-landing__radar {
+	background: var(--cd-frame);
+	border-top: 1px solid var(--cd-line);
+}
+
+.apex-landing__radar-check {
+	background: var(--cd-mint-soft);
+	border-color: transparent;
+	color: var(--cd-green-2);
+}
+
+/* Hero dashboard mock mirrors the new dashboard: light sidebar, dark hero metric, green bars */
+.apex-landing__mock {
+	grid-template-columns: 62px 1fr;
+	background: var(--cd-canvas);
+}
+
+.apex-landing__mock-sidebar {
+	background: var(--cd-frame);
+	border-right: 1px solid var(--cd-line);
+}
+
+.apex-landing__mock-sidebar img {
+	filter: none;
+	opacity: 1;
+}
+
+.apex-landing__mock-sidebar-active {
+	background: var(--cd-dark);
+	border-left: 3px solid var(--cd-green);
+}
+
+.apex-landing__mock-sidebar-dot {
+	background: var(--cd-line-2);
+}
+
+.apex-landing__mock-tag {
+	background: var(--cd-card);
+	border-radius: 999px;
+	padding: 3px 10px;
+}
+
+.apex-landing__mock-chip {
+	border-radius: 999px;
+}
+
+.apex-landing__mock-chip--dark {
+	background: var(--cd-green);
+	color: #fff;
+}
+
+.apex-landing__mock-metric,
+.apex-landing__mock-chart {
+	background: var(--cd-card);
+	border: 1px solid var(--cd-line);
+	border-radius: var(--cd-r-md);
+}
+
+.apex-landing__mock-metric--hero {
+	background: var(--cd-dark);
+	border-color: var(--cd-dark);
+}
+
+.apex-landing__mock-metric--hero .apex-landing__mock-metric-label {
+	color: var(--cd-on-dark-muted);
+}
+
+.apex-landing__mock-metric--hero .apex-landing__mock-metric-val {
+	color: var(--cd-on-dark);
+}
+
+.apex-landing__mock-metric--hero .apex-landing__mock-delta {
+	color: var(--cd-mint);
+}
+
+.apex-landing__mock-bar {
+	background: var(--cd-mint-soft);
+}
+
+.apex-landing__mock-bar--peak {
+	background: var(--cd-green);
+}
+
+.apex-landing__tracking-ring-bg {
+	background: conic-gradient(var(--cd-green) 0% 92%, var(--cd-sunk) 92% 100%);
+}
+
+.apex-landing__radar-sweep-inner {
+	background: conic-gradient(from 0deg, rgba(58, 155, 63, 0.3), transparent 30%);
+}
+
+/* Pricing panel and signup form */
+.apex-landing__pricing-panel {
+	border: 1px solid var(--cd-line);
+}
+
+.apex-landing__pricing-form {
+	background: var(--cd-sunk);
+	border: 1px solid var(--cd-line);
+}
+
+.apex-landing__pricing-check {
+	color: var(--cd-green-2);
+}
+
+.apex-landing__form-eyebrow {
+	font-size: 0.75rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--cd-green-2);
+}
+
+.apex-landing__hubspot .hs-form .hs-input,
+.apex-landing__hubspot .hs-form input[type="text"],
+.apex-landing__hubspot .hs-form input[type="email"],
+.apex-landing__hubspot .hs-form input[type="tel"],
+.apex-landing__hubspot .hs-form input[type="number"],
+.apex-landing__hubspot .hs-form input[type="url"],
+.apex-landing__hubspot .hs-form textarea,
+.apex-landing__hubspot .hs-form select {
+	background: var(--cd-card);
+	border-color: var(--cd-line-2);
+}
+
+.apex-landing__hubspot .hs-form input:-webkit-autofill {
+	-webkit-box-shadow: 0 0 0 100px var(--cd-card) inset;
+	-webkit-text-fill-color: var(--cd-ink);
+}
+
+@media (hover: hover) {
+	.apex-landing__hubspot .hs-form .hs-input:hover,
+	.apex-landing__hubspot .hs-form input:hover,
+	.apex-landing__hubspot .hs-form textarea:hover,
+	.apex-landing__hubspot .hs-form select:hover {
+		background: var(--cd-card);
+		border-color: var(--cd-green);
+	}
+}
+
+/* Let single-column grids shrink below their content width so nothing is clipped on phones */
+@media (max-width: 860px) {
+	.apex-landing__hero-grid,
+	.apex-landing__radar-inner,
+	.apex-landing__features-grid,
+	.apex-landing__pricing-grid,
+	.apex-landing__steps-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.apex-landing__hero-grid > *,
+	.apex-landing__radar-inner > *,
+	.apex-landing__pricing-grid > * {
+		min-width: 0;
+	}
+}
+
+@media (max-width: 540px) {
+	.apex-landing__hero-trust {
+		gap: var(--space-xs) var(--space-md);
+	}
+
+	.apex-landing__mock {
+		grid-template-columns: 48px minmax(0, 1fr);
+	}
+
+	.apex-landing__tracking-chip {
+		right: 8px;
+	}
+}
+
+.apex-landing__mock-main {
+	min-width: 0;
+}
+
+.apex-landing__mock-metrics {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 540px) {
+	.apex-landing__mock-main {
+		padding: var(--space-sm);
+	}
+
+	.apex-landing__mock-top {
+		flex-wrap: wrap;
+	}
+
+	.apex-landing__mock-chip--outline {
+		display: none;
+	}
+
+	.apex-landing__mock-metric-row {
+		flex-wrap: wrap;
+	}
+
+	.apex-landing__mock-metric-val {
+		font-size: var(--text-sm);
 	}
 }

@@ -16,7 +16,7 @@ export default function LandingServiceDashboards() {
 						Service-dashboards for hver kanal
 					</h2>
 					<p className="apex-landing__muted">
-						Dyk ned i den enkelte kanal — eller se det hele samlet. Flere kanaler kommer hele tiden til.
+						Dyk ned i den enkelte kanal, eller se det hele samlet. Flere kanaler kommer hele tiden til.
 					</p>
 				</div>
 				<div className="apex-landing__services-grid">
