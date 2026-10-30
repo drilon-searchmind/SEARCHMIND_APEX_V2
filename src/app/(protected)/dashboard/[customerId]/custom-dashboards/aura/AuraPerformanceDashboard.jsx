@@ -10,6 +10,7 @@ import CobaltLoader from "@/components/ui/CobaltLoader";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import { formatComparisonPeriodDates } from "@/lib/dateRangeComparison";
+import { isValidIntegrationId } from "@/lib/customerServiceIntegrations";
 import { mapReportToRows } from "@/lib/ga4ReportUtils";
 import { getChartSeriesPalette } from "@/lib/charts/chartSeriesColors";
 import PsSortableMetricsTable from "../../service-dashboard/ps/components/PsSortableMetricsTable";
@@ -155,12 +156,12 @@ export default function AuraPerformanceDashboard() {
                         return null;
                     }
                 };
-                const googleOk = Boolean(googleAdsCustomerId);
-                const metaOk = Boolean(facebookAdAccountId);
+                const googleOk = isValidIntegrationId(googleAdsCustomerId);
+                const metaOk = isValidIntegrationId(facebookAdAccountId);
                 if (!googleOk) notes.push("Google Ads: missing customer ID in Config");
-                if (!metaOk) notes.push("Meta: missing ad account ID in Config");
+                if (!metaOk) notes.push("Meta: no valid ad account ID in Config (placeholder or empty)");
 
-                const ga4Url = settings.ga4PropertyId
+                const ga4Url = isValidIntegrationId(settings.ga4PropertyId)
                     ? `/api/ga4?${new URLSearchParams({
                           startDate: appliedRange.startDate,
                           endDate: appliedRange.endDate,
