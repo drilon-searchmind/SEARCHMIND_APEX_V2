@@ -19,6 +19,8 @@ import {
     FiUser,
     FiChevronUp,
     FiChevronDown,
+    FiGrid,
+    FiFolder,
 } from "react-icons/fi";
 import { LuRadar } from "react-icons/lu";
 import { RiToolsFill } from "react-icons/ri";
@@ -32,71 +34,110 @@ import { buildCustomerCreateFormStateFromCustomer } from "@/lib/customerCreateFo
 import { getCustomerPlatformLabel } from "@/lib/customerPlatformDisplay";
 
 function PlatformIcon({ type }) {
-    const iconClass = "w-3.5 h-3.5 shrink-0 opacity-70";
-    if (type === "Shopify") return <SiShopify className={iconClass} aria-hidden />;
-    if (type === "WooCommerce") return <SiWordpress className={iconClass} aria-hidden />;
-    if (type === "Magento") return <SiMagento className={iconClass} aria-hidden />;
-    if (type === "DanDomain") return <FiGlobe className={iconClass} aria-hidden />;
-    if (type === "DanDomainOriginal") return <FiGlobe className={iconClass} aria-hidden />;
-    return <FiServer className={iconClass} aria-hidden />;
+    if (type === "Shopify") return <SiShopify aria-hidden />;
+    if (type === "WooCommerce") return <SiWordpress aria-hidden />;
+    if (type === "Magento") return <SiMagento aria-hidden />;
+    if (type === "DanDomain" || type === "DanDomainOriginal") return <FiGlobe aria-hidden />;
+    return <FiServer aria-hidden />;
 }
 
-function HomeNewsSpotlight({ post, loading }) {
-    if (loading) {
-        return (
-            <div className="apex-hm__news apex-hm__news--loading" aria-hidden>
-                <div className="apex-hm__news-media">
-                    <div className="apex-hm__skeleton apex-hm__skeleton--fill" />
-                </div>
-                <div className="apex-hm__news-body">
-                    <div className="apex-hm__skeleton apex-hm__skeleton--xs" />
-                    <div className="apex-hm__skeleton apex-hm__skeleton--title" />
-                    <div className="apex-hm__skeleton apex-hm__skeleton--copy" />
-                </div>
-            </div>
-        );
-    }
-
-    if (!post) return null;
-
+function HomeBar({ children }) {
     return (
-        <Link href={`/news/${post.slug}`} className="apex-hm__news">
-            <div className="apex-hm__news-media">
-                {post.coverImageUrl ? (
-                    <Image
-                        src={post.coverImageUrl}
-                        alt=""
-                        fill
-                        className="apex-hm__news-image"
-                        sizes="(min-width: 1280px) 340px, 40vw"
-                        unoptimized
-                    />
-                ) : (
-                    <div className="apex-hm__news-fallback" aria-hidden />
-                )}
-                <span className="apex-hm__news-badge">New</span>
-            </div>
-            <div className="apex-hm__news-body">
-                {post.publishedAt ? (
-                    <time dateTime={post.publishedAt} className="apex-hm__news-date">
-                        {new Date(post.publishedAt).toLocaleDateString(undefined, {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                        })}
-                    </time>
-                ) : null}
-                <h3 className="apex-hm__news-title">{post.title}</h3>
-                {post.excerpt ? <p className="apex-hm__news-excerpt">{post.excerpt}</p> : null}
-            </div>
-        </Link>
+        <header className="apex-hm__bar">
+            <Link href="/home" className="apex-hm__brand">
+                <Image src="/images/icons/apex-icon-svg.svg" alt="" width={32} height={32} aria-hidden />
+                <span className="apex-hm__brand-text">Searchmind Apex</span>
+            </Link>
+            {children}
+        </header>
     );
 }
 
-function HomeNavCard({ user, onLogout }) {
+function Kpi({ icon: Icon, label, value, caption, hero = false }) {
     return (
-        <div className="apex-hm__nav-card">
-            <p className="apex-hm__nav-title">Jump to</p>
+        <div className={`apex-hm__kpi${hero ? " apex-hm__kpi--hero" : ""}`}>
+            <span className="apex-hm__kpi-icon" aria-hidden>
+                <Icon />
+            </span>
+            <div>
+                <p className="apex-hm__kpi-label">{label}</p>
+                <p className="apex-hm__kpi-value">{value}</p>
+                {caption ? <p className="apex-hm__kpi-caption">{caption}</p> : null}
+            </div>
+        </div>
+    );
+}
+
+function PropertyCard({ customer, favorited, favoriteLoading, isAdmin, onToggleFavorite, onCopy }) {
+    const label = getCustomerPlatformLabel(customer);
+    const href = `/dashboard/${customer._id}/performance-dashboard`;
+    return (
+        <li className="apex-hm__prop">
+            <Link href={href} className="apex-hm__prop-main">
+                <span className="apex-hm__prop-icon" aria-hidden>
+                    <PlatformIcon type={customer.customerType} />
+                </span>
+                <span className="apex-hm__prop-text">
+                    <span className="apex-hm__prop-name" title={customer.customerName}>
+                        {customer.customerName}
+                    </span>
+                    <span className="apex-hm__prop-platform">{label}</span>
+                </span>
+            </Link>
+            <div className="apex-hm__prop-actions">
+                <button
+                    type="button"
+                    onClick={() => onToggleFavorite(customer._id)}
+                    disabled={favoriteLoading}
+                    title={favorited ? "Remove from pinned" : "Pin property"}
+                    className={`apex-hm__icon-btn${favorited ? " is-on" : ""}`}
+                    aria-label={favorited ? `Unpin ${customer.customerName}` : `Pin ${customer.customerName}`}
+                    aria-pressed={favorited}
+                >
+                    <FiStar aria-hidden />
+                </button>
+                {isAdmin && (
+                    <button
+                        type="button"
+                        onClick={() => onCopy(customer)}
+                        title="Copy settings to a new property"
+                        className="apex-hm__icon-btn apex-hm__icon-btn--reveal"
+                        aria-label={`Copy settings from ${customer.customerName}`}
+                    >
+                        <FiCopy aria-hidden />
+                    </button>
+                )}
+                <Link href={href} className="apex-hm__open" aria-label={`Open ${customer.customerName}`} title="Open dashboard">
+                    <FiArrowRight aria-hidden />
+                </Link>
+            </div>
+        </li>
+    );
+}
+
+function NavLinkItem({ href, icon: Icon, children, badge }) {
+    return (
+        <li>
+            <Link href={href} className="apex-hm__nav-link">
+                <span className="apex-hm__nav-icon" aria-hidden>
+                    <Icon />
+                </span>
+                <span className="apex-hm__nav-text">
+                    {children}
+                    {badge && <span className="apex-hm__tag">{badge}</span>}
+                </span>
+                <FiArrowRight className="apex-hm__nav-arrow" aria-hidden />
+            </Link>
+        </li>
+    );
+}
+
+function JumpCard({ user, onLogout }) {
+    return (
+        <section className="apex-hm__card" aria-labelledby="jump-heading">
+            <h2 id="jump-heading" className="apex-hm__card-title">
+                Jump to
+            </h2>
             <ul className="apex-hm__nav-list">
                 <NavLinkItem href="/profile" icon={FiUser}>
                     My account
@@ -123,81 +164,62 @@ function HomeNavCard({ user, onLogout }) {
                 <FiLogOut aria-hidden />
                 Log out
             </button>
-        </div>
+        </section>
     );
 }
 
-function NavLinkItem({ href, icon: Icon, children, badge }) {
-    return (
-        <li>
-            <Link href={href} className="apex-hm__nav-link">
-                <span className="apex-hm__nav-icon" aria-hidden>
-                    <Icon />
-                </span>
-                <span className="apex-hm__nav-text">
-                    {children}
-                    {badge && <span className="apex-hm__chip-badge">{badge}</span>}
-                </span>
-                <FiArrowRight className="apex-hm__nav-arrow" aria-hidden />
-            </Link>
-        </li>
-    );
-}
-
-function PropertyCard({ customer, pinned, favorited, favoriteLoading, isAdmin, onToggleFavorite, onCopy }) {
-    const label = getCustomerPlatformLabel(customer);
-    const href = `/dashboard/${customer._id}/performance-dashboard`;
-    return (
-        <li className={`apex-hm__prop${pinned ? " apex-hm__prop--pinned" : ""}`}>
-            <Link href={href} className="apex-hm__prop-main">
-                <span className="apex-hm__prop-icon" aria-hidden>
-                    <PlatformIcon type={customer.customerType} />
-                </span>
-                <span className="apex-hm__prop-text">
-                    <span className="apex-hm__prop-name">{customer.customerName}</span>
-                    <span className="apex-hm__prop-platform">{label}</span>
-                </span>
-            </Link>
-            <div className="apex-hm__prop-actions">
-                <button
-                    type="button"
-                    onClick={() => onToggleFavorite(customer._id)}
-                    disabled={favoriteLoading}
-                    title={favorited ? "Remove favorite" : "Add favorite"}
-                    className={`apex-hm__icon-btn${favorited ? " is-on" : ""}`}
-                    aria-label={favorited ? `Remove ${customer.customerName} from favorites` : `Add ${customer.customerName} to favorites`}
-                    aria-pressed={favorited}
-                >
-                    <FiStar aria-hidden />
-                </button>
-                {isAdmin && (
-                    <button
-                        type="button"
-                        onClick={() => onCopy(customer)}
-                        title="Copy settings"
-                        className="apex-hm__icon-btn apex-hm__icon-btn--reveal"
-                        aria-label={`Copy settings from ${customer.customerName}`}
-                    >
-                        <FiCopy aria-hidden />
-                    </button>
-                )}
-                <Link href={href} className="apex-hm__open" aria-label={`Open ${customer.customerName}`} title="Open dashboard">
-                    <FiArrowRight aria-hidden />
-                </Link>
+function NewsCard({ post, loading }) {
+    if (loading) {
+        return (
+            <div className="apex-hm__card apex-hm__card--flush" aria-hidden>
+                <div className="apex-hm__news-media apex-hm__skeleton" />
+                <div className="apex-hm__news-body">
+                    <div className="apex-hm__skeleton apex-hm__skeleton--line" />
+                    <div className="apex-hm__skeleton apex-hm__skeleton--line apex-hm__skeleton--short" />
+                </div>
             </div>
-        </li>
-    );
-}
+        );
+    }
+    if (!post) return null;
 
-function HomeBar({ children }) {
     return (
-        <header className="apex-hm__bar">
-            <Link href="/home" className="apex-hm__brand">
-                <Image src="/images/icons/apex-icon-svg.svg" alt="" width={32} height={32} aria-hidden />
-                <span className="apex-hm__brand-text">Searchmind Apex</span>
-            </Link>
-            {children}
-        </header>
+        <Link href={`/news/${post.slug}`} className="apex-hm__card apex-hm__card--flush apex-hm__news">
+            <div className="apex-hm__news-media">
+                {post.coverImageUrl ? (
+                    <Image
+                        src={post.coverImageUrl}
+                        alt=""
+                        fill
+                        className="apex-hm__news-image"
+                        sizes="(min-width: 1280px) 340px, 40vw"
+                        unoptimized
+                    />
+                ) : (
+                    <span className="apex-hm__news-placeholder" aria-hidden>
+                        <FiFileText />
+                    </span>
+                )}
+            </div>
+            <div className="apex-hm__news-body">
+                <p className="apex-hm__news-meta">
+                    <span className="apex-hm__tag apex-hm__tag--green">New</span>
+                    {post.publishedAt ? (
+                        <time dateTime={post.publishedAt}>
+                            {new Date(post.publishedAt).toLocaleDateString(undefined, {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                            })}
+                        </time>
+                    ) : null}
+                </p>
+                <h3 className="apex-hm__news-title">{post.title}</h3>
+                {post.excerpt ? <p className="apex-hm__news-excerpt">{post.excerpt}</p> : null}
+                <span className="apex-hm__news-more">
+                    Read more <FiArrowRight aria-hidden />
+                </span>
+            </div>
+        </Link>
     );
 }
 
@@ -205,26 +227,25 @@ function HomeLoading() {
     return (
         <>
             <HomeBar />
-            <div className="apex-hm__hero apex-hm__hero--loading" role="status" aria-live="polite" aria-label="Loading properties">
-                <div className="apex-hm__hero-copy">
-                    <p className="apex-hm__eyebrow">Workspace</p>
-                    <h1 className="apex-hm__title">Loading properties</h1>
-                    <p className="apex-hm__lede">Fetching your workspace…</p>
+            <div className="apex-hm__page" role="status" aria-live="polite" aria-label="Loading properties">
+                <div className="apex-hm__head">
+                    <div>
+                        <h1 className="apex-hm__title">Loading properties</h1>
+                        <p className="apex-hm__lede">Fetching your workspace…</p>
+                    </div>
                 </div>
-            </div>
-            <div className="apex-hm__page" aria-hidden>
-                <div className="apex-hm__layout">
+                <div className="apex-hm__kpis" aria-hidden>
+                    {[0, 1, 2].map((i) => (
+                        <div key={i} className="apex-hm__skeleton apex-hm__skeleton--kpi" />
+                    ))}
+                </div>
+                <div className="apex-hm__layout" aria-hidden>
                     <div className="apex-hm__main">
-                        {[0, 1].map((i) => (
-                            <div key={i} className="apex-hm__group">
-                                <div className="apex-hm__skeleton apex-hm__skeleton--title" />
-                                <div className="apex-hm__grid">
-                                    {Array.from({ length: i === 0 ? 6 : 3 }).map((_, j) => (
-                                        <div key={j} className="apex-hm__skeleton apex-hm__skeleton--card" />
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
+                        <div className="apex-hm__grid">
+                            {Array.from({ length: 6 }).map((_, j) => (
+                                <div key={j} className="apex-hm__skeleton apex-hm__skeleton--card" />
+                            ))}
+                        </div>
                     </div>
                     <div className="apex-hm__rail">
                         <div className="apex-hm__skeleton apex-hm__skeleton--rail" />
@@ -245,12 +266,12 @@ export default function CustomerTable({ showLatestNews = true }) {
     const [loadingFavorites, setLoadingFavorites] = useState({});
     const [newsPosts, setNewsPosts] = useState([]);
     const [newsLoading, setNewsLoading] = useState(true);
-    const [cmdkOpen, setCmdkOpen] = useState(false);
-    const [cmdkQuery, setCmdkQuery] = useState("");
-    const [cmdkActive, setCmdkActive] = useState(0);
     const [sortKey, setSortKey] = useState("name");
     const [sortDir, setSortDir] = useState("asc");
-    const cmdkInputRef = useRef(null);
+    const [query, setQuery] = useState("");
+    const [platformFilter, setPlatformFilter] = useState("all");
+    const [collapsed, setCollapsed] = useState({});
+    const searchRef = useRef(null);
     const user = useUser();
     const { customers, loading, error } = useCustomers(refreshKey);
 
@@ -338,11 +359,7 @@ export default function CustomerTable({ showLatestNews = true }) {
 
     const SortIcon = ({ column }) => {
         if (sortKey !== column) return null;
-        return sortDir === "asc" ? (
-            <FiChevronUp className="apex-home__sort-icon" aria-hidden />
-        ) : (
-            <FiChevronDown className="apex-home__sort-icon" aria-hidden />
-        );
+        return sortDir === "asc" ? <FiChevronUp aria-hidden /> : <FiChevronDown aria-hidden />;
     };
 
     const groupKeys = Object.keys(groups);
@@ -372,9 +389,7 @@ export default function CustomerTable({ showLatestNews = true }) {
                 if (!res.ok) throw new Error("parents");
                 const all = await res.json();
                 if (cancelled || !Array.isArray(all)) return;
-                const byId = Object.fromEntries(
-                    all.map((p) => [String(p._id), p.name || String(p._id)])
-                );
+                const byId = Object.fromEntries(all.map((p) => [String(p._id), p.name || String(p._id)]));
                 const next = {};
                 for (const id of parentIds) {
                     next[id] = byId[id] || id;
@@ -391,80 +406,22 @@ export default function CustomerTable({ showLatestNews = true }) {
         };
     }, [parentIdsKey]);
 
-    const cmdkItems = useMemo(() => {
-        const q = cmdkQuery.trim().toLowerCase();
-        return accessibleCustomers
-            .filter((c) => !q || c.customerName.toLowerCase().includes(q))
-            .map((c) => ({
-                id: String(c._id),
-                name: c.customerName,
-                platform: getCustomerPlatformLabel(c),
-                href: `/dashboard/${c._id}/performance-dashboard`,
-            }));
-    }, [accessibleCustomers, cmdkQuery]);
-
-    const openCmdk = useCallback(() => {
-        setCmdkOpen(true);
-        setCmdkQuery("");
-        setCmdkActive(0);
-    }, []);
-
-    const closeCmdk = useCallback(() => {
-        setCmdkOpen(false);
-        setCmdkQuery("");
-        setCmdkActive(0);
-    }, []);
-
-    const selectCmdkItem = useCallback(
-        (index) => {
-            const item = cmdkItems[index];
-            if (!item) return;
-            closeCmdk();
-            router.push(item.href);
-        },
-        [cmdkItems, closeCmdk, router]
-    );
-
-    useEffect(() => {
-        if (!cmdkOpen) return undefined;
-        const t = window.setTimeout(() => cmdkInputRef.current?.focus(), 50);
-        document.body.style.overflow = "hidden";
-        return () => {
-            window.clearTimeout(t);
-            document.body.style.overflow = "";
-        };
-    }, [cmdkOpen]);
-
+    // Ctrl+K or "/" jumps to the search field
     useEffect(() => {
         const onKeyDown = (e) => {
+            const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(e.target?.tagName) || e.target?.isContentEditable;
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
                 e.preventDefault();
-                if (cmdkOpen) closeCmdk();
-                else openCmdk();
-                return;
-            }
-            if (!cmdkOpen) return;
-            if (e.key === "Escape") {
+                searchRef.current?.focus();
+                searchRef.current?.select();
+            } else if (e.key === "/" && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
                 e.preventDefault();
-                closeCmdk();
-            } else if (e.key === "ArrowDown") {
-                e.preventDefault();
-                setCmdkActive((i) => Math.min(i + 1, Math.max(cmdkItems.length - 1, 0)));
-            } else if (e.key === "ArrowUp") {
-                e.preventDefault();
-                setCmdkActive((i) => Math.max(i - 1, 0));
-            } else if (e.key === "Enter") {
-                e.preventDefault();
-                selectCmdkItem(cmdkActive);
+                searchRef.current?.focus();
             }
         };
         window.addEventListener("keydown", onKeyDown);
         return () => window.removeEventListener("keydown", onKeyDown);
-    }, [cmdkOpen, cmdkItems.length, cmdkActive, closeCmdk, openCmdk, selectCmdkItem]);
-
-    useEffect(() => {
-        setCmdkActive(0);
-    }, [cmdkQuery]);
+    }, []);
 
     const handleToggleFavorite = async (customerId) => {
         if (!user?.id) return;
@@ -505,9 +462,6 @@ export default function CustomerTable({ showLatestNews = true }) {
         [favoritedCustomers, customers]
     );
 
-    const [query, setQuery] = useState("");
-    const [platformFilter, setPlatformFilter] = useState("all");
-
     const platformOptions = useMemo(() => {
         const counts = new Map();
         accessibleCustomers.forEach((c) => {
@@ -533,6 +487,21 @@ export default function CustomerTable({ showLatestNews = true }) {
 
     const visibleCount = visibleGroups.reduce((n, g) => n + g.items.length, 0);
 
+    const clearFilters = () => {
+        setQuery("");
+        setPlatformFilter("all");
+    };
+
+    const onSearchKeyDown = (e) => {
+        if (e.key === "Enter") {
+            const first = visibleGroups[0]?.items[0];
+            if (first) router.push(`/dashboard/${first._id}/performance-dashboard`);
+        } else if (e.key === "Escape") {
+            setQuery("");
+            e.currentTarget.blur();
+        }
+    };
+
     if (loading) {
         return <HomeLoading />;
     }
@@ -545,7 +514,7 @@ export default function CustomerTable({ showLatestNews = true }) {
                     <div className="apex-hm__error-card" role="alert">
                         <h1 className="apex-hm__error-title">Could not load properties</h1>
                         <p className="apex-hm__error-text">{error}</p>
-                        <button type="button" onClick={() => window.location.reload()} className="apex-hm__btn apex-hm__btn--dark">
+                        <button type="button" onClick={() => window.location.reload()} className="apex-hm__btn apex-hm__btn--primary">
                             Retry
                         </button>
                     </div>
@@ -564,7 +533,7 @@ export default function CustomerTable({ showLatestNews = true }) {
                         </Link>
                     )}
                     {user?.isAdmin && !showCreate && (
-                        <button type="button" onClick={() => setShowCreate(true)} className="apex-hm__btn apex-hm__btn--dark">
+                        <button type="button" onClick={() => setShowCreate(true)} className="apex-hm__btn apex-hm__btn--primary">
                             New property
                         </button>
                     )}
@@ -576,78 +545,74 @@ export default function CustomerTable({ showLatestNews = true }) {
                 </div>
             </HomeBar>
 
-            {showCreate ? (
-                <div className="apex-hm__page">
-                    <div className="apex-hm__create-head">
-                        <p className="apex-hm__eyebrow apex-hm__eyebrow--light">Admin</p>
-                        <h1 className="apex-hm__title apex-hm__title--light">Create new property</h1>
-                        <p className="apex-hm__lede apex-hm__lede--light">
-                            Add a customer and connect their platforms. Ad account IDs can be filled in now or later in config.
-                        </p>
-                    </div>
-                    <div className="apex-home__create">
-                        <div className="apex-home__panel apex-home__panel--create">
-                            <CustomerCreateForm variant="apex-home" hideHeading onSuccess={handleCreated} />
+            <div className="apex-hm__page">
+                {showCreate ? (
+                    <>
+                        <div className="apex-hm__head">
+                            <div>
+                                <h1 className="apex-hm__title">Create new property</h1>
+                                <p className="apex-hm__lede">
+                                    Add a customer and connect their platforms. Ad account IDs can be filled in now or later in config.
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                </div>
-            ) : (
-                <>
-                    <section className="apex-hm__hero" aria-labelledby="home-heading">
-                        <div className="apex-hm__hero-copy">
-                            <p className="apex-hm__eyebrow">Workspace</p>
-                            <h1 id="home-heading" className="apex-hm__title">
-                                Select a property
-                            </h1>
-                            <p className="apex-hm__lede">Open a dashboard, or pin the properties you use most.</p>
+                        <div className="apex-home__create">
+                            <div className="apex-home__panel apex-home__panel--create">
+                                <CustomerCreateForm variant="apex-home" hideHeading onSuccess={handleCreated} />
+                            </div>
                         </div>
-                        <div className="apex-hm__hero-side">
-                            <button type="button" className="apex-hm__command" onClick={openCmdk} aria-label="Search properties (Ctrl+K)">
+                    </>
+                ) : (
+                    <>
+                        <div className="apex-hm__head">
+                            <div>
+                                <h1 className="apex-hm__title">Select a property</h1>
+                                <p className="apex-hm__lede">Search by name, or open one from your pinned list.</p>
+                            </div>
+                            <label className="apex-hm__search">
                                 <FiSearch aria-hidden />
-                                <span>Search properties</span>
-                                <span className="apex-hm__kbd">
+                                <input
+                                    ref={searchRef}
+                                    type="search"
+                                    value={query}
+                                    onChange={(e) => setQuery(e.target.value)}
+                                    onKeyDown={onSearchKeyDown}
+                                    placeholder="Search properties"
+                                    aria-label="Search properties. Press Enter to open the first match."
+                                    autoComplete="off"
+                                />
+                                <span className="apex-hm__kbd" aria-hidden>
                                     <kbd>Ctrl</kbd>
                                     <kbd>K</kbd>
                                 </span>
-                            </button>
-                            <dl className="apex-hm__stats">
-                                <div>
-                                    <dt>Properties</dt>
-                                    <dd>{accessibleCustomers.length}</dd>
-                                </div>
-                                <div>
-                                    <dt>Groups</dt>
-                                    <dd>{groupKeys.length}</dd>
-                                </div>
-                                <div>
-                                    <dt>Pinned</dt>
-                                    <dd>{favoriteCustomers.length}</dd>
-                                </div>
-                            </dl>
+                            </label>
                         </div>
-                    </section>
 
-                    <div className="apex-hm__page">
+                        <div className="apex-hm__kpis">
+                            <Kpi hero icon={FiGrid} label="Properties" value={accessibleCustomers.length} caption="You can open" />
+                            <Kpi icon={FiFolder} label="Groups" value={groupKeys.length} caption={groupKeys.length === 1 ? "Parent group" : "Parent groups"} />
+                            <Kpi icon={FiStar} label="Pinned" value={favoriteCustomers.length} caption="Quick access" />
+                        </div>
+
                         <div className="apex-hm__layout">
                             <main className="apex-hm__main">
-                                <section className="apex-hm__section" aria-labelledby="pinned-heading">
-                                    <div className="apex-hm__section-head">
-                                        <h2 id="pinned-heading" className="apex-hm__h2">
+                                <section className="apex-hm__card" aria-labelledby="pinned-heading">
+                                    <div className="apex-hm__card-head">
+                                        <h2 id="pinned-heading" className="apex-hm__card-title">
                                             Pinned
                                         </h2>
                                         {favoriteCustomers.length > 0 && <span className="apex-hm__count">{favoriteCustomers.length}</span>}
                                     </div>
                                     {favoriteCustomers.length === 0 ? (
                                         <p className="apex-hm__empty">
-                                            <FiStar aria-hidden /> Nothing pinned yet. Use the star on any property below to keep it here.
+                                            <FiStar aria-hidden /> Nothing pinned yet. Tap the star on a property to keep it here.
                                         </p>
                                     ) : (
-                                        <ul className="apex-hm__grid apex-hm__grid--pinned">
+                                        <ul className="apex-hm__grid">
                                             {favoriteCustomers.map((customer) => (
                                                 <PropertyCard
                                                     key={customer._id}
                                                     customer={customer}
-                                                    pinned
                                                     favorited
                                                     favoriteLoading={!!loadingFavorites[customer._id]}
                                                     isAdmin={!!user?.isAdmin}
@@ -659,25 +624,20 @@ export default function CustomerTable({ showLatestNews = true }) {
                                     )}
                                 </section>
 
-                                <section className="apex-hm__section" aria-labelledby="all-heading">
-                                    <div className="apex-hm__section-head">
-                                        <h2 id="all-heading" className="apex-hm__h2">
+                                <section className="apex-hm__card" aria-labelledby="all-heading">
+                                    <div className="apex-hm__card-head">
+                                        <h2 id="all-heading" className="apex-hm__card-title">
                                             All properties
                                         </h2>
                                         <span className="apex-hm__count">{filterActive ? `${visibleCount} of ${accessibleCustomers.length}` : accessibleCustomers.length}</span>
+                                        {filterActive && (
+                                            <button type="button" className="apex-hm__link-btn" onClick={clearFilters}>
+                                                Clear filters
+                                            </button>
+                                        )}
                                     </div>
 
                                     <div className="apex-hm__toolbar">
-                                        <label className="apex-hm__filter">
-                                            <FiSearch aria-hidden />
-                                            <input
-                                                type="search"
-                                                value={query}
-                                                onChange={(e) => setQuery(e.target.value)}
-                                                placeholder="Filter by name"
-                                                aria-label="Filter properties by name"
-                                            />
-                                        </label>
                                         <div className="apex-hm__chips" role="group" aria-label="Filter by platform">
                                             <button type="button" className={`apex-hm__chip${platformFilter === "all" ? " is-active" : ""}`} onClick={() => setPlatformFilter("all")} aria-pressed={platformFilter === "all"}>
                                                 All
@@ -711,136 +671,67 @@ export default function CustomerTable({ showLatestNews = true }) {
                                         <p className="apex-hm__empty">No properties available.</p>
                                     ) : visibleGroups.length === 0 ? (
                                         <p className="apex-hm__empty">
-                                            No property matches this filter.
-                                            <button
-                                                type="button"
-                                                className="apex-hm__link-btn"
-                                                onClick={() => {
-                                                    setQuery("");
-                                                    setPlatformFilter("all");
-                                                }}
-                                            >
-                                                Clear filter
+                                            No property matches this search.
+                                            <button type="button" className="apex-hm__link-btn" onClick={clearFilters}>
+                                                Clear filters
                                             </button>
                                         </p>
                                     ) : (
-                                        visibleGroups.map(({ parentId, items }) => (
-                                            <div key={parentId} className="apex-hm__group">
-                                                <div className="apex-hm__group-head">
-                                                    {parentId !== "none" ? (
-                                                        <Link href={`/parent-property/${parentId}/home`} className="apex-hm__group-name">
-                                                            {parentNames[parentId] || parentId} <FiArrowRight aria-hidden />
-                                                        </Link>
-                                                    ) : (
-                                                        <span className="apex-hm__group-name apex-hm__group-name--plain">Unassigned</span>
-                                                    )}
-                                                    <span className="apex-hm__group-count">
-                                                        {items.length} {items.length === 1 ? "property" : "properties"}
-                                                    </span>
+                                        visibleGroups.map(({ parentId, items }) => {
+                                            const isCollapsed = !filterActive && !!collapsed[parentId];
+                                            const panelId = `apex-hm-group-${parentId}`;
+                                            return (
+                                                <div key={parentId} className="apex-hm__group">
+                                                    <div className="apex-hm__group-head">
+                                                        <button
+                                                            type="button"
+                                                            className="apex-hm__group-toggle"
+                                                            aria-expanded={!isCollapsed}
+                                                            aria-controls={panelId}
+                                                            aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${parentId !== "none" ? parentNames[parentId] || parentId : "unassigned"}`}
+                                                            onClick={() => setCollapsed((prev) => ({ ...prev, [parentId]: !prev[parentId] }))}
+                                                            disabled={filterActive}
+                                                        >
+                                                            {isCollapsed ? <FiChevronDown aria-hidden /> : <FiChevronUp aria-hidden />}
+                                                        </button>
+                                                        {parentId !== "none" ? (
+                                                            <Link href={`/parent-property/${parentId}/home`} className="apex-hm__group-name">
+                                                                {parentNames[parentId] || parentId} <FiArrowRight aria-hidden />
+                                                            </Link>
+                                                        ) : (
+                                                            <span className="apex-hm__group-name apex-hm__group-name--plain">Unassigned</span>
+                                                        )}
+                                                        <span className="apex-hm__group-count">
+                                                            {items.length} {items.length === 1 ? "property" : "properties"}
+                                                        </span>
+                                                    </div>
+                                                    <ul id={panelId} className="apex-hm__grid" hidden={isCollapsed}>
+                                                        {items.map((customer) => (
+                                                            <PropertyCard
+                                                                key={customer._id}
+                                                                customer={customer}
+                                                                favorited={isFavorited(customer._id)}
+                                                                favoriteLoading={!!loadingFavorites[customer._id]}
+                                                                isAdmin={!!user?.isAdmin}
+                                                                onToggleFavorite={handleToggleFavorite}
+                                                                onCopy={setCustomerToCopy}
+                                                            />
+                                                        ))}
+                                                    </ul>
                                                 </div>
-                                                <ul className="apex-hm__grid">
-                                                    {items.map((customer) => (
-                                                        <PropertyCard
-                                                            key={customer._id}
-                                                            customer={customer}
-                                                            favorited={isFavorited(customer._id)}
-                                                            favoriteLoading={!!loadingFavorites[customer._id]}
-                                                            isAdmin={!!user?.isAdmin}
-                                                            onToggleFavorite={handleToggleFavorite}
-                                                            onCopy={setCustomerToCopy}
-                                                        />
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        ))
+                                            );
+                                        })
                                     )}
                                 </section>
                             </main>
 
                             <aside className="apex-hm__rail" aria-label="Shortcuts and news">
-                                {!user?.isExternal && <HomeNavCard user={user} onLogout={handleLogout} />}
-                                {showLatestNews && (
-                                    <div className="apex-hm__news-wrap">
-                                        <HomeNewsSpotlight post={newsPosts[0] ?? null} loading={newsLoading} />
-                                        {!newsLoading && newsPosts[0] ? (
-                                            <Link href="/news" className="apex-hm__news-more">
-                                                All news <FiArrowRight aria-hidden />
-                                            </Link>
-                                        ) : null}
-                                    </div>
-                                )}
+                                {!user?.isExternal && <JumpCard user={user} onLogout={handleLogout} />}
+                                {showLatestNews && <NewsCard post={newsPosts[0] ?? null} loading={newsLoading} />}
                             </aside>
                         </div>
-                    </div>
-                </>
-            )}
-
-            <div
-                className={`apex-home__cmdk${cmdkOpen ? " is-open" : ""}`}
-                aria-hidden={!cmdkOpen}
-            >
-                <button
-                    type="button"
-                    className="apex-home__cmdk-backdrop"
-                    aria-label="Close search"
-                    onClick={closeCmdk}
-                />
-                <div
-                    className="apex-home__cmdk-panel"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label="Search properties"
-                >
-                    <div className="apex-home__cmdk-field">
-                        <FiSearch aria-hidden />
-                        <input
-                            ref={cmdkInputRef}
-                            type="search"
-                            placeholder="Search properties…"
-                            value={cmdkQuery}
-                            onChange={(e) => setCmdkQuery(e.target.value)}
-                            aria-label="Filter properties"
-                        />
-                        <kbd>esc</kbd>
-                    </div>
-                    <div className="apex-home__cmdk-results" role="listbox">
-                        {cmdkItems.length === 0 ? (
-                            <p className="apex-home__cmdk-empty">No matching properties.</p>
-                        ) : (
-                            <>
-                                <p className="apex-home__cmdk-group">Properties</p>
-                                {cmdkItems.map((item, index) => (
-                                    <button
-                                        key={item.id}
-                                        type="button"
-                                        role="option"
-                                        aria-selected={index === cmdkActive}
-                                        className={`apex-home__cmdk-item${
-                                            index === cmdkActive ? " is-active" : ""
-                                        }`}
-                                        onMouseEnter={() => setCmdkActive(index)}
-                                        onClick={() => selectCmdkItem(index)}
-                                    >
-                                        <span>{item.name}</span>
-                                        <span className="apex-home__cmdk-item-meta">{item.platform}</span>
-                                    </button>
-                                ))}
-                            </>
-                        )}
-                    </div>
-                    <div className="apex-home__cmdk-foot">
-                        <span>
-                            <kbd>↑</kbd>
-                            <kbd>↓</kbd> navigate
-                        </span>
-                        <span>
-                            <kbd>↵</kbd> open
-                        </span>
-                        <span>
-                            <kbd>esc</kbd> close
-                        </span>
-                    </div>
-                </div>
+                    </>
+                )}
             </div>
 
             {customerToCopy && user?.isAdmin && (
