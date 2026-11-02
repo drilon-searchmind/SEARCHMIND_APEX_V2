@@ -227,14 +227,209 @@ function statsWindowUtcIso(startDateYmd, endDateYmd, accountIanaTz) {
         tz = "UTC";
     }
 
-    const s = `${String(startDateYmd).trim()}T00:00:00`;
-    const startLocal = dayjs.tz(s, tz).startOf("day");
-    const endExclusiveLocal = dayjs.tz(`${String(endDateYmd).trim()}T00:00:00`, tz).startOf("day").add(1, "day");
+    const startLocal = dayjs.tz(String(startDateYmd).trim(), tz).startOf("day");
+    // Re-anchor on calendar day after add(1) — otherwise dayjs can keep pre-DST offset (e.g. Nov 2 00:00 still -07:00).
+    const endExclusiveLocal = dayjs
+        .tz(String(endDateYmd).trim(), tz)
+        .startOf("day")
+        .add(1, "day")
+        .startOf("day");
 
     return {
         start_time: startLocal.toDate().toISOString(),
         end_time: endExclusiveLocal.toDate().toISOString(),
     };
+}
+
+/** DAY timeseries: Snapchat rejects intervals longer than 32 days — chunk below that. */
+const SNAPCHAT_DAY_STATS_MAX_INCLUSIVE_DAYS = 31;
+
+/**
+ * @returns {{ startDate: string, endDate: string }[]}
+ */
+function splitInclusiveDateRange(startDateYmd, endDateYmd, maxInclusiveDays = SNAPCHAT_DAY_STATS_MAX_INCLUSIVE_DAYS) {
+    const start = dayjs(String(startDateYmd).trim());
+    const end = dayjs(String(endDateYmd).trim());
+    if (!start.isValid() || !end.isValid() || end.isBefore(start, "day")) {
+        return [{ startDate: String(startDateYmd).trim(), endDate: String(endDateYmd).trim() }];
+    }
+
+    const chunks = [];
+    let cursor = start.startOf("day");
+    const last = end.startOf("day");
+
+    while (cursor.isBefore(last, "day") || cursor.isSame(last, "day")) {
+        const chunkStart = cursor.format("YYYY-MM-DD");
+        const chunkEndDay = cursor.add(maxInclusiveDays - 1, "day");
+        const chunkEnd = chunkEndDay.isAfter(last, "day") ? last.format("YYYY-MM-DD") : chunkEndDay.format("YYYY-MM-DD");
+        chunks.push({ startDate: chunkStart, endDate: chunkEnd });
+        cursor = dayjs(chunkEnd).add(1, "day").startOf("day");
+    }
+
+    return chunks;
+}
+
+function emptyDayAgg() {
+    return {
+        impressions: 0,
+        swipes: 0,
+        spend_micro: 0,
+        conversion_purchases: 0,
+        conversion_purchases_value_micro: 0,
+        conversion_add_cart: 0,
+    };
+}
+
+function mergeDayRollupMaps(into, from) {
+    for (const d of Object.keys(from || {})) {
+        if (!into[d]) into[d] = emptyDayAgg();
+        const a = into[d];
+        const b = from[d];
+        a.impressions += b.impressions || 0;
+        a.swipes += b.swipes || 0;
+        a.spend_micro += b.spend_micro || 0;
+        a.conversion_purchases += b.conversion_purchases || 0;
+        a.conversion_purchases_value_micro += b.conversion_purchases_value_micro || 0;
+        a.conversion_add_cart += b.conversion_add_cart || 0;
+    }
+    return into;
+}
+
+function buildDayStatsBase(startDateYmd, endDateYmd, accountIanaTz) {
+    const { start_time, end_time } = statsWindowUtcIso(startDateYmd, endDateYmd, accountIanaTz);
+    return {
+        granularity: "DAY",
+        start_time,
+        end_time,
+        swipe_up_attribution_window: "28_DAY",
+        view_attribution_window: "1_DAY",
+    };
+}
+
+const FIELDS_DAY_FULL =
+    "spend,impressions,swipes,conversion_purchases,conversion_purchases_value,conversion_add_cart";
+
+/**
+ * One DAY stats window (≤31 inclusive days). See Snapchat E1008 / 32-day limit.
+ */
+async function fetchDayRollupForChunk(
+    accessToken,
+    adAccountId,
+    startDate,
+    endDate,
+    accountTz,
+    { countryIsoCodes, spendByDateOnly }
+) {
+    const trimmed = String(adAccountId || "").trim();
+    const dayStatsBase = buildDayStatsBase(startDate, endDate, accountTz);
+    const marketCountryFilter =
+        Array.isArray(countryIsoCodes) && countryIsoCodes.filter((c) => String(c).trim()).length > 0;
+
+    if (marketCountryFilter) {
+        const spendByDateMicro = await fetchSnapchatCountryFilteredSpendByDate(
+            accessToken,
+            trimmed,
+            dayStatsBase.start_time,
+            dayStatsBase.end_time,
+            dayStatsBase,
+            accountTz,
+            countryIsoCodes
+        );
+        const rollupByDate = {};
+        for (const d of Object.keys(spendByDateMicro)) {
+            rollupByDate[d] = { ...emptyDayAgg(), spend_micro: spendByDateMicro[d] };
+        }
+        return rollupByDate;
+    }
+
+    if (spendByDateOnly) {
+        const rollupByDate = {};
+        try {
+            const spendDayJson = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
+                ...dayStatsBase,
+                fields: "spend",
+            });
+            const spendByDateMicro = spendMicroByDateFromAccountDayStats(spendDayJson, accountTz);
+            for (const d of Object.keys(spendByDateMicro)) {
+                rollupByDate[d] = { ...emptyDayAgg(), spend_micro: spendByDateMicro[d] };
+            }
+        } catch (eSpendOnly) {
+            dbg("spendByDateOnly DAY spend request failed", eSpendOnly?.message || eSpendOnly);
+        }
+        return rollupByDate;
+    }
+
+    let rollupByDate = {};
+    try {
+        const combinedDay = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
+            ...dayStatsBase,
+            breakdown: "campaign",
+            fields: FIELDS_DAY_FULL,
+        });
+        rollupByDate = aggregateEngagementAndConversionsByDate(combinedDay, accountTz);
+    } catch (eCombo) {
+        dbg("Combined DAY breakdown=campaign request failed — falling back split calls", eCombo?.message || eCombo);
+        const spendDayJson = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
+            ...dayStatsBase,
+            fields: "spend",
+        });
+        const spendByDateMicro = spendMicroByDateFromAccountDayStats(spendDayJson, accountTz);
+
+        try {
+            const convDayJson = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
+                ...dayStatsBase,
+                breakdown: "campaign",
+                fields: "impressions,swipes,conversion_purchases,conversion_purchases_value,conversion_add_cart",
+            });
+            rollupByDate = aggregateEngagementAndConversionsByDate(convDayJson, accountTz);
+        } catch (eConv) {
+            dbg("Campaign DAY impressions + conversions aggregation skipped", eConv?.message || eConv);
+            try {
+                const engDayJson = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
+                    ...dayStatsBase,
+                    breakdown: "campaign",
+                    fields: "impressions,swipes",
+                });
+                rollupByDate = aggregateEngagementAndConversionsByDate(engDayJson, accountTz);
+            } catch (eEng) {
+                dbg("Campaign DAY impressions/swipes aggregation skipped", eEng?.message || eEng);
+            }
+        }
+
+        for (const d of Object.keys(spendByDateMicro)) {
+            if (!rollupByDate[d]) rollupByDate[d] = emptyDayAgg();
+            rollupByDate[d].spend_micro = spendByDateMicro[d];
+        }
+    }
+
+    return rollupByDate;
+}
+
+async function fetchDayRollupChunked(
+    accessToken,
+    adAccountId,
+    startDate,
+    endDate,
+    accountTz,
+    opts
+) {
+    const chunks = splitInclusiveDateRange(startDate, endDate);
+    if (chunks.length > 1 && snapDebugEnabled()) {
+        dbg("DAY stats chunked for 32-day API limit", { chunks: chunks.length, startDate, endDate });
+    }
+    let rollupByDate = {};
+    for (const chunk of chunks) {
+        const part = await fetchDayRollupForChunk(
+            accessToken,
+            adAccountId,
+            chunk.startDate,
+            chunk.endDate,
+            accountTz,
+            opts
+        );
+        mergeDayRollupMaps(rollupByDate, part);
+    }
+    return rollupByDate;
 }
 
 async function snapFetchJson(path, accessToken, searchParams) {
@@ -746,42 +941,32 @@ async function fetchSnapchatDashboardMetricsInner({
 
     const accountTz = await fetchAdAccountTimezone(accessToken, trimmed);
     const { start_time, end_time } = statsWindowUtcIso(startDate, endDate, accountTz);
-    if (snapDebugEnabled()) dbg("DAY stats window (account TZ)", { accountTz, start_time, end_time });
-
-    /**
-     * Ad Account stats **without** breakdown only allow fields=spend. With breakdown=campaign, DAY rows live under
-     * `breakdown_stats.campaign[].timeseries` — we aggregate by account-local calendar date.
-     * Prefer one request including spend + engagement + Pixel-style conversions when the API accepts it.
-     */
-    const dayStatsBase = {
-        granularity: "DAY",
-        start_time,
-        end_time,
-        swipe_up_attribution_window: "28_DAY",
-        view_attribution_window: "1_DAY",
-    };
-
-    const fieldsDayFull =
-        "spend,impressions,swipes,conversion_purchases,conversion_purchases_value,conversion_add_cart";
-
-    let rollupByDate = {};
+    if (snapDebugEnabled()) dbg("Stats window (account TZ)", { accountTz, start_time, end_time });
 
     if (spendByCountryOnly) {
-        const base = {
-            ...dayStatsBase,
-            report_dimension: "country",
-            fields: "spend",
-        };
+        const chunks = splitInclusiveDateRange(startDate, endDate);
+        /** @type {Map<string, number>} */
         let spendByIso2 = new Map();
-        try {
-            const json = await snapFetchJson(
-                `/adaccounts/${encodeURIComponent(trimmed)}/stats`,
-                accessToken,
-                base
-            );
-            spendByIso2 = spendMajorTotalsByIso2FromCountryDimensionStats(json, accountTz);
-        } catch (e1) {
-            dbg("spendByCountryOnly failed", e1?.message || e1);
+        for (const chunk of chunks) {
+            const dayStatsBase = buildDayStatsBase(chunk.startDate, chunk.endDate, accountTz);
+            const base = {
+                ...dayStatsBase,
+                report_dimension: "country",
+                fields: "spend",
+            };
+            try {
+                const json = await snapFetchJson(
+                    `/adaccounts/${encodeURIComponent(trimmed)}/stats`,
+                    accessToken,
+                    base
+                );
+                const part = spendMajorTotalsByIso2FromCountryDimensionStats(json, accountTz);
+                for (const [iso, major] of part.entries()) {
+                    spendByIso2.set(iso, (spendByIso2.get(iso) || 0) + major);
+                }
+            } catch (e1) {
+                dbg("spendByCountryOnly chunk failed", chunk, e1?.message || e1);
+            }
         }
         return {
             metrics_by_date: [],
@@ -791,99 +976,10 @@ async function fetchSnapchatDashboardMetricsInner({
         };
     }
 
-    const marketCountryFilter =
-        Array.isArray(countryIsoCodes) && countryIsoCodes.filter((c) => String(c).trim()).length > 0;
-
-    if (marketCountryFilter) {
-        const spendByDateMicro = await fetchSnapchatCountryFilteredSpendByDate(
-            accessToken,
-            trimmed,
-            start_time,
-            end_time,
-            dayStatsBase,
-            accountTz,
-            countryIsoCodes
-        );
-        for (const d of Object.keys(spendByDateMicro)) {
-            rollupByDate[d] = {
-                impressions: 0,
-                swipes: 0,
-                spend_micro: spendByDateMicro[d],
-                conversion_purchases: 0,
-                conversion_purchases_value_micro: 0,
-                conversion_add_cart: 0,
-            };
-        }
-    } else if (spendByDateOnly) {
-        try {
-            const spendDayJson = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
-                ...dayStatsBase,
-                fields: "spend",
-            });
-            const spendByDateMicro = spendMicroByDateFromAccountDayStats(spendDayJson, accountTz);
-            for (const d of Object.keys(spendByDateMicro)) {
-                rollupByDate[d] = {
-                    impressions: 0,
-                    swipes: 0,
-                    spend_micro: spendByDateMicro[d],
-                    conversion_purchases: 0,
-                    conversion_purchases_value_micro: 0,
-                    conversion_add_cart: 0,
-                };
-            }
-        } catch (eSpendOnly) {
-            dbg("spendByDateOnly DAY spend request failed", eSpendOnly?.message || eSpendOnly);
-        }
-    } else try {
-        const combinedDay = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
-            ...dayStatsBase,
-            breakdown: "campaign",
-            fields: fieldsDayFull,
-        });
-        rollupByDate = aggregateEngagementAndConversionsByDate(combinedDay, accountTz);
-    } catch (eCombo) {
-        dbg("Combined DAY breakdown=campaign request failed — falling back split calls", eCombo?.message || eCombo);
-        const spendDayJson = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
-            ...dayStatsBase,
-            fields: "spend",
-        });
-        const spendByDateMicro = spendMicroByDateFromAccountDayStats(spendDayJson, accountTz);
-
-        try {
-            const convDayJson = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
-                ...dayStatsBase,
-                breakdown: "campaign",
-                fields:
-                    "impressions,swipes,conversion_purchases,conversion_purchases_value,conversion_add_cart",
-            });
-            rollupByDate = aggregateEngagementAndConversionsByDate(convDayJson, accountTz);
-        } catch (eConv) {
-            dbg("Campaign DAY impressions + conversions aggregation skipped", eConv?.message || eConv);
-            try {
-                const engDayJson = await snapFetchJson(`/adaccounts/${encodeURIComponent(trimmed)}/stats`, accessToken, {
-                    ...dayStatsBase,
-                    breakdown: "campaign",
-                    fields: "impressions,swipes",
-                });
-                rollupByDate = aggregateEngagementAndConversionsByDate(engDayJson, accountTz);
-            } catch (eEng) {
-                dbg("Campaign DAY impressions/swipes aggregation skipped", eEng?.message || eEng);
-            }
-        }
-
-        for (const d of Object.keys(spendByDateMicro)) {
-            if (!rollupByDate[d])
-                rollupByDate[d] = {
-                    impressions: 0,
-                    swipes: 0,
-                    spend_micro: 0,
-                    conversion_purchases: 0,
-                    conversion_purchases_value_micro: 0,
-                    conversion_add_cart: 0,
-                };
-            rollupByDate[d].spend_micro = spendByDateMicro[d];
-        }
-    }
+    const rollupByDate = await fetchDayRollupChunked(accessToken, trimmed, startDate, endDate, accountTz, {
+        countryIsoCodes,
+        spendByDateOnly,
+    });
 
     /** Fill gaps so charts align with calendar range (snap may omit zero days when omit_empty). */
     function eachDayInclusive(s, e) {
@@ -897,17 +993,8 @@ async function fetchSnapchatDashboardMetricsInner({
         return out;
     }
 
-    const emptyAgg = () => ({
-        impressions: 0,
-        swipes: 0,
-        spend_micro: 0,
-        conversion_purchases: 0,
-        conversion_purchases_value_micro: 0,
-        conversion_add_cart: 0,
-    });
-
     let metrics_by_date = eachDayInclusive(startDate, endDate).map((d) => {
-        const agg = rollupByDate[d] || emptyAgg();
+        const agg = rollupByDate[d] || emptyDayAgg();
         return normalizeDayRow(`${d}T12:00:00.000Z`, {
             spend: agg.spend_micro,
             impressions: agg.impressions,
