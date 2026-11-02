@@ -28,6 +28,7 @@ import { normalizeDanDomainSettings } from './danDomainCustomerSettings';
 import { fetchDanDomainOriginalPerformanceDaily } from './danDomainOriginalApi';
 import { normalizeDanDomainOriginalSettings } from './danDomainOriginalCustomerSettings';
 import { fetchFacebookAdsInsights } from './facebookApi';
+import { getMetaAdsConversionRateToDkk } from './metaAdsCurrency';
 import { adCampaignFilterActive, normalizeCampaignNameKeywords } from './adCampaignFilterUtils';
 import { fetchGoogleAdsMetrics } from './googleAdsApi';
 import { parseGoogleAdsCustomerIds } from './googleAdsCustomerIdUtils';
@@ -481,10 +482,17 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 }
             );
             const fbRows = fbRes?.data || [];
-            facebookDaily = fbRows.map(row => ({
-                period: row.date_start,
-                spend: parseFloat(row.spend) || 0,
-            })).sort((a, b) => a.period.localeCompare(b.period));
+            const metaConversionRate = await getMetaAdsConversionRateToDkk(
+                settings.facebookAdAccountId,
+                FACEBOOK_APP_TOKEN,
+                currencyData
+            );
+            facebookDaily = fbRows
+                .map((row) => ({
+                    period: row.date_start,
+                    spend: (parseFloat(row.spend) || 0) * metaConversionRate,
+                }))
+                .sort((a, b) => a.period.localeCompare(b.period));
             }
         }
     } catch (err) {

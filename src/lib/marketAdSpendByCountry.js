@@ -7,6 +7,7 @@
 
 
 import { fetchFacebookAdsInsights } from "./facebookApi";
+import { getMetaAdsConversionRateToDkk } from "./metaAdsCurrency";
 
 import { fetchGoogleAdsSpendByIso2Map } from "./googleAdsApi";
 
@@ -230,13 +231,19 @@ export async function fetchAdSpendByIso2Country(settings, startDate, endDate, op
 
                     );
 
+                    const metaRate = await getMetaAdsConversionRateToDkk(
+                        settings.facebookAdAccountId,
+                        FACEBOOK_APP_TOKEN,
+                        currencyData
+                    );
+
                     for (const row of fbRes?.data || []) {
 
                         const iso = facebookRowCountryCode(row);
 
                         if (!iso) continue;
 
-                        const spend = parseFloat(row.spend) || 0;
+                        const spend = (parseFloat(row.spend) || 0) * metaRate;
 
                         out.meta.set(iso, (out.meta.get(iso) || 0) + spend);
 

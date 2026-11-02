@@ -5,6 +5,10 @@ import {
 } from './adCampaignFilterUtils';
 import { normalizeMetaAdsCampaignId } from './metaAdsCampaignIdUtils';
 import { fetchFacebookPsDashboardExtended } from './facebookPsDashboardFetch';
+import {
+    applyMetaDkkConversionToPsDashboard,
+    getMetaAdsConversionRateToDkk,
+} from './metaAdsCurrency';
 
 /**
  * Parse meta ID include/exclude from comma-separated strings.
@@ -429,8 +433,10 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
 
     console.log(`[Facebook API PS] Fetching data for account: ${formattedAccountId}, date range: ${startDate} to ${endDate}`);
 
+    const metaConversionRate = await getMetaAdsConversionRateToDkk(adAccountId, accessToken);
+
     try {
-        return await fetchFacebookPsDashboardExtended({
+        const data = await fetchFacebookPsDashboardExtended({
             accessToken,
             adAccountId,
             startDate,
@@ -438,6 +444,7 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
             metaIdInclude,
             metaIdExclude,
         });
+        return applyMetaDkkConversionToPsDashboard(data, metaConversionRate);
     } catch (error) {
         console.error('[Facebook API PS] Extended fetch failed, falling back to legacy:', error.message);
     }
@@ -711,31 +718,34 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
             if (dateCompare !== 0) return dateCompare;
             return b.clicks - a.clicks;
         });
-        return {
-            metrics_by_date,
-            top_campaigns,
-            campaigns_by_date,
-            campaigns_performance: top_campaigns.map((r) => ({
-                campaign_name: r.campaign_name,
-                clicks: r.clicks,
-                impressions: r.impressions,
-                conversions: r.conversions,
-                ad_spend: 0,
-                ctr: r.ctr,
-                cpm: 0,
-                cpa: 0,
-                roas: 0,
-                frequency: 0,
-            })),
-            placements: [],
-            funnel_spend_by_date: metrics_by_date.map((d) => ({
-                date: d.date,
-                prospecting_spend: d.ad_spend * 0.55,
-                retargeting_spend: d.ad_spend * 0.35,
-                other_spend: d.ad_spend * 0.1,
-            })),
-            account_summary: { new_customer_ratio: null, recurring_customer_ratio: null },
-        };
+        return applyMetaDkkConversionToPsDashboard(
+            {
+                metrics_by_date,
+                top_campaigns,
+                campaigns_by_date,
+                campaigns_performance: top_campaigns.map((r) => ({
+                    campaign_name: r.campaign_name,
+                    clicks: r.clicks,
+                    impressions: r.impressions,
+                    conversions: r.conversions,
+                    ad_spend: 0,
+                    ctr: r.ctr,
+                    cpm: 0,
+                    cpa: 0,
+                    roas: 0,
+                    frequency: 0,
+                })),
+                placements: [],
+                funnel_spend_by_date: metrics_by_date.map((d) => ({
+                    date: d.date,
+                    prospecting_spend: d.ad_spend * 0.55,
+                    retargeting_spend: d.ad_spend * 0.35,
+                    other_spend: d.ad_spend * 0.1,
+                })),
+                account_summary: { new_customer_ratio: null, recurring_customer_ratio: null },
+            },
+            metaConversionRate
+        );
     } catch (error) {
         console.error('[Facebook API PS] Error fetching PS dashboard data:', error);
         throw new Error(`Failed to fetch Facebook Ads PS dashboard data: ${error.message}`);

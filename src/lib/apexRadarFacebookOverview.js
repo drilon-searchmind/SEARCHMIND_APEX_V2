@@ -16,6 +16,10 @@ import {
     conversionsFromActions,
     normalizeTrackingConversionActionTypes,
 } from "@/lib/apexRadarFacebookConversionEvents";
+import {
+    applyMetaDkkRateToDailyInsightRows,
+    getMetaAdsConversionRateToDkk,
+} from "@/lib/metaAdsCurrency";
 
 const GRAPH_VERSION = "v21.0";
 const BATCH_SIZE = 50;
@@ -756,6 +760,14 @@ function rollCustomerWindows(customer, startDate, endDate, daily, weeklyPeriodRo
     return rollOverviewWindows(customer, startDate, endDate, daily, weeklyPeriodRows, DEFAULT_FB_ROLL_OPTS);
 }
 
+async function convertCustomerMetaDailyToDkk(customer, daily, accessToken) {
+    if (!daily?.length || !accessToken) return daily || [];
+    const adId = (customer.CustomerSettings?.facebookAdAccountId || "").trim();
+    if (!adId) return daily;
+    const rate = await getMetaAdsConversionRateToDkk(adId, accessToken);
+    return applyMetaDkkRateToDailyInsightRows(daily, rate);
+}
+
 /**
  * Fetch overview rows for many customers (each must have CustomerSettings.facebookAdAccountId).
  * @param {object} opts
@@ -901,7 +913,14 @@ export async function fetchApexRadarFacebookOverviewRows({
     const weeklyByCustomerId = new Map();
     for (const res of weeklyInsightResults) {
         const id = String(res.customer._id);
-        weeklyByCustomerId.set(id, res.error ? null : res.daily);
+        if (res.error) {
+            weeklyByCustomerId.set(id, null);
+        } else {
+            weeklyByCustomerId.set(
+                id,
+                await convertCustomerMetaDailyToDkk(res.customer, res.daily, accessToken)
+            );
+        }
     }
 
     for (let i = 0; i < insightResults.length; i++) {
@@ -919,7 +938,8 @@ export async function fetchApexRadarFacebookOverviewRows({
                 },
             });
         } else {
-            byCustomerId.set(id, rollCustomerWindows(res.customer, startDate, endDate, res.daily, weeklyRows));
+            const dailyDkk = await convertCustomerMetaDailyToDkk(res.customer, res.daily, accessToken);
+            byCustomerId.set(id, rollCustomerWindows(res.customer, startDate, endDate, dailyDkk, weeklyRows));
         }
     }
 

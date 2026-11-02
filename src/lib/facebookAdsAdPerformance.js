@@ -1,5 +1,7 @@
 // src/lib/facebookAdsAdPerformance.js — Ad-level insights for PS dashboard only (not merged-sources).
 
+import { getMetaAdsConversionRateToDkk, scaleMetaAmount } from "./metaAdsCurrency";
+
 function parseMetaIdFilterInline(includeStr, excludeStr) {
     const parse = (s) =>
         typeof s === "string" ? s.split(",").map((c) => c.trim().toUpperCase()).filter(Boolean) : [];
@@ -34,6 +36,7 @@ export async function fetchFacebookAdsAdPerformance({
 }) {
     const formattedAccountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
     const apiUrl = `https://graph.facebook.com/v21.0/${formattedAccountId}/insights`;
+    const metaConversionRate = await getMetaAdsConversionRateToDkk(adAccountId, accessToken);
 
     const { effectiveInclude, exclude } = parseMetaIdFilterInline(metaIdInclude, metaIdExclude);
     const useBreakdown = exclude.length > 0 && effectiveInclude.length === 0;
@@ -161,17 +164,19 @@ export async function fetchFacebookAdsAdPerformance({
 
     const ads = rows
         .map((row) => {
-            const spend = parseFloat(row.spend || 0);
+            const spend = scaleMetaAmount(parseFloat(row.spend || 0), metaConversionRate);
             const impressions = parseFloat(row.impressions || 0);
             const clicks = parseFloat(row.clicks || 0);
             const conversions =
                 getActionValue(row.actions, "purchase") ||
                 getActionValue(row.actions, "omni_purchase") ||
                 getActionValue(row.actions, "offsite_conversion.fb_pixel_purchase");
-            const revenue =
+            const revenue = scaleMetaAmount(
                 getActionValueSum(row.action_values, "purchase") ||
-                getActionValueSum(row.action_values, "omni_purchase") ||
-                getActionValueSum(row.action_values, "offsite_conversion.fb_pixel_purchase");
+                    getActionValueSum(row.action_values, "omni_purchase") ||
+                    getActionValueSum(row.action_values, "offsite_conversion.fb_pixel_purchase"),
+                metaConversionRate
+            );
             const roas = spend > 0 ? revenue / spend : 0;
             const poas = roas;
             const ctr = impressions > 0 ? clicks / impressions : parseFloat(row.ctr || 0) || 0;
