@@ -9,6 +9,8 @@ import {
     metaAdsFiltersDocToAggregatedOverrides,
 } from "@/lib/customerFiltersDb";
 import { fetchMergedSources } from "@/lib/mergedSourcesApi";
+import { fetchB2BDashboardData } from "@/lib/b2bDashboardApi";
+import { isB2BCustomer } from "@/lib/customerBusinessCategory";
 import { isDemoCustomerId, mergeDemoCustomerDocument } from "@/lib/demoCustomer";
 import { getDemoMergedSourcesForRange } from "@/lib/demoMergedSources";
 import { normalizeAdSpendExcludeList } from "@/lib/adSpendExcludeParam";
@@ -140,6 +142,91 @@ export async function GET(request, { params }) {
         }
         const dailyBreakdown = true;
 
+        /** B2B (GA4) child: traffic + conversions + ad spend, no Shopify revenue. */
+        const fetchB2BChild = async (cust, mergeOptsBase, { metricPreference, revenueType }) => {
+            const customerId = String(cust._id);
+            // Forward campaign exclusions only (not Shopify Markets options).
+            const mergeOptions = {};
+            for (const key of [
+                "googleAdsExcludedCampaignIds",
+                "googleAdsExcludedCampaignNameKeywords",
+                "metaAdsExcludedCampaignIds",
+                "metaAdsExcludedCampaignNameKeywords",
+            ]) {
+                if (mergeOptsBase[key]) mergeOptions[key] = mergeOptsBase[key];
+            }
+            const fetchOptions = { source: "parent-property", customerId, mergeOptions };
+
+            const current = await fetchB2BDashboardData(cust, startDate, endDate, fetchOptions);
+            const prev = skipPrevFetch
+                ? null
+                : await fetchB2BDashboardData(cust, prevStartStr, prevEndStr, fetchOptions);
+
+            const spendCurr = parentRowAdspendFromMerged(current);
+            const spendPrev = prev ? parentRowAdspendFromMerged(prev) : parentRowAdspendFromMerged({});
+
+            const periodSummary = (data) => ({
+                ga4Totals: data?.ga4Totals || {},
+                efficiency: data?.efficiency || {},
+            });
+
+            return {
+                row: {
+                    _id: cust._id,
+                    customerName: cust.customerName,
+                    businessCategory: "b2b",
+                    revenue: 0,
+                    orders: 0,
+                    adspend: spendCurr.adspend,
+                    facebookAdspend: spendCurr.facebookAdspend,
+                    googleAdspend: spendCurr.googleAdspend,
+                    snapchatAdspend: spendCurr.snapchatAdspend,
+                    redditAdspend: spendCurr.redditAdspend,
+                    pinterestAdspend: spendCurr.pinterestAdspend,
+                    bingAdspend: spendCurr.bingAdspend,
+                    channelAdspend: spendCurr.channelAdspend,
+                    roas: null,
+                    spendshare: null,
+                    aov: 0,
+                    revenueType,
+                    metricPreference,
+                    fullMetrics: null,
+                    b2b: {
+                        ga4Configured: current?.ga4Configured === true,
+                        ga4ConversionSource: current?.ga4ConversionSource || "default",
+                        current: periodSummary(current),
+                        prev: periodSummary(prev),
+                    },
+                },
+                prevData: {
+                    _id: cust._id,
+                    revenue: 0,
+                    adspend: spendPrev.adspend,
+                    facebookAdspend: spendPrev.facebookAdspend,
+                    googleAdspend: spendPrev.googleAdspend,
+                    snapchatAdspend: spendPrev.snapchatAdspend,
+                    redditAdspend: spendPrev.redditAdspend,
+                    pinterestAdspend: spendPrev.pinterestAdspend,
+                    bingAdspend: spendPrev.bingAdspend,
+                    channelAdspend: spendPrev.channelAdspend,
+                    orders: 0,
+                    roas: null,
+                    spendshare: null,
+                },
+                dailyData: {
+                    _id: cust._id,
+                    businessCategory: "b2b",
+                    shopifyDaily: [],
+                    shopifyDailyPrev: [],
+                    revenueType,
+                    ga4Daily: current?.ga4Daily || [],
+                    ga4DailyPrev: prev?.ga4Daily || [],
+                    ...parentChildDailyPayloadFromMerged(current, prev || {}),
+                },
+                fullMetrics: null,
+            };
+        };
+
         const fetchForChild = async (customer) => {
             const raw = plainCustomer(customer);
             const cust = isDemoCustomerId(String(raw._id)) ? mergeDemoCustomerDocument(raw) : raw;
@@ -222,6 +309,10 @@ export async function GET(request, { params }) {
                             campaignOv.excludeNameKeywords;
                     }
                 }
+            }
+
+            if (isB2BCustomer(cust)) {
+                return fetchB2BChild(cust, mergeOptsBase, { metricPreference, revenueType });
             }
 
             const demo = isDemoCustomerId(String(cust._id));

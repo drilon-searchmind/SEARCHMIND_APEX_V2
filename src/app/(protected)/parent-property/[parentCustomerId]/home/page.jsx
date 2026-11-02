@@ -19,7 +19,15 @@ import {
     ParentPaceReportView,
     ParentPnlView,
     ParentEcommerceView,
+    ParentB2BHomeView,
+    ParentB2BOverviewView,
+    ParentB2BDailyView,
 } from "./views";
+import {
+    isB2BParentGroup,
+    computeParentB2BMetrics,
+    buildParentB2BDailyRows,
+} from "@/lib/parentPropertyB2B";
 import { buildParentDailyRows } from "./utils/buildParentDailyRows";
 import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
 import { buildParentShopifyMarketOverridesJson, buildParentAdSpendPlatformOverridesJson } from "@/lib/parentPropertyShopifyMarketOverrides";
@@ -31,6 +39,7 @@ import { calcBlendedPoas } from "@/lib/poasMetrics";
 import { normalizeMetaAdsCampaignId } from "@/lib/metaAdsCampaignIdUtils";
 import { normalizeCampaignNameKeywords } from "@/lib/adCampaignFilterUtils";
 import {
+    AD_SPEND_CHANNELS,
     buildDefaultExcludedAdSpendPlatformsForShopifyMarkets,
 } from "@/lib/mergeAdSpendDaily";
 import {
@@ -987,6 +996,35 @@ export default function ParentPropertyHome() {
         [childCustomers]
     );
 
+    // B2B (GA4) groups: aggregate traffic / conversions / spend instead of Shopify revenue
+    const isB2BGroup = useMemo(() => isB2BParentGroup(childCustomers), [childCustomers]);
+
+    const b2bData = useMemo(() => {
+        if (!isB2BGroup) return null;
+        const enabledRows = allTableRows.filter(
+            (r) => r.b2b && enabledProperties[String(r._id)] !== false
+        );
+        const enabledDaily = allDailyChartData.filter(
+            (r) => enabledProperties[String(r._id)] !== false
+        );
+        const visibleChannels = AD_SPEND_CHANNELS.filter((c) =>
+            enabledRows.some(
+                (r) =>
+                    (r.channelAdspend?.[c.id] || 0) > 0 ||
+                    (r.prevData?.channelAdspend?.[c.id] || 0) > 0
+            )
+        );
+        const { metricsData, metricsDataPrev } = computeParentB2BMetrics(enabledRows, visibleChannels);
+        return {
+            rows: enabledRows,
+            dailyRows: buildParentB2BDailyRows(enabledDaily, { usePrev: false }),
+            dailyRowsPrev: buildParentB2BDailyRows(enabledDaily, { usePrev: true }),
+            metricsData,
+            metricsDataPrev,
+            visibleChannels,
+        };
+    }, [isB2BGroup, allTableRows, allDailyChartData, enabledProperties]);
+
     // Metric cards config - conditionally show either ROAS or Spendshare
     const metricCards = [
         {
@@ -1089,6 +1127,13 @@ export default function ParentPropertyHome() {
         groupMetaCampaignKeywordsDraft,
         handleApplyMetaCampaignsForChild,
         handleMetaCampaignsMenuOpen,
+        isB2BGroup,
+        b2bRows: b2bData?.rows ?? [],
+        b2bDailyRows: b2bData?.dailyRows ?? [],
+        b2bDailyRowsPrev: b2bData?.dailyRowsPrev ?? [],
+        b2bMetricsData: b2bData?.metricsData ?? null,
+        b2bMetricsDataPrev: b2bData?.metricsDataPrev ?? null,
+        b2bVisibleChannels: b2bData?.visibleChannels ?? [],
     };
 
     // Render views with loading overlay
@@ -1101,12 +1146,29 @@ export default function ParentPropertyHome() {
                 items={progressItems}
                 fading={overlayFading}
             />
-            {activeView === PARENT_VIEWS.OVERVIEW && <ParentOverviewView sharedData={sharedData} />}
-            {activeView === PARENT_VIEWS.DAILY && <ParentDailyView sharedData={sharedData} />}
-            {activeView === PARENT_VIEWS.PACE_REPORT && <ParentPaceReportView sharedData={sharedData} />}
-            {activeView === PARENT_VIEWS.PNL && <ParentPnlView sharedData={sharedData} />}
-            {activeView === PARENT_VIEWS.ECOMMERCE && <ParentEcommerceView sharedData={sharedData} />}
-            {activeView !== PARENT_VIEWS.OVERVIEW &&
+            {isB2BGroup && activeView === PARENT_VIEWS.DAILY && (
+                <ParentB2BDailyView sharedData={sharedData} />
+            )}
+            {isB2BGroup &&
+                (activeView === PARENT_VIEWS.OVERVIEW ||
+                    activeView === PARENT_VIEWS.PACE_REPORT ||
+                    activeView === PARENT_VIEWS.PNL ||
+                    activeView === PARENT_VIEWS.ECOMMERCE) && (
+                    <ParentB2BOverviewView sharedData={sharedData} />
+                )}
+            {isB2BGroup &&
+                activeView !== PARENT_VIEWS.DAILY &&
+                activeView !== PARENT_VIEWS.OVERVIEW &&
+                activeView !== PARENT_VIEWS.PACE_REPORT &&
+                activeView !== PARENT_VIEWS.PNL &&
+                activeView !== PARENT_VIEWS.ECOMMERCE && <ParentB2BHomeView sharedData={sharedData} />}
+            {!isB2BGroup && activeView === PARENT_VIEWS.OVERVIEW && <ParentOverviewView sharedData={sharedData} />}
+            {!isB2BGroup && activeView === PARENT_VIEWS.DAILY && <ParentDailyView sharedData={sharedData} />}
+            {!isB2BGroup && activeView === PARENT_VIEWS.PACE_REPORT && <ParentPaceReportView sharedData={sharedData} />}
+            {!isB2BGroup && activeView === PARENT_VIEWS.PNL && <ParentPnlView sharedData={sharedData} />}
+            {!isB2BGroup && activeView === PARENT_VIEWS.ECOMMERCE && <ParentEcommerceView sharedData={sharedData} />}
+            {!isB2BGroup &&
+                activeView !== PARENT_VIEWS.OVERVIEW &&
                 activeView !== PARENT_VIEWS.DAILY &&
                 activeView !== PARENT_VIEWS.PACE_REPORT &&
                 activeView !== PARENT_VIEWS.PNL &&

@@ -297,6 +297,8 @@ export async function fetchB2BDashboardData(customer, startDate, endDate, option
     const demo = options.customerId && isDemoCustomerId(options.customerId);
 
     const merged = await fetchMergedSources(buildMergedSettings(customer), startDate, endDate, {
+        // Optional per-call merge options (e.g. parent-property campaign exclusions)
+        ...(options.mergeOptions || {}),
         skipShopifyFetch: true,
         dailyBreakdown: true,
         source: options.source || "b2b-dashboard",
