@@ -1,8 +1,5 @@
 /* Apex · page: bing-dashboard · theme: minimal (DESIGN.md) */
 
-@import "../../performance-dashboard/performance-dashboard.css";
-@import "../service-dashboard-minimal.css";
-
 .apex-bing-panel {
   margin-top: var(--space-md);
 }

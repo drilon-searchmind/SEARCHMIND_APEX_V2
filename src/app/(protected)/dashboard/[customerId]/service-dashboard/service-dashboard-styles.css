@@ -1,0 +1,14 @@
+/* Service dashboard styles — import hub (load from layout; client page CSS omits local rules in Turbopack) */
+
+@import "../performance-dashboard/performance-dashboard.css";
+@import "./service-dashboard-minimal.css";
+@import "./ppc/ppc-dashboard.css";
+@import "./ps/ps-dashboard.css";
+@import "./seo/seo-dashboard.css";
+@import "./em/em-dashboard.css";
+@import "./pinterest/pinterest-dashboard.css";
+@import "./linkedin/linkedin-dashboard.css";
+@import "./snapchat/snapchat-dashboard.css";
+@import "./reddit/reddit-dashboard.css";
+@import "./bing/bing-dashboard.css";
+@import "./bing-webmaster/bing-webmaster-dashboard.css";

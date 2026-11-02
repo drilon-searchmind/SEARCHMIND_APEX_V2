@@ -18,6 +18,7 @@ import {
     APEX_RADAR_CHANNELS,
     isValidApexRadarChannel,
 } from "@/lib/apexRadarChannels";
+import { isGoogleAdsApiConfigured } from "@/lib/googleAdsOAuthEnv";
 import {
     APEX_RADAR_CONVERSION_ZERO_DAYS_THRESHOLD,
     APEX_RADAR_SPEND_DOD_WARN_PCT_THRESHOLD,
@@ -42,12 +43,7 @@ function toPlainCustomer(doc) {
 }
 
 function googleAdsConfigured() {
-    return Boolean(
-        process.env.GOOGLE_ADS_CLIENT_ID &&
-            process.env.GOOGLE_ADS_CLIENT_SECRET &&
-            process.env.GOOGLE_ADS_DEVELOPER_TOKEN &&
-            process.env.GOOGLE_ADS_REFRESH_TOKEN
-    );
+    return isGoogleAdsApiConfigured();
 }
 
 function parseCronNumberEnv(name, fallback) {

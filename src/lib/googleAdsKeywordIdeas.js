@@ -8,6 +8,13 @@ import {
     primaryGoogleAdsCustomerId,
 } from '@/lib/googleAdsCustomerIdUtils';
 import { GOOGLE_ADS_API_VERSION } from '@/lib/googleAdsApiVersion';
+import {
+    getGoogleAdsDeveloperToken,
+    getGoogleAdsManagerCustomerId,
+    getGoogleAdsOAuthClientId,
+    getGoogleAdsOAuthClientSecret,
+    getGoogleAdsRefreshToken,
+} from '@/lib/googleAdsOAuthEnv';
 
 const MONTH_OF_YEAR = {
     JANUARY: 1,
@@ -30,14 +37,14 @@ export function createGoogleAdsCustomer(googleAdsCustomerId) {
         throw new Error('Missing Google Ads customer ID');
     }
     const client = new GoogleAdsApi({
-        client_id: process.env.GOOGLE_ADS_CLIENT_ID,
-        client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET,
-        developer_token: process.env.GOOGLE_ADS_DEVELOPER_TOKEN,
+        client_id: getGoogleAdsOAuthClientId(),
+        client_secret: getGoogleAdsOAuthClientSecret(),
+        developer_token: getGoogleAdsDeveloperToken(),
     });
-    const manager = process.env.GOOGLE_ADS_MANAGER_CUSTOMER_ID;
+    const manager = getGoogleAdsManagerCustomerId();
     return client.Customer({
         customer_id: cid,
-        refresh_token: process.env.GOOGLE_ADS_REFRESH_TOKEN,
+        refresh_token: getGoogleAdsRefreshToken(),
         login_customer_id: manager ? primaryGoogleAdsCustomerId(manager) : undefined,
     });
 }
@@ -162,10 +169,10 @@ async function postGenerateKeywordIdeas(customer, body) {
     const url = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}/customers/${customerId}:generateKeywordIdeas`;
     const headers = {
         Authorization: `Bearer ${accessToken}`,
-        'developer-token': process.env.GOOGLE_ADS_DEVELOPER_TOKEN,
+        'developer-token': getGoogleAdsDeveloperToken(),
         'Content-Type': 'application/json',
     };
-    const manager = process.env.GOOGLE_ADS_MANAGER_CUSTOMER_ID;
+    const manager = getGoogleAdsManagerCustomerId();
     if (manager) {
         headers['login-customer-id'] = normalizeGoogleAdsCustomerId(manager);
     }

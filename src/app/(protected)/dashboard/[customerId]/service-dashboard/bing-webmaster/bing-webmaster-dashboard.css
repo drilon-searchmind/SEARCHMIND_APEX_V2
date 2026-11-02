@@ -1,8 +1,5 @@
 /* Apex · page: bing-webmaster · theme: minimal (DESIGN.md) */
 
-@import "../../performance-dashboard/performance-dashboard.css";
-@import "../service-dashboard-minimal.css";
-
 .apex-bwm-stack {
   display: flex;
   flex-direction: column;

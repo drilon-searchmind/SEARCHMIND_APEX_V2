@@ -9,6 +9,7 @@ import { buildDemoApexRadarGoogleAdsOverviewRow } from "@/lib/demoAdMetrics";
 import { APEX_RADAR_CHANNEL_GOOGLE_ADS } from "@/lib/apexRadarChannels";
 import ApexRadarChannelSettings from "@/models/ApexRadarChannelSettings";
 import { mergeGoogleChannelSettingsIntoCustomers } from "@/lib/apexRadarChannelSettingsMerge";
+import { isGoogleAdsApiConfigured } from "@/lib/googleAdsOAuthEnv";
 
 function toPlainCustomer(doc) {
     if (doc && typeof doc.toObject === "function") return doc.toObject();
@@ -16,12 +17,7 @@ function toPlainCustomer(doc) {
 }
 
 function googleAdsConfigured() {
-    return Boolean(
-        process.env.GOOGLE_ADS_CLIENT_ID &&
-            process.env.GOOGLE_ADS_CLIENT_SECRET &&
-            process.env.GOOGLE_ADS_DEVELOPER_TOKEN &&
-            process.env.GOOGLE_ADS_REFRESH_TOKEN
-    );
+    return isGoogleAdsApiConfigured();
 }
 
 /**

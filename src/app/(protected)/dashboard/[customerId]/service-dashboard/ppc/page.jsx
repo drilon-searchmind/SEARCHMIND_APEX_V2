@@ -31,8 +31,6 @@ import {
     TERM_TABLE_COLUMNS,
     CAMPAIGN_TABLE_COLUMNS,
 } from "./components/ppcDashboardConfig";
-import "./ppc-dashboard.css";
-
 function formatKpiValue(key, value, opt = {}) {
     if (value === null || value === undefined || Number.isNaN(value)) return "—";
     if (

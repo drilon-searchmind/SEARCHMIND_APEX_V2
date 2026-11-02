@@ -1,8 +1,5 @@
 /* Apex · page: reddit-dashboard · theme: minimal (DESIGN.md) */
 
-@import "../../performance-dashboard/performance-dashboard.css";
-@import "../service-dashboard-minimal.css";
-
 .apex-rd-panel {
   margin-top: var(--space-md);
 }

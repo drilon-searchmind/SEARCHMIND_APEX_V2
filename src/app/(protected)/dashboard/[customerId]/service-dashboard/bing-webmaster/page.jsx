@@ -21,8 +21,6 @@ import {
     FiShield,
 } from "react-icons/fi";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
-import "./bing-webmaster-dashboard.css";
-
 const SEARCH_METRIC_OPTIONS = [
     { key: "impressions", label: "Impressions", icon: FiEye },
     { key: "clicks", label: "Clicks", icon: FiMousePointer },

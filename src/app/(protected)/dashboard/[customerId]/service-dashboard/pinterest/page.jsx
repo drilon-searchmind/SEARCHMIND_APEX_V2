@@ -23,7 +23,6 @@ import {
     METRIC_OPTIONS,
     CAMPAIGN_TABLE_COLUMNS,
 } from "./components/pinterestDashboardConfig";
-import "./pinterest-dashboard.css";
 import { getChartSeriesPalette } from "@/lib/charts/chartSeriesColors";
 
 function aggregateMetric(key, data) {

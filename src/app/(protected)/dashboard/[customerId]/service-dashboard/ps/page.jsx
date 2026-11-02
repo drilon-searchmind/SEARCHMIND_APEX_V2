@@ -31,8 +31,6 @@ import {
     PLACEMENT_TABLE_COLUMNS,
     CAMPAIGN_TABLE_COLUMNS,
 } from "./components/psDashboardConfig";
-import "./ps-dashboard.css";
-
 function formatKpiValue(key, value, opt = {}) {
     if (value === null || value === undefined || Number.isNaN(value)) return "—";
     if (opt.isPercent || key === "conv_rate" || key === "engagement_rate") {

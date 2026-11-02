@@ -8,6 +8,13 @@ import {
 } from './adCampaignFilterUtils';
 import { parseGoogleAdsCustomerIds } from './googleAdsCustomerIdUtils';
 import { getCurrencyConversionTable, conversionRateToDkk } from './currencyConversionTable';
+import {
+    getGoogleAdsDeveloperToken,
+    getGoogleAdsManagerCustomerId,
+    getGoogleAdsOAuthClientId,
+    getGoogleAdsOAuthClientSecret,
+    getGoogleAdsRefreshToken,
+} from './googleAdsOAuthEnv';
 
 export { normalizeGoogleAdsCampaignId } from './googleAdsCampaignIdUtils';
 
@@ -62,14 +69,14 @@ export async function resolveCountryToCriterionId(customer, input) {
 
 function createGoogleAdsApiCustomer(customerIdStr) {
     const client = new GoogleAdsApi({
-        client_id: process.env.GOOGLE_ADS_CLIENT_ID,
-        client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET,
-        developer_token: process.env.GOOGLE_ADS_DEVELOPER_TOKEN,
+        client_id: getGoogleAdsOAuthClientId(),
+        client_secret: getGoogleAdsOAuthClientSecret(),
+        developer_token: getGoogleAdsDeveloperToken(),
     });
     return client.Customer({
         customer_id: customerIdStr,
-        refresh_token: process.env.GOOGLE_ADS_REFRESH_TOKEN,
-        login_customer_id: process.env.GOOGLE_ADS_MANAGER_CUSTOMER_ID || undefined,
+        refresh_token: getGoogleAdsRefreshToken(),
+        login_customer_id: getGoogleAdsManagerCustomerId(),
     });
 }
 

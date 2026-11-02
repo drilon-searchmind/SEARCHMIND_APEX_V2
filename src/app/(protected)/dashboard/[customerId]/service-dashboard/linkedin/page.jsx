@@ -24,7 +24,6 @@ import {
     CAMPAIGN_TABLE_COLUMNS,
     AD_TABLE_COLUMNS,
 } from "./components/linkedinDashboardConfig";
-import "./linkedin-dashboard.css";
 import { getChartSeriesPalette } from "@/lib/charts/chartSeriesColors";
 
 function aggregateMetric(key, data) {

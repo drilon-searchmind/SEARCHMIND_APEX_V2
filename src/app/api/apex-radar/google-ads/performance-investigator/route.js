@@ -15,6 +15,7 @@ import {
     computePiYearOverYearDiff,
     getDemoFacebookPerformanceInvestigatorPayload,
 } from "@/app/(protected)/apex-radar/lib/mockPerformanceInvestigatorData";
+import { isGoogleAdsApiConfigured } from "@/lib/googleAdsOAuthEnv";
 
 function toPlainCustomer(doc) {
     if (doc && typeof doc.toObject === "function") return doc.toObject();
@@ -56,12 +57,7 @@ function emptyPiPayload(currentYear, previousYear, now, funnelStart, funnelEnd) 
 }
 
 function googleAdsConfigured() {
-    return Boolean(
-        process.env.GOOGLE_ADS_CLIENT_ID &&
-            process.env.GOOGLE_ADS_CLIENT_SECRET &&
-            process.env.GOOGLE_ADS_DEVELOPER_TOKEN &&
-            process.env.GOOGLE_ADS_REFRESH_TOKEN
-    );
+    return isGoogleAdsApiConfigured();
 }
 
 /**

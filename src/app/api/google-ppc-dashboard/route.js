@@ -1,13 +1,15 @@
 import { fetchGoogleAdsPPCDashboardMetrics } from '@/lib/googleAdsPpcDashboard';
 import { isDemoCustomerId } from '@/lib/demoCustomer';
 import { getDemoGooglePpcDashboardForRange } from '@/lib/demoAdMetrics';
+import {
+    getGoogleAdsDeveloperToken,
+    getGoogleAdsManagerCustomerId,
+    getGoogleAdsOAuthClientId,
+    getGoogleAdsOAuthClientSecret,
+    getGoogleAdsRefreshToken,
+} from '@/lib/googleAdsOAuthEnv';
 
 export async function GET(req) {
-    const GOOGLE_ADS_DEVELOPER_TOKEN = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
-    const GOOGLE_ADS_CLIENT_ID = process.env.GOOGLE_ADS_CLIENT_ID;
-    const GOOGLE_ADS_CLIENT_SECRET = process.env.GOOGLE_ADS_CLIENT_SECRET;
-    const GOOGLE_ADS_REFRESH_TOKEN = process.env.GOOGLE_ADS_REFRESH_TOKEN;
-    const GOOGLE_ADS_MANAGER_CUSTOMER_ID = process.env.GOOGLE_ADS_MANAGER_CUSTOMER_ID;
     const { searchParams } = new URL(req.url);
     const customerId = searchParams.get('customerId');
     const startDate = searchParams.get('startDate');
@@ -26,12 +28,12 @@ export async function GET(req) {
 
     try {
         const metrics = await fetchGoogleAdsPPCDashboardMetrics({
-            developerToken: GOOGLE_ADS_DEVELOPER_TOKEN,
-            clientId: GOOGLE_ADS_CLIENT_ID,
-            clientSecret: GOOGLE_ADS_CLIENT_SECRET,
-            refreshToken: GOOGLE_ADS_REFRESH_TOKEN,
+            developerToken: getGoogleAdsDeveloperToken(),
+            clientId: getGoogleAdsOAuthClientId(),
+            clientSecret: getGoogleAdsOAuthClientSecret(),
+            refreshToken: getGoogleAdsRefreshToken(),
             customerId,
-            managerCustomerId: GOOGLE_ADS_MANAGER_CUSTOMER_ID,
+            managerCustomerId: getGoogleAdsManagerCustomerId(),
             startDate,
             endDate,
             countryFilter,

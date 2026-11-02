@@ -1,3 +1,9 @@
+import {
+    getGoogleAdsOAuthClientId,
+    getGoogleAdsOAuthClientSecret,
+    getGoogleAdsRefreshToken,
+} from "@/lib/googleAdsOAuthEnv";
+
 /** @typedef {{ clientId: string, clientSecret: string, refreshToken: string }} MerchantCredentials */
 
 /** @typedef {0 | 1 | 2} MerchantOAuthSlot */
@@ -35,9 +41,9 @@ export function getMerchantCredentials(slot) {
     const normalized = normalizeMerchantAccountSlot(slot);
     if (normalized === 0) {
         return {
-            clientId: String(process.env.GOOGLE_ADS_CLIENT_ID || "").trim(),
-            clientSecret: String(process.env.GOOGLE_ADS_CLIENT_SECRET || "").trim(),
-            refreshToken: String(process.env.GOOGLE_ADS_REFRESH_TOKEN || "").trim(),
+            clientId: getGoogleAdsOAuthClientId(),
+            clientSecret: getGoogleAdsOAuthClientSecret(),
+            refreshToken: getGoogleAdsRefreshToken(),
         };
     }
 

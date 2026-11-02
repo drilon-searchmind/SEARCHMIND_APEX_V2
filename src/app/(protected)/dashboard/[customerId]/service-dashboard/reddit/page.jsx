@@ -24,7 +24,6 @@ import {
     METRIC_OPTIONS,
     CAMPAIGN_TABLE_COLUMNS,
 } from "./components/redditDashboardConfig";
-import "./reddit-dashboard.css";
 import { getChartSeriesPalette } from "@/lib/charts/chartSeriesColors";
 
 function aggregateMetric(key, data) {

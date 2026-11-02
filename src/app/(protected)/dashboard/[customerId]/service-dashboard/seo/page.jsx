@@ -10,8 +10,6 @@ import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import SeoDefaultTab from "./components/SeoDefaultTab";
 import SeoInsightsTab from "./components/SeoInsightsTab";
 import SEOKeywordSettings from "@/components/seo/SEOKeywordSettings";
-import "./seo-dashboard.css";
-
 const TABS = [
     { id: "default", label: "Default", icon: FiBarChart2 },
     { id: "insights", label: "Organic insights", icon: FiLayers },

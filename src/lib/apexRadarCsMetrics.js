@@ -19,6 +19,7 @@ import { getPlacedOrderMetricId } from "@/lib/klaviyoDashboard";
 import ApexRadarCsMerchantSnapshot from "@/models/ApexRadarCsMerchantSnapshot";
 import { isValidIntegrationId } from "@/lib/customerServiceIntegrations";
 import { csPctChange } from "@/lib/apexRadarCsRules";
+import { isGoogleAdsApiConfigured } from "@/lib/googleAdsOAuthEnv";
 
 const CS_LOOKBACK_DAYS = 16;
 const KLAVIYO_BASE = "https://a.klaviyo.com/api";
@@ -33,12 +34,7 @@ function toPlain(doc) {
 }
 
 function googleAdsConfigured() {
-    return Boolean(
-        process.env.GOOGLE_ADS_CLIENT_ID &&
-            process.env.GOOGLE_ADS_CLIENT_SECRET &&
-            process.env.GOOGLE_ADS_DEVELOPER_TOKEN &&
-            process.env.GOOGLE_ADS_REFRESH_TOKEN
-    );
+    return isGoogleAdsApiConfigured();
 }
 
 function dodWindows(utcToday) {

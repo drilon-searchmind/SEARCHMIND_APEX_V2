@@ -31,8 +31,6 @@ import {
     DISPLAY_ONLY_METRICS,
     CAMPAIGN_TABLE_COLUMNS,
 } from "./components/emDashboardConfig";
-import "./em-dashboard.css";
-
 function mergeMetricRows(a, b) {
     if (!a) return b ? { ...b } : null;
     if (!b) return { ...a };

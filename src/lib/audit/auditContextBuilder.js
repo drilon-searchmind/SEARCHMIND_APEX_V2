@@ -1,5 +1,12 @@
 import { fetchMergedSources } from "@/lib/mergedSourcesApi";
 import { fetchGoogleAdsPPCDashboardMetrics } from "@/lib/googleAdsPpcDashboard";
+import {
+    getGoogleAdsDeveloperToken,
+    getGoogleAdsManagerCustomerId,
+    getGoogleAdsOAuthClientId,
+    getGoogleAdsOAuthClientSecret,
+    getGoogleAdsRefreshToken,
+} from "@/lib/googleAdsOAuthEnv";
 import { fetchFacebookAdsPSDashboardMetrics } from "@/lib/facebookApi";
 import { fetchKlaviyoDashboardMetricsBothPeriods } from "@/lib/klaviyoDashboard";
 import {
@@ -71,11 +78,11 @@ function resolveAuditSourcesForGroups(groups) {
 
 function googleAdsEnv() {
     return {
-        developerToken: process.env.GOOGLE_ADS_DEVELOPER_TOKEN,
-        clientId: process.env.GOOGLE_ADS_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_ADS_CLIENT_SECRET,
-        refreshToken: process.env.GOOGLE_ADS_REFRESH_TOKEN,
-        managerCustomerId: process.env.GOOGLE_ADS_MANAGER_CUSTOMER_ID,
+        developerToken: getGoogleAdsDeveloperToken(),
+        clientId: getGoogleAdsOAuthClientId(),
+        clientSecret: getGoogleAdsOAuthClientSecret(),
+        refreshToken: getGoogleAdsRefreshToken(),
+        managerCustomerId: getGoogleAdsManagerCustomerId(),
     };
 }
 
