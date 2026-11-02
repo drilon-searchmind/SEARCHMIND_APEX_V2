@@ -30,6 +30,35 @@ export function createEmptyMonthlyObjectives() {
     );
 }
 
+/** Deep copy global monthly objectives (avoids mutating customer cache / stale React deps). */
+export function cloneCustomerPropertyObjectives(raw) {
+    const src = raw && typeof raw === "object" ? raw : {};
+    const out = {};
+    for (const month of PROPERTY_OBJECTIVE_MONTHS) {
+        const row = src[month];
+        if (!row || typeof row !== "object") {
+            out[month] = { period: month, revenueTarget: 0, marketingBudget: 0 };
+            continue;
+        }
+        out[month] = {
+            period: month,
+            revenueTarget: Number(row.revenueTarget) || 0,
+            marketingBudget: Number(row.marketingBudget) || 0,
+        };
+    }
+    return out;
+}
+
+/** Deep copy per-market objectives map. */
+export function cloneMarketPropertyObjectives(raw) {
+    const norm = normalizeMarketPropertyObjectives(raw);
+    const out = {};
+    for (const [marketId, objectives] of Object.entries(norm)) {
+        out[marketId] = cloneCustomerPropertyObjectives(objectives);
+    }
+    return out;
+}
+
 /** Normalize Mongoose Map or plain object from API. */
 export function normalizeMarketPropertyObjectives(raw) {
     if (!raw) return {};

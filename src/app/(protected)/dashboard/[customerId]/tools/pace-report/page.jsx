@@ -21,6 +21,8 @@ import { useDashboardDataOptional } from '@/contexts/DashboardDataContext';
 import {
 	getObjectivesScopeLabel,
 	normalizeMarketPropertyObjectives,
+	cloneCustomerPropertyObjectives,
+	cloneMarketPropertyObjectives,
 	resolvePropertyObjectives,
 	resolvePropertyObjectivesMode,
 	PROPERTY_OBJECTIVES_MODE_PER_MARKET,
@@ -35,6 +37,7 @@ export default function PaceReportPage() {
 	const [updatedObjectives, setUpdatedObjectives] = useState(null);
 	const [updatedMarketObjectives, setUpdatedMarketObjectives] = useState(null);
 	const [updatedPropertyObjectivesMode, setUpdatedPropertyObjectivesMode] = useState(null);
+	const [objectivesRefreshKey, setObjectivesRefreshKey] = useState(0);
 
 	const today = new Date();
 	const yyyy = today.getFullYear();
@@ -160,7 +163,13 @@ export default function PaceReportPage() {
 		conversionBudget,
 		conversionPaceAnalysis,
 		revenueLabel,
-	} = usePaceReportData(customer, objectives, resolvedAppliedDateRange, mergedSourcesQuerySuffix);
+	} = usePaceReportData(
+		customer,
+		objectives,
+		resolvedAppliedDateRange,
+		mergedSourcesQuerySuffix,
+		objectivesRefreshKey
+	);
 
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const [localObjectives, setLocalObjectives] = useState({});
@@ -171,9 +180,13 @@ export default function PaceReportPage() {
 
 	useEffect(() => {
 		if (sidebarOpen && customer) {
-			setLocalObjectives(customer.CustomerPropertyObjectives || {});
+			setLocalObjectives(
+				cloneCustomerPropertyObjectives(
+					updatedObjectives ?? customer.CustomerPropertyObjectives
+				)
+			);
 			setLocalMarketObjectives(
-				normalizeMarketPropertyObjectives(
+				cloneMarketPropertyObjectives(
 					updatedMarketObjectives ?? customer.CustomerMarketPropertyObjectives
 				)
 			);
@@ -181,7 +194,7 @@ export default function PaceReportPage() {
 				updatedPropertyObjectivesMode ?? resolvePropertyObjectivesMode(customer)
 			);
 		}
-	}, [sidebarOpen, customer, updatedMarketObjectives, updatedPropertyObjectivesMode]);
+	}, [sidebarOpen, customer, updatedObjectives, updatedMarketObjectives, updatedPropertyObjectivesMode]);
 
 	const handleObjectivesChange = (updated) => {
 		setLocalObjectives(updated);
@@ -227,10 +240,11 @@ export default function PaceReportPage() {
 				shopifyMarketsFeatureOn &&
 				localPropertyObjectivesMode === PROPERTY_OBJECTIVES_MODE_PER_MARKET
 			) {
-				setUpdatedMarketObjectives(localMarketObjectives);
+				setUpdatedMarketObjectives(cloneMarketPropertyObjectives(localMarketObjectives));
 			} else {
-				setUpdatedObjectives(localObjectives);
+				setUpdatedObjectives(cloneCustomerPropertyObjectives(localObjectives));
 			}
+			setObjectivesRefreshKey((k) => k + 1);
 			await fetchCustomers();
 
 			showToast({

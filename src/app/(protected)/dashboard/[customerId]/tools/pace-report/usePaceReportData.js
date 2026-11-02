@@ -17,7 +17,8 @@ export function usePaceReportData(
 	customer,
 	objectives,
 	appliedDateRange,
-	mergedSourcesQuerySuffix = ''
+	mergedSourcesQuerySuffix = '',
+	objectivesRefreshKey = 0
 ) {
 	const dashboardData = useDashboardDataOptional();
 	const fetchMergedSources = dashboardData?.fetchMergedSources;
@@ -273,7 +274,16 @@ export function usePaceReportData(
 				setLoading(false);
 			}
 		})();
-	}, [customer, objectives, appliedDateRange, mergedSourcesQuerySuffix, fetchMergedSources, fetchCustomKpisCached, isHubMode]);
+	}, [
+		customer,
+		objectives,
+		appliedDateRange,
+		mergedSourcesQuerySuffix,
+		objectivesRefreshKey,
+		fetchMergedSources,
+		fetchCustomKpisCached,
+		isHubMode,
+	]);
 
 	return {
 		loading,
