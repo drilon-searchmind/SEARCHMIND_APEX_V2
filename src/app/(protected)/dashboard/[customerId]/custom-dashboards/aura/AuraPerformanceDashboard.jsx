@@ -12,8 +12,6 @@ import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import { formatComparisonPeriodDates } from "@/lib/dateRangeComparison";
 import { isValidIntegrationId } from "@/lib/customerServiceIntegrations";
 import { cac, googleAdsBlock, metaBlock, totalCost } from "./auraSheetLogic";
-import "../../service-dashboard/ppc/ppc-dashboard.css";
-import "./aura-dashboard.css";
 
 const sumValues = (rows) => (rows || []).reduce((sum, r) => sum + (Number(r?.value) || 0), 0);
 

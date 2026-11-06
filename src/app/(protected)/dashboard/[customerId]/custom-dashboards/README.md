@@ -15,7 +15,8 @@ Hardcoded dashboards for single customers. Shown in the sidebar under **Custom**
 
 1. Create `NewCustomer.js` (copy `Aura.js`), put dashboard components in a `newcustomer/` folder.
 2. Add the module to `CUSTOM_DASHBOARD_MODULES` in `index.js`.
-3. Turn on "Custom dashboards" in that customer's Config.
+3. Import its stylesheets in `styles.js` (not inside the dashboard component, lazy chunks do not load CSS in dev).
+4. Turn on "Custom dashboards" in that customer's Config.
 
 ## Aura DK
 

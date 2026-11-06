@@ -5,6 +5,7 @@ import { useParams, notFound } from "next/navigation";
 import { useCustomers } from "@/hooks/useCustomers";
 import CobaltLoader from "@/components/ui/CobaltLoader";
 import { findCustomDashboard } from "../../custom-dashboards";
+import "../../custom-dashboards/styles";
 
 /** Renders one hardcoded custom dashboard. 404 when the setting is off or the customer has no such dashboard. */
 export default function CustomDashboardPage() {
