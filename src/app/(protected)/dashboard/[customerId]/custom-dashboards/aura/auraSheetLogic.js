@@ -192,3 +192,49 @@ export function monthlyGoogleMetrics(rows) {
             : null
     );
 }
+
+/**
+ * Meta block for the Meta tab. The sheet's monthly Meta figures use Meta link clicks as "Clicks"
+ * (so CTR = link clicks / impressions and CPC = spend / link clicks) and unadjusted conversions.
+ */
+export function metaTabBlock(rows) {
+    const spend = sum(rows, "ad_spend");
+    const impressions = sum(rows, "impressions");
+    const clicks = sum(rows, "link_clicks");
+    const conversions = sum(rows, "conversions");
+    return {
+        spend,
+        impressions,
+        clicks,
+        conversions,
+        ctr: div(clicks, impressions),
+        cpc: div(spend, clicks),
+        cpm: impressions > 0 ? (spend / impressions) * 1000 : null,
+        cpa: div(spend, conversions),
+    };
+}
+
+/** Monthly Meta metrics for one year (p calc rows 336 to 348), same rules as monthlyGoogleMetrics. */
+export function monthlyMetaMetrics(rows) {
+    const months = Array.from({ length: 12 }, () => ({ adSpend: 0, clicks: 0, impressions: 0, conversions: 0 }));
+    for (const r of rows || []) {
+        const m = Number(String(r.date).slice(5, 7)) - 1;
+        if (m < 0 || m > 11) continue;
+        months[m].adSpend += Number(r.ad_spend) || 0;
+        months[m].clicks += Number(r.link_clicks) || 0;
+        months[m].impressions += Number(r.impressions) || 0;
+        months[m].conversions += Number(r.conversions) || 0;
+    }
+    const ratio = (a, b) => (b > 0 ? a / b : null);
+    return months.map((m) =>
+        m.adSpend > 0 || m.impressions > 0
+            ? {
+                  ...m,
+                  ctr: ratio(m.clicks, m.impressions),
+                  cpc: ratio(m.adSpend, m.clicks),
+                  cpm: m.impressions > 0 ? (m.adSpend / m.impressions) * 1000 : null,
+                  cac: ratio(m.adSpend, m.conversions),
+              }
+            : null
+    );
+}

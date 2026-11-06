@@ -256,6 +256,7 @@ function rollupCampaignDailyRows(rows) {
  * @param {object} config
  * @param {string} [config.campaignInclude] - comma-separated terms, keep campaigns whose name contains one of them
  * @param {string} [config.campaignExclude] - comma-separated terms, drop campaigns whose name contains one of them
+ * @param {boolean} [config.metricsOnly] - skip placements, funnel and per-campaign daily extras (much faster, same daily metrics)
  * @returns {Promise<object>}
  */
 export async function fetchFacebookPsDashboardExtended({
@@ -267,6 +268,7 @@ export async function fetchFacebookPsDashboardExtended({
     metaIdExclude,
     campaignInclude,
     campaignExclude,
+    metricsOnly = false,
 }) {
     const formattedAccountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
     const apiUrl = `https://graph.facebook.com/v21.0/${formattedAccountId}/insights`;
@@ -286,6 +288,43 @@ export async function fetchFacebookPsDashboardExtended({
         "action_values",
         "date_start",
     ];
+
+    /** Daily metrics for the campaigns that pass the name filter (campaign level rows, filtered here). */
+    const fetchFilteredDaily = async () => {
+        const filteredUrl = buildBaseParams({
+            accessToken,
+            apiUrl,
+            since: startDate,
+            until: endDate,
+            fields: [...accountDailyFields, "campaign_name"],
+            level: "campaign",
+            timeIncrement: 1,
+            breakdowns: useBreakdown ? ["country"] : null,
+            effectiveInclude,
+            useBreakdown,
+        });
+        let filteredRows = await fetchInsightsPages(filteredUrl);
+        if (useBreakdown && filteredRows.length > 0) {
+            filteredRows = aggregateCampaignDailyWithCountryBreakdown(filteredRows, exclude);
+        }
+        filteredRows = filteredRows.filter((r) => matchesCampaignFilter(r.campaign_name, campaignInclude, campaignExclude));
+        return Object.values(rollupCampaignDailyRows(filteredRows))
+            .map((r) => mapDailyMetricsRow({ ...r, ...mergeActions(r), date_start: r.date_start }))
+            .sort((a, b) => a.date.localeCompare(b.date));
+    };
+
+    // Metrics only with a campaign filter: nothing else is needed, so skip the account and campaign totals too.
+    if (metricsOnly && hasCampaignFilter(campaignInclude, campaignExclude)) {
+        return {
+            metrics_by_date: await fetchFilteredDaily(),
+            top_campaigns: [],
+            campaigns_by_date: [],
+            campaigns_performance: [],
+            placements: [],
+            funnel_spend_by_date: [],
+            account_summary: {},
+        };
+    }
 
     const accountUrl = buildBaseParams({
         accessToken,
@@ -348,26 +387,7 @@ export async function fetchFacebookPsDashboardExtended({
         campaigns_performance = campaigns_performance.filter((r) =>
             matchesCampaignFilter(r.campaign_name, campaignInclude, campaignExclude)
         );
-        const filteredUrl = buildBaseParams({
-            accessToken,
-            apiUrl,
-            since: startDate,
-            until: endDate,
-            fields: [...accountDailyFields, "campaign_name"],
-            level: "campaign",
-            timeIncrement: 1,
-            breakdowns: useBreakdown ? ["country"] : null,
-            effectiveInclude,
-            useBreakdown,
-        });
-        let filteredRows = await fetchInsightsPages(filteredUrl);
-        if (useBreakdown && filteredRows.length > 0) {
-            filteredRows = aggregateCampaignDailyWithCountryBreakdown(filteredRows, exclude);
-        }
-        filteredRows = filteredRows.filter((r) => matchesCampaignFilter(r.campaign_name, campaignInclude, campaignExclude));
-        metrics_by_date = Object.values(rollupCampaignDailyRows(filteredRows))
-            .map((r) => mapDailyMetricsRow({ ...r, ...mergeActions(r), date_start: r.date_start }))
-            .sort((a, b) => a.date.localeCompare(b.date));
+        metrics_by_date = await fetchFilteredDaily();
     }
 
     const dailySpendTotal = metrics_by_date.reduce((s, r) => s + (r.ad_spend || 0), 0);
@@ -412,6 +432,18 @@ export async function fetchFacebookPsDashboardExtended({
             conversions: r.conversions,
             ctr: r.ctr,
         }));
+
+    if (metricsOnly) {
+        return {
+            metrics_by_date,
+            top_campaigns,
+            campaigns_by_date: [],
+            campaigns_performance,
+            placements: [],
+            funnel_spend_by_date: [],
+            account_summary: {},
+        };
+    }
 
     const placementUrl = buildBaseParams({
         accessToken,

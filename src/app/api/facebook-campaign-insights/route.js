@@ -42,6 +42,7 @@ export async function GET(req) {
             metaIdExclude: metaIdExclude || undefined,
             campaignInclude: searchParams.get('campaignInclude') || undefined,
             campaignExclude: searchParams.get('campaignExclude') || undefined,
+            metricsOnly: searchParams.get('metricsOnly') === '1',
         });
         return new Response(JSON.stringify(metrics), { status: 200 });
     } catch (err) {

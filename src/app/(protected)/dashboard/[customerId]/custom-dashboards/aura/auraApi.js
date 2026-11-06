@@ -51,6 +51,8 @@ export function buildAuraSources(customerId, settings = {}, filter = null) {
               if (settings.customerMetaID) p.set("customerMetaID", settings.customerMetaID);
               if (settings.customerMetaIDExclude) p.set("customerMetaIDExclude", settings.customerMetaIDExclude);
               applyCampaignFilter(p, filter, "meta");
+              // The custom dashboards only need the daily numbers, not placements, funnel or per-campaign extras.
+              p.set("metricsOnly", "1");
               return `/api/facebook-campaign-insights?${p.toString()}`;
           }
         : null;

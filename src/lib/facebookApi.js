@@ -429,7 +429,7 @@ export async function fetchFacebookAdsInsights(adAccountId, metaIdInclude, metaI
  * @param {string} [config.metaIdExclude] - Comma-separated country codes to exclude (e.g., 'FR,ES')
  * @returns {Promise<Object>} Object containing metrics_by_date, top_campaigns, and campaigns_by_date
  */
-export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccountId, startDate, endDate, metaIdInclude, metaIdExclude, campaignInclude, campaignExclude }) {
+export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccountId, startDate, endDate, metaIdInclude, metaIdExclude, campaignInclude, campaignExclude, metricsOnly }) {
     const formattedAccountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
 
     console.log(`[Facebook API PS] Fetching data for account: ${formattedAccountId}, date range: ${startDate} to ${endDate}`);
@@ -446,6 +446,7 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
             metaIdExclude,
             campaignInclude,
             campaignExclude,
+            metricsOnly,
         });
         return applyMetaDkkConversionToPsDashboard(data, metaConversionRate);
     } catch (error) {

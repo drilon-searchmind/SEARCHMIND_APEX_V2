@@ -18,6 +18,7 @@ import AuraTrendChart from "./AuraTrendChart";
 import AuraSpendAllocationChart from "./AuraSpendAllocationChart";
 import AuraSessionsChart from "./AuraSessionsChart";
 import AuraGoogleAdsTab from "./AuraGoogleAdsTab";
+import AuraMetaTab from "./AuraMetaTab";
 import HeroKpi, { nf0, nf2, pctChange } from "./HeroKpi";
 import DashboardTabs from "../components/DashboardTabs";
 import { useAuraYearData } from "./useAuraYearData";
@@ -58,6 +59,7 @@ export default function AuraPerformanceDashboard() {
         channels: null,
         ga4Configured: true,
         googleConfigured: true,
+        metaConfigured: true,
         notes: [],
         failed: false,
     });
@@ -140,6 +142,7 @@ export default function AuraPerformanceDashboard() {
                     sheetPrev: shp,
                     ga4Configured: Boolean(sources.ga4),
                     googleConfigured: Boolean(sources.google),
+                    metaConfigured: Boolean(sources.meta),
                     channels: ga
                         ? mapReportToRows(ga)
                               .map((r) => ({ channel: r.sessionDefaultChannelGroup || "(not set)", sessions: Number(r.sessions) || 0 }))
@@ -266,7 +269,13 @@ export default function AuraPerformanceDashboard() {
                         />
                     ) : null}
                     {tab === "meta" ? (
-                        <p className="apex-ppc-chart-note">The Meta section is coming next.</p>
+                        <AuraMetaTab
+                            meta={data.meta}
+                            metaPrev={data.metaPrev}
+                            comparable={!data.failed}
+                            configured={data.metaConfigured}
+                            spend={yearData.spend}
+                        />
                     ) : null}
                     {isAdmin && yearData.errors.length > 0 ? (
                         <p className="apex-ppc-chart-note aura-admin-note">Admin only. {yearData.errors.join("; ")}</p>

@@ -103,7 +103,7 @@ The sheet's paid data comes from a source file named "Aura EMOB" (private, filte
 | Channel | Sheet | Apex campaigns that add up to it |
 |---|---|---|
 | Google Ads (PPC cost) | 91,100 | Campaigns with "ladeboks" in the name: 91,100. From April the sheet also counts the video campaign "SM - V: Branding" |
-| Meta (PS cost) | 61,491 | Campaigns with "Emob" in the name (59,680) plus the "Permission | De Vilde Kaniner" campaign (1,811): 61,491 |
+| Meta (PS cost) | 61,491 | Campaigns with "Emob" in the name (59,680) plus the "Permission | De Vilde Kaniner" campaign (1,811): 61,491. In 2025 the sheet also counts campaigns with "Ladebok" in the name (for example "SM \| Ladebokskampagne") |
 | Other cost | 37,801 | Matches the Aura sheet exactly |
 
 So the old dashboard only counted the Emob product (EV charger) campaigns, while Apex currently reads whole accounts (El and Fiber campaigns included). This is inferred from the numbers, not read from the Supermetrics query. To reproduce the sheet, Cost and CAC need a campaign name filter on the Google Ads and Meta fetches (for Meta, "Emob" plus the Permission campaign).
@@ -115,3 +115,8 @@ The dashboard has a reusable **campaign filter** (`components/CampaignFilterBar.
 Month by month check of the Emob preset (Google Ads: `ladeboks, SM - V: Branding`, Meta: `Emob, Permission`) against the sheet's monthly cost:
 Google Ads matches to the krone for January to March and May to September. April is 2,731 lower in Apex (one small campaign the sheet counts is not
 identified) and October is higher in Apex only because the sheet screenshot was taken before month end. Meta matches exactly for January to May.
+
+Meta (Emob preset `Emob, Permission, Ladebok`) matches the sheet's monthly cost and conversions exactly for January to April 2025 and January 2026.
+In the Meta tab "Clicks" are Meta link clicks, as in the sheet (22,805 link clicks in January 2026 against 29,241 total clicks), so CTR = link clicks /
+impressions, CPC = spend / link clicks, CPM = spend / impressions x 1000 and CAC = spend / conversions. The sheet's own Meta period KPIs show
+Conversions 0 and a broken third scorecard (a column mapping mistake in the sheet), the monthly charts are correct. Apex shows the real conversions.

@@ -20,7 +20,7 @@ export const FILTER_PRESETS = [
         id: "emob",
         label: "Emob (as in the old sheet)",
         google: { include: "ladeboks, SM - V: Branding", exclude: "" },
-        meta: { include: "Emob, Permission", exclude: "" },
+        meta: { include: "Emob, Permission, Ladebok", exclude: "" },
     },
 ];
 
