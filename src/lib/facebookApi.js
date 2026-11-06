@@ -5,6 +5,7 @@ import {
 } from './adCampaignFilterUtils';
 import { normalizeMetaAdsCampaignId } from './metaAdsCampaignIdUtils';
 import { fetchFacebookPsDashboardExtended } from './facebookPsDashboardFetch';
+import { hasCampaignFilter } from './campaignNameFilter';
 import {
     applyMetaDkkConversionToPsDashboard,
     getMetaAdsConversionRateToDkk,
@@ -428,7 +429,7 @@ export async function fetchFacebookAdsInsights(adAccountId, metaIdInclude, metaI
  * @param {string} [config.metaIdExclude] - Comma-separated country codes to exclude (e.g., 'FR,ES')
  * @returns {Promise<Object>} Object containing metrics_by_date, top_campaigns, and campaigns_by_date
  */
-export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccountId, startDate, endDate, metaIdInclude, metaIdExclude }) {
+export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccountId, startDate, endDate, metaIdInclude, metaIdExclude, campaignInclude, campaignExclude }) {
     const formattedAccountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
 
     console.log(`[Facebook API PS] Fetching data for account: ${formattedAccountId}, date range: ${startDate} to ${endDate}`);
@@ -443,9 +444,13 @@ export async function fetchFacebookAdsPSDashboardMetrics({ accessToken, adAccoun
             endDate,
             metaIdInclude,
             metaIdExclude,
+            campaignInclude,
+            campaignExclude,
         });
         return applyMetaDkkConversionToPsDashboard(data, metaConversionRate);
     } catch (error) {
+        // The legacy fallback cannot filter by campaign name, so do not silently return unfiltered numbers.
+        if (hasCampaignFilter(campaignInclude, campaignExclude)) throw error;
         console.error('[Facebook API PS] Extended fetch failed, falling back to legacy:', error.message);
     }
 

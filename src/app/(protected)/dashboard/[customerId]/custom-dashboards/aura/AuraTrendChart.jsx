@@ -117,7 +117,7 @@ function buildChart(trends, metric, year) {
     };
 }
 
-export default function AuraTrendChart({ customerId, settings, isAdmin }) {
+export default function AuraTrendChart({ customerId, settings, filter, isAdmin }) {
     const [metric, setMetric] = useState("conversions");
     const [sheets, setSheets] = useState(null);
     const [spend, setSpend] = useState(null);
@@ -126,7 +126,7 @@ export default function AuraTrendChart({ customerId, settings, isAdmin }) {
     useEffect(() => {
         if (!customerId || !settings) return;
         let cancelled = false;
-        const sources = buildAuraSources(customerId, settings);
+        const sources = buildAuraSources(customerId, settings, filter);
         const today = new Date();
         const years = [today.getFullYear(), today.getFullYear() - 1];
         Promise.all(years.map((y) => loadSheet(sources, y, today))).then(([current, previous]) => {
@@ -138,7 +138,7 @@ export default function AuraTrendChart({ customerId, settings, isAdmin }) {
         return () => {
             cancelled = true;
         };
-    }, [customerId, settings]);
+    }, [customerId, settings, filter]);
 
     // Conversions only need the sheet. CAC also waits for the (slow) ad spend.
     const ready = Boolean(sheets) && (metric === "conversions" || Boolean(spend));

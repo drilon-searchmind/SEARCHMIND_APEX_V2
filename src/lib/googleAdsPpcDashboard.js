@@ -8,6 +8,7 @@ import {
     fetchPpcDashboardExtendedSections,
 } from './googlePpcDashboardExtended';
 import { mapPpcCampaignRow } from './googlePpcDashboardUtils';
+import { matchesCampaignFilter } from './campaignNameFilter';
 
 /**
  * Fetch comprehensive Google Ads PPC dashboard metrics
@@ -22,6 +23,8 @@ import { mapPpcCampaignRow } from './googlePpcDashboardUtils';
  * @param {string} config.endDate
  * @param {string} [config.countryFilter] - Optional comma-separated countries to INCLUDE
  * @param {string} [config.countryExclude] - Optional comma-separated countries to EXCLUDE
+ * @param {string} [config.campaignInclude] - Optional comma-separated terms: only campaigns whose name contains one of them
+ * @param {string} [config.campaignExclude] - Optional comma-separated terms: drop campaigns whose name contains one of them
  * @returns {Promise<Object>} Object containing metrics_by_date, top_campaigns, and campaigns_by_date
  */
 function mergePpcMetricsByDate(arrays) {
@@ -255,6 +258,8 @@ async function fetchGoogleAdsPPCDashboardMetricsForOne({
     endDate,
     countryFilter,
     countryExclude,
+    campaignInclude,
+    campaignExclude,
 }) {
     try {
         const client = new GoogleAdsApi({
@@ -361,7 +366,7 @@ async function fetchGoogleAdsPPCDashboardMetricsForOne({
             conversions: row.metrics?.conversions || 0,
             conversions_value: row.metrics?.conversions_value || 0,
             ad_spend: ((row.metrics?.cost_micros || 0) / 1_000_000) * conversionRate,
-        })).filter(row => row.date);
+        })).filter(row => row.date && matchesCampaignFilter(row.campaign_name, campaignInclude, campaignExclude));
         const metricsByDateMap = {};
         rawData.forEach(row => {
             if (!metricsByDateMap[row.date]) {

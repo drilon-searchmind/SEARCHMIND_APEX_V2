@@ -27,6 +27,8 @@ async function fetchInsightsPages(url) {
     return rows;
 }
 
+import { hasCampaignFilter, matchesCampaignFilter } from "./campaignNameFilter";
+
 function buildBaseParams({
     accessToken,
     apiUrl,
@@ -223,8 +225,37 @@ function aggregateCampaignDailyWithCountryBreakdown(rows, exclude) {
     return Object.values(byKey);
 }
 
+/** Sums campaign level daily insight rows into one row per day (account level shape). */
+function rollupCampaignDailyRows(rows) {
+    const byDate = {};
+    for (const row of rows) {
+        const key = row.date_start || "";
+        if (!key) continue;
+        if (!byDate[key]) {
+            byDate[key] = {
+                date_start: key,
+                spend: 0,
+                clicks: 0,
+                impressions: 0,
+                inline_link_clicks: 0,
+                actions: [],
+                action_values: [],
+            };
+        }
+        byDate[key].spend += parseFloat(row.spend || 0);
+        byDate[key].clicks += parseFloat(row.clicks || 0);
+        byDate[key].impressions += parseFloat(row.impressions || 0);
+        byDate[key].inline_link_clicks += parseFloat(row.inline_link_clicks || row.clicks || 0);
+        if (row.actions) byDate[key].actions.push(...row.actions);
+        if (row.action_values) byDate[key].action_values.push(...(row.action_values || []));
+    }
+    return byDate;
+}
+
 /**
  * @param {object} config
+ * @param {string} [config.campaignInclude] - comma-separated terms, keep campaigns whose name contains one of them
+ * @param {string} [config.campaignExclude] - comma-separated terms, drop campaigns whose name contains one of them
  * @returns {Promise<object>}
  */
 export async function fetchFacebookPsDashboardExtended({
@@ -234,6 +265,8 @@ export async function fetchFacebookPsDashboardExtended({
     endDate,
     metaIdInclude,
     metaIdExclude,
+    campaignInclude,
+    campaignExclude,
 }) {
     const formattedAccountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
     const apiUrl = `https://graph.facebook.com/v21.0/${formattedAccountId}/insights`;
@@ -304,10 +337,38 @@ export async function fetchFacebookPsDashboardExtended({
         campaignRows = aggregateCampaignRowsWithCountryBreakdown(campaignRows, exclude);
     }
 
-    const campaigns_performance = campaignRows
+    let campaigns_performance = campaignRows
         .map(mapCampaignMetricsRow)
         .filter((r) => r.ad_spend > 0 || r.impressions > 0)
         .sort((a, b) => b.ad_spend - a.ad_spend);
+
+    const campaignFilterOn = hasCampaignFilter(campaignInclude, campaignExclude);
+    if (campaignFilterOn) {
+        // Account level daily rows cannot be filtered by campaign, so rebuild them from campaign level rows.
+        campaigns_performance = campaigns_performance.filter((r) =>
+            matchesCampaignFilter(r.campaign_name, campaignInclude, campaignExclude)
+        );
+        const filteredUrl = buildBaseParams({
+            accessToken,
+            apiUrl,
+            since: startDate,
+            until: endDate,
+            fields: [...accountDailyFields, "campaign_name"],
+            level: "campaign",
+            timeIncrement: 1,
+            breakdowns: useBreakdown ? ["country"] : null,
+            effectiveInclude,
+            useBreakdown,
+        });
+        let filteredRows = await fetchInsightsPages(filteredUrl);
+        if (useBreakdown && filteredRows.length > 0) {
+            filteredRows = aggregateCampaignDailyWithCountryBreakdown(filteredRows, exclude);
+        }
+        filteredRows = filteredRows.filter((r) => matchesCampaignFilter(r.campaign_name, campaignInclude, campaignExclude));
+        metrics_by_date = Object.values(rollupCampaignDailyRows(filteredRows))
+            .map((r) => mapDailyMetricsRow({ ...r, ...mergeActions(r), date_start: r.date_start }))
+            .sort((a, b) => a.date.localeCompare(b.date));
+    }
 
     const dailySpendTotal = metrics_by_date.reduce((s, r) => s + (r.ad_spend || 0), 0);
     const campaignSpendTotal = campaigns_performance.reduce((s, r) => s + (r.ad_spend || 0), 0);
@@ -329,28 +390,7 @@ export async function fetchFacebookPsDashboardExtended({
             if (useBreakdown && rollupRows.length > 0) {
                 rollupRows = aggregateCampaignDailyWithCountryBreakdown(rollupRows, exclude);
             }
-            const byDate = {};
-            for (const row of rollupRows) {
-                const key = row.date_start || "";
-                if (!key) continue;
-                if (!byDate[key]) {
-                    byDate[key] = {
-                        date_start: key,
-                        spend: 0,
-                        clicks: 0,
-                        impressions: 0,
-                        inline_link_clicks: 0,
-                        actions: [],
-                        action_values: [],
-                    };
-                }
-                byDate[key].spend += parseFloat(row.spend || 0);
-                byDate[key].clicks += parseFloat(row.clicks || 0);
-                byDate[key].impressions += parseFloat(row.impressions || 0);
-                byDate[key].inline_link_clicks += parseFloat(row.inline_link_clicks || row.clicks || 0);
-                if (row.actions) byDate[key].actions.push(...row.actions);
-                if (row.action_values) byDate[key].action_values.push(...(row.action_values || []));
-            }
+            const byDate = rollupCampaignDailyRows(rollupRows);
             const rebuilt = Object.values(byDate)
                 .map((r) => mapDailyMetricsRow({ ...mergeActions(r), date_start: r.date_start }))
                 .sort((a, b) => a.date.localeCompare(b.date));

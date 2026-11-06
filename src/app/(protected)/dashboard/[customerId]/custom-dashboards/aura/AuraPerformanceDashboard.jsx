@@ -13,6 +13,8 @@ import { formatComparisonPeriodDates } from "@/lib/dateRangeComparison";
 import { buildAuraSources, fetchJson } from "./auraApi";
 import { cac, googleAdsBlock, metaBlock, totalCost } from "./auraSheetLogic";
 import AuraTrendChart from "./AuraTrendChart";
+import CampaignFilterBar from "../components/CampaignFilterBar";
+import { EMPTY_FILTER, FILTER_CHANNELS, FILTER_PRESETS, loadSavedFilter, saveFilter } from "./auraFilter";
 
 const sumValues = (rows) => (rows || []).reduce((sum, r) => sum + (Number(r?.value) || 0), 0);
 
@@ -70,6 +72,9 @@ export default function AuraPerformanceDashboard() {
         useDashboardDateRange();
 
     const [settings, setSettings] = useState(null);
+    // Campaign filter: off by default, remembered per viewer (localStorage) once applied.
+    const [filter, setFilter] = useState(EMPTY_FILTER);
+    const [filterLoaded, setFilterLoaded] = useState(false);
     const [data, setData] = useState({
         google: [],
         googlePrev: [],
@@ -83,6 +88,18 @@ export default function AuraPerformanceDashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    useEffect(() => {
+        if (!customerId) return;
+        setFilter(loadSavedFilter(customerId));
+        setFilterLoaded(true);
+    }, [customerId]);
+
+    const filterKey = JSON.stringify(filter);
+    const handleApplyFilter = (next) => {
+        setFilter(next);
+        saveFilter(customerId, next);
+    };
+
     // Primitive keys: the range objects from the hook are new objects on every render.
     const startDate = appliedRange.startDate;
     const endDate = appliedRange.endDate;
@@ -90,7 +107,7 @@ export default function AuraPerformanceDashboard() {
     const compareEnd = appliedCompareRange.endDate;
 
     useEffect(() => {
-        if (!customerId) return;
+        if (!customerId || !filterLoaded) return;
         let cancelled = false;
         setLoading(true);
         setError(null);
@@ -100,7 +117,7 @@ export default function AuraPerformanceDashboard() {
                 if (cancelled) return;
                 // Keep the same object when nothing changed so the trend chart does not refetch on every date change.
                 setSettings((prev) => (JSON.stringify(prev) === JSON.stringify(loaded) ? prev : loaded));
-                const sources = buildAuraSources(customerId, loaded);
+                const sources = buildAuraSources(customerId, loaded, JSON.parse(filterKey));
                 const notes = [];
                 let failed = false;
 
@@ -153,7 +170,7 @@ export default function AuraPerformanceDashboard() {
         return () => {
             cancelled = true;
         };
-    }, [customerId, startDate, endDate, compareStart, compareEnd, comparisonMethod]);
+    }, [customerId, filterLoaded, filterKey, startDate, endDate, compareStart, compareEnd, comparisonMethod]);
 
     const kpis = useMemo(() => {
         const g = googleAdsBlock(data.google);
@@ -198,6 +215,16 @@ export default function AuraPerformanceDashboard() {
                 right={<DateRangePicker {...dateRangePickerProps} variant="cobalt" loading={loading} />}
             />
 
+            {filterLoaded ? (
+                <CampaignFilterBar
+                    key={customerId}
+                    value={filter}
+                    onApply={handleApplyFilter}
+                    channels={FILTER_CHANNELS}
+                    presets={FILTER_PRESETS}
+                />
+            ) : null}
+
             {loading ? (
                 <div className="apex-perf-loading">
                     <CobaltLoader variant="block" title="Loading Aura metrics" request="GET /api/google-ppc-dashboard" />
@@ -209,6 +236,12 @@ export default function AuraPerformanceDashboard() {
                     {isAdmin && data.notes.length > 0 ? (
                         <p className="apex-ppc-chart-note aura-admin-note">
                             Admin only. Some sources could not be loaded: {data.notes.join("; ")}
+                        </p>
+                    ) : null}
+                    {!filter.enabled ? (
+                        <p className="apex-ppc-chart-note">
+                            Cost and CAC include every campaign on the connected ad accounts. The old sheet only counted the
+                            Emob campaigns: switch on the campaign filter and choose the Emob preset to match it.
                         </p>
                     ) : null}
                     <section className="aura-hero" aria-label="Key figures">
@@ -227,11 +260,7 @@ export default function AuraPerformanceDashboard() {
                             note="Needs conversions"
                         />
                     </section>
-                    <p className="apex-ppc-chart-note">
-                        Cost and CAC currently include every campaign on the connected Google Ads and Meta accounts. The old sheet only counted
-                        the Emob campaigns, so these figures are higher than the sheet until that filter is added.
-                    </p>
-                    <AuraTrendChart customerId={customerId} settings={settings} isAdmin={isAdmin} />
+                    <AuraTrendChart key={filterKey} customerId={customerId} settings={settings} filter={filter} isAdmin={isAdmin} />
                 </>
             )}
         </div>

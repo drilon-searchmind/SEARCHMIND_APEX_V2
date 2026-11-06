@@ -22,3 +22,10 @@ Hardcoded dashboards for single customers. Shown in the sidebar under **Custom**
 
 `aura/` rebuilds the old Google Sheets / Supermetrics dashboard. The sheet's logic and what could not be matched is
 documented in `aura/SHEET_LOGIC.md`. The calculations live in `aura/auraSheetLogic.js`.
+
+## Campaign filter
+
+`components/CampaignFilterBar.jsx` is a reusable filter (off by default) that dashboards can drop in. It produces
+`{ enabled, google: { include, exclude }, meta: { include, exclude } }`, which `aura/auraApi.js` turns into the
+`campaignInclude` / `campaignExclude` params of `/api/google-ppc-dashboard` and `/api/facebook-campaign-insights`
+(matching lives in `src/lib/campaignNameFilter.js`). Presets and channels are passed in per customer (see `aura/auraFilter.js`).

@@ -40,6 +40,8 @@ export async function GET(req) {
             endDate: until,
             metaIdInclude: metaIdInclude || undefined,
             metaIdExclude: metaIdExclude || undefined,
+            campaignInclude: searchParams.get('campaignInclude') || undefined,
+            campaignExclude: searchParams.get('campaignExclude') || undefined,
         });
         return new Response(JSON.stringify(metrics), { status: 200 });
     } catch (err) {

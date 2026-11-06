@@ -16,6 +16,8 @@ export async function GET(req) {
     const endDate = searchParams.get('endDate');
     const countryFilter = searchParams.get('countryFilter') || undefined;
     const countryExclude = searchParams.get('countryExclude') || undefined;
+    const campaignInclude = searchParams.get('campaignInclude') || undefined;
+    const campaignExclude = searchParams.get('campaignExclude') || undefined;
     const dashboardCustomerId = searchParams.get('dashboardCustomerId');
 
     if (!customerId || !startDate || !endDate) {
@@ -38,6 +40,8 @@ export async function GET(req) {
             endDate,
             countryFilter,
             countryExclude,
+            campaignInclude,
+            campaignExclude,
         });
         return new Response(JSON.stringify(metrics), { status: 200 });
     } catch (err) {

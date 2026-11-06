@@ -8,11 +8,20 @@ export async function fetchJson(url) {
     return json;
 }
 
+/** Adds the campaign name filter params for one channel when the filter is on. */
+function applyCampaignFilter(params, filter, channel) {
+    if (!filter?.enabled) return;
+    const { include, exclude } = filter[channel] || {};
+    if (include?.trim()) params.set("campaignInclude", include.trim());
+    if (exclude?.trim()) params.set("campaignExclude", exclude.trim());
+}
+
 /**
  * URL builders for the data sources the Aura dashboard reads. `google` / `meta` are null when the
- * integration id in Config is missing or a placeholder (0 or 1).
+ * integration id in Config is missing or a placeholder (0 or 1). `filter` is the campaign filter
+ * ({ enabled, google: { include, exclude }, meta: { include, exclude } }), off when omitted.
  */
-export function buildAuraSources(customerId, settings = {}) {
+export function buildAuraSources(customerId, settings = {}, filter = null) {
     const { googleAdsCustomerId, googleAdsCountryFilter, googleAdsCountryExclude, facebookAdAccountId } = settings;
     const id = String(customerId);
 
@@ -26,6 +35,7 @@ export function buildAuraSources(customerId, settings = {}) {
               });
               if (googleAdsCountryFilter) p.set("countryFilter", googleAdsCountryFilter);
               if (googleAdsCountryExclude) p.set("countryExclude", googleAdsCountryExclude);
+              applyCampaignFilter(p, filter, "google");
               return `/api/google-ppc-dashboard?${p.toString()}`;
           }
         : null;
@@ -40,6 +50,7 @@ export function buildAuraSources(customerId, settings = {}) {
               });
               if (settings.customerMetaID) p.set("customerMetaID", settings.customerMetaID);
               if (settings.customerMetaIDExclude) p.set("customerMetaIDExclude", settings.customerMetaIDExclude);
+              applyCampaignFilter(p, filter, "meta");
               return `/api/facebook-campaign-insights?${p.toString()}`;
           }
         : null;
