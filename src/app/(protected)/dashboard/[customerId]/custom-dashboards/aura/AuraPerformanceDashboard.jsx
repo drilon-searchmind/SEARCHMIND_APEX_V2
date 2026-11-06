@@ -15,6 +15,8 @@ import { cac, googleAdsBlock, metaBlock, totalCost } from "./auraSheetLogic";
 import "../../service-dashboard/ppc/ppc-dashboard.css";
 import "./aura-dashboard.css";
 
+const sumValues = (rows) => (rows || []).reduce((sum, r) => sum + (Number(r?.value) || 0), 0);
+
 const nf0 = new Intl.NumberFormat("da-DK", { maximumFractionDigits: 0 });
 const nf2 = new Intl.NumberFormat("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -67,7 +69,7 @@ export default function AuraPerformanceDashboard() {
     const { appliedDateRange: appliedRange, appliedCompareRange, comparisonMethod, dateRangePickerProps } =
         useDashboardDateRange();
 
-    const [data, setData] = useState({ google: [], googlePrev: [], meta: [], metaPrev: [], notes: [], failed: false });
+    const [data, setData] = useState({ google: [], googlePrev: [], meta: [], metaPrev: [], sheet: null, sheetPrev: null, notes: [], failed: false });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -139,11 +141,20 @@ export default function AuraPerformanceDashboard() {
                 if (!googleOk) notes.push("Google Ads: no valid customer ID in Config");
                 if (!metaOk) notes.push("Meta: no valid ad account ID in Config");
 
-                const [g, gp, m, mp] = await Promise.all([
+                const sheetUrl = (range) =>
+                    `/api/custom-dashboards/aura/sheet-data?${new URLSearchParams({
+                        customerId: String(customer._id),
+                        startDate: range.startDate,
+                        endDate: range.endDate,
+                    }).toString()}`;
+
+                const [g, gp, m, mp, sh, shp] = await Promise.all([
                     googleOk ? safe(() => fetchJson(googleUrl(appliedRange)), "Google Ads") : null,
                     googleOk && hasComp ? safe(() => fetchJson(googleUrl(comp)), "Google Ads (comparison)") : null,
                     metaOk ? safe(() => fetchJson(metaUrl(appliedRange)), "Meta") : null,
                     metaOk && hasComp ? safe(() => fetchJson(metaUrl(comp)), "Meta (comparison)") : null,
+                    safe(() => fetchJson(sheetUrl(appliedRange)), "Aura sheet"),
+                    hasComp ? safe(() => fetchJson(sheetUrl(comp)), "Aura sheet (comparison)") : null,
                 ]);
                 if (cancelled) return;
                 setData({
@@ -151,6 +162,8 @@ export default function AuraPerformanceDashboard() {
                     googlePrev: gp?.metrics_by_date || [],
                     meta: m?.metrics_by_date || [],
                     metaPrev: mp?.metrics_by_date || [],
+                    sheet: sh,
+                    sheetPrev: shp,
                     notes,
                     failed,
                 });
@@ -168,21 +181,27 @@ export default function AuraPerformanceDashboard() {
     const kpis = useMemo(() => {
         const g = googleAdsBlock(data.google);
         const m = metaBlock(data.meta);
-        const cost = totalCost({ googleSpend: g.spend, metaSpend: m.spend });
+        // Cost = Google Ads + Meta + "Other" (campaign budgets in the Aura sheet), as in the old dashboard.
+        const cost = totalCost({ googleSpend: g.spend, metaSpend: m.spend, otherCost: sumValues(data.sheet?.otherCost) });
         const hasPrev = data.googlePrev.length > 0 || data.metaPrev.length > 0;
         const gp = googleAdsBlock(data.googlePrev);
         const mp = metaBlock(data.metaPrev);
-        const costPrev = hasPrev ? totalCost({ googleSpend: gp.spend, metaSpend: mp.spend }) : null;
-        // Customers (orders) come from a private sheet that is not connected yet, so CAC cannot be computed.
-        const customersNow = null;
-        const customersPrev = null;
+        const costPrev = hasPrev
+            ? totalCost({ googleSpend: gp.spend, metaSpend: mp.spend, otherCost: sumValues(data.sheetPrev?.otherCost) })
+            : null;
+        const customersNow = data.sheet ? sumValues(data.sheet.conversions) : null;
+        const customersPrev = data.sheetPrev ? sumValues(data.sheetPrev.conversions) : null;
+        const cacNow = cac(cost, customersNow);
+        const cacPrev = costPrev != null ? cac(costPrev, customersPrev) : null;
+        // A failed source makes the two periods incomparable, so no change is shown.
+        const comparable = !data.failed;
         return {
             cost,
-            // A failed source makes the two periods incomparable, so no change is shown.
-            costChange: data.failed ? null : pctChange(cost, costPrev),
+            costChange: comparable ? pctChange(cost, costPrev) : null,
             customers: customersNow,
-            customersChange: pctChange(customersNow, customersPrev),
-            cac: cac(cost, customersNow),
+            customersChange: comparable ? pctChange(customersNow, customersPrev) : null,
+            cac: cacNow,
+            cacChange: comparable ? pctChange(cacNow, cacPrev) : null,
         };
     }, [data]);
 
@@ -220,12 +239,13 @@ export default function AuraPerformanceDashboard() {
                             label="Conversions"
                             value={kpis.customers == null ? null : nf0.format(kpis.customers)}
                             change={kpis.customersChange}
-                            note="Customer source not connected"
+                            note="Aura sheet could not be read"
                         />
                         <HeroKpi label="Cost" value={nf0.format(kpis.cost)} change={kpis.costChange} lowerIsBetter />
                         <HeroKpi
                             label="CAC"
                             value={kpis.cac == null ? null : nf2.format(kpis.cac)}
+                            change={kpis.cacChange}
                             lowerIsBetter
                             note="Needs conversions"
                         />

@@ -85,9 +85,9 @@ Sessions per channel group (GA4), Ad Spend / Clicks / Impressions / Conversions 
 | Google Ads daily (spend, clicks, impressions, conversions, conv. value) | `/api/google-ppc-dashboard` | Matched |
 | Meta daily (spend, impressions, clicks, conversions) | `/api/facebook-campaign-insights` | Matched. Apex returns real Meta clicks and conversions, so Meta CPA/conv. numbers will differ from the sheet (sheet conversions are 0) |
 | GA4 sessions by channel group | `/api/ga4` | Matched (needs `ga4PropertyId`, set for Aura) |
-| Orders / customers ("Emob" conversions) | none | **Not matched.** Comes from the private "Conversions data" sheet. CAC, customer goal and customer pace stay "Not connected" |
-| "Other" cost (`Campaigns Cost`) | none | **Not matched.** Total cost in Apex is Google Ads + Meta only and is labelled partial |
+| Orders / customers ("Emob" conversions) | Aura conversions sheet, tab `Conversions`, read live by `/api/custom-dashboards/aura/sheet-data` | Matched. Daily value = `SUM(G:J)` (Eje ny, Eje eks, Leje ny, Leje eks), typed by hand in that sheet, not from an ad platform |
+| "Other" cost (`Campaigns Cost`) | Same sheet, hidden tab `Campaigns Cost`, column D (Emob), computed there from the `Campaign` tab budgets | Matched via the same route |
 | Hourly orders and sales (`Timelogger`) | none | Not rebuilt (hidden tab) |
 | SEO / Search Console tabs | n/a | Not rebuilt (hidden tabs) |
 
-To connect the missing pieces, share the "Conversions data" sheet (or say where Emob customers and Other cost come from).
+The conversions sheet is shared with anyone who has the link. Its ID can be overridden with the `AURA_CONVERSIONS_SHEET_ID` environment variable. If the sharing is turned off, the Conversions, Other cost and CAC figures stop loading.
