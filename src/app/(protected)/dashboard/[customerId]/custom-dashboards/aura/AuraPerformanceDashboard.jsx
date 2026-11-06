@@ -2,7 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { FiArrowDown, FiArrowUp } from "react-icons/fi";
+import { SiGoogleads, SiMeta } from "react-icons/si";
+import { FiLayout } from "react-icons/fi";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import DateRangePicker from "@/components/dashboard/DateRangePicker";
 import CobaltLoader from "@/components/ui/CobaltLoader";
@@ -16,53 +17,20 @@ import { cac, googleAdsBlock, metaBlock, totalCost } from "./auraSheetLogic";
 import AuraTrendChart from "./AuraTrendChart";
 import AuraSpendAllocationChart from "./AuraSpendAllocationChart";
 import AuraSessionsChart from "./AuraSessionsChart";
+import AuraGoogleAdsTab from "./AuraGoogleAdsTab";
+import HeroKpi, { nf0, nf2, pctChange } from "./HeroKpi";
+import DashboardTabs from "../components/DashboardTabs";
 import { useAuraYearData } from "./useAuraYearData";
 import CampaignFilterBar from "../components/CampaignFilterBar";
 import { EMPTY_FILTER, FILTER_CHANNELS, FILTER_PRESETS, loadSavedFilter, saveFilter } from "./auraFilter";
 
+const TABS = [
+    { key: "overview", label: "Overview", icon: FiLayout },
+    { key: "google", label: "Google Ads", icon: SiGoogleads },
+    { key: "meta", label: "Meta", icon: SiMeta },
+];
+
 const sumValues = (rows) => (rows || []).reduce((sum, r) => sum + (Number(r?.value) || 0), 0);
-
-const nf0 = new Intl.NumberFormat("da-DK", { maximumFractionDigits: 0 });
-const nf2 = new Intl.NumberFormat("da-DK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-/** Percent change vs the comparison period, null when it cannot be computed. */
-function pctChange(current, prev) {
-    if (current == null || prev == null || prev === 0) return null;
-    return ((current - prev) / Math.abs(prev)) * 100;
-}
-
-/**
- * One KPI in the hero. `lowerIsBetter` flips the colour (cost and CAC falling is good).
- * `value === null` renders the "Not connected" state.
- */
-function HeroKpi({ label, value, change, lowerIsBetter = false, note }) {
-    const hasChange = change != null && Number.isFinite(change);
-    const good = hasChange && (lowerIsBetter ? change < 0 : change > 0);
-    const bad = hasChange && (lowerIsBetter ? change > 0 : change < 0);
-    return (
-        <div className="aura-hero__kpi">
-            <span className="aura-hero__label">{label}</span>
-            {value == null ? (
-                <>
-                    <span className="aura-hero__value aura-hero__value--empty">Not connected</span>
-                    {note ? <span className="aura-hero__note">{note}</span> : null}
-                </>
-            ) : (
-                <>
-                    <span className="aura-hero__value">{value}</span>
-                    {hasChange ? (
-                        <span className={`aura-hero__change${good ? " is-good" : ""}${bad ? " is-bad" : ""}`}>
-                            {change < 0 ? <FiArrowDown aria-hidden="true" /> : <FiArrowUp aria-hidden="true" />}
-                            {`${nf2.format(change)}%`}
-                        </span>
-                    ) : (
-                        <span className="aura-hero__change">No comparison</span>
-                    )}
-                </>
-            )}
-        </div>
-    );
-}
 
 export default function AuraPerformanceDashboard() {
     const params = useParams();
@@ -79,6 +47,7 @@ export default function AuraPerformanceDashboard() {
     // Campaign filter: off by default, remembered per viewer (localStorage) once applied.
     const [filter, setFilter] = useState(EMPTY_FILTER);
     const [filterLoaded, setFilterLoaded] = useState(false);
+    const [tab, setTab] = useState("overview");
     const [data, setData] = useState({
         google: [],
         googlePrev: [],
@@ -88,6 +57,7 @@ export default function AuraPerformanceDashboard() {
         sheetPrev: null,
         channels: null,
         ga4Configured: true,
+        googleConfigured: true,
         notes: [],
         failed: false,
     });
@@ -169,6 +139,7 @@ export default function AuraPerformanceDashboard() {
                     sheet: sh,
                     sheetPrev: shp,
                     ga4Configured: Boolean(sources.ga4),
+                    googleConfigured: Boolean(sources.google),
                     channels: ga
                         ? mapReportToRows(ga)
                               .map((r) => ({ channel: r.sessionDefaultChannelGroup || "(not set)", sessions: Number(r.sessions) || 0 }))
@@ -241,6 +212,8 @@ export default function AuraPerformanceDashboard() {
                 />
             ) : null}
 
+            <DashboardTabs tabs={TABS} value={tab} onChange={setTab} label="Dashboard sections" />
+
             {loading ? (
                 <div className="apex-perf-loading">
                     <CobaltLoader variant="block" title="Loading Aura metrics" request="GET /api/google-ppc-dashboard" />
@@ -254,31 +227,47 @@ export default function AuraPerformanceDashboard() {
                             Admin only. Some sources could not be loaded: {data.notes.join("; ")}
                         </p>
                     ) : null}
-                    {!filter.enabled ? (
-                        <p className="apex-ppc-chart-note">
-                            Cost and CAC include every campaign on the connected ad accounts. The old sheet only counted the
-                            Emob campaigns: switch on the campaign filter and choose the Emob preset to match it.
-                        </p>
+                    {tab === "overview" ? (
+                        <>
+                        {!filter.enabled ? (
+                            <p className="apex-ppc-chart-note">
+                                Cost and CAC include every campaign on the connected ad accounts. The old sheet only counted the
+                                Emob campaigns: switch on the campaign filter and choose the Emob preset to match it.
+                            </p>
+                        ) : null}
+                        <section className="aura-hero" aria-label="Key figures">
+                            <HeroKpi
+                                label="Conversions"
+                                value={kpis.customers == null ? null : nf0.format(kpis.customers)}
+                                change={kpis.customersChange}
+                                note="Saved conversions could not be loaded"
+                            />
+                            <HeroKpi label="Cost" value={nf0.format(kpis.cost)} change={kpis.costChange} lowerIsBetter />
+                            <HeroKpi
+                                label="CAC"
+                                value={kpis.cac == null ? null : nf2.format(kpis.cac)}
+                                change={kpis.cacChange}
+                                lowerIsBetter
+                                note="Needs conversions"
+                            />
+                        </section>
+                        <AuraTrendChart sheets={yearData.sheets} spend={yearData.spend} />
+                        <AuraSpendAllocationChart sheets={yearData.sheets} spend={yearData.spend} />
+                        <AuraSessionsChart channels={data.channels} ga4Configured={data.ga4Configured} />
+                        </>
                     ) : null}
-                    <section className="aura-hero" aria-label="Key figures">
-                        <HeroKpi
-                            label="Conversions"
-                            value={kpis.customers == null ? null : nf0.format(kpis.customers)}
-                            change={kpis.customersChange}
-                            note="Saved conversions could not be loaded"
+                    {tab === "google" ? (
+                        <AuraGoogleAdsTab
+                            google={data.google}
+                            googlePrev={data.googlePrev}
+                            comparable={!data.failed}
+                            configured={data.googleConfigured}
+                            spend={yearData.spend}
                         />
-                        <HeroKpi label="Cost" value={nf0.format(kpis.cost)} change={kpis.costChange} lowerIsBetter />
-                        <HeroKpi
-                            label="CAC"
-                            value={kpis.cac == null ? null : nf2.format(kpis.cac)}
-                            change={kpis.cacChange}
-                            lowerIsBetter
-                            note="Needs conversions"
-                        />
-                    </section>
-                    <AuraTrendChart sheets={yearData.sheets} spend={yearData.spend} />
-                    <AuraSpendAllocationChart sheets={yearData.sheets} spend={yearData.spend} />
-                    <AuraSessionsChart channels={data.channels} ga4Configured={data.ga4Configured} />
+                    ) : null}
+                    {tab === "meta" ? (
+                        <p className="apex-ppc-chart-note">The Meta section is coming next.</p>
+                    ) : null}
                     {isAdmin && yearData.errors.length > 0 ? (
                         <p className="apex-ppc-chart-note aura-admin-note">Admin only. {yearData.errors.join("; ")}</p>
                     ) : null}

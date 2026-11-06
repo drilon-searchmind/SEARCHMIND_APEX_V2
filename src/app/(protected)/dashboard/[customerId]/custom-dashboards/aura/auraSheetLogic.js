@@ -163,3 +163,32 @@ export function monthlyAllocation({ googleRows, metaRows, otherCost }) {
     add(otherCost, "other", (r) => Number(r.value) || 0);
     return months.map((m) => ({ ...m, total: m.ppc + m.ps + m.other }));
 }
+
+/**
+ * Monthly Google Ads metrics for one year (p calc rows 207 to 219): sums of spend, clicks, impressions and
+ * conversions per month, with the ratios worked out from those sums. Months without data are null.
+ * CAC = spend / conversions, CTR = clicks / impressions, CPC = spend / clicks, Conv. Rate = conversions / clicks.
+ */
+export function monthlyGoogleMetrics(rows) {
+    const months = Array.from({ length: 12 }, () => ({ adSpend: 0, clicks: 0, impressions: 0, conversions: 0 }));
+    for (const r of rows || []) {
+        const m = Number(String(r.date).slice(5, 7)) - 1;
+        if (m < 0 || m > 11) continue;
+        months[m].adSpend += Number(r.ad_spend) || 0;
+        months[m].clicks += Number(r.clicks) || 0;
+        months[m].impressions += Number(r.impressions) || 0;
+        months[m].conversions += Number(r.conversions) || 0;
+    }
+    const ratio = (a, b) => (b > 0 ? a / b : null);
+    return months.map((m) =>
+        m.adSpend > 0 || m.impressions > 0
+            ? {
+                  ...m,
+                  ctr: ratio(m.clicks, m.impressions),
+                  cpc: ratio(m.adSpend, m.clicks),
+                  convRate: ratio(m.conversions, m.clicks),
+                  cac: ratio(m.adSpend, m.conversions),
+              }
+            : null
+    );
+}

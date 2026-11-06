@@ -12,14 +12,14 @@ export const FILTER_CHANNELS = [
 ];
 
 /**
- * "Emob" reproduces the old Google Sheet: its January 2026 PPC and PS cost equals the campaigns named
- * like this (inferred from the numbers, see SHEET_LOGIC.md section 6).
+ * "Emob" reproduces the old Google Sheet: its monthly PPC and PS cost equals the campaigns named like this
+ * (inferred from the numbers, see SHEET_LOGIC.md section 6).
  */
 export const FILTER_PRESETS = [
     {
         id: "emob",
         label: "Emob (as in the old sheet)",
-        google: { include: "ladeboks", exclude: "" },
+        google: { include: "ladeboks, SM - V: Branding", exclude: "" },
         meta: { include: "Emob, Permission", exclude: "" },
     },
 ];
