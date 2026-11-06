@@ -29,3 +29,10 @@ documented in `aura/SHEET_LOGIC.md`. The calculations live in `aura/auraSheetLog
 `{ enabled, google: { include, exclude }, meta: { include, exclude } }`, which `aura/auraApi.js` turns into the
 `campaignInclude` / `campaignExclude` params of `/api/google-ppc-dashboard` and `/api/facebook-campaign-insights`
 (matching lives in `src/lib/campaignNameFilter.js`). Presets and channels are passed in per customer (see `aura/auraFilter.js`).
+
+## Hand-entered inputs
+
+Values an ad platform API cannot provide (for Aura: daily conversions, planned campaign budgets, monthly goals) are saved per customer in
+`CustomDashboardInput` (`src/models/CustomDashboardInput.js`) and edited on the dashboard's "Data inputs" page (`aura/AuraInputs.jsx`).
+`src/lib/auraInputs.js` validates them and turns them into daily series, `/api/custom-dashboards/aura/inputs` reads and saves them (writing is
+limited to internal users) and `/api/custom-dashboards/aura/data` serves the computed series to the dashboard.

@@ -85,7 +85,7 @@ export default function AuraSpendAllocationChart({ sheets, spend }) {
                         hideChartToggle
                     />
                     <p className="apex-ppc-chart-note">
-                        Monthly spend this year: PPC = Google Ads, PS = Meta, Other = campaign budgets from the Aura sheet. Labels show each
+                        Monthly spend this year: PPC = Google Ads, PS = Meta, Other = campaign budgets saved under Data inputs. Labels show each
                         share of the month&apos;s total.
                     </p>
                 </>

@@ -152,8 +152,8 @@ export default function AuraPerformanceDashboard() {
                     sources.google && hasComp ? safe(() => fetchJson(sources.google(comp)), "Google Ads (comparison)") : null,
                     sources.meta ? safe(() => fetchJson(sources.meta({ startDate, endDate })), "Meta") : null,
                     sources.meta && hasComp ? safe(() => fetchJson(sources.meta(comp)), "Meta (comparison)") : null,
-                    safe(() => fetchJson(sources.sheet({ startDate, endDate })), "Aura sheet"),
-                    hasComp ? safe(() => fetchJson(sources.sheet(comp)), "Aura sheet (comparison)") : null,
+                    safe(() => fetchJson(sources.sheet({ startDate, endDate })), "Aura inputs"),
+                    hasComp ? safe(() => fetchJson(sources.sheet(comp)), "Aura inputs (comparison)") : null,
                 ]);
                 if (cancelled) return;
                 setData({
@@ -180,7 +180,7 @@ export default function AuraPerformanceDashboard() {
     const kpis = useMemo(() => {
         const g = googleAdsBlock(data.google);
         const m = metaBlock(data.meta);
-        // Cost = Google Ads + Meta + "Other" (campaign budgets in the Aura sheet), as in the old dashboard.
+        // Cost = Google Ads + Meta + "Other" (campaign budgets saved under Data inputs), as in the old dashboard.
         const cost = totalCost({ googleSpend: g.spend, metaSpend: m.spend, otherCost: sumValues(data.sheet?.otherCost) });
         const hasPrev = data.googlePrev.length > 0 || data.metaPrev.length > 0;
         const gp = googleAdsBlock(data.googlePrev);
@@ -254,7 +254,7 @@ export default function AuraPerformanceDashboard() {
                             label="Conversions"
                             value={kpis.customers == null ? null : nf0.format(kpis.customers)}
                             change={kpis.customersChange}
-                            note="Aura sheet could not be read"
+                            note="Saved conversions could not be loaded"
                         />
                         <HeroKpi label="Cost" value={nf0.format(kpis.cost)} change={kpis.costChange} lowerIsBetter />
                         <HeroKpi

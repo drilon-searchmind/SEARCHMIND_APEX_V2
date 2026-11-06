@@ -78,19 +78,23 @@ Sessions per channel group (GA4), Ad Spend / Clicks / Impressions / Conversions 
 9. The "Other" cost is a flat daily number per month in the sample read (looks like a prorated fixed cost). Its origin is
    unknown.
 
-## 5. What Apex can and cannot match
+## 5. Where each number comes from in Apex
 
-| Sheet source | Apex source | Status |
-|---|---|---|
-| Google Ads daily (spend, clicks, impressions, conversions, conv. value) | `/api/google-ppc-dashboard` | Matched |
-| Meta daily (spend, impressions, clicks, conversions) | `/api/facebook-campaign-insights` | Matched. Apex returns real Meta clicks and conversions, so Meta CPA/conv. numbers will differ from the sheet (sheet conversions are 0) |
-| GA4 sessions by channel group | `/api/ga4` | Matched (needs `ga4PropertyId`, set for Aura) |
-| Orders / customers ("Emob" conversions) | Aura conversions sheet, tab `Conversions`, read live by `/api/custom-dashboards/aura/sheet-data` | Matched. Daily value = `SUM(G:J)` (Eje ny, Eje eks, Leje ny, Leje eks), typed by hand in that sheet, not from an ad platform |
-| "Other" cost (`Campaigns Cost`) | Same sheet, hidden tab `Campaigns Cost`, column D (Emob), computed there from the `Campaign` tab budgets | Matched via the same route |
-| Hourly orders and sales (`Timelogger`) | none | Not rebuilt (hidden tab) |
-| SEO / Search Console tabs | n/a | Not rebuilt (hidden tabs) |
+Nothing is read from Google Sheets at runtime.
 
-The conversions sheet is shared with anyone who has the link. Its ID can be overridden with the `AURA_CONVERSIONS_SHEET_ID` environment variable. If the sharing is turned off, the Conversions, Other cost and CAC figures stop loading.
+| Sheet source | Apex source |
+|---|---|
+| Google Ads daily (spend, clicks, impressions, conversions, conv. value) | `/api/google-ppc-dashboard` (the customer's Google Ads account) |
+| Meta daily (spend, impressions, clicks, conversions) | `/api/facebook-campaign-insights` (the customer's Meta ad account) |
+| GA4 sessions by channel group | `/api/ga4` (not used in the sections built so far) |
+| Orders / customers ("Emob" conversions): typed by hand in the sheet | Saved Apex input "Conversions" (Custom > Data inputs). Daily value = `SUM(G:J)` (Eje ny, Eje eks, Leje ny, Leje eks), older days only have a total |
+| "Other" cost (`Campaigns Cost` tab, computed in the sheet from its `Campaign` tab) | Saved Apex input "Campaign budgets". Each campaign's budget is spread evenly over start to end, the channel "Emob" makes up Other cost |
+| Monthly customer goal and budget (`Config` tab) | Saved Apex input "Goals". CAC goal = budget / customer goal |
+| Hourly orders and sales (`Timelogger`) | Not rebuilt (hidden tab) |
+| SEO / Search Console tabs | Not rebuilt (hidden tabs) |
+
+The three hand-entered inputs are stored in the `CustomDashboardInput` collection (one document per customer, dashboard and key). They were copied
+once from the sheet on 6 Nov 2026 and are edited on the "Data inputs" page from now on. The sheet is no longer used.
 
 ## 6. Campaign filter (found while checking the numbers)
 

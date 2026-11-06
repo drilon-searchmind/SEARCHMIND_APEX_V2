@@ -10,6 +10,11 @@ const aura = {
             label: "Performance",
             Component: dynamic(() => import("./aura/AuraPerformanceDashboard"), { ssr: false }),
         },
+        {
+            slug: "inputs",
+            label: "Data inputs",
+            Component: dynamic(() => import("./aura/AuraInputs"), { ssr: false }),
+        },
     ],
 };
 

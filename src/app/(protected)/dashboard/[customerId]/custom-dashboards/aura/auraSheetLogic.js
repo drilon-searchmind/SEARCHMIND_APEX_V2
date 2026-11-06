@@ -6,10 +6,6 @@
 /** Config!C7. Applied to revenue / conversion value as (1 - VAT). */
 export const AURA_VAT = 0.25;
 
-/** Config tab, "Budget" and "Kundeindtag" columns (identical for every month in the sheet). */
-export const AURA_MONTHLY_BUDGET = 178667;
-export const AURA_MONTHLY_CUSTOMER_GOAL = 250;
-
 const sum = (rows, key) => (rows || []).reduce((s, r) => s + (Number(r?.[key]) || 0), 0);
 const div = (a, b) => (b > 0 ? a / b : null);
 
@@ -110,9 +106,6 @@ export function monthlyCost(googleRows, metaRows) {
     add(metaRows, "ps");
     return [...months.values()].sort((a, b) => a.month.localeCompare(b.month));
 }
-
-/** Monthly goals from the Config tab: customers, and CAC estimate = budget / customers (Config!E). */
-export const AURA_MONTHLY_CAC_GOAL = AURA_MONTHLY_BUDGET / AURA_MONTHLY_CUSTOMER_GOAL;
 
 /**
  * One year of the "Conversions" / "CAC" monthly chart (p calc rows 59 to 71).

@@ -20,12 +20,12 @@ async function settle(fn, label, year, errors) {
     }
 }
 
-/** Fast: daily conversions and other cost from the Aura sheet. */
+/** Fast: daily conversions, other cost and goals from the saved Aura inputs. */
 async function loadSheet(sources, year, today) {
     const range = yearRange(year, today);
     const errors = [];
-    const sheet = range ? await settle(() => fetchJson(sources.sheet(range)), "Aura sheet", year, errors) : null;
-    return { sheet: sheet || { conversions: [], otherCost: [] }, sheetOk: !range || Boolean(sheet), errors };
+    const sheet = range ? await settle(() => fetchJson(sources.sheet(range)), "Aura inputs", year, errors) : null;
+    return { sheet: sheet || { conversions: [], otherCost: [], goals: [] }, sheetOk: !range || Boolean(sheet), errors };
 }
 
 /** Slow (a year of daily Google Ads and Meta rows). Spend is only trusted when every configured source loaded. */

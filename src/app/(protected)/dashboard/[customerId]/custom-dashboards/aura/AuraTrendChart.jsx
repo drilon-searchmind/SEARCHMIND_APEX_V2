@@ -3,12 +3,20 @@
 import React, { useState } from "react";
 import GraphCard from "@/components/dashboard/GraphCard";
 import CobaltLoader from "@/components/ui/CobaltLoader";
-import { AURA_MONTHLY_CAC_GOAL, AURA_MONTHLY_CUSTOMER_GOAL, MONTH_NAMES, monthlyTrend } from "./auraSheetLogic";
+import { MONTH_NAMES, monthlyTrend } from "./auraSheetLogic";
 
 const METRICS = {
-    conversions: { label: "Conversions", goal: AURA_MONTHLY_CUSTOMER_GOAL },
-    cac: { label: "CAC", goal: AURA_MONTHLY_CAC_GOAL },
+    conversions: { label: "Conversions" },
+    cac: { label: "CAC" },
 };
+
+/** Monthly goal line: customers goal, or CAC goal = budget / customers goal (the sheet's Config tab). */
+function goalFor(metric, goals, month) {
+    const g = goals?.[month];
+    if (!g) return null;
+    if (metric === "conversions") return g.goal > 0 ? g.goal : null;
+    return g.goal > 0 && g.budget > 0 ? g.budget / g.goal : null;
+}
 
 const nf0 = new Intl.NumberFormat("da-DK", { maximumFractionDigits: 0 });
 const fmtValue = (v) => (v == null ? "" : nf0.format(v));
@@ -26,10 +34,9 @@ function buildTrend(sheet, spend) {
     });
 }
 
-function buildChart(trends, metric, year) {
+function buildChart(trends, metric, year, goals) {
     const pick = (arr) => arr.map((m) => m[metric]);
     const previous = pick(trends.previous);
-    const goal = METRICS[metric].goal;
     return {
         options: {
             chart: { toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "Outfit, sans-serif" },
@@ -54,7 +61,7 @@ function buildChart(trends, metric, year) {
             { name: String(year), data: pick(trends.current) },
             { name: String(year - 1), data: previous },
             // Like the sheet, the goal line is drawn for months that have a last-year value.
-            { name: "Goal", data: previous.map((v) => (v == null ? null : goal)) },
+            { name: "Goal", data: previous.map((v, i) => (v == null ? null : goalFor(metric, goals, i))) },
         ],
     };
 }
@@ -72,7 +79,7 @@ export default function AuraTrendChart({ sheets, spend }) {
               previous: buildTrend(sheets.previous, spend?.previous),
           }
         : null;
-    const chart = ready && trends ? buildChart(trends, metric, year) : null;
+    const chart = ready && trends ? buildChart(trends, metric, year, sheets.current.sheet.goals) : null;
     const cacUnavailable =
         metric === "cac" &&
         trends &&

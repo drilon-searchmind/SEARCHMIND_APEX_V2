@@ -56,7 +56,7 @@ export function buildAuraSources(customerId, settings = {}, filter = null) {
         : null;
 
     const sheet = (range) =>
-        `/api/custom-dashboards/aura/sheet-data?${new URLSearchParams({
+        `/api/custom-dashboards/aura/data?${new URLSearchParams({
             customerId: id,
             startDate: range.startDate,
             endDate: range.endDate,
