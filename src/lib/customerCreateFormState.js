@@ -22,6 +22,7 @@ export function getDefaultCustomerCreateFormState() {
             shopifyMarketsEnabled: false,
             propertyObjectivesMode: "global",
             shopifyOnlineStoreOnly: false,
+            customDashboardsEnabled: false,
             customerRevenueType: "total_sales",
             revenueDisplayVat: "excl",
             shopifyUrl: "",
@@ -148,6 +149,7 @@ export function buildCustomerCreateFormStateFromCustomer(customer) {
             changeCurrencyShopifyBillingCountryExclude: str(cs.changeCurrencyShopifyBillingCountryExclude),
             shopifyMarketsEnabled: cs.shopifyMarketsEnabled === true,
             shopifyOnlineStoreOnly: cs.shopifyOnlineStoreOnly === true,
+            customDashboardsEnabled: cs.customDashboardsEnabled === true,
             ga4PropertyId: str(cs.ga4PropertyId),
         },
     };

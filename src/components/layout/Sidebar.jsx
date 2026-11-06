@@ -22,6 +22,7 @@ import {
     FiTag,
     FiMessageCircle,
     FiBriefcase,
+    FiStar,
 } from "react-icons/fi";
 import Image from "next/image";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
@@ -29,6 +30,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { getServiceDashboardConfigWarnings, getPriceShaperConfigWarning } from "@/lib/customerServiceIntegrations";
 import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
 import { isB2BCustomer } from "@/lib/customerBusinessCategory";
+import { getCustomDashboards } from "@/app/(protected)/dashboard/[customerId]/custom-dashboards";
 
 // Map of route patterns to their respective icons
 const getIconForRoute = (href) => {
@@ -49,6 +51,7 @@ const getIconForRoute = (href) => {
     if (href.includes("service-dashboard/reddit")) return <FiMessageCircle className="w-4 h-4" />;
     if (href.includes("service-dashboard/bing-webmaster")) return <FiGlobe className="w-4 h-4" />;
     if (href.includes("service-dashboard/bing")) return <FiLayers className="w-4 h-4" />;
+    if (href.includes("/custom/")) return <FiStar className="w-4 h-4" />;
     if (href.includes("campaign-planner")) return <FiCalendar className="w-4 h-4" />;
     if (href.includes("share-of-search")) return <FiPieChart className="w-4 h-4" />;
     if (href.includes("price-index") || href.includes("price-shaper")) return <FiTag className="w-4 h-4" />;
@@ -121,6 +124,7 @@ const NavItem = ({ href, label, pathname, subLabel, isSmallScreen, configWarning
 const Sidebar = ({ showLinks = true }) => {
     const [dashboardOpen, setDashboardOpen] = useState(true);
     const [serviceOpen, setServiceOpen] = useState(true);
+    const [customOpen, setCustomOpen] = useState(true);
     const [miscOpen, setMiscOpen] = useState(true);
     const [isSmallScreen, setIsSmallScreen] = useState(false);
 
@@ -141,6 +145,7 @@ const Sidebar = ({ showLinks = true }) => {
 
     const shopifyMarketsMenuEnabled = isShopifyMarketsCustomer(activeCustomer);
     const b2bCustomer = isB2BCustomer(activeCustomer);
+    const customDashboards = useMemo(() => getCustomDashboards(activeCustomer), [activeCustomer]);
 
     const serviceDashboardWarnings = useMemo(() => {
         if (!activeCustomer) return null;
@@ -309,6 +314,35 @@ const Sidebar = ({ showLinks = true }) => {
                                         </ul>
                                     )}
                                 </li>
+
+                                {customDashboards.length > 0 ? (
+                                    <li>
+                                        <button
+                                            type="button"
+                                            className="apex-dash-nav__section-btn"
+                                            onClick={() => setCustomOpen(!customOpen)}
+                                        >
+                                            <span className="apex-dash-nav__section-label">
+                                                <FiStar className="apex-dash-nav__section-icon" aria-hidden />
+                                                Custom
+                                            </span>
+                                            {customOpen ? <FiChevronUp /> : <FiChevronDown />}
+                                        </button>
+                                        {customOpen && (
+                                            <ul className="apex-dash-nav__sub">
+                                                {customDashboards.map((d) => (
+                                                    <NavItem
+                                                        key={d.slug}
+                                                        href={`/dashboard/${activeCustomerId}/custom/${d.slug}`}
+                                                        label={d.label}
+                                                        pathname={pathname}
+                                                        isSmallScreen={isSmallScreen}
+                                                    />
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </li>
+                                ) : null}
 
                                 <li>
                                     <button

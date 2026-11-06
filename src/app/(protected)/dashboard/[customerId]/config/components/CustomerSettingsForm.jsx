@@ -244,6 +244,13 @@ export default function CustomerSettingsForm({
                     checked={form.changeCurrency}
                     onChange={onChange}
                 />
+                <FormCheckbox
+                    id="customDashboardsEnabled"
+                    name="customDashboardsEnabled"
+                    label="Custom dashboards: show the Custom menu with this customer's hardcoded dashboards"
+                    checked={form.customDashboardsEnabled === true}
+                    onChange={onChange}
+                />
             </SettingsSection>
 
             {/* Shopify */}

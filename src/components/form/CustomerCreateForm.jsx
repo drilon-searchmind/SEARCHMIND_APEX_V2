@@ -259,6 +259,18 @@ export default function CustomerCreateForm({
                 </>
             )}
 
+            <div className="flex items-center gap-2">
+                <input
+                    id="customDashboardsEnabled"
+                    name="customDashboardsEnabled"
+                    type="checkbox"
+                    checked={form.CustomerSettings.customDashboardsEnabled === true}
+                    onChange={handleChange}
+                    className={checkClass}
+                />
+                <FormLabel className={labelClass} htmlFor="customDashboardsEnabled">Custom dashboards (show the Custom menu)</FormLabel>
+            </div>
+
             {form.businessCategory !== "b2b" && form.customerType === "WooCommerce" && (
                 <>
                     <div>
