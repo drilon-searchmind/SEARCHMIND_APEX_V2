@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { FiArrowDown, FiArrowUp } from "react-icons/fi";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
@@ -10,8 +10,9 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { useUser } from "@/contexts/UserContext";
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import { formatComparisonPeriodDates } from "@/lib/dateRangeComparison";
-import { isValidIntegrationId } from "@/lib/customerServiceIntegrations";
+import { buildAuraSources, fetchJson } from "./auraApi";
 import { cac, googleAdsBlock, metaBlock, totalCost } from "./auraSheetLogic";
+import AuraTrendChart from "./AuraTrendChart";
 
 const sumValues = (rows) => (rows || []).reduce((sum, r) => sum + (Number(r?.value) || 0), 0);
 
@@ -63,65 +64,52 @@ export default function AuraPerformanceDashboard() {
     const user = useUser();
     const isAdmin = user?.isAdmin === true;
     const customer = customers.find((c) => c._id === params.customerId);
+    const customerId = customer?._id;
 
     const { appliedDateRange: appliedRange, appliedCompareRange, comparisonMethod, dateRangePickerProps } =
         useDashboardDateRange();
 
-    const [data, setData] = useState({ google: [], googlePrev: [], meta: [], metaPrev: [], sheet: null, sheetPrev: null, notes: [], failed: false });
+    const [settings, setSettings] = useState(null);
+    const [data, setData] = useState({
+        google: [],
+        googlePrev: [],
+        meta: [],
+        metaPrev: [],
+        sheet: null,
+        sheetPrev: null,
+        notes: [],
+        failed: false,
+    });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const fetchJson = useCallback(async (url) => {
-        const res = await fetch(url);
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
-        return json;
-    }, []);
+    // Primitive keys: the range objects from the hook are new objects on every render.
+    const startDate = appliedRange.startDate;
+    const endDate = appliedRange.endDate;
+    const compareStart = appliedCompareRange.startDate;
+    const compareEnd = appliedCompareRange.endDate;
 
     useEffect(() => {
-        if (!customer) return;
+        if (!customerId) return;
         let cancelled = false;
         setLoading(true);
         setError(null);
         (async () => {
             try {
-                const settings = (await fetchJson(`/api/customers/${customer._id}`)).CustomerSettings || {};
-                const { googleAdsCustomerId, googleAdsCountryFilter, googleAdsCountryExclude, facebookAdAccountId } =
-                    settings;
+                const loaded = (await fetchJson(`/api/customers/${customerId}`)).CustomerSettings || {};
+                if (cancelled) return;
+                // Keep the same object when nothing changed so the trend chart does not refetch on every date change.
+                setSettings((prev) => (JSON.stringify(prev) === JSON.stringify(loaded) ? prev : loaded));
+                const sources = buildAuraSources(customerId, loaded);
                 const notes = [];
                 let failed = false;
 
-                const googleUrl = (range) => {
-                    const p = new URLSearchParams({
-                        customerId: googleAdsCustomerId,
-                        startDate: range.startDate,
-                        endDate: range.endDate,
-                        dashboardCustomerId: String(customer._id),
-                    });
-                    if (googleAdsCountryFilter) p.set("countryFilter", googleAdsCountryFilter);
-                    if (googleAdsCountryExclude) p.set("countryExclude", googleAdsCountryExclude);
-                    return `/api/google-ppc-dashboard?${p.toString()}`;
-                };
-                const metaUrl = (range) => {
-                    const p = new URLSearchParams({
-                        adAccountId: facebookAdAccountId.startsWith("act_")
-                            ? facebookAdAccountId
-                            : `act_${facebookAdAccountId}`,
-                        since: range.startDate,
-                        until: range.endDate,
-                        dashboardCustomerId: String(customer._id),
-                    });
-                    if (settings.customerMetaID) p.set("customerMetaID", settings.customerMetaID);
-                    if (settings.customerMetaIDExclude) p.set("customerMetaIDExclude", settings.customerMetaIDExclude);
-                    return `/api/facebook-campaign-insights?${p.toString()}`;
-                };
-
                 const comp = formatComparisonPeriodDates({
                     comparisonMethod,
-                    startDate: appliedRange.startDate,
-                    endDate: appliedRange.endDate,
-                    compareStartDate: appliedCompareRange.startDate,
-                    compareEndDate: appliedCompareRange.endDate,
+                    startDate,
+                    endDate,
+                    compareStartDate: compareStart,
+                    compareEndDate: compareEnd,
                 });
                 const hasComp = !comp.skip && comp.startDate && comp.endDate;
 
@@ -134,25 +122,16 @@ export default function AuraPerformanceDashboard() {
                         return null;
                     }
                 };
-                const googleOk = isValidIntegrationId(googleAdsCustomerId);
-                const metaOk = isValidIntegrationId(facebookAdAccountId);
-                if (!googleOk) notes.push("Google Ads: no valid customer ID in Config");
-                if (!metaOk) notes.push("Meta: no valid ad account ID in Config");
-
-                const sheetUrl = (range) =>
-                    `/api/custom-dashboards/aura/sheet-data?${new URLSearchParams({
-                        customerId: String(customer._id),
-                        startDate: range.startDate,
-                        endDate: range.endDate,
-                    }).toString()}`;
+                if (!sources.google) notes.push("Google Ads: no valid customer ID in Config");
+                if (!sources.meta) notes.push("Meta: no valid ad account ID in Config");
 
                 const [g, gp, m, mp, sh, shp] = await Promise.all([
-                    googleOk ? safe(() => fetchJson(googleUrl(appliedRange)), "Google Ads") : null,
-                    googleOk && hasComp ? safe(() => fetchJson(googleUrl(comp)), "Google Ads (comparison)") : null,
-                    metaOk ? safe(() => fetchJson(metaUrl(appliedRange)), "Meta") : null,
-                    metaOk && hasComp ? safe(() => fetchJson(metaUrl(comp)), "Meta (comparison)") : null,
-                    safe(() => fetchJson(sheetUrl(appliedRange)), "Aura sheet"),
-                    hasComp ? safe(() => fetchJson(sheetUrl(comp)), "Aura sheet (comparison)") : null,
+                    sources.google ? safe(() => fetchJson(sources.google({ startDate, endDate })), "Google Ads") : null,
+                    sources.google && hasComp ? safe(() => fetchJson(sources.google(comp)), "Google Ads (comparison)") : null,
+                    sources.meta ? safe(() => fetchJson(sources.meta({ startDate, endDate })), "Meta") : null,
+                    sources.meta && hasComp ? safe(() => fetchJson(sources.meta(comp)), "Meta (comparison)") : null,
+                    safe(() => fetchJson(sources.sheet({ startDate, endDate })), "Aura sheet"),
+                    hasComp ? safe(() => fetchJson(sources.sheet(comp)), "Aura sheet (comparison)") : null,
                 ]);
                 if (cancelled) return;
                 setData({
@@ -174,7 +153,7 @@ export default function AuraPerformanceDashboard() {
         return () => {
             cancelled = true;
         };
-    }, [customer, appliedRange, appliedCompareRange, comparisonMethod, fetchJson]);
+    }, [customerId, startDate, endDate, compareStart, compareEnd, comparisonMethod]);
 
     const kpis = useMemo(() => {
         const g = googleAdsBlock(data.google);
@@ -248,6 +227,11 @@ export default function AuraPerformanceDashboard() {
                             note="Needs conversions"
                         />
                     </section>
+                    <p className="apex-ppc-chart-note">
+                        Cost and CAC currently include every campaign on the connected Google Ads and Meta accounts. The old sheet only counted
+                        the Emob campaigns, so these figures are higher than the sheet until that filter is added.
+                    </p>
+                    <AuraTrendChart customerId={customerId} settings={settings} isAdmin={isAdmin} />
                 </>
             )}
         </div>

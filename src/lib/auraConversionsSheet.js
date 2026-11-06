@@ -46,11 +46,66 @@ async function fetchTab(tab, startDate, endDate) {
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
+/** gid of the "Conversions" tab. Its older rows are hidden, which gviz skips, so it is read through the CSV export. */
+const CONVERSIONS_GID = "0";
+
+/** Splits one CSV line (handles quoted fields). */
+function splitCsvLine(line) {
+    const out = [];
+    let cur = "";
+    let quoted = false;
+    for (let i = 0; i < line.length; i += 1) {
+        const ch = line[i];
+        if (quoted) {
+            if (ch === '"' && line[i + 1] === '"') {
+                cur += '"';
+                i += 1;
+            } else if (ch === '"') quoted = false;
+            else cur += ch;
+        } else if (ch === '"') quoted = true;
+        else if (ch === ",") {
+            out.push(cur);
+            cur = "";
+        } else cur += ch;
+    }
+    out.push(cur);
+    return out;
+}
+
+/** "d/m/yyyy" (the sheet's locale) to "yyyy-mm-dd". */
+function dmyToIso(raw) {
+    const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(raw || "").trim());
+    return m ? `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` : null;
+}
+
+/** "4,25" or "1.234,5" (Danish decimals) to a number. */
+function parseSheetNumber(raw) {
+    const t = String(raw ?? "").trim();
+    if (!t) return 0;
+    const n = Number(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t);
+    return Number.isFinite(n) ? n : 0;
+}
+
+/** Daily Emob conversions (column D) between two ISO dates, including rows hidden in the sheet. */
+async function fetchConversions(startDate, endDate) {
+    const url = `https://docs.google.com/spreadsheets/d/${sheetId()}/export?format=csv&gid=${CONVERSIONS_GID}`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Aura sheet "Conversions" request failed (${res.status})`);
+    const lines = (await res.text()).split("\n");
+    const rows = [];
+    for (const line of lines) {
+        const cols = splitCsvLine(line);
+        const date = dmyToIso(cols[1]);
+        if (date && date >= startDate && date <= endDate) rows.push({ date, value: parseSheetNumber(cols[3]) });
+    }
+    return rows.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 /** Daily conversions and other cost between two ISO dates (inclusive). */
 export async function fetchAuraSheetData(startDate, endDate) {
     if (!ISO.test(startDate) || !ISO.test(endDate)) throw new Error("Invalid date range");
     const [conversions, otherCost] = await Promise.all([
-        fetchTab("Conversions", startDate, endDate),
+        fetchConversions(startDate, endDate),
         fetchTab("Campaigns Cost", startDate, endDate),
     ]);
     return { conversions, otherCost };

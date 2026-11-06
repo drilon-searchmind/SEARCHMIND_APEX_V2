@@ -99,3 +99,20 @@
 .aura-hero__change.is-bad {
   color: var(--perf-bad);
 }
+
+/* Conversions / CAC monthly chart */
+.aura-chart {
+  position: relative;
+  margin-top: var(--space-lg);
+}
+
+.aura-chart__toggle {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  z-index: 2;
+}
+
+.aura-chart .apex-perf-graph {
+  padding-top: var(--space-md);
+}

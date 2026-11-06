@@ -110,3 +110,30 @@ export function monthlyCost(googleRows, metaRows) {
     add(metaRows, "ps");
     return [...months.values()].sort((a, b) => a.month.localeCompare(b.month));
 }
+
+/** Monthly goals from the Config tab: customers, and CAC estimate = budget / customers (Config!E). */
+export const AURA_MONTHLY_CAC_GOAL = AURA_MONTHLY_BUDGET / AURA_MONTHLY_CUSTOMER_GOAL;
+
+/**
+ * One year of the "Conversions" / "CAC" monthly chart (p calc rows 59 to 71).
+ * Month totals: conversions = sum of daily Emob conversions, cost = Google Ads + Meta + Other.
+ * Like the sheet, a month with no conversions is blank (null), and so is its CAC.
+ * `spendKnown` false (Google Ads or Meta failed to load) leaves CAC null instead of showing a wrong number.
+ */
+export function monthlyTrend({ googleRows, metaRows, conversions, otherCost, spendKnown = true }) {
+    const months = Array.from({ length: 12 }, () => ({ conversions: 0, cost: 0 }));
+    const add = (rows, field, valueOf) => {
+        for (const r of rows || []) {
+            const m = Number(String(r.date).slice(5, 7)) - 1;
+            if (m >= 0 && m < 12) months[m][field] += valueOf(r);
+        }
+    };
+    add(conversions, "conversions", (r) => Number(r.value) || 0);
+    add(otherCost, "cost", (r) => Number(r.value) || 0);
+    add(googleRows, "cost", (r) => Number(r.ad_spend) || 0);
+    add(metaRows, "cost", (r) => Number(r.ad_spend) || 0);
+    return months.map((m) => ({
+        conversions: m.conversions > 0 ? m.conversions : null,
+        cac: spendKnown && m.conversions > 0 ? m.cost / m.conversions : null,
+    }));
+}

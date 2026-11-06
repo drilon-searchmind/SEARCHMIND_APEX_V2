@@ -91,3 +91,17 @@ Sessions per channel group (GA4), Ad Spend / Clicks / Impressions / Conversions 
 | SEO / Search Console tabs | n/a | Not rebuilt (hidden tabs) |
 
 The conversions sheet is shared with anyone who has the link. Its ID can be overridden with the `AURA_CONVERSIONS_SHEET_ID` environment variable. If the sharing is turned off, the Conversions, Other cost and CAC figures stop loading.
+
+## 6. Campaign filter (found while checking the numbers)
+
+The sheet's paid data comes from a source file named "Aura EMOB" (private, filters not readable). Comparing January 2026 against Apex's own campaign data:
+
+| Channel | Sheet | Apex campaigns that add up to it |
+|---|---|---|
+| Google Ads (PPC cost) | 91,100 | Campaigns with "ladeboks" in the name: 91,100 |
+| Meta (PS cost) | 61,491 | Campaigns with "Emob" in the name (59,680) plus the "Permission | De Vilde Kaniner" campaign (1,811): 61,491 |
+| Other cost | 37,801 | Matches the Aura sheet exactly |
+
+So the old dashboard only counted the Emob product (EV charger) campaigns, while Apex currently reads whole accounts (El and Fiber campaigns included). This is inferred from the numbers, not read from the Supermetrics query. To reproduce the sheet, Cost and CAC need a campaign name filter on the Google Ads and Meta fetches (for Meta, "Emob" plus the Permission campaign).
+
+Also: the Conversions tab in the source sheet has its older rows hidden (everything before 7 Dec 2025). The Google gviz endpoint skips hidden rows, so that tab is read through the CSV export instead.

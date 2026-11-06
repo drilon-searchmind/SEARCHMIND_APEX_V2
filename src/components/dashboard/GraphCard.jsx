@@ -130,7 +130,10 @@ export default function GraphCard({ title, chartOptions, chartSeries, chartType 
                 });
             }
         } else if (isApex) {
+            // The cobalt theme turns data labels off; keep them when the caller explicitly asks for them.
+            const callerDataLabels = optionsCopy.dataLabels?.enabled ? optionsCopy.dataLabels : null;
             optionsCopy = deepMerge(optionsCopy, getCobaltChartBaseOptions());
+            if (callerDataLabels) optionsCopy.dataLabels = callerDataLabels;
             if (usePresetColors) {
                 seriesCopy.forEach((s, i) => {
                     s.color = presetColors[i];
