@@ -67,7 +67,7 @@ export default function AuraPerformanceDashboard() {
     const { appliedDateRange: appliedRange, appliedCompareRange, comparisonMethod, dateRangePickerProps } =
         useDashboardDateRange();
 
-    const [data, setData] = useState({ google: [], googlePrev: [], meta: [], metaPrev: [], notes: [] });
+    const [data, setData] = useState({ google: [], googlePrev: [], meta: [], metaPrev: [], notes: [], failed: false });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -89,6 +89,7 @@ export default function AuraPerformanceDashboard() {
                 const { googleAdsCustomerId, googleAdsCountryFilter, googleAdsCountryExclude, facebookAdAccountId } =
                     settings;
                 const notes = [];
+                let failed = false;
 
                 const googleUrl = (range) => {
                     const p = new URLSearchParams({
@@ -128,6 +129,7 @@ export default function AuraPerformanceDashboard() {
                     try {
                         return await fn();
                     } catch (e) {
+                        failed = true;
                         notes.push(`${label}: ${e.message}`);
                         return null;
                     }
@@ -150,6 +152,7 @@ export default function AuraPerformanceDashboard() {
                     meta: m?.metrics_by_date || [],
                     metaPrev: mp?.metrics_by_date || [],
                     notes,
+                    failed,
                 });
             } catch (e) {
                 if (!cancelled) setError(e.message);
@@ -175,7 +178,8 @@ export default function AuraPerformanceDashboard() {
         const customersPrev = null;
         return {
             cost,
-            costChange: pctChange(cost, costPrev),
+            // A failed source makes the two periods incomparable, so no change is shown.
+            costChange: data.failed ? null : pctChange(cost, costPrev),
             customers: customersNow,
             customersChange: pctChange(customersNow, customersPrev),
             cac: cac(cost, customersNow),
