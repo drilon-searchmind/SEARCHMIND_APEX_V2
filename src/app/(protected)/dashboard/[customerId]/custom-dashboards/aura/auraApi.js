@@ -55,6 +55,20 @@ export function buildAuraSources(customerId, settings = {}, filter = null) {
           }
         : null;
 
+    // GA4 sessions by default channel group. null when the customer has no valid GA4 property id.
+    const ga4 = isValidIntegrationId(settings.ga4PropertyId)
+        ? (range) =>
+              `/api/ga4?${new URLSearchParams({
+                  startDate: range.startDate,
+                  endDate: range.endDate,
+                  metrics: "sessions",
+                  dimensions: "sessionDefaultChannelGroup",
+                  limit: "50",
+                  propertyId: String(settings.ga4PropertyId),
+                  customerId: id,
+              }).toString()}`
+        : null;
+
     const sheet = (range) =>
         `/api/custom-dashboards/aura/data?${new URLSearchParams({
             customerId: id,
@@ -62,7 +76,7 @@ export function buildAuraSources(customerId, settings = {}, filter = null) {
             endDate: range.endDate,
         }).toString()}`;
 
-    return { google, meta, sheet };
+    return { google, meta, ga4, sheet };
 }
 
 export const isoDate = (d) =>

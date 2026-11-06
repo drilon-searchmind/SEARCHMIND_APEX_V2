@@ -86,7 +86,7 @@ Nothing is read from Google Sheets at runtime.
 |---|---|
 | Google Ads daily (spend, clicks, impressions, conversions, conv. value) | `/api/google-ppc-dashboard` (the customer's Google Ads account) |
 | Meta daily (spend, impressions, clicks, conversions) | `/api/facebook-campaign-insights` (the customer's Meta ad account) |
-| GA4 sessions by channel group | `/api/ga4` (not used in the sections built so far) |
+| GA4 sessions by channel group (`p calc` B109:C123: sessions summed per default channel group for the selected period, most first) | `/api/ga4` with the customer's GA4 property, shown in "Sessions per channel group" |
 | Orders / customers ("Emob" conversions): typed by hand in the sheet | Saved Apex input "Conversions" (Custom > Data inputs). Daily value = `SUM(G:J)` (Eje ny, Eje eks, Leje ny, Leje eks), older days only have a total |
 | "Other" cost (`Campaigns Cost` tab, computed in the sheet from its `Campaign` tab) | Saved Apex input "Campaign budgets". Each campaign's budget is spread evenly over start to end, the channel "Emob" makes up Other cost |
 | Monthly customer goal and budget (`Config` tab) | Saved Apex input "Goals". CAC goal = budget / customer goal |

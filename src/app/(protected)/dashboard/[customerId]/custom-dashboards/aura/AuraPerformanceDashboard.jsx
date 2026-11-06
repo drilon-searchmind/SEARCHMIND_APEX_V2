@@ -11,9 +11,11 @@ import { useUser } from "@/contexts/UserContext";
 import { useDashboardDateRange } from "@/hooks/useDashboardDateRange";
 import { formatComparisonPeriodDates } from "@/lib/dateRangeComparison";
 import { buildAuraSources, fetchJson } from "./auraApi";
+import { mapReportToRows } from "@/lib/ga4ReportUtils";
 import { cac, googleAdsBlock, metaBlock, totalCost } from "./auraSheetLogic";
 import AuraTrendChart from "./AuraTrendChart";
 import AuraSpendAllocationChart from "./AuraSpendAllocationChart";
+import AuraSessionsChart from "./AuraSessionsChart";
 import { useAuraYearData } from "./useAuraYearData";
 import CampaignFilterBar from "../components/CampaignFilterBar";
 import { EMPTY_FILTER, FILTER_CHANNELS, FILTER_PRESETS, loadSavedFilter, saveFilter } from "./auraFilter";
@@ -84,6 +86,8 @@ export default function AuraPerformanceDashboard() {
         metaPrev: [],
         sheet: null,
         sheetPrev: null,
+        channels: null,
+        ga4Configured: true,
         notes: [],
         failed: false,
     });
@@ -147,13 +151,14 @@ export default function AuraPerformanceDashboard() {
                 if (!sources.google) notes.push("Google Ads: no valid customer ID in Config");
                 if (!sources.meta) notes.push("Meta: no valid ad account ID in Config");
 
-                const [g, gp, m, mp, sh, shp] = await Promise.all([
+                const [g, gp, m, mp, sh, shp, ga] = await Promise.all([
                     sources.google ? safe(() => fetchJson(sources.google({ startDate, endDate })), "Google Ads") : null,
                     sources.google && hasComp ? safe(() => fetchJson(sources.google(comp)), "Google Ads (comparison)") : null,
                     sources.meta ? safe(() => fetchJson(sources.meta({ startDate, endDate })), "Meta") : null,
                     sources.meta && hasComp ? safe(() => fetchJson(sources.meta(comp)), "Meta (comparison)") : null,
                     safe(() => fetchJson(sources.sheet({ startDate, endDate })), "Aura inputs"),
                     hasComp ? safe(() => fetchJson(sources.sheet(comp)), "Aura inputs (comparison)") : null,
+                    sources.ga4 ? safe(() => fetchJson(sources.ga4({ startDate, endDate })), "GA4") : null,
                 ]);
                 if (cancelled) return;
                 setData({
@@ -163,6 +168,12 @@ export default function AuraPerformanceDashboard() {
                     metaPrev: mp?.metrics_by_date || [],
                     sheet: sh,
                     sheetPrev: shp,
+                    ga4Configured: Boolean(sources.ga4),
+                    channels: ga
+                        ? mapReportToRows(ga)
+                              .map((r) => ({ channel: r.sessionDefaultChannelGroup || "(not set)", sessions: Number(r.sessions) || 0 }))
+                              .sort((a, b) => b.sessions - a.sessions)
+                        : null,
                     notes,
                     failed,
                 });
@@ -267,6 +278,7 @@ export default function AuraPerformanceDashboard() {
                     </section>
                     <AuraTrendChart sheets={yearData.sheets} spend={yearData.spend} />
                     <AuraSpendAllocationChart sheets={yearData.sheets} spend={yearData.spend} />
+                    <AuraSessionsChart channels={data.channels} ga4Configured={data.ga4Configured} />
                     {isAdmin && yearData.errors.length > 0 ? (
                         <p className="apex-ppc-chart-note aura-admin-note">Admin only. {yearData.errors.join("; ")}</p>
                     ) : null}
