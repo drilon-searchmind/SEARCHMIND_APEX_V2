@@ -137,3 +137,36 @@ export function monthlyTrend({ googleRows, metaRows, conversions, otherCost, spe
         cac: spendKnown && m.conversions > 0 ? m.cost / m.conversions : null,
     }));
 }
+
+export const MONTH_NAMES = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+];
+
+/**
+ * Monthly spend allocation (p calc rows 76 to 88): PPC = Google Ads, PS = Meta, Other = campaign budgets.
+ * `total` is the sum of the three; the chart labels are each channel's share of it (the sheet's "Label" columns).
+ */
+export function monthlyAllocation({ googleRows, metaRows, otherCost }) {
+    const months = Array.from({ length: 12 }, () => ({ ppc: 0, ps: 0, other: 0 }));
+    const add = (rows, field, valueOf) => {
+        for (const r of rows || []) {
+            const m = Number(String(r.date).slice(5, 7)) - 1;
+            if (m >= 0 && m < 12) months[m][field] += valueOf(r);
+        }
+    };
+    add(googleRows, "ppc", (r) => Number(r.ad_spend) || 0);
+    add(metaRows, "ps", (r) => Number(r.ad_spend) || 0);
+    add(otherCost, "other", (r) => Number(r.value) || 0);
+    return months.map((m) => ({ ...m, total: m.ppc + m.ps + m.other }));
+}

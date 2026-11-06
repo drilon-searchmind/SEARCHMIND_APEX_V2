@@ -13,6 +13,8 @@ import { formatComparisonPeriodDates } from "@/lib/dateRangeComparison";
 import { buildAuraSources, fetchJson } from "./auraApi";
 import { cac, googleAdsBlock, metaBlock, totalCost } from "./auraSheetLogic";
 import AuraTrendChart from "./AuraTrendChart";
+import AuraSpendAllocationChart from "./AuraSpendAllocationChart";
+import { useAuraYearData } from "./useAuraYearData";
 import CampaignFilterBar from "../components/CampaignFilterBar";
 import { EMPTY_FILTER, FILTER_CHANNELS, FILTER_PRESETS, loadSavedFilter, saveFilter } from "./auraFilter";
 
@@ -99,6 +101,9 @@ export default function AuraPerformanceDashboard() {
         setFilter(next);
         saveFilter(customerId, next);
     };
+
+    // One shared fetch of this year and last year for both monthly charts.
+    const yearData = useAuraYearData({ customerId, settings, filter });
 
     // Primitive keys: the range objects from the hook are new objects on every render.
     const startDate = appliedRange.startDate;
@@ -260,7 +265,11 @@ export default function AuraPerformanceDashboard() {
                             note="Needs conversions"
                         />
                     </section>
-                    <AuraTrendChart key={filterKey} customerId={customerId} settings={settings} filter={filter} isAdmin={isAdmin} />
+                    <AuraTrendChart sheets={yearData.sheets} spend={yearData.spend} />
+                    <AuraSpendAllocationChart sheets={yearData.sheets} spend={yearData.spend} />
+                    {isAdmin && yearData.errors.length > 0 ? (
+                        <p className="apex-ppc-chart-note aura-admin-note">Admin only. {yearData.errors.join("; ")}</p>
+                    ) : null}
                 </>
             )}
         </div>
