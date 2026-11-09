@@ -1,7 +1,7 @@
 {
   "schema": "searchmind.session-state/v2",
   "session_id": "4a4d1f94-9826-4bb0-b36a-5cd998625f0c",
-  "updated_at": "2026-11-09T10:38:33.273Z",
+  "updated_at": "2026-11-09T10:47:07.970Z",
   "intent_at": "",
   "confirmed": {
     "goal": "",
@@ -26,6 +26,7 @@
       "src/app/(protected)/dashboard/[customerId]/custom-dashboards/components/DashboardTabs.jsx"
     ],
     "references": [
+      "http://localhost:3000/dashboard/6a2beefcbe106fcd31646dcb/custom/overview-day",
       "http://localhost:3000/dashboard/6a2beefcbe106fcd31646dcb/custom/pace",
       "http://localhost:3000/dashboard/",
       "https://docs.google.com/spreadsheets/d/$ID/export?format=csv&gid=$g",
@@ -36,8 +37,7 @@
       "http://localhost:3000/api/facebook-campaign-insights?adAccountId=act_619353518260992&since=2025-01-01&until=2025-12-31&dashboardCustomerId=6a2beefcbe106fcd31646dcb&metricsOnly=1$P",
       "http://localhost:3000/api/google-ppc-dashboard?customerId=9994739724&startDate=2026-04-01&endDate=2026-04-30&dashboardCustomerId=6a2beefcbe106fcd31646dcb",
       "http://localhost:3000/api/google-ppc-dashboard?customerId=9994739724&startDate=2026-04-01&endDate=2026-04-30&dashboardCustomerId=6a2beefcbe106fcd31646dcb&campaignInclude=$T",
-      "http://localhost:3000/api/facebook-campaign-insights?adAccountId=act_619353518260992&since=2025-$1-01&until=2025-$1-$2&dashboardCustomerId=6a2beefcbe106fcd31646dcb&campaignInclude=Emob,Permission,Ladebok",
-      "http://localhost:3000/api/facebook-campaign-insights?adAccountId=act_619353518260992&since=2026-01-01&until=2026-01-31&dashboardCustomerId=6a2beefcbe106fcd31646dcb&campaignInclude=Emob,Permission,Ladebok"
+      "http://localhost:3000/api/facebook-campaign-insights?adAccountId=act_619353518260992&since=2025-$1-01&until=2025-$1-$2&dashboardCustomerId=6a2beefcbe106fcd31646dcb&campaignInclude=Emob,Permission,Ladebok"
     ]
   },
   "suggested": {

@@ -89,6 +89,7 @@
 
 /* Daily tables */
 .aura-table-wrap {
+  position: relative; /* keeps the sr-only table caption inside, it is absolutely positioned */
   margin-top: var(--space-md);
   overflow-x: auto;
   background: var(--perf-raised);
@@ -111,8 +112,6 @@
 }
 
 .aura-table thead th {
-  position: sticky;
-  top: 0;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--color-muted);
