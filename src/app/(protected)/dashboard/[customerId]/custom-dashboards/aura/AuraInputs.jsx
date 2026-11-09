@@ -8,11 +8,13 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { AURA_CHANNELS, AURA_COST_CHANNEL, conversionTotal } from "@/lib/auraInputs";
 import { MONTH_NAMES } from "./auraSheetLogic";
 import { fetchJson, isoDate } from "./auraApi";
+import AuraFilterEditor from "./AuraFilterEditor";
 
 const TABS = [
     { key: "conversions", label: "Conversions" },
     { key: "campaigns", label: "Campaign budgets" },
     { key: "goals", label: "Goals" },
+    { key: "filter", label: "Campaign filter" },
 ];
 
 const nf0 = new Intl.NumberFormat("da-DK", { maximumFractionDigits: 0 });
@@ -33,9 +35,6 @@ function NumberCell({ value, onChange, label, placeholder = "" }) {
     );
 }
 
-const hasConversionData = (r) =>
-    [r.ejeNy, r.ejeEks, r.lejeNy, r.lejeEks].some((v) => v !== null && v !== undefined && v !== "") || Number(r.value) > 0;
-
 function daysInMonth(month) {
     const [y, m] = month.split("-").map(Number);
     return Array.from({ length: new Date(y, m, 0).getDate() }, (_, i) => `${month}-${String(i + 1).padStart(2, "0")}`);
@@ -46,12 +45,13 @@ function ConversionsEditor({ rows, setRows }) {
     const byDate = useMemo(() => new Map(rows.map((r) => [r.date, r])), [rows]);
     const days = daysInMonth(month);
 
-    const update = (date, patch) =>
+    // One total per day. Saving a total replaces any older breakdown (Eje / Leje) the day had.
+    const setTotal = (date, total) =>
         setRows((prev) => {
-            const current = prev.find((r) => r.date === date) || { date, value: 0, ejeNy: null, ejeEks: null, lejeNy: null, lejeEks: null };
-            const next = { ...current, ...patch };
             const rest = prev.filter((r) => r.date !== date);
-            return hasConversionData(next) ? [...rest, next].sort((a, b) => a.date.localeCompare(b.date)) : rest;
+            if (!(total > 0)) return rest;
+            const next = { date, value: total, ejeNy: null, ejeEks: null, lejeNy: null, lejeEks: null };
+            return [...rest, next].sort((a, b) => a.date.localeCompare(b.date));
         });
 
     const monthTotal = days.reduce((s, d) => s + (byDate.get(d) ? conversionTotal(byDate.get(d)) : 0), 0);
@@ -64,8 +64,8 @@ function ConversionsEditor({ rows, setRows }) {
                     <input type="month" className="cd-input" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} />
                 </label>
                 <p className="cd-editor__hint">
-                    {MONTH_NAMES[Number(month.slice(5, 7)) - 1]} {month.slice(0, 4)} total: <strong>{nf0.format(monthTotal)}</strong>. Fill in the four
-                    columns and the total is the sum. Older days may only have a total.
+                    {MONTH_NAMES[Number(month.slice(5, 7)) - 1]} {month.slice(0, 4)} total: <strong>{nf0.format(monthTotal)}</strong>. Type the total
+                    number of conversions per day.
                 </p>
             </div>
             <div className="cd-table-wrap">
@@ -73,36 +73,18 @@ function ConversionsEditor({ rows, setRows }) {
                     <thead>
                         <tr>
                             <th>Date</th>
-                            <th>Eje, new</th>
-                            <th>Eje, existing</th>
-                            <th>Leje, new</th>
-                            <th>Leje, existing</th>
-                            <th>Total</th>
+                            <th>Conversions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {days.map((date) => {
-                            const r = byDate.get(date) || {};
-                            const breakdown = [r.ejeNy, r.ejeEks, r.lejeNy, r.lejeEks].some((v) => v !== null && v !== undefined && v !== "");
+                            const r = byDate.get(date);
+                            const total = r ? conversionTotal(r) : 0;
                             return (
                                 <tr key={date}>
                                     <td>{date}</td>
-                                    {["ejeNy", "ejeEks", "lejeNy", "lejeEks"].map((field) => (
-                                        <td key={field}>
-                                            <NumberCell value={r[field]} label={`${field} ${date}`} onChange={(v) => update(date, { [field]: v })} />
-                                        </td>
-                                    ))}
                                     <td>
-                                        {breakdown ? (
-                                            <strong>{nf2.format(conversionTotal(r))}</strong>
-                                        ) : (
-                                            <NumberCell
-                                                value={r.value || null}
-                                                label={`Total ${date}`}
-                                                placeholder="0"
-                                                onChange={(v) => update(date, { value: v ?? 0 })}
-                                            />
-                                        )}
+                                        <NumberCell value={total || null} label={`Conversions ${date}`} placeholder="0" onChange={(v) => setTotal(date, v ?? 0)} />
                                     </td>
                                 </tr>
                             );
@@ -357,6 +339,7 @@ export default function AuraInputs() {
                     {tab === "conversions" ? <ConversionsEditor rows={draft.conversions} setRows={setRows("conversions")} /> : null}
                     {tab === "campaigns" ? <CampaignsEditor rows={draft.campaigns} setRows={setRows("campaigns")} /> : null}
                     {tab === "goals" ? <GoalsEditor rows={draft.goals} setRows={setRows("goals")} /> : null}
+                    {tab === "filter" ? <AuraFilterEditor customerId={customerId} value={draft.filter} setValue={setRows("filter")} /> : null}
                 </section>
             )}
         </div>

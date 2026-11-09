@@ -25,10 +25,12 @@ documented in `aura/SHEET_LOGIC.md`. The calculations live in `aura/auraSheetLog
 
 ## Campaign filter
 
-`components/CampaignFilterBar.jsx` is a reusable filter (off by default) that dashboards can drop in. It produces
-`{ enabled, google: { include, exclude }, meta: { include, exclude } }`, which `aura/auraApi.js` turns into the
+The campaign filter is one setting on the account, not per viewer. It is edited once under Data inputs, Campaign filter
+(`aura/AuraFilterEditor.jsx`, with a test tool that lists the campaigns a month imports and lets single campaigns be excluded by
+exact name), saved as the `filter` input and read by every Aura dashboard through `aura/useAuraFilter.js`. Its shape is
+`{ enabled, google: { include, exclude, excludeExact }, meta: { ... } }`, which `aura/auraApi.js` turns into the
 `campaignInclude` / `campaignExclude` params of `/api/google-ppc-dashboard` and `/api/facebook-campaign-insights`
-(matching lives in `src/lib/campaignNameFilter.js`). Presets and channels are passed in per customer (see `aura/auraFilter.js`).
+(matching lives in `src/lib/campaignNameFilter.js`; an exclude term starting with `=` is an exact campaign name).
 
 ## Hand-entered inputs
 

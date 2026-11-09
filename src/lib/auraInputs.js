@@ -6,9 +6,10 @@
  *  - conversions: [{ date, value, ejeNy, ejeEks, lejeNy, lejeEks }]  daily Emob conversions
  *  - campaigns:   [{ name, channel, budget, startDate, endDate }]    planned campaign budgets ("Other" cost)
  *  - goals:       [{ goal, budget }] x 12                            monthly customer goal and budget (Jan to Dec)
+ *  - filter:      { enabled, google: {...}, meta: {...} }            account wide campaign name filter, see normalizeFilter
  */
 
-export const AURA_INPUT_KEYS = ["conversions", "campaigns", "goals"];
+export const AURA_INPUT_KEYS = ["conversions", "campaigns", "goals", "filter"];
 
 /** "Kanal" in the sheet. Only Emob feeds the Aura dashboard, the others are kept for reference. */
 export const AURA_CHANNELS = ["Emob", "EL", "Fiber"];
@@ -67,10 +68,28 @@ export function normalizeGoals(goals) {
     return Array.from({ length: 12 }, (_, i) => ({ goal: num(goals?.[i]?.goal), budget: num(goals?.[i]?.budget) }));
 }
 
+const text = (v, max) => String(v ?? "").trim().slice(0, max);
+
+/**
+ * The account wide campaign filter. Per channel (google, meta): `include` and `exclude` are comma separated
+ * "name contains" terms, `excludeExact` is a list of exact campaign names picked in the filter test tool.
+ */
+export function normalizeFilter(filter) {
+    const channel = (c) => ({
+        include: text(c?.include, 500),
+        exclude: text(c?.exclude, 500),
+        excludeExact: Array.isArray(c?.excludeExact)
+            ? [...new Set(c.excludeExact.map((n) => text(n, 300)).filter(Boolean))].slice(0, 300)
+            : [],
+    });
+    return { enabled: filter?.enabled === true, google: channel(filter?.google), meta: channel(filter?.meta) };
+}
+
 /** Validates and cleans what the editor sends. Throws with a readable message. */
 export function sanitizeAuraInput(key, data) {
     if (!AURA_INPUT_KEYS.includes(key)) throw new Error(`Unknown input "${key}"`);
     if (key === "goals") return normalizeGoals(data);
+    if (key === "filter") return normalizeFilter(data);
     if (!Array.isArray(data)) throw new Error("Expected a list");
     if (data.length > 5000) throw new Error("Too many rows");
     const optionalNumber = (v) => (v === "" || v === null || v === undefined ? null : num(v));

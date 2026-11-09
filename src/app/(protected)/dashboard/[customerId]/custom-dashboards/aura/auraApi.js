@@ -1,4 +1,5 @@
 import { isValidIntegrationId } from "@/lib/customerServiceIntegrations";
+import { buildExcludeText } from "@/lib/campaignNameFilter";
 
 /** GET json, throws the API's error message on failure. */
 export async function fetchJson(url) {
@@ -11,9 +12,10 @@ export async function fetchJson(url) {
 /** Adds the campaign name filter params for one channel when the filter is on. */
 function applyCampaignFilter(params, filter, channel) {
     if (!filter?.enabled) return;
-    const { include, exclude } = filter[channel] || {};
+    const { include, exclude, excludeExact } = filter[channel] || {};
     if (include?.trim()) params.set("campaignInclude", include.trim());
-    if (exclude?.trim()) params.set("campaignExclude", exclude.trim());
+    const excludeText = buildExcludeText(exclude, excludeExact);
+    if (excludeText) params.set("campaignExclude", excludeText);
 }
 
 /**

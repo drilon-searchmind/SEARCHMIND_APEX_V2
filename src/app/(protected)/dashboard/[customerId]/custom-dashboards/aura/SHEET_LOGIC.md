@@ -110,7 +110,7 @@ So the old dashboard only counted the Emob product (EV charger) campaigns, while
 
 Also: the Conversions tab in the source sheet has its older rows hidden (everything before 7 Dec 2025). The Google gviz endpoint skips hidden rows, so that tab is read through the CSV export instead.
 
-The dashboard has a reusable **campaign filter** (`components/CampaignFilterBar.jsx`, off by default). When on, the Google Ads and Meta requests get `campaignInclude` / `campaignExclude` (comma separated, "name contains", case-insensitive). The "Emob (as in the old sheet)" preset fills in the terms above and reproduces the sheet's January 2026 cost (Google Ads 91,100.38 vs 91,100.41, Meta 61,491 vs 61,491). The filter applies to the KPIs and the Conversions / CAC chart. Search terms, impression share and the account summary in the underlying Google Ads response are not filtered.
+The dashboard has a reusable **campaign filter** (an account setting under Data inputs, off by default). When on, the Google Ads and Meta requests get `campaignInclude` / `campaignExclude` (comma separated, "name contains", case-insensitive). The "Emob (as in the old sheet)" preset fills in the terms above and reproduces the sheet's January 2026 cost (Google Ads 91,100.38 vs 91,100.41, Meta 61,491 vs 61,491). The filter applies to the KPIs and the Conversions / CAC chart. Search terms, impression share and the account summary in the underlying Google Ads response are not filtered.
 
 Month by month check of the Emob preset (Google Ads: `ladeboks, SM - V: Branding`, Meta: `Emob, Permission`) against the sheet's monthly cost:
 Google Ads matches to the krone for January to March and May to September. April is 2,731 lower in Apex (one small campaign the sheet counts is not

@@ -1,9 +1,15 @@
-/** Campaign filter defaults and presets for the Aura dashboard (UI lives in ../components/CampaignFilterBar). */
+/**
+ * Campaign filter for the Aura dashboards. It is one setting on the account (saved under Data inputs, Campaign filter)
+ * and applies to every Aura dashboard, so it is configured once.
+ *
+ * Shape: { enabled, google: { include, exclude, excludeExact[] }, meta: { include, exclude, excludeExact[] } }
+ * include / exclude are comma separated "name contains" terms, excludeExact holds exact campaign names.
+ */
 
 export const EMPTY_FILTER = {
     enabled: false,
-    google: { include: "", exclude: "" },
-    meta: { include: "", exclude: "" },
+    google: { include: "", exclude: "", excludeExact: [] },
+    meta: { include: "", exclude: "", excludeExact: [] },
 };
 
 export const FILTER_CHANNELS = [
@@ -19,33 +25,7 @@ export const FILTER_PRESETS = [
     {
         id: "emob",
         label: "Emob (as in the old sheet)",
-        google: { include: "ladeboks, SM - V: Branding", exclude: "" },
-        meta: { include: "Emob, Permission, Ladebok", exclude: "" },
+        google: { include: "ladeboks, SM - V: Branding", exclude: "", excludeExact: [] },
+        meta: { include: "Emob, Permission, Ladebok", exclude: "", excludeExact: [] },
     },
 ];
-
-const storageKey = (customerId) => `aura-campaign-filter-${customerId}`;
-
-/** Per viewer convenience only: storage can be unavailable, so every access is guarded. */
-export function loadSavedFilter(customerId) {
-    try {
-        const raw = window.localStorage.getItem(storageKey(customerId));
-        if (!raw) return EMPTY_FILTER;
-        const parsed = JSON.parse(raw);
-        return {
-            enabled: parsed.enabled === true,
-            google: { ...EMPTY_FILTER.google, ...parsed.google },
-            meta: { ...EMPTY_FILTER.meta, ...parsed.meta },
-        };
-    } catch {
-        return EMPTY_FILTER;
-    }
-}
-
-export function saveFilter(customerId, filter) {
-    try {
-        window.localStorage.setItem(storageKey(customerId), JSON.stringify(filter));
-    } catch {
-        // Storage unavailable, the filter simply is not remembered.
-    }
-}

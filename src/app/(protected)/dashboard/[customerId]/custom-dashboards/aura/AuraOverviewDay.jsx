@@ -5,10 +5,9 @@ import { useParams } from "next/navigation";
 import { FiArrowDown, FiArrowUp } from "react-icons/fi";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import CobaltLoader from "@/components/ui/CobaltLoader";
-import CampaignFilterBar from "../components/CampaignFilterBar";
+import AuraFilterStatus from "./AuraFilterStatus";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useUser } from "@/contexts/UserContext";
-import { FILTER_CHANNELS, FILTER_PRESETS } from "./auraFilter";
 import { useAuraFilter } from "./useAuraFilter";
 import { useAuraMonthData } from "./useAuraMonthData";
 import { MONTH_NAMES } from "./auraSheetLogic";
@@ -99,7 +98,7 @@ export default function AuraOverviewDay() {
     const now = new Date();
     const [period, setPeriod] = useState({ year: now.getFullYear(), month: now.getMonth() });
     const { year, month } = period;
-    const { filter, loaded, apply } = useAuraFilter(customerId);
+    const { filter, loaded } = useAuraFilter(customerId);
     const { data, error, loading } = useAuraMonthData({
         customerId,
         year: year,
@@ -144,9 +143,7 @@ export default function AuraOverviewDay() {
                 right={<AuraMonthPicker year={period.year} month={period.month} onChange={setPeriod} />}
             />
 
-            {loaded ? (
-                <CampaignFilterBar key={customerId} value={filter} onApply={apply} channels={FILTER_CHANNELS} presets={FILTER_PRESETS} />
-            ) : null}
+            {loaded ? <AuraFilterStatus customerId={customerId} filter={filter} /> : null}
 
             {loading ? (
                 <div className="apex-perf-loading">
@@ -162,7 +159,7 @@ export default function AuraOverviewDay() {
                     {!filter.enabled ? (
                         <p className="apex-ppc-chart-note">
                             Cost includes every campaign on the connected ad accounts. The old sheet only counted the Emob
-                            campaigns: switch on the campaign filter and choose the Emob preset to match it.
+                            campaigns: switch on the campaign filter under Data inputs and choose the Emob preset to match it.
                         </p>
                     ) : null}
 

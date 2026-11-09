@@ -22,8 +22,8 @@ import AuraMetaTab from "./AuraMetaTab";
 import HeroKpi, { nf0, nf2, pctChange } from "./HeroKpi";
 import DashboardTabs from "../components/DashboardTabs";
 import { useAuraYearData } from "./useAuraYearData";
-import CampaignFilterBar from "../components/CampaignFilterBar";
-import { EMPTY_FILTER, FILTER_CHANNELS, FILTER_PRESETS, loadSavedFilter, saveFilter } from "./auraFilter";
+import AuraFilterStatus from "./AuraFilterStatus";
+import { useAuraFilter } from "./useAuraFilter";
 
 const TABS = [
     { key: "overview", label: "Overview", icon: FiLayout },
@@ -45,9 +45,9 @@ export default function AuraPerformanceDashboard() {
         useDashboardDateRange();
 
     const [settings, setSettings] = useState(null);
-    // Campaign filter: off by default, remembered per viewer (localStorage) once applied.
-    const [filter, setFilter] = useState(EMPTY_FILTER);
-    const [filterLoaded, setFilterLoaded] = useState(false);
+    // Campaign filter: one setting on the account (Data inputs), off until it is switched on there.
+    const { filter, loaded: filterLoaded } = useAuraFilter(customerId);
+    const filterKey = JSON.stringify(filter);
     const [tab, setTab] = useState("overview");
     const [data, setData] = useState({
         google: [],
@@ -65,18 +65,6 @@ export default function AuraPerformanceDashboard() {
     });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-
-    useEffect(() => {
-        if (!customerId) return;
-        setFilter(loadSavedFilter(customerId));
-        setFilterLoaded(true);
-    }, [customerId]);
-
-    const filterKey = JSON.stringify(filter);
-    const handleApplyFilter = (next) => {
-        setFilter(next);
-        saveFilter(customerId, next);
-    };
 
     // One shared fetch of this year and last year for both monthly charts.
     const yearData = useAuraYearData({ customerId, settings, filter });
@@ -205,15 +193,7 @@ export default function AuraPerformanceDashboard() {
                 right={<DateRangePicker {...dateRangePickerProps} variant="cobalt" loading={loading} />}
             />
 
-            {filterLoaded ? (
-                <CampaignFilterBar
-                    key={customerId}
-                    value={filter}
-                    onApply={handleApplyFilter}
-                    channels={FILTER_CHANNELS}
-                    presets={FILTER_PRESETS}
-                />
-            ) : null}
+            {filterLoaded ? <AuraFilterStatus customerId={customerId} filter={filter} /> : null}
 
             <DashboardTabs tabs={TABS} value={tab} onChange={setTab} label="Dashboard sections" />
 
@@ -235,7 +215,7 @@ export default function AuraPerformanceDashboard() {
                         {!filter.enabled ? (
                             <p className="apex-ppc-chart-note">
                                 Cost and CAC include every campaign on the connected ad accounts. The old sheet only counted the
-                                Emob campaigns: switch on the campaign filter and choose the Emob preset to match it.
+                                Emob campaigns: switch on the campaign filter under Data inputs and choose the Emob preset to match it.
                             </p>
                         ) : null}
                         <section className="aura-hero" aria-label="Key figures">

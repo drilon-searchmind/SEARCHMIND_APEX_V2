@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getInputs, requireAuraAccess, setInput } from "@/lib/customDashboardInputs";
-import { AURA_INPUT_KEYS, normalizeGoals, sanitizeAuraInput } from "@/lib/auraInputs";
+import { AURA_INPUT_KEYS, normalizeFilter, normalizeGoals, sanitizeAuraInput } from "@/lib/auraInputs";
 
 /** GET /api/custom-dashboards/aura/inputs?customerId=... returns the hand-entered Aura values. */
 export async function GET(req) {
@@ -12,6 +12,7 @@ export async function GET(req) {
         conversions: stored.conversions || [],
         campaigns: stored.campaigns || [],
         goals: normalizeGoals(stored.goals),
+        filter: normalizeFilter(stored.filter),
     });
 }
 

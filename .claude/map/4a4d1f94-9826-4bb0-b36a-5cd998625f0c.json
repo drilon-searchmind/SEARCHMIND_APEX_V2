@@ -1,7 +1,7 @@
 {
   "schema": "searchmind.session-state/v2",
   "session_id": "4a4d1f94-9826-4bb0-b36a-5cd998625f0c",
-  "updated_at": "2026-11-09T10:47:07.970Z",
+  "updated_at": "2026-11-09T13:35:47.810Z",
   "intent_at": "",
   "confirmed": {
     "goal": "",
@@ -12,32 +12,32 @@
     "decisions": [],
     "questions": [],
     "active_files": [
+      "src/app/(protected)/dashboard/[customerId]/custom-dashboards/aura/AuraPerformanceDashboard.jsx",
+      "src/app/(protected)/dashboard/[customerId]/custom-dashboards/aura/AuraFilterEditor.jsx",
+      "src/app/(protected)/dashboard/[customerId]/custom-dashboards/aura/AuraFilterStatus.jsx",
       "src/app/(protected)/dashboard/[customerId]/custom-dashboards/aura/useAuraFilter.js",
+      "src/app/(protected)/dashboard/[customerId]/custom-dashboards/aura/auraFilter.js",
+      "src/app/api/custom-dashboards/aura/filter/route.js",
+      "src/lib/campaignNameFilter.js",
       "src/app/(protected)/dashboard/[customerId]/custom-dashboards/aura/aura-daily.css",
       "src/app/(protected)/dashboard/[customerId]/custom-dashboards/aura/AuraOverviewDay.jsx",
       "src/app/(protected)/dashboard/[customerId]/custom-dashboards/aura/AuraPaceReport.jsx",
       "src/app/(protected)/dashboard/[customerId]/custom-dashboards/aura/AuraMonthPicker.jsx",
-      "src/app/(protected)/dashboard/[customerId]/custom-dashboards/aura/useAuraMonthData.js",
-      "src/app/(protected)/dashboard/[customerId]/custom-dashboards/aura/auraDailyLogic.js",
-      "src/app/(protected)/dashboard/[customerId]/custom-dashboards/aura/AuraMetaTab.jsx",
-      "src/app/(protected)/dashboard/[customerId]/custom-dashboards/aura/AuraGoogleAdsTab.jsx",
-      "src/app/(protected)/dashboard/[customerId]/custom-dashboards/aura/AuraMonthlyMetricChart.jsx",
-      "src/app/(protected)/dashboard/[customerId]/custom-dashboards/aura/HeroKpi.jsx",
-      "src/app/(protected)/dashboard/[customerId]/custom-dashboards/components/DashboardTabs.jsx"
+      "src/app/(protected)/dashboard/[customerId]/custom-dashboards/aura/useAuraMonthData.js"
     ],
     "references": [
-      "http://localhost:3000/dashboard/6a2beefcbe106fcd31646dcb/custom/overview-day",
       "http://localhost:3000/dashboard/6a2beefcbe106fcd31646dcb/custom/pace",
+      "http://localhost:3000/dashboard/6a2beefcbe106fcd31646dcb/custom/inputs",
+      "https://apex.searchmind.tech/dashboard/6a2beefcbe106fcd31646dcb/custom/pace",
+      "https://apex.searchmind.tech/dashboard/6a2beefcbe106fcd31646dcb/custom/overview-day",
+      "http://localhost:3000/dashboard/6a2beefcbe106fcd31646dcb/custom/overview-day",
       "http://localhost:3000/dashboard/",
       "https://docs.google.com/spreadsheets/d/$ID/export?format=csv&gid=$g",
       "https://docs.google.com/spreadsheets/d/1X0OeAZ2JthvHBT6wIoBivGB7aDAZNlrCk51-lG5TKjo/edit?gid=1589135005#gid=1589135005",
       "https://docs.google.com/spreadsheets/d/1X0OeAZ2JthvHBT6wIoBivGB7aDAZNlrCk51-lG5TKjo/edit?gid=896205339#gid=896205339",
       "http://localhost:3000/dashboard/6a2beefcbe106fcd31646dcb/custom/performance",
       "http://localhost:3000/api/facebook-campaign-insights?adAccountId=act_619353518260992&since=2025-01-01&until=2025-12-31&dashboardCustomerId=6a2beefcbe106fcd31646dcb&metricsOnly=1&campaignInclude=Emob,Permission,Ladebok",
-      "http://localhost:3000/api/facebook-campaign-insights?adAccountId=act_619353518260992&since=2025-01-01&until=2025-12-31&dashboardCustomerId=6a2beefcbe106fcd31646dcb&metricsOnly=1$P",
-      "http://localhost:3000/api/google-ppc-dashboard?customerId=9994739724&startDate=2026-04-01&endDate=2026-04-30&dashboardCustomerId=6a2beefcbe106fcd31646dcb",
-      "http://localhost:3000/api/google-ppc-dashboard?customerId=9994739724&startDate=2026-04-01&endDate=2026-04-30&dashboardCustomerId=6a2beefcbe106fcd31646dcb&campaignInclude=$T",
-      "http://localhost:3000/api/facebook-campaign-insights?adAccountId=act_619353518260992&since=2025-$1-01&until=2025-$1-$2&dashboardCustomerId=6a2beefcbe106fcd31646dcb&campaignInclude=Emob,Permission,Ladebok"
+      "http://localhost:3000/api/facebook-campaign-insights?adAccountId=act_619353518260992&since=2025-01-01&until=2025-12-31&dashboardCustomerId=6a2beefcbe106fcd31646dcb&metricsOnly=1$P"
     ]
   },
   "suggested": {
