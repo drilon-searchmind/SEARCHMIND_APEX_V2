@@ -6,4 +6,5 @@
 import "../performance-dashboard/performance-dashboard.css";
 import "../service-dashboard/ppc/ppc-dashboard.css";
 import "./aura/aura-dashboard.css";
+import "./aura/aura-daily.css";
 import "./custom-dashboards.css";

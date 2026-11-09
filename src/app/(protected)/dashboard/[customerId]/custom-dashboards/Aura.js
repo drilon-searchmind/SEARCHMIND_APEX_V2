@@ -11,6 +11,16 @@ const aura = {
             Component: dynamic(() => import("./aura/AuraPerformanceDashboard"), { ssr: false }),
         },
         {
+            slug: "pace",
+            label: "Pace report",
+            Component: dynamic(() => import("./aura/AuraPaceReport"), { ssr: false }),
+        },
+        {
+            slug: "overview-day",
+            label: "Overview day",
+            Component: dynamic(() => import("./aura/AuraOverviewDay"), { ssr: false }),
+        },
+        {
             slug: "inputs",
             label: "Data inputs",
             Component: dynamic(() => import("./aura/AuraInputs"), { ssr: false }),

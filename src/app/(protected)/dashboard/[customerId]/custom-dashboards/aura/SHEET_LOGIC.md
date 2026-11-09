@@ -120,3 +120,20 @@ Meta (Emob preset `Emob, Permission, Ladebok`) matches the sheet's monthly cost 
 In the Meta tab "Clicks" are Meta link clicks, as in the sheet (22,805 link clicks in January 2026 against 29,241 total clicks), so CTR = link clicks /
 impressions, CPC = spend / link clicks, CPM = spend / impressions x 1000 and CAC = spend / conversions. The sheet's own Meta period KPIs show
 Conversions 0 and a broken third scorecard (a column mapping mistake in the sheet), the monthly charts are correct. Apex shows the real conversions.
+
+## Pace report and Overview day (Apex: Custom > Pace report, Custom > Overview day)
+
+Both sheet tabs use the same daily data as the Performance dashboard (Google Ads daily spend, Meta daily spend, saved
+daily conversions, saved campaign budgets as "Other" cost) for one month. Code: `auraDailyLogic.js`, `useAuraMonthData.js`.
+
+- Overview Day: a month picked in a dropdown. Per day: Conversions, PPC Cost (Google Ads), PS Cost (Meta), Other Cost,
+  Spend Total (= PPC + PS + Other) and CAC (= Spend Total / Conversions). Days that have not finished are blank.
+  Total row = sum of the finished days, CAC = total spend / total conversions. "Last Year" = the same number of days
+  a year earlier (checked: 43 conversions = the first 8 days of November 2025), Index = this year / last year x 100,
+  Dif = this year minus last year. Weekends are marked.
+- Pace: month budget and customer goal come from the saved Goals input (the sheet typed them into the Pace tab AND Config).
+  Pace (cost) = cost to date / (budget / days in month x finished days), Pace (customers) the same with the goal, finished
+  days = DAY(today) - 1. Suggested daily adjustment = `-(cost - daily budget x finished) / (days - finished) + (daily budget - cost / finished)`.
+  Checked against the sheet's 9 November 2026 figures: 46,807 cost, 178,667 budget -> 0.98, 143; 115 customers, goal 250 -> 1.73.
+  The two charts are the cumulative cost against the straight budget line and cumulative conversions against the straight goal line.
+- Like the other views, cost only matches the sheet with the Emob campaign filter on (see section 6).
