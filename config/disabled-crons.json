@@ -1,0 +1,10 @@
+{
+  "_comment": "Crons removed from vercel.json (hidden from Vercel Schedules / Cron Jobs). The route code still exists. To re-enable, add an entry under `schedules` in vercel.json: name -> { schedule, path, requestMethod: \"GET\" } (UTC unless `timezone` is set). The /manual routes only had a dummy yearly schedule so they showed a 'Run' button in the dashboard; run them with a Bearer CRON_SECRET request or `vercel schedules invoke` instead.",
+  "disabled": [
+    { "path": "/api/cron/apex-radar-slack", "schedule": "0 6 * * *" },
+    { "path": "/api/cron/performance-brief/prepare", "schedule": "*/10 * * * *" },
+    { "path": "/api/cron/performance-brief/deliver", "schedule": "0 * * * *" },
+    { "path": "/api/cron/performance-brief/prepare/manual", "schedule": "0 0 1 1 *" },
+    { "path": "/api/cron/performance-brief/deliver/manual", "schedule": "0 0 1 1 *" }
+  ]
+}
