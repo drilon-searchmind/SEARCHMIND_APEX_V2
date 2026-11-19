@@ -40,3 +40,6 @@ Values an ad platform API cannot provide (for Aura: daily conversions, planned c
 `CustomDashboardInput` (`src/models/CustomDashboardInput.js`) and edited on the dashboard's "Data inputs" page (`aura/AuraInputs.jsx`).
 `src/lib/auraInputs.js` validates them and turns them into daily series, `/api/custom-dashboards/aura/inputs` reads and saves them (writing is
 limited to internal users) and `/api/custom-dashboards/aura/data` serves the computed series to the dashboard.
+
+To re-sync from the client's Google Sheets (hub `1oAOXZJE…`, one **Campaign** tab for all products, per-product Performance Dashboard **Config** for goals): run
+`node scripts/aura-import-aura-inputs-from-sheet.mjs` (optional `--dry-run`, `--keys=conversions,campaigns,goals`).
