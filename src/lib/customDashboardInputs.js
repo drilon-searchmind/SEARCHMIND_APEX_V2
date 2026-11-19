@@ -3,9 +3,10 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import connectToDatabase from "@root/lib/mongodb";
 import Customer from "@/models/Customer";
 import CustomDashboardInput from "@/models/CustomDashboardInput";
+import { isAuraCustomerName } from "@/lib/auraCustomerProfile";
 
-/** The customer allowed to use the Aura inputs API (must also have "Custom dashboards" switched on). */
-export const AURA_CUSTOMER_NAME = "Aura DK";
+/** @deprecated use isAuraCustomerName */
+export const AURA_CUSTOMER_NAME = "Aura - EMOB";
 
 /**
  * Session and customer check shared by the Aura input routes.
@@ -21,11 +22,7 @@ export async function requireAuraAccess(customerId, { write = false } = {}) {
     }
     await connectToDatabase();
     const customer = await Customer.findById(customerId).select("customerName CustomerSettings.customDashboardsEnabled").lean();
-    if (
-        !customer ||
-        customer.customerName !== AURA_CUSTOMER_NAME ||
-        customer.CustomerSettings?.customDashboardsEnabled !== true
-    ) {
+    if (!customer || !isAuraCustomerName(customer.customerName) || customer.CustomerSettings?.customDashboardsEnabled !== true) {
         return { error: { message: "Not available for this customer", status: 404 } };
     }
     return { session, customer };

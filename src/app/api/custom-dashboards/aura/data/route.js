@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getInputs, requireAuraAccess } from "@/lib/customDashboardInputs";
 import { conversionSeries, normalizeGoals, otherCostSeries } from "@/lib/auraInputs";
+import { auraCostChannelForCustomerName } from "@/lib/auraCustomerProfile";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -19,9 +20,10 @@ export async function GET(req) {
     const access = await requireAuraAccess(customerId);
     if (access.error) return NextResponse.json({ error: access.error.message }, { status: access.error.status });
     const stored = await getInputs(customerId, "aura");
+    const costChannel = auraCostChannelForCustomerName(access.customer.customerName);
     return NextResponse.json({
         conversions: conversionSeries(stored.conversions, startDate, endDate),
-        otherCost: otherCostSeries(stored.campaigns, startDate, endDate),
+        otherCost: otherCostSeries(stored.campaigns, startDate, endDate, costChannel),
         goals: normalizeGoals(stored.goals),
     });
 }

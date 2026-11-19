@@ -18,7 +18,9 @@ Hardcoded dashboards for single customers. Shown in the sidebar under **Custom**
 3. Import its stylesheets in `styles.js` (not inside the dashboard component, lazy chunks do not load CSS in dev).
 4. Turn on "Custom dashboards" in that customer's Config.
 
-## Aura DK
+## Aura (EMOB, EL, Fiber)
+
+Three Apex customers share the same `aura/` UI (`src/lib/auraCustomerProfile.js`): **Aura - EMOB**, **Aura - EL**, **Aura - Fiber** (legacy name **Aura DK** = EMOB).
 
 `aura/` rebuilds the old Google Sheets / Supermetrics dashboard. The sheet's logic and what could not be matched is
 documented in `aura/SHEET_LOGIC.md`. The calculations live in `aura/auraSheetLogic.js`.
