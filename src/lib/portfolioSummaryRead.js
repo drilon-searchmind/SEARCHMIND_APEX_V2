@@ -6,6 +6,7 @@ const PUBLIC_FIELDS = [
     "customerId",
     "customerName",
     "currency",
+    "storeCurrency",
     "parentId",
     "parentName",
     "revenue",

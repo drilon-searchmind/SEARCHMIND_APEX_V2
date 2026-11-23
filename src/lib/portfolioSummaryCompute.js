@@ -66,7 +66,10 @@ export async function computePortfolioSummaryRow(customerDoc, window, opts = {})
     const base = {
         customerId,
         customerName: customer.customerName || "",
-        currency: settings.customerStoreValutaCode || "DKK",
+        // All money fields are converted to DKK by fetchMergedSources / Meta / Google pipelines.
+        // Do not label with the shop's native currency (EUR/GBP) — that misleads MCP/TV dashboards.
+        currency: "DKK",
+        storeCurrency: settings.customerStoreValutaCode || "DKK",
         parentId,
         parentName,
         businessCategory: "ecommerce",

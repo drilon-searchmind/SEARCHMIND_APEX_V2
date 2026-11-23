@@ -10,7 +10,10 @@ const PortfolioSummarySnapshotSchema = new mongoose.Schema(
         /** `${start}_${end}_${compareStart}_${compareEnd}` */
         windowKey: { type: String, required: true, index: true },
         customerName: { type: String, default: "" },
+        /** Presentation currency for all money fields (always DKK after Apex FX). */
         currency: { type: String, default: "DKK" },
+        /** Shop's native currency code (informational only). */
+        storeCurrency: { type: String, default: "DKK" },
         parentId: { type: String, default: null },
         parentName: { type: String, default: null },
         businessCategory: { type: String, default: "ecommerce" },
