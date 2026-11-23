@@ -6,12 +6,6 @@
       "timezone": "Europe/Copenhagen",
       "path": "/api/cron/indeks",
       "requestMethod": "GET"
-    },
-    "portfolio-summary": {
-      "schedule": "*/5 8-22 * 11 *",
-      "timezone": "Europe/Copenhagen",
-      "path": "/api/cron/portfolio-summary",
-      "requestMethod": "GET"
     }
   }
 }

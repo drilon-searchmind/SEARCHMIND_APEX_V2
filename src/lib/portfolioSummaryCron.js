@@ -33,9 +33,10 @@ function numEnv(name, fallback) {
     return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+/** Default OFF — Google Ads quota was exhausted by the 5-min Black Days sync. Re-enable via env when ready. */
 export function isPortfolioSummaryCronEnabled() {
-    const flag = (process.env.PORTFOLIO_SUMMARY_CRON_ENABLED || "true").trim().toLowerCase();
-    return flag !== "false" && flag !== "0" && flag !== "off";
+    const flag = (process.env.PORTFOLIO_SUMMARY_CRON_ENABLED || "false").trim().toLowerCase();
+    return flag === "true" || flag === "1" || flag === "on";
 }
 
 async function loadParentNameById(customers) {
