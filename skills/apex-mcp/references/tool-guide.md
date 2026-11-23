@@ -173,7 +173,7 @@ Default allowlisted — no admin route approval required.
 | `/api/customer-segmentation` | `startDate`, `endDate` |
 | `/api/data-wrapped` | `period` (YYYY-MM) |
 | `/api/weekly-audit` | `startDate`, `endDate`; optional `compare` (`prev_period` default, `yoy`) |
-| `/api/portfolio-summary` | `startDate`, `endDate`; optional `compareStartDate`, `compareEndDate` — **all ecommerce customers** from precomputed snapshots (Black Days TV). Pass any valid `customerId`. No live platform calls. |
+| `/api/portfolio-summary` | `startDate`, `endDate`; optional `compareStartDate`, `compareEndDate` — **all ecommerce customers** from precomputed snapshots (Black Days TV). Includes `netSales` / `totalSales` / `grossSales` / `custom1Sales` (+ Prev), `revenueType`, `preferredRevenue`. Pass any valid `customerId`. No live platform calls. |
 | `/api/klaviyo-scheduled-campaigns` | optional `daysAhead` (default 60), `includeDrafts` (default true) |
 | `/api/klaviyo-flows` | optional `includeActions` (default true), `status` (`live`/`draft`/`manual`), `maxFlows` (default 80) |
 | `/api/apex-radar` | `startDate`, `endDate`, `channel` (`google-ads` or `facebook`) |

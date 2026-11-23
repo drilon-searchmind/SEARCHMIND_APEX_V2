@@ -23,8 +23,21 @@ const PortfolioSummarySnapshotSchema = new mongoose.Schema(
         compareStartDate: { type: String, required: true },
         compareEndDate: { type: String, required: true },
 
+        /** Headline = net sales (weekly-audit compatible). */
         revenue: { type: Number, default: null },
         revenuePrev: { type: Number, default: null },
+        /** Customer's CustomerSettings.customerRevenueType. */
+        revenueType: { type: String, default: "net_sales" },
+        preferredRevenue: { type: Number, default: null },
+        preferredRevenuePrev: { type: Number, default: null },
+        netSales: { type: Number, default: null },
+        netSalesPrev: { type: Number, default: null },
+        totalSales: { type: Number, default: null },
+        totalSalesPrev: { type: Number, default: null },
+        grossSales: { type: Number, default: null },
+        grossSalesPrev: { type: Number, default: null },
+        custom1Sales: { type: Number, default: null },
+        custom1SalesPrev: { type: Number, default: null },
         orders: { type: Number, default: null },
         ordersPrev: { type: Number, default: null },
 

@@ -38,6 +38,60 @@ function sumField(rows, key) {
     return (rows || []).reduce((s, d) => s + (parseFloat(d[key]) || 0), 0);
 }
 
+/** Store revenue breakdown (already DKK from fetchMergedSources). */
+function storeRevenueBreakdown(shopifyDaily) {
+    return {
+        netSales: roundNum(sumField(shopifyDaily, "net_sales")),
+        totalSales: roundNum(sumField(shopifyDaily, "total_sales")),
+        grossSales: roundNum(sumField(shopifyDaily, "gross_sales")),
+        custom1Sales: roundNum(sumField(shopifyDaily, "custom_1")),
+    };
+}
+
+function preferredStoreRevenue(breakdown, revenueType) {
+    const type = String(revenueType || "net_sales").trim();
+    if (type === "total_sales") return breakdown.totalSales;
+    if (type === "gross_sales") return breakdown.grossSales;
+    if (type === "custom_1") return breakdown.custom1Sales;
+    return breakdown.netSales;
+}
+
+function emptyMoneyFields() {
+    return {
+        revenue: null,
+        revenuePrev: null,
+        revenueType: "net_sales",
+        preferredRevenue: null,
+        preferredRevenuePrev: null,
+        netSales: null,
+        netSalesPrev: null,
+        totalSales: null,
+        totalSalesPrev: null,
+        grossSales: null,
+        grossSalesPrev: null,
+        custom1Sales: null,
+        custom1SalesPrev: null,
+        orders: null,
+        ordersPrev: null,
+        spendTotal: null,
+        spendTotalPrev: null,
+        spendGoogle: null,
+        spendGooglePrev: null,
+        spendMeta: null,
+        spendMetaPrev: null,
+        spendOther: null,
+        spendOtherPrev: null,
+        revenueGoogle: null,
+        revenueGooglePrev: null,
+        revenueMeta: null,
+        revenueMetaPrev: null,
+        revenueEmail: null,
+        revenueEmailPrev: null,
+        grossProfit: null,
+        grossProfitPrev: null,
+    };
+}
+
 async function settle(promise) {
     try {
         return { ok: true, value: await promise };
@@ -104,26 +158,7 @@ export async function computePortfolioSummaryRow(customerDoc, window, opts = {})
             status: "error",
             lastError: curMergedR.error || prevMergedR.error || "Store/adspend fetch failed",
             dataGaps: [gap("store", "error", curMergedR.error || prevMergedR.error)],
-            revenue: null,
-            revenuePrev: null,
-            orders: null,
-            ordersPrev: null,
-            spendTotal: null,
-            spendTotalPrev: null,
-            spendGoogle: null,
-            spendGooglePrev: null,
-            spendMeta: null,
-            spendMetaPrev: null,
-            spendOther: null,
-            spendOtherPrev: null,
-            revenueGoogle: null,
-            revenueGooglePrev: null,
-            revenueMeta: null,
-            revenueMetaPrev: null,
-            revenueEmail: null,
-            revenueEmailPrev: null,
-            grossProfit: null,
-            grossProfitPrev: null,
+            ...emptyMoneyFields(),
         };
     }
 
@@ -281,10 +316,29 @@ export async function computePortfolioSummaryRow(customerDoc, window, opts = {})
         base.status = base.dataGaps.some((g) => g.reason === "error") ? "partial" : "no_data";
     }
 
+    const revCur = storeRevenueBreakdown(cur.shopifyDaily);
+    const revPrev = storeRevenueBreakdown(prev.shopifyDaily);
+    const revenueType = settings.customerRevenueType || "net_sales";
+    const preferredRevenue = preferredStoreRevenue(revCur, revenueType);
+    const preferredRevenuePrev = preferredStoreRevenue(revPrev, revenueType);
+
     return {
         ...base,
-        revenue: roundNum(blendedCur.netSales),
-        revenuePrev: roundNum(blendedPrev.netSales),
+        // Backward-compatible headline = net sales (same as weekly-audit blended.netSales).
+        revenue: revCur.netSales,
+        revenuePrev: revPrev.netSales,
+        // Customer's configured preference + all store revenue types (DKK).
+        revenueType,
+        preferredRevenue,
+        preferredRevenuePrev,
+        netSales: revCur.netSales,
+        netSalesPrev: revPrev.netSales,
+        totalSales: revCur.totalSales,
+        totalSalesPrev: revPrev.totalSales,
+        grossSales: revCur.grossSales,
+        grossSalesPrev: revPrev.grossSales,
+        custom1Sales: revCur.custom1Sales,
+        custom1SalesPrev: revPrev.custom1Sales,
         orders: roundNum(blendedCur.orders),
         ordersPrev: roundNum(blendedPrev.orders),
         spendTotal: roundNum(blendedCur.totalSpend),
