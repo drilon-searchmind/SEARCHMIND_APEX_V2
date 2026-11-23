@@ -18,7 +18,9 @@ Hardcoded dashboards for single customers. Shown in the sidebar under **Custom**
 3. Import its stylesheets in `styles.js` (not inside the dashboard component, lazy chunks do not load CSS in dev).
 4. Turn on "Custom dashboards" in that customer's Config.
 
-## Aura DK
+## Aura (EMOB, EL, Fiber)
+
+Three Apex customers share the same `aura/` UI (`src/lib/auraCustomerProfile.js`): **Aura - EMOB**, **Aura - EL**, **Aura - Fiber** (legacy name **Aura DK** = EMOB).
 
 `aura/` rebuilds the old Google Sheets / Supermetrics dashboard. The sheet's logic and what could not be matched is
 documented in `aura/SHEET_LOGIC.md`. The calculations live in `aura/auraSheetLogic.js`.
@@ -38,3 +40,6 @@ Values an ad platform API cannot provide (for Aura: daily conversions, planned c
 `CustomDashboardInput` (`src/models/CustomDashboardInput.js`) and edited on the dashboard's "Data inputs" page (`aura/AuraInputs.jsx`).
 `src/lib/auraInputs.js` validates them and turns them into daily series, `/api/custom-dashboards/aura/inputs` reads and saves them (writing is
 limited to internal users) and `/api/custom-dashboards/aura/data` serves the computed series to the dashboard.
+
+To re-sync from the client's Google Sheets (hub `1oAOXZJE…`, one **Campaign** tab for all products, per-product Performance Dashboard **Config** for goals): run
+`node scripts/aura-import-aura-inputs-from-sheet.mjs` (optional `--dry-run`, `--keys=conversions,campaigns,goals`).
