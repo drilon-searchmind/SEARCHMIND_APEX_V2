@@ -32,9 +32,24 @@ async function fetchCustomersShared() {
     return sharedCustomersInflight;
 }
 
+/** @type {Set<() => void>} */
+const sharedCustomersListeners = new Set();
+
 export function invalidateSharedCustomersCache() {
     sharedCustomersCache = null;
     sharedCustomersInflight = null;
+}
+
+/** Clear cache and ask every mounted useCustomers() to refetch (e.g. after Config save). */
+export function notifyCustomersUpdated() {
+    invalidateSharedCustomersCache();
+    sharedCustomersListeners.forEach((listener) => {
+        try {
+            listener();
+        } catch (err) {
+            console.error('Error notifying customers listeners:', err);
+        }
+    });
 }
 
 export function useCustomers(refreshKey = 0, options = {}) {
@@ -151,6 +166,17 @@ export function useCustomers(refreshKey = 0, options = {}) {
         }
         fetchCustomers();
     }, [refreshKey, fetchCustomers, override, enabled]);
+
+    useEffect(() => {
+        if (override || !enabled) return undefined;
+        const onExternalUpdate = () => {
+            fetchCustomers();
+        };
+        sharedCustomersListeners.add(onExternalUpdate);
+        return () => {
+            sharedCustomersListeners.delete(onExternalUpdate);
+        };
+    }, [fetchCustomers, override, enabled]);
 
     if (override) {
         return override;
