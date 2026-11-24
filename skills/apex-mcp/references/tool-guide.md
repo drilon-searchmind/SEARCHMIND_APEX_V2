@@ -162,8 +162,10 @@ Default allowlisted — no admin route approval required.
 |-------|-----------------|
 | `/api/merged-sources` | `startDate`, `endDate` |
 | `/api/markets-overview` | `startDate`, `endDate` |
-| `/api/google-ads` | `startDate`, `endDate` |
-| `/api/facebook-ads` | `startDate`, `endDate` |
+| `/api/google-ads` | `startDate`, `endDate`; optional `campaignInclude`, `campaignExclude` (Aura-style name filter) |
+| `/api/facebook-ads` | `startDate`, `endDate`; optional `campaignInclude`, `campaignExclude`, `metricsOnly` |
+| `/api/custom-dashboards/aura/filter` | (Aura customers only) saved campaign filter + matched preset (`emob` / `el` / `fiber`) |
+| `/api/custom-dashboards/aura/dashboard` | `startDate`, `endDate`; optional `useFilter` — filtered Google/Meta + Data inputs totals (same filter as UI tabs) |
 | `/api/klaviyo` | `startDate`, `endDate` |
 | `/api/shopify-products` | `startDate`, `endDate` |
 | `/api/shopify-orders` | `startDate`, `endDate` |
