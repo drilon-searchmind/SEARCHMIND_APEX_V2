@@ -30,6 +30,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import CustomerCreateForm from "../form/CustomerCreateForm";
 import { buildCustomerCreateFormStateFromCustomer } from "@/lib/customerCreateFormState";
 import { getCustomerPlatformLabel } from "@/lib/customerPlatformDisplay";
+import { getCustomerDefaultDashboardHref } from "@/lib/customerDashboardHref";
 
 function PlatformIcon({ type }) {
     const iconClass = "w-3.5 h-3.5 shrink-0 opacity-70";
@@ -165,7 +166,7 @@ function HomeShortcutsPanel({ user, favoriteCustomers, onLogout }) {
                                 {favoriteCustomers.map((customer) => (
                                     <li key={customer._id}>
                                         <Link
-                                            href={`/dashboard/${customer._id}/performance-dashboard`}
+                                            href={getCustomerDefaultDashboardHref(customer)}
                                             className="apex-home__rail-link"
                                         >
                                             <span
@@ -549,7 +550,7 @@ export default function CustomerTable({ showLatestNews = true }) {
                 id: String(c._id),
                 name: c.customerName,
                 platform: getCustomerPlatformLabel(c),
-                href: `/dashboard/${c._id}/performance-dashboard`,
+                href: getCustomerDefaultDashboardHref(c),
             }));
     }, [accessibleCustomers, cmdkQuery]);
 
@@ -897,7 +898,7 @@ export default function CustomerTable({ showLatestNews = true }) {
                                                                     </button>
                                                                 )}
                                                                 <Link
-                                                                    href={`/dashboard/${customer._id}/performance-dashboard`}
+                                                                    href={getCustomerDefaultDashboardHref(customer)}
                                                                     className="apex-home__row-link"
                                                                 >
                                                                     Open <FiArrowRight className="w-3.5 h-3.5" />

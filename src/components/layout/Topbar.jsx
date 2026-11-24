@@ -23,6 +23,7 @@ import { getDemoCustomerIds } from "@/lib/demoCustomerId";
 import { normalizeInternalNotificationHref } from "@/lib/notificationLink";
 import { canAccessApexRadar } from "@/lib/apexRadarAccess";
 import { addRecentCustomerId } from "@/lib/recentCustomers";
+import { getCustomerDefaultDashboardHref } from "@/lib/customerDashboardHref";
 
 /** Set true to restore the topbar dark/light mode switcher. */
 const THEME_TOGGLE_ENABLED = false;
@@ -227,13 +228,18 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
                 const ch = apexRadarPath.channel ?? APEX_RADAR_CHANNEL_FACEBOOK;
                 return `/apex-radar/${ch}/${customerId}`;
             }
-            return `/dashboard/${customerId}/performance-dashboard`;
+            const customer =
+                accessibleCustomers.find((c) => String(c._id) === String(customerId)) || {
+                    _id: customerId,
+                };
+            return getCustomerDefaultDashboardHref(customer);
         },
         [
             apexRadarPath.isApexRadar,
             apexRadarPath.isCs,
             apexRadarPath.isPerformanceBrief,
             apexRadarPath.channel,
+            accessibleCustomers,
         ]
     );
 
@@ -256,7 +262,7 @@ const Topbar = ({ showLinks = true, showLogo = false, showPropertySection = true
             router.push(`/apex-radar/${ch}/${first}`);
             return;
         }
-        router.push(`/dashboard/${first}/performance-dashboard`);
+        router.push(getCustomerDefaultDashboardHref(accessibleCustomers[0]));
     }, [activeCustomerId, isActiveCustomerAccessible, accessibleCustomers, router, pathname]);
 
     React.useEffect(() => {

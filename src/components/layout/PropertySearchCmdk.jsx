@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { FiSearch } from "react-icons/fi";
 import { getCustomerPlatformLabel } from "@/lib/customerPlatformDisplay";
+import { getCustomerDefaultDashboardHref } from "@/lib/customerDashboardHref";
 import { useRecentCustomers } from "@/hooks/useRecentCustomers";
 
 function customerToCmdkItem(customer, buildHref) {
@@ -12,7 +13,7 @@ function customerToCmdkItem(customer, buildHref) {
         id: String(customer._id),
         name: customer.customerName,
         platform: getCustomerPlatformLabel(customer),
-        href: buildHref ? buildHref(customer._id) : `/dashboard/${customer._id}/performance-dashboard`,
+        href: buildHref ? buildHref(customer._id) : getCustomerDefaultDashboardHref(customer),
     };
 }
 
