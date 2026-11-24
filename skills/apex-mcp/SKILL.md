@@ -92,6 +92,7 @@ For the full catalog and use-case matrix, read **`references/tool-guide.md`**.
 |-------------|---------|
 | Who is on this account (ClickUp)? | `get_clickup_team` → optionally `list_internal_users` to map ClickUp ids |
 | Overall performance / daily overview | `get_merged_sources` or `get_merged_sources_filtered` |
+| **Omsætning pr. kanal** (Google/Meta/Email attributed) | `get_channel_revenue` or `call_apex_api` → `/api/channel-revenue`; also `get_weekly_audit` / sum `conversionValue` on merged sources |
 | Full customer config (no secrets) | `get_customer` |
 | Meta spend & campaigns | `get_facebook_ads`, `get_meta_ad_performance`, `get_meta_ad_creatives`, `list_meta_campaigns` |
 | Google spend & campaigns | `get_google_ads`, `get_google_ppc_dashboard`, `list_google_campaigns` |

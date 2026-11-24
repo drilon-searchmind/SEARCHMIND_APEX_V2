@@ -238,6 +238,7 @@ export async function fetchFacebookAdsInsights(adAccountId, metaIdInclude, metaI
             'spend',
             'purchase_roas',
             'actions',
+            'action_values',
             'impressions',
             'clicks',
             'ctr',

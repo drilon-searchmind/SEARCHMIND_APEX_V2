@@ -1,0 +1,45 @@
+{
+  "schema": "searchmind.session-state/v2",
+  "session_id": "cf5b3d1c-2e49-48c4-a97d-57ad8d2e2390",
+  "updated_at": "2026-11-24T11:01:39.550Z",
+  "intent_at": "",
+  "confirmed": {
+    "goal": "",
+    "current_focus": "",
+    "next_step": "",
+    "completed": [],
+    "open_tasks": [],
+    "decisions": [],
+    "questions": [],
+    "active_files": [
+      "C:/Users/Searchmind/Documents/DEV/Sanctuary/local/README.md",
+      "C:/Users/Searchmind/Documents/DEV/Sanctuary/local/db.py",
+      "C:/Users/Searchmind/Documents/DEV/Sanctuary/local/setup.ps1",
+      "C:/Users/Searchmind/Documents/DEV/Sanctuary/Play.cmd",
+      "C:/Users/Searchmind/Documents/DEV/Sanctuary/src/Sanctuary.DevClient/ClientInstaller.cs",
+      "C:/Users/Searchmind/Documents/DEV/Sanctuary/src/Sanctuary.DevClient/ServerHost.cs",
+      "C:/Users/Searchmind/Documents/DEV/Sanctuary/src/Sanctuary.DevClient/Program.cs",
+      "C:/Users/Searchmind/Documents/DEV/Sanctuary/src/global.json",
+      "C:/Users/Searchmind/Documents/DEV/Sanctuary/README.md",
+      "C:/Users/Searchmind/Documents/DEV/Sanctuary/CONTRIBUTING.md"
+    ],
+    "references": [
+      "https://opensourcefreerealms.com/clientmanifest.xml",
+      "https://github.com/Open-Source-Free-Realms/Sanctuary.git",
+      "http://osfr.editz.dev/assets",
+      "https://github.com/Open-Source-Free-Realms/Launcher",
+      "https://github.com/Open-Source-Free-Realms/Sanctuary"
+    ]
+  },
+  "suggested": {
+    "goal": "",
+    "current_focus": "",
+    "next_step": "",
+    "completed": [],
+    "open_tasks": [],
+    "decisions": [],
+    "questions": [],
+    "active_files": [],
+    "references": []
+  }
+}
