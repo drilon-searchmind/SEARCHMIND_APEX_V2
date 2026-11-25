@@ -16,7 +16,10 @@ import {
     aggregateShopifyDailyRows,
 } from "./performanceDashboard/computePerformanceMetrics";
 import { getReturnsOverrideSettings } from "./performanceDashboard/performanceDashboardConstants";
-import { calcFixedCostsForDateRange } from "./customerStaticExpensesUtils";
+import {
+    calcFixedCostsForDateRange,
+    withResolvedPerOrderRates,
+} from "./customerStaticExpensesUtils";
 import {
     fetchAdSpendByIso2Country,
     channelSpendTotalsForMarket,
@@ -35,11 +38,14 @@ export function aggregateMetricsLikePerformanceDashboard(
     merged,
     customer,
     dateRange,
-    { fixedCosts: fixedCostsOverride } = {}
+    { fixedCosts: fixedCostsOverride, marketId = null, marketCount = 1 } = {}
 ) {
     const shopify = shopifyDaily || [];
     const cs = customer?.CustomerSettings || customer || {};
-    const staticExpenses = customer?.CustomerStaticExpenses || {};
+    const staticExpensesRaw = customer?.CustomerStaticExpenses || {};
+    const staticExpenses = marketId
+        ? withResolvedPerOrderRates(staticExpensesRaw, marketId)
+        : staticExpensesRaw;
 
     const cost = totalAdSpendFromMerged(merged);
     const channelTotals = channelSpendTotalsFromMerged(merged);
@@ -54,7 +60,10 @@ export function aggregateMetricsLikePerformanceDashboard(
             : calcFixedCostsForDateRange(
                   dateRange.startDate,
                   dateRange.endDate,
-                  staticExpenses
+                  staticExpensesRaw,
+                  marketId
+                      ? { mode: "market", marketId, marketCount }
+                      : { mode: "all" }
               );
     const daysInRange =
         dayjs(dateRange.endDate).diff(dayjs(dateRange.startDate), "day") + 1;
@@ -176,16 +185,10 @@ export async function fetchMarketsOverviewRows(
     const storeChannelTotals = channelSpendTotalsFromMerged(storeMerged);
     const customerSettings = settings?.CustomerSettings || settings || {};
     const staticExpenses = settings?.CustomerStaticExpenses || {};
-    const storeFixedCosts = calcFixedCostsForDateRange(
-        startDate,
-        endDate,
-        staticExpenses
-    );
     const activeMarketCount = Math.max(
         list.filter((m) => String(m.shopifyqlMarketId || "").trim()).length,
         1
     );
-    const fixedCostsPerMarket = storeFixedCosts / activeMarketCount;
     const returnsOverride = getReturnsOverrideSettings(customerSettings);
     const storeRevenue = aggregateShopifyDailyRows(
         storeMerged.shopifyDaily || [],
@@ -257,7 +260,7 @@ export async function fetchMarketsOverviewRows(
             merged,
             settings,
             dateRange,
-            { fixedCosts: fixedCostsPerMarket }
+            { marketId: shopifyqlMarketId, marketCount: activeMarketCount }
         );
 
         marketRows.push({
@@ -274,6 +277,33 @@ export async function fetchMarketsOverviewRows(
             (Number(b.netRevenue) || 0) - (Number(a.netRevenue) || 0) ||
             String(a.marketName).localeCompare(String(b.marketName))
     );
+
+    // When market-specific shipping / fixed costs exist, roll store totals up from market rows
+    // so overrides are not flattened to the global rate.
+    const hasMarketCostOverrides =
+        (staticExpenses.marketVariableCosts || []).some(
+            (r) => r?.shippingCostPerOrder != null || r?.pickNPackCostPerOrder != null
+        ) ||
+        [
+            ...(staticExpenses.marketingBureauCostLineItems || []),
+            ...(staticExpenses.marketingToolingCostLineItems || []),
+            ...(staticExpenses.fixedExpensesLineItems || []),
+        ].some((item) => item?.marketId && String(item.marketId).trim());
+
+    if (hasMarketCostOverrides && marketRows.length > 0 && storeTotalRow) {
+        const sumVar = marketRows.reduce((s, r) => s + (Number(r.variableExpense) || 0), 0);
+        const sumFixed = marketRows.reduce((s, r) => s + (Number(r.fixedExpense) || 0), 0);
+        const sumTx = marketRows.reduce((s, r) => s + (Number(r.transactionFee) || 0), 0);
+        const sumCogs = marketRows.reduce((s, r) => s + (Number(r.cogs) || 0), 0);
+        const revenue = Number(storeTotalRow.netRevenue) || 0;
+        const spend = Number(storeTotalRow.totalMarketingSpend) || 0;
+        storeTotalRow.variableExpense = sumVar;
+        storeTotalRow.fixedExpense = sumFixed;
+        storeTotalRow.transactionFee = sumTx;
+        storeTotalRow.cogs = sumCogs;
+        storeTotalRow.netProfit =
+            revenue - sumCogs - sumFixed - sumVar - sumTx - spend;
+    }
 
     return {
         rows: marketRows,

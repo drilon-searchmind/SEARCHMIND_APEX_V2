@@ -23,6 +23,8 @@ export default function DailyMetricsTotalsRow({
 				return <td key={key} className={cls}>{t.orders}</td>;
 			case 'netRevenue':
 				return <td key={key} className={cls}>{t.netRevenue}</td>;
+			case 'returns':
+				return <td key={key} className={cls}>{t.returns}</td>;
 			case 'cogs':
 				return <td key={key} className={cls}>{t.cogs}</td>;
 			case 'aov':

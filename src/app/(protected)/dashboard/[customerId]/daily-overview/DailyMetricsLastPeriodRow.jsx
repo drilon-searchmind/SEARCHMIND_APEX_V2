@@ -16,6 +16,7 @@ export default function DailyMetricsLastPeriodRow({
 	const values = {
 		orders: t.orders,
 		netRevenue: t.netRevenue,
+		returns: t.returns,
 		cogs: t.cogs,
 		aov: t.aov,
 		ppcCost: t.ppcCost,

@@ -673,6 +673,43 @@
   color: var(--color-muted);
 }
 
+.apex-config-select {
+  min-width: 10rem;
+  max-width: 14rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: var(--radius-input, 6px);
+  background: #fff;
+  font-size: var(--text-xs);
+  color: var(--color-ink);
+}
+
+.apex-config-line-item--market {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs, 0.5rem);
+}
+
+.apex-config-market-rates__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm, 0.75rem);
+}
+
+.apex-config-market-rates__row {
+  display: grid;
+  gap: var(--space-2xs, 0.35rem);
+  padding: var(--space-sm, 0.75rem);
+  background: var(--color-paper-2, #f7f7f5);
+  border-radius: var(--radius-input, 6px);
+}
+
+.apex-config-market-rates__name {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
 /* Portaled date picker (outside .apex-perf) */
 .apex-perf-date-panel {
   --perf-raised: #ffffff;

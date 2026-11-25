@@ -1,5 +1,10 @@
 /**
  * Shared helpers for CustomerStaticExpenses (config + performance dashboard).
+ *
+ * Market binding:
+ * - Global rates / line items (no marketId) apply store-wide and to every market.
+ * - marketVariableCosts[] and line items with marketId only apply to that market
+ *   (or when that market is included in a dashboard market filter).
  */
 
 import dayjs from "dayjs";
@@ -9,36 +14,236 @@ export function filterCompleteLineItems(items) {
     return items.filter((item) => item && item.name && String(item.name).trim() !== "");
 }
 
+/** Empty / missing marketId ⇒ global. */
+export function lineItemMarketId(item) {
+    const id = item?.marketId;
+    if (id == null || id === "") return null;
+    const s = String(id).trim();
+    return s || null;
+}
+
+function numOr(value, fallback) {
+    if (value === null || value === undefined || value === "") return fallback;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+}
+
+/**
+ * Resolve shipping / pick&pack per order for one market (or global when marketId is null).
+ */
+export function resolvePerOrderRates(staticExp = {}, marketId = null) {
+    const globalShipping = Number(staticExp.shippingCostPerOrder) || 0;
+    const globalPick = Number(staticExp.pickNPackCostPerOrder) || 0;
+    if (!marketId) {
+        return {
+            shippingCostPerOrder: globalShipping,
+            pickNPackCostPerOrder: globalPick,
+        };
+    }
+    const hit = (staticExp.marketVariableCosts || []).find(
+        (o) => String(o?.marketId || "").trim() === String(marketId)
+    );
+    if (!hit) {
+        return {
+            shippingCostPerOrder: globalShipping,
+            pickNPackCostPerOrder: globalPick,
+        };
+    }
+    return {
+        shippingCostPerOrder: numOr(hit.shippingCostPerOrder, globalShipping),
+        pickNPackCostPerOrder: numOr(hit.pickNPackCostPerOrder, globalPick),
+    };
+}
+
+/**
+ * Rates for a market selection (dashboard filter).
+ * One market → that market's rates; several → simple average of resolved rates;
+ * none / all → global.
+ */
+export function resolvePerOrderRatesForMarkets(staticExp = {}, marketIds = null) {
+    const ids = Array.isArray(marketIds)
+        ? [...new Set(marketIds.map((id) => String(id || "").trim()).filter(Boolean))]
+        : [];
+    if (ids.length === 0) return resolvePerOrderRates(staticExp, null);
+    if (ids.length === 1) return resolvePerOrderRates(staticExp, ids[0]);
+    let ship = 0;
+    let pick = 0;
+    for (const id of ids) {
+        const r = resolvePerOrderRates(staticExp, id);
+        ship += r.shippingCostPerOrder;
+        pick += r.pickNPackCostPerOrder;
+    }
+    return {
+        shippingCostPerOrder: ship / ids.length,
+        pickNPackCostPerOrder: pick / ids.length,
+    };
+}
+
+/**
+ * Clone static expenses with resolved per-order rates (and optional fixed totals already baked in).
+ */
+export function withResolvedPerOrderRates(staticExp = {}, marketIdOrIds = null) {
+    const rates = Array.isArray(marketIdOrIds)
+        ? resolvePerOrderRatesForMarkets(staticExp, marketIdOrIds)
+        : resolvePerOrderRates(staticExp, marketIdOrIds);
+    return {
+        ...staticExp,
+        shippingCostPerOrder: rates.shippingCostPerOrder,
+        pickNPackCostPerOrder: rates.pickNPackCostPerOrder,
+    };
+}
+
+/**
+ * Filter fixed line items by market scope.
+ * @param {'all'|'global'|'market'|'selection'} mode
+ * @param {{ marketId?: string|null, marketIds?: string[]|null }} opts
+ */
+export function filterFixedLineItemsByMarket(items, mode = "all", opts = {}) {
+    const list = items || [];
+    if (mode === "all") return list;
+    if (mode === "global") return list.filter((item) => !lineItemMarketId(item));
+    if (mode === "market") {
+        const mid = opts.marketId ? String(opts.marketId) : null;
+        if (!mid) return list.filter((item) => !lineItemMarketId(item));
+        return list.filter((item) => {
+            const id = lineItemMarketId(item);
+            return !id || id === mid;
+        });
+    }
+    if (mode === "selection") {
+        const allowed = new Set(
+            (opts.marketIds || []).map((id) => String(id || "").trim()).filter(Boolean)
+        );
+        return list.filter((item) => {
+            const id = lineItemMarketId(item);
+            if (!id) return true;
+            return allowed.has(id);
+        });
+    }
+    return list;
+}
+
+function monthlyTotalFromFilteredItems(staticExp, lineItemsKey, legacyKey, mode, opts) {
+    if (usesLineItemFixedExpenses(staticExp)) {
+        return sumLineItems(filterFixedLineItemsByMarket(staticExp[lineItemsKey], mode, opts));
+    }
+    // Legacy single monthly fields are always global
+    if (mode === "market" || mode === "selection" || mode === "global" || mode === "all") {
+        return Number(staticExp[legacyKey]) || 0;
+    }
+    return Number(staticExp[legacyKey]) || 0;
+}
+
+/**
+ * Monthly fixed total with market scope.
+ * - all: global + every market-tied item (store-wide)
+ * - global: only unbound items
+ * - market: global items (caller may split) + items for marketId — use with marketShare
+ * - selection: global + items for selected marketIds
+ */
+export function getMonthlyFixedExpensesTotal(staticExp = {}, options = {}) {
+    const mode = options.mode || "all";
+    const opts = { marketId: options.marketId, marketIds: options.marketIds };
+    const bureau = monthlyTotalFromFilteredItems(
+        staticExp,
+        "marketingBureauCostLineItems",
+        "marketingBureauCost",
+        mode === "market" ? "global" : mode,
+        opts
+    );
+    const tooling = monthlyTotalFromFilteredItems(
+        staticExp,
+        "marketingToolingCostLineItems",
+        "marketingToolingCost",
+        mode === "market" ? "global" : mode,
+        opts
+    );
+    const other = monthlyTotalFromFilteredItems(
+        staticExp,
+        "fixedExpensesLineItems",
+        "fixedExpenses",
+        mode === "market" ? "global" : mode,
+        opts
+    );
+    let total = bureau + tooling + other;
+
+    if (mode === "market") {
+        const share = Math.max(Number(options.marketCount) || 1, 1);
+        total = total / share;
+        const marketOnly = { marketId: options.marketId };
+        total +=
+            sumLineItems(
+                filterFixedLineItemsByMarket(staticExp.marketingBureauCostLineItems, "market", marketOnly).filter(
+                    (i) => lineItemMarketId(i)
+                )
+            ) +
+            sumLineItems(
+                filterFixedLineItemsByMarket(staticExp.marketingToolingCostLineItems, "market", marketOnly).filter(
+                    (i) => lineItemMarketId(i)
+                )
+            ) +
+            sumLineItems(
+                filterFixedLineItemsByMarket(staticExp.fixedExpensesLineItems, "market", marketOnly).filter((i) =>
+                    lineItemMarketId(i)
+                )
+            );
+    }
+
+    return total;
+}
+
 /**
  * Normalize line items and recompute aggregate fields before save.
  * @param {Record<string, unknown>} expenses — CustomerStaticExpenses-shaped object
  */
+function normalizeMarketIdOnItems(items) {
+    return (items || []).map((item) => ({
+        ...item,
+        marketId: lineItemMarketId(item) || "",
+    }));
+}
+
 export function prepareCustomerStaticExpensesForSave(expenses) {
     const updated = { ...expenses };
 
-    updated.marketingBureauCostLineItems = filterCompleteLineItems(
-        updated.marketingBureauCostLineItems || []
+    updated.marketingBureauCostLineItems = normalizeMarketIdOnItems(
+        filterCompleteLineItems(updated.marketingBureauCostLineItems || [])
     );
     updated.marketingBureauCost = updated.marketingBureauCostLineItems.reduce(
         (sum, item) => sum + (parseFloat(item.amount) || 0),
         0
     );
 
-    updated.marketingToolingCostLineItems = filterCompleteLineItems(
-        updated.marketingToolingCostLineItems || []
+    updated.marketingToolingCostLineItems = normalizeMarketIdOnItems(
+        filterCompleteLineItems(updated.marketingToolingCostLineItems || [])
     );
     updated.marketingToolingCost = updated.marketingToolingCostLineItems.reduce(
         (sum, item) => sum + (parseFloat(item.amount) || 0),
         0
     );
 
-    updated.fixedExpensesLineItems = filterCompleteLineItems(
-        updated.fixedExpensesLineItems || []
+    updated.fixedExpensesLineItems = normalizeMarketIdOnItems(
+        filterCompleteLineItems(updated.fixedExpensesLineItems || [])
     );
     updated.fixedExpenses = updated.fixedExpensesLineItems.reduce(
         (sum, item) => sum + (parseFloat(item.amount) || 0),
         0
     );
+
+    updated.marketVariableCosts = (updated.marketVariableCosts || [])
+        .filter((row) => row && String(row.marketId || "").trim())
+        .map((row) => ({
+            marketId: String(row.marketId).trim(),
+            marketName: String(row.marketName || "").trim(),
+            shippingCostPerOrder:
+                row.shippingCostPerOrder === "" || row.shippingCostPerOrder == null
+                    ? null
+                    : Number(row.shippingCostPerOrder) || 0,
+            pickNPackCostPerOrder:
+                row.pickNPackCostPerOrder === "" || row.pickNPackCostPerOrder == null
+                    ? null
+                    : Number(row.pickNPackCostPerOrder) || 0,
+        }));
 
     return updated;
 }
@@ -56,43 +261,37 @@ function usesLineItemFixedExpenses(staticExp = {}) {
     );
 }
 
-function monthlyTotalFromLineItemsOrLegacy(staticExp, lineItemsKey, legacyKey) {
-    if (usesLineItemFixedExpenses(staticExp)) {
-        return sumLineItems(staticExp[lineItemsKey]);
-    }
-    return Number(staticExp[legacyKey]) || 0;
-}
-
-export function getMonthlyMarketingBureauTotal(staticExp = {}) {
-    return monthlyTotalFromLineItemsOrLegacy(
+export function getMonthlyMarketingBureauTotal(staticExp = {}, options = {}) {
+    const mode = options.mode || "all";
+    return monthlyTotalFromFilteredItems(
         staticExp,
         "marketingBureauCostLineItems",
-        "marketingBureauCost"
+        "marketingBureauCost",
+        mode,
+        options
     );
 }
 
-export function getMonthlyMarketingToolingTotal(staticExp = {}) {
-    return monthlyTotalFromLineItemsOrLegacy(
+export function getMonthlyMarketingToolingTotal(staticExp = {}, options = {}) {
+    const mode = options.mode || "all";
+    return monthlyTotalFromFilteredItems(
         staticExp,
         "marketingToolingCostLineItems",
-        "marketingToolingCost"
+        "marketingToolingCost",
+        mode,
+        options
     );
 }
 
-export function getMonthlyOtherFixedTotal(staticExp = {}) {
-    return monthlyTotalFromLineItemsOrLegacy(
+export function getMonthlyOtherFixedTotal(staticExp = {}, options = {}) {
+    const mode = options.mode || "all";
+    return monthlyTotalFromFilteredItems(
         staticExp,
         "fixedExpensesLineItems",
-        "fixedExpenses"
+        "fixedExpenses",
+        mode,
+        options
     );
-}
-
-/** Total monthly fixed costs (bureau + tooling + other fixed). */
-export function getMonthlyFixedExpensesTotal(staticExp = {}) {
-    const bureau = getMonthlyMarketingBureauTotal(staticExp);
-    const tooling = getMonthlyMarketingToolingTotal(staticExp);
-    const other = getMonthlyOtherFixedTotal(staticExp);
-    return bureau + tooling + other;
 }
 
 /**
@@ -109,18 +308,21 @@ export function calcProratedMonthlyCostForDateRange(monthlyAmount, rangeStart, r
     return total;
 }
 
-/** Fixed costs for a date range (bureau + tooling + other), prorated per calendar day. */
-export function calcFixedCostsForDateRange(rangeStart, rangeEnd, staticExp = {}) {
+/**
+ * Fixed costs for a date range (bureau + tooling + other), prorated per calendar day.
+ * @param {object} [options] — same market scope as getMonthlyFixedExpensesTotal
+ */
+export function calcFixedCostsForDateRange(rangeStart, rangeEnd, staticExp = {}, options = {}) {
     return calcProratedMonthlyCostForDateRange(
-        getMonthlyFixedExpensesTotal(staticExp),
+        getMonthlyFixedExpensesTotal(staticExp, options),
         rangeStart,
         rangeEnd
     );
 }
 
 /** Fixed costs for a single calendar day. */
-export function calcFixedCostForSingleDay(dateYmd, staticExp = {}) {
-    return getMonthlyFixedExpensesTotal(staticExp) / dayjs(dateYmd).daysInMonth();
+export function calcFixedCostForSingleDay(dateYmd, staticExp = {}, options = {}) {
+    return getMonthlyFixedExpensesTotal(staticExp, options) / dayjs(dateYmd).daysInMonth();
 }
 
 /**

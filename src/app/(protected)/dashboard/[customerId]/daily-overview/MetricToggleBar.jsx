@@ -1,6 +1,7 @@
 'use client';
 
 import { METRIC_COLUMNS } from './metricConfig';
+import { REVENUE_BASIS_OPTIONS } from '@/lib/performanceDashboard/revenueBasis';
 
 export default function MetricToggleBar({
 	visibleMetrics,
@@ -11,11 +12,39 @@ export default function MetricToggleBar({
 	onLastYearTableToggle,
 	metricColumns = METRIC_COLUMNS,
 	variant = 'default',
+	revenueBasis = null,
+	onRevenueBasisChange = null,
 }) {
 	const isCobalt = variant === 'cobalt';
 
 	return (
 		<div className={isCobalt ? 'apex-daily-toggle-bar' : 'flex flex-wrap items-center gap-2 mb-4'}>
+			{onRevenueBasisChange ? (
+				<>
+					<span className={isCobalt ? 'apex-daily-toggle-label' : 'text-sm text-gray-600 mr-2'}>
+						Revenue:
+					</span>
+					{REVENUE_BASIS_OPTIONS.map((opt) => (
+						<button
+							key={opt.value}
+							type="button"
+							className={
+								isCobalt
+									? `apex-perf-chip${revenueBasis === opt.value ? ' is-active' : ''}`
+									: `px-3 py-1 rounded-lg text-xs font-medium border transition-colors duration-150 ${
+											revenueBasis === opt.value
+												? 'bg-[var(--color-primary-searchmind)] text-white border-[var(--color-primary-searchmind)]'
+												: 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+										}`
+							}
+							onClick={() => onRevenueBasisChange(opt.value)}
+						>
+							{opt.label}
+						</button>
+					))}
+					<span className={isCobalt ? 'apex-daily-toggle-divider' : 'text-sm text-gray-400 mx-1'}>|</span>
+				</>
+			) : null}
 			<span className={isCobalt ? 'apex-daily-toggle-label' : 'text-sm text-gray-600 mr-2'}>
 				Toggle metrics:
 			</span>

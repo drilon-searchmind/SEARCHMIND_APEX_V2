@@ -74,6 +74,7 @@ export function computeRowMax(rows) {
 	return {
 		orders: Math.max(...rows.map((r) => r.orders)),
 		netRevenue: Math.max(...rows.map((r) => r.netRevenue ?? 0)),
+		returns: Math.max(...rows.map((r) => r.returns ?? 0)),
 		ppcCost: Math.max(...rows.map((r) => r.ppcCost)),
 		psCost: Math.max(...rows.map((r) => r.psCost)),
 		pinterestCost: Math.max(...rows.map((r) => r.pinterestCost ?? 0)),
@@ -97,6 +98,7 @@ export function computeTotals(rows, variant = 'current') {
 		return {
 			orders: 0,
 			netRevenue: formatCurrency(0),
+			returns: formatCurrency(0),
 			cogs: formatCurrency(0),
 			ppcCost: formatCurrency(0),
 			psCost: formatCurrency(0),
@@ -114,6 +116,7 @@ export function computeTotals(rows, variant = 'current') {
 
 	const totalOrders = rows.reduce((sum, r) => sum + r.orders, 0);
 	const totalNetRevenue = rows.reduce((sum, r) => sum + (r.netRevenue ?? 0), 0);
+	const totalReturns = rows.reduce((sum, r) => sum + (r.returns ?? 0), 0);
 	const totalCogs = rows.reduce((sum, r) => sum + (r.cogs || 0), 0);
 	const totalPpcCost = rows.reduce((sum, r) => sum + r.ppcCost, 0);
 	const totalPsCost = rows.reduce((sum, r) => sum + r.psCost, 0);
@@ -140,6 +143,7 @@ export function computeTotals(rows, variant = 'current') {
 	return {
 		orders: totalOrders,
 		netRevenue: formatCurrency(totalNetRevenue),
+		returns: formatCurrency(totalReturns),
 		cogs: formatCurrency(totalCogs),
 		ppcCost: formatCurrency(totalPpcCost),
 		psCost: formatCurrency(totalPsCost),
@@ -164,6 +168,7 @@ export function computeRawTotals(rows) {
 		return {
 			orders: 0,
 			netRevenue: 0,
+			returns: 0,
 			cogs: 0,
 			ppcCost: 0,
 			psCost: 0,
@@ -181,6 +186,7 @@ export function computeRawTotals(rows) {
 
 	const totalOrders = rows.reduce((sum, r) => sum + r.orders, 0);
 	const totalNetRevenue = rows.reduce((sum, r) => sum + (r.netRevenue ?? 0), 0);
+	const totalReturns = rows.reduce((sum, r) => sum + (r.returns ?? 0), 0);
 	const totalCogs = rows.reduce((sum, r) => sum + (r.cogs || 0), 0);
 	const totalPpcCost = rows.reduce((sum, r) => sum + r.ppcCost, 0);
 	const totalPsCost = rows.reduce((sum, r) => sum + r.psCost, 0);
@@ -206,6 +212,7 @@ export function computeRawTotals(rows) {
 	return {
 		orders: totalOrders,
 		netRevenue: totalNetRevenue,
+		returns: totalReturns,
 		cogs: totalCogs,
 		ppcCost: totalPpcCost,
 		psCost: totalPsCost,
@@ -257,6 +264,7 @@ export function computeRowRawValues(row) {
 	return {
 		orders: row.orders ?? 0,
 		netRevenue,
+		returns: row.returns ?? 0,
 		cogs,
 		ppcCost: row.ppcCost ?? 0,
 		psCost: row.psCost ?? 0,

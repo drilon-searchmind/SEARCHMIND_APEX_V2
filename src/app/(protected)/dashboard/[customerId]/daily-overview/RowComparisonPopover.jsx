@@ -58,6 +58,8 @@ export default function RowComparisonPopover({
 				return comparisonRow.orders;
 			case 'netRevenue':
 				return formatCurrency(comparisonRow.netRevenue ?? 0);
+			case 'returns':
+				return formatCurrency(comparisonRow.returns ?? 0);
 			case 'cogs':
 				return formatCurrency(comparisonRow.cogs || 0);
 			case 'aov':

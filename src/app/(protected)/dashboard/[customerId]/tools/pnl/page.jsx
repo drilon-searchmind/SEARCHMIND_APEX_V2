@@ -17,6 +17,7 @@ import {
     buildAdSpendPlatformFilterProps,
 } from "@/hooks/useDashboardHubShared";
 import { useDashboardDataOptional } from "@/contexts/DashboardDataContext";
+import { expenseScopeFromMarketFilters } from "@/lib/dashboardExpenseScope";
 import "./pnl.css";
 
 export default function PNLPage() {
@@ -60,13 +61,19 @@ export default function PNLPage() {
         [shopifyMarketsFeatureOn, appliedExcludedPlatforms]
     );
 
+    const expenseScope = useMemo(
+        () => expenseScopeFromMarketFilters(filters),
+        [filters]
+    );
+
     const pnl = usePnlData(
         customer,
         appliedDateRange,
         comparisonMethod,
         mergedSourcesQuerySuffix,
         pnlMarketsSpend,
-        appliedCompareRange
+        appliedCompareRange,
+        expenseScope
     );
 
     return (

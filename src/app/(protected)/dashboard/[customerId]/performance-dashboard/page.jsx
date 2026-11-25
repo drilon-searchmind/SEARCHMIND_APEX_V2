@@ -30,7 +30,10 @@ import {
     prepareCustomerStaticExpensesForSave,
     getMonthlyFixedExpensesTotal,
     getFixedExpensesBreakdownLineItems,
+    calcFixedCostsForDateRange,
+    withResolvedPerOrderRates,
 } from "@/lib/customerStaticExpensesUtils";
+import { expenseScopeFromMarketFilters } from "@/lib/dashboardExpenseScope";
 import {
     resolveOverviewChartMetricValue,
     overviewChartMetricLabel,
@@ -195,6 +198,10 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
         appliedExcludedPlatforms,
         mergedSourcesQuerySuffix,
     } = filters;
+    const expenseScope = useMemo(
+        () => expenseScopeFromMarketFilters(filters),
+        [filters]
+    );
     const resolvedAppliedDateRange = shared?.appliedDateRange ?? appliedDateRange;
     const resolvedAppliedCompareRange = shared?.appliedCompareRange ?? appliedCompareRange;
     const resolvedComparisonMethod = shared?.comparisonMethod ?? comparisonMethod;
@@ -561,19 +568,17 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
         const chTotals = channelSpendTotalsFromMerged(merged);
         const chTotalsPrev = channelSpendTotalsFromMerged(mergedPrev);
 
-        const staticExp = customer?.CustomerStaticExpenses || {};
-        const fixedExpensesMonthly = getMonthlyFixedExpensesTotal(staticExp);
-        const calcFixedForRange = (rangeStart, rangeEnd) => {
-            let total = 0;
-            let d = dayjs(rangeStart);
-            const endDay = dayjs(rangeEnd);
-            while (!d.isAfter(endDay)) {
-                total += fixedExpensesMonthly / d.daysInMonth();
-                d = d.add(1, 'day');
-            }
-            return total;
-        };
-        const fixedCosts = calcFixedForRange(start, end);
+        const staticExpRaw = customer?.CustomerStaticExpenses || {};
+        const staticExp = expenseScope?.marketIds
+            ? withResolvedPerOrderRates(staticExpRaw, expenseScope.marketIds)
+            : staticExpRaw;
+        const fixedCostOpts = expenseScope || { mode: "all" };
+        const fixedCosts = calcFixedCostsForDateRange(
+            appliedDateRange.startDate,
+            appliedDateRange.endDate,
+            staticExpRaw,
+            fixedCostOpts
+        );
         const compRange = getComparisonPeriodRange({
             comparisonMethod,
             startDate: appliedDateRange.startDate,
@@ -589,7 +594,12 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
             : prevPeriodStart;
         const prevDaysInRange =
             dayjs(prevPeriodEnd).diff(dayjs(prevPeriodStart), "day") + 1;
-        const fixedCostsPrev = calcFixedForRange(prevPeriodStart, prevPeriodEnd);
+        const fixedCostsPrev = calcFixedCostsForDateRange(
+            prevPeriodStart,
+            prevPeriodEnd,
+            staticExpRaw,
+            fixedCostOpts
+        );
 
         const cogsPercentage = customer?.CustomerStaticExpenses?.cogsPercentage || 0;
         const fetchCogs = customer?.CustomerSettings?.fetchCogsFromStore === true;
@@ -667,6 +677,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
         mergedPrev,
         visibleAdSpendChannels,
         customKpis,
+        expenseScope,
     ]);
 
     // Chart color palette from CSS variables
@@ -774,8 +785,11 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
                 sortedPrevKeys,
             });
 
-        const staticExp = customer?.CustomerStaticExpenses || {};
-        const fixedBase = getMonthlyFixedExpensesTotal(staticExp);
+        const staticExpRaw = customer?.CustomerStaticExpenses || {};
+        const staticExp = expenseScope?.marketIds
+            ? withResolvedPerOrderRates(staticExpRaw, expenseScope.marketIds)
+            : staticExpRaw;
+        const fixedBase = getMonthlyFixedExpensesTotal(staticExpRaw, expenseScope || { mode: "all" });
         const shippingPerOrder = staticExp.shippingCostPerOrder ?? 0;
         const pickPerOrder = staticExp.pickNPackCostPerOrder ?? 0;
         const txCostPct = staticExp.transactionCostPercentage ?? 0.015;

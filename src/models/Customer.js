@@ -311,6 +311,21 @@ const CustomerSchema = new mongoose.Schema({
             type: Number,
             default: 0,
         },
+        /**
+         * Optional per-market shipping / pick&pack overrides.
+         * Missing rate falls back to the global shippingCostPerOrder / pickNPackCostPerOrder.
+         */
+        marketVariableCosts: {
+            type: [
+                {
+                    marketId: { type: String, required: true },
+                    marketName: { type: String, default: "" },
+                    shippingCostPerOrder: { type: Number, default: null },
+                    pickNPackCostPerOrder: { type: Number, default: null },
+                },
+            ],
+            default: [],
+        },
         transactionCostPercentage: {
             type: Number,
             default: 0,
@@ -326,7 +341,9 @@ const CustomerSchema = new mongoose.Schema({
         marketingBureauCostLineItems: {
             type: [{
                 name: { type: String, required: true },
-                amount: { type: Number, required: true }
+                amount: { type: Number, required: true },
+                /** Empty = applies globally; otherwise Shopify market id */
+                marketId: { type: String, default: "" },
             }],
             default: []
         },
@@ -337,7 +354,8 @@ const CustomerSchema = new mongoose.Schema({
         marketingToolingCostLineItems: {
             type: [{
                 name: { type: String, required: true },
-                amount: { type: Number, required: true }
+                amount: { type: Number, required: true },
+                marketId: { type: String, default: "" },
             }],
             default: []
         },
@@ -348,7 +366,8 @@ const CustomerSchema = new mongoose.Schema({
         fixedExpensesLineItems: {
             type: [{
                 name: { type: String, required: true },
-                amount: { type: Number, required: true }
+                amount: { type: Number, required: true },
+                marketId: { type: String, default: "" },
             }],
             default: []
         }

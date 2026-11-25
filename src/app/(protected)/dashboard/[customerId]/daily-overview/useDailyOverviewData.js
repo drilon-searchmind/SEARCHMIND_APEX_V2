@@ -39,7 +39,13 @@ async function fetchCustomKpis(customerId, fetchCustomKpis) {
 	return fetchCustomKpisJson({ customerId });
 }
 
-function buildDailyRows(merged, customer, revenueType, customKpis = []) {
+function buildDailyRows(
+	merged,
+	customer,
+	revenueType,
+	customKpis = [],
+	{ revenueBasis = null, expenseScope = null } = {}
+) {
 	const shopify = merged.shopifyDaily || [];
 	const spendByDate = adSpendByPeriodMap(merged);
 	const chRows = channelDailyRowsFromMerged(merged);
@@ -77,10 +83,15 @@ function buildDailyRows(merged, customer, revenueType, customKpis = []) {
 			customerSettings,
 			staticExpenses,
 			returnsOverride,
+			expenseScope,
+			revenueBasis,
 		});
 
 		const {
 			netRevenue,
+			netRevenueAfterReturns,
+			netRevenueExReturns,
+			returnsAmount,
 			orders,
 			cogs,
 			variableExpense,
@@ -99,6 +110,9 @@ function buildDailyRows(merged, customer, revenueType, customKpis = []) {
 			orders,
 			totalSales,
 			netRevenue,
+			netRevenueAfterReturns,
+			netRevenueExReturns,
+			returns: returnsAmount,
 			ppcCost,
 			psCost,
 			pinterestCost,
@@ -135,8 +149,8 @@ function buildDailyRows(merged, customer, revenueType, customKpis = []) {
 	});
 }
 
-function buildPrevPeriodRows(mergedPrev, customer, revenueType, customKpis = []) {
-	return buildDailyRows(mergedPrev, customer, revenueType, customKpis);
+function buildPrevPeriodRows(mergedPrev, customer, revenueType, customKpis = [], opts = {}) {
+	return buildDailyRows(mergedPrev, customer, revenueType, customKpis, opts);
 }
 
 /**
@@ -144,13 +158,17 @@ function buildPrevPeriodRows(mergedPrev, customer, revenueType, customKpis = [])
  * @param {{ startDate: string, endDate: string }} appliedDateRange
  * @param {string} [mergedSourcesQuerySuffix]
  * @param {{ shopifyMarkets: boolean, appliedExcludedPlatforms: Record<string, boolean|true> }} [marketsSpendColumns] — when set, marketing column visibility follows Spend filter (Shopify Markets) instead of spend thresholds.
+ * @param {{ revenueBasis?: string, expenseScope?: object|null }} [options]
  */
 export function useDailyOverviewData(
 	customer,
 	appliedDateRange,
 	mergedSourcesQuerySuffix = '',
-	marketsSpendColumns = null
+	marketsSpendColumns = null,
+	options = {}
 ) {
+	const revenueBasis = options.revenueBasis || null;
+	const expenseScope = options.expenseScope || null;
 	const dashboardData = useDashboardDataOptional();
 	const fetchMergedSources = dashboardData?.fetchMergedSources;
 	const fetchCustomKpisCached = dashboardData?.fetchCustomKpis;
@@ -199,7 +217,8 @@ export function useDailyOverviewData(
 				]);
 				const kpis = Array.isArray(customKpisData) ? customKpisData : [];
 				setCustomKpis(kpis);
-				const dailyRows = buildDailyRows(merged, customer, revenueType, kpis);
+				const rowOpts = { revenueBasis, expenseScope };
+				const dailyRows = buildDailyRows(merged, customer, revenueType, kpis, rowOpts);
 				setRows(dailyRows);
 
 				const { startDate: prevStartStr, endDate: prevEndStr } =
@@ -220,7 +239,8 @@ export function useDailyOverviewData(
 					mergedPrev,
 					customer,
 					revenueType,
-					kpis
+					kpis,
+					rowOpts
 				);
 				setRowsPrev(dailyRowsPrev);
 
@@ -262,7 +282,8 @@ export function useDailyOverviewData(
 						mergedLastYear,
 						customer,
 						revenueType,
-						kpis
+						kpis,
+						rowOpts
 					);
 					setRowsLastYear(dailyRowsLastYear);
 				} catch (err) {
@@ -278,7 +299,7 @@ export function useDailyOverviewData(
 				setLoading(false);
 			}
 		})();
-	}, [customer, appliedDateRange, mergedSourcesQuerySuffix, marketsSpendColumns, fetchMergedSources, fetchCustomKpisCached, isHubMode]);
+	}, [customer, appliedDateRange, mergedSourcesQuerySuffix, marketsSpendColumns, fetchMergedSources, fetchCustomKpisCached, isHubMode, revenueBasis, expenseScope]);
 
 	return {
 		rows,

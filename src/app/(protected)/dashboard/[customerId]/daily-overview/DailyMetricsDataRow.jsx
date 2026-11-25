@@ -105,6 +105,23 @@ export default function DailyMetricsDataRow({
 						/>
 					</td>
 				);
+			case 'returns':
+				return (
+					<td
+						key={key}
+						className={cls}
+						style={getCellStyles(
+							row.returns ?? 0,
+							max.returns ?? 0,
+							(row.returns ?? 0) === (max.returns ?? 0)
+						)}
+					>
+						<MetricCellContent
+							value={formatCurrency(row.returns ?? 0, { maximumFractionDigits: 0 })}
+							yoyPercent={yoyPercent}
+						/>
+					</td>
+				);
 			case 'cogs':
 				return (
 					<td key={key} className={cls}>

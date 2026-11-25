@@ -5,6 +5,7 @@
 export const METRIC_COLUMNS = [
 	{ key: 'orders', label: 'Orders', group: 'sales' },
 	{ key: 'netRevenue', label: 'Net Revenue', group: 'sales' },
+	{ key: 'returns', label: 'Returns', group: 'sales' },
 	{ key: 'cogs', label: 'COGS', group: 'sales' },
 	{ key: 'aov', label: 'AOV', group: 'sales' },
 	{ key: 'ppcCost', label: 'Google Ads Cost', group: 'marketing' },
@@ -21,8 +22,16 @@ export const METRIC_COLUMNS = [
 ];
 
 export const DEFAULT_VISIBLE_METRICS = Object.fromEntries(
-	METRIC_COLUMNS.map((m) => [m.key, true])
+	METRIC_COLUMNS.map((m) => [m.key, m.key === 'returns' ? false : true])
 );
+
+/** Relabel Net Revenue column for “uden retur” basis. */
+export function mapMetricColumnsForReturnsBasis(columns, revenueBasis) {
+	if (revenueBasis !== 'before_returns') return columns;
+	return columns.map((c) =>
+		c.key === 'netRevenue' ? { ...c, label: 'Net revenue uden retur' } : c
+	);
+}
 
 /** Parent group view only: rename Net Revenue column when showing gross-sales basis */
 export function mapMetricColumnsForRevenueBasis(shopifyRevenueField = 'net_sales') {

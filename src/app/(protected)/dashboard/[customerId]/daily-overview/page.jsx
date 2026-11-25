@@ -11,7 +11,11 @@ import { useDailyOverviewData } from './useDailyOverviewData';
 import DailyMetricsTable from './DailyMetricsTable';
 import LastYearPeriodTable from './LastYearPeriodTable';
 import MetricToggleBar from './MetricToggleBar';
-import { DEFAULT_VISIBLE_METRICS, METRIC_COLUMNS } from './metricConfig';
+import {
+    DEFAULT_VISIBLE_METRICS,
+    METRIC_COLUMNS,
+    mapMetricColumnsForReturnsBasis,
+} from './metricConfig';
 import { applyCustomKpiLabelsToMetricColumns } from '@/lib/performanceDashboard/dailyOverviewCustomKpis';
 import { AD_SPEND_DAILY_COLUMN_KEYS } from '@/lib/mergeAdSpendDaily';
 import GraphCard from '@/components/dashboard/GraphCard';
@@ -27,6 +31,11 @@ import {
 } from '@/hooks/useDashboardHubShared';
 import B2BDailyOverview from './B2BDailyOverview';
 import { useDashboardDataOptional } from '@/contexts/DashboardDataContext';
+import {
+    REVENUE_BASIS_AFTER_RETURNS,
+    revenueBasisLabel,
+} from '@/lib/performanceDashboard/revenueBasis';
+import { expenseScopeFromMarketFilters } from '@/lib/dashboardExpenseScope';
 
 export default function DailyOverviewPage() {
     const params = useParams();
@@ -120,6 +129,13 @@ function EcommerceDailyOverview({ customer: customerProp }) {
         [shopifyMarketsFeatureOn, appliedExcludedPlatforms]
     );
 
+    const [revenueBasis, setRevenueBasis] = useState(REVENUE_BASIS_AFTER_RETURNS);
+
+    const expenseScope = useMemo(
+        () => expenseScopeFromMarketFilters(filters),
+        [filters]
+    );
+
     const {
         rows,
         rowsPrev,
@@ -131,7 +147,13 @@ function EcommerceDailyOverview({ customer: customerProp }) {
         customerMetricPreference,
         visibleMarketingColumnKeys,
         customKpis,
-    } = useDailyOverviewData(customer, resolvedAppliedDateRange, mergedSourcesQuerySuffix, marketsSpendColumns);
+    } = useDailyOverviewData(
+        customer,
+        resolvedAppliedDateRange,
+        mergedSourcesQuerySuffix,
+        marketsSpendColumns,
+        { revenueBasis, expenseScope }
+    );
 
     const [userColumnVisibility, setUserColumnVisibility] = useState({});
 
@@ -144,8 +166,9 @@ function EcommerceDailyOverview({ customer: customerProp }) {
                 (col) => !adKeySet.has(col.key) || allow.has(col.key)
             );
         }
+        cols = mapMetricColumnsForReturnsBasis(cols, revenueBasis);
         return applyCustomKpiLabelsToMetricColumns(cols, customKpis);
-    }, [visibleMarketingColumnKeys, customKpis]);
+    }, [visibleMarketingColumnKeys, customKpis, revenueBasis]);
 
     const visibleMetrics = useMemo(() => {
         const out = {};
@@ -267,6 +290,8 @@ function EcommerceDailyOverview({ customer: customerProp }) {
                         showLastYearTable={showLastYearTable}
                         onLastYearTableToggle={() => setShowLastYearTable((v) => !v)}
                         metricColumns={metricColumns}
+                        revenueBasis={revenueBasis}
+                        onRevenueBasisChange={setRevenueBasis}
                     />
                     <h3 className="apex-daily-panel__title">Daily Metrics</h3>
                 </div>
@@ -274,7 +299,7 @@ function EcommerceDailyOverview({ customer: customerProp }) {
                     <div className="mb-6">
                         <GraphCard
                             variant="cobalt"
-                            title="Net Revenue, Spend & Net Profit Over Time"
+                            title={`${revenueBasisLabel(revenueBasis)}, Spend & Net Profit Over Time`}
                             chartOptions={trendChartOptions}
                             chartSeries={trendChartSeries}
                             chartType="line"

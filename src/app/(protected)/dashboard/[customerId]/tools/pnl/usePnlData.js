@@ -24,7 +24,8 @@ export function usePnlData(
     comparisonMethod,
     mergedSourcesQuerySuffix = "",
     pnlMarketsSpend = null,
-    appliedCompareRange = { startDate: "", endDate: "" }
+    appliedCompareRange = { startDate: "", endDate: "" },
+    expenseScope = null
 ) {
     const dashboardData = useDashboardDataOptional();
     const fetchMergedSources = dashboardData?.fetchMergedSources;
@@ -123,6 +124,7 @@ export function usePnlData(
         fetchMergedSources,
         fetchCustomKpisCached,
         isHubMode,
+        expenseScope,
     ]);
 
     let channelSpendTotals = {};
@@ -199,6 +201,7 @@ export function usePnlData(
                     ? { startDate: compDates.startDate, endDate: compDates.endDate }
                     : null,
             customKpis,
+            expenseScope,
         });
 
         const md = period.metricsData;

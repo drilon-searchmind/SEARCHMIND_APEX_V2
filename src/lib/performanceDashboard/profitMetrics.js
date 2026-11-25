@@ -7,6 +7,7 @@ import {
     getMonthlyMarketingBureauTotal,
     getMonthlyMarketingToolingTotal,
     getMonthlyOtherFixedTotal,
+    withResolvedPerOrderRates,
 } from "@/lib/customerStaticExpensesUtils";
 import { applyVatDisplayToShopifyDayRow } from "@/lib/revenueVatDisplay";
 import { calcBlendedPoas } from "@/lib/poasMetrics";
@@ -20,9 +21,17 @@ import {
     periodPrimarySalesRevenue,
     primarySalesRevenueLabel,
 } from "./primarySalesRevenue";
+import {
+    REVENUE_BASIS_BEFORE_RETURNS,
+    netRevenueBeforeReturns,
+    returnsAmountForShopifyDay,
+} from "./revenueBasis";
 
 /**
  * Per-day profit metrics aligned with performance-dashboard chart logic.
+ * @param {object} [opts.expenseScope] — market scope for fixed/variable costs
+ *   `{ marketIds?: string[], marketId?: string, marketCount?: number, mode?: string }`
+ * @param {string} [opts.revenueBasis] — `after_returns` (default) | `before_returns`
  */
 export function calcShopifyDayProfitMetrics({
     shopifyDay,
@@ -30,21 +39,41 @@ export function calcShopifyDayProfitMetrics({
     customerSettings = {},
     staticExpenses = {},
     returnsOverride = null,
+    expenseScope = null,
+    revenueBasis = null,
 }) {
     const returnsOverrideSettings =
         returnsOverride ?? getReturnsOverrideSettings(customerSettings);
     const fetchCogs = customerSettings?.fetchCogsFromStore === true;
     const cogsPercentage = staticExpenses?.cogsPercentage || 0;
-    const shippingCostPerOrder = staticExpenses?.shippingCostPerOrder ?? 0;
-    const pickNPackCostPerOrder = staticExpenses?.pickNPackCostPerOrder ?? 0;
+    const resolvedExpenses = expenseScope?.marketIds
+        ? withResolvedPerOrderRates(staticExpenses, expenseScope.marketIds)
+        : expenseScope?.marketId
+          ? withResolvedPerOrderRates(staticExpenses, expenseScope.marketId)
+          : staticExpenses;
+    const shippingCostPerOrder = resolvedExpenses?.shippingCostPerOrder ?? 0;
+    const pickNPackCostPerOrder = resolvedExpenses?.pickNPackCostPerOrder ?? 0;
     const transactionCostPct = staticExpenses?.transactionCostPercentage ?? 0.015;
 
     const vatDay = applyVatDisplayToShopifyDayRow(shopifyDay, customerSettings);
-    const netRevenue = netRevenueForShopifyDay(
+    const netRevenueAfterReturns = netRevenueForShopifyDay(
         shopifyDay,
         returnsOverrideSettings,
         customerSettings
     );
+    const returnsAmount = returnsAmountForShopifyDay(
+        shopifyDay,
+        customerSettings,
+        returnsOverrideSettings
+    );
+    const netRevenueExReturns = netRevenueBeforeReturns(
+        netRevenueAfterReturns,
+        returnsAmount
+    );
+    const netRevenue =
+        revenueBasis === REVENUE_BASIS_BEFORE_RETURNS
+            ? netRevenueExReturns
+            : netRevenueAfterReturns;
     const orders = Number(vatDay.orders) || 0;
     const cogs = fetchCogs
         ? Number(vatDay.cost_of_goods_sold) || 0
@@ -52,7 +81,11 @@ export function calcShopifyDayProfitMetrics({
     const variableExpense =
         shippingCostPerOrder * orders + pickNPackCostPerOrder * orders;
     const ymd = String(shopifyDay.period).slice(0, 10);
-    const fixedExpense = calcFixedCostForSingleDay(ymd, staticExpenses);
+    const fixedExpense = calcFixedCostForSingleDay(
+        ymd,
+        staticExpenses,
+        expenseScope || {}
+    );
     const transactionFee = netRevenue * transactionCostPct;
     const cost = Number(marketingSpend) || 0;
     const grossProfit = netRevenue - cogs;
@@ -64,6 +97,9 @@ export function calcShopifyDayProfitMetrics({
 
     return {
         netRevenue,
+        netRevenueAfterReturns,
+        netRevenueExReturns,
+        returnsAmount,
         orders,
         cogs,
         variableExpense,
@@ -93,6 +129,7 @@ export function computePeriodMetricsFromMerged({
     channelTotals = null,
     channelTotalsPrev = null,
     customKpis = [],
+    expenseScope = null,
 }) {
     const startDate = dateRange?.startDate;
     const endDate = dateRange?.endDate;
@@ -104,7 +141,18 @@ export function computePeriodMetricsFromMerged({
         (mergedPrev ? channelSpendTotalsFromMerged(mergedPrev) : chTotals);
     const fetchCogs = customerSettings?.fetchCogsFromStore === true;
     const cogsPercentage = staticExpenses?.cogsPercentage || 0;
-    const fixedCosts = calcFixedCostsForDateRange(startDate, endDate, staticExpenses);
+    const resolvedStatic = expenseScope?.marketIds
+        ? withResolvedPerOrderRates(staticExpenses, expenseScope.marketIds)
+        : expenseScope?.marketId
+          ? withResolvedPerOrderRates(staticExpenses, expenseScope.marketId)
+          : staticExpenses;
+    const fixedCostOpts = expenseScope || {};
+    const fixedCosts = calcFixedCostsForDateRange(
+        startDate,
+        endDate,
+        staticExpenses,
+        fixedCostOpts
+    );
     const daysInRange = dayjs(endDate).diff(dayjs(startDate), "day") + 1;
 
     let fixedCostsPrev = 0;
@@ -113,7 +161,8 @@ export function computePeriodMetricsFromMerged({
         fixedCostsPrev = calcFixedCostsForDateRange(
             prevDateRange.startDate,
             prevDateRange.endDate,
-            staticExpenses
+            staticExpenses,
+            fixedCostOpts
         );
         prevDaysInRange =
             dayjs(prevDateRange.endDate).diff(dayjs(prevDateRange.startDate), "day") + 1;
@@ -124,7 +173,7 @@ export function computePeriodMetricsFromMerged({
         shopifyPrev: shopifyDailyPrev,
         customerSettings,
         customerType,
-        staticExpenses,
+        staticExpenses: resolvedStatic,
         fetchCogs,
         cogsPercentage,
         cost,
@@ -143,7 +192,7 @@ export function computePeriodMetricsFromMerged({
         metricsData: computed.metricsData,
         metricsDataPrev: computed.metricsDataPrev,
         derived: computed.derived,
-        staticExp: staticExpenses,
+        staticExp: resolvedStatic,
         rangeStart: startDate,
         rangeEnd: endDate,
         prevRangeStart: prevDateRange?.startDate,
@@ -156,21 +205,26 @@ export function computePeriodMetricsFromMerged({
     const md = computed.metricsData;
     const mdPrev = computed.metricsDataPrev;
 
+    const fixedBreakdownOpts =
+        expenseScope?.mode === "selection" || expenseScope?.mode === "market"
+            ? expenseScope
+            : { mode: "all" };
+
     const pnlFixedBreakdown =
         startDate && endDate
             ? {
                   marketingBureau: calcProratedMonthlyCostForDateRange(
-                      getMonthlyMarketingBureauTotal(staticExpenses),
+                      getMonthlyMarketingBureauTotal(staticExpenses, fixedBreakdownOpts),
                       startDate,
                       endDate
                   ),
                   marketingTooling: calcProratedMonthlyCostForDateRange(
-                      getMonthlyMarketingToolingTotal(staticExpenses),
+                      getMonthlyMarketingToolingTotal(staticExpenses, fixedBreakdownOpts),
                       startDate,
                       endDate
                   ),
                   fixedExpenses: calcProratedMonthlyCostForDateRange(
-                      getMonthlyOtherFixedTotal(staticExpenses),
+                      getMonthlyOtherFixedTotal(staticExpenses, fixedBreakdownOpts),
                       startDate,
                       endDate
                   ),
@@ -189,17 +243,17 @@ export function computePeriodMetricsFromMerged({
     if (prevDateRange?.startDate && prevDateRange?.endDate) {
         pnlFixedBreakdownPrev = {
             marketingBureau: calcProratedMonthlyCostForDateRange(
-                getMonthlyMarketingBureauTotal(staticExpenses),
+                getMonthlyMarketingBureauTotal(staticExpenses, fixedBreakdownOpts),
                 prevDateRange.startDate,
                 prevDateRange.endDate
             ),
             marketingTooling: calcProratedMonthlyCostForDateRange(
-                getMonthlyMarketingToolingTotal(staticExpenses),
+                getMonthlyMarketingToolingTotal(staticExpenses, fixedBreakdownOpts),
                 prevDateRange.startDate,
                 prevDateRange.endDate
             ),
             fixedExpenses: calcProratedMonthlyCostForDateRange(
-                getMonthlyOtherFixedTotal(staticExpenses),
+                getMonthlyOtherFixedTotal(staticExpenses, fixedBreakdownOpts),
                 prevDateRange.startDate,
                 prevDateRange.endDate
             ),

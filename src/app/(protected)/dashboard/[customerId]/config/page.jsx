@@ -83,6 +83,7 @@ export default function ConfigPage() {
             cogsPercentage: 0,
             shippingCostPerOrder: 0,
             pickNPackCostPerOrder: 0,
+            marketVariableCosts: [],
             transactionCostPercentage: 0,
             returnsCostPercentage: 0,
             marketingBureauCost: 0,
@@ -127,6 +128,7 @@ export default function ConfigPage() {
                         marketingBureauCostLineItems: data.CustomerStaticExpenses?.marketingBureauCostLineItems || [],
                         marketingToolingCostLineItems: data.CustomerStaticExpenses?.marketingToolingCostLineItems || [],
                         fixedExpensesLineItems: data.CustomerStaticExpenses?.fixedExpensesLineItems || [],
+                        marketVariableCosts: data.CustomerStaticExpenses?.marketVariableCosts || [],
                     },
                 });
                 setObjectives(data.CustomerPropertyObjectives || {});
@@ -392,6 +394,7 @@ export default function ConfigPage() {
                     marketingToolingCostLineItems:
                         saved.CustomerStaticExpenses?.marketingToolingCostLineItems || [],
                     fixedExpensesLineItems: saved.CustomerStaticExpenses?.fixedExpensesLineItems || [],
+                    marketVariableCosts: saved.CustomerStaticExpenses?.marketVariableCosts || [],
                 },
             });
             setObjectives(saved.CustomerPropertyObjectives || {});
@@ -474,7 +477,15 @@ export default function ConfigPage() {
         {
             key: 'expenses',
             label: 'Expenses',
-            content: <StaticExpensesForm form={form} onChange={handleChange} saving={saving} />,
+            content: (
+                <StaticExpensesForm
+                    form={form}
+                    onChange={handleChange}
+                    saving={saving}
+                    shopifyMarketsEnabled={form.shopifyMarketsEnabled === true}
+                    customerId={customerId}
+                />
+            ),
         },
     ];
 

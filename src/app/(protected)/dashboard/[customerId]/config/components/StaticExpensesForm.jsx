@@ -1,50 +1,126 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import FormInputText from '@/components/form/FormInputText';
 import FormLabel from '@/components/form/FormLabel';
 import { FiPlus, FiX } from 'react-icons/fi';
 
-export default function StaticExpensesForm({ form, onChange, saving }) {
+/**
+ * @param {{
+ *   form: object,
+ *   onChange: Function,
+ *   saving?: boolean,
+ *   shopifyMarketsEnabled?: boolean,
+ *   customerId?: string,
+ * }} props
+ */
+export default function StaticExpensesForm({
+    form,
+    onChange,
+    saving,
+    shopifyMarketsEnabled = false,
+    customerId,
+}) {
+    const [markets, setMarkets] = useState([]);
+    const [marketsLoading, setMarketsLoading] = useState(false);
+
+    useEffect(() => {
+        if (!shopifyMarketsEnabled || !customerId) {
+            setMarkets([]);
+            return undefined;
+        }
+        let cancelled = false;
+        setMarketsLoading(true);
+        fetch(`/api/shopify-markets/${customerId}`, { credentials: "same-origin" })
+            .then(async (r) => {
+                const body = await r.json().catch(() => ({}));
+                if (!r.ok) throw new Error(body.error || "Failed to load markets");
+                return body;
+            })
+            .then((body) => {
+                if (cancelled) return;
+                setMarkets(Array.isArray(body.markets) ? body.markets : []);
+            })
+            .catch(() => {
+                if (!cancelled) setMarkets([]);
+            })
+            .finally(() => {
+                if (!cancelled) setMarketsLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [shopifyMarketsEnabled, customerId]);
+
+    const setExpensesField = (name, value) => {
+        onChange({
+            target: {
+                name,
+                value,
+                dataset: { group: 'CustomerStaticExpenses' },
+            },
+        });
+    };
+
     const handleLineItemChange = (fieldName, index, field, value) => {
         const lineItems = [...(form.CustomerStaticExpenses[fieldName] || [])];
         lineItems[index] = {
             ...lineItems[index],
-            [field]: field === 'amount' ? parseFloat(value) || 0 : value
+            [field]: field === 'amount' ? parseFloat(value) || 0 : value,
         };
-
-        onChange({
-            target: {
-                name: fieldName,
-                value: lineItems,
-                dataset: { group: 'CustomerStaticExpenses' }
-            }
-        });
+        setExpensesField(fieldName, lineItems);
     };
 
     const handleAddLineItem = (fieldName) => {
         const lineItems = [...(form.CustomerStaticExpenses[fieldName] || [])];
-        lineItems.push({ name: '', amount: 0 });
-
-        onChange({
-            target: {
-                name: fieldName,
-                value: lineItems,
-                dataset: { group: 'CustomerStaticExpenses' }
-            }
-        });
+        lineItems.push({ name: '', amount: 0, marketId: '' });
+        setExpensesField(fieldName, lineItems);
     };
 
     const handleRemoveLineItem = (fieldName, index) => {
         const lineItems = [...(form.CustomerStaticExpenses[fieldName] || [])];
         lineItems.splice(index, 1);
-
-        onChange({
-            target: {
-                name: fieldName,
-                value: lineItems,
-                dataset: { group: 'CustomerStaticExpenses' }
-            }
-        });
+        setExpensesField(fieldName, lineItems);
     };
+
+    const marketVariableCosts = form.CustomerStaticExpenses.marketVariableCosts || [];
+
+    const upsertMarketVariable = (marketId, marketName, patch) => {
+        const next = [...marketVariableCosts];
+        const idx = next.findIndex((r) => String(r.marketId) === String(marketId));
+        if (idx >= 0) {
+            next[idx] = { ...next[idx], ...patch, marketId, marketName };
+        } else {
+            next.push({
+                marketId,
+                marketName,
+                shippingCostPerOrder: null,
+                pickNPackCostPerOrder: null,
+                ...patch,
+            });
+        }
+        // Drop rows that both inherit (null) — keep only real overrides
+        const cleaned = next.filter(
+            (r) =>
+                r.shippingCostPerOrder != null ||
+                r.pickNPackCostPerOrder != null
+        );
+        setExpensesField('marketVariableCosts', cleaned);
+    };
+
+    const clearMarketVariableField = (marketId, field) => {
+        const next = marketVariableCosts
+            .map((r) =>
+                String(r.marketId) === String(marketId) ? { ...r, [field]: null } : r
+            )
+            .filter(
+                (r) =>
+                    r.shippingCostPerOrder != null ||
+                    r.pickNPackCostPerOrder != null
+            );
+        setExpensesField('marketVariableCosts', next);
+    };
+
+    const getMarketOverride = (marketId) =>
+        marketVariableCosts.find((r) => String(r.marketId) === String(marketId));
 
     const renderLineItems = (fieldName, label, { nested = false } = {}) => {
         const lineItems = form.CustomerStaticExpenses[fieldName] || [];
@@ -73,7 +149,7 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
                 ) : (
                     <div className="apex-config-line-items">
                         {lineItems.map((item, index) => (
-                            <div key={index} className="apex-config-line-item">
+                            <div key={index} className="apex-config-line-item apex-config-line-item--market">
                                 <FormInputText
                                     placeholder="Item name (e.g., Employees)"
                                     value={item.name || ''}
@@ -90,6 +166,24 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
                                     className="apex-config-line-item__amount"
                                     disabled={saving}
                                 />
+                                {shopifyMarketsEnabled ? (
+                                    <select
+                                        className="apex-config-select"
+                                        aria-label="Market for cost"
+                                        value={item.marketId || ''}
+                                        onChange={(e) =>
+                                            handleLineItemChange(fieldName, index, 'marketId', e.target.value)
+                                        }
+                                        disabled={saving || marketsLoading}
+                                    >
+                                        <option value="">All markets (global)</option>
+                                        {markets.map((m) => (
+                                            <option key={m.shopifyqlMarketId} value={m.shopifyqlMarketId}>
+                                                {m.name || m.handle || m.shopifyqlMarketId}
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : null}
                                 <button
                                     type="button"
                                     onClick={() => handleRemoveLineItem(fieldName, index)}
@@ -121,7 +215,7 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
             <div className="apex-config-split">
                 <div className="apex-config-card">
                     <div className="apex-config-card__title">Variable Costs</div>
-                    <p className="apex-config-card__subtitle">Per month</p>
+                    <p className="apex-config-card__subtitle">Per month · default rates apply to all markets</p>
 
                     <div className="mb-3">
                         <FormLabel htmlFor="cogsPercentage">COGS %</FormLabel>
@@ -143,7 +237,7 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
                     </div>
 
                     <div className="mb-3">
-                        <FormLabel htmlFor="shippingCostPerOrder">Shipping Cost Per Order</FormLabel>
+                        <FormLabel htmlFor="shippingCostPerOrder">Shipping Cost Per Order (global)</FormLabel>
                         <div className="apex-config-field-row">
                             <FormInputText
                                 id="shippingCostPerOrder"
@@ -160,7 +254,7 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
                     </div>
 
                     <div className="mb-3">
-                        <FormLabel htmlFor="pickNPackCostPerOrder">Pick & Pack Cost Per Order</FormLabel>
+                        <FormLabel htmlFor="pickNPackCostPerOrder">Pick & Pack Cost Per Order (global)</FormLabel>
                         <div className="apex-config-field-row">
                             <FormInputText
                                 id="pickNPackCostPerOrder"
@@ -175,6 +269,76 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
                             <span className="apex-config-field-unit">DKK</span>
                         </div>
                     </div>
+
+                    {shopifyMarketsEnabled ? (
+                        <div className="mb-3 apex-config-market-rates">
+                            <FormLabel>Shipping / pick &amp; pack per market</FormLabel>
+                            <p className="apex-config-field-hint mb-2">
+                                Leave blank to use the global rate. Only markets for this store are listed.
+                            </p>
+                            {marketsLoading ? (
+                                <p className="apex-config-empty">Loading markets…</p>
+                            ) : markets.length === 0 ? (
+                                <p className="apex-config-empty">No Shopify Markets found.</p>
+                            ) : (
+                                <div className="apex-config-market-rates__list">
+                                    {markets.map((m) => {
+                                        const mid = m.shopifyqlMarketId;
+                                        const ov = getMarketOverride(mid);
+                                        return (
+                                            <div key={mid} className="apex-config-market-rates__row">
+                                                <div className="apex-config-market-rates__name">
+                                                    {m.name || m.handle || mid}
+                                                </div>
+                                                <div className="apex-config-field-row">
+                                                    <FormInputText
+                                                        type="number"
+                                                        placeholder={`Ship (${form.CustomerStaticExpenses.shippingCostPerOrder || 0})`}
+                                                        value={ov?.shippingCostPerOrder ?? ''}
+                                                        onChange={(e) => {
+                                                            const v = e.target.value;
+                                                            if (v === '') {
+                                                                clearMarketVariableField(mid, 'shippingCostPerOrder');
+                                                            } else {
+                                                                upsertMarketVariable(mid, m.name || m.handle || mid, {
+                                                                    shippingCostPerOrder: parseFloat(v) || 0,
+                                                                });
+                                                            }
+                                                        }}
+                                                        min="0"
+                                                        step="0.01"
+                                                        disabled={saving}
+                                                    />
+                                                    <span className="apex-config-field-unit">DKK ship</span>
+                                                </div>
+                                                <div className="apex-config-field-row">
+                                                    <FormInputText
+                                                        type="number"
+                                                        placeholder={`P&P (${form.CustomerStaticExpenses.pickNPackCostPerOrder || 0})`}
+                                                        value={ov?.pickNPackCostPerOrder ?? ''}
+                                                        onChange={(e) => {
+                                                            const v = e.target.value;
+                                                            if (v === '') {
+                                                                clearMarketVariableField(mid, 'pickNPackCostPerOrder');
+                                                            } else {
+                                                                upsertMarketVariable(mid, m.name || m.handle || mid, {
+                                                                    pickNPackCostPerOrder: parseFloat(v) || 0,
+                                                                });
+                                                            }
+                                                        }}
+                                                        min="0"
+                                                        step="0.01"
+                                                        disabled={saving}
+                                                    />
+                                                    <span className="apex-config-field-unit">DKK P&amp;P</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    ) : null}
 
                     <div>
                         <FormLabel htmlFor="transactionCostPercentage">Transaction Cost %</FormLabel>
@@ -219,7 +383,12 @@ export default function StaticExpensesForm({ form, onChange, saving }) {
 
                 <div className="apex-config-card">
                     <div className="apex-config-card__title">Fixed Expenses</div>
-                    <p className="apex-config-card__subtitle">All fixed monthly costs</p>
+                    <p className="apex-config-card__subtitle">
+                        All fixed monthly costs
+                        {shopifyMarketsEnabled
+                            ? " · optionally bind a line to one market"
+                            : ""}
+                    </p>
                     {renderLineItems('marketingBureauCostLineItems', 'Marketing Bureau Cost', { nested: true })}
                     {renderLineItems('marketingToolingCostLineItems', 'Marketing Tooling Cost', { nested: true })}
                     {renderLineItems('fixedExpensesLineItems', 'Other Fixed Expenses', { nested: true })}
