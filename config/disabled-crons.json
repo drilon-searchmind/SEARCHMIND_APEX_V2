@@ -5,6 +5,12 @@
     { "path": "/api/cron/performance-brief/prepare", "schedule": "*/10 * * * *" },
     { "path": "/api/cron/performance-brief/deliver", "schedule": "0 * * * *" },
     { "path": "/api/cron/performance-brief/prepare/manual", "schedule": "0 0 1 1 *" },
-    { "path": "/api/cron/performance-brief/deliver/manual", "schedule": "0 0 1 1 *" }
+    { "path": "/api/cron/performance-brief/deliver/manual", "schedule": "0 0 1 1 *" },
+    {
+      "path": "/api/cron/portfolio-summary",
+      "schedule": "*/5 8-22 * 11 *",
+      "timezone": "Europe/Copenhagen",
+      "reason": "Paused 2026-11-23 — Google Ads RESOURCE_EXHAUSTED / Too many requests (~19h cooldown). Re-enable with lower concurrency after quota recovers."
+    }
   ]
 }

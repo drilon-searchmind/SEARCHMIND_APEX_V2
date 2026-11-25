@@ -13,7 +13,7 @@ Complete reference for the ~80 read-only APEX MCP tools (v0.7.4). All customer-s
 | `list_mcp_resources` | Catalog of metrics sources + customer + global resources |
 | `get_customer` | Full sanitized settings, objectives, radar, cached team (no secrets) |
 | `list_data_sources` | Platform metric source names |
-| `get_merged_sources` | Combined daily store revenue + all ad spend |
+| `get_merged_sources` | Combined daily store revenue + all ad spend; `googleDaily` / `facebookDaily` include `conversionValue` (omsætning pr. kanal) when available |
 
 ## Platform metrics (`/api/mcp/data/…`)
 
@@ -41,7 +41,8 @@ Requires `customerId`, `startDate`, `endDate` unless noted.
 | `get_klaviyo_dashboard` | Full Klaviyo EM dashboard (+ optional `prevStartDate`, `prevEndDate`) |
 | `get_klaviyo_scheduled_campaigns` | Planned Klaviyo email campaigns (scheduled, draft, preparing) — optional `daysAhead`, `includeDrafts` |
 | `get_klaviyo_flows` | Klaviyo flow setup (triggers, delays, email steps) — optional `includeActions`, `status`, `maxFlows` |
-| `get_weekly_audit` | Compact weekly audit JSON — `startDate`, `endDate`; optional `compare` (`prev_period` default, `yoy`) |
+| `get_weekly_audit` | Compact weekly audit JSON — `startDate`, `endDate`; optional `compare` (`prev_period` default, `yoy`). Includes per-channel `conversionValue` / email `attributedRevenue`. |
+| `get_channel_revenue` | **Omsætning pr. kanal** — Google/Meta `conversionValue` + Klaviyo `attributedRevenue`, store totals, spend. Prefer this for channel revenue questions. Also via `call_apex_api` → `/api/channel-revenue`. |
 | `get_pinterest_dashboard` | Full Pinterest dashboard |
 | `get_linkedin_dashboard` | Full LinkedIn dashboard |
 | `get_snapchat_dashboard` | Full Snapchat dashboard |
@@ -105,6 +106,7 @@ Requires `customerId`, `startDate`, `endDate` unless noted.
 | Who works on client? | `get_clickup_team` + `list_internal_users` |
 | Daily / monthly performance | `get_merged_sources` |
 | Daily overview with market filters | `get_merged_sources_filtered` |
+| **Omsætning pr. kanal** (Google/Meta/Email attributed) | `get_channel_revenue` or `call_apex_api` → `/api/channel-revenue`; fallback `get_weekly_audit` (`ppc`/`ps`/`em`) or sum `conversionValue` on `get_merged_sources` |
 | Meta deep dive | `get_meta_ad_performance` or `get_facebook_ads` |
 | Google deep dive | `get_google_ppc_dashboard` or `get_google_ads` |
 | Email performance (sent campaigns) | `get_klaviyo_dashboard` or `get_klaviyo_metrics` |
@@ -162,8 +164,10 @@ Default allowlisted — no admin route approval required.
 |-------|-----------------|
 | `/api/merged-sources` | `startDate`, `endDate` |
 | `/api/markets-overview` | `startDate`, `endDate` |
-| `/api/google-ads` | `startDate`, `endDate` |
-| `/api/facebook-ads` | `startDate`, `endDate` |
+| `/api/google-ads` | `startDate`, `endDate`; optional `campaignInclude`, `campaignExclude` (Aura-style name filter) |
+| `/api/facebook-ads` | `startDate`, `endDate`; optional `campaignInclude`, `campaignExclude`, `metricsOnly` |
+| `/api/custom-dashboards/aura/filter` | (Aura customers only) saved campaign filter + matched preset (`emob` / `el` / `fiber`) |
+| `/api/custom-dashboards/aura/dashboard` | `startDate`, `endDate`; optional `useFilter` — filtered Google/Meta + Data inputs totals (same filter as UI tabs) |
 | `/api/klaviyo` | `startDate`, `endDate` |
 | `/api/shopify-products` | `startDate`, `endDate` |
 | `/api/shopify-orders` | `startDate`, `endDate` |
@@ -173,6 +177,8 @@ Default allowlisted — no admin route approval required.
 | `/api/customer-segmentation` | `startDate`, `endDate` |
 | `/api/data-wrapped` | `period` (YYYY-MM) |
 | `/api/weekly-audit` | `startDate`, `endDate`; optional `compare` (`prev_period` default, `yoy`) |
+| `/api/channel-revenue` | `startDate`, `endDate` — **omsætning pr. kanal** (Google/Meta `conversionValue`, Klaviyo `attributedRevenue`, store totals) |
+| `/api/portfolio-summary` | `startDate`, `endDate`; optional `compareStartDate`, `compareEndDate` — **all ecommerce customers** from precomputed snapshots (Black Days TV). Includes `netSales` / `totalSales` / `grossSales` / `custom1Sales` (+ Prev), `revenueType`, `preferredRevenue`, `revenueGoogle` / `revenueMeta` / `revenueEmail`. Pass any valid `customerId`. No live platform calls. |
 | `/api/klaviyo-scheduled-campaigns` | optional `daysAhead` (default 60), `includeDrafts` (default true) |
 | `/api/klaviyo-flows` | optional `includeActions` (default true), `status` (`live`/`draft`/`manual`), `maxFlows` (default 80) |
 | `/api/apex-radar` | `startDate`, `endDate`, `channel` (`google-ads` or `facebook`) |

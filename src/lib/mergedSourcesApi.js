@@ -37,6 +37,33 @@ import { getCurrencyConversionTable, conversionRateToDkk } from './currencyConve
 import { isAdSpendPlatformConfigured } from './customerServiceIntegrations';
 import { AD_SPEND_CHANNELS } from './mergeAdSpendDaily';
 
+const META_PURCHASE_ACTION_TYPES = [
+    'purchase',
+    'omni_purchase',
+    'offsite_conversion.fb_pixel_purchase',
+];
+
+/** Purchase conversion value from Meta insights row (action_values or spend × purchase_roas). */
+function metaPurchaseConversionValue(row) {
+    const actionValues = Array.isArray(row?.action_values) ? row.action_values : [];
+    for (const type of META_PURCHASE_ACTION_TYPES) {
+        const hit = actionValues.find((a) => a?.action_type === type);
+        if (hit != null && hit.value != null && hit.value !== '') {
+            const n = parseFloat(hit.value);
+            if (Number.isFinite(n)) return n;
+        }
+    }
+    const spend = parseFloat(row?.spend) || 0;
+    let roas = 0;
+    if (Array.isArray(row?.purchase_roas) && row.purchase_roas[0]) {
+        roas = parseFloat(row.purchase_roas[0].value ?? row.purchase_roas[0]) || 0;
+    } else if (row?.purchase_roas != null && typeof row.purchase_roas !== 'object') {
+        roas = parseFloat(row.purchase_roas) || 0;
+    }
+    if (spend > 0 && roas > 0) return spend * roas;
+    return 0;
+}
+
 /**
  * Fetches and merges revenue (Shopify/WooCommerce/Magento/DanDomain/DanDomainOriginal), Facebook, Google, and optional Pinterest, Snapchat, Microsoft, Reddit adspend for a customer.
  * @param {object} settings - Customer settings object containing all required credentials and customerType.
@@ -488,10 +515,16 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 currencyData
             );
             facebookDaily = fbRows
-                .map((row) => ({
-                    period: row.date_start,
-                    spend: (parseFloat(row.spend) || 0) * metaConversionRate,
-                }))
+                .map((row) => {
+                    const spendRaw = parseFloat(row.spend) || 0;
+                    const conversionRaw = metaPurchaseConversionValue(row);
+                    return {
+                        period: row.date_start,
+                        spend: spendRaw * metaConversionRate,
+                        /** Platform-attributed Meta purchase value (omsætning pr. kanal). */
+                        conversionValue: conversionRaw * metaConversionRate,
+                    };
+                })
                 .sort((a, b) => a.period.localeCompare(b.period));
             }
         }
@@ -569,12 +602,19 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
             for (const row of googleRows) {
                 const date = row.segments?.date;
                 const cost = row.metrics?.cost_micros ? row.metrics.cost_micros / 1e6 : 0;
+                const conversionValue = parseFloat(row.metrics?.conversions_value) || 0;
                 if (!date) continue;
-                if (!daily[date]) daily[date] = 0;
-                daily[date] += cost * conversionRate;
+                if (!daily[date]) daily[date] = { spend: 0, conversionValue: 0 };
+                daily[date].spend += cost * conversionRate;
+                daily[date].conversionValue += conversionValue * conversionRate;
             }
             googleDaily = Object.entries(daily)
-                .map(([period, spend]) => ({ period, spend }))
+                .map(([period, v]) => ({
+                    period,
+                    spend: v.spend,
+                    /** Platform-attributed Google conversions_value (omsætning pr. kanal). */
+                    conversionValue: v.conversionValue,
+                }))
                 .sort((a, b) => a.period.localeCompare(b.period));
             }
         }

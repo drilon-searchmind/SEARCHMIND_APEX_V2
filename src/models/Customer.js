@@ -92,6 +92,24 @@ const CustomerSchema = new mongoose.Schema({
             type: Boolean,
             default: false,
         },
+        /**
+         * Which top-level sidebar sections to show when customDashboardsEnabled is true.
+         * Ignored (all visible) when custom dashboards are off. See sidebarNavVisibility.js.
+         */
+        sidebarNavVisibility: {
+            type: {
+                dashboard: { type: Boolean, default: true },
+                serviceDashboard: { type: Boolean, default: true },
+                custom: { type: Boolean, default: true },
+                misc: { type: Boolean, default: true },
+            },
+            default: () => ({
+                dashboard: true,
+                serviceDashboard: true,
+                custom: true,
+                misc: true,
+            }),
+        },
         /** When true: ShopifyQL sales and order-based fetches only include the Online Store channel (excludes POS, draft orders, etc.). */
         shopifyOnlineStoreOnly: {
             type: Boolean,

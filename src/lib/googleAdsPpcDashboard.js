@@ -364,7 +364,8 @@ async function fetchGoogleAdsPPCDashboardMetricsForOne({
             clicks: row.metrics?.clicks || 0,
             impressions: row.metrics?.impressions || 0,
             conversions: row.metrics?.conversions || 0,
-            conversions_value: row.metrics?.conversions_value || 0,
+            // Convert both spend and conversion value to DKK (same FX as merged-sources).
+            conversions_value: (row.metrics?.conversions_value || 0) * conversionRate,
             ad_spend: ((row.metrics?.cost_micros || 0) / 1_000_000) * conversionRate,
         })).filter(row => row.date && matchesCampaignFilter(row.campaign_name, campaignInclude, campaignExclude));
         const metricsByDateMap = {};

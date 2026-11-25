@@ -23,6 +23,12 @@ import { normalizeRevenueDisplayVat } from '@/lib/revenueVatDisplay';
 import { normalizeMarketPropertyObjectives, resolvePropertyObjectivesMode } from '@/lib/propertyObjectivesUtils';
 import { normalizeMerchantAccountSlot } from '@/lib/merchantCenter/merchantCenterAuth';
 import { canConfigureMerchantCenter } from '@/lib/internalUserAccess';
+import {
+    DEFAULT_SIDEBAR_NAV_VISIBILITY,
+    normalizeSidebarNavVisibility,
+} from '@/lib/sidebarNavVisibility';
+import SidebarNavForm from './components/SidebarNavForm';
+import { notifyCustomersUpdated } from '@/hooks/useCustomers';
 
 export default function ConfigPage() {
     const { customerId } = useParams();
@@ -46,6 +52,7 @@ export default function ConfigPage() {
         propertyObjectivesMode: "global",
         shopifyOnlineStoreOnly: false,
         customDashboardsEnabled: false,
+        sidebarNavVisibility: { ...DEFAULT_SIDEBAR_NAV_VISIBILITY },
         customerRevenueType: "total_sales",
         revenueDisplayVat: "excl",
         shopifyUrl: "",
@@ -118,6 +125,9 @@ export default function ConfigPage() {
                     reddit: normalizeRedditSettings(data.CustomerSettings || {}),
                     danDomain: normalizeDanDomainSettings(data.CustomerSettings || {}),
                     danDomainOriginal: normalizeDanDomainOriginalSettings(data.CustomerSettings || {}),
+                    sidebarNavVisibility: normalizeSidebarNavVisibility(
+                        data.CustomerSettings?.sidebarNavVisibility
+                    ),
                     googleAdsMarketMapping: normalizeGoogleAdsMarketMapping(
                         data.CustomerSettings?.googleAdsMarketMapping
                     ),
@@ -249,6 +259,7 @@ export default function ConfigPage() {
                 propertyObjectivesMode,
                 shopifyOnlineStoreOnly,
                 customDashboardsEnabled,
+                sidebarNavVisibility,
                 customerRevenueType,
                 revenueDisplayVat,
                 shopifyUrl,
@@ -306,6 +317,7 @@ export default function ConfigPage() {
                             propertyObjectivesMode,
                             shopifyOnlineStoreOnly,
                             customDashboardsEnabled: customDashboardsEnabled === true,
+                            sidebarNavVisibility: normalizeSidebarNavVisibility(sidebarNavVisibility),
                             customerRevenueType,
                             revenueDisplayVat: normalizeRevenueDisplayVat(revenueDisplayVat),
                             shopifyUrl,
@@ -383,6 +395,9 @@ export default function ConfigPage() {
                 reddit: normalizeRedditSettings(saved.CustomerSettings || {}),
                 danDomain: normalizeDanDomainSettings(saved.CustomerSettings || {}),
                 danDomainOriginal: normalizeDanDomainOriginalSettings(saved.CustomerSettings || {}),
+                sidebarNavVisibility: normalizeSidebarNavVisibility(
+                    saved.CustomerSettings?.sidebarNavVisibility
+                ),
                 googleAdsMarketMapping: normalizeGoogleAdsMarketMapping(
                     saved.CustomerSettings?.googleAdsMarketMapping
                 ),
@@ -401,6 +416,7 @@ export default function ConfigPage() {
             setMarketObjectives(
                 normalizeMarketPropertyObjectives(saved.CustomerMarketPropertyObjectives)
             );
+            notifyCustomersUpdated();
             showToast({ message: 'Settings updated successfully!', type: 'success', position: 'top-center' });
             pushGTMEvent(GTM_EVENTS.DASHBOARD_CONFIG_SAVED, {
                 eventData: { customerId: String(customerId) },
@@ -485,6 +501,13 @@ export default function ConfigPage() {
                     shopifyMarketsEnabled={form.shopifyMarketsEnabled === true}
                     customerId={customerId}
                 />
+            ),
+        },
+        {
+            key: 'sidebar',
+            label: 'Sidebar',
+            content: (
+                <SidebarNavForm form={form} onChange={handleChange} saving={saving} />
             ),
         },
     ];

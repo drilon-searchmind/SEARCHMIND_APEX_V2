@@ -18,6 +18,7 @@ import ParentMetaAdsCampaignFilterBar from "./ParentMetaAdsCampaignFilterBar";
 import ParentChildPropertiesColumnPicker, {
     useParentChildPropertiesTableColumns,
 } from "./ParentChildPropertiesColumnPicker";
+import { getCustomerDefaultDashboardHref } from "@/lib/customerDashboardHref";
 
 function formatDkk(n) {
     return (n ?? 0).toLocaleString("da-DK", { style: "currency", currency: "DKK" });
@@ -322,7 +323,11 @@ export default function ParentChildPropertiesTable({
                                                     ) : null;
                                                 })()}
                                                 <Link
-                                                    href={`/dashboard/${row._id}/performance-dashboard`}
+                                                    href={getCustomerDefaultDashboardHref(
+                                                        childCustomers.find(
+                                                            (c) => String(c._id) === String(row._id)
+                                                        ) || row
+                                                    )}
                                                 >
                                                     <FormButton buttonSize="small" borderType="outline">
                                                         View Dashboard

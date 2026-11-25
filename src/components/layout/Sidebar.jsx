@@ -31,6 +31,7 @@ import { getServiceDashboardConfigWarnings, getPriceShaperConfigWarning } from "
 import { isShopifyMarketsCustomer } from "@/lib/customerPlatformDisplay";
 import { isB2BCustomer } from "@/lib/customerBusinessCategory";
 import { getCustomDashboards } from "@/app/(protected)/dashboard/[customerId]/custom-dashboards";
+import { getSidebarNavVisibility } from "@/lib/sidebarNavVisibility";
 
 // Map of route patterns to their respective icons
 const getIconForRoute = (href) => {
@@ -146,6 +147,7 @@ const Sidebar = ({ showLinks = true }) => {
     const shopifyMarketsMenuEnabled = isShopifyMarketsCustomer(activeCustomer);
     const b2bCustomer = isB2BCustomer(activeCustomer);
     const customDashboards = useMemo(() => getCustomDashboards(activeCustomer), [activeCustomer]);
+    const sidebarNav = useMemo(() => getSidebarNavVisibility(activeCustomer), [activeCustomer]);
 
     const serviceDashboardWarnings = useMemo(() => {
         if (!activeCustomer) return null;
@@ -206,6 +208,7 @@ const Sidebar = ({ showLinks = true }) => {
                     <div className="apex-dash-sidebar__scroll no-scrollbar">
                         <nav>
                             <ul className="apex-dash-nav">
+                                {sidebarNav.dashboard ? (
                                 <li>
                                     <button
                                         type="button"
@@ -285,7 +288,9 @@ const Sidebar = ({ showLinks = true }) => {
                                         </ul>
                                     )}
                                 </li>
+                                ) : null}
 
+                                {sidebarNav.serviceDashboard ? (
                                 <li>
                                     <button
                                         type="button"
@@ -314,8 +319,9 @@ const Sidebar = ({ showLinks = true }) => {
                                         </ul>
                                     )}
                                 </li>
+                                ) : null}
 
-                                {customDashboards.length > 0 ? (
+                                {sidebarNav.custom && customDashboards.length > 0 ? (
                                     <li>
                                         <button
                                             type="button"
@@ -344,6 +350,7 @@ const Sidebar = ({ showLinks = true }) => {
                                     </li>
                                 ) : null}
 
+                                {sidebarNav.misc ? (
                                 <li>
                                     <button
                                         type="button"
@@ -404,6 +411,18 @@ const Sidebar = ({ showLinks = true }) => {
                                         </ul>
                                     )}
                                 </li>
+                                ) : (
+                                <li>
+                                    <ul className="apex-dash-nav__sub">
+                                        <NavItem
+                                            href={`/dashboard/${activeCustomerId}/config`}
+                                            label="Config"
+                                            pathname={pathname}
+                                            isSmallScreen={isSmallScreen}
+                                        />
+                                    </ul>
+                                </li>
+                                )}
                             </ul>
                         </nav>
                     </div>
