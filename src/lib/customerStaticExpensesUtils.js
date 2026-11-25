@@ -245,6 +245,16 @@ export function prepareCustomerStaticExpensesForSave(expenses) {
                     : Number(row.pickNPackCostPerOrder) || 0,
         }));
 
+    updated.shippingMethodCosts = (updated.shippingMethodCosts || [])
+        .map((row) => ({
+            name: String(row?.name || "").trim(),
+            costPerOrder:
+                row?.costPerOrder === "" || row?.costPerOrder == null
+                    ? 0
+                    : Number(row.costPerOrder) || 0,
+        }))
+        .filter((row) => row.name);
+
     return updated;
 }
 
@@ -327,18 +337,24 @@ export function calcFixedCostForSingleDay(dateYmd, staticExp = {}, options = {})
 
 /**
  * Flat list for performance dashboard fixed-expense breakdown rows.
- * @returns {{ key: string, metricKey: string, label: string, amount: number }[]}
+ * @param {object} [options] — same market scope as getMonthlyFixedExpensesTotal
+ *   (`mode: 'selection'|'market'|'all'|…`, `marketIds`, `marketId`)
+ * @returns {{ key: string, metricKey: string, label: string, amount: number, marketId?: string|null }[]}
  */
-export function getFixedExpensesBreakdownLineItems(staticExp = {}) {
+export function getFixedExpensesBreakdownLineItems(staticExp = {}, options = {}) {
+    const mode = options.mode || "all";
+    const opts = { marketId: options.marketId, marketIds: options.marketIds };
     const rows = [];
     const pushGroup = (items, prefix) => {
-        (items || []).forEach((item, i) => {
+        const filtered = filterFixedLineItemsByMarket(items, mode, opts);
+        filtered.forEach((item, i) => {
             if (!item?.name?.trim()) return;
             rows.push({
                 key: `${prefix}_${i}`,
                 metricKey: `${prefix}_${i}`,
                 label: String(item.name).trim(),
                 amount: parseFloat(item.amount) || 0,
+                marketId: lineItemMarketId(item),
             });
         });
     };

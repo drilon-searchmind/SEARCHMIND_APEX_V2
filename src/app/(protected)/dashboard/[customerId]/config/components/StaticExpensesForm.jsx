@@ -237,7 +237,9 @@ export default function StaticExpensesForm({
                     </div>
 
                     <div className="mb-3">
-                        <FormLabel htmlFor="shippingCostPerOrder">Shipping Cost Per Order (global)</FormLabel>
+                        <FormLabel htmlFor="shippingCostPerOrder">
+                            Shipping Cost Per Order (fallback)
+                        </FormLabel>
                         <div className="apex-config-field-row">
                             <FormInputText
                                 id="shippingCostPerOrder"
@@ -251,6 +253,85 @@ export default function StaticExpensesForm({
                             />
                             <span className="apex-config-field-unit">DKK</span>
                         </div>
+                        <p className="apex-config-field-hint">
+                            Used when an order&apos;s Shopify shipping method does not match a row below.
+                        </p>
+                    </div>
+
+                    <div className="mb-3">
+                        <FormLabel>Shipping cost by method</FormLabel>
+                        <p className="apex-config-field-hint mb-2">
+                            Match Shopify order shipping / delivery method name (e.g. &quot;GLS Pakkeshop&quot;).
+                        </p>
+                        {(form.CustomerStaticExpenses.shippingMethodCosts || []).map((row, index) => (
+                            <div key={`ship-method-${index}`} className="apex-config-field-row mb-2 gap-2">
+                                <FormInputText
+                                    type="text"
+                                    placeholder="Shipping method name"
+                                    value={row.name || ""}
+                                    onChange={(e) => {
+                                        const next = [
+                                            ...(form.CustomerStaticExpenses.shippingMethodCosts || []),
+                                        ];
+                                        next[index] = {
+                                            ...next[index],
+                                            name: e.target.value,
+                                        };
+                                        setExpensesField("shippingMethodCosts", next);
+                                    }}
+                                    disabled={saving}
+                                />
+                                <FormInputText
+                                    type="number"
+                                    placeholder="Cost"
+                                    value={row.costPerOrder ?? ""}
+                                    onChange={(e) => {
+                                        const next = [
+                                            ...(form.CustomerStaticExpenses.shippingMethodCosts || []),
+                                        ];
+                                        next[index] = {
+                                            ...next[index],
+                                            costPerOrder: parseFloat(e.target.value) || 0,
+                                        };
+                                        setExpensesField("shippingMethodCosts", next);
+                                    }}
+                                    min="0"
+                                    step="0.01"
+                                    disabled={saving}
+                                />
+                                <span className="apex-config-field-unit">DKK</span>
+                                <button
+                                    type="button"
+                                    className="apex-config-icon-btn"
+                                    onClick={() => {
+                                        const next = [
+                                            ...(form.CustomerStaticExpenses.shippingMethodCosts || []),
+                                        ];
+                                        next.splice(index, 1);
+                                        setExpensesField("shippingMethodCosts", next);
+                                    }}
+                                    disabled={saving}
+                                    aria-label="Remove shipping method"
+                                >
+                                    <FiX />
+                                </button>
+                            </div>
+                        ))}
+                        <button
+                            type="button"
+                            className="apex-config-link-btn"
+                            onClick={() => {
+                                const next = [
+                                    ...(form.CustomerStaticExpenses.shippingMethodCosts || []),
+                                    { name: "", costPerOrder: 0 },
+                                ];
+                                setExpensesField("shippingMethodCosts", next);
+                            }}
+                            disabled={saving}
+                        >
+                            <FiPlus size={16} />
+                            <span>Add shipping method</span>
+                        </button>
                     </div>
 
                     <div className="mb-3">

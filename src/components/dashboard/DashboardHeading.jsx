@@ -304,8 +304,29 @@ export default function DashboardHeading({
                                                             <input
                                                                 type="checkbox"
                                                                 checked={
-                                                                    shopifyMarketFilter.filterAdSpendByMarket ===
-                                                                    true
+                                                                    (() => {
+                                                                        const markets =
+                                                                            shopifyMarketFilter.options ||
+                                                                            [];
+                                                                        const excluded =
+                                                                            shopifyMarketFilter.excludedMarkets ||
+                                                                            {};
+                                                                        const enabled = markets.filter(
+                                                                            (m) =>
+                                                                                excluded[
+                                                                                    m.shopifyqlMarketId
+                                                                                ] !== true
+                                                                        );
+                                                                        const subset =
+                                                                            markets.length > 0 &&
+                                                                            enabled.length <
+                                                                                markets.length;
+                                                                        return (
+                                                                            subset ||
+                                                                            shopifyMarketFilter.filterAdSpendByMarket ===
+                                                                                true
+                                                                        );
+                                                                    })()
                                                                 }
                                                                 onChange={(e) =>
                                                                     shopifyMarketFilter.onFilterAdSpendByMarketChange?.(
@@ -314,7 +335,26 @@ export default function DashboardHeading({
                                                                 }
                                                                 disabled={
                                                                     loading ||
-                                                                    shopifyMarketFilter.loading
+                                                                    shopifyMarketFilter.loading ||
+                                                                    (() => {
+                                                                        const markets =
+                                                                            shopifyMarketFilter.options ||
+                                                                            [];
+                                                                        const excluded =
+                                                                            shopifyMarketFilter.excludedMarkets ||
+                                                                            {};
+                                                                        const enabled = markets.filter(
+                                                                            (m) =>
+                                                                                excluded[
+                                                                                    m.shopifyqlMarketId
+                                                                                ] !== true
+                                                                        );
+                                                                        return (
+                                                                            markets.length > 0 &&
+                                                                            enabled.length <
+                                                                                markets.length
+                                                                        );
+                                                                    })()
                                                                 }
                                                                 className={isApex
                                                                     ? "mt-0.5 rounded border-gray-300 accent-[var(--color-ink)] shrink-0"

@@ -25,6 +25,13 @@ import {
     channelSpendTotalsForMarket,
     buildSyntheticMergedFromChannelTotals,
 } from "./marketAdSpendByCountry";
+import {
+    computeShippingCostFromMethodCounts,
+    fetchShopifyOrdersByShippingMethodAndCountry,
+    hasShippingMethodCosts,
+    shippingMethodCountsForBillingCountries,
+    shippingMethodCountsForPeriod,
+} from "./shippingMethodCosts";
 
 /**
  * Same metrics pipeline as performance-dashboard (buildPeriodTotals + computePerformanceDashboardMetrics).
@@ -38,7 +45,12 @@ export function aggregateMetricsLikePerformanceDashboard(
     merged,
     customer,
     dateRange,
-    { fixedCosts: fixedCostsOverride, marketId = null, marketCount = 1 } = {}
+    {
+        fixedCosts: fixedCostsOverride,
+        marketId = null,
+        marketCount = 1,
+        shippingCostOverride = null,
+    } = {}
 ) {
     const shopify = shopifyDaily || [];
     const cs = customer?.CustomerSettings || customer || {};
@@ -68,6 +80,22 @@ export function aggregateMetricsLikePerformanceDashboard(
     const daysInRange =
         dayjs(dateRange.endDate).diff(dayjs(dateRange.startDate), "day") + 1;
 
+    let resolvedShippingOverride = shippingCostOverride;
+    if (
+        resolvedShippingOverride == null &&
+        hasShippingMethodCosts(staticExpenses) &&
+        Array.isArray(merged?.shippingOrdersByMethodDaily) &&
+        merged.shippingOrdersByMethodDaily.length > 0
+    ) {
+        const orders = shopify.reduce((s, d) => s + (Number(d.orders) || 0), 0);
+        resolvedShippingOverride = computeShippingCostFromMethodCounts(
+            shippingMethodCountsForPeriod(merged.shippingOrdersByMethodDaily),
+            staticExpenses.shippingMethodCosts,
+            staticExpenses.shippingCostPerOrder ?? 0,
+            orders
+        );
+    }
+
     const computed = computePerformanceDashboardMetrics({
         shopify,
         shopifyPrev: [],
@@ -85,6 +113,8 @@ export function aggregateMetricsLikePerformanceDashboard(
         customKpis: [],
         daysInRange,
         prevDaysInRange: daysInRange,
+        shippingCostOverride: resolvedShippingOverride,
+        shippingCostOverridePrev: null,
     });
 
     const md = computed.metricsData;
@@ -164,7 +194,10 @@ export async function fetchMarketsOverviewRows(
     const excludeAdSpendPlatforms = options.excludeAdSpendPlatforms || [];
     const dateRange = { startDate, endDate };
 
-    const [storeMerged, shopifyByCountry, adSpendByIso, filtersByMarketId] =
+    const staticExpensesEarly = settings?.CustomerStaticExpenses || {};
+    const needShippingByCountry = hasShippingMethodCosts(staticExpensesEarly);
+
+    const [storeMerged, shopifyByCountry, adSpendByIso, filtersByMarketId, shippingByCountry] =
         await Promise.all([
             fetchMergedSources(settings, startDate, endDate, {
                 dailyBreakdown: true,
@@ -180,6 +213,15 @@ export async function fetchMarketsOverviewRows(
                 excludeAdSpendPlatforms,
             }),
             prefetchMarketFiltersByMarketId(settings, list),
+            needShippingByCountry && settings.shopifyUrl && settings.shopifyApiPassword
+                ? fetchShopifyOrdersByShippingMethodAndCountry(
+                      settings.shopifyUrl,
+                      settings.shopifyApiPassword,
+                      startDate,
+                      endDate,
+                      settings
+                  )
+                : Promise.resolve([]),
         ]);
 
     const storeChannelTotals = channelSpendTotalsFromMerged(storeMerged);
@@ -255,12 +297,37 @@ export async function fetchMarketsOverviewRows(
             startDate
         );
 
+        let shippingCostOverride = null;
+        if (needShippingByCountry && Array.isArray(shippingByCountry)) {
+            const orders = shopifyDaily.reduce(
+                (s, d) => s + (Number(d.orders) || 0),
+                0
+            );
+            const rates = withResolvedPerOrderRates(
+                staticExpenses,
+                shopifyqlMarketId
+            );
+            shippingCostOverride = computeShippingCostFromMethodCounts(
+                shippingMethodCountsForBillingCountries(
+                    shippingByCountry,
+                    filters.billingCountryNames
+                ),
+                rates.shippingMethodCosts || staticExpenses.shippingMethodCosts,
+                rates.shippingCostPerOrder ?? 0,
+                orders
+            );
+        }
+
         const metrics = aggregateMetricsLikePerformanceDashboard(
             shopifyDaily,
             merged,
             settings,
             dateRange,
-            { marketId: shopifyqlMarketId, marketCount: activeMarketCount }
+            {
+                marketId: shopifyqlMarketId,
+                marketCount: activeMarketCount,
+                shippingCostOverride,
+            }
         );
 
         marketRows.push({

@@ -46,6 +46,11 @@ import {
     getOverviewKpiCardKeys,
 } from "@/lib/performanceDashboard/performanceDashboardLayout";
 import { computePerformanceDashboardMetrics, netRevenueForShopifyDay } from "@/lib/performanceDashboard/computePerformanceMetrics";
+import {
+    computeShippingCostFromMethodCounts,
+    hasShippingMethodCosts,
+    shippingMethodCountsForPeriod,
+} from "@/lib/shippingMethodCosts";
 import { getReturnsOverrideSettings } from "@/lib/performanceDashboard/performanceDashboardConstants";
 import { applyVatDisplayToShopifyDailyRows } from "@/lib/revenueVatDisplay";
 import { pushDashboardDateRangeApplied } from "@root/lib/gtmFunctions";
@@ -611,6 +616,34 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
             visibleAdSpendChannels.map((c) => [c.metricsDataKey, chTotalsPrev[c.metricsDataKey] ?? 0])
         );
 
+        let shippingCostOverride = null;
+        let shippingCostOverridePrev = null;
+        if (hasShippingMethodCosts(staticExp)) {
+            const shippingDaily = merged.shippingOrdersByMethodDaily || [];
+            const shippingDailyPrev = mergedPrev.shippingOrdersByMethodDaily || [];
+            if (shippingDaily.length > 0) {
+                const orders = shopify.reduce((s, d) => s + (Number(d.orders) || 0), 0);
+                shippingCostOverride = computeShippingCostFromMethodCounts(
+                    shippingMethodCountsForPeriod(shippingDaily),
+                    staticExp.shippingMethodCosts,
+                    staticExp.shippingCostPerOrder ?? 0,
+                    orders
+                );
+            }
+            if (shippingDailyPrev.length > 0) {
+                const ordersPrev = shopifyPrev.reduce(
+                    (s, d) => s + (Number(d.orders) || 0),
+                    0
+                );
+                shippingCostOverridePrev = computeShippingCostFromMethodCounts(
+                    shippingMethodCountsForPeriod(shippingDailyPrev),
+                    staticExp.shippingMethodCosts,
+                    staticExp.shippingCostPerOrder ?? 0,
+                    ordersPrev
+                );
+            }
+        }
+
         const computed = computePerformanceDashboardMetrics({
             shopify,
             shopifyPrev,
@@ -628,6 +661,8 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
             customKpis,
             daysInRange,
             prevDaysInRange,
+            shippingCostOverride,
+            shippingCostOverridePrev,
         });
 
         const {
@@ -664,6 +699,7 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
             prevRangeEnd: prevPeriodEnd,
             customerType: customer?.customerType || "Shopify",
             customerSettings: customer?.CustomerSettings || {},
+            expenseScope: fixedCostOpts,
         });
 
         setMetrics(metricsArray);
@@ -714,8 +750,12 @@ function EcommercePerformanceDashboard({ customer: customerProp }) {
     const [calcWalkthroughOpen, setCalcWalkthroughOpen] = useState(false);
 
     const fixedBreakdownRows = useMemo(
-        () => getFixedExpensesBreakdownLineItems(customer?.CustomerStaticExpenses || {}),
-        [customer?.CustomerStaticExpenses]
+        () =>
+            getFixedExpensesBreakdownLineItems(
+                customer?.CustomerStaticExpenses || {},
+                expenseScope || { mode: "all" }
+            ),
+        [customer?.CustomerStaticExpenses, expenseScope]
     );
 
     const STANDARD_SECTIONS = useMemo(

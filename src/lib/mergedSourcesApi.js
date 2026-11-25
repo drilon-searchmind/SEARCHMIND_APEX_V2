@@ -36,6 +36,11 @@ import { resolveGoogleAdsFetchPlan } from './googleAdsMarketMapping';
 import { getCurrencyConversionTable, conversionRateToDkk } from './currencyConversionTable';
 import { isAdSpendPlatformConfigured } from './customerServiceIntegrations';
 import { AD_SPEND_CHANNELS } from './mergeAdSpendDaily';
+import {
+    hasShippingMethodCosts,
+    fetchShopifyOrdersByShippingMethodDaily,
+    buildShippingMethodWhereParts,
+} from './shippingMethodCosts';
 
 const META_PURCHASE_ACTION_TYPES = [
     'purchase',
@@ -102,6 +107,10 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
 
     // Determine customer type and fetch appropriate e-commerce data
     let shopifyDaily = [];
+    /** @type {Array<{ period: string, method: string, orders: number }>} */
+    let shippingOrdersByMethodDaily = [];
+    /** @type {string[]|null} */
+    let shopifyMarketBillingCountriesForShipping = null;
     const customerType = settings.customerType || 'Shopify'; // Default to Shopify for backward compatibility
 
     try {
@@ -179,6 +188,8 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                         )
                     ) {
                         emptyShopifyNoMarketCountries = true;
+                    } else {
+                        shopifyMarketBillingCountriesForShipping = marketCountryNames;
                     }
                 } catch (e) {
                     console.error("[Shopify] Markets filter: failed to load region countries:", e);
@@ -240,6 +251,33 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
                 
                 return baseData;
             }).sort((a, b) => a.period.localeCompare(b.period));
+
+            // Shipping method order counts (for per-method shipping cost config)
+            if (
+                !emptyShopifyNoMarketCountries &&
+                hasShippingMethodCosts(settings.CustomerStaticExpenses)
+            ) {
+                try {
+                    const shipWhere = buildShippingMethodWhereParts(
+                        settings,
+                        shopifyMarketBillingCountriesForShipping
+                    );
+                    shippingOrdersByMethodDaily =
+                        await fetchShopifyOrdersByShippingMethodDaily(
+                            settings.shopifyUrl,
+                            settings.shopifyApiPassword,
+                            startDate,
+                            endDate,
+                            shipWhere
+                        );
+                } catch (shipErr) {
+                    console.warn(
+                        "[Shopify] Shipping method orders fetch failed:",
+                        shipErr?.message || shipErr
+                    );
+                    shippingOrdersByMethodDaily = [];
+                }
+            }
             }
             }
         } else if (customerType === 'WooCommerce' && settings.wooCommerceApiKey && settings.wooCommerceApiSecret) {
@@ -821,6 +859,7 @@ export async function fetchMergedSources(settings, startDate, endDate, options =
 
     return {
         shopifyDaily,
+        shippingOrdersByMethodDaily,
         facebookDaily,
         googleDaily,
         pinterestDaily,

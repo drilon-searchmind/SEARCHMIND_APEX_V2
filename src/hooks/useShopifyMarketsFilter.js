@@ -97,16 +97,39 @@ export function useShopifyMarketsFilter(customer, customerIdFromParams, options 
     }, []);
 
     const applyShopifyMarketFilters = useCallback(() => {
+        const enabledDraft = shopifyMarkets.filter(
+            (m) => draftExcludedMarkets[m.shopifyqlMarketId] !== true
+        );
+        // Subset / empty selection → always filter marketing spend by market countries
+        const isSubset =
+            shopifyMarkets.length > 0 &&
+            enabledDraft.length < shopifyMarkets.length;
+        const nextFilterAdSpend =
+            isSubset || enabledDraft.length === 0 ? true : draftFilterAdSpendByMarket;
         setAppliedExcludedMarkets({ ...draftExcludedMarkets });
-        setAppliedFilterAdSpendByMarket(draftFilterAdSpendByMarket);
-    }, [draftExcludedMarkets, draftFilterAdSpendByMarket]);
+        setAppliedFilterAdSpendByMarket(nextFilterAdSpend);
+        if (nextFilterAdSpend !== draftFilterAdSpendByMarket) {
+            setDraftFilterAdSpendByMarket(nextFilterAdSpend);
+        }
+    }, [
+        draftExcludedMarkets,
+        draftFilterAdSpendByMarket,
+        shopifyMarkets,
+    ]);
 
     const marketQuerySuffix = useMemo(() => {
         const enabledMarkets = shopifyMarkets.filter(
             (m) => appliedExcludedMarkets[m.shopifyqlMarketId] !== true
         );
         if (!shopifyMarketsFeatureOn) return "";
-        const adSpendPart = appliedFilterAdSpendByMarket
+        // Always filter ad spend when a market subset (or none) is selected —
+        // otherwise each market view still gets store-wide spend.
+        const isSubsetOrEmpty =
+            shopifyMarkets.length > 0 &&
+            enabledMarkets.length < shopifyMarkets.length;
+        const filterAdSpend =
+            isSubsetOrEmpty || appliedFilterAdSpendByMarket === true;
+        const adSpendPart = filterAdSpend
             ? "&shopifyMarketFilterAdSpend=1"
             : "&shopifyMarketFilterAdSpend=0";
         // Stable suffix while catalog loads so prefetch cache keys don't change mid-flight.

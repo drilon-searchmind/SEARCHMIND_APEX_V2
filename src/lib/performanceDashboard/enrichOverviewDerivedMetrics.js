@@ -305,6 +305,7 @@ export function enrichOverviewDerivedMetrics({
     customerType = "Shopify",
     customerSettings = {},
     replacementByKey = {},
+    expenseScope = null,
 }) {
     const currDerived = buildDerivedSnapshot(
         metricsData,
@@ -321,7 +322,11 @@ export function enrichOverviewDerivedMetrics({
         replacementByKey
     );
 
-    const breakdownRows = getFixedExpensesBreakdownLineItems(staticExp);
+    const breakdownOpts =
+        expenseScope?.mode === "selection" || expenseScope?.mode === "market"
+            ? expenseScope
+            : { mode: "all" };
+    const breakdownRows = getFixedExpensesBreakdownLineItems(staticExp, breakdownOpts);
     const fixedLineCurr = {};
     const fixedLinePrev = {};
     breakdownRows.forEach((row) => {

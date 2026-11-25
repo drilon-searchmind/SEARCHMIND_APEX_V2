@@ -107,6 +107,9 @@ export function buildBaseMetricsData({
     fixedCostsPrev,
     daysInRange,
     prevDaysInRange,
+    /** Optional absolute shipping totals (method-based); otherwise rate × orders */
+    shippingCostOverride = null,
+    shippingCostOverridePrev = null,
 }) {
     const shippingCostPerOrder = staticExpenses.shippingCostPerOrder ?? 0;
     const pickNPackCostPerOrder = staticExpenses.pickNPackCostPerOrder ?? 0;
@@ -131,8 +134,14 @@ export function buildBaseMetricsData({
         ? prev.cogsFromStore
         : totalSalesExVatPrev * cogsPercentage;
 
-    const shippingCost = shippingCostPerOrder * curr.orders;
-    const shippingCostPrev = shippingCostPerOrder * prev.orders;
+    const shippingCost =
+        shippingCostOverride != null
+            ? Number(shippingCostOverride) || 0
+            : shippingCostPerOrder * curr.orders;
+    const shippingCostPrev =
+        shippingCostOverridePrev != null
+            ? Number(shippingCostOverridePrev) || 0
+            : shippingCostPerOrder * prev.orders;
     const pickPackCost = pickNPackCostPerOrder * curr.orders;
     const pickPackCostPrev = pickNPackCostPerOrder * prev.orders;
     const transactionFee = curr.netRevenue * transactionCostPct;
@@ -150,9 +159,14 @@ export function buildBaseMetricsData({
     const variableCosts = shippingCost + pickPackCost;
     const variableCostsPrev = shippingCostPrev + pickPackCostPrev;
     const allCosts =
-        totalCogs + fixedCosts + variableCosts + transactionFee + cost;
+        totalCogs + fixedCosts + variableCosts + transactionFee + returnsCost + cost;
     const allCostsPrev =
-        prevTotalCogs + fixedCostsPrev + variableCostsPrev + transactionFeePrev + costPrev;
+        prevTotalCogs +
+        fixedCostsPrev +
+        variableCostsPrev +
+        transactionFeePrev +
+        returnsCostPrev +
+        costPrev;
 
     const aov = curr.orders > 0 ? curr.netRevenue / curr.orders : 0;
     const aovPrev = prev.orders > 0 ? prev.netRevenue / prev.orders : 0;
@@ -161,9 +175,13 @@ export function buildBaseMetricsData({
     const grossProfit = totalSalesExVat - totalCogs;
     const grossProfitPrev = totalSalesExVatPrev - prevTotalCogs;
     const costsBelowGrossProfit =
-        fixedCosts + variableCosts + transactionFee + cost;
+        fixedCosts + variableCosts + transactionFee + returnsCost + cost;
     const costsBelowGrossProfitPrev =
-        fixedCostsPrev + variableCostsPrev + transactionFeePrev + costPrev;
+        fixedCostsPrev +
+        variableCostsPrev +
+        transactionFeePrev +
+        returnsCostPrev +
+        costPrev;
     const ebit = grossProfit - costsBelowGrossProfit;
     const ebitPrev = grossProfitPrev - costsBelowGrossProfitPrev;
     const poas = calcBlendedPoasOrZero(grossProfit, cost);
@@ -386,15 +404,22 @@ export function applyCustomKpiReplacements(
     const pickPackCostPrev = effectivePrev.pick_pack;
     const variableCosts = shippingCost + pickPackCost;
     const variableCostsPrev = shippingCostPrev + pickPackCostPrev;
+    const returnsCost = Number(effective.returns_cost) || 0;
+    const returnsCostPrev = Number(effectivePrev.returns_cost) || 0;
     const cost = effective.cost;
     const costPrev = effectivePrev.cost;
     const fixedCosts = effective.fixed_costs;
     const fixedCostsPrev = effectivePrev.fixed_costs;
 
     const allCosts =
-        totalCogs + fixedCosts + variableCosts + transactionFee + cost;
+        totalCogs + fixedCosts + variableCosts + transactionFee + returnsCost + cost;
     const allCostsPrev =
-        prevTotalCogs + fixedCostsPrev + variableCostsPrev + transactionFeePrev + costPrev;
+        prevTotalCogs +
+        fixedCostsPrev +
+        variableCostsPrev +
+        transactionFeePrev +
+        returnsCostPrev +
+        costPrev;
 
     const grossProfitEffective = salesExVat - totalCogs;
     const grossProfitEffectivePrev = salesExVatPrev - prevTotalCogs;
@@ -403,9 +428,13 @@ export function applyCustomKpiReplacements(
     effective.total_expenses = allCosts;
     effectivePrev.total_expenses = allCostsPrev;
     const costsBelowGrossProfit =
-        fixedCosts + variableCosts + transactionFee + cost;
+        fixedCosts + variableCosts + transactionFee + returnsCost + cost;
     const costsBelowGrossProfitPrev =
-        fixedCostsPrev + variableCostsPrev + transactionFeePrev + costPrev;
+        fixedCostsPrev +
+        variableCostsPrev +
+        transactionFeePrev +
+        returnsCostPrev +
+        costPrev;
     effective.ebit = grossProfitEffective - costsBelowGrossProfit;
     effectivePrev.ebit = grossProfitEffectivePrev - costsBelowGrossProfitPrev;
     effective.roas = cost > 0 ? effective.revenue / cost : 0;
@@ -471,6 +500,8 @@ export function computePerformanceDashboardMetrics({
     customKpis = [],
     daysInRange,
     prevDaysInRange,
+    shippingCostOverride = null,
+    shippingCostOverridePrev = null,
 }) {
     const returnsOverride = getReturnsOverrideSettings(customerSettings);
     const curr = buildPeriodTotals(shopify, returnsOverride, customerSettings);
@@ -492,6 +523,8 @@ export function computePerformanceDashboardMetrics({
         fixedCostsPrev,
         daysInRange,
         prevDaysInRange,
+        shippingCostOverride,
+        shippingCostOverridePrev,
     });
     base.derived._fetchCogs = fetchCogs;
     base.derived._cogsPercentage = cogsPercentage;
@@ -515,6 +548,8 @@ export function computePerformanceDashboardMetrics({
         fixedCostsPrev,
         daysInRange,
         prevDaysInRange,
+        shippingCostOverride,
+        shippingCostOverridePrev,
     });
     const withReplacements = applyCustomKpiReplacements(base, customKpis, {
         formulaMetricsData: baseForCustomKpis.metricsData,

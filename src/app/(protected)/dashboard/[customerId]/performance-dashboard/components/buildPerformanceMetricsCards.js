@@ -91,6 +91,7 @@ export function buildPerformanceMetricsCards({
     prevRangeEnd,
     customerType = "Shopify",
     customerSettings = {},
+    expenseScope = null,
 }) {
     const {
         totalCogs,
@@ -539,7 +540,7 @@ export function buildPerformanceMetricsCards({
             changeAbsolute: formatDiff(ebit, ebitPrev, "currency"),
             changePrevValue: fmtCur(ebitPrev),
             popOverContent: `Net Profit = ${grossProfitLabel} - Remaining costs\n= ${fmt(grossProfit)} - ${fmt(costsBelowGrossProfit)}\n= ${fmt(ebit)}`,
-            calcValueLabels: `${grossProfitLabel}: ${fmt(grossProfit)}\nRemaining costs (Fixed + Variable + Transaction Fee + Spend): ${fmt(costsBelowGrossProfit)}`,
+            calcValueLabels: `${grossProfitLabel}: ${fmt(grossProfit)}\nRemaining costs (Fixed + Variable + Transaction Fee + Returns + Spend): ${fmt(costsBelowGrossProfit)}`,
         },
         {
             key: "ebit_pct",
@@ -551,7 +552,7 @@ export function buildPerformanceMetricsCards({
             changeAbsolute: formatDiff(ebitPct, ebitPctPrev, "pct"),
             changePrevValue: ebitPctPrev != null ? `${ebitPctPrev.toFixed(1)}%` : undefined,
             popOverContent: `EBIT = ${grossProfitLabel} - Remaining costs\n= ${fmt(grossProfit)} - ${fmt(costsBelowGrossProfit)}\n= ${fmt(ebit)}\nEBIT% = (EBIT / ${totalSalesExVatLabel}) × 100\n= (${fmt(ebit)} / ${fmt(totalSalesExVat)}) × 100\n= ${ebitPct != null ? ebitPct.toFixed(1) : "N/A"}%`,
-            calcValueLabels: `${grossProfitLabel}: ${fmt(grossProfit)}\nRemaining costs (Fixed + Variable + Transaction Fee + Spend): ${fmt(costsBelowGrossProfit)}`,
+            calcValueLabels: `${grossProfitLabel}: ${fmt(grossProfit)}\nRemaining costs (Fixed + Variable + Transaction Fee + Returns + Spend): ${fmt(costsBelowGrossProfit)}`,
         },
         {
             key: "cac",
@@ -579,6 +580,7 @@ export function buildPerformanceMetricsCards({
         customerType,
         customerSettings,
         replacementByKey,
+        expenseScope,
     });
     const derivedCards = buildOverviewDerivedMetricCards(
         metricsData,

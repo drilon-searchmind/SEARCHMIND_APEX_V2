@@ -325,6 +325,19 @@ const CustomerSchema = new mongoose.Schema({
             type: Number,
             default: 0,
         },
+        /**
+         * Per Shopify shipping method rates (match order delivery / shipping title).
+         * Unmatched methods use shippingCostPerOrder as fallback.
+         */
+        shippingMethodCosts: {
+            type: [
+                {
+                    name: { type: String, required: true },
+                    costPerOrder: { type: Number, default: 0 },
+                },
+            ],
+            default: [],
+        },
         pickNPackCostPerOrder: {
             type: Number,
             default: 0,

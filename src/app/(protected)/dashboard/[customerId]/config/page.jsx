@@ -89,6 +89,7 @@ export default function ConfigPage() {
         CustomerStaticExpenses: {
             cogsPercentage: 0,
             shippingCostPerOrder: 0,
+            shippingMethodCosts: [],
             pickNPackCostPerOrder: 0,
             marketVariableCosts: [],
             transactionCostPercentage: 0,
@@ -139,6 +140,7 @@ export default function ConfigPage() {
                         marketingToolingCostLineItems: data.CustomerStaticExpenses?.marketingToolingCostLineItems || [],
                         fixedExpensesLineItems: data.CustomerStaticExpenses?.fixedExpensesLineItems || [],
                         marketVariableCosts: data.CustomerStaticExpenses?.marketVariableCosts || [],
+                        shippingMethodCosts: data.CustomerStaticExpenses?.shippingMethodCosts || [],
                     },
                 });
                 setObjectives(data.CustomerPropertyObjectives || {});
@@ -410,6 +412,7 @@ export default function ConfigPage() {
                         saved.CustomerStaticExpenses?.marketingToolingCostLineItems || [],
                     fixedExpensesLineItems: saved.CustomerStaticExpenses?.fixedExpensesLineItems || [],
                     marketVariableCosts: saved.CustomerStaticExpenses?.marketVariableCosts || [],
+                    shippingMethodCosts: saved.CustomerStaticExpenses?.shippingMethodCosts || [],
                 },
             });
             setObjectives(saved.CustomerPropertyObjectives || {});

@@ -205,8 +205,10 @@ export function buildStandardOverviewSections({
             key: "net_profit",
             title: "Net profit",
             primaryKey: "ebit",
+            // Use ebit / total sales (same as other headerSubtitlePct sections).
+            // Do not set pctMetricKey to net_profit_pct_total_sales — that value is
+            // already a %, and the UI would divide it by total sales again → ~0%.
             headerSubtitlePct: true,
-            pctMetricKey: "net_profit_pct_total_sales",
             breakdown: [
                 {
                     key: "fixed_costs_group",

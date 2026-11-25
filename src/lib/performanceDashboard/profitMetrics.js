@@ -11,6 +11,12 @@ import {
 } from "@/lib/customerStaticExpensesUtils";
 import { applyVatDisplayToShopifyDayRow } from "@/lib/revenueVatDisplay";
 import { calcBlendedPoas } from "@/lib/poasMetrics";
+import {
+    computeShippingCostFromMethodCounts,
+    hasShippingMethodCosts,
+    shippingMethodCountsForDay,
+    shippingMethodCountsForPeriod,
+} from "@/lib/shippingMethodCosts";
 import { getReturnsOverrideSettings } from "./performanceDashboardConstants";
 import {
     computePerformanceDashboardMetrics,
@@ -32,6 +38,7 @@ import {
  * @param {object} [opts.expenseScope] — market scope for fixed/variable costs
  *   `{ marketIds?: string[], marketId?: string, marketCount?: number, mode?: string }`
  * @param {string} [opts.revenueBasis] — `after_returns` (default) | `before_returns`
+ * @param {Array<{ period?: string, method?: string, orders?: number }>} [opts.shippingOrdersByMethodDaily]
  */
 export function calcShopifyDayProfitMetrics({
     shopifyDay,
@@ -41,6 +48,7 @@ export function calcShopifyDayProfitMetrics({
     returnsOverride = null,
     expenseScope = null,
     revenueBasis = null,
+    shippingOrdersByMethodDaily = null,
 }) {
     const returnsOverrideSettings =
         returnsOverride ?? getReturnsOverrideSettings(customerSettings);
@@ -54,6 +62,7 @@ export function calcShopifyDayProfitMetrics({
     const shippingCostPerOrder = resolvedExpenses?.shippingCostPerOrder ?? 0;
     const pickNPackCostPerOrder = resolvedExpenses?.pickNPackCostPerOrder ?? 0;
     const transactionCostPct = staticExpenses?.transactionCostPercentage ?? 0.015;
+    const returnsCostPct = staticExpenses?.returnsCostPercentage ?? 0;
 
     const vatDay = applyVatDisplayToShopifyDayRow(shopifyDay, customerSettings);
     const netRevenueAfterReturns = netRevenueForShopifyDay(
@@ -78,18 +87,32 @@ export function calcShopifyDayProfitMetrics({
     const cogs = fetchCogs
         ? Number(vatDay.cost_of_goods_sold) || 0
         : netRevenue * cogsPercentage;
-    const variableExpense =
-        shippingCostPerOrder * orders + pickNPackCostPerOrder * orders;
     const ymd = String(shopifyDay.period).slice(0, 10);
+    let shippingCost = shippingCostPerOrder * orders;
+    if (
+        hasShippingMethodCosts(resolvedExpenses) &&
+        Array.isArray(shippingOrdersByMethodDaily) &&
+        shippingOrdersByMethodDaily.length > 0
+    ) {
+        shippingCost = computeShippingCostFromMethodCounts(
+            shippingMethodCountsForDay(shippingOrdersByMethodDaily, ymd),
+            resolvedExpenses.shippingMethodCosts,
+            shippingCostPerOrder,
+            orders
+        );
+    }
+    const variableExpense = shippingCost + pickNPackCostPerOrder * orders;
     const fixedExpense = calcFixedCostForSingleDay(
         ymd,
         staticExpenses,
         expenseScope || {}
     );
     const transactionFee = netRevenue * transactionCostPct;
+    const returnsCost = Math.abs(Number(returnsAmount) || 0) * returnsCostPct;
     const cost = Number(marketingSpend) || 0;
     const grossProfit = netRevenue - cogs;
-    const allCosts = cogs + fixedExpense + variableExpense + transactionFee + cost;
+    const allCosts =
+        cogs + fixedExpense + variableExpense + transactionFee + returnsCost + cost;
     const netProfit = netRevenue - allCosts;
     const poas = calcBlendedPoas(grossProfit, cost);
     const roas = cost > 0 ? netRevenue / cost : null;
@@ -168,6 +191,43 @@ export function computePeriodMetricsFromMerged({
             dayjs(prevDateRange.endDate).diff(dayjs(prevDateRange.startDate), "day") + 1;
     }
 
+    const shippingDaily =
+        merged?.shippingOrdersByMethodDaily ||
+        resolvedStatic.shippingOrdersByMethodDaily ||
+        null;
+    const shippingDailyPrev =
+        mergedPrev?.shippingOrdersByMethodDaily || null;
+    let shippingCostOverride = null;
+    let shippingCostOverridePrev = null;
+    if (hasShippingMethodCosts(resolvedStatic) && Array.isArray(shippingDaily)) {
+        const orders = (shopifyDaily || []).reduce(
+            (s, d) => s + (Number(d.orders) || 0),
+            0
+        );
+        shippingCostOverride = computeShippingCostFromMethodCounts(
+            shippingMethodCountsForPeriod(shippingDaily),
+            resolvedStatic.shippingMethodCosts,
+            resolvedStatic.shippingCostPerOrder ?? 0,
+            orders
+        );
+    }
+    if (
+        hasShippingMethodCosts(resolvedStatic) &&
+        Array.isArray(shippingDailyPrev) &&
+        prevDateRange
+    ) {
+        const ordersPrev = (shopifyDailyPrev || []).reduce(
+            (s, d) => s + (Number(d.orders) || 0),
+            0
+        );
+        shippingCostOverridePrev = computeShippingCostFromMethodCounts(
+            shippingMethodCountsForPeriod(shippingDailyPrev),
+            resolvedStatic.shippingMethodCosts,
+            resolvedStatic.shippingCostPerOrder ?? 0,
+            ordersPrev
+        );
+    }
+
     const computed = computePerformanceDashboardMetrics({
         shopify: shopifyDaily,
         shopifyPrev: shopifyDailyPrev,
@@ -185,6 +245,8 @@ export function computePeriodMetricsFromMerged({
         customKpis,
         daysInRange,
         prevDaysInRange,
+        shippingCostOverride,
+        shippingCostOverridePrev,
     });
 
     const replacementByKey = computed.replacementByKey || {};
@@ -192,7 +254,7 @@ export function computePeriodMetricsFromMerged({
         metricsData: computed.metricsData,
         metricsDataPrev: computed.metricsDataPrev,
         derived: computed.derived,
-        staticExp: resolvedStatic,
+        staticExp: staticExpenses,
         rangeStart: startDate,
         rangeEnd: endDate,
         prevRangeStart: prevDateRange?.startDate,
@@ -200,6 +262,7 @@ export function computePeriodMetricsFromMerged({
         customerType,
         customerSettings,
         replacementByKey,
+        expenseScope: fixedCostOpts,
     });
 
     const md = computed.metricsData;

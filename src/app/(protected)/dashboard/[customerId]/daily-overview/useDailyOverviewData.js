@@ -85,6 +85,7 @@ function buildDailyRows(
 			returnsOverride,
 			expenseScope,
 			revenueBasis,
+			shippingOrdersByMethodDaily: merged.shippingOrdersByMethodDaily || null,
 		});
 
 		const {
