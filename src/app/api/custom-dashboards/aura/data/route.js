@@ -21,9 +21,10 @@ export async function GET(req) {
     if (access.error) return NextResponse.json({ error: access.error.message }, { status: access.error.status });
     const stored = await getInputs(customerId, "aura");
     const costChannel = auraCostChannelForCustomerName(access.customer.customerName);
+    const year = Number(String(startDate).slice(0, 4));
     return NextResponse.json({
         conversions: conversionSeries(stored.conversions, startDate, endDate),
         otherCost: otherCostSeries(stored.campaigns, startDate, endDate, costChannel),
-        goals: normalizeGoals(stored.goals),
+        goals: normalizeGoals(stored.goals, year),
     });
 }

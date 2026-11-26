@@ -218,9 +218,10 @@ export async function runAuraInputImport() {
 
         if (KEYS.has("goals")) {
             const perfId = PERFORMANCE_SHEET_IDS[name];
+            // sanitize wraps legacy flat months under year 2026
             const data = await parseGoals(perfId);
             const existing = await CustomDashboardInput.findOne({ customer: cfg.id, dashboard: "aura", key: "goals" }).lean();
-            const jan = data[0];
+            const jan = data?.["2026"]?.[0] || data?.[0] || { goal: 0, budget: 0 };
             const match = diffJson(name, "goals", data, existing?.data);
             console.log(`  goals (sheet ${perfId.slice(0, 8)}…): jan goal=${jan.goal} budget=${jan.budget}`, match.match ? "OK" : "CHANGED");
             if (!dryRun) {

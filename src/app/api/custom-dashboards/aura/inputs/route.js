@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getInputs, requireAuraAccess, setInput } from "@/lib/customDashboardInputs";
-import { AURA_INPUT_KEYS, normalizeFilter, normalizeGoals, sanitizeAuraInput } from "@/lib/auraInputs";
+import { AURA_INPUT_KEYS, normalizeFilter, normalizeGoalsByYear, sanitizeAuraInput } from "@/lib/auraInputs";
 
 /** GET /api/custom-dashboards/aura/inputs?customerId=... returns the hand-entered Aura values. */
 export async function GET(req) {
@@ -8,10 +8,19 @@ export async function GET(req) {
     const access = await requireAuraAccess(customerId);
     if (access.error) return NextResponse.json({ error: access.error.message }, { status: access.error.status });
     const stored = await getInputs(customerId, "aura");
+    const goals = normalizeGoalsByYear(stored.goals);
+    // Persist legacy flat Jan–Dec arrays as { "2026": [...] } once, so years are explicit in Mongo.
+    if (Array.isArray(stored.goals)) {
+        try {
+            await setInput(customerId, "aura", "goals", goals, "migrate-goals-year-2026");
+        } catch (err) {
+            console.warn("[aura/inputs] goals year migrate skipped:", err?.message || err);
+        }
+    }
     return NextResponse.json({
         conversions: stored.conversions || [],
         campaigns: stored.campaigns || [],
-        goals: normalizeGoals(stored.goals),
+        goals,
         filter: normalizeFilter(stored.filter),
     });
 }

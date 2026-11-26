@@ -5,11 +5,15 @@
  * Stored per customer under the dashboard "aura" in CustomDashboardInput:
  *  - conversions: [{ date, value, ejeNy, ejeEks, lejeNy, lejeEks }]  daily Emob conversions
  *  - campaigns:   [{ name, channel, budget, startDate, endDate }]    planned campaign budgets ("Other" cost)
- *  - goals:       [{ goal, budget }] x 12                            monthly customer goal and budget (Jan to Dec)
+ *  - goals:       { "2026": [{ goal, budget } x 12], ... }           monthly customer goal/budget per calendar year
+ *                 (legacy flat [{ goal, budget } x 12] is treated as year 2026)
  *  - filter:      { enabled, google: {...}, meta: {...} }            account wide campaign name filter, see normalizeFilter
  */
 
 export const AURA_INPUT_KEYS = ["conversions", "campaigns", "goals", "filter"];
+
+/** Year used when migrating legacy flat goals arrays (pre year-keyed storage). */
+export const AURA_GOALS_LEGACY_YEAR = 2026;
 
 /** "Kanal" in the sheet. Only Emob feeds the Aura dashboard, the others are kept for reference. */
 export const AURA_CHANNELS = ["Emob", "EL", "Fiber"];
@@ -64,8 +68,53 @@ export function conversionSeries(rows, startDate, endDate) {
 }
 
 /** 12 monthly goals (Jan to Dec). Missing values are 0. */
-export function normalizeGoals(goals) {
-    return Array.from({ length: 12 }, (_, i) => ({ goal: num(goals?.[i]?.goal), budget: num(goals?.[i]?.budget) }));
+export function normalizeMonthGoals(months) {
+    return Array.from({ length: 12 }, (_, i) => ({
+        goal: num(months?.[i]?.goal),
+        budget: num(months?.[i]?.budget),
+    }));
+}
+
+/**
+ * Year-keyed goals map. Legacy flat arrays become `{ "2026": [...] }`.
+ * @returns {Record<string, { goal: number, budget: number }[]>}
+ */
+export function normalizeGoalsByYear(goals) {
+    if (Array.isArray(goals)) {
+        return { [String(AURA_GOALS_LEGACY_YEAR)]: normalizeMonthGoals(goals) };
+    }
+    if (!goals || typeof goals !== "object") {
+        return { [String(AURA_GOALS_LEGACY_YEAR)]: normalizeMonthGoals([]) };
+    }
+    /** @type {Record<string, { goal: number, budget: number }[]>} */
+    const out = {};
+    for (const [rawYear, months] of Object.entries(goals)) {
+        const year = String(rawYear || "").trim();
+        if (!/^\d{4}$/.test(year)) continue;
+        out[year] = normalizeMonthGoals(months);
+    }
+    if (Object.keys(out).length === 0) {
+        out[String(AURA_GOALS_LEGACY_YEAR)] = normalizeMonthGoals([]);
+    }
+    return out;
+}
+
+/**
+ * 12 monthly goals for one calendar year (zeros when that year has no saved goals).
+ * @param {unknown} goals — flat legacy array or year-keyed map
+ * @param {number|string} [year]
+ */
+export function normalizeGoals(goals, year = AURA_GOALS_LEGACY_YEAR) {
+    const byYear = normalizeGoalsByYear(goals);
+    return byYear[String(year)] || normalizeMonthGoals([]);
+}
+
+/** Sorted list of years present in a goals blob (legacy flat → [2026]). */
+export function listGoalYears(goals) {
+    return Object.keys(normalizeGoalsByYear(goals))
+        .map(Number)
+        .filter((y) => Number.isFinite(y))
+        .sort((a, b) => a - b);
 }
 
 const text = (v, max) => String(v ?? "").trim().slice(0, max);
@@ -88,7 +137,7 @@ export function normalizeFilter(filter) {
 /** Validates and cleans what the editor sends. Throws with a readable message. */
 export function sanitizeAuraInput(key, data) {
     if (!AURA_INPUT_KEYS.includes(key)) throw new Error(`Unknown input "${key}"`);
-    if (key === "goals") return normalizeGoals(data);
+    if (key === "goals") return normalizeGoalsByYear(data);
     if (key === "filter") return normalizeFilter(data);
     if (!Array.isArray(data)) throw new Error("Expected a list");
     if (data.length > 5000) throw new Error("Too many rows");

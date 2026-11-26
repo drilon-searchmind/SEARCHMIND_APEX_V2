@@ -212,7 +212,9 @@ export async function fetchMcpAuraDashboard(customerId, query = {}) {
     const costChannel = auraCostChannelForCustomerName(customer.customerName);
     const conversions = conversionSeries(stored.conversions, range.startDate, range.endDate);
     const otherCost = otherCostSeries(stored.campaigns, range.startDate, range.endDate, costChannel);
-    const goals = normalizeGoals(stored.goals);
+    const start = new Date(`${range.startDate}T00:00:00Z`);
+    const year = start.getUTCFullYear();
+    const goals = normalizeGoals(stored.goals, year);
 
     const [google, meta] = await Promise.all([
         fetchGoogleFiltered(customer, range.startDate, range.endDate, filter, useFilter),
@@ -227,8 +229,7 @@ export async function fetchMcpAuraDashboard(customerId, query = {}) {
     const cac =
         sheetConversions > 0 && totalSpend != null ? round2(totalSpend / sheetConversions) : null;
 
-    // Goals for the start month (pace report uses calendar month goals).
-    const start = new Date(`${range.startDate}T00:00:00Z`);
+    // Goals for the start month of the requested year (pace report uses calendar month goals).
     const monthIndex = start.getUTCMonth();
     const monthGoal = goals[monthIndex] || { goal: 0, budget: 0 };
 

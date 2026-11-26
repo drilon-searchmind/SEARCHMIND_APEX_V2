@@ -5,7 +5,15 @@ import { useParams } from "next/navigation";
 import DashboardHeading from "@/components/dashboard/DashboardHeading";
 import CobaltLoader from "@/components/ui/CobaltLoader";
 import { useCustomers } from "@/hooks/useCustomers";
-import { AURA_CHANNELS, AURA_COST_CHANNEL, conversionTotal } from "@/lib/auraInputs";
+import {
+    AURA_CHANNELS,
+    AURA_COST_CHANNEL,
+    AURA_GOALS_LEGACY_YEAR,
+    conversionTotal,
+    listGoalYears,
+    normalizeGoalsByYear,
+    normalizeMonthGoals,
+} from "@/lib/auraInputs";
 import { MONTH_NAMES } from "./auraSheetLogic";
 import { fetchJson, isoDate } from "./auraApi";
 import AuraFilterEditor from "./AuraFilterEditor";
@@ -187,13 +195,86 @@ function CampaignsEditor({ rows, setRows }) {
     );
 }
 
-function GoalsEditor({ rows, setRows }) {
-    const update = (i, patch) => setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+function GoalsEditor({ goalsByYear, setGoalsByYear }) {
+    const byYear = useMemo(() => normalizeGoalsByYear(goalsByYear), [goalsByYear]);
+    const years = useMemo(() => listGoalYears(byYear), [byYear]);
+    const [year, setYear] = useState(() => years[years.length - 1] || AURA_GOALS_LEGACY_YEAR);
+    const [addYearDraft, setAddYearDraft] = useState("");
+
+    useEffect(() => {
+        if (!years.includes(year)) {
+            setYear(years[years.length - 1] || AURA_GOALS_LEGACY_YEAR);
+        }
+    }, [years, year]);
+
+    const rows = byYear[String(year)] || normalizeMonthGoals([]);
+
+    const updateMonth = (i, patch) => {
+        setGoalsByYear((prev) => {
+            const next = normalizeGoalsByYear(prev);
+            const months = [...(next[String(year)] || normalizeMonthGoals([]))];
+            months[i] = { ...months[i], ...patch };
+            next[String(year)] = months;
+            return next;
+        });
+    };
+
+    const addYear = () => {
+        const y = Number(String(addYearDraft).trim());
+        if (!Number.isInteger(y) || y < 2000 || y > 2100) return;
+        setGoalsByYear((prev) => {
+            const next = normalizeGoalsByYear(prev);
+            if (!next[String(y)]) {
+                // Prefer copying the latest existing year so 2027 starts from 2026 values.
+                const sourceYear = years[years.length - 1];
+                next[String(y)] = normalizeMonthGoals(sourceYear != null ? next[String(sourceYear)] : []);
+            }
+            return next;
+        });
+        setYear(y);
+        setAddYearDraft("");
+    };
+
     return (
         <div>
             <div className="cd-editor__toolbar">
+                <label className="cd-field">
+                    <span>Year</span>
+                    <select
+                        className="cd-input"
+                        aria-label="Goals year"
+                        value={year}
+                        onChange={(e) => setYear(Number(e.target.value))}
+                    >
+                        {years.map((y) => (
+                            <option key={y} value={y}>
+                                {y}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+                <label className="cd-field">
+                    <span>Add year</span>
+                    <div className="cd-editor__year-add">
+                        <input
+                            type="number"
+                            className="cd-input"
+                            min={2000}
+                            max={2100}
+                            step={1}
+                            placeholder="e.g. 2027"
+                            value={addYearDraft}
+                            onChange={(e) => setAddYearDraft(e.target.value)}
+                            aria-label="New goals year"
+                        />
+                        <button type="button" className="apex-perf-btn" onClick={addYear} disabled={!addYearDraft}>
+                            Add
+                        </button>
+                    </div>
+                </label>
                 <p className="cd-editor__hint">
-                    Monthly customer goal and budget. The CAC goal line on the chart is budget divided by customer goal.
+                    Monthly customer goal and budget for <strong>{year}</strong>. Pace, performance charts and CAC goal
+                    (budget ÷ customer goal) use this year&apos;s row when viewing that calendar year.
                 </p>
             </div>
             <div className="cd-table-wrap">
@@ -208,15 +289,25 @@ function GoalsEditor({ rows, setRows }) {
                     </thead>
                     <tbody>
                         {rows.map((g, i) => (
-                            <tr key={MONTH_NAMES[i]}>
+                            <tr key={`${year}-${MONTH_NAMES[i]}`}>
                                 <td>{MONTH_NAMES[i]}</td>
                                 <td>
-                                    <NumberCell value={g.goal} label={`Goal ${MONTH_NAMES[i]}`} onChange={(v) => update(i, { goal: v ?? 0 })} />
+                                    <NumberCell
+                                        value={g.goal}
+                                        label={`Goal ${MONTH_NAMES[i]} ${year}`}
+                                        onChange={(v) => updateMonth(i, { goal: v ?? 0 })}
+                                    />
                                 </td>
                                 <td>
-                                    <NumberCell value={g.budget} label={`Budget ${MONTH_NAMES[i]}`} onChange={(v) => update(i, { budget: v ?? 0 })} />
+                                    <NumberCell
+                                        value={g.budget}
+                                        label={`Budget ${MONTH_NAMES[i]} ${year}`}
+                                        onChange={(v) => updateMonth(i, { budget: v ?? 0 })}
+                                    />
                                 </td>
-                                <td className="cd-table__num">{g.goal > 0 && g.budget > 0 ? nf2.format(g.budget / g.goal) : "N/A"}</td>
+                                <td className="cd-table__num">
+                                    {g.goal > 0 && g.budget > 0 ? nf2.format(g.budget / g.goal) : "N/A"}
+                                </td>
                             </tr>
                         ))}
                     </tbody>
@@ -338,7 +429,9 @@ export default function AuraInputs() {
 
                     {tab === "conversions" ? <ConversionsEditor rows={draft.conversions} setRows={setRows("conversions")} /> : null}
                     {tab === "campaigns" ? <CampaignsEditor rows={draft.campaigns} setRows={setRows("campaigns")} /> : null}
-                    {tab === "goals" ? <GoalsEditor rows={draft.goals} setRows={setRows("goals")} /> : null}
+                    {tab === "goals" ? (
+                        <GoalsEditor goalsByYear={draft.goals} setGoalsByYear={setRows("goals")} />
+                    ) : null}
                     {tab === "filter" ? <AuraFilterEditor customerId={customerId} value={draft.filter} setValue={setRows("filter")} /> : null}
                 </section>
             )}

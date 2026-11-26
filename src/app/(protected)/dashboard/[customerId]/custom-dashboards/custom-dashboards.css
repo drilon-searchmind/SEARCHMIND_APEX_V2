@@ -206,6 +206,16 @@
   margin: var(--space-md) 0;
 }
 
+.cd-editor__year-add {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.cd-editor__year-add .cd-input {
+  max-width: 7rem;
+}
+
 .cd-editor__hint {
   margin: 0;
   max-width: 44rem;
